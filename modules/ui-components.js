@@ -124,6 +124,9 @@ function renderMainPanel() {
             <button class="yyt-btn yyt-btn-small yyt-btn-icon" data-action="load" title="加载配置">
               <i class="fa-solid fa-download"></i>
             </button>
+            <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-edit" data-action="edit" title="编辑预设">
+              <i class="fa-solid fa-pen"></i>
+            </button>
             <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger" data-action="delete" title="删除">
               <i class="fa-solid fa-trash"></i>
             </button>
@@ -456,6 +459,17 @@ function bindEvents() {
           fillFormWithConfig(preset.apiConfig);
           $container.find(`#${SCRIPT_ID}-preset-select`).val(presetName);
           showToast('info', `已加载预设 "${presetName}" 的配置`);
+        }
+        break;
+        
+      case 'edit':
+        // 编辑预设 - 加载配置到表单并打开编辑对话框
+        const presetToEdit = getPreset(presetName);
+        if (presetToEdit) {
+          fillFormWithConfig(presetToEdit.apiConfig);
+          $container.find(`#${SCRIPT_ID}-preset-select`).val(presetName);
+          // 打开编辑对话框
+          showSavePresetDialog(presetName);
         }
         break;
         
@@ -1056,17 +1070,17 @@ export function getStyles() {
       padding-right: 32px;
     }
     
-    /* 下拉框选项样式 - 确保文字可见 */
+    /* 下拉框选项样式 - 确保文字可见（使用固定颜色值，不使用CSS变量） */
     .yyt-select option {
-      background: #1a1a2e;
-      color: var(--yyt-text);
+      background: #1a1a2e !important;
+      color: #ffffff !important;
       padding: 8px 12px;
     }
     
     .yyt-select option:hover,
     .yyt-select option:checked {
-      background: rgba(123, 183, 255, 0.2);
-      color: #fff;
+      background: #2a2a4e !important;
+      color: #7bb7ff !important;
     }
     
     .yyt-input:hover,
@@ -1207,6 +1221,17 @@ export function getStyles() {
     .yyt-btn-danger:hover {
       background: linear-gradient(135deg, rgba(248, 113, 113, 0.25) 0%, rgba(248, 113, 113, 0.1) 100%);
       box-shadow: 0 4px 15px var(--yyt-error-glow);
+    }
+    
+    .yyt-btn-edit {
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.15) 0%, rgba(123, 183, 255, 0.05) 100%);
+      color: var(--yyt-accent);
+      border: 1px solid rgba(123, 183, 255, 0.25);
+    }
+    
+    .yyt-btn-edit:hover {
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.25) 0%, rgba(123, 183, 255, 0.1) 100%);
+      box-shadow: 0 4px 15px var(--yyt-accent-glow);
     }
     
     .yyt-btn-icon {
