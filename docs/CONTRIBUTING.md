@@ -91,17 +91,23 @@
 
 ```
 youyou_Toolkit/
-├── index.js              # 主源代码
-├── package.json          # 项目配置
-├── README.md             # 项目说明
-├── docs/                 # 文档目录
+├── index.js                    # 主入口文件
+├── package.json                # 项目配置
+├── README.md                   # 项目说明
+├── modules/                    # 模块目录
+│   ├── storage.js              # 存储管理模块
+│   ├── api-connection.js       # API连接管理模块
+│   ├── preset-manager.js       # 预设管理模块
+│   ├── ui-components.js        # UI组件模块
+│   └── regex-extractor.js      # 正则提取模块
+├── docs/                       # 文档目录
 │   ├── API_DOCUMENTATION.md
 │   ├── CONTRIBUTING.md
 │   ├── CHANGELOG.md
 │   └── EXTENSION_GUIDE.md
-├── dist/                 # 构建输出
+├── dist/                       # 构建输出
 │   └── bundle.js
-└── Reference/            # 参考资料
+└── Reference/                  # 参考资料
 ```
 
 ### 本地测试

@@ -44,6 +44,19 @@ npm run build
 
 ## 核心概念
 
+### 插件架构
+
+YouYou Toolkit 采用模块化架构设计，主要包含以下核心模块：
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 主入口 | `index.js` | 弹窗管理、菜单注册、模块协调 |
+| 存储模块 | `modules/storage.js` | 设置持久化存储 |
+| API连接 | `modules/api-connection.js` | API配置与请求 |
+| 预设管理 | `modules/preset-manager.js` | API预设CRUD |
+| UI组件 | `modules/ui-components.js` | 界面渲染与事件 |
+| 正则提取 | `modules/regex-extractor.js` | 正则模板与提取 |
+
 ### 插件生命周期
 
 ```

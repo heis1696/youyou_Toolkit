@@ -1,6 +1,6 @@
 # API 文档
 
-本文档详细说明 YouYou Toolkit v0.2.0 提供的 API 接口。
+本文档详细说明 YouYou Toolkit v0.3.0 提供的 API 接口。
 
 ## 模块导入
 
@@ -76,7 +76,7 @@ console.log(YouYouToolkit.id); // "youyou_toolkit"
 
 - **类型**: `(pageName: string) => void`
 - **参数**:
-  - `pageName`: 页面名称，可选值：`'welcome'` | `'api'`
+  - `pageName`: 页面名称，可选值：`'welcome'` | `'api'` | `'regex'`
 
 ---
 
@@ -234,9 +234,226 @@ const presetMgr = YouYouToolkit.getPresetManager();
 ```javascript
 const ui = YouYouToolkit.getUiComponents();
 // ui.render(container)
+// ui.renderRegex(container)
 // ui.getStyles()
+// ui.getRegexStyles()
 // ui.getCurrentTab()
 // ui.setCurrentTab(tab)
+```
+
+### `getRegexExtractor()`
+
+获取正则提取模块。
+
+```javascript
+const regex = YouYouToolkit.getRegexExtractor();
+// regex.getAllTemplates()
+// regex.getTemplate(id)
+// regex.createTemplate(template)
+// regex.updateTemplate(id, updates)
+// regex.deleteTemplate(id)
+// regex.testRegex(pattern, text, flags, groupIndex)
+// regex.extractWithTemplate(templateId, text)
+// regex.generateExtractionScript(templateId, source, varName)
+// regex.generateReplaceScript(pattern, replacement, source)
+// regex.exportTemplates()
+// regex.importTemplates(json, options)
+```
+
+---
+
+## 正则提取模块 API
+
+### 模板管理
+
+#### `getAllTemplates()`
+
+获取所有正则模板。
+
+- **类型**: `() => Array<RegexTemplate>`
+- **返回**: 模板数组
+
+```javascript
+const regex = YouYouToolkit.getRegexExtractor();
+const templates = regex.getAllTemplates();
+console.log(templates);
+// [
+//   {
+//     id: 'json-content',
+//     name: 'JSON内容提取',
+//     description: '提取JSON格式的内容',
+//     pattern: '"content"\\s*:\\s*"([^"]+)"',
+//     flags: 'g',
+//     groupIndex: 1
+//   },
+//   ...
+// ]
+```
+
+#### `getTemplate(id)`
+
+获取指定模板。
+
+- **类型**: `(id: string) => RegexTemplate | undefined`
+- **参数**: `id` - 模板ID
+
+#### `createTemplate(template)`
+
+创建新模板。
+
+- **类型**: `(template: Object) => { success: boolean, message: string, template?: RegexTemplate }`
+
+```javascript
+const result = regex.createTemplate({
+  name: '我的模板',
+  description: '提取特定内容',
+  pattern: '```(\\w*)\\n([\\s\\S]*?)```',
+  flags: 'g',
+  groupIndex: 2
+});
+```
+
+#### `updateTemplate(id, updates)`
+
+更新模板。
+
+- **类型**: `(id: string, updates: Object) => { success: boolean, message: string }`
+
+#### `deleteTemplate(id)`
+
+删除模板。
+
+- **类型**: `(id: string) => { success: boolean, message: string }`
+
+### 正则测试
+
+#### `testRegex(pattern, text, flags, groupIndex)`
+
+测试正则表达式。
+
+- **类型**: `(pattern: string, text: string, flags?: string, groupIndex?: number) => Object`
+- **参数**:
+  - `pattern`: 正则表达式
+  - `text`: 测试文本
+  - `flags`: 标志位，默认 `'g'`
+  - `groupIndex`: 捕获组索引，默认 `0`
+- **返回**: `{ success: boolean, matches: Array, count: number, extracted: Array, error?: string }`
+
+```javascript
+const result = regex.testRegex('"([^"]+)"', '他说"你好"然后"再见"', 'g', 1);
+if (result.success) {
+  console.log(`找到 ${result.count} 个匹配`);
+  console.log('提取内容:', result.extracted); // ['你好', '再见']
+}
+```
+
+#### `extractWithTemplate(templateId, text)`
+
+使用模板提取内容。
+
+- **类型**: `(templateId: string, text: string) => Object`
+
+```javascript
+const result = regex.extractWithTemplate('code-block', '这是一段代码：\n```javascript\nconsole.log("Hello");\n```\n结束');
+```
+
+### 脚本生成
+
+#### `generateExtractionScript(templateId, source, varName)`
+
+生成STScript提取脚本。
+
+- **类型**: `(templateId: string, source?: string, varName?: string) => string | null`
+- **参数**:
+  - `templateId`: 模板ID
+  - `source`: 消息源，默认 `'lastMessage'`
+  - `varName`: 变量名，默认 `'extracted_content'`
+
+```javascript
+const script = regex.generateExtractionScript('dialogue-quote', 'lastMessage', 'dialogues');
+// 返回: /match pattern="\"([^\"]+)\"" {{lastMessage}} | /setvar key=dialogues
+```
+
+#### `generateReplaceScript(pattern, replacement, source)`
+
+生成正则替换脚本。
+
+- **类型**: `(pattern: string, replacement: string, source?: string) => string`
+
+```javascript
+const script = regex.generateReplaceScript('\\b\\w{4}\\b', '****', 'lastMessage');
+```
+
+### 导入导出
+
+#### `exportTemplates()`
+
+导出所有模板为JSON字符串。
+
+```javascript
+const json = regex.exportTemplates();
+// 保存到文件...
+```
+
+#### `importTemplates(json, options)`
+
+导入模板。
+
+- **参数**:
+  - `json`: JSON字符串
+  - `options`: `{ overwrite: boolean }` - 是否覆盖现有模板
+
+```javascript
+const result = regex.importTemplates(jsonString, { overwrite: false });
+console.log(`导入了 ${result.imported} 个模板`);
+```
+
+### 消息源常量
+
+`MESSAGE_MACROS` 提供了SillyTavern消息源的映射：
+
+```javascript
+console.log(regex.MESSAGE_MACROS);
+// {
+//   lastMessage: { macro: '{{lastMessage}}', description: '最后一条消息' },
+//   lastCharMessage: { macro: '{{lastCharMessage}}', description: '最后一条角色消息' },
+//   lastUserMessage: { macro: '{{lastUserMessage}}', description: '最后一条用户消息' },
+//   char: { macro: '{{char}}', description: '角色名称' },
+//   user: { macro: '{{user}}', description: '用户名称' },
+//   input: { macro: '{{input}}', description: '当前输入框内容' }
+// }
+```
+
+---
+
+## 正则模板对象结构
+
+```typescript
+interface RegexTemplate {
+  // 模板ID
+  id: string;
+  
+  // 模板名称
+  name: string;
+  
+  // 模板描述
+  description: string;
+  
+  // 正则表达式
+  pattern: string;
+  
+  // 标志位 (g/i/m)
+  flags: string;
+  
+  // 捕获组索引
+  groupIndex: number;
+  
+  // 创建时间
+  createdAt?: string;
+  
+  // 更新时间
+  updatedAt?: string;
+}
 ```
 
 ---

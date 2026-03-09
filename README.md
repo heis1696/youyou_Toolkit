@@ -1,6 +1,6 @@
 # YouYou Toolkit - SillyTavern 工具插件
 
-一个轻量级的 SillyTavern 工具插件框架，支持API连接管理与预设管理功能。
+一个轻量级的 SillyTavern 工具插件框架，支持API连接管理、预设管理与正则提取功能。
 
 ## ✨ 功能特点
 
