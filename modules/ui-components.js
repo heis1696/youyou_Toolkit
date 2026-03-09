@@ -42,7 +42,7 @@ function escapeHtml(unsafe) {
 
 function showToast(type, message, duration = 3000) {
   // 尝试使用SillyTavern的toastr
-  const topWindow = (typeof window.parent !== 'undefined' ? window.parent : window);
+  const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window) ? window.parent : window;
   
   if (topWindow.toastr) {
     topWindow.toastr[type](message, 'YouYou 工具箱', {
@@ -62,6 +62,36 @@ function showToast(type, message, duration = 3000) {
 
 let currentTab = 'api';
 let $container = null;
+let cachedJQuery = null;
+
+// 获取jQuery（兼容顶层窗口）- 缓存结果确保一致性
+function getJQuery() {
+  if (cachedJQuery) return cachedJQuery;
+  
+  // 优先从父窗口获取jQuery
+  if (typeof window.parent !== 'undefined' && window.parent !== window) {
+    try {
+      if (window.parent.jQuery) {
+        cachedJQuery = window.parent.jQuery;
+        return cachedJQuery;
+      }
+    } catch (e) {
+      // 跨域或其他错误，忽略
+    }
+  }
+  
+  // 回退到当前窗口的jQuery
+  if (window.jQuery) {
+    cachedJQuery = window.jQuery;
+  }
+  
+  return cachedJQuery;
+}
+
+// 检查容器是否有效
+function isContainerValid() {
+  return $container && $container.length > 0;
+}
 
 /**
  * 渲染Tab导航
@@ -368,8 +398,11 @@ function renderTestPanel() {
 // ============================================================
 
 function bindEvents() {
-  const $ = (typeof window.parent !== 'undefined' ? window.parent : window).jQuery || window.jQuery;
-  if (!$ || !$container) return;
+  const $ = getJQuery();
+  if (!$ || !isContainerValid()) {
+    console.warn('[YouYouToolkit] bindEvents: jQuery或容器不可用');
+    return;
+  }
   
   // Tab切换
   $container.find('.yyt-tab-item').off('click').on('click', function() {
@@ -395,7 +428,8 @@ function bindEvents() {
 }
 
 function bindApiConfigEvents() {
-  const $ = (typeof window.parent !== 'undefined' ? window.parent : window).jQuery || window.jQuery;
+  const $ = getJQuery();
+  if (!$ || !isContainerValid()) return;
   
   // 切换主API
   $container.find(`#${SCRIPT_ID}-use-main-api`).on('change', function() {
@@ -491,7 +525,8 @@ function bindApiConfigEvents() {
 }
 
 function bindPresetManagerEvents() {
-  const $ = (typeof window.parent !== 'undefined' ? window.parent : window).jQuery || window.jQuery;
+  const $ = getJQuery();
+  if (!$ || !isContainerValid()) return;
   
   // 预设项操作
   $container.find('.yyt-preset-item').on('click', function(e) {
@@ -591,7 +626,8 @@ function bindPresetManagerEvents() {
 }
 
 function bindTestEvents() {
-  const $ = (typeof window.parent !== 'undefined' ? window.parent : window).jQuery || window.jQuery;
+  const $ = getJQuery();
+  if (!$ || !isContainerValid()) return;
   
   // 测试连接
   $container.find(`#${SCRIPT_ID}-test-connection`).on('click', async function() {
@@ -681,12 +717,23 @@ function bindTestEvents() {
 // ============================================================
 
 function getFormApiConfig() {
-  const $ = (typeof window.parent !== 'undefined' ? window.parent : window).jQuery || window.jQuery;
+  const $ = getJQuery();
+  if (!$ || !isContainerValid()) {
+    return {
+      url: '',
+      apiKey: '',
+      model: '',
+      useMainApi: true,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.9
+    };
+  }
   
   return {
-    url: $container.find(`#${SCRIPT_ID}-api-url`).val().trim(),
-    apiKey: $container.find(`#${SCRIPT_ID}-api-key`).val(),
-    model: $container.find(`#${SCRIPT_ID}-model`).val().trim(),
+    url: $container.find(`#${SCRIPT_ID}-api-url`).val()?.trim() || '',
+    apiKey: $container.find(`#${SCRIPT_ID}-api-key`).val() || '',
+    model: $container.find(`#${SCRIPT_ID}-model`).val()?.trim() || '',
     useMainApi: $container.find(`#${SCRIPT_ID}-use-main-api`).is(':checked'),
     max_tokens: parseInt($container.find(`#${SCRIPT_ID}-max-tokens`).val()) || 4096,
     temperature: parseFloat($container.find(`#${SCRIPT_ID}-temperature`).val()) ?? 0.7,
@@ -699,8 +746,6 @@ function showPresetEditDialog(presetName) {
   if (!preset) return;
   
   // 简单实现：使用prompt
-  const $ = (typeof window.parent !== 'undefined' ? window.parent : window).jQuery || window.jQuery;
-  
   const newDescription = prompt('编辑预设描述:', preset.description || '');
   if (newDescription !== null) {
     updatePreset(presetName, { description: newDescription });
@@ -714,7 +759,30 @@ function showPresetEditDialog(presetName) {
 // ============================================================
 
 export function render(container) {
-  $container = typeof container === 'string' ? $(container) : container;
+  const $ = getJQuery();
+  if (!$) {
+    console.error('[YouYouToolkit] jQuery not available');
+    return;
+  }
+  
+  // 确保 $container 是 jQuery 对象
+  if (typeof container === 'string') {
+    $container = $(container);
+  } else if (container && container.jquery) {
+    // 已经是 jQuery 对象
+    $container = container;
+  } else if (container) {
+    // 原生 DOM 元素
+    $container = $(container);
+  } else {
+    console.error('[YouYouToolkit] Invalid container');
+    return;
+  }
+  
+  if (!$container || !$container.length) {
+    console.error('[YouYouToolkit] Container not found');
+    return;
+  }
   
   const html = `
     <div class="yyt-api-manager">

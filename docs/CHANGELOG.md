@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+### 修复
+
+- 🐛 **UI组件模块** (`modules/ui-components.js`)
+  - 修复 jQuery 实例不一致导致的事件绑定失败问题
+  - 修复 `$container` 可能为 undefined 导致的 "Cannot read properties of undefined" 错误
+  - 新增 jQuery 缓存机制 (`cachedJQuery`) 确保全局一致性
+  - 新增 `isContainerValid()` 函数检查容器有效性
+  - 改进所有事件绑定函数的空值检查和错误处理
+  - 修复 `getFormApiConfig()` 函数的空值安全问题
+
 ### 计划中的功能
 
 - 事件监听系统
