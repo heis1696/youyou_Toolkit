@@ -590,10 +590,6 @@ function openPopup() {
                 <span>预设管理 - 保存和切换多套API配置</span>
               </div>
               <div class="yyt-feature-item">
-                <i class="fa-solid fa-flask"></i>
-                <span>连接测试 - 验证API配置是否正确</span>
-              </div>
-              <div class="yyt-feature-item">
                 <i class="fa-solid fa-file-import"></i>
                 <span>导入导出 - 方便备份和分享配置</span>
               </div>
