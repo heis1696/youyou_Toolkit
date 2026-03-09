@@ -1,7 +1,7 @@
 {
   "name": "youyou-toolkit",
-  "version": "0.1.0",
-  "description": "YouYou工具箱 - SillyTavern工具插件",
+  "version": "0.2.0",
+  "description": "YouYou工具箱 - SillyTavern工具插件，支持API连接与预设管理",
   "main": "index.js",
   "type": "module",
   "scripts": {
