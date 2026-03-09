@@ -24,6 +24,7 @@ let storageModule = null;
 let apiConnectionModule = null;
 let presetManagerModule = null;
 let uiComponentsModule = null;
+let regexExtractorModule = null;
 
 async function loadModules() {
   try {
@@ -33,6 +34,7 @@ async function loadModules() {
     apiConnectionModule = await import('./modules/api-connection.js');
     presetManagerModule = await import('./modules/preset-manager.js');
     uiComponentsModule = await import('./modules/ui-components.js');
+    regexExtractorModule = await import('./modules/regex-extractor.js');
     return true;
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] 模块加载失败，使用内置功能:`, error);
@@ -522,6 +524,14 @@ function switchPage(pageName) {
       uiComponentsModule.render($apiContainer);
     }
   }
+  
+  // 如果切换到正则提取页面，渲染组件
+  if (pageName === 'regex' && uiComponentsModule) {
+    const $regexContainer = $(currentPopup).find('#youyou_toolkit-regex-container');
+    if ($regexContainer.length) {
+      uiComponentsModule.renderRegex($regexContainer);
+    }
+  }
 }
 
 function openPopup() {
@@ -573,6 +583,10 @@ function openPopup() {
             <i class="fa-solid fa-plug"></i>
             <span>API管理</span>
           </div>
+          <div class="yyt-nav-item" data-page="regex">
+            <i class="fa-solid fa-regex"></i>
+            <span>正则提取</span>
+          </div>
         </div>
         
         <div class="yyt-page active" data-page="welcome">
@@ -590,6 +604,10 @@ function openPopup() {
                 <span>预设管理 - 保存和切换多套API配置</span>
               </div>
               <div class="yyt-feature-item">
+                <i class="fa-solid fa-regex"></i>
+                <span>正则提取 - 从消息中提取特定内容</span>
+              </div>
+              <div class="yyt-feature-item">
                 <i class="fa-solid fa-file-import"></i>
                 <span>导入导出 - 方便备份和分享配置</span>
               </div>
@@ -603,6 +621,10 @@ function openPopup() {
         
         <div class="yyt-page" data-page="api">
           <div id="${SCRIPT_ID}-api-container"></div>
+        </div>
+        
+        <div class="yyt-page" data-page="regex">
+          <div id="${SCRIPT_ID}-regex-container"></div>
         </div>
       </div>
       
@@ -726,6 +748,7 @@ const YouYouToolkit = {
   getApiConnection: () => apiConnectionModule,
   getPresetManager: () => presetManagerModule,
   getUiComponents: () => uiComponentsModule,
+  getRegexExtractor: () => regexExtractorModule,
   
   // 便捷方法
   async getApiConfig() {
@@ -789,6 +812,15 @@ async function init() {
         uiStyle.id = uiStyleId;
         uiStyle.textContent = uiComponentsModule.getStyles();
         (targetDoc.head || targetDoc.documentElement).appendChild(uiStyle);
+      }
+      
+      // 注入正则提取面板样式
+      const regexStyleId = `${SCRIPT_ID}-regex-styles`;
+      if (!targetDoc.getElementById(regexStyleId) && uiComponentsModule.getRegexStyles) {
+        const regexStyle = targetDoc.createElement('style');
+        regexStyle.id = regexStyleId;
+        regexStyle.textContent = uiComponentsModule.getRegexStyles();
+        (targetDoc.head || targetDoc.documentElement).appendChild(regexStyle);
       }
     }
   } else {

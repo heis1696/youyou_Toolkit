@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - UI组件模块
- * @description 提供API配置和预设管理的UI组件（合并版）
+ * @description 提供API配置、预设管理和正则提取的UI组件（合并版）
  */
 
 import { getApiConfig, updateApiConfig, fetchAvailableModels, validateApiConfig } from './api-connection.js';
@@ -20,6 +20,20 @@ import {
   generateUniquePresetName
 } from './preset-manager.js';
 import { loadSettings, saveSettings } from './storage.js';
+import {
+  getAllTemplates,
+  getTemplate,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  testRegex,
+  extractWithTemplate,
+  generateExtractionScript,
+  generateReplaceScript,
+  exportTemplates,
+  importTemplates,
+  MESSAGE_MACROS
+} from './regex-extractor.js';
 
 // ============================================================
 // 常量定义
@@ -104,14 +118,17 @@ function renderMainPanel() {
   const activePresetName = getActivePresetName();
   const presets = getAllPresets();
   
-  // 预设选择下拉选项
+  // 预设选择下拉选项 - 添加星标标记
   const presetOptions = presets.length > 0
-    ? presets.map(p => `<option value="${escapeHtml(p.name)}" ${p.name === activePresetName ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')
+    ? presets.map(p => `<option value="${escapeHtml(p.name)}" ${p.name === activePresetName ? 'selected' : ''}>☆ ${escapeHtml(p.name)}</option>`).join('')
     : '';
   
-  // 预设列表 - 不再显示active状态，只显示loaded状态
-  const presetList = presets.length > 0 
-    ? presets.map(preset => `
+  // 预设列表 - 限制最多显示8条，没有预设时不显示
+  const maxPresetsToShow = 8;
+  const presetsToShow = presets.slice(0, maxPresetsToShow);
+  // 只有当有预设时才显示列表，没有预设时返回空字符串
+  const presetListHtml = presetsToShow.length > 0 
+    ? presetsToShow.map(preset => `
         <div class="yyt-preset-item" data-preset-name="${escapeHtml(preset.name)}">
           <div class="yyt-preset-info">
             <div class="yyt-preset-name">${escapeHtml(preset.name)}</div>
@@ -131,7 +148,7 @@ function renderMainPanel() {
           </div>
         </div>
       `).join('')
-    : '<div class="yyt-empty-state-small"><i class="fa-solid fa-inbox"></i><span>暂无预设</span></div>';
+    : '';
   
   return `
     <div class="yyt-panel">
@@ -152,9 +169,11 @@ function renderMainPanel() {
           </button>
         </div>
         
+        ${presetListHtml ? `
         <div class="yyt-preset-list-compact">
-          ${presetList}
+          ${presetListHtml}
         </div>
+        ` : ''}
       </div>
       
       <!-- API配置区 -->
@@ -420,22 +439,33 @@ function bindEvents() {
     }
   });
   
-  // 应用预设按钮
+  // 应用预设按钮 - 等同于加载键，加载配置并高亮选择
   $container.find(`#${SCRIPT_ID}-apply-preset`).on('click', function() {
     const presetName = $container.find(`#${SCRIPT_ID}-preset-select`).val();
     
     if (!presetName) {
       // 使用当前配置，取消预设选择
       switchToPreset('');
+      currentLoadedPresetName = '';
+      $container.find('.yyt-preset-item').removeClass('yyt-loaded');
       showToast('info', '已切换到当前配置');
       render();
       return;
     }
     
-    const result = switchToPreset(presetName);
-    showToast(result.success ? 'success' : 'error', result.message);
-    if (result.success) {
-      render();
+    // 加载预设配置到表单（等同于加载按钮的功能）
+    const preset = getPreset(presetName);
+    if (preset) {
+      fillFormWithConfig(preset.apiConfig);
+      currentLoadedPresetName = presetName;
+      
+      // 更新预设列表高亮状态
+      $container.find('.yyt-preset-item').removeClass('yyt-loaded');
+      $container.find(`.yyt-preset-item[data-preset-name="${presetName}"]`).addClass('yyt-loaded');
+      
+      showToast('success', `已加载预设 "${presetName}"`);
+    } else {
+      showToast('error', `预设 "${presetName}" 不存在`);
     }
   });
   
@@ -1180,6 +1210,16 @@ export function getStyles() {
     .yyt-model-btn {
       flex-shrink: 0;
       min-width: 40px;
+      color: var(--yyt-accent);
+      border-color: rgba(123, 183, 255, 0.25);
+    }
+    
+    .yyt-model-btn:hover {
+      color: var(--yyt-accent);
+    }
+    
+    .yyt-model-btn i {
+      color: var(--yyt-accent);
     }
     
     .yyt-disabled {
@@ -1407,6 +1447,736 @@ export function getStyles() {
     .yyt-panel-section:nth-child(1) { animation-delay: 0s; }
     .yyt-panel-section:nth-child(2) { animation-delay: 0.05s; }
     .yyt-panel-section:nth-child(3) { animation-delay: 0.1s; }
+  `;
+}
+
+// ============================================================
+// 正则提取面板渲染
+// ============================================================
+
+let $regexContainer = null;
+let currentEditingTemplateId = null;
+
+function renderRegexPanel() {
+  const templates = getAllTemplates();
+  
+  // 模板列表
+  const templateList = templates.length > 0
+    ? templates.map(t => `
+        <div class="yyt-template-item" data-template-id="${escapeHtml(t.id)}">
+          <div class="yyt-template-info">
+            <div class="yyt-template-name">${escapeHtml(t.name)}</div>
+            <div class="yyt-template-desc">${escapeHtml(t.description || '无描述')}</div>
+          </div>
+          <div class="yyt-template-actions">
+            <button class="yyt-btn yyt-btn-small yyt-btn-icon" data-action="use" title="使用此模板">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-edit" data-action="edit" title="编辑">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger" data-action="delete" title="删除">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `).join('')
+    : '<div class="yyt-empty-state-small"><i class="fa-solid fa-regex"></i><span>暂无模板</span></div>';
+  
+  // 消息源选项
+  const sourceOptions = Object.entries(MESSAGE_MACROS).map(([key, value]) => 
+    `<option value="${key}">${value.description} (${value.macro})</option>`
+  ).join('');
+  
+  return `
+    <div class="yyt-regex-panel">
+      <!-- 模板管理区 -->
+      <div class="yyt-panel-section">
+        <div class="yyt-section-title">
+          <i class="fa-solid fa-regex"></i>
+          <span>正则模板</span>
+          <button class="yyt-btn yyt-btn-small yyt-btn-primary" id="${SCRIPT_ID}-new-template" style="margin-left: auto;">
+            <i class="fa-solid fa-plus"></i> 新建
+          </button>
+        </div>
+        
+        <div class="yyt-template-list">
+          ${templateList}
+        </div>
+      </div>
+      
+      <!-- 测试区 -->
+      <div class="yyt-panel-section">
+        <div class="yyt-section-title">
+          <i class="fa-solid fa-flask"></i>
+          <span>正则测试</span>
+        </div>
+        
+        <div class="yyt-form-group">
+          <label>正则表达式</label>
+          <div class="yyt-regex-input-row">
+            <input type="text" class="yyt-input yyt-flex-1" id="${SCRIPT_ID}-regex-pattern" 
+                   placeholder="输入正则表达式，如: ([^\n]+)">
+            <div class="yyt-regex-flags">
+              <label class="yyt-checkbox-label" title="全局匹配">
+                <input type="checkbox" id="${SCRIPT_ID}-regex-flag-g" checked> g
+              </label>
+              <label class="yyt-checkbox-label" title="忽略大小写">
+                <input type="checkbox" id="${SCRIPT_ID}-regex-flag-i"> i
+              </label>
+              <label class="yyt-checkbox-label" title="多行模式">
+                <input type="checkbox" id="${SCRIPT_ID}-regex-flag-m"> m
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div class="yyt-form-group">
+          <label>捕获组索引（0=完整匹配，1=第一个捕获组）</label>
+          <input type="number" class="yyt-input" id="${SCRIPT_ID}-regex-group-index" 
+                 value="1" min="0" max="99" style="width: 80px;">
+        </div>
+        
+        <div class="yyt-form-group">
+          <label>测试文本</label>
+          <textarea class="yyt-textarea" id="${SCRIPT_ID}-regex-test-text" rows="4" 
+                    placeholder="输入要测试的文本内容..."></textarea>
+        </div>
+        
+        <div class="yyt-form-row">
+          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-regex-test">
+            <i class="fa-solid fa-play"></i> 测试匹配
+          </button>
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-regex-clear">
+            <i class="fa-solid fa-eraser"></i> 清空
+          </button>
+        </div>
+        
+        <div class="yyt-form-group" id="${SCRIPT_ID}-regex-result-container" style="display: none;">
+          <label>匹配结果</label>
+          <div class="yyt-regex-result" id="${SCRIPT_ID}-regex-result"></div>
+        </div>
+      </div>
+      
+      <!-- 消息提取区 -->
+      <div class="yyt-panel-section">
+        <div class="yyt-section-title">
+          <i class="fa-solid fa-file-code"></i>
+          <span>消息提取</span>
+        </div>
+        
+        <div class="yyt-form-group">
+          <label>消息来源</label>
+          <select class="yyt-select" id="${SCRIPT_ID}-regex-source">
+            ${sourceOptions}
+          </select>
+        </div>
+        
+        <div class="yyt-form-group">
+          <label>保存到变量名</label>
+          <input type="text" class="yyt-input" id="${SCRIPT_ID}-regex-var-name" 
+                 value="extracted_content" placeholder="变量名">
+        </div>
+        
+        <div class="yyt-form-row">
+          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-regex-generate-script">
+            <i class="fa-solid fa-code"></i> 生成脚本
+          </button>
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-regex-copy-script">
+            <i class="fa-solid fa-copy"></i> 复制脚本
+          </button>
+        </div>
+        
+        <div class="yyt-form-group" id="${SCRIPT_ID}-regex-script-container" style="display: none;">
+          <label>生成的STScript</label>
+          <textarea class="yyt-textarea yyt-code-textarea" id="${SCRIPT_ID}-regex-script" 
+                    rows="3" readonly></textarea>
+        </div>
+      </div>
+      
+      <!-- 底部操作区 -->
+      <div class="yyt-panel-footer">
+        <div class="yyt-footer-left">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-import-regex-templates">
+            <i class="fa-solid fa-file-import"></i> 导入
+          </button>
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-export-regex-templates">
+            <i class="fa-solid fa-file-export"></i> 导出
+          </button>
+          <input type="file" id="${SCRIPT_ID}-import-regex-file" accept=".json" style="display:none">
+        </div>
+        <div class="yyt-footer-right">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-reset-regex">
+            <i class="fa-solid fa-undo"></i> 重置
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 正则模板编辑对话框
+function showTemplateDialog(templateId = null) {
+  const $ = getJQuery();
+  if (!$) return;
+  
+  const template = templateId ? getTemplate(templateId) : null;
+  const isEdit = !!template;
+  
+  const dialogHtml = `
+    <div class="yyt-dialog-overlay" id="${SCRIPT_ID}-template-dialog-overlay">
+      <div class="yyt-dialog yyt-dialog-wide">
+        <div class="yyt-dialog-header">
+          <span class="yyt-dialog-title">${isEdit ? '编辑模板' : '新建正则模板'}</span>
+          <button class="yyt-dialog-close" id="${SCRIPT_ID}-template-dialog-close">
+            <i class="fa-solid fa-times"></i>
+          </button>
+        </div>
+        <div class="yyt-dialog-body">
+          <div class="yyt-form-group">
+            <label>模板名称</label>
+            <input type="text" class="yyt-input" id="${SCRIPT_ID}-template-name" 
+                   value="${template ? escapeHtml(template.name) : ''}" placeholder="输入模板名称">
+          </div>
+          <div class="yyt-form-group">
+            <label>描述</label>
+            <input type="text" class="yyt-input" id="${SCRIPT_ID}-template-desc" 
+                   value="${template ? escapeHtml(template.description || '') : ''}" placeholder="模板描述">
+          </div>
+          <div class="yyt-form-group">
+            <label>正则表达式</label>
+            <input type="text" class="yyt-input" id="${SCRIPT_ID}-template-pattern" 
+                   value="${template ? escapeHtml(template.pattern) : ''}" placeholder="正则表达式">
+          </div>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
+              <label>标志位</label>
+              <input type="text" class="yyt-input" id="${SCRIPT_ID}-template-flags" 
+                     value="${template ? escapeHtml(template.flags || 'g') : 'g'}" placeholder="gim">
+            </div>
+            <div class="yyt-form-group yyt-flex-1">
+              <label>捕获组索引</label>
+              <input type="number" class="yyt-input" id="${SCRIPT_ID}-template-group" 
+                     value="${template ? template.groupIndex || 0 : 1}" min="0" max="99">
+            </div>
+          </div>
+        </div>
+        <div class="yyt-dialog-footer">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-template-dialog-cancel">取消</button>
+          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-template-dialog-save">保存</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // 移除旧对话框
+  $(`#${SCRIPT_ID}-template-dialog-overlay`).remove();
+  
+  // 添加新对话框
+  if ($regexContainer) {
+    $regexContainer.append(dialogHtml);
+  } else {
+    $container.append(dialogHtml);
+  }
+  
+  const $overlay = $(`#${SCRIPT_ID}-template-dialog-overlay`);
+  const $nameInput = $(`#${SCRIPT_ID}-template-name`);
+  
+  // 聚焦到名称输入框
+  $nameInput.focus();
+  
+  // 关闭对话框
+  const closeDialog = () => {
+    $overlay.remove();
+    currentEditingTemplateId = null;
+  };
+  
+  $overlay.find(`#${SCRIPT_ID}-template-dialog-close, #${SCRIPT_ID}-template-dialog-cancel`).on('click', closeDialog);
+  
+  // 点击遮罩关闭
+  $overlay.on('click', function(e) {
+    if (e.target === this) {
+      closeDialog();
+    }
+  });
+  
+  // 保存模板
+  $overlay.find(`#${SCRIPT_ID}-template-dialog-save`).on('click', function() {
+    const name = $nameInput.val().trim();
+    const desc = $(`#${SCRIPT_ID}-template-desc`).val().trim();
+    const pattern = $(`#${SCRIPT_ID}-template-pattern`).val().trim();
+    const flags = $(`#${SCRIPT_ID}-template-flags`).val().trim() || 'g';
+    const groupIndex = parseInt($(`#${SCRIPT_ID}-template-group`).val()) || 0;
+    
+    if (!name) {
+      showToast('warning', '请输入模板名称');
+      $nameInput.focus();
+      return;
+    }
+    
+    if (!pattern) {
+      showToast('warning', '请输入正则表达式');
+      $(`#${SCRIPT_ID}-template-pattern`).focus();
+      return;
+    }
+    
+    // 验证正则表达式
+    try {
+      new RegExp(pattern, flags);
+    } catch (e) {
+      showToast('error', `正则表达式无效: ${e.message}`);
+      return;
+    }
+    
+    let result;
+    if (isEdit && templateId) {
+      result = updateTemplate(templateId, { name, description: desc, pattern, flags, groupIndex });
+    } else {
+      result = createTemplate({ name, description: desc, pattern, flags, groupIndex });
+    }
+    
+    if (result.success) {
+      showToast('success', result.message);
+      closeDialog();
+      renderRegex($regexContainer || $container);
+    } else {
+      showToast('error', result.message);
+    }
+  });
+}
+
+// 绑定正则面板事件
+function bindRegexEvents() {
+  const $ = getJQuery();
+  if (!$) return;
+  
+  const $panel = $regexContainer || $container;
+  if (!$panel || !$panel.length) return;
+  
+  // 新建模板
+  $panel.find(`#${SCRIPT_ID}-new-template`).on('click', function() {
+    showTemplateDialog();
+  });
+  
+  // 模板列表项操作
+  $panel.find('.yyt-template-item').on('click', function(e) {
+    const $item = $(this);
+    const templateId = $item.data('template-id');
+    const action = $(e.target).closest('[data-action]').data('action');
+    
+    if (!action) return;
+    
+    e.stopPropagation();
+    
+    const template = getTemplate(templateId);
+    
+    switch (action) {
+      case 'use':
+        // 使用模板填充测试区
+        if (template) {
+          $panel.find(`#${SCRIPT_ID}-regex-pattern`).val(template.pattern);
+          $panel.find(`#${SCRIPT_ID}-regex-group-index`).val(template.groupIndex || 0);
+          
+          // 设置标志位
+          const flags = template.flags || 'g';
+          $panel.find(`#${SCRIPT_ID}-regex-flag-g`).prop('checked', flags.includes('g'));
+          $panel.find(`#${SCRIPT_ID}-regex-flag-i`).prop('checked', flags.includes('i'));
+          $panel.find(`#${SCRIPT_ID}-regex-flag-m`).prop('checked', flags.includes('m'));
+          
+          showToast('info', `已加载模板: ${template.name}`);
+        }
+        break;
+        
+      case 'edit':
+        showTemplateDialog(templateId);
+        break;
+        
+      case 'delete':
+        if (confirm(`确定要删除模板 "${template?.name || templateId}" 吗？`)) {
+          const result = deleteTemplate(templateId);
+          showToast(result.success ? 'info' : 'error', result.message);
+          if (result.success) {
+            renderRegex($panel);
+          }
+        }
+        break;
+    }
+  });
+  
+  // 测试正则
+  $panel.find(`#${SCRIPT_ID}-regex-test`).on('click', function() {
+    const pattern = $panel.find(`#${SCRIPT_ID}-regex-pattern`).val().trim();
+    const text = $panel.find(`#${SCRIPT_ID}-regex-test-text`).val();
+    const groupIndex = parseInt($panel.find(`#${SCRIPT_ID}-regex-group-index`).val()) || 0;
+    
+    // 获取标志位
+    let flags = '';
+    if ($panel.find(`#${SCRIPT_ID}-regex-flag-g`).is(':checked')) flags += 'g';
+    if ($panel.find(`#${SCRIPT_ID}-regex-flag-i`).is(':checked')) flags += 'i';
+    if ($panel.find(`#${SCRIPT_ID}-regex-flag-m`).is(':checked')) flags += 'm';
+    
+    if (!pattern) {
+      showToast('warning', '请输入正则表达式');
+      return;
+    }
+    
+    if (!text) {
+      showToast('warning', '请输入测试文本');
+      return;
+    }
+    
+    const result = testRegex(pattern, text, flags, groupIndex);
+    
+    const $resultContainer = $panel.find(`#${SCRIPT_ID}-regex-result-container`);
+    const $result = $panel.find(`#${SCRIPT_ID}-regex-result`);
+    
+    if (result.success) {
+      $resultContainer.show();
+      
+      if (result.count === 0) {
+        $result.html('<div class="yyt-result-empty">未找到匹配</div>');
+      } else {
+        // 显示匹配结果
+        let resultHtml = `<div class="yyt-result-header">找到 ${result.count} 个匹配:</div>`;
+        resultHtml += '<div class="yyt-result-list">';
+        
+        result.matches.forEach((match, index) => {
+          resultHtml += `
+            <div class="yyt-result-item">
+              <div class="yyt-result-index">#${index + 1}</div>
+              <div class="yyt-result-content">${escapeHtml(match.extracted)}</div>
+            </div>
+          `;
+        });
+        
+        resultHtml += '</div>';
+        
+        // 提取的内容（简化）
+        resultHtml += '<div class="yyt-result-extracted">';
+        resultHtml += '<div class="yyt-result-header">提取内容:</div>';
+        resultHtml += '<pre class="yyt-code-block">' + escapeHtml(result.extracted.join('\n')) + '</pre>';
+        resultHtml += '</div>';
+        
+        $result.html(resultHtml);
+        showToast('success', `找到 ${result.count} 个匹配`);
+      }
+    } else {
+      $resultContainer.show();
+      $result.html(`<div class="yyt-result-error"><i class="fa-solid fa-exclamation-triangle"></i> ${escapeHtml(result.error)}</div>`);
+      showToast('error', result.error);
+    }
+  });
+  
+  // 清空测试
+  $panel.find(`#${SCRIPT_ID}-regex-clear`).on('click', function() {
+    $panel.find(`#${SCRIPT_ID}-regex-pattern`).val('');
+    $panel.find(`#${SCRIPT_ID}-regex-test-text`).val('');
+    $panel.find(`#${SCRIPT_ID}-regex-group-index`).val(1);
+    $panel.find(`#${SCRIPT_ID}-regex-flag-g`).prop('checked', true);
+    $panel.find(`#${SCRIPT_ID}-regex-flag-i`).prop('checked', false);
+    $panel.find(`#${SCRIPT_ID}-regex-flag-m`).prop('checked', false);
+    $panel.find(`#${SCRIPT_ID}-regex-result-container`).hide();
+  });
+  
+  // 生成脚本
+  $panel.find(`#${SCRIPT_ID}-regex-generate-script`).on('click', function() {
+    const pattern = $panel.find(`#${SCRIPT_ID}-regex-pattern`).val().trim();
+    const source = $panel.find(`#${SCRIPT_ID}-regex-source`).val();
+    const varName = $panel.find(`#${SCRIPT_ID}-regex-var-name`).val().trim() || 'extracted_content';
+    
+    if (!pattern) {
+      showToast('warning', '请输入正则表达式');
+      return;
+    }
+    
+    // 构建STScript命令
+    const sourceMacro = MESSAGE_MACROS[source]?.macro || '{{lastMessage}}';
+    const script = `/match pattern="${pattern.replace(/"/g, '\\"')}" ${sourceMacro} | /setvar key=${varName}`;
+    
+    $panel.find(`#${SCRIPT_ID}-regex-script`).val(script);
+    $panel.find(`#${SCRIPT_ID}-regex-script-container`).show();
+    
+    showToast('success', '脚本已生成');
+  });
+  
+  // 复制脚本
+  $panel.find(`#${SCRIPT_ID}-regex-copy-script`).on('click', function() {
+    const script = $panel.find(`#${SCRIPT_ID}-regex-script`).val();
+    
+    if (!script) {
+      showToast('warning', '请先生成脚本');
+      return;
+    }
+    
+    navigator.clipboard.writeText(script).then(() => {
+      showToast('success', '脚本已复制到剪贴板');
+    }).catch(() => {
+      showToast('error', '复制失败，请手动复制');
+    });
+  });
+  
+  // 导入模板
+  $panel.find(`#${SCRIPT_ID}-import-regex-templates`).on('click', function() {
+    $panel.find(`#${SCRIPT_ID}-import-regex-file`).click();
+  });
+  
+  $panel.find(`#${SCRIPT_ID}-import-regex-file`).on('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      const result = importTemplates(text, { overwrite: false });
+      showToast(result.success ? 'success' : 'error', result.message);
+      if (result.success && result.imported > 0) {
+        renderRegex($panel);
+      }
+    } catch (e) {
+      showToast('error', `导入失败: ${e.message}`);
+    }
+    
+    $(this).val('');
+  });
+  
+  // 导出模板
+  $panel.find(`#${SCRIPT_ID}-export-regex-templates`).on('click', function() {
+    try {
+      const json = exportTemplates();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `youyou_toolkit_regex_templates_${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('success', '模板已导出');
+    } catch (e) {
+      showToast('error', `导出失败: ${e.message}`);
+    }
+  });
+  
+  // 重置
+  $panel.find(`#${SCRIPT_ID}-reset-regex`).on('click', function() {
+    if (confirm('确定要重置所有正则模板吗？这将恢复默认模板。')) {
+      const settings = loadSettings();
+      delete settings.regexTemplates;
+      saveSettings(settings);
+      // 重新初始化
+      importTemplates(JSON.stringify([]), { overwrite: true });
+      renderRegex($panel);
+      showToast('info', '正则模板已重置');
+    }
+  });
+}
+
+// 渲染正则面板
+export function renderRegex(container) {
+  const $ = getJQuery();
+  if (!$) {
+    console.error('[YouYouToolkit] jQuery not available');
+    return;
+  }
+  
+  // 更新容器引用
+  if (container) {
+    if (typeof container === 'string') {
+      $regexContainer = $(container);
+    } else if (container && container.jquery) {
+      $regexContainer = container;
+    } else if (container) {
+      $regexContainer = $(container);
+    }
+  }
+  
+  if (!$regexContainer || !$regexContainer.length) {
+    console.error('[YouYouToolkit] Regex container not found');
+    return;
+  }
+  
+  const html = renderRegexPanel();
+  $regexContainer.html(html);
+  bindRegexEvents();
+}
+
+// 获取正则面板样式
+export function getRegexStyles() {
+  return `
+    /* 正则提取面板样式 */
+    .yyt-regex-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .yyt-template-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    
+    .yyt-template-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius-sm);
+      transition: all 0.2s ease;
+    }
+    
+    .yyt-template-item:hover {
+      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    
+    .yyt-template-info {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .yyt-template-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--yyt-text);
+      margin-bottom: 2px;
+    }
+    
+    .yyt-template-desc {
+      font-size: 11px;
+      color: var(--yyt-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .yyt-template-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0.5;
+      transition: opacity 0.2s ease;
+    }
+    
+    .yyt-template-item:hover .yyt-template-actions {
+      opacity: 1;
+    }
+    
+    .yyt-regex-input-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    
+    .yyt-regex-flags {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    
+    .yyt-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--yyt-text-secondary);
+      cursor: pointer;
+    }
+    
+    .yyt-checkbox-label input {
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+    
+    .yyt-regex-result {
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius-sm);
+      padding: 14px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    
+    .yyt-result-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--yyt-text-secondary);
+      margin-bottom: 10px;
+    }
+    
+    .yyt-result-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    
+    .yyt-result-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px 10px;
+      background: rgba(123, 183, 255, 0.05);
+      border-radius: 6px;
+      border: 1px solid rgba(123, 183, 255, 0.1);
+    }
+    
+    .yyt-result-index {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--yyt-accent);
+      min-width: 24px;
+    }
+    
+    .yyt-result-content {
+      font-size: 12px;
+      color: var(--yyt-text);
+      word-break: break-all;
+    }
+    
+    .yyt-result-extracted {
+      padding-top: 10px;
+      border-top: 1px solid var(--yyt-border);
+    }
+    
+    .yyt-code-block {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 11px;
+      color: var(--yyt-success);
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 8px 0 0 0;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    
+    .yyt-code-textarea {
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 11px;
+    }
+    
+    .yyt-result-empty {
+      text-align: center;
+      color: var(--yyt-text-muted);
+      padding: 20px;
+    }
+    
+    .yyt-result-error {
+      color: var(--yyt-error);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .yyt-dialog-wide {
+      width: 480px;
+    }
   `;
 }
 

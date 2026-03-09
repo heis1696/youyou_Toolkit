@@ -23,6 +23,15 @@
 - ✅ 从当前配置快速创建预设
 - ✅ 预设与API配置合并显示，操作更便捷
 
+### 🆕 正则提取
+- ✅ 从消息内容中提取特定文本
+- ✅ 正则表达式测试与验证
+- ✅ 内置常用正则模板（JSON提取、代码块、思考标签等）
+- ✅ 自定义正则模板管理
+- ✅ 生成STScript脚本用于实际提取
+- ✅ 支持多种消息源（最后消息、角色消息、用户消息等）
+- ✅ 模板导入/导出
+
 ## 📦 安装方法
 
 ### 方法一：通过酒馆助手脚本库导入（推荐）
@@ -79,6 +88,42 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
    - 点击"保存为预设"可将当前配置保存为新预设
 4. 点击 **"保存配置"** 按钮保存当前设置
 
+### 正则提取
+
+1. 点击 **"正则提取"** 标签页进入正则管理面板
+2. **正则模板区**：
+   - 查看和使用内置正则模板（JSON内容、代码块、思考标签等）
+   - 点击播放图标使用模板
+   - 点击编辑图标修改模板
+   - 点击删除图标删除模板
+   - 点击"新建"创建自定义模板
+3. **正则测试区**：
+   - 输入正则表达式
+   - 选择标志位（g=全局匹配, i=忽略大小写, m=多行模式）
+   - 设置捕获组索引
+   - 输入测试文本
+   - 点击"测试匹配"查看结果
+4. **消息提取区**：
+   - 选择消息来源（最后消息、角色消息、用户消息等）
+   - 设置保存到的变量名
+   - 点击"生成脚本"生成STScript命令
+   - 点击"复制脚本"复制到剪贴板
+
+#### 正则提取使用示例
+
+提取最后一条消息中的引号内容：
+```
+正则表达式: "([^"]+)"
+标志位: g
+捕获组索引: 1
+消息来源: 最后一条消息
+```
+
+生成的脚本将类似于：
+```
+/match pattern="\"([^\"]+)\"" {{lastMessage}} | /setvar key=extracted_content
+```
+
 ## 📁 项目结构
 
 ```
@@ -88,7 +133,8 @@ youyou_Toolkit/
 │   ├── storage.js              # 存储管理模块
 │   ├── api-connection.js       # API连接管理模块
 │   ├── preset-manager.js       # 预设管理模块
-│   └── ui-components.js        # UI组件模块
+│   ├── ui-components.js        # UI组件模块
+│   └── regex-extractor.js      # 正则提取模块
 ├── dist/
 │   └── bundle.js               # 构建输出
 ├── docs/
@@ -97,6 +143,8 @@ youyou_Toolkit/
 │   ├── CONTRIBUTING.md         # 贡献指南
 │   └── CHANGELOG.md            # 更新日志
 └── Reference/
+    ├── SillyTavern_Macros.txt  # SillyTavern宏参考
+    ├── slash_command.txt       # STScript命令参考
     └── shujuku-main/           # 参考项目
 ```
 
@@ -114,7 +162,8 @@ YouYouToolkit.id         // 插件ID
 // 弹窗控制
 YouYouToolkit.openPopup()   // 打开弹窗
 YouYouToolkit.closePopup()  // 关闭弹窗
-YouYouToolkit.switchPage('api')  // 切换到API管理页
+YouYouToolkit.switchPage('api')    // 切换到API管理页
+YouYouToolkit.switchPage('regex')  // 切换到正则提取页
 
 // API配置（异步方法）
 await YouYouToolkit.getApiConfig()     // 获取当前API配置
@@ -124,6 +173,13 @@ await YouYouToolkit.sendApiRequest(messages, options)  // 发送API请求
 
 // 预设管理（异步方法）
 await YouYouToolkit.getPresets()  // 获取所有预设
+
+// 正则提取（通过模块访问）
+const regexModule = YouYouToolkit.getRegexExtractor();
+await regexModule.testRegex(pattern, text, flags, groupIndex);  // 测试正则
+await regexModule.getAllTemplates();     // 获取所有模板
+await regexModule.createTemplate({...}); // 创建模板
+await regexModule.generateExtractionScript(templateId, source, varName); // 生成提取脚本
 ```
 
 ### 构建打包
@@ -166,9 +222,18 @@ npm run watch      # 监听文件变化自动构建
 - 统一管理面板（API配置与预设合并）
 - API配置表单
 - 预设选择与管理
+- 正则提取面板
 - 模态对话框
 - 美观的Toggle开关和下拉框
 - 事件绑定
+
+#### regex-extractor.js - 正则提取模块
+- 正则表达式测试与验证
+- 正则模板管理（创建/编辑/删除）
+- 内置常用正则模板
+- 生成STScript提取脚本
+- 模板导入/导出
+- 支持多种SillyTavern消息源
 
 ## 📚 文档
 
@@ -178,6 +243,15 @@ npm run watch      # 监听文件变化自动构建
 - [扩展开发指南](./docs/EXTENSION_GUIDE.md) - 基于框架开发新功能
 
 ## 📝 版本历史
+
+### v0.3.0 (2025-03-09)
+- 🆕 新增正则提取板块
+- 🆕 支持正则表达式测试与验证
+- 🆕 内置常用正则模板（JSON提取、代码块、思考标签等）
+- 🆕 支持自定义正则模板管理
+- 🆕 生成STScript脚本用于实际内容提取
+- 🆕 支持多种消息源（最后消息、角色消息、用户消息等）
+- 🆕 模板导入/导出功能
 
 ### v0.2.1 (2024-03-09)
 - 🎨 合并API配置和预设管理面板，简化操作
