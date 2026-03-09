@@ -174,7 +174,7 @@ var Me=Object.defineProperty;var J=(e,t)=>()=>(e&&(t=e(e=0)),t);var L=(e,t)=>{fo
         </div>
       </div>
     </div>
-  `;t(`#${o}-dialog-overlay`).remove(),s.append(l);let i=t(`#${o}-dialog-overlay`),c=t(`#${o}-dialog-preset-name`),f=t(`#${o}-dialog-preset-desc`);if(c.focus().select(),e){let y=x(e);y&&y.description&&f.val(y.description)}let R=()=>{i.remove()};i.find(`#${o}-dialog-close, #${o}-dialog-cancel`).on("click",R),i.on("click",function(y){y.target===this&&R()}),i.find(`#${o}-dialog-save`).on("click",function(){let y=c.val().trim(),_e=f.val().trim();if(!y){p("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0"),c.focus();return}if(n.includes(y)&&y!==e){if(!confirm(`\u9884\u8BBE "${y}" \u5DF2\u5B58\u5728\uFF0C\u662F\u5426\u8986\u76D6\uFF1F`))return;U(y)}e&&y!==e&&U(e);let Ee=pe(),Z=B({name:y,description:_e,apiConfig:Ee});Z.success?(p("success",Z.message),R(),h()):p("error",Z.message)}),c.on("keypress",function(y){y.which===13&&i.find(`#${o}-dialog-save`).click()})}function qe(){let e=N();if(!e||!ye()){console.warn("[YouYouToolkit] bindEvents: jQuery\u6216\u5BB9\u5668\u4E0D\u53EF\u7528");return}s.find(`#${o}-preset-select`).on("change",function(){let t=e(this).val();if(t){let r=x(t);r&&ke(r.apiConfig)}}),s.find(`#${o}-apply-preset`).on("click",function(){let t=s.find(`#${o}-preset-select`).val();if(!t){G(""),p("info","\u5DF2\u5207\u6362\u5230\u5F53\u524D\u914D\u7F6E"),h();return}let r=G(t);p(r.success?"success":"error",r.message),r.success&&h()}),s.find(".yyt-preset-item").on("click",function(t){let n=e(this).data("preset-name"),a=e(t.target).closest("[data-action]").data("action");if(a)switch(t.stopPropagation(),a){case"load":let l=x(n);l&&(ke(l.apiConfig),I=n,s.find(`#${o}-preset-select`).val(n),p("info",`\u5DF2\u52A0\u8F7D\u9884\u8BBE "${n}"\uFF0C\u4FEE\u6539\u540E\u53EF\u70B9\u51FB"\u4FDD\u5B58\u914D\u7F6E"\u8986\u76D6\u6B64\u9884\u8BBE`));break;case"delete":if(confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${n}" \u5417\uFF1F`)){let i=U(n);p(i.success?"info":"error",i.message),i.success&&(I===n&&(I=""),h())}break}}),s.find(`#${o}-use-main-api`).on("change",function(){let t=e(this).is(":checked"),r=s.find(`#${o}-custom-api-fields`);t?r.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):r.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1)}),s.find(`#${o}-toggle-key-visibility`).on("click",function(){let t=s.find(`#${o}-api-key`),r=t.attr("type");t.attr("type",r==="password"?"text":"password"),e(this).find("i").toggleClass("fa-eye fa-eye-slash")}),s.find(`#${o}-load-models`).on("click",async function(){let t=e(this),r=s.find(`#${o}-model`),n=s.find(`#${o}-model-select`);t.prop("disabled",!0).find("i").addClass("fa-spin");try{let a=pe(),l=await ne(a);if(l.length>0){n.empty(),l.forEach(c=>{n.append(`<option value="${b(c)}">${b(c)}</option>`)}),r.hide(),n.show();let i=r.val();i&&l.includes(i)&&n.val(i),n.off("change").on("change",function(){r.val(e(this).val())}),p("success",`\u5DF2\u52A0\u8F7D ${l.length} \u4E2A\u6A21\u578B`)}else p("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(a){p("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${a.message}`)}finally{t.prop("disabled",!1).find("i").removeClass("fa-spin")}}),s.find(`#${o}-model`).on("focus",function(){let t=s.find(`#${o}-model-select`);e(this).show(),t.hide()}),s.find(`#${o}-save-api-config`).on("click",function(){let t=pe(),r=Q(t);if(!r.valid&&!t.useMainApi){p("error",r.errors.join(", "));return}if(I){if(!confirm(`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE "${I}" \u7684\u914D\u7F6E\uFF1F
+  `;t(`#${o}-dialog-overlay`).remove(),s.append(l);let i=t(`#${o}-dialog-overlay`),c=t(`#${o}-dialog-preset-name`),f=t(`#${o}-dialog-preset-desc`);if(c.focus().select(),e){let y=x(e);y&&y.description&&f.val(y.description)}let R=()=>{i.remove()};i.find(`#${o}-dialog-close, #${o}-dialog-cancel`).on("click",R),i.on("click",function(y){y.target===this&&R()}),i.find(`#${o}-dialog-save`).on("click",function(){let y=c.val().trim(),_e=f.val().trim();if(!y){p("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0"),c.focus();return}if(n.includes(y)&&y!==e){if(!confirm(`\u9884\u8BBE "${y}" \u5DF2\u5B58\u5728\uFF0C\u662F\u5426\u8986\u76D6\uFF1F`))return;U(y)}e&&y!==e&&U(e);let Ee=pe(),Z=B({name:y,description:_e,apiConfig:Ee});Z.success?(p("success",Z.message),R(),h()):p("error",Z.message)}),c.on("keypress",function(y){y.which===13&&i.find(`#${o}-dialog-save`).click()})}function qe(){let e=N();if(!e||!ye()){console.warn("[YouYouToolkit] bindEvents: jQuery\u6216\u5BB9\u5668\u4E0D\u53EF\u7528");return}s.find(`#${o}-preset-select`).on("change",function(){let t=e(this).val();if(t){let r=x(t);r&&ke(r.apiConfig)}}),s.find(`#${o}-apply-preset`).on("click",function(){let t=s.find(`#${o}-preset-select`).val();if(!t){G(""),p("info","\u5DF2\u5207\u6362\u5230\u5F53\u524D\u914D\u7F6E"),h();return}let r=G(t);p(r.success?"success":"error",r.message),r.success&&h()}),s.find(".yyt-preset-item").on("click",function(t){let r=e(this),n=r.data("preset-name"),a=e(t.target).closest("[data-action]").data("action");if(a)switch(t.stopPropagation(),a){case"load":let l=x(n);l&&(ke(l.apiConfig),I=n,s.find(`#${o}-preset-select`).val(n),s.find(".yyt-preset-item").removeClass("yyt-loaded"),r.addClass("yyt-loaded"),p("info",`\u5DF2\u52A0\u8F7D\u9884\u8BBE "${n}"\uFF0C\u4FEE\u6539\u540E\u53EF\u70B9\u51FB"\u4FDD\u5B58\u914D\u7F6E"\u8986\u76D6\u6B64\u9884\u8BBE`));break;case"delete":if(confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${n}" \u5417\uFF1F`)){let i=U(n);p(i.success?"info":"error",i.message),i.success&&(I===n&&(I=""),h())}break}}),s.find(`#${o}-use-main-api`).on("change",function(){let t=e(this).is(":checked"),r=s.find(`#${o}-custom-api-fields`);t?r.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):r.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1)}),s.find(`#${o}-toggle-key-visibility`).on("click",function(){let t=s.find(`#${o}-api-key`),r=t.attr("type");t.attr("type",r==="password"?"text":"password"),e(this).find("i").toggleClass("fa-eye fa-eye-slash")}),s.find(`#${o}-load-models`).on("click",async function(){let t=e(this),r=s.find(`#${o}-model`),n=s.find(`#${o}-model-select`);t.prop("disabled",!0).find("i").addClass("fa-spin");try{let a=pe(),l=await ne(a);if(l.length>0){n.empty(),l.forEach(c=>{n.append(`<option value="${b(c)}">${b(c)}</option>`)}),r.hide(),n.show();let i=r.val();i&&l.includes(i)&&n.val(i),n.off("change").on("change",function(){r.val(e(this).val())}),p("success",`\u5DF2\u52A0\u8F7D ${l.length} \u4E2A\u6A21\u578B`)}else p("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(a){p("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${a.message}`)}finally{t.prop("disabled",!1).find("i").removeClass("fa-spin")}}),s.find(`#${o}-model`).on("focus",function(){let t=s.find(`#${o}-model-select`);e(this).show(),t.hide()}),s.find(`#${o}-save-api-config`).on("click",function(){let t=pe(),r=Q(t);if(!r.valid&&!t.useMainApi){p("error",r.errors.join(", "));return}if(I){if(!confirm(`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE "${I}" \u7684\u914D\u7F6E\uFF1F
 
 \u70B9\u51FB"\u786E\u5B9A"\u8986\u76D6\u9884\u8BBE\uFF0C\u70B9\u51FB"\u53D6\u6D88"\u4EC5\u4FDD\u5B58\u5F53\u524D\u914D\u7F6E`)){P(t),p("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58");return}P(t);let a=H(I,{apiConfig:t});a.success?(p("success",`\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u8986\u76D6\u9884\u8BBE "${I}"`),h()):p("error",a.message);return}let n=q();if(n){P(t),H(n,{apiConfig:t}),p("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58");return}P(t),p("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58")}),s.find(`#${o}-reset-api-config`).on("click",function(){confirm("\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F")&&(P({url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9}),h(),p("info","API\u914D\u7F6E\u5DF2\u91CD\u7F6E"))}),s.find(`#${o}-save-as-preset`).on("click",function(){Ge()}),s.find(`#${o}-export-presets`).on("click",function(){try{let t=ie(),r=new Blob([t],{type:"application/json"}),n=URL.createObjectURL(r),a=document.createElement("a");a.href=n,a.download=`youyou_toolkit_presets_${Date.now()}.json`,a.click(),URL.revokeObjectURL(n),p("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(t){p("error",`\u5BFC\u51FA\u5931\u8D25: ${t.message}`)}}),s.find(`#${o}-import-presets`).on("click",function(){s.find(`#${o}-import-file`).click()}),s.find(`#${o}-import-file`).on("change",async function(t){let r=t.target.files[0];if(r){try{let n=await r.text(),a=se(n,{overwrite:!0});p(a.success?"success":"error",a.message),a.imported>0&&h()}catch(n){p("error",`\u5BFC\u5165\u5931\u8D25: ${n.message}`)}e(this).val("")}})}function pe(){if(!N()||!ye())return{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9};let t=s.find(`#${o}-model`).val()?.trim()||"",r=s.find(`#${o}-model-select`);return r.is(":visible")&&(t=r.val()||t),{url:s.find(`#${o}-api-url`).val()?.trim()||"",apiKey:s.find(`#${o}-api-key`).val()||"",model:t,useMainApi:s.find(`#${o}-use-main-api`).is(":checked"),max_tokens:parseInt(s.find(`#${o}-max-tokens`).val())||4096,temperature:parseFloat(s.find(`#${o}-temperature`).val())??.7,top_p:parseFloat(s.find(`#${o}-top-p`).val())??.9}}function ke(e){if(!N()||!ye()||!e)return;s.find(`#${o}-api-url`).val(e.url||""),s.find(`#${o}-api-key`).val(e.apiKey||""),s.find(`#${o}-model`).val(e.model||""),s.find(`#${o}-max-tokens`).val(e.max_tokens||4096),s.find(`#${o}-temperature`).val(e.temperature??.7),s.find(`#${o}-top-p`).val(e.top_p??.9);let r=e.useMainApi??!0;s.find(`#${o}-use-main-api`).prop("checked",r);let a=s.find(`#${o}-custom-api-fields`);r?a.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):a.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1),s.find(`#${o}-model`).show(),s.find(`#${o}-model-select`).hide()}function h(e){let t=N();if(!t){console.error("[YouYouToolkit] jQuery not available");return}if(e&&(typeof e=="string"?s=t(e):e&&e.jquery?s=e:e&&(s=t(e))),!s||!s.length){console.error("[YouYouToolkit] Container not found or invalid");return}let r=`<div class="yyt-api-manager">${He()}</div>`;s.html(r),qe()}function We(){return`
     /* ============================================================
@@ -299,6 +299,11 @@ var Me=Object.defineProperty;var J=(e,t)=>()=>(e&&(t=e(e=0)),t);var L=(e,t)=>{fo
     .yyt-preset-item.active {
       background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
       border-color: rgba(123, 183, 255, 0.3);
+    }
+    
+    .yyt-preset-item.yyt-loaded {
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(74, 222, 128, 0.04) 100%);
+      border-color: rgba(74, 222, 128, 0.3);
     }
     
     .yyt-preset-info {
@@ -501,20 +506,43 @@ var Me=Object.defineProperty;var J=(e,t)=>()=>(e&&(t=e(e=0)),t);var L=(e,t)=>{fo
     .yyt-select {
       cursor: pointer;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 12px center !important;
       padding-right: 32px;
-      background-color: rgba(30, 30, 50, 0.9) !important;
+      background-color: #1a1a2e !important;
       color: #ffffff !important;
+      filter: none !important;
     }
     
-    /* \u4E0B\u62C9\u6846\u9009\u9879\u6837\u5F0F - \u4F7F\u7528\u56FA\u5B9A\u989C\u8272\u503C */
+    /* \u4E0B\u62C9\u6846\u9009\u9879\u6837\u5F0F - \u4F7F\u7528\u66F4\u5F3A\u7684\u9009\u62E9\u5668\u786E\u4FDD\u4E0D\u88AB\u8986\u76D6 */
     .yyt-select option,
-    .yyt-select optgroup {
-      background-color: #1e1e32 !important;
+    .yyt-select optgroup,
+    .yyt-select > option,
+    .yyt-select > optgroup,
+    select.yyt-select option,
+    select.yyt-select optgroup {
+      background-color: #1a1a2e !important;
+      background: #1a1a2e !important;
       color: #ffffff !important;
       padding: 8px 12px;
+      margin: 2px 0;
+      border-radius: 4px;
+      filter: none !important;
+    }
+    
+    .yyt-select option:hover,
+    select.yyt-select option:hover {
+      background-color: #2a2a4e !important;
+      background: #2a2a4e !important;
+    }
+    
+    .yyt-select option:checked,
+    select.yyt-select option:checked {
+      background-color: #3a3a6e !important;
+      background: #3a3a6e !important;
     }
     
     .yyt-input:hover,

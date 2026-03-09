@@ -457,6 +457,11 @@ function bindEvents() {
           fillFormWithConfig(preset.apiConfig);
           currentLoadedPresetName = presetName; // 记录当前加载的预设名称
           $container.find(`#${SCRIPT_ID}-preset-select`).val(presetName);
+          
+          // 更新预设列表高亮状态
+          $container.find('.yyt-preset-item').removeClass('yyt-loaded');
+          $item.addClass('yyt-loaded');
+          
           showToast('info', `已加载预设 "${presetName}"，修改后可点击"保存配置"覆盖此预设`);
         }
         break;
@@ -881,6 +886,11 @@ export function getStyles() {
       border-color: rgba(123, 183, 255, 0.3);
     }
     
+    .yyt-preset-item.yyt-loaded {
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(74, 222, 128, 0.04) 100%);
+      border-color: rgba(74, 222, 128, 0.3);
+    }
+    
     .yyt-preset-info {
       flex: 1;
       min-width: 0;
@@ -1081,20 +1091,43 @@ export function getStyles() {
     .yyt-select {
       cursor: pointer;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 12px center !important;
       padding-right: 32px;
-      background-color: rgba(30, 30, 50, 0.9) !important;
+      background-color: #1a1a2e !important;
       color: #ffffff !important;
+      filter: none !important;
     }
     
-    /* 下拉框选项样式 - 使用固定颜色值 */
+    /* 下拉框选项样式 - 使用更强的选择器确保不被覆盖 */
     .yyt-select option,
-    .yyt-select optgroup {
-      background-color: #1e1e32 !important;
+    .yyt-select optgroup,
+    .yyt-select > option,
+    .yyt-select > optgroup,
+    select.yyt-select option,
+    select.yyt-select optgroup {
+      background-color: #1a1a2e !important;
+      background: #1a1a2e !important;
       color: #ffffff !important;
       padding: 8px 12px;
+      margin: 2px 0;
+      border-radius: 4px;
+      filter: none !important;
+    }
+    
+    .yyt-select option:hover,
+    select.yyt-select option:hover {
+      background-color: #2a2a4e !important;
+      background: #2a2a4e !important;
+    }
+    
+    .yyt-select option:checked,
+    select.yyt-select option:checked {
+      background-color: #3a3a6e !important;
+      background: #3a3a6e !important;
     }
     
     .yyt-input:hover,
