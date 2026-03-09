@@ -1,52 +1,85 @@
-var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{for(var r in e)Et(t,r,{get:e[r],enumerable:!0})};var vt={};J(vt,{DEFAULT_API_PRESETS:()=>gt,DEFAULT_SETTINGS:()=>W,STORAGE_KEYS:()=>P,deepMerge:()=>X,getCurrentPresetName:()=>S,loadApiPresets:()=>u,loadSettings:()=>x,saveApiPresets:()=>w,saveSettings:()=>V,setCurrentPresetName:()=>I});function _t(){try{let t=typeof window.parent<"u"?window.parent:window;if(t.SillyTavern?.getContext){let r=t.SillyTavern.getContext();if(r?.extensionSettings)return r.extensionSettings}if(t.extension_settings)return t.extension_settings;let e=t.jQuery||window.jQuery;return null}catch(t){return console.warn("[YouYouToolkit] \u65E0\u6CD5\u83B7\u53D6SillyTavern extensionSettings:",t),null}}function ft(){try{let t=typeof window.parent<"u"?window.parent:window;if(typeof t.saveSettings=="function")return t.saveSettings;if(t.SillyTavern?.getContext){let e=t.SillyTavern.getContext();if(typeof e.saveSettings=="function")return e.saveSettings;if(typeof e.saveSettingsDebounced=="function")return e.saveSettingsDebounced}return null}catch{return null}}function A(){let t=_t(),e="youyou_toolkit";return t?(t[e]||(t[e]={}),{getItem:r=>{let a=t[e][r];return typeof a=="string"?a:a?JSON.stringify(a):null},setItem:(r,a)=>{t[e][r]=a;let n=ft();if(n)try{n()}catch(i){console.warn("[YouYouToolkit] \u4FDD\u5B58\u8BBE\u7F6E\u5931\u8D25:",i)}},removeItem:r=>{delete t[e][r];let a=ft();if(a)try{a()}catch{}},_isTavern:!0}):(console.warn("[YouYouToolkit] \u4F7F\u7528localStorage\u4F5C\u4E3A\u56DE\u9000\u5B58\u50A8"),{getItem:r=>{try{return localStorage.getItem(r)}catch{return null}},setItem:(r,a)=>{try{localStorage.setItem(r,a)}catch(n){console.error("[YouYouToolkit] localStorage\u5199\u5165\u5931\u8D25:",n)}},removeItem:r=>{try{localStorage.removeItem(r)}catch{}},_isTavern:!1})}function bt(t,e=null){if(!t||typeof t!="string")return e;try{return JSON.parse(t)}catch{return e}}function mt(t,e="{}"){try{return JSON.stringify(t)}catch{return e}}function x(){let e=A().getItem(P.SETTINGS);if(e){let r=bt(e,null);if(r&&typeof r=="object")return X(JSON.parse(JSON.stringify(W)),r)}return JSON.parse(JSON.stringify(W))}function V(t){A().setItem(P.SETTINGS,mt(t))}function u(){let e=A().getItem(P.API_PRESETS);if(e){let r=bt(e,null);if(Array.isArray(r))return r}return JSON.parse(JSON.stringify(gt))}function w(t){A().setItem(P.API_PRESETS,mt(t))}function S(){return A().getItem(P.CURRENT_PRESET)||""}function I(t){A().setItem(P.CURRENT_PRESET,t||"")}function X(t,e){let r=n=>n&&typeof n=="object"&&!Array.isArray(n),a={...t};return r(t)&&r(e)&&Object.keys(e).forEach(n=>{r(e[n])?n in t?a[n]=X(t[n],e[n]):Object.assign(a,{[n]:e[n]}):Object.assign(a,{[n]:e[n]})}),a}var P,W,gt,j=U(()=>{P={SETTINGS:"youyou_toolkit_settings",API_PRESETS:"youyou_toolkit_api_presets",CURRENT_PRESET:"youyou_toolkit_current_preset"},W={apiConfig:{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9},currentPreset:"",uiSettings:{theme:"dark",lastTab:"api"}},gt=[]});var et={};J(et,{API_STATUS:()=>Mt,fetchAvailableModels:()=>tt,getApiConfig:()=>m,getEffectiveApiConfig:()=>Yt,sendApiRequest:()=>xt,testApiConnection:()=>Z,updateApiConfig:()=>F,validateApiConfig:()=>L});function m(){return x().apiConfig||{}}function F(t){let e=x();e.apiConfig={...e.apiConfig,...t},V(e)}function L(t){let e=[];if(t.useMainApi)return{valid:!0,errors:[]};if(!t.url||!t.url.trim())e.push("API URL \u4E0D\u80FD\u4E3A\u7A7A");else try{new URL(t.url)}catch{e.push("API URL \u683C\u5F0F\u65E0\u6548")}return(!t.model||!t.model.trim())&&e.push("\u6A21\u578B\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),{valid:e.length===0,errors:e}}function Yt(t=""){let e=x();if(t){let a=(e.apiPresets||[]).find(n=>n.name===t);if(a&&a.apiConfig)return{...a.apiConfig,presetName:a.name}}return e.apiConfig||{}}function jt(t,e={}){let r=e.apiConfig||m();return{messages:t,model:r.model||"gpt-3.5-turbo",max_tokens:r.max_tokens||4096,temperature:r.temperature??.7,top_p:r.top_p??.9,stream:!1,...e.extraParams}}async function xt(t,e={},r=null){let a=e.apiConfig||m(),n=a.useMainApi,i=L(a);if(!i.valid&&!n)throw new Error(`API\u914D\u7F6E\u65E0\u6548: ${i.errors.join(", ")}`);return n?await zt(t,e,r):await Rt(t,a,e,r)}async function zt(t,e,r){let a=typeof window.parent<"u"?window.parent:window;if(!a.TavernHelper?.generateRaw)throw new Error("TavernHelper.generateRaw \u4E0D\u53EF\u7528\u3002\u8BF7\u68C0\u67E5SillyTavern\u7248\u672C\u3002");try{let n=await a.TavernHelper.generateRaw({ordered_prompts:t,should_stream:!1,...e.extraParams});if(typeof n!="string")throw new Error("\u4E3BAPI\u8FD4\u56DE\u4E86\u975E\u9884\u671F\u7684\u54CD\u5E94\u7C7B\u578B");return n.trim()}catch(n){throw n.name==="AbortError"?n:new Error(`\u4E3BAPI\u8BF7\u6C42\u5931\u8D25: ${n.message}`)}}async function Rt(t,e,r,a){let n=jt(t,{apiConfig:e,...r}),i={"Content-Type":"application/json"};e.apiKey&&(i.Authorization=`Bearer ${e.apiKey}`);let c=await fetch(e.url,{method:"POST",headers:i,body:JSON.stringify(n),signal:a});if(!c.ok){let Tt=await c.text().catch(()=>"Unknown error");throw new Error(`API\u8BF7\u6C42\u5931\u8D25 (${c.status}): ${Tt}`)}let l=await c.json(),b="";if(l.choices&&l.choices[0]?.message?.content)b=l.choices[0].message.content;else if(l.content)b=l.content;else if(l.text)b=l.text;else if(l.response)b=l.response;else throw new Error(`\u65E0\u6CD5\u89E3\u6790API\u54CD\u5E94\u683C\u5F0F: ${JSON.stringify(l).slice(0,200)}`);return b.trim()}async function Z(t=null){let e=t||m(),r=Date.now();try{await xt([{role:"user",content:'Hello, this is a connection test. Please respond with "OK".'}],{apiConfig:e});let n=Date.now()-r;return{success:!0,message:`\u8FDE\u63A5\u6210\u529F (\u5EF6\u8FDF: ${n}ms)`,latency:n}}catch(a){return{success:!1,message:`\u8FDE\u63A5\u5931\u8D25: ${a.message}`,latency:Date.now()-r}}}async function tt(t=null){let e=t||m();return e.useMainApi?await Nt():await Ot(e)}async function Nt(){let t=typeof window.parent<"u"?window.parent:window;try{if(t.SillyTavern?.getContext){let e=t.SillyTavern.getContext();if(e.settings?.api_server)return[e.settings.api_server]}return["gpt-4","gpt-4-turbo","gpt-3.5-turbo","claude-3-opus","claude-3-sonnet"]}catch{return["gpt-4","gpt-3.5-turbo"]}}async function Ot(t){if(!t.url||!t.apiKey)return[];try{let r=`${t.url.replace(/\/chat\/completions$/,"").replace(/\/completions$/,"")}/models`,a=await fetch(r,{method:"GET",headers:{Authorization:`Bearer ${t.apiKey}`}});if(!a.ok)return[];let n=await a.json();return n.data&&Array.isArray(n.data)?n.data.map(i=>i.id||i.name).filter(Boolean).sort():[]}catch{return[]}}var Mt,Q=U(()=>{j();Mt={IDLE:"idle",CONNECTING:"connecting",SUCCESS:"success",ERROR:"error"}});var ht={};J(ht,{createPreset:()=>wt,createPresetFromCurrentConfig:()=>lt,deletePreset:()=>st,duplicatePreset:()=>Ut,exportPresets:()=>ct,generateUniquePresetName:()=>N,getActiveConfig:()=>ot,getActivePresetName:()=>K,getAllPresets:()=>rt,getPreset:()=>R,getPresetNames:()=>at,importPresets:()=>B,presetExists:()=>z,renamePreset:()=>Dt,switchToPreset:()=>it,updatePreset:()=>nt,validatePreset:()=>Jt});function rt(){return u()}function at(){return u().map(e=>e.name)}function R(t){return!t||typeof t!="string"?null:u().find(r=>r.name===t)||null}function z(t){return!t||typeof t!="string"?!1:u().some(r=>r.name===t)}function wt(t){let{name:e,description:r,apiConfig:a}=t;if(!e||typeof e!="string"||!e.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let n=e.trim();if(z(n))return{success:!1,message:`\u9884\u8BBE "${n}" \u5DF2\u5B58\u5728`};let i={name:n,description:r||"",apiConfig:{url:a?.url||"",apiKey:a?.apiKey||"",model:a?.model||"",useMainApi:a?.useMainApi??!0,max_tokens:a?.max_tokens||4096,temperature:a?.temperature??.7,top_p:a?.top_p??.9},createdAt:Date.now(),updatedAt:Date.now()},c=u();return c.push(i),w(c),{success:!0,message:`\u9884\u8BBE "${n}" \u521B\u5EFA\u6210\u529F`,preset:i}}function nt(t,e){if(!t||typeof t!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let r=u(),a=r.findIndex(c=>c.name===t);if(a===-1)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};if(e.name&&e.name!==t)return{success:!1,message:"\u4E0D\u652F\u6301\u4FEE\u6539\u9884\u8BBE\u540D\u79F0\uFF0C\u8BF7\u521B\u5EFA\u65B0\u9884\u8BBE"};let n=r[a],i={...n,...e,name:n.name,updatedAt:Date.now()};return e.apiConfig&&(i.apiConfig={...n.apiConfig,...e.apiConfig}),r[a]=i,w(r),{success:!0,message:`\u9884\u8BBE "${t}" \u66F4\u65B0\u6210\u529F`,preset:i}}function st(t){if(!t||typeof t!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let e=u(),r=e.findIndex(a=>a.name===t);return r===-1?{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`}:(e.splice(r,1),w(e),S()===t&&I(""),{success:!0,message:`\u9884\u8BBE "${t}" \u5DF2\u5220\u9664`})}function Dt(t,e){if(!t||typeof t!="string")return{success:!1,message:"\u539F\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!e||typeof e!="string"||!e.trim())return{success:!1,message:"\u65B0\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let r=e.trim();if(!z(t))return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};if(z(r))return{success:!1,message:`\u9884\u8BBE "${r}" \u5DF2\u5B58\u5728`};let a=u(),n=a.find(i=>i.name===t);return n&&(n.name=r,n.updatedAt=Date.now(),w(a),S()===t&&I(r)),{success:!0,message:`\u9884\u8BBE\u5DF2\u91CD\u547D\u540D\u4E3A "${r}"`}}function Ut(t,e){if(!t||typeof t!="string")return{success:!1,message:"\u6E90\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!e||typeof e!="string"||!e.trim())return{success:!1,message:"\u76EE\u6807\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let r=e.trim(),a=R(t);if(!a)return{success:!1,message:`\u6E90\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};if(z(r))return{success:!1,message:`\u9884\u8BBE "${r}" \u5DF2\u5B58\u5728`};let n={...JSON.parse(JSON.stringify(a)),name:r,createdAt:Date.now(),updatedAt:Date.now()},i=u();return i.push(n),w(i),{success:!0,message:`\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${r}"`,preset:n}}function it(t){if(!t)return I(""),{success:!0,message:"\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E"};let e=R(t);return e?(I(t),{success:!0,message:`\u5DF2\u5207\u6362\u5230\u9884\u8BBE "${t}"`,apiConfig:e.apiConfig}):{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`}}function K(){return S()}function ot(){let t=S();if(t){let r=R(t);if(r)return{presetName:t,apiConfig:r.apiConfig}}return{presetName:"",apiConfig:x().apiConfig||{}}}function ct(t=null){if(t){let r=R(t);if(!r)throw new Error(`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`);return JSON.stringify(r,null,2)}let e=u();return JSON.stringify(e,null,2)}function B(t,e={overwrite:!1}){let r;try{r=JSON.parse(t)}catch{return{success:!1,message:"JSON\u89E3\u6790\u5931\u8D25",imported:0}}let a=Array.isArray(r)?r:[r];if(a.length===0)return{success:!1,message:"\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E",imported:0};let n=u(),i=0;for(let c of a){if(!c.name||typeof c.name!="string"||!c.apiConfig||typeof c.apiConfig!="object")continue;let l=n.findIndex(b=>b.name===c.name);l>=0?e.overwrite&&(c.updatedAt=Date.now(),n[l]=c,i++):(c.createdAt=c.createdAt||Date.now(),c.updatedAt=Date.now(),n.push(c),i++)}return i>0&&w(n),{success:!0,message:`\u6210\u529F\u5BFC\u5165 ${i} \u4E2A\u9884\u8BBE`,imported:i}}function lt(t,e=""){let r=x();return wt({name:t,description:e,apiConfig:r.apiConfig})}function Jt(t){let e=[];return(!t.name||typeof t.name!="string"||!t.name.trim())&&e.push("\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),(!t.apiConfig||typeof t.apiConfig!="object")&&e.push("\u7F3A\u5C11API\u914D\u7F6E"),{valid:e.length===0,errors:e}}function N(t){(!t||typeof t!="string")&&(t="\u65B0\u9884\u8BBE");let e=u(),r=new Set(e.map(n=>n.name));if(!r.has(t))return t;let a=1;for(;r.has(`${t} (${a})`);)a++;return`${t} (${a})`}var yt=U(()=>{j()});var kt={};J(kt,{getCurrentTab:()=>Zt,getStyles:()=>Xt,render:()=>v,setCurrentTab:()=>te});function p(t){return typeof t!="string"?"":t.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}function y(t,e,r=3e3){let a=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(a.toastr){a.toastr[t](e,"YouYou \u5DE5\u5177\u7BB1",{timeOut:r,progressBar:!0});return}console.log(`[${t.toUpperCase()}] ${e}`)}function E(){if(T)return T;if(typeof window.parent<"u"&&window.parent!==window)try{if(window.parent.jQuery)return T=window.parent.jQuery,T}catch{}return window.jQuery&&(T=window.jQuery),T}function O(){return o&&o.length>0}function Ft(){return`<div class="yyt-tab-nav">${[{id:"api",name:"API\u914D\u7F6E",icon:"fa-plug"},{id:"presets",name:"\u9884\u8BBE\u7BA1\u7406",icon:"fa-bookmark"},{id:"test",name:"\u8FDE\u63A5\u6D4B\u8BD5",icon:"fa-flask"}].map(r=>`
-    <div class="yyt-tab-item ${C===r.id?"active":""}" data-tab="${r.id}">
-      <i class="fa-solid ${r.icon}"></i>
-      <span>${r.name}</span>
-    </div>
-  `).join("")}</div>`}function Lt(){switch(C){case"api":return Qt();case"presets":return Kt();case"test":return Bt();default:return""}}function Qt(){let t=m(),r=ot().presetName;return`
+var Ee=Object.defineProperty;var N=(e,t)=>()=>(e&&(t=e(e=0)),t);var F=(e,t)=>{for(var n in t)Ee(e,n,{get:t[n],enumerable:!0})};var xe={};F(xe,{DEFAULT_API_PRESETS:()=>ge,DEFAULT_SETTINGS:()=>X,STORAGE_KEYS:()=>C,deepMerge:()=>ee,getCurrentPresetName:()=>I,loadApiPresets:()=>u,loadSettings:()=>v,saveApiPresets:()=>w,saveSettings:()=>Z,setCurrentPresetName:()=>T});function Me(){try{let e=typeof window.parent<"u"?window.parent:window;if(e.SillyTavern?.getContext){let n=e.SillyTavern.getContext();if(n?.extensionSettings)return n.extensionSettings}if(e.extension_settings)return e.extension_settings;let t=e.jQuery||window.jQuery;return null}catch(e){return console.warn("[YouYouToolkit] \u65E0\u6CD5\u83B7\u53D6SillyTavern extensionSettings:",e),null}}function fe(){try{let e=typeof window.parent<"u"?window.parent:window;if(typeof e.saveSettings=="function")return e.saveSettings;if(e.SillyTavern?.getContext){let t=e.SillyTavern.getContext();if(typeof t.saveSettings=="function")return t.saveSettings;if(typeof t.saveSettingsDebounced=="function")return t.saveSettingsDebounced}return null}catch{return null}}function P(){let e=Me(),t="youyou_toolkit";return e?(e[t]||(e[t]={}),{getItem:n=>{let r=e[t][n];return typeof r=="string"?r:r?JSON.stringify(r):null},setItem:(n,r)=>{e[t][n]=r;let a=fe();if(a)try{a()}catch(l){console.warn("[YouYouToolkit] \u4FDD\u5B58\u8BBE\u7F6E\u5931\u8D25:",l)}},removeItem:n=>{delete e[t][n];let r=fe();if(r)try{r()}catch{}},_isTavern:!0}):(console.warn("[YouYouToolkit] \u4F7F\u7528localStorage\u4F5C\u4E3A\u56DE\u9000\u5B58\u50A8"),{getItem:n=>{try{return localStorage.getItem(n)}catch{return null}},setItem:(n,r)=>{try{localStorage.setItem(n,r)}catch(a){console.error("[YouYouToolkit] localStorage\u5199\u5165\u5931\u8D25:",a)}},removeItem:n=>{try{localStorage.removeItem(n)}catch{}},_isTavern:!1})}function me(e,t=null){if(!e||typeof e!="string")return t;try{return JSON.parse(e)}catch{return t}}function be(e,t="{}"){try{return JSON.stringify(e)}catch{return t}}function v(){let t=P().getItem(C.SETTINGS);if(t){let n=me(t,null);if(n&&typeof n=="object")return ee(JSON.parse(JSON.stringify(X)),n)}return JSON.parse(JSON.stringify(X))}function Z(e){P().setItem(C.SETTINGS,be(e))}function u(){let t=P().getItem(C.API_PRESETS);if(t){let n=me(t,null);if(Array.isArray(n))return n}return JSON.parse(JSON.stringify(ge))}function w(e){P().setItem(C.API_PRESETS,be(e))}function I(){return P().getItem(C.CURRENT_PRESET)||""}function T(e){P().setItem(C.CURRENT_PRESET,e||"")}function ee(e,t){let n=a=>a&&typeof a=="object"&&!Array.isArray(a),r={...e};return n(e)&&n(t)&&Object.keys(t).forEach(a=>{n(t[a])?a in e?r[a]=ee(e[a],t[a]):Object.assign(r,{[a]:t[a]}):Object.assign(r,{[a]:t[a]})}),r}var C,X,ge,z=N(()=>{C={SETTINGS:"youyou_toolkit_settings",API_PRESETS:"youyou_toolkit_api_presets",CURRENT_PRESET:"youyou_toolkit_current_preset"},X={apiConfig:{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9},currentPreset:"",uiSettings:{theme:"dark",lastTab:"api"}},ge=[]});var we={};F(we,{API_STATUS:()=>je,fetchAvailableModels:()=>te,getApiConfig:()=>S,getEffectiveApiConfig:()=>Ye,sendApiRequest:()=>ve,testApiConnection:()=>De,updateApiConfig:()=>J,validateApiConfig:()=>L});function S(){return v().apiConfig||{}}function J(e){let t=v();t.apiConfig={...t.apiConfig,...e},Z(t)}function L(e){let t=[];if(e.useMainApi)return{valid:!0,errors:[]};if(!e.url||!e.url.trim())t.push("API URL \u4E0D\u80FD\u4E3A\u7A7A");else try{new URL(e.url)}catch{t.push("API URL \u683C\u5F0F\u65E0\u6548")}return(!e.model||!e.model.trim())&&t.push("\u6A21\u578B\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),{valid:t.length===0,errors:t}}function Ye(e=""){let t=v();if(e){let r=(t.apiPresets||[]).find(a=>a.name===e);if(r&&r.apiConfig)return{...r.apiConfig,presetName:r.name}}return t.apiConfig||{}}function ze(e,t={}){let n=t.apiConfig||S();return{messages:e,model:n.model||"gpt-3.5-turbo",max_tokens:n.max_tokens||4096,temperature:n.temperature??.7,top_p:n.top_p??.9,stream:!1,...t.extraParams}}async function ve(e,t={},n=null){let r=t.apiConfig||S(),a=r.useMainApi,l=L(r);if(!l.valid&&!a)throw new Error(`API\u914D\u7F6E\u65E0\u6548: ${l.errors.join(", ")}`);return a?await Re(e,t,n):await Oe(e,r,t,n)}async function Re(e,t,n){let r=typeof window.parent<"u"?window.parent:window;if(!r.TavernHelper?.generateRaw)throw new Error("TavernHelper.generateRaw \u4E0D\u53EF\u7528\u3002\u8BF7\u68C0\u67E5SillyTavern\u7248\u672C\u3002");try{let a=await r.TavernHelper.generateRaw({ordered_prompts:e,should_stream:!1,...t.extraParams});if(typeof a!="string")throw new Error("\u4E3BAPI\u8FD4\u56DE\u4E86\u975E\u9884\u671F\u7684\u54CD\u5E94\u7C7B\u578B");return a.trim()}catch(a){throw a.name==="AbortError"?a:new Error(`\u4E3BAPI\u8BF7\u6C42\u5931\u8D25: ${a.message}`)}}async function Oe(e,t,n,r){let a=ze(e,{apiConfig:t,...n}),l={"Content-Type":"application/json"};t.apiKey&&(l.Authorization=`Bearer ${t.apiKey}`);let i=await fetch(t.url,{method:"POST",headers:l,body:JSON.stringify(a),signal:r});if(!i.ok){let Y=await i.text().catch(()=>"Unknown error");throw new Error(`API\u8BF7\u6C42\u5931\u8D25 (${i.status}): ${Y}`)}let c=await i.json(),f="";if(c.choices&&c.choices[0]?.message?.content)f=c.choices[0].message.content;else if(c.content)f=c.content;else if(c.text)f=c.text;else if(c.response)f=c.response;else throw new Error(`\u65E0\u6CD5\u89E3\u6790API\u54CD\u5E94\u683C\u5F0F: ${JSON.stringify(c).slice(0,200)}`);return f.trim()}async function De(e=null){let t=e||S(),n=Date.now();try{await ve([{role:"user",content:'Hello, this is a connection test. Please respond with "OK".'}],{apiConfig:t});let a=Date.now()-n;return{success:!0,message:`\u8FDE\u63A5\u6210\u529F (\u5EF6\u8FDF: ${a}ms)`,latency:a}}catch(r){return{success:!1,message:`\u8FDE\u63A5\u5931\u8D25: ${r.message}`,latency:Date.now()-n}}}async function te(e=null){let t=e||S();return t.useMainApi?await Ue():await Ne(t)}async function Ue(){let e=typeof window.parent<"u"?window.parent:window;try{if(e.SillyTavern?.getContext){let t=e.SillyTavern.getContext();if(t.settings?.api_server)return[t.settings.api_server]}return["gpt-4","gpt-4-turbo","gpt-3.5-turbo","claude-3-opus","claude-3-sonnet"]}catch{return["gpt-4","gpt-3.5-turbo"]}}async function Ne(e){if(!e.url||!e.apiKey)return[];try{let n=`${e.url.replace(/\/chat\/completions$/,"").replace(/\/completions$/,"")}/models`,r=await fetch(n,{method:"GET",headers:{Authorization:`Bearer ${e.apiKey}`}});if(!r.ok)return[];let a=await r.json();return a.data&&Array.isArray(a.data)?a.data.map(l=>l.id||l.name).filter(Boolean).sort():[]}catch{return[]}}var je,ne=N(()=>{z();je={IDLE:"idle",CONNECTING:"connecting",SUCCESS:"success",ERROR:"error"}});var he={};F(he,{createPreset:()=>K,createPresetFromCurrentConfig:()=>Qe,deletePreset:()=>O,duplicatePreset:()=>Le,exportPresets:()=>oe,generateUniquePresetName:()=>se,getActiveConfig:()=>ae,getActivePresetName:()=>H,getAllPresets:()=>Q,getPreset:()=>x,getPresetNames:()=>Fe,importPresets:()=>ie,presetExists:()=>R,renamePreset:()=>Je,switchToPreset:()=>B,updatePreset:()=>re,validatePreset:()=>Ke});function Q(){return u()}function Fe(){return u().map(t=>t.name)}function x(e){return!e||typeof e!="string"?null:u().find(n=>n.name===e)||null}function R(e){return!e||typeof e!="string"?!1:u().some(n=>n.name===e)}function K(e){let{name:t,description:n,apiConfig:r}=e;if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let a=t.trim();if(R(a))return{success:!1,message:`\u9884\u8BBE "${a}" \u5DF2\u5B58\u5728`};let l={name:a,description:n||"",apiConfig:{url:r?.url||"",apiKey:r?.apiKey||"",model:r?.model||"",useMainApi:r?.useMainApi??!0,max_tokens:r?.max_tokens||4096,temperature:r?.temperature??.7,top_p:r?.top_p??.9},createdAt:Date.now(),updatedAt:Date.now()},i=u();return i.push(l),w(i),{success:!0,message:`\u9884\u8BBE "${a}" \u521B\u5EFA\u6210\u529F`,preset:l}}function re(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let n=u(),r=n.findIndex(i=>i.name===e);if(r===-1)return{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(t.name&&t.name!==e)return{success:!1,message:"\u4E0D\u652F\u6301\u4FEE\u6539\u9884\u8BBE\u540D\u79F0\uFF0C\u8BF7\u521B\u5EFA\u65B0\u9884\u8BBE"};let a=n[r],l={...a,...t,name:a.name,updatedAt:Date.now()};return t.apiConfig&&(l.apiConfig={...a.apiConfig,...t.apiConfig}),n[r]=l,w(n),{success:!0,message:`\u9884\u8BBE "${e}" \u66F4\u65B0\u6210\u529F`,preset:l}}function O(e){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let t=u(),n=t.findIndex(r=>r.name===e);return n===-1?{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}:(t.splice(n,1),w(t),I()===e&&T(""),{success:!0,message:`\u9884\u8BBE "${e}" \u5DF2\u5220\u9664`})}function Je(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u539F\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u65B0\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let n=t.trim();if(!R(e))return{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(R(n))return{success:!1,message:`\u9884\u8BBE "${n}" \u5DF2\u5B58\u5728`};let r=u(),a=r.find(l=>l.name===e);return a&&(a.name=n,a.updatedAt=Date.now(),w(r),I()===e&&T(n)),{success:!0,message:`\u9884\u8BBE\u5DF2\u91CD\u547D\u540D\u4E3A "${n}"`}}function Le(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u6E90\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u76EE\u6807\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let n=t.trim(),r=x(e);if(!r)return{success:!1,message:`\u6E90\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(R(n))return{success:!1,message:`\u9884\u8BBE "${n}" \u5DF2\u5B58\u5728`};let a={...JSON.parse(JSON.stringify(r)),name:n,createdAt:Date.now(),updatedAt:Date.now()},l=u();return l.push(a),w(l),{success:!0,message:`\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${n}"`,preset:a}}function B(e){if(!e)return T(""),{success:!0,message:"\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E"};let t=x(e);return t?(T(e),{success:!0,message:`\u5DF2\u5207\u6362\u5230\u9884\u8BBE "${e}"`,apiConfig:t.apiConfig}):{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}}function H(){return I()}function ae(){let e=I();if(e){let n=x(e);if(n)return{presetName:e,apiConfig:n.apiConfig}}return{presetName:"",apiConfig:v().apiConfig||{}}}function oe(e=null){if(e){let n=x(e);if(!n)throw new Error(`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`);return JSON.stringify(n,null,2)}let t=u();return JSON.stringify(t,null,2)}function ie(e,t={overwrite:!1}){let n;try{n=JSON.parse(e)}catch{return{success:!1,message:"JSON\u89E3\u6790\u5931\u8D25",imported:0}}let r=Array.isArray(n)?n:[n];if(r.length===0)return{success:!1,message:"\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E",imported:0};let a=u(),l=0;for(let i of r){if(!i.name||typeof i.name!="string"||!i.apiConfig||typeof i.apiConfig!="object")continue;let c=a.findIndex(f=>f.name===i.name);c>=0?t.overwrite&&(i.updatedAt=Date.now(),a[c]=i,l++):(i.createdAt=i.createdAt||Date.now(),i.updatedAt=Date.now(),a.push(i),l++)}return l>0&&w(a),{success:!0,message:`\u6210\u529F\u5BFC\u5165 ${l} \u4E2A\u9884\u8BBE`,imported:l}}function Qe(e,t=""){let n=v();return K({name:e,description:t,apiConfig:n.apiConfig})}function Ke(e){let t=[];return(!e.name||typeof e.name!="string"||!e.name.trim())&&t.push("\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),(!e.apiConfig||typeof e.apiConfig!="object")&&t.push("\u7F3A\u5C11API\u914D\u7F6E"),{valid:t.length===0,errors:t}}function se(e){(!e||typeof e!="string")&&(e="\u65B0\u9884\u8BBE");let t=u(),n=new Set(t.map(a=>a.name));if(!n.has(e))return e;let r=1;for(;n.has(`${e} (${r})`);)r++;return`${e} (${r})`}var le=N(()=>{z()});var ke={};F(ke,{getCurrentTab:()=>We,getStyles:()=>qe,render:()=>A,setCurrentTab:()=>Ve});function b(e){return typeof e!="string"?"":e.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}function y(e,t,n=3e3){let r=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(r.toastr){r.toastr[e](t,"YouYou \u5DE5\u5177\u7BB1",{timeOut:n,progressBar:!0});return}console.log(`[${e.toUpperCase()}] ${t}`)}function D(){if(_)return _;if(typeof window.parent<"u"&&window.parent!==window)try{if(window.parent.jQuery)return _=window.parent.jQuery,_}catch{}return window.jQuery&&(_=window.jQuery),_}function pe(){return s&&s.length>0}function Be(){let e=S(),t=ae(),n=H(),r=Q(),a=r.length>0?r.map(i=>`<option value="${b(i.name)}" ${i.name===n?"selected":""}>${b(i.name)}</option>`).join(""):"",l=r.length>0?r.map(i=>`
+        <div class="yyt-preset-item ${i.name===n?"active":""}" data-preset-name="${b(i.name)}">
+          <div class="yyt-preset-info">
+            <div class="yyt-preset-name">${b(i.name)}</div>
+            <div class="yyt-preset-meta">
+              ${i.apiConfig.useMainApi?'<span class="yyt-badge yyt-badge-small">\u4E3BAPI</span>':`<span class="yyt-badge yyt-badge-small">${b(i.apiConfig.model||"\u672A\u8BBE\u7F6E")}</span>`}
+            </div>
+          </div>
+          <div class="yyt-preset-actions">
+            <button class="yyt-btn yyt-btn-small yyt-btn-icon" data-action="load" title="\u52A0\u8F7D\u914D\u7F6E">
+              <i class="fa-solid fa-download"></i>
+            </button>
+            <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger" data-action="delete" title="\u5220\u9664">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `).join(""):'<div class="yyt-empty-state-small"><i class="fa-solid fa-inbox"></i><span>\u6682\u65E0\u9884\u8BBE</span></div>';return`
     <div class="yyt-panel">
+      <!-- \u9884\u8BBE\u9009\u62E9\u533A -->
       <div class="yyt-panel-section">
         <div class="yyt-section-title">
-          <i class="fa-solid fa-circle-info"></i>
-          <span>\u5F53\u524D\u72B6\u6001</span>
+          <i class="fa-solid fa-bookmark"></i>
+          <span>\u9884\u8BBE\u9009\u62E9</span>
         </div>
-        <div class="yyt-status-bar">
-          ${r?`<span class="yyt-badge yyt-badge-info">\u4F7F\u7528\u9884\u8BBE: ${p(r)}</span>`:'<span class="yyt-badge yyt-badge-default">\u4F7F\u7528\u5F53\u524D\u914D\u7F6E</span>'}
+        
+        <div class="yyt-preset-selector">
+          <select class="yyt-select yyt-flex-1" id="${o}-preset-select">
+            <option value="">-- \u5F53\u524D\u914D\u7F6E --</option>
+            ${a}
+          </select>
+          <button class="yyt-btn yyt-btn-primary" id="${o}-apply-preset">
+            <i class="fa-solid fa-check"></i> \u5E94\u7528
+          </button>
+        </div>
+        
+        <div class="yyt-preset-list-compact">
+          ${l}
         </div>
       </div>
       
+      <!-- API\u914D\u7F6E\u533A -->
       <div class="yyt-panel-section">
         <div class="yyt-section-title">
           <i class="fa-solid fa-sliders"></i>
           <span>API\u914D\u7F6E</span>
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${o}-save-as-preset" style="margin-left: auto;">
+            <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u4E3A\u9884\u8BBE
+          </button>
         </div>
         
         <div class="yyt-form-group">
-          <label class="yyt-checkbox-label">
-            <input type="checkbox" id="${s}-use-main-api" ${t.useMainApi?"checked":""}>
-            <span>\u4F7F\u7528SillyTavern\u4E3BAPI</span>
-          </label>
-          <div class="yyt-hint">\u52FE\u9009\u540E\u5C06\u4F7F\u7528SillyTavern\u5185\u7F6E\u7684API\u914D\u7F6E</div>
+          <div class="yyt-toggle-row">
+            <div class="yyt-toggle-label">
+              <span>\u4F7F\u7528SillyTavern\u4E3BAPI</span>
+              <span class="yyt-toggle-hint">\u542F\u7528\u540E\u5C06\u4F7F\u7528SillyTavern\u5185\u7F6E\u7684API\u914D\u7F6E</span>
+            </div>
+            <label class="yyt-toggle">
+              <input type="checkbox" id="${o}-use-main-api" ${e.useMainApi?"checked":""}>
+              <span class="yyt-toggle-slider"></span>
+            </label>
+          </div>
         </div>
         
-        <div id="${s}-custom-api-fields" class="${t.useMainApi?"yyt-disabled":""}">
+        <div id="${o}-custom-api-fields" class="${e.useMainApi?"yyt-disabled":""}">
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
-              <label for="${s}-api-url">API URL</label>
-              <input type="text" class="yyt-input" id="${s}-api-url" 
-                     value="${p(t.url||"")}" 
+              <label>API URL</label>
+              <input type="text" class="yyt-input" id="${o}-api-url" 
+                     value="${b(e.url||"")}" 
                      placeholder="https://api.openai.com/v1/chat/completions">
             </div>
           </div>
           
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
-              <label for="${s}-api-key">API Key</label>
+              <label>API Key</label>
               <div class="yyt-input-group">
-                <input type="password" class="yyt-input" id="${s}-api-key" 
-                       value="${p(t.apiKey||"")}" 
+                <input type="password" class="yyt-input" id="${o}-api-key" 
+                       value="${b(e.apiKey||"")}" 
                        placeholder="sk-...">
-                <button class="yyt-btn yyt-btn-icon" id="${s}-toggle-key-visibility" title="\u663E\u793A/\u9690\u85CF">
+                <button class="yyt-btn yyt-btn-icon" id="${o}-toggle-key-visibility" title="\u663E\u793A/\u9690\u85CF">
                   <i class="fa-solid fa-eye"></i>
                 </button>
               </div>
@@ -55,13 +88,15 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
           
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
-              <label for="${s}-model">\u6A21\u578B</label>
-              <div class="yyt-input-group">
-                <input type="text" class="yyt-input" id="${s}-model" 
-                       value="${p(t.model||"")}" 
+              <label>\u6A21\u578B</label>
+              <div class="yyt-model-row">
+                <input type="text" class="yyt-input yyt-model-input" id="${o}-model" 
+                       value="${b(e.model||"")}" 
                        placeholder="gpt-4">
-                <button class="yyt-btn yyt-btn-secondary" id="${s}-load-models" title="\u52A0\u8F7D\u6A21\u578B\u5217\u8868">
-                  <i class="fa-solid fa-refresh"></i>
+                <select class="yyt-select yyt-model-select" id="${o}-model-select" style="display: none;">
+                </select>
+                <button class="yyt-btn yyt-btn-secondary yyt-model-btn" id="${o}-load-models" title="\u83B7\u53D6\u6A21\u578B\u5217\u8868">
+                  <i class="fa-solid fa-sync-alt"></i>
                 </button>
               </div>
             </div>
@@ -69,194 +104,79 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
           
           <div class="yyt-form-row yyt-form-row-2col">
             <div class="yyt-form-group">
-              <label for="${s}-max-tokens">Max Tokens</label>
-              <input type="number" class="yyt-input" id="${s}-max-tokens" 
-                     value="${t.max_tokens||4096}" min="1" max="128000">
+              <label>Max Tokens</label>
+              <input type="number" class="yyt-input" id="${o}-max-tokens" 
+                     value="${e.max_tokens||4096}" min="1" max="128000">
             </div>
             
             <div class="yyt-form-group">
-              <label for="${s}-temperature">Temperature</label>
-              <input type="number" class="yyt-input" id="${s}-temperature" 
-                     value="${t.temperature??.7}" min="0" max="2" step="0.1">
+              <label>Temperature</label>
+              <input type="number" class="yyt-input" id="${o}-temperature" 
+                     value="${e.temperature??.7}" min="0" max="2" step="0.1">
             </div>
           </div>
           
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
-              <label for="${s}-top-p">Top P</label>
-              <input type="number" class="yyt-input" id="${s}-top-p" 
-                     value="${t.top_p??.9}" min="0" max="1" step="0.1">
+              <label>Top P</label>
+              <input type="number" class="yyt-input" id="${o}-top-p" 
+                     value="${e.top_p??.9}" min="0" max="1" step="0.1">
             </div>
           </div>
         </div>
       </div>
       
+      <!-- \u5E95\u90E8\u64CD\u4F5C\u533A -->
       <div class="yyt-panel-footer">
-        <button class="yyt-btn yyt-btn-secondary" id="${s}-reset-api-config">
-          <i class="fa-solid fa-undo"></i> \u91CD\u7F6E
-        </button>
-        <button class="yyt-btn yyt-btn-primary" id="${s}-save-api-config">
-          <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
-        </button>
-      </div>
-    </div>
-  `}function Kt(){let t=rt(),e=K(),r=t.length>0?t.map(a=>`
-        <div class="yyt-preset-item ${a.name===e?"active":""}" data-preset-name="${p(a.name)}">
-          <div class="yyt-preset-info">
-            <div class="yyt-preset-name">${p(a.name)}</div>
-            <div class="yyt-preset-desc">${p(a.description||"\u65E0\u63CF\u8FF0")}</div>
-            <div class="yyt-preset-meta">
-              ${a.apiConfig.useMainApi?'<span class="yyt-badge yyt-badge-small">\u4E3BAPI</span>':`<span class="yyt-badge yyt-badge-small">${p(a.apiConfig.model||"\u672A\u8BBE\u7F6E")}</span>`}
-            </div>
-          </div>
-          <div class="yyt-preset-actions">
-            <button class="yyt-btn yyt-btn-small yyt-btn-icon" data-action="activate" title="\u6FC0\u6D3B">
-              <i class="fa-solid fa-check"></i>
-            </button>
-            <button class="yyt-btn yyt-btn-small yyt-btn-icon" data-action="edit" title="\u7F16\u8F91">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="yyt-btn yyt-btn-small yyt-btn-icon" data-action="duplicate" title="\u590D\u5236">
-              <i class="fa-solid fa-copy"></i>
-            </button>
-            <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger" data-action="delete" title="\u5220\u9664">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      `).join(""):'<div class="yyt-empty-state"><i class="fa-solid fa-inbox"></i><p>\u6682\u65E0\u9884\u8BBE</p></div>';return`
-    <div class="yyt-panel">
-      <div class="yyt-panel-section">
-        <div class="yyt-section-title">
-          <i class="fa-solid fa-list"></i>
-          <span>\u9884\u8BBE\u5217\u8868</span>
-          <span class="yyt-count-badge">${t.length}</span>
-        </div>
-        
-        <div class="yyt-preset-list">
-          ${r}
-        </div>
-      </div>
-      
-      <div class="yyt-panel-section">
-        <div class="yyt-section-title">
-          <i class="fa-solid fa-plus-circle"></i>
-          <span>\u521B\u5EFA\u9884\u8BBE</span>
-        </div>
-        
-        <div class="yyt-form-row">
-          <div class="yyt-form-group yyt-flex-1">
-            <input type="text" class="yyt-input" id="${s}-new-preset-name" 
-                   placeholder="\u9884\u8BBE\u540D\u79F0" value="${N("\u65B0\u9884\u8BBE")}">
-          </div>
-          <button class="yyt-btn yyt-btn-primary" id="${s}-create-preset">
-            <i class="fa-solid fa-plus"></i> \u4ECE\u5F53\u524D\u914D\u7F6E\u521B\u5EFA
+        <div class="yyt-footer-left">
+          <button class="yyt-btn yyt-btn-secondary" id="${o}-import-presets">
+            <i class="fa-solid fa-file-import"></i> \u5BFC\u5165
           </button>
-        </div>
-      </div>
-      
-      <div class="yyt-panel-section">
-        <div class="yyt-section-title">
-          <i class="fa-solid fa-file-import"></i>
-          <span>\u5BFC\u5165/\u5BFC\u51FA</span>
-        </div>
-        
-        <div class="yyt-button-row">
-          <button class="yyt-btn yyt-btn-secondary" id="${s}-export-presets">
-            <i class="fa-solid fa-download"></i> \u5BFC\u51FA\u5168\u90E8
+          <button class="yyt-btn yyt-btn-secondary" id="${o}-export-presets">
+            <i class="fa-solid fa-file-export"></i> \u5BFC\u51FA
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${s}-import-presets">
-            <i class="fa-solid fa-upload"></i> \u5BFC\u5165
+          <input type="file" id="${o}-import-file" accept=".json" style="display:none">
+        </div>
+        <div class="yyt-footer-right">
+          <button class="yyt-btn yyt-btn-secondary" id="${o}-reset-api-config">
+            <i class="fa-solid fa-undo"></i> \u91CD\u7F6E
           </button>
-          <input type="file" id="${s}-import-file" accept=".json" style="display:none">
+          <button class="yyt-btn yyt-btn-primary" id="${o}-save-api-config">
+            <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
+          </button>
         </div>
       </div>
     </div>
-  `}function Bt(){let t=m(),e=at(),r=K(),a=e.length>0?e.map(n=>`<option value="${p(n)}" ${n===r?"selected":""}>${p(n)}</option>`).join(""):"";return`
-    <div class="yyt-panel">
-      <div class="yyt-panel-section">
-        <div class="yyt-section-title">
-          <i class="fa-solid fa-vial"></i>
-          <span>\u8FDE\u63A5\u6D4B\u8BD5</span>
-        </div>
-        
-        <div class="yyt-form-group">
-          <label for="${s}-test-preset">\u9009\u62E9\u914D\u7F6E</label>
-          <select class="yyt-select" id="${s}-test-preset">
-            <option value="">\u5F53\u524DAPI\u914D\u7F6E</option>
-            ${a}
-          </select>
-        </div>
-        
-        <div class="yyt-form-group">
-          <label for="${s}-test-message">\u6D4B\u8BD5\u6D88\u606F</label>
-          <textarea class="yyt-textarea" id="${s}-test-message" rows="3" 
-                    placeholder="\u8F93\u5165\u6D4B\u8BD5\u6D88\u606F...">Hello, this is a test message.</textarea>
-        </div>
-        
-        <div class="yyt-button-row">
-          <button class="yyt-btn yyt-btn-primary" id="${s}-run-test">
-            <i class="fa-solid fa-play"></i> \u8FD0\u884C\u6D4B\u8BD5
-          </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${s}-test-connection">
-            <i class="fa-solid fa-wifi"></i> \u6D4B\u8BD5\u8FDE\u63A5
+  `}function He(e=null){let t=D();if(!t)return;let r=Q().map(p=>p.name),a=e||se("\u65B0\u9884\u8BBE"),l=`
+    <div class="yyt-dialog-overlay" id="${o}-dialog-overlay">
+      <div class="yyt-dialog">
+        <div class="yyt-dialog-header">
+          <span class="yyt-dialog-title">${e?"\u7F16\u8F91\u9884\u8BBE":"\u4FDD\u5B58\u4E3A\u65B0\u9884\u8BBE"}</span>
+          <button class="yyt-dialog-close" id="${o}-dialog-close">
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
-      </div>
-      
-      <div class="yyt-panel-section">
-        <div class="yyt-section-title">
-          <i class="fa-solid fa-terminal"></i>
-          <span>\u6D4B\u8BD5\u7ED3\u679C</span>
-        </div>
-        
-        <div class="yyt-result-box" id="${s}-test-result">
-          <div class="yyt-result-placeholder">
-            <i class="fa-solid fa-arrow-up"></i>
-            <p>\u8FD0\u884C\u6D4B\u8BD5\u540E\u7ED3\u679C\u5C06\u663E\u793A\u5728\u8FD9\u91CC</p>
+        <div class="yyt-dialog-body">
+          <div class="yyt-form-group">
+            <label>\u9884\u8BBE\u540D\u79F0</label>
+            <input type="text" class="yyt-input" id="${o}-dialog-preset-name" 
+                   value="${b(a)}" placeholder="\u8F93\u5165\u9884\u8BBE\u540D\u79F0">
           </div>
+          <div class="yyt-form-group">
+            <label>\u63CF\u8FF0\uFF08\u53EF\u9009\uFF09</label>
+            <textarea class="yyt-textarea" id="${o}-dialog-preset-desc" rows="2" 
+                      placeholder="\u9884\u8BBE\u63CF\u8FF0..."></textarea>
+          </div>
+        </div>
+        <div class="yyt-dialog-footer">
+          <button class="yyt-btn yyt-btn-secondary" id="${o}-dialog-cancel">\u53D6\u6D88</button>
+          <button class="yyt-btn yyt-btn-primary" id="${o}-dialog-save">\u4FDD\u5B58</button>
         </div>
       </div>
     </div>
-  `}function Ht(){let t=E();if(!t||!O()){console.warn("[YouYouToolkit] bindEvents: jQuery\u6216\u5BB9\u5668\u4E0D\u53EF\u7528");return}switch(o.find(".yyt-tab-item").off("click").on("click",function(){let e=t(this).data("tab");e&&e!==C&&(C=e,v())}),C){case"api":Gt();break;case"presets":qt();break;case"test":Wt();break}}function Gt(){let t=E();!t||!O()||(o.find(`#${s}-use-main-api`).on("change",function(){let e=t(this).is(":checked"),r=o.find(`#${s}-custom-api-fields`);e?r.addClass("yyt-disabled").find("input, button").prop("disabled",!0):r.removeClass("yyt-disabled").find("input, button").prop("disabled",!1)}),o.find(`#${s}-toggle-key-visibility`).on("click",function(){let e=o.find(`#${s}-api-key`),r=e.attr("type");e.attr("type",r==="password"?"text":"password"),t(this).find("i").toggleClass("fa-eye fa-eye-slash")}),o.find(`#${s}-load-models`).on("click",async function(){let e=t(this),r=o.find(`#${s}-model`);e.prop("disabled",!0).find("i").addClass("fa-spin");try{let a=$t(),n=await tt(a);if(n.length>0){let i=o.find(`#${s}-model-select`);i.length===0&&(i=t(`<select class="yyt-select" id="${s}-model-select">`).insertAfter(r),r.hide()),i.empty(),n.forEach(c=>{i.append(`<option value="${p(c)}">${p(c)}</option>`)}),i.off("change").on("change",function(){r.val(t(this).val())}),y("success",`\u5DF2\u52A0\u8F7D ${n.length} \u4E2A\u6A21\u578B`)}else y("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(a){y("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${a.message}`)}finally{e.prop("disabled",!1).find("i").removeClass("fa-spin")}}),o.find(`#${s}-save-api-config`).on("click",function(){let e=$t(),r=L(e);if(!r.valid&&!e.useMainApi){y("error",r.errors.join(", "));return}F(e),y("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58")}),o.find(`#${s}-reset-api-config`).on("click",function(){confirm("\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F")&&(F({url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9}),v(),y("info","API\u914D\u7F6E\u5DF2\u91CD\u7F6E"))}))}function qt(){let t=E();!t||!O()||(o.find(".yyt-preset-item").on("click",function(e){let a=t(this).data("preset-name"),n=t(e.target).closest("[data-action]").data("action");if(n)switch(e.stopPropagation(),n){case"activate":let i=it(a);y(i.success?"success":"error",i.message),i.success&&v();break;case"edit":Vt(a);break;case"duplicate":let c=N(a);confirm(`\u786E\u5B9A\u8981\u590D\u5236\u9884\u8BBE "${a}" \u4E3A "${c}" \u5417\uFF1F`)&&(B(JSON.stringify([{...getPreset(a),name:c}])),v());break;case"delete":if(confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${a}" \u5417\uFF1F`)){let l=st(a);y(l.success?"info":"error",l.message),l.success&&v()}break}}),o.find(`#${s}-create-preset`).on("click",function(){let e=o.find(`#${s}-new-preset-name`).val().trim();if(!e){y("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0");return}let r=lt(e);y(r.success?"success":"error",r.message),r.success&&(o.find(`#${s}-new-preset-name`).val(N("\u65B0\u9884\u8BBE")),v())}),o.find(`#${s}-export-presets`).on("click",function(){try{let e=ct(),r=new Blob([e],{type:"application/json"}),a=URL.createObjectURL(r),n=document.createElement("a");n.href=a,n.download=`youyou_toolkit_presets_${Date.now()}.json`,n.click(),URL.revokeObjectURL(a),y("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(e){y("error",`\u5BFC\u51FA\u5931\u8D25: ${e.message}`)}}),o.find(`#${s}-import-presets`).on("click",function(){o.find(`#${s}-import-file`).click()}),o.find(`#${s}-import-file`).on("change",async function(e){let r=e.target.files[0];if(r){try{let a=await r.text(),n=B(a,{overwrite:!0});y(n.success?"success":"error",n.message),n.imported>0&&v()}catch(a){y("error",`\u5BFC\u5165\u5931\u8D25: ${a.message}`)}t(this).val("")}}))}function Wt(){let t=E();!t||!O()||(o.find(`#${s}-test-connection`).on("click",async function(){let e=t(this),r=o.find(`#${s}-test-result`),a=o.find(`#${s}-test-preset`).val();e.prop("disabled",!0),r.html('<div class="yyt-loading"><i class="fa-solid fa-spinner fa-spin"></i> \u6B63\u5728\u6D4B\u8BD5\u8FDE\u63A5...</div>');try{let n=a?getPreset(a)?.apiConfig:m(),i=await Z(n);r.html(`
-        <div class="yyt-result ${i.success?"yyt-result-success":"yyt-result-error"}">
-          <i class="fa-solid ${i.success?"fa-check-circle":"fa-times-circle"}"></i>
-          <div>
-            <div class="yyt-result-title">${i.success?"\u8FDE\u63A5\u6210\u529F":"\u8FDE\u63A5\u5931\u8D25"}</div>
-            <div class="yyt-result-message">${p(i.message)}</div>
-          </div>
-        </div>
-      `)}catch(n){r.html(`
-        <div class="yyt-result yyt-result-error">
-          <i class="fa-solid fa-times-circle"></i>
-          <div>
-            <div class="yyt-result-title">\u6D4B\u8BD5\u5931\u8D25</div>
-            <div class="yyt-result-message">${p(n.message)}</div>
-          </div>
-        </div>
-      `)}finally{e.prop("disabled",!1)}}),o.find(`#${s}-run-test`).on("click",async function(){let e=t(this),r=o.find(`#${s}-test-result`),a=o.find(`#${s}-test-message`),n=o.find(`#${s}-test-preset`).val(),i=a.val().trim();if(!i){y("warning","\u8BF7\u8F93\u5165\u6D4B\u8BD5\u6D88\u606F");return}e.prop("disabled",!0),r.html('<div class="yyt-loading"><i class="fa-solid fa-spinner fa-spin"></i> \u6B63\u5728\u53D1\u9001\u8BF7\u6C42...</div>');try{let{sendApiRequest:c}=await Promise.resolve().then(()=>(Q(),et)),l=n?getPreset(n)?.apiConfig:m(),b=await c([{role:"user",content:i}],{apiConfig:l});r.html(`
-        <div class="yyt-result yyt-result-success">
-          <div class="yyt-result-title">\u54CD\u5E94\u6210\u529F</div>
-          <div class="yyt-result-content">${p(b)}</div>
-        </div>
-      `)}catch(c){r.html(`
-        <div class="yyt-result yyt-result-error">
-          <i class="fa-solid fa-times-circle"></i>
-          <div>
-            <div class="yyt-result-title">\u8BF7\u6C42\u5931\u8D25</div>
-            <div class="yyt-result-message">${p(c.message)}</div>
-          </div>
-        </div>
-      `)}finally{e.prop("disabled",!1)}}))}function $t(){return!E()||!O()?{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9}:{url:o.find(`#${s}-api-url`).val()?.trim()||"",apiKey:o.find(`#${s}-api-key`).val()||"",model:o.find(`#${s}-model`).val()?.trim()||"",useMainApi:o.find(`#${s}-use-main-api`).is(":checked"),max_tokens:parseInt(o.find(`#${s}-max-tokens`).val())||4096,temperature:parseFloat(o.find(`#${s}-temperature`).val())??.7,top_p:parseFloat(o.find(`#${s}-top-p`).val())??.9}}function Vt(t){let e=getPreset(t);if(!e)return;let r=prompt("\u7F16\u8F91\u9884\u8BBE\u63CF\u8FF0:",e.description||"");r!==null&&(nt(t,{description:r}),y("success","\u9884\u8BBE\u5DF2\u66F4\u65B0"),v())}function v(t){let e=E();if(!e){console.error("[YouYouToolkit] jQuery not available");return}if(t&&(typeof t=="string"?o=e(t):t&&t.jquery?o=t:t&&(o=e(t))),!o||!o.length){console.error("[YouYouToolkit] Container not found or invalid");return}let r=`
-    <div class="yyt-api-manager">
-      ${Ft()}
-      <div class="yyt-tab-content">
-        ${Lt()}
-      </div>
-    </div>
-  `;o.html(r),Ht()}function Xt(){return`
+  `;t(`#${o}-dialog-overlay`).remove(),s.append(l);let i=t(`#${o}-dialog-overlay`),c=t(`#${o}-dialog-preset-name`),f=t(`#${o}-dialog-preset-desc`);if(c.focus().select(),e){let p=x(e);p&&p.description&&f.val(p.description)}let Y=()=>{i.remove()};i.find(`#${o}-dialog-close, #${o}-dialog-cancel`).on("click",Y),i.on("click",function(p){p.target===this&&Y()}),i.find(`#${o}-dialog-save`).on("click",function(){let p=c.val().trim(),Te=f.val().trim();if(!p){y("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0"),c.focus();return}if(r.includes(p)&&p!==e){if(!confirm(`\u9884\u8BBE "${p}" \u5DF2\u5B58\u5728\uFF0C\u662F\u5426\u8986\u76D6\uFF1F`))return;O(p)}e&&p!==e&&O(e);let _e=ce(),V=K({name:p,description:Te,apiConfig:_e});V.success?(y("success",V.message),Y(),A()):y("error",V.message)}),c.on("keypress",function(p){p.which===13&&i.find(`#${o}-dialog-save`).click()})}function Ge(){let e=D();if(!e||!pe()){console.warn("[YouYouToolkit] bindEvents: jQuery\u6216\u5BB9\u5668\u4E0D\u53EF\u7528");return}s.find(`#${o}-preset-select`).on("change",function(){let t=e(this).val();if(t){let n=x(t);n&&$e(n.apiConfig)}}),s.find(`#${o}-apply-preset`).on("click",function(){let t=s.find(`#${o}-preset-select`).val();if(!t){B(""),y("info","\u5DF2\u5207\u6362\u5230\u5F53\u524D\u914D\u7F6E"),A();return}let n=B(t);y(n.success?"success":"error",n.message),n.success&&A()}),s.find(".yyt-preset-item").on("click",function(t){let r=e(this).data("preset-name"),a=e(t.target).closest("[data-action]").data("action");if(a)switch(t.stopPropagation(),a){case"load":let l=x(r);l&&($e(l.apiConfig),s.find(`#${o}-preset-select`).val(r),y("info",`\u5DF2\u52A0\u8F7D\u9884\u8BBE "${r}" \u7684\u914D\u7F6E`));break;case"delete":if(confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${r}" \u5417\uFF1F`)){let i=O(r);y(i.success?"info":"error",i.message),i.success&&A()}break}}),s.find(`#${o}-use-main-api`).on("change",function(){let t=e(this).is(":checked"),n=s.find(`#${o}-custom-api-fields`);t?n.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):n.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1)}),s.find(`#${o}-toggle-key-visibility`).on("click",function(){let t=s.find(`#${o}-api-key`),n=t.attr("type");t.attr("type",n==="password"?"text":"password"),e(this).find("i").toggleClass("fa-eye fa-eye-slash")}),s.find(`#${o}-load-models`).on("click",async function(){let t=e(this),n=s.find(`#${o}-model`),r=s.find(`#${o}-model-select`);t.prop("disabled",!0).find("i").addClass("fa-spin");try{let a=ce(),l=await te(a);if(l.length>0){r.empty(),l.forEach(c=>{r.append(`<option value="${b(c)}">${b(c)}</option>`)}),n.hide(),r.show();let i=n.val();i&&l.includes(i)&&r.val(i),r.off("change").on("change",function(){n.val(e(this).val())}),y("success",`\u5DF2\u52A0\u8F7D ${l.length} \u4E2A\u6A21\u578B`)}else y("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(a){y("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${a.message}`)}finally{t.prop("disabled",!1).find("i").removeClass("fa-spin")}}),s.find(`#${o}-model`).on("focus",function(){let t=s.find(`#${o}-model-select`);e(this).show(),t.hide()}),s.find(`#${o}-save-api-config`).on("click",function(){let t=ce(),n=L(t);if(!n.valid&&!t.useMainApi){y("error",n.errors.join(", "));return}J(t);let r=H();r&&re(r,{apiConfig:t}),y("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58")}),s.find(`#${o}-reset-api-config`).on("click",function(){confirm("\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F")&&(J({url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9}),A(),y("info","API\u914D\u7F6E\u5DF2\u91CD\u7F6E"))}),s.find(`#${o}-save-as-preset`).on("click",function(){He()}),s.find(`#${o}-export-presets`).on("click",function(){try{let t=oe(),n=new Blob([t],{type:"application/json"}),r=URL.createObjectURL(n),a=document.createElement("a");a.href=r,a.download=`youyou_toolkit_presets_${Date.now()}.json`,a.click(),URL.revokeObjectURL(r),y("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(t){y("error",`\u5BFC\u51FA\u5931\u8D25: ${t.message}`)}}),s.find(`#${o}-import-presets`).on("click",function(){s.find(`#${o}-import-file`).click()}),s.find(`#${o}-import-file`).on("change",async function(t){let n=t.target.files[0];if(n){try{let r=await n.text(),a=ie(r,{overwrite:!0});y(a.success?"success":"error",a.message),a.imported>0&&A()}catch(r){y("error",`\u5BFC\u5165\u5931\u8D25: ${r.message}`)}e(this).val("")}})}function ce(){if(!D()||!pe())return{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9};let t=s.find(`#${o}-model`).val()?.trim()||"",n=s.find(`#${o}-model-select`);return n.is(":visible")&&(t=n.val()||t),{url:s.find(`#${o}-api-url`).val()?.trim()||"",apiKey:s.find(`#${o}-api-key`).val()||"",model:t,useMainApi:s.find(`#${o}-use-main-api`).is(":checked"),max_tokens:parseInt(s.find(`#${o}-max-tokens`).val())||4096,temperature:parseFloat(s.find(`#${o}-temperature`).val())??.7,top_p:parseFloat(s.find(`#${o}-top-p`).val())??.9}}function $e(e){if(!D()||!pe()||!e)return;s.find(`#${o}-api-url`).val(e.url||""),s.find(`#${o}-api-key`).val(e.apiKey||""),s.find(`#${o}-model`).val(e.model||""),s.find(`#${o}-max-tokens`).val(e.max_tokens||4096),s.find(`#${o}-temperature`).val(e.temperature??.7),s.find(`#${o}-top-p`).val(e.top_p??.9);let n=e.useMainApi??!0;s.find(`#${o}-use-main-api`).prop("checked",n);let a=s.find(`#${o}-custom-api-fields`);n?a.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):a.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1),s.find(`#${o}-model`).show(),s.find(`#${o}-model-select`).hide()}function A(e){let t=D();if(!t){console.error("[YouYouToolkit] jQuery not available");return}if(e&&(typeof e=="string"?s=t(e):e&&e.jquery?s=e:e&&(s=t(e))),!s||!s.length){console.error("[YouYouToolkit] Container not found or invalid");return}let n=`<div class="yyt-api-manager">${Be()}</div>`;s.html(n),Ge()}function qe(){return`
     /* ============================================================
-       YouYou Toolkit - \u73B0\u4EE3\u5316UI\u6837\u5F0F
+       YouYou Toolkit - \u73B0\u4EE3\u5316UI\u6837\u5F0F\uFF08\u5408\u5E76\u7248\uFF09
        ============================================================ */
     
     /* CSS\u53D8\u91CF\u5B9A\u4E49 */
@@ -288,104 +208,18 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       height: 100%;
     }
     
-    /* Tab\u5BFC\u822A - \u73B0\u4EE3\u5316\u8BBE\u8BA1 */
-    .yyt-tab-nav {
-      display: flex;
-      gap: 6px;
-      padding: 6px;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
-      border-radius: var(--yyt-radius);
-      margin-bottom: 20px;
-      border: 1px solid var(--yyt-border);
-    }
-    
-    .yyt-tab-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 18px;
-      border-radius: var(--yyt-radius-sm);
-      cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      color: var(--yyt-text-secondary);
-      font-weight: 500;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .yyt-tab-item::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
-      opacity: 0;
-      transition: opacity 0.25s ease;
-    }
-    
-    .yyt-tab-item:hover {
-      color: var(--yyt-text);
-      background: var(--yyt-surface-hover);
-    }
-    
-    .yyt-tab-item.active {
-      color: #0b0f15;
-      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
-      box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    
-    .yyt-tab-item.active::before {
-      opacity: 1;
-    }
-    
-    .yyt-tab-item i {
-      font-size: 14px;
-      transition: transform 0.25s ease;
-    }
-    
-    .yyt-tab-item:hover i {
-      transform: scale(1.1);
-    }
-    
-    .yyt-tab-item span {
-      position: relative;
-      z-index: 1;
-    }
-    
-    .yyt-tab-content {
-      flex: 1;
-      overflow: auto;
-      padding-right: 4px;
-    }
-    
-    .yyt-tab-content::-webkit-scrollbar {
-      width: 6px;
-    }
-    
-    .yyt-tab-content::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    
-    .yyt-tab-content::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 3px;
-    }
-    
-    .yyt-tab-content::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.25);
-    }
-    
     /* \u9762\u677F */
     .yyt-panel {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 20px;
     }
     
     .yyt-panel-section {
       display: flex;
       flex-direction: column;
       gap: 14px;
-      padding: 20px;
+      padding: 18px;
       background: linear-gradient(135deg, var(--yyt-surface) 0%, transparent 100%);
       border: 1px solid var(--yyt-border);
       border-radius: var(--yyt-radius);
@@ -414,54 +248,123 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       filter: drop-shadow(0 0 8px var(--yyt-accent-glow));
     }
     
-    .yyt-count-badge {
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 20px;
-      background: linear-gradient(135deg, var(--yyt-accent-soft) 0%, rgba(123, 183, 255, 0.08) 100%);
-      color: var(--yyt-accent);
-      font-weight: 600;
-      border: 1px solid rgba(123, 183, 255, 0.2);
+    /* \u9884\u8BBE\u9009\u62E9\u5668 */
+    .yyt-preset-selector {
+      display: flex;
+      gap: 12px;
+      align-items: center;
     }
     
-    /* \u72B6\u6001\u680F */
-    .yyt-status-bar {
+    .yyt-preset-list-compact {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    
+    .yyt-preset-list-compact::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    .yyt-preset-list-compact::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .yyt-preset-list-compact::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+    }
+    
+    /* \u9884\u8BBE\u9879 - \u7D27\u51D1\u6837\u5F0F */
+    .yyt-preset-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius-sm);
+      transition: all 0.2s ease;
+    }
+    
+    .yyt-preset-item:hover {
+      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    
+    .yyt-preset-item.active {
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
+      border-color: rgba(123, 183, 255, 0.3);
+    }
+    
+    .yyt-preset-info {
+      flex: 1;
+      min-width: 0;
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 14px 18px;
-      background: linear-gradient(135deg, rgba(123, 183, 255, 0.08) 0%, rgba(123, 183, 255, 0.02) 100%);
-      border-radius: var(--yyt-radius-sm);
-      border: 1px solid rgba(123, 183, 255, 0.15);
+    }
+    
+    .yyt-preset-name {
+      font-weight: 500;
+      font-size: 13px;
+      color: var(--yyt-text);
+    }
+    
+    .yyt-preset-meta {
+      display: flex;
+      gap: 6px;
+    }
+    
+    .yyt-preset-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0.5;
+      transition: opacity 0.2s ease;
+    }
+    
+    .yyt-preset-item:hover .yyt-preset-actions {
+      opacity: 1;
     }
     
     /* \u5FBD\u7AE0 */
     .yyt-badge {
       display: inline-flex;
       align-items: center;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.3px;
     }
     
     .yyt-badge-small {
-      padding: 3px 10px;
-      font-size: 11px;
-    }
-    
-    .yyt-badge-info {
+      padding: 2px 8px;
+      font-size: 10px;
       background: linear-gradient(135deg, var(--yyt-accent-soft) 0%, rgba(123, 183, 255, 0.08) 100%);
       color: var(--yyt-accent);
-      border: 1px solid rgba(123, 183, 255, 0.25);
-      box-shadow: 0 2px 10px rgba(123, 183, 255, 0.15);
+      border: 1px solid rgba(123, 183, 255, 0.2);
     }
     
-    .yyt-badge-default {
-      background: linear-gradient(135deg, var(--yyt-surface-active) 0%, var(--yyt-surface) 100%);
-      color: var(--yyt-text-secondary);
-      border: 1px solid var(--yyt-border);
+    /* \u7A7A\u72B6\u6001 */
+    .yyt-empty-state-small {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--yyt-text-muted);
+      gap: 8px;
+    }
+    
+    .yyt-empty-state-small i {
+      font-size: 24px;
+      opacity: 0.4;
+    }
+    
+    .yyt-empty-state-small span {
+      font-size: 12px;
     }
     
     /* \u8868\u5355 */
@@ -472,7 +375,7 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
     }
     
     .yyt-form-group label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--yyt-text-secondary);
       letter-spacing: 0.3px;
@@ -480,7 +383,7 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
     
     .yyt-form-row {
       display: flex;
-      gap: 14px;
+      gap: 12px;
     }
     
     .yyt-form-row-2col > .yyt-form-group {
@@ -491,18 +394,115 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       flex: 1;
     }
     
+    /* Toggle\u5F00\u5173 - \u7F8E\u89C2\u6837\u5F0F */
+    .yyt-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius-sm);
+      transition: all 0.2s ease;
+    }
+    
+    .yyt-toggle-row:hover {
+      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
+      border-color: var(--yyt-border-strong);
+    }
+    
+    .yyt-toggle-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .yyt-toggle-label > span:first-child {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--yyt-text);
+    }
+    
+    .yyt-toggle-hint {
+      font-size: 11px;
+      color: var(--yyt-text-muted);
+    }
+    
+    .yyt-toggle {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    
+    .yyt-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .yyt-toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: 26px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .yyt-toggle-slider::before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 2px;
+      bottom: 2px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+      border-radius: 50%;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .yyt-toggle input:checked + .yyt-toggle-slider {
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
+      border-color: var(--yyt-accent);
+      box-shadow: 0 0 12px var(--yyt-accent-glow);
+    }
+    
+    .yyt-toggle input:checked + .yyt-toggle-slider::before {
+      transform: translateX(22px);
+    }
+    
+    .yyt-toggle input:focus + .yyt-toggle-slider {
+      box-shadow: 0 0 0 3px var(--yyt-accent-soft);
+    }
+    
     /* \u8F93\u5165\u6846 - \u73B0\u4EE3\u5316\u8BBE\u8BA1 */
     .yyt-input,
     .yyt-select,
     .yyt-textarea {
-      padding: 12px 16px;
+      padding: 10px 14px;
       border: 1px solid var(--yyt-border);
       border-radius: var(--yyt-radius-sm);
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
       color: var(--yyt-text);
-      font-size: 14px;
+      font-size: 13px;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .yyt-select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
     }
     
     .yyt-input:hover,
@@ -528,42 +528,33 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
     
     .yyt-input-group {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
     
     .yyt-input-group .yyt-input {
       flex: 1;
     }
     
-    /* \u590D\u9009\u6846 */
-    .yyt-checkbox-label {
+    /* \u6A21\u578B\u884C - \u4FEE\u590D\u4E0B\u62C9\u6846\u53D8\u77ED\u95EE\u9898 */
+    .yyt-model-row {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-      padding: 12px 16px;
-      background: var(--yyt-surface);
-      border-radius: var(--yyt-radius-sm);
-      border: 1px solid var(--yyt-border);
-      transition: all 0.2s ease;
+      gap: 8px;
+      align-items: stretch;
     }
     
-    .yyt-checkbox-label:hover {
-      background: var(--yyt-surface-hover);
-      border-color: var(--yyt-border-strong);
+    .yyt-model-input {
+      flex: 1;
+      min-width: 0;
     }
     
-    .yyt-checkbox-label input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-      accent-color: var(--yyt-accent);
+    .yyt-model-select {
+      flex: 1;
+      min-width: 0;
     }
     
-    .yyt-hint {
-      font-size: 12px;
-      color: var(--yyt-text-muted);
-      padding-left: 4px;
+    .yyt-model-btn {
+      flex-shrink: 0;
+      min-width: 40px;
     }
     
     .yyt-disabled {
@@ -572,20 +563,21 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       filter: grayscale(0.5);
     }
     
-    .yyt-button-row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    
     /* \u9762\u677F\u5E95\u90E8 */
     .yyt-panel-footer {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       gap: 12px;
-      padding-top: 20px;
+      padding-top: 16px;
       margin-top: 4px;
       border-top: 1px solid var(--yyt-border);
+    }
+    
+    .yyt-footer-left,
+    .yyt-footer-right {
+      display: flex;
+      gap: 8px;
     }
     
     /* \u6309\u94AE - \u73B0\u4EE3\u5316\u8BBE\u8BA1 */
@@ -593,17 +585,17 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 10px 20px;
+      gap: 6px;
+      padding: 8px 16px;
       border: none;
       border-radius: var(--yyt-radius-sm);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
     }
     
     .yyt-btn::before {
@@ -654,13 +646,13 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
     }
     
     .yyt-btn-icon {
-      padding: 10px;
-      min-width: 40px;
+      padding: 8px;
+      min-width: 36px;
     }
     
     .yyt-btn-small {
-      padding: 8px 12px;
-      font-size: 12px;
+      padding: 6px 10px;
+      font-size: 11px;
     }
     
     .yyt-btn:disabled {
@@ -670,228 +662,101 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       box-shadow: none !important;
     }
     
-    /* \u9884\u8BBE\u5217\u8868 - \u73B0\u4EE3\u5316\u8BBE\u8BA1 */
-    .yyt-preset-list {
+    /* \u5BF9\u8BDD\u6846 */
+    .yyt-dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 300px;
-      overflow-y: auto;
-      padding-right: 4px;
+      align-items: center;
+      justify-content: center;
+      z-index: 10001;
+      animation: yytFadeIn 0.2s ease-out;
     }
     
-    .yyt-preset-list::-webkit-scrollbar {
-      width: 6px;
+    @keyframes yytFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
     
-    .yyt-preset-list::-webkit-scrollbar-track {
-      background: transparent;
+    .yyt-dialog {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 30%), #0d1117;
+      border: 1px solid var(--yyt-border-strong);
+      border-radius: var(--yyt-radius);
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+      width: 380px;
+      max-width: 90vw;
+      animation: yytSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
     
-    .yyt-preset-list::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 3px;
+    @keyframes yytSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
     }
     
-    .yyt-preset-item {
+    .yyt-dialog-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 16px 20px;
-      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-      border: 1px solid var(--yyt-border);
-      border-radius: var(--yyt-radius);
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
+      border-bottom: 1px solid var(--yyt-border);
     }
     
-    .yyt-preset-item:hover {
-      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
-      border-color: rgba(255, 255, 255, 0.15);
-      transform: translateX(4px);
-    }
-    
-    .yyt-preset-item.active {
-      background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
-      border-color: rgba(123, 183, 255, 0.35);
-      box-shadow: 0 0 20px var(--yyt-accent-soft), inset 0 1px 0 rgba(123, 183, 255, 0.1);
-    }
-    
-    .yyt-preset-info {
-      flex: 1;
-      min-width: 0;
-    }
-    
-    .yyt-preset-name {
+    .yyt-dialog-title {
       font-weight: 600;
-      font-size: 14px;
-      color: var(--yyt-text);
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .yyt-preset-desc {
-      font-size: 12px;
-      color: var(--yyt-text-muted);
-      margin-bottom: 8px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .yyt-preset-meta {
-      display: flex;
-      gap: 8px;
-    }
-    
-    .yyt-preset-actions {
-      display: flex;
-      gap: 6px;
-      opacity: 0.5;
-      transition: opacity 0.2s ease;
-    }
-    
-    .yyt-preset-item:hover .yyt-preset-actions {
-      opacity: 1;
-    }
-    
-    /* \u7A7A\u72B6\u6001 */
-    .yyt-empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 50px 20px;
-      color: var(--yyt-text-muted);
-    }
-    
-    .yyt-empty-state i {
-      font-size: 56px;
-      margin-bottom: 20px;
-      opacity: 0.4;
-      filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.1));
-    }
-    
-    .yyt-empty-state p {
       font-size: 15px;
-      letter-spacing: 0.5px;
+      color: var(--yyt-text);
     }
     
-    /* \u6D4B\u8BD5\u7ED3\u679C - \u73B0\u4EE3\u5316\u8BBE\u8BA1 */
-    .yyt-result-box {
-      min-height: 160px;
+    .yyt-dialog-close {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--yyt-text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .yyt-dialog-close:hover {
+      background: rgba(248, 113, 113, 0.15);
+      color: var(--yyt-error);
+    }
+    
+    .yyt-dialog-body {
       padding: 20px;
-      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-      border: 1px solid var(--yyt-border);
-      border-radius: var(--yyt-radius);
-      font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
-    }
-    
-    .yyt-result-placeholder {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      min-height: 120px;
-      color: var(--yyt-text-muted);
+      gap: 16px;
     }
     
-    .yyt-result-placeholder i {
-      font-size: 28px;
-      margin-bottom: 12px;
-      opacity: 0.5;
-      animation: yytFloat 2s ease-in-out infinite;
-    }
-    
-    @keyframes yytFloat {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
-    
-    .yyt-loading {
+    .yyt-dialog-footer {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      color: var(--yyt-accent);
-      font-size: 14px;
-    }
-    
-    .yyt-loading i {
-      font-size: 18px;
-    }
-    
-    .yyt-result {
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
-    }
-    
-    .yyt-result i {
-      font-size: 22px;
-      margin-top: 2px;
-    }
-    
-    .yyt-result-success {
-      padding: 16px;
-      background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(74, 222, 128, 0.02) 100%);
-      border-radius: var(--yyt-radius-sm);
-      border: 1px solid rgba(74, 222, 128, 0.2);
-    }
-    
-    .yyt-result-success i {
-      color: var(--yyt-success);
-      filter: drop-shadow(0 0 8px var(--yyt-success-glow));
-    }
-    
-    .yyt-result-error {
-      padding: 16px;
-      background: linear-gradient(135deg, rgba(248, 113, 113, 0.1) 0%, rgba(248, 113, 113, 0.02) 100%);
-      border-radius: var(--yyt-radius-sm);
-      border: 1px solid rgba(248, 113, 113, 0.2);
-    }
-    
-    .yyt-result-error i {
-      color: var(--yyt-error);
-      filter: drop-shadow(0 0 8px var(--yyt-error-glow));
-    }
-    
-    .yyt-result-title {
-      font-weight: 600;
-      font-size: 14px;
-      margin-bottom: 6px;
-      color: var(--yyt-text);
-    }
-    
-    .yyt-result-message {
-      font-size: 13px;
-      color: var(--yyt-text-secondary);
-      line-height: 1.5;
-    }
-    
-    .yyt-result-content {
-      font-size: 13px;
-      color: var(--yyt-text);
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 220px;
-      overflow-y: auto;
-      background: rgba(0, 0, 0, 0.25);
-      padding: 14px 16px;
-      border-radius: var(--yyt-radius-sm);
-      margin-top: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      line-height: 1.6;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--yyt-border);
     }
     
     /* \u52A8\u753B */
     @keyframes yytFadeSlideIn {
       from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
       }
       to {
         opacity: 1;
@@ -900,13 +765,13 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
     }
     
     .yyt-panel-section {
-      animation: yytFadeSlideIn 0.3s ease-out backwards;
+      animation: yytFadeSlideIn 0.25s ease-out backwards;
     }
     
     .yyt-panel-section:nth-child(1) { animation-delay: 0s; }
     .yyt-panel-section:nth-child(2) { animation-delay: 0.05s; }
     .yyt-panel-section:nth-child(3) { animation-delay: 0.1s; }
-  `}function Zt(){return C}function te(t){C=t}var s,C,o,T,Pt=U(()=>{Q();yt();j();s="youyou_toolkit";C="api",o=null,T=null});var f="youyou_toolkit",ut="0.2.0",_=`${f}-menu-item`,pt=`${f}-menu-container`,ee=`${f}-popup`,k=typeof window.parent<"u"?window.parent:window,H=null,h=null,G=null,Y=null;async function M(){try{return H=await Promise.resolve().then(()=>(j(),vt)),h=await Promise.resolve().then(()=>(Q(),et)),G=await Promise.resolve().then(()=>(yt(),ht)),Y=await Promise.resolve().then(()=>(Pt(),kt)),!0}catch(t){return console.warn(`[${f}] \u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u5185\u7F6E\u529F\u80FD:`,t),!1}}function g(...t){console.log(`[${f}]`,...t)}function Ct(...t){console.error(`[${f}]`,...t)}function re(){let t=`${f}-styles`,e=k.document||document;if(e.getElementById(t))return;let r=`
+  `}function We(){return"main"}function Ve(e){}var o,s,_,Ce=N(()=>{ne();le();z();o="youyou_toolkit";s=null,_=null});var g="youyou_toolkit",ue="0.2.0",E=`${g}-menu-item`,ye=`${g}-menu-container`,Xe=`${g}-popup`,k=typeof window.parent<"u"?window.parent:window,G=null,h=null,q=null,j=null;async function M(){try{return G=await Promise.resolve().then(()=>(z(),xe)),h=await Promise.resolve().then(()=>(ne(),we)),q=await Promise.resolve().then(()=>(le(),he)),j=await Promise.resolve().then(()=>(Ce(),ke)),!0}catch(e){return console.warn(`[${g}] \u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u5185\u7F6E\u529F\u80FD:`,e),!1}}function m(...e){console.log(`[${g}]`,...e)}function Se(...e){console.error(`[${g}]`,...e)}function Ze(){let e=`${g}-styles`,t=k.document||document;if(t.getElementById(e))return;let n=`
     /* ============================================================
        YouYou Toolkit - \u73B0\u4EE3\u5316\u5F39\u7A97\u6837\u5F0F
        ============================================================ */
@@ -928,12 +793,12 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
     }
     
     /* \u83DC\u5355\u9879\u6837\u5F0F */
-    #${pt} {
+    #${ye} {
       display: flex;
       align-items: center;
     }
     
-    #${_} {
+    #${E} {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -944,22 +809,22 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       margin: 2px;
     }
     
-    #${_}:hover {
+    #${E}:hover {
       background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
     }
     
-    #${_} .fa-fw {
+    #${E} .fa-fw {
       font-size: 16px;
       color: var(--yyt-accent);
       filter: drop-shadow(0 0 6px var(--yyt-accent-glow));
       transition: transform 0.2s ease;
     }
     
-    #${_}:hover .fa-fw {
+    #${E}:hover .fa-fw {
       transform: scale(1.1);
     }
     
-    #${_} span {
+    #${E} span {
       font-weight: 500;
       letter-spacing: 0.3px;
     }
@@ -1304,13 +1169,13 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
       font-size: 14px;
       font-weight: 500;
     }
-  `,a=e.createElement("style");a.id=t,a.textContent=r,(e.head||e.documentElement).appendChild(a),g("\u6837\u5F0F\u5DF2\u6CE8\u5165")}var d=null,$=null,ae="welcome";function q(){d&&(d.remove(),d=null),$&&($.remove(),$=null),g("\u5F39\u7A97\u5DF2\u5173\u95ED")}function At(t){ae=t;let e=k.jQuery||window.jQuery;if(!(!e||!d)&&(e(d).find(".yyt-nav-item").removeClass("active"),e(d).find(`.yyt-nav-item[data-page="${t}"]`).addClass("active"),e(d).find(".yyt-page").removeClass("active"),e(d).find(`.yyt-page[data-page="${t}"]`).addClass("active"),t==="api"&&Y)){let r=e(d).find("#youyou_toolkit-api-container");r.length&&Y.render(r)}}function St(){if(d){g("\u5F39\u7A97\u5DF2\u5B58\u5728");return}let t=k.jQuery||window.jQuery,e=k.document||document;if(!t){Ct("jQuery \u672A\u627E\u5230\uFF0C\u65E0\u6CD5\u521B\u5EFA\u5F39\u7A97");return}$=e.createElement("div"),$.className="yyt-popup-overlay",$.addEventListener("click",n=>{n.target===$&&q()}),e.body.appendChild($);let r=`
-    <div class="yyt-popup" id="${ee}">
+  `,r=t.createElement("style");r.id=e,r.textContent=n,(t.head||t.documentElement).appendChild(r),m("\u6837\u5F0F\u5DF2\u6CE8\u5165")}var d=null,$=null,et="welcome";function W(){d&&(d.remove(),d=null),$&&($.remove(),$=null),m("\u5F39\u7A97\u5DF2\u5173\u95ED")}function Ae(e){et=e;let t=k.jQuery||window.jQuery;if(!(!t||!d)&&(t(d).find(".yyt-nav-item").removeClass("active"),t(d).find(`.yyt-nav-item[data-page="${e}"]`).addClass("active"),t(d).find(".yyt-page").removeClass("active"),t(d).find(`.yyt-page[data-page="${e}"]`).addClass("active"),e==="api"&&j)){let n=t(d).find("#youyou_toolkit-api-container");n.length&&j.render(n)}}function Pe(){if(d){m("\u5F39\u7A97\u5DF2\u5B58\u5728");return}let e=k.jQuery||window.jQuery,t=k.document||document;if(!e){Se("jQuery \u672A\u627E\u5230\uFF0C\u65E0\u6CD5\u521B\u5EFA\u5F39\u7A97");return}$=t.createElement("div"),$.className="yyt-popup-overlay",$.addEventListener("click",a=>{a.target===$&&W()}),t.body.appendChild($);let n=`
+    <div class="yyt-popup" id="${Xe}">
       <div class="yyt-popup-header">
         <div class="yyt-popup-title">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
           <span>YouYou \u5DE5\u5177\u7BB1</span>
-          <span style="font-size: 12px; opacity: 0.6;">v${ut}</span>
+          <span style="font-size: 12px; opacity: 0.6;">v${ue}</span>
         </div>
         <button class="yyt-popup-close" title="\u5173\u95ED">
           <i class="fa-solid fa-times"></i>
@@ -1344,33 +1209,29 @@ var Et=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var J=(t,e)=>{fo
                 <span>\u9884\u8BBE\u7BA1\u7406 - \u4FDD\u5B58\u548C\u5207\u6362\u591A\u5957API\u914D\u7F6E</span>
               </div>
               <div class="yyt-feature-item">
-                <i class="fa-solid fa-flask"></i>
-                <span>\u8FDE\u63A5\u6D4B\u8BD5 - \u9A8C\u8BC1API\u914D\u7F6E\u662F\u5426\u6B63\u786E</span>
-              </div>
-              <div class="yyt-feature-item">
                 <i class="fa-solid fa-file-import"></i>
                 <span>\u5BFC\u5165\u5BFC\u51FA - \u65B9\u4FBF\u5907\u4EFD\u548C\u5206\u4EAB\u914D\u7F6E</span>
               </div>
             </div>
             
             <div class="yyt-version">
-              \u63D2\u4EF6ID: ${f}
+              \u63D2\u4EF6ID: ${g}
             </div>
           </div>
         </div>
         
         <div class="yyt-page" data-page="api">
-          <div id="${f}-api-container"></div>
+          <div id="${g}-api-container"></div>
         </div>
       </div>
       
       <div class="yyt-popup-footer">
-        <button class="yyt-btn yyt-btn-secondary" id="${f}-close-btn">\u5173\u95ED</button>
+        <button class="yyt-btn yyt-btn-secondary" id="${g}-close-btn">\u5173\u95ED</button>
       </div>
     </div>
-  `,a=e.createElement("div");a.innerHTML=r,d=a.firstElementChild,e.body.appendChild(d),t(d).find(".yyt-popup-close").on("click",q),t(d).find(`#${f}-close-btn`).on("click",q),t(d).find(".yyt-nav-item").on("click",function(){let n=t(this).data("page");n&&At(n)}),g("\u5F39\u7A97\u5DF2\u6253\u5F00")}function D(){let t=k.jQuery||window.jQuery;if(!t){Ct("jQuery \u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout(D,1e3);return}let e=k.document||document,r=t("#extensionsMenu",e);if(!r.length){g("\u9B54\u68D2\u83DC\u5355\u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout(D,2e3);return}if(t(`#${pt}`,r).length>0){g("\u83DC\u5355\u9879\u5DF2\u5B58\u5728");return}let n=t(`<div class="extension_container interactable" id="${pt}" tabindex="0"></div>`),i=`
-    <div class="list-group-item flex-container flexGap5 interactable" id="${_}" title="\u6253\u5F00 YouYou \u5DE5\u5177\u7BB1">
+  `,r=t.createElement("div");r.innerHTML=n,d=r.firstElementChild,t.body.appendChild(d),e(d).find(".yyt-popup-close").on("click",W),e(d).find(`#${g}-close-btn`).on("click",W),e(d).find(".yyt-nav-item").on("click",function(){let a=e(this).data("page");a&&Ae(a)}),m("\u5F39\u7A97\u5DF2\u6253\u5F00")}function U(){let e=k.jQuery||window.jQuery;if(!e){Se("jQuery \u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout(U,1e3);return}let t=k.document||document,n=e("#extensionsMenu",t);if(!n.length){m("\u9B54\u68D2\u83DC\u5355\u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout(U,2e3);return}if(e(`#${ye}`,n).length>0){m("\u83DC\u5355\u9879\u5DF2\u5B58\u5728");return}let a=e(`<div class="extension_container interactable" id="${ye}" tabindex="0"></div>`),l=`
+    <div class="list-group-item flex-container flexGap5 interactable" id="${E}" title="\u6253\u5F00 YouYou \u5DE5\u5177\u7BB1">
       <div class="fa-fw fa-solid fa-wand-magic-sparkles extensionsMenuExtensionButton"></div>
       <span>YouYou \u5DE5\u5177\u7BB1</span>
     </div>
-  `,c=t(i);c.on("click",async function(l){l.stopPropagation(),g("\u83DC\u5355\u9879\u88AB\u70B9\u51FB");let b=t("#extensionsMenuButton",e);b.length&&r.is(":visible")&&b.trigger("click"),St()}),n.append(c),r.append(n),g("\u83DC\u5355\u9879\u5DF2\u6DFB\u52A0\u5230\u9B54\u68D2\u533A")}var dt={version:ut,id:f,init:It,openPopup:St,closePopup:q,switchPage:At,addMenuItem:D,getStorage:()=>H,getApiConnection:()=>h,getPresetManager:()=>G,getUiComponents:()=>Y,async getApiConfig(){return await M(),H?H.loadSettings().apiConfig:null},async saveApiConfig(t){return await M(),h?(h.updateApiConfig(t),!0):!1},async getPresets(){return await M(),G?G.getAllPresets():[]},async sendApiRequest(t,e){if(await M(),h)return h.sendApiRequest(t,e);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await M(),h?h.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}}};async function It(){if(g(`\u521D\u59CB\u5316\u5F00\u59CB... \u7248\u672C: ${ut}`),re(),await M()){if(g("\u6240\u6709\u6A21\u5757\u52A0\u8F7D\u6210\u529F"),Y){let r=k.document||document,a=`${f}-ui-styles`;if(!r.getElementById(a)){let n=r.createElement("style");n.id=a,n.textContent=Y.getStyles(),(r.head||r.documentElement).appendChild(n)}}}else g("\u90E8\u5206\u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u57FA\u7840\u529F\u80FD");let e=k.document||document;e.readyState==="loading"?e.addEventListener("DOMContentLoaded",()=>{setTimeout(D,1e3)}):setTimeout(D,1e3),g("\u521D\u59CB\u5316\u5B8C\u6210")}if(typeof window<"u"&&(window.YouYouToolkit=dt,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=dt}catch{}var fe=dt;It();g("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210");export{fe as default};
+  `,i=e(l);i.on("click",async function(c){c.stopPropagation(),m("\u83DC\u5355\u9879\u88AB\u70B9\u51FB");let f=e("#extensionsMenuButton",t);f.length&&n.is(":visible")&&f.trigger("click"),Pe()}),a.append(i),n.append(a),m("\u83DC\u5355\u9879\u5DF2\u6DFB\u52A0\u5230\u9B54\u68D2\u533A")}var de={version:ue,id:g,init:Ie,openPopup:Pe,closePopup:W,switchPage:Ae,addMenuItem:U,getStorage:()=>G,getApiConnection:()=>h,getPresetManager:()=>q,getUiComponents:()=>j,async getApiConfig(){return await M(),G?G.loadSettings().apiConfig:null},async saveApiConfig(e){return await M(),h?(h.updateApiConfig(e),!0):!1},async getPresets(){return await M(),q?q.getAllPresets():[]},async sendApiRequest(e,t){if(await M(),h)return h.sendApiRequest(e,t);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await M(),h?h.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}}};async function Ie(){if(m(`\u521D\u59CB\u5316\u5F00\u59CB... \u7248\u672C: ${ue}`),Ze(),await M()){if(m("\u6240\u6709\u6A21\u5757\u52A0\u8F7D\u6210\u529F"),j){let n=k.document||document,r=`${g}-ui-styles`;if(!n.getElementById(r)){let a=n.createElement("style");a.id=r,a.textContent=j.getStyles(),(n.head||n.documentElement).appendChild(a)}}}else m("\u90E8\u5206\u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u57FA\u7840\u529F\u80FD");let t=k.document||document;t.readyState==="loading"?t.addEventListener("DOMContentLoaded",()=>{setTimeout(U,1e3)}):setTimeout(U,1e3),m("\u521D\u59CB\u5316\u5B8C\u6210")}if(typeof window<"u"&&(window.YouYouToolkit=de,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=de}catch{}var dt=de;Ie();m("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210");export{dt as default};
