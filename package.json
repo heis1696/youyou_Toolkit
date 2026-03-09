@@ -1,0 +1,28 @@
+{
+  "name": "youyou-toolkit",
+  "version": "0.1.0",
+  "description": "YouYou工具箱 - SillyTavern工具插件",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild index.js --bundle --format=esm --outfile=dist/bundle.js --minify",
+    "build:dev": "esbuild index.js --bundle --format=esm --outfile=dist/bundle.js",
+    "build:iife": "esbuild index.js --bundle --format=iife --global-name=YouYouToolkit --outfile=dist/bundle.iife.js --minify",
+    "watch": "esbuild index.js --bundle --format=esm --outfile=dist/bundle.js --watch",
+    "dev": "npm run build:dev && node -e \"console.log('构建完成: dist/bundle.js')\""
+  },
+  "keywords": [
+    "sillytavern",
+    "toolkit",
+    "plugin"
+  ],
+  "author": "YouYou",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heis1696/youyou_Toolkit.git"
+  }
+}
