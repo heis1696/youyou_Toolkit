@@ -109,10 +109,10 @@ function renderMainPanel() {
     ? presets.map(p => `<option value="${escapeHtml(p.name)}" ${p.name === activePresetName ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')
     : '';
   
-  // 预设列表
+  // 预设列表 - 不再显示active状态，只显示loaded状态
   const presetList = presets.length > 0 
     ? presets.map(preset => `
-        <div class="yyt-preset-item ${preset.name === activePresetName ? 'active' : ''}" data-preset-name="${escapeHtml(preset.name)}">
+        <div class="yyt-preset-item" data-preset-name="${escapeHtml(preset.name)}">
           <div class="yyt-preset-info">
             <div class="yyt-preset-name">${escapeHtml(preset.name)}</div>
             <div class="yyt-preset-meta">
