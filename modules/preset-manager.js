@@ -283,6 +283,45 @@ export function duplicatePreset(sourceName, targetName) {
 // ============================================================
 
 /**
+ * 切换预设星标状态
+ * @param {string} name - 预设名称
+ * @returns {Object} { success: boolean, message: string, starred?: boolean }
+ */
+export function togglePresetStar(name) {
+  if (!name || typeof name !== 'string') {
+    return { success: false, message: '预设名称不能为空' };
+  }
+  
+  const presets = loadApiPresets();
+  const preset = presets.find(p => p.name === name);
+  
+  if (!preset) {
+    return { success: false, message: `预设 "${name}" 不存在` };
+  }
+  
+  // 切换星标状态
+  preset.starred = !preset.starred;
+  preset.updatedAt = Date.now();
+  
+  saveApiPresets(presets);
+  
+  return { 
+    success: true, 
+    message: preset.starred ? `已将 "${name}" 添加到预览列表` : `已将 "${name}" 从预览列表移除`,
+    starred: preset.starred
+  };
+}
+
+/**
+ * 获取被星标的预设列表
+ * @returns {Array<ApiPreset>}
+ */
+export function getStarredPresets() {
+  const presets = loadApiPresets();
+  return presets.filter(p => p.starred === true);
+}
+
+/**
  * 切换到指定预设
  * @param {string} name - 预设名称，空字符串表示使用当前配置
  * @returns {Object} { success: boolean, message: string, apiConfig?: Object }

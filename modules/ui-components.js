@@ -17,7 +17,9 @@ import {
   exportPresets,
   importPresets,
   createPresetFromCurrentConfig,
-  generateUniquePresetName
+  generateUniquePresetName,
+  togglePresetStar,
+  getStarredPresets
 } from './preset-manager.js';
 import { loadSettings, saveSettings } from './storage.js';
 import {
@@ -117,18 +119,24 @@ function renderMainPanel() {
   const activeConfig = getActiveConfig();
   const activePresetName = getActivePresetName();
   const presets = getAllPresets();
+  const starredPresets = getStarredPresets();
   
-  // 预设选择下拉选项 - 添加星标标记
+  // 预设选择下拉选项 - 带可点击的星标按钮
   const presetOptions = presets.length > 0
-    ? presets.map(p => `<option value="${escapeHtml(p.name)}" ${p.name === activePresetName ? 'selected' : ''}>☆ ${escapeHtml(p.name)}</option>`).join('')
+    ? presets.map(p => {
+        const isStarred = p.starred === true;
+        const starClass = isStarred ? 'yyt-star-btn yyt-starred' : 'yyt-star-btn';
+        const starIcon = isStarred ? '★' : '☆';
+        return `<option value="${escapeHtml(p.name)}" ${p.name === activePresetName ? 'selected' : ''}>${starIcon} ${escapeHtml(p.name)}</option>`;
+      }).join('')
     : '';
   
-  // 预设列表 - 限制最多显示8条，没有预设时不显示
+  // 预设列表 - 只显示被星标的预设，限制最多8条
   const maxPresetsToShow = 8;
-  const presetsToShow = presets.slice(0, maxPresetsToShow);
-  // 只有当有预设时才显示列表，没有预设时返回空字符串
-  const presetListHtml = presetsToShow.length > 0 
-    ? presetsToShow.map(preset => `
+  const starredToShow = starredPresets.slice(0, maxPresetsToShow);
+  // 只有当有星标预设时才显示列表
+  const presetListHtml = starredToShow.length > 0 
+    ? starredToShow.map(preset => `
         <div class="yyt-preset-item" data-preset-name="${escapeHtml(preset.name)}">
           <div class="yyt-preset-info">
             <div class="yyt-preset-name">${escapeHtml(preset.name)}</div>
@@ -150,6 +158,16 @@ function renderMainPanel() {
       `).join('')
     : '';
   
+  // 下拉框星标按钮列表
+  const presetStarButtons = presets.length > 0
+    ? presets.map(p => {
+        const isStarred = p.starred === true;
+        const starClass = isStarred ? 'yyt-star-btn yyt-starred' : 'yyt-star-btn';
+        const starIcon = isStarred ? '★' : '☆';
+        return `<button class="${starClass}" data-preset="${escapeHtml(p.name)}" title="${isStarred ? '点击取消星标' : '点击添加星标'}">${starIcon}</button>`;
+      }).join('')
+    : '';
+  
   return `
     <div class="yyt-panel">
       <!-- 预设选择区 -->
@@ -168,6 +186,15 @@ function renderMainPanel() {
             <i class="fa-solid fa-check"></i> 应用
           </button>
         </div>
+        
+        ${presetStarButtons ? `
+        <div class="yyt-preset-star-bar">
+          <span class="yyt-star-label">星标预设:</span>
+          <div class="yyt-star-buttons">
+            ${presetStarButtons}
+          </div>
+        </div>
+        ` : ''}
         
         ${presetListHtml ? `
         <div class="yyt-preset-list-compact">
@@ -426,6 +453,23 @@ function bindEvents() {
     console.warn('[YouYouToolkit] bindEvents: jQuery或容器不可用');
     return;
   }
+  
+  // 星标按钮点击事件
+  $container.find('.yyt-star-btn').on('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const presetName = $(this).data('preset');
+    if (!presetName) return;
+    
+    const result = togglePresetStar(presetName);
+    if (result.success) {
+      showToast('success', result.message);
+      render(); // 重新渲染以更新星标状态
+    } else {
+      showToast('error', result.message);
+    }
+  });
   
   // 预设选择下拉框变化
   $container.find(`#${SCRIPT_ID}-preset-select`).on('change', function() {
@@ -870,6 +914,64 @@ export function getStyles() {
       display: flex;
       gap: 12px;
       align-items: center;
+    }
+    
+    /* 星标按钮栏 */
+    .yyt-preset-star-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius-sm);
+    }
+    
+    .yyt-star-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--yyt-text-secondary);
+      white-space: nowrap;
+    }
+    
+    .yyt-star-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    
+    .yyt-star-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 28px;
+      border: 1px solid var(--yyt-border);
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      color: var(--yyt-text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .yyt-star-btn:hover {
+      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
+      border-color: var(--yyt-accent);
+      color: var(--yyt-accent);
+      transform: translateY(-1px);
+    }
+    
+    .yyt-star-btn.yyt-starred {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.05) 100%);
+      border-color: rgba(251, 191, 36, 0.4);
+      color: #fbbf24;
+    }
+    
+    .yyt-star-btn.yyt-starred:hover {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.1) 100%);
+      border-color: rgba(251, 191, 36, 0.6);
+      color: #fcd34d;
     }
     
     .yyt-preset-list-compact {
