@@ -63,6 +63,7 @@ function showToast(type, message, duration = 3000) {
 
 let $container = null;
 let cachedJQuery = null;
+let currentLoadedPresetName = ''; // 跟踪当前加载的预设名称
 
 // 获取jQuery（兼容顶层窗口）- 缓存结果确保一致性
 function getJQuery() {
@@ -123,9 +124,6 @@ function renderMainPanel() {
           <div class="yyt-preset-actions">
             <button class="yyt-btn yyt-btn-small yyt-btn-icon" data-action="load" title="加载配置">
               <i class="fa-solid fa-download"></i>
-            </button>
-            <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-edit" data-action="edit" title="编辑预设">
-              <i class="fa-solid fa-pen"></i>
             </button>
             <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger" data-action="delete" title="删除">
               <i class="fa-solid fa-trash"></i>
@@ -457,19 +455,9 @@ function bindEvents() {
         const preset = getPreset(presetName);
         if (preset) {
           fillFormWithConfig(preset.apiConfig);
+          currentLoadedPresetName = presetName; // 记录当前加载的预设名称
           $container.find(`#${SCRIPT_ID}-preset-select`).val(presetName);
-          showToast('info', `已加载预设 "${presetName}" 的配置`);
-        }
-        break;
-        
-      case 'edit':
-        // 编辑预设 - 加载配置到表单并打开编辑对话框
-        const presetToEdit = getPreset(presetName);
-        if (presetToEdit) {
-          fillFormWithConfig(presetToEdit.apiConfig);
-          $container.find(`#${SCRIPT_ID}-preset-select`).val(presetName);
-          // 打开编辑对话框
-          showSavePresetDialog(presetName);
+          showToast('info', `已加载预设 "${presetName}"，修改后可点击"保存配置"覆盖此预设`);
         }
         break;
         
@@ -477,7 +465,13 @@ function bindEvents() {
         if (confirm(`确定要删除预设 "${presetName}" 吗？`)) {
           const delResult = deletePreset(presetName);
           showToast(delResult.success ? 'info' : 'error', delResult.message);
-          if (delResult.success) render();
+          if (delResult.success) {
+            // 如果删除的是当前加载的预设，清空记录
+            if (currentLoadedPresetName === presetName) {
+              currentLoadedPresetName = '';
+            }
+            render();
+          }
         }
         break;
     }
@@ -566,14 +560,37 @@ function bindEvents() {
       return;
     }
     
-    updateApiConfig(config);
-    
-    // 如果当前使用的是预设，更新预设
-    const activePreset = getActivePresetName();
-    if (activePreset) {
-      updatePreset(activePreset, { apiConfig: config });
+    // 如果当前加载了预设，询问是否覆盖
+    if (currentLoadedPresetName) {
+      if (!confirm(`是否要覆盖预设 "${currentLoadedPresetName}" 的配置？\n\n点击"确定"覆盖预设，点击"取消"仅保存当前配置`)) {
+        // 只保存当前配置，不覆盖预设
+        updateApiConfig(config);
+        showToast('success', 'API配置已保存');
+        return;
+      }
+      // 保存配置并更新预设
+      updateApiConfig(config);
+      const result = updatePreset(currentLoadedPresetName, { apiConfig: config });
+      if (result.success) {
+        showToast('success', `配置已保存并覆盖预设 "${currentLoadedPresetName}"`);
+        render();
+      } else {
+        showToast('error', result.message);
+      }
+      return;
     }
     
+    // 如果当前使用的是激活的预设，更新预设
+    const activePreset = getActivePresetName();
+    if (activePreset) {
+      updateApiConfig(config);
+      updatePreset(activePreset, { apiConfig: config });
+      showToast('success', 'API配置已保存');
+      return;
+    }
+    
+    // 普通保存
+    updateApiConfig(config);
     showToast('success', 'API配置已保存');
   });
   
@@ -1068,19 +1085,16 @@ export function getStyles() {
       background-repeat: no-repeat;
       background-position: right 12px center;
       padding-right: 32px;
+      background-color: rgba(30, 30, 50, 0.9) !important;
+      color: #ffffff !important;
     }
     
-    /* 下拉框选项样式 - 确保文字可见（使用固定颜色值，不使用CSS变量） */
-    .yyt-select option {
-      background: #1a1a2e !important;
+    /* 下拉框选项样式 - 使用固定颜色值 */
+    .yyt-select option,
+    .yyt-select optgroup {
+      background-color: #1e1e32 !important;
       color: #ffffff !important;
       padding: 8px 12px;
-    }
-    
-    .yyt-select option:hover,
-    .yyt-select option:checked {
-      background: #2a2a4e !important;
-      color: #7bb7ff !important;
     }
     
     .yyt-input:hover,
