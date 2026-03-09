@@ -74,7 +74,25 @@ function injectStyles() {
   if (targetDoc.getElementById(styleId)) return;
 
   const css = `
-    /* YouYou Toolkit 样式 */
+    /* ============================================================
+       YouYou Toolkit - 现代化弹窗样式
+       ============================================================ */
+    
+    /* CSS变量 */
+    :root {
+      --yyt-accent: #7bb7ff;
+      --yyt-accent-glow: rgba(123, 183, 255, 0.4);
+      --yyt-accent-soft: rgba(123, 183, 255, 0.15);
+      --yyt-success: #4ade80;
+      --yyt-error: #f87171;
+      --yyt-surface: rgba(255, 255, 255, 0.03);
+      --yyt-surface-hover: rgba(255, 255, 255, 0.06);
+      --yyt-border: rgba(255, 255, 255, 0.08);
+      --yyt-border-strong: rgba(255, 255, 255, 0.15);
+      --yyt-text: rgba(255, 255, 255, 0.95);
+      --yyt-text-secondary: rgba(255, 255, 255, 0.7);
+      --yyt-text-muted: rgba(255, 255, 255, 0.45);
+    }
     
     /* 菜单项样式 */
     #${MENU_CONTAINER_ID} {
@@ -85,33 +103,46 @@ function injectStyles() {
     #${MENU_ITEM_ID} {
       display: flex;
       align-items: center;
-      gap: 5px;
-      padding: 8px 12px;
+      gap: 8px;
+      padding: 10px 14px;
       cursor: pointer;
-      transition: background-color 0.2s ease;
+      transition: all 0.2s ease;
+      border-radius: 8px;
+      margin: 2px;
     }
     
     #${MENU_ITEM_ID}:hover {
-      background-color: var(--hover-bg, rgba(255, 255, 255, 0.1));
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
     }
     
-    #${MENU_ITEM_ID} .fa-icon {
+    #${MENU_ITEM_ID} .fa-fw {
       font-size: 16px;
-      color: var(--accent-color, #7bb7ff);
+      color: var(--yyt-accent);
+      filter: drop-shadow(0 0 6px var(--yyt-accent-glow));
+      transition: transform 0.2s ease;
     }
     
-    /* 弹窗样式 */
+    #${MENU_ITEM_ID}:hover .fa-fw {
+      transform: scale(1.1);
+    }
+    
+    #${MENU_ITEM_ID} span {
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+    
+    /* 弹窗遮罩 */
     .yyt-popup-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       z-index: 9999;
-      animation: yytFadeIn 0.2s ease-out;
+      animation: yytFadeIn 0.25s ease-out;
     }
     
     @keyframes yytFadeIn {
@@ -119,154 +150,238 @@ function injectStyles() {
       to { opacity: 1; }
     }
     
+    /* 弹窗主体 */
     .yyt-popup {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 22%), #0b0f15;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 16px;
-      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.65);
-      width: 600px;
-      min-height: 400px;
-      max-width: 90vw;
-      max-height: 90vh;
+      background: 
+        radial-gradient(ellipse at top, rgba(123, 183, 255, 0.08) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 30%),
+        #0d1117;
+      border: 1px solid var(--yyt-border-strong);
+      border-radius: 20px;
+      box-shadow: 
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 25px 80px rgba(0, 0, 0, 0.7),
+        0 0 60px rgba(123, 183, 255, 0.1);
+      width: 680px;
+      min-height: 480px;
+      max-width: 92vw;
+      max-height: 88vh;
       z-index: 10000;
-      animation: yytSlideIn 0.25s ease-out;
+      animation: yytSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
-      color: rgba(255, 255, 255, 0.92);
+      color: var(--yyt-text);
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
     
     @keyframes yytSlideIn {
-      from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
-      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      from { 
+        opacity: 0; 
+        transform: translate(-50%, -50%) scale(0.92) translateY(20px); 
+      }
+      to { 
+        opacity: 1; 
+        transform: translate(-50%, -50%) scale(1) translateY(0); 
+      }
     }
     
+    /* 弹窗头部 */
     .yyt-popup-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
-      background: rgba(255, 255, 255, 0.04);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px 16px 0 0;
+      padding: 18px 24px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+      border-bottom: 1px solid var(--yyt-border);
+      flex-shrink: 0;
     }
     
     .yyt-popup-title {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 16px;
+      gap: 12px;
+      font-size: 17px;
       font-weight: 700;
-      color: rgba(255, 255, 255, 0.95);
+      color: var(--yyt-text);
+      letter-spacing: 0.3px;
     }
     
     .yyt-popup-title i {
-      color: rgba(123, 183, 255, 0.85);
+      font-size: 18px;
+      color: var(--yyt-accent);
+      filter: drop-shadow(0 0 10px var(--yyt-accent-glow));
     }
     
     .yyt-popup-close {
-      width: 28px;
-      height: 28px;
-      border: none;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.06);
-      color: rgba(255, 255, 255, 0.7);
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--yyt-border);
+      border-radius: 10px;
+      background: var(--yyt-surface);
+      color: var(--yyt-text-secondary);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
+      font-size: 14px;
     }
     
     .yyt-popup-close:hover {
-      background: rgba(255, 107, 107, 0.25);
-      color: #ff6b6b;
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.2) 0%, rgba(248, 113, 113, 0.08) 100%);
+      border-color: rgba(248, 113, 113, 0.35);
+      color: #f87171;
+      transform: rotate(90deg);
     }
     
+    /* 弹窗内容 */
     .yyt-popup-body {
       flex: 1;
-      padding: 20px;
+      padding: 24px;
       overflow: auto;
     }
     
-    .yyt-popup-footer {
-      padding: 16px 20px;
-      background: rgba(255, 255, 255, 0.02);
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 0 0 16px 16px;
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
+    .yyt-popup-body::-webkit-scrollbar {
+      width: 8px;
     }
     
+    .yyt-popup-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .yyt-popup-body::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+    }
+    
+    .yyt-popup-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* 弹窗底部 */
+    .yyt-popup-footer {
+      padding: 18px 24px;
+      background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.02) 100%);
+      border-top: 1px solid var(--yyt-border);
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    /* 按钮 */
     .yyt-btn {
-      padding: 8px 16px;
+      padding: 10px 20px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       font-size: 14px;
-      font-weight: 500;
-      transition: all 0.15s ease;
+      font-weight: 600;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      letter-spacing: 0.3px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .yyt-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
+      pointer-events: none;
     }
     
     .yyt-btn-primary {
-      background: rgba(123, 183, 255, 0.85);
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
       color: #0b0f15;
+      box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
     .yyt-btn-primary:hover {
-      background: rgba(123, 183, 255, 1);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
     }
     
     .yyt-btn-secondary {
-      background: rgba(255, 255, 255, 0.06);
-      color: rgba(255, 255, 255, 0.7);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, var(--yyt-surface) 100%);
+      color: var(--yyt-text);
+      border: 1px solid var(--yyt-border);
     }
     
     .yyt-btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.12);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, var(--yyt-surface-hover) 100%);
+      border-color: var(--yyt-border-strong);
+      transform: translateY(-1px);
     }
     
-    /* 导航样式 */
+    /* 主导航样式 */
     .yyt-nav {
       display: flex;
-      gap: 4px;
-      padding: 0 0 16px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      margin-bottom: 16px;
+      gap: 8px;
+      padding: 6px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border-radius: 14px;
+      margin-bottom: 24px;
+      border: 1px solid var(--yyt-border);
     }
     
     .yyt-nav-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      border-radius: 8px;
+      gap: 10px;
+      padding: 14px 20px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: all 0.2s ease;
-      color: rgba(255, 255, 255, 0.7);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      color: var(--yyt-text-secondary);
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
     }
     
     .yyt-nav-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.9);
+      color: var(--yyt-text);
+      background: var(--yyt-surface-hover);
     }
     
     .yyt-nav-item.active {
-      background: rgba(123, 183, 255, 0.15);
-      color: rgba(123, 183, 255, 1);
+      color: #0b0f15;
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
+      box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .yyt-nav-item i {
+      font-size: 15px;
+      transition: transform 0.25s ease;
+    }
+    
+    .yyt-nav-item:hover i {
+      transform: scale(1.15);
     }
     
     /* 页面内容 */
     .yyt-page {
       display: none;
+      animation: yytPageIn 0.3s ease-out;
+    }
+    
+    @keyframes yytPageIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     
     .yyt-page.active {
@@ -276,50 +391,85 @@ function injectStyles() {
     /* 欢迎页面 */
     .yyt-welcome {
       text-align: center;
-      padding: 40px 20px;
+      padding: 50px 30px;
     }
     
     .yyt-welcome h2 {
-      margin: 0 0 20px 0;
-      color: rgba(123, 183, 255, 0.85);
+      margin: 0 0 12px 0;
+      font-size: 26px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 50%, var(--yyt-accent) 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: yytGradient 3s linear infinite;
+    }
+    
+    @keyframes yytGradient {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
     }
     
     .yyt-welcome p {
-      color: rgba(255, 255, 255, 0.7);
-      line-height: 1.6;
-      margin: 0 0 15px 0;
+      color: var(--yyt-text-secondary);
+      line-height: 1.7;
+      margin: 0 0 20px 0;
+      font-size: 15px;
     }
     
     .yyt-version {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.5);
-      margin-top: 30px;
+      color: var(--yyt-text-muted);
+      margin-top: 35px;
+      padding: 10px 20px;
+      background: var(--yyt-surface);
+      border-radius: 20px;
+      display: inline-block;
+      border: 1px solid var(--yyt-border);
+      letter-spacing: 0.5px;
     }
     
     .yyt-features {
       text-align: left;
-      max-width: 400px;
-      margin: 20px auto;
+      max-width: 450px;
+      margin: 30px auto;
     }
     
     .yyt-feature-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      margin-bottom: 8px;
+      gap: 16px;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border: 1px solid var(--yyt-border);
+      transition: all 0.25s ease;
+    }
+    
+    .yyt-feature-item:hover {
+      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
+      border-color: rgba(123, 183, 255, 0.2);
+      transform: translateX(6px);
     }
     
     .yyt-feature-item i {
-      color: rgba(123, 183, 255, 0.85);
-      font-size: 20px;
-      width: 24px;
+      color: var(--yyt-accent);
+      font-size: 22px;
+      width: 28px;
+      filter: drop-shadow(0 0 8px var(--yyt-accent-glow));
+      transition: transform 0.25s ease;
+    }
+    
+    .yyt-feature-item:hover i {
+      transform: scale(1.1);
     }
     
     .yyt-feature-item span {
-      color: rgba(255, 255, 255, 0.85);
+      color: var(--yyt-text);
+      font-size: 14px;
+      font-weight: 500;
     }
   `;
 

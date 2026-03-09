@@ -765,22 +765,22 @@ export function render(container) {
     return;
   }
   
-  // 确保 $container 是 jQuery 对象
-  if (typeof container === 'string') {
-    $container = $(container);
-  } else if (container && container.jquery) {
-    // 已经是 jQuery 对象
-    $container = container;
-  } else if (container) {
-    // 原生 DOM 元素
-    $container = $(container);
-  } else {
-    console.error('[YouYouToolkit] Invalid container');
-    return;
+  // 如果传入了新的 container，更新 $container
+  if (container) {
+    if (typeof container === 'string') {
+      $container = $(container);
+    } else if (container && container.jquery) {
+      // 已经是 jQuery 对象
+      $container = container;
+    } else if (container) {
+      // 原生 DOM 元素
+      $container = $(container);
+    }
   }
   
+  // 检查容器是否有效
   if (!$container || !$container.length) {
-    console.error('[YouYouToolkit] Container not found');
+    console.error('[YouYouToolkit] Container not found or invalid');
     return;
   }
   
@@ -799,128 +799,232 @@ export function render(container) {
 
 export function getStyles() {
   return `
-    /* API管理器样式 */
+    /* ============================================================
+       YouYou Toolkit - 现代化UI样式
+       ============================================================ */
     
+    /* CSS变量定义 */
     .yyt-api-manager {
+      --yyt-accent: #7bb7ff;
+      --yyt-accent-glow: rgba(123, 183, 255, 0.4);
+      --yyt-accent-soft: rgba(123, 183, 255, 0.15);
+      --yyt-success: #4ade80;
+      --yyt-success-glow: rgba(74, 222, 128, 0.3);
+      --yyt-error: #f87171;
+      --yyt-error-glow: rgba(248, 113, 113, 0.3);
+      --yyt-warning: #fbbf24;
+      --yyt-surface: rgba(255, 255, 255, 0.03);
+      --yyt-surface-hover: rgba(255, 255, 255, 0.06);
+      --yyt-surface-active: rgba(255, 255, 255, 0.08);
+      --yyt-border: rgba(255, 255, 255, 0.08);
+      --yyt-border-strong: rgba(255, 255, 255, 0.15);
+      --yyt-text: rgba(255, 255, 255, 0.95);
+      --yyt-text-secondary: rgba(255, 255, 255, 0.7);
+      --yyt-text-muted: rgba(255, 255, 255, 0.45);
+      --yyt-radius: 12px;
+      --yyt-radius-sm: 8px;
+      --yyt-radius-lg: 16px;
+      --yyt-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+      --yyt-shadow-glow: 0 0 20px var(--yyt-accent-glow);
+      
       display: flex;
       flex-direction: column;
       height: 100%;
     }
     
+    /* Tab导航 - 现代化设计 */
     .yyt-tab-nav {
       display: flex;
-      gap: 4px;
-      padding: 0 0 16px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      margin-bottom: 16px;
+      gap: 6px;
+      padding: 6px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border-radius: var(--yyt-radius);
+      margin-bottom: 20px;
+      border: 1px solid var(--yyt-border);
     }
     
     .yyt-tab-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      border-radius: 8px;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: var(--yyt-radius-sm);
       cursor: pointer;
-      transition: all 0.2s ease;
-      color: rgba(255, 255, 255, 0.7);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      color: var(--yyt-text-secondary);
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .yyt-tab-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
+      opacity: 0;
+      transition: opacity 0.25s ease;
     }
     
     .yyt-tab-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.9);
+      color: var(--yyt-text);
+      background: var(--yyt-surface-hover);
     }
     
     .yyt-tab-item.active {
-      background: rgba(123, 183, 255, 0.15);
-      color: rgba(123, 183, 255, 1);
+      color: #0b0f15;
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
+      box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .yyt-tab-item.active::before {
+      opacity: 1;
+    }
+    
+    .yyt-tab-item i {
+      font-size: 14px;
+      transition: transform 0.25s ease;
+    }
+    
+    .yyt-tab-item:hover i {
+      transform: scale(1.1);
+    }
+    
+    .yyt-tab-item span {
+      position: relative;
+      z-index: 1;
     }
     
     .yyt-tab-content {
       flex: 1;
       overflow: auto;
+      padding-right: 4px;
     }
     
+    .yyt-tab-content::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .yyt-tab-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .yyt-tab-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    
+    .yyt-tab-content::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+    
+    /* 面板 */
     .yyt-panel {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 24px;
     }
     
     .yyt-panel-section {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
+      padding: 20px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, transparent 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius);
+      transition: border-color 0.2s ease;
     }
     
+    .yyt-panel-section:hover {
+      border-color: var(--yyt-border-strong);
+    }
+    
+    /* 标题 */
     .yyt-section-title {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.95);
+      font-size: 14px;
+      color: var(--yyt-text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
     .yyt-section-title i {
-      color: rgba(123, 183, 255, 0.85);
+      color: var(--yyt-accent);
+      font-size: 16px;
+      filter: drop-shadow(0 0 8px var(--yyt-accent-glow));
     }
     
     .yyt-count-badge {
-      font-size: 12px;
-      padding: 2px 8px;
-      border-radius: 10px;
-      background: rgba(123, 183, 255, 0.2);
-      color: rgba(123, 183, 255, 1);
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--yyt-accent-soft) 0%, rgba(123, 183, 255, 0.08) 100%);
+      color: var(--yyt-accent);
+      font-weight: 600;
+      border: 1px solid rgba(123, 183, 255, 0.2);
     }
     
+    /* 状态栏 */
     .yyt-status-bar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
+      gap: 10px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.08) 0%, rgba(123, 183, 255, 0.02) 100%);
+      border-radius: var(--yyt-radius-sm);
+      border: 1px solid rgba(123, 183, 255, 0.15);
     }
     
+    /* 徽章 */
     .yyt-badge {
       display: inline-flex;
       align-items: center;
-      padding: 4px 12px;
-      border-radius: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
+      letter-spacing: 0.3px;
     }
     
     .yyt-badge-small {
-      padding: 2px 8px;
+      padding: 3px 10px;
       font-size: 11px;
     }
     
     .yyt-badge-info {
-      background: rgba(123, 183, 255, 0.15);
-      color: rgba(123, 183, 255, 1);
+      background: linear-gradient(135deg, var(--yyt-accent-soft) 0%, rgba(123, 183, 255, 0.08) 100%);
+      color: var(--yyt-accent);
+      border: 1px solid rgba(123, 183, 255, 0.25);
+      box-shadow: 0 2px 10px rgba(123, 183, 255, 0.15);
     }
     
     .yyt-badge-default {
-      background: rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.7);
+      background: linear-gradient(135deg, var(--yyt-surface-active) 0%, var(--yyt-surface) 100%);
+      color: var(--yyt-text-secondary);
+      border: 1px solid var(--yyt-border);
     }
     
+    /* 表单 */
     .yyt-form-group {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
     
     .yyt-form-group label {
       font-size: 13px;
-      font-weight: 500;
-      color: rgba(255, 255, 255, 0.8);
+      font-weight: 600;
+      color: var(--yyt-text-secondary);
+      letter-spacing: 0.3px;
     }
     
     .yyt-form-row {
       display: flex;
-      gap: 12px;
+      gap: 14px;
     }
     
     .yyt-form-row-2col > .yyt-form-group {
@@ -931,161 +1035,230 @@ export function getStyles() {
       flex: 1;
     }
     
+    /* 输入框 - 现代化设计 */
     .yyt-input,
     .yyt-select,
     .yyt-textarea {
-      padding: 10px 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.9);
+      padding: 12px 16px;
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius-sm);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+      color: var(--yyt-text);
       font-size: 14px;
-      transition: all 0.2s ease;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .yyt-input:hover,
+    .yyt-select:hover,
+    .yyt-textarea:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
     }
     
     .yyt-input:focus,
     .yyt-select:focus,
     .yyt-textarea:focus {
       outline: none;
-      border-color: rgba(123, 183, 255, 0.5);
-      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--yyt-accent);
+      background: linear-gradient(180deg, rgba(123, 183, 255, 0.05) 0%, rgba(123, 183, 255, 0.02) 100%);
+      box-shadow: 0 0 0 3px var(--yyt-accent-soft), inset 0 1px 2px rgba(0, 0, 0, 0.1);
     }
     
     .yyt-input::placeholder,
     .yyt-textarea::placeholder {
-      color: rgba(255, 255, 255, 0.3);
+      color: var(--yyt-text-muted);
     }
     
     .yyt-input-group {
       display: flex;
-      gap: 8px;
+      gap: 10px;
     }
     
     .yyt-input-group .yyt-input {
       flex: 1;
     }
     
+    /* 复选框 */
     .yyt-checkbox-label {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       cursor: pointer;
+      padding: 12px 16px;
+      background: var(--yyt-surface);
+      border-radius: var(--yyt-radius-sm);
+      border: 1px solid var(--yyt-border);
+      transition: all 0.2s ease;
+    }
+    
+    .yyt-checkbox-label:hover {
+      background: var(--yyt-surface-hover);
+      border-color: var(--yyt-border-strong);
     }
     
     .yyt-checkbox-label input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       cursor: pointer;
+      accent-color: var(--yyt-accent);
     }
     
     .yyt-hint {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.5);
+      color: var(--yyt-text-muted);
+      padding-left: 4px;
     }
     
     .yyt-disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       pointer-events: none;
+      filter: grayscale(0.5);
     }
     
     .yyt-button-row {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       flex-wrap: wrap;
     }
     
+    /* 面板底部 */
     .yyt-panel-footer {
       display: flex;
       justify-content: flex-end;
-      gap: 10px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 12px;
+      padding-top: 20px;
+      margin-top: 4px;
+      border-top: 1px solid var(--yyt-border);
     }
     
+    /* 按钮 - 现代化设计 */
     .yyt-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 8px 16px;
+      gap: 8px;
+      padding: 10px 20px;
       border: none;
-      border-radius: 8px;
+      border-radius: var(--yyt-radius-sm);
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      letter-spacing: 0.3px;
+    }
+    
+    .yyt-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
+      pointer-events: none;
     }
     
     .yyt-btn-primary {
-      background: rgba(123, 183, 255, 0.85);
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
       color: #0b0f15;
+      box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
     .yyt-btn-primary:hover {
-      background: rgba(123, 183, 255, 1);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    
+    .yyt-btn-primary:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 10px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
     
     .yyt-btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: rgba(255, 255, 255, 0.85);
+      background: linear-gradient(135deg, var(--yyt-surface-active) 0%, var(--yyt-surface) 100%);
+      color: var(--yyt-text);
+      border: 1px solid var(--yyt-border);
     }
     
     .yyt-btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.15);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, var(--yyt-surface-hover) 100%);
+      border-color: var(--yyt-border-strong);
+      transform: translateY(-1px);
     }
     
     .yyt-btn-danger {
-      background: rgba(255, 107, 107, 0.15);
-      color: #ff6b6b;
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(248, 113, 113, 0.05) 100%);
+      color: var(--yyt-error);
+      border: 1px solid rgba(248, 113, 113, 0.25);
     }
     
     .yyt-btn-danger:hover {
-      background: rgba(255, 107, 107, 0.25);
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.25) 0%, rgba(248, 113, 113, 0.1) 100%);
+      box-shadow: 0 4px 15px var(--yyt-error-glow);
     }
     
     .yyt-btn-icon {
-      padding: 8px;
-      min-width: 36px;
+      padding: 10px;
+      min-width: 40px;
     }
     
     .yyt-btn-small {
-      padding: 6px 10px;
+      padding: 8px 12px;
       font-size: 12px;
     }
     
     .yyt-btn:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
     }
     
-    /* 预设列表 */
+    /* 预设列表 - 现代化设计 */
     .yyt-preset-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
       max-height: 300px;
       overflow-y: auto;
+      padding-right: 4px;
+    }
+    
+    .yyt-preset-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .yyt-preset-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .yyt-preset-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
     }
     
     .yyt-preset-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 16px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      transition: all 0.2s ease;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
     }
     
     .yyt-preset-item:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255, 255, 255, 0.12);
+      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateX(4px);
     }
     
     .yyt-preset-item.active {
-      background: rgba(123, 183, 255, 0.1);
-      border-color: rgba(123, 183, 255, 0.3);
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
+      border-color: rgba(123, 183, 255, 0.35);
+      box-shadow: 0 0 20px var(--yyt-accent-soft), inset 0 1px 0 rgba(123, 183, 255, 0.1);
     }
     
     .yyt-preset-info {
@@ -1095,14 +1268,18 @@ export function getStyles() {
     
     .yyt-preset-name {
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.95);
+      font-size: 14px;
+      color: var(--yyt-text);
       margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     
     .yyt-preset-desc {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      margin-bottom: 6px;
+      color: var(--yyt-text-muted);
+      margin-bottom: 8px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1110,35 +1287,50 @@ export function getStyles() {
     
     .yyt-preset-meta {
       display: flex;
-      gap: 6px;
+      gap: 8px;
     }
     
     .yyt-preset-actions {
       display: flex;
-      gap: 4px;
+      gap: 6px;
+      opacity: 0.5;
+      transition: opacity 0.2s ease;
     }
     
+    .yyt-preset-item:hover .yyt-preset-actions {
+      opacity: 1;
+    }
+    
+    /* 空状态 */
     .yyt-empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 40px;
-      color: rgba(255, 255, 255, 0.4);
+      padding: 50px 20px;
+      color: var(--yyt-text-muted);
     }
     
     .yyt-empty-state i {
-      font-size: 48px;
-      margin-bottom: 16px;
+      font-size: 56px;
+      margin-bottom: 20px;
+      opacity: 0.4;
+      filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.1));
     }
     
-    /* 测试结果 */
+    .yyt-empty-state p {
+      font-size: 15px;
+      letter-spacing: 0.5px;
+    }
+    
+    /* 测试结果 - 现代化设计 */
     .yyt-result-box {
-      min-height: 150px;
-      padding: 16px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      min-height: 160px;
+      padding: 20px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius);
+      font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
     }
     
     .yyt-result-placeholder {
@@ -1147,63 +1339,117 @@ export function getStyles() {
       align-items: center;
       justify-content: center;
       height: 100%;
-      color: rgba(255, 255, 255, 0.4);
+      min-height: 120px;
+      color: var(--yyt-text-muted);
     }
     
     .yyt-result-placeholder i {
-      font-size: 24px;
-      margin-bottom: 8px;
+      font-size: 28px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+      animation: yytFloat 2s ease-in-out infinite;
+    }
+    
+    @keyframes yytFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
     }
     
     .yyt-loading {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      color: rgba(123, 183, 255, 0.85);
+      gap: 12px;
+      color: var(--yyt-accent);
+      font-size: 14px;
+    }
+    
+    .yyt-loading i {
+      font-size: 18px;
     }
     
     .yyt-result {
       display: flex;
-      gap: 12px;
+      gap: 14px;
       align-items: flex-start;
     }
     
     .yyt-result i {
-      font-size: 20px;
+      font-size: 22px;
       margin-top: 2px;
     }
     
+    .yyt-result-success {
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(74, 222, 128, 0.02) 100%);
+      border-radius: var(--yyt-radius-sm);
+      border: 1px solid rgba(74, 222, 128, 0.2);
+    }
+    
     .yyt-result-success i {
-      color: #4caf50;
+      color: var(--yyt-success);
+      filter: drop-shadow(0 0 8px var(--yyt-success-glow));
+    }
+    
+    .yyt-result-error {
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.1) 0%, rgba(248, 113, 113, 0.02) 100%);
+      border-radius: var(--yyt-radius-sm);
+      border: 1px solid rgba(248, 113, 113, 0.2);
     }
     
     .yyt-result-error i {
-      color: #ff6b6b;
+      color: var(--yyt-error);
+      filter: drop-shadow(0 0 8px var(--yyt-error-glow));
     }
     
     .yyt-result-title {
       font-weight: 600;
-      margin-bottom: 4px;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: var(--yyt-text);
     }
     
     .yyt-result-message {
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.7);
+      color: var(--yyt-text-secondary);
+      line-height: 1.5;
     }
     
     .yyt-result-content {
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.85);
+      color: var(--yyt-text);
       white-space: pre-wrap;
       word-break: break-word;
-      max-height: 200px;
+      max-height: 220px;
       overflow-y: auto;
-      background: rgba(0, 0, 0, 0.2);
-      padding: 10px;
-      border-radius: 6px;
-      margin-top: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 14px 16px;
+      border-radius: var(--yyt-radius-sm);
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      line-height: 1.6;
     }
+    
+    /* 动画 */
+    @keyframes yytFadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .yyt-panel-section {
+      animation: yytFadeSlideIn 0.3s ease-out backwards;
+    }
+    
+    .yyt-panel-section:nth-child(1) { animation-delay: 0s; }
+    .yyt-panel-section:nth-child(2) { animation-delay: 0.05s; }
+    .yyt-panel-section:nth-child(3) { animation-delay: 0.1s; }
   `;
 }
 
