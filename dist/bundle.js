@@ -505,6 +505,19 @@ var Ee=Object.defineProperty;var N=(e,t)=>()=>(e&&(t=e(e=0)),t);var F=(e,t)=>{fo
       padding-right: 32px;
     }
     
+    /* \u4E0B\u62C9\u6846\u9009\u9879\u6837\u5F0F - \u786E\u4FDD\u6587\u5B57\u53EF\u89C1 */
+    .yyt-select option {
+      background: #1a1a2e;
+      color: var(--yyt-text);
+      padding: 8px 12px;
+    }
+    
+    .yyt-select option:hover,
+    .yyt-select option:checked {
+      background: rgba(123, 183, 255, 0.2);
+      color: #fff;
+    }
+    
     .yyt-input:hover,
     .yyt-select:hover,
     .yyt-textarea:hover {

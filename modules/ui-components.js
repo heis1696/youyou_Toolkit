@@ -1056,6 +1056,19 @@ export function getStyles() {
       padding-right: 32px;
     }
     
+    /* 下拉框选项样式 - 确保文字可见 */
+    .yyt-select option {
+      background: #1a1a2e;
+      color: var(--yyt-text);
+      padding: 8px 12px;
+    }
+    
+    .yyt-select option:hover,
+    .yyt-select option:checked {
+      background: rgba(123, 183, 255, 0.2);
+      color: #fff;
+    }
+    
     .yyt-input:hover,
     .yyt-select:hover,
     .yyt-textarea:hover {
