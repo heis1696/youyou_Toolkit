@@ -1,7 +1,7 @@
 /**
  * YouYou Toolkit - 破限词面板组件
  * @description 提供破限词预设管理的UI
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
@@ -22,8 +22,13 @@ import {
   getCurrentBypassPresetId,
   setCurrentBypassPreset,
   isBypassEnabled,
-  setBypassEnabled
+  setBypassEnabled,
+  exportBypassPresets,
+  importBypassPresets
 } from '../../bypass-prompts.js';
+
+// 导入可视化编辑器组件
+import { BypassEditor } from './bypass-editor.js';
 
 // ============================================================
 // 组件定义
@@ -85,8 +90,9 @@ export const BypassPanel = {
           <div class="yyt-help-text">
             <p>1. 启用破限词功能后，每次API请求都会自动在消息前注入所选预设的内容</p>
             <p>2. 点击预设可切换当前使用的预设</p>
-            <p>3. 编辑预设可自定义消息内容，格式为JSON数组</p>
-            <p>4. 默认预设不可删除，但可以编辑</p>
+            <p>3. 点击编辑按钮可使用可视化编辑器自定义消息段落</p>
+            <p>4. 支持添加、删除、排序消息段落，每个段落可选择角色类型</p>
+            <p>5. 默认预设不可删除，但可以编辑和克隆</p>
           </div>
         </div>
       </div>
@@ -197,16 +203,18 @@ export const BypassPanel = {
   // ============================================================
   
   /**
-   * 显示破限词编辑对话框
+   * 显示破限词编辑对话框 - 使用可视化编辑器
    * @private
    */
   _showBypassEditDialog($container, $, bypassId) {
     const preset = bypassId ? getBypassPreset(bypassId) : null;
     const isEdit = !!preset;
+    const editingId = bypassId || `custom_${Date.now()}`;
     
+    // 使用更宽的对话框以容纳可视化编辑器
     const dialogHtml = `
       <div class="yyt-dialog-overlay" id="${SCRIPT_ID}-bypass-dialog-overlay">
-        <div class="yyt-dialog yyt-dialog-wide">
+        <div class="yyt-dialog yyt-dialog-editor">
           <div class="yyt-dialog-header">
             <span class="yyt-dialog-title">${isEdit ? '编辑破限词预设' : '新建破限词预设'}</span>
             <button class="yyt-dialog-close" id="${SCRIPT_ID}-bypass-dialog-close">
@@ -214,25 +222,34 @@ export const BypassPanel = {
             </button>
           </div>
           <div class="yyt-dialog-body">
-            <div class="yyt-form-group">
-              <label>预设名称</label>
-              <input type="text" class="yyt-input" id="${SCRIPT_ID}-bypass-name" 
-                     value="${preset ? escapeHtml(preset.name) : ''}" placeholder="输入预设名称">
+            <!-- 基本信息 -->
+            <div class="yyt-form-row">
+              <div class="yyt-form-group yyt-form-group-flex">
+                <label>预设名称</label>
+                <input type="text" class="yyt-input" id="${SCRIPT_ID}-bypass-name" 
+                       value="${preset ? escapeHtml(preset.name) : ''}" placeholder="输入预设名称">
+              </div>
+              <div class="yyt-form-group yyt-form-group-flex">
+                <label>描述（可选）</label>
+                <input type="text" class="yyt-input" id="${SCRIPT_ID}-bypass-desc" 
+                       value="${preset ? escapeHtml(preset.description || '') : ''}" placeholder="预设描述">
+              </div>
             </div>
+            
+            <!-- 可视化编辑器容器 -->
             <div class="yyt-form-group">
-              <label>描述</label>
-              <input type="text" class="yyt-input" id="${SCRIPT_ID}-bypass-desc" 
-                     value="${preset ? escapeHtml(preset.description || '') : ''}" placeholder="预设描述">
-            </div>
-            <div class="yyt-form-group">
-              <label>消息内容（JSON数组格式）</label>
-              <textarea class="yyt-textarea yyt-code-textarea" id="${SCRIPT_ID}-bypass-messages" rows="10"
-                        placeholder='[{"role":"SYSTEM","content":"...","deletable":true}]'>${preset ? escapeHtml(JSON.stringify(preset.messages, null, 2)) : '[]'}</textarea>
+              <label>
+                <i class="fa-solid fa-list-alt"></i> 消息段落
+                <span class="yyt-label-hint">每个段落包含角色和内容，将按顺序注入API请求</span>
+              </label>
+              <div id="${SCRIPT_ID}-bypass-editor-container" data-preset-id="${editingId}"></div>
             </div>
           </div>
           <div class="yyt-dialog-footer">
             <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-bypass-dialog-cancel">取消</button>
-            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-bypass-dialog-save">保存</button>
+            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-bypass-dialog-save">
+              <i class="fa-solid fa-save"></i> 保存预设
+            </button>
           </div>
         </div>
       </div>
@@ -242,36 +259,60 @@ export const BypassPanel = {
     $container.append(dialogHtml);
     
     const $overlay = $(`#${SCRIPT_ID}-bypass-dialog-overlay`);
+    const $editorContainer = $(`#${SCRIPT_ID}-bypass-editor-container`);
     
-    const closeDialog = () => $overlay.remove();
+    // 初始化可视化编辑器
+    const editorHtml = BypassEditor.render({ presetId: editingId, readonly: false });
+    $editorContainer.html(editorHtml);
+    BypassEditor.bindEvents($editorContainer, {});
     
+    const closeDialog = () => {
+      $overlay.remove();
+    };
+    
+    // 绑定关闭事件
     $overlay.find(`#${SCRIPT_ID}-bypass-dialog-close, #${SCRIPT_ID}-bypass-dialog-cancel`).on('click', closeDialog);
-    $overlay.on('click', function(e) { if (e.target === this) closeDialog(); });
+    $overlay.on('click', function(e) { 
+      if (e.target === this) closeDialog(); 
+    });
     
+    // 保存按钮 - 收集编辑器数据
     $overlay.find(`#${SCRIPT_ID}-bypass-dialog-save`).on('click', () => {
       const name = $(`#${SCRIPT_ID}-bypass-name`).val().trim();
       const desc = $(`#${SCRIPT_ID}-bypass-desc`).val().trim();
-      const messagesStr = $(`#${SCRIPT_ID}-bypass-messages`).val().trim();
       
       if (!name) {
         showToast('warning', '请输入预设名称');
         return;
       }
       
-      let messages;
-      try {
-        messages = JSON.parse(messagesStr);
-      } catch (e) {
-        showToast('error', '消息内容JSON格式无效');
+      // 从可视化编辑器收集消息
+      const messages = [];
+      $editorContainer.find('.yyt-bypass-segment').each(function() {
+        const role = $(this).find('.yyt-role-select').val();
+        const content = $(this).find('.yyt-content-textarea').val();
+        const deletable = $(this).data('deletable') !== false;
+        
+        if (content.trim()) {
+          messages.push({ role, content, deletable });
+        }
+      });
+      
+      if (messages.length === 0) {
+        showToast('warning', '请至少添加一条消息');
         return;
       }
       
-      const id = bypassId || `custom_${Date.now()}`;
-      saveBypassPreset(id, { name, description: desc, messages });
-      closeDialog();
-      this.renderTo($container);
-      showToast('success', isEdit ? '预设已更新' : '预设已创建');
-      eventBus.emit(isEdit ? EVENTS.BYPASS_PRESET_UPDATED : EVENTS.BYPASS_PRESET_CREATED, { id });
+      const success = saveBypassPreset(editingId, { name, description: desc, messages });
+      
+      if (success) {
+        closeDialog();
+        this.renderTo($container);
+        showToast('success', isEdit ? '预设已更新' : '预设已创建');
+        eventBus.emit(isEdit ? EVENTS.BYPASS_PRESET_UPDATED : EVENTS.BYPASS_PRESET_CREATED, { id: editingId });
+      } else {
+        showToast('error', '保存失败');
+      }
     });
   },
   
@@ -448,6 +489,55 @@ export const BypassPanel = {
       
       .yyt-dialog-wide {
         width: 480px;
+      }
+      
+      /* 编辑器对话框样式 */
+      .yyt-dialog-editor {
+        width: 720px;
+        max-width: 90vw;
+        max-height: 85vh;
+      }
+      
+      .yyt-dialog-editor .yyt-dialog-body {
+        max-height: calc(85vh - 130px);
+        overflow-y: auto;
+      }
+      
+      .yyt-form-row {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      
+      .yyt-form-group-flex {
+        flex: 1;
+      }
+      
+      .yyt-label-hint {
+        font-size: 11px;
+        color: var(--yyt-text-muted);
+        font-weight: 400;
+        margin-left: 8px;
+      }
+      
+      #${SCRIPT_ID}-bypass-editor-container {
+        margin-top: 8px;
+        border: 1px solid var(--yyt-border);
+        border-radius: var(--yyt-radius-sm);
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.1);
+      }
+      
+      /* 响应式调整 */
+      @media (max-width: 768px) {
+        .yyt-dialog-editor {
+          width: 95vw;
+        }
+        
+        .yyt-form-row {
+          flex-direction: column;
+          gap: 12px;
+        }
       }
     `;
   },
