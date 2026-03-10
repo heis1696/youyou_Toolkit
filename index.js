@@ -650,9 +650,33 @@ function renderTabContent(tabName) {
       }
       break;
       
+    case 'bypassPanel':
+      if (uiComponentsModule && uiComponentsModule.BypassPanel) {
+        uiComponentsModule.BypassPanel.renderTo($content);
+      } else {
+        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>破限词面板加载失败</span></div>');
+      }
+      break;
+      
     case 'regexExtract':
       if (uiComponentsModule) {
         uiComponentsModule.renderRegex($content);
+      }
+      break;
+      
+    case 'summaryTool':
+      if (uiComponentsModule && uiComponentsModule.SummaryToolPanel) {
+        uiComponentsModule.SummaryToolPanel.renderTo($content);
+      } else {
+        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
+      }
+      break;
+      
+    case 'statusBlock':
+      if (uiComponentsModule && uiComponentsModule.StatusBlockPanel) {
+        uiComponentsModule.StatusBlockPanel.renderTo($content);
+      } else {
+        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
       }
       break;
       

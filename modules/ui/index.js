@@ -1,13 +1,16 @@
 /**
  * YouYou Toolkit - UI模块入口
  * @description 注册和管理所有UI组件
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { uiManager } from './ui-manager.js';
 import { ApiPresetPanel } from './components/api-preset-panel.js';
 import { RegexExtractPanel } from './components/regex-extract-panel.js';
 import { ToolManagePanel } from './components/tool-manage-panel.js';
+import { BypassPanel } from './components/bypass-panel.js';
+import { SummaryToolPanel } from './components/summary-tool-panel.js';
+import { StatusBlockPanel } from './components/status-block-panel.js';
 
 // ============================================================
 // 工具导出
@@ -28,6 +31,9 @@ export { uiManager, UIManager } from './ui-manager.js';
 export { ApiPresetPanel } from './components/api-preset-panel.js';
 export { RegexExtractPanel } from './components/regex-extract-panel.js';
 export { ToolManagePanel } from './components/tool-manage-panel.js';
+export { BypassPanel } from './components/bypass-panel.js';
+export { SummaryToolPanel } from './components/summary-tool-panel.js';
+export { StatusBlockPanel } from './components/status-block-panel.js';
 
 // ============================================================
 // 组件注册
@@ -40,6 +46,9 @@ export function registerComponents() {
   uiManager.register(ApiPresetPanel.id, ApiPresetPanel);
   uiManager.register(RegexExtractPanel.id, RegexExtractPanel);
   uiManager.register(ToolManagePanel.id, ToolManagePanel);
+  uiManager.register(BypassPanel.id, BypassPanel);
+  uiManager.register(SummaryToolPanel.id, SummaryToolPanel);
+  uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
   
   console.log('[UI] 组件注册完成');
 }

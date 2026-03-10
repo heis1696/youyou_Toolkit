@@ -24,61 +24,23 @@ export const TOOL_REGISTRY = {
     component: 'ApiPresetPanel',
     order: 0
   },
-  plotAdvance: {
-    id: 'plotAdvance',
-    name: '剧情推进',
-    icon: 'fa-forward',
-    hasSubTabs: true,
-    subTabs: [
-      { id: 'config', name: '配置', icon: 'fa-cog' },
-      { id: 'prompts', name: '提示词', icon: 'fa-file-alt' },
-      { id: 'presets', name: '预设', icon: 'fa-bookmark' }
-    ],
-    description: '自动分析剧情并生成建议',
-    component: 'PlotAdvanceWindow',
-    order: 1,
-    defaultConfig: {
-      trigger: { type: 'manual', events: [] },
-      execution: { timeout: 120000, retries: 3 },
-      api: { preset: '', useBypass: true, bypassPreset: 'standard' },
-      messages: [],
-      context: { depth: 5, includeTags: [], excludeTags: [] }
-    }
-  },
-  dbUpdate: {
-    id: 'dbUpdate',
-    name: '数据库',
-    icon: 'fa-table',
-    hasSubTabs: true,
-    subTabs: [
-      { id: 'config', name: '配置', icon: 'fa-cog' },
-      { id: 'templates', name: '模板', icon: 'fa-file-code' },
-      { id: 'rules', name: '规则', icon: 'fa-gavel' }
-    ],
-    description: '更新SillyTavern数据库条目',
-    component: 'DbUpdateWindow',
-    order: 2,
-    defaultConfig: {
-      trigger: { type: 'event', events: ['GENERATION_ENDED'] },
-      execution: { timeout: 90000, retries: 3 },
-      api: { preset: '', useBypass: true, bypassPreset: 'standard' },
-      messages: [],
-      context: { depth: 2, includeTags: [], excludeTags: [] }
-    }
+  bypassPanel: {
+    id: 'bypassPanel',
+    name: '破限词',
+    icon: 'fa-shield-alt',
+    hasSubTabs: false,
+    description: '管理破限词预设',
+    component: 'BypassPanel',
+    order: 1
   },
   regexExtract: {
     id: 'regexExtract',
     name: '正则提取',
     icon: 'fa-filter',
-    hasSubTabs: true,
-    subTabs: [
-      { id: 'rules', name: '规则', icon: 'fa-gavel' },
-      { id: 'test', name: '测试', icon: 'fa-flask' },
-      { id: 'presets', name: '预设', icon: 'fa-bookmark' }
-    ],
+    hasSubTabs: false,
     description: '从消息中提取特定内容',
-    component: 'RegexExtractWindow',
-    order: 3,
+    component: 'RegexExtractPanel',
+    order: 2,
     defaultConfig: {
       trigger: { type: 'manual', events: [] },
       execution: { timeout: 30000, retries: 1 },
@@ -86,6 +48,24 @@ export const TOOL_REGISTRY = {
       extractRules: [],
       excludeRules: []
     }
+  },
+  summaryTool: {
+    id: 'summaryTool',
+    name: '摘要工具',
+    icon: 'fa-file-lines',
+    hasSubTabs: false,
+    description: '生成剧情摘要块',
+    component: 'SummaryToolPanel',
+    order: 3
+  },
+  statusBlock: {
+    id: 'statusBlock',
+    name: '主角状态栏',
+    icon: 'fa-user-check',
+    hasSubTabs: false,
+    description: '生成主角状态代码块',
+    component: 'StatusBlockPanel',
+    order: 4
   }
 };
 
