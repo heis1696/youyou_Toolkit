@@ -70,115 +70,10 @@ const DEFAULT_TOOL_STRUCTURE = {
 };
 
 // ============================================================
-// 默认工具预设
+// 默认工具预设（初始为空，用户自行创建工具）
 // ============================================================
 
-const DEFAULT_TOOL_PRESETS = {
-  // API请求工具
-  apiRequest: {
-    id: 'apiRequest',
-    name: 'API请求工具',
-    description: '通用API请求工具，支持自定义消息和上下文',
-    category: 'api',
-    config: {
-      trigger: {
-        type: 'manual',
-        events: []
-      },
-      execution: {
-        timeout: 60000,
-        retries: 3
-      },
-      api: {
-        preset: '',
-        useBypass: true,
-        bypassPreset: 'standard'
-      },
-      messages: [],
-      context: {
-        depth: 3,
-        includeTags: [],
-        excludeTags: []
-      }
-    },
-    enabled: true,
-    metadata: {
-      createdAt: new Date().toISOString(),
-      author: 'YouYou Toolkit',
-      version: '1.0.0'
-    }
-  },
-
-  // 剧情推进工具
-  plotAdvance: {
-    id: 'plotAdvance',
-    name: '剧情推进工具',
-    description: '自动分析剧情并生成下一轮建议',
-    category: 'prompt',
-    config: {
-      trigger: {
-        type: 'event',
-        events: ['MESSAGE_SENT', 'GENERATION_ENDED']
-      },
-      execution: {
-        timeout: 120000,
-        retries: 3
-      },
-      api: {
-        preset: '',
-        useBypass: true,
-        bypassPreset: 'enhanced'
-      },
-      messages: [],
-      context: {
-        depth: 5,
-        includeTags: ['plot', 'summary'],
-        excludeTags: ['thinking', 'internal']
-      }
-    },
-    enabled: false,
-    metadata: {
-      createdAt: new Date().toISOString(),
-      author: 'YouYou Toolkit',
-      version: '1.0.0'
-    }
-  },
-
-  // 数据库更新工具
-  dbUpdate: {
-    id: 'dbUpdate',
-    name: '数据库更新工具',
-    description: '更新SillyTavern数据库条目',
-    category: 'utility',
-    config: {
-      trigger: {
-        type: 'event',
-        events: ['GENERATION_ENDED']
-      },
-      execution: {
-        timeout: 90000,
-        retries: 3
-      },
-      api: {
-        preset: '',
-        useBypass: true,
-        bypassPreset: 'standard'
-      },
-      messages: [],
-      context: {
-        depth: 2,
-        includeTags: [],
-        excludeTags: []
-      }
-    },
-    enabled: false,
-    metadata: {
-      createdAt: new Date().toISOString(),
-      author: 'YouYou Toolkit',
-      version: '1.0.0'
-    }
-  }
-};
+const DEFAULT_TOOL_PRESETS = {};
 
 // ============================================================
 // 存储操作
@@ -468,11 +363,11 @@ export function deleteToolPreset(presetId) {
 
 /**
  * 获取当前使用的预设ID
- * @returns {string}
+ * @returns {string|null}
  */
 export function getCurrentToolPresetId() {
   const storage = getStorage();
-  return storage.getItem(TOOL_STORAGE_KEYS.CURRENT_PRESET) || 'apiRequest';
+  return storage.getItem(TOOL_STORAGE_KEYS.CURRENT_PRESET) || null;
 }
 
 /**
@@ -572,7 +467,7 @@ export function resetTools() {
   const storage = getStorage();
   storage.removeItem(TOOL_STORAGE_KEYS.TOOLS);
   storage.removeItem(TOOL_STORAGE_KEYS.PRESETS);
-  storage.setItem(TOOL_STORAGE_KEYS.CURRENT_PRESET, 'apiRequest');
+  storage.removeItem(TOOL_STORAGE_KEYS.CURRENT_PRESET);
 }
 
 // ============================================================

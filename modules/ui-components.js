@@ -222,8 +222,8 @@ function renderMainPanel() {
               }).join('') : ''}
             </div>
           </div>
-          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-apply-preset">
-            <i class="fa-solid fa-check"></i> 应用
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-load-preset" title="加载选中预设">
+            <i class="fa-solid fa-download"></i> 加载
           </button>
         </div>
         

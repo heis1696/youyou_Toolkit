@@ -1,7 +1,7 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
- * @version 0.3.0
- * @description 一个轻量级的 SillyTavern 工具插件框架，支持API连接、预设管理与正则提取
+ * @version 0.4.0
+ * @description 一个轻量级的 SillyTavern 工具插件框架，支持API连接、预设管理、正则提取和独立窗口系统
  * @author YouYou
  */
 
@@ -9,7 +9,7 @@
 // 常量定义
 // ============================================================
 const SCRIPT_ID = 'youyou_toolkit';
-const SCRIPT_VERSION = '0.3.0';
+const SCRIPT_VERSION = '0.4.0';
 const MENU_ITEM_ID = `${SCRIPT_ID}-menu-item`;
 const MENU_CONTAINER_ID = `${SCRIPT_ID}-menu-container`;
 const POPUP_ID = `${SCRIPT_ID}-popup`;
@@ -29,11 +29,13 @@ let toolManagerModule = null;
 let toolExecutorModule = null;
 let toolTriggerModule = null;
 let bypassPromptsModule = null;
+let windowManagerModule = null;
+let toolRegistryModule = null;
+let promptEditorModule = null;
 
 async function loadModules() {
   try {
     // 在浏览器环境中，这些模块需要通过相对路径加载
-    // 由于SillyTavern的特殊环境，我们使用动态导入
     storageModule = await import('./modules/storage.js');
     apiConnectionModule = await import('./modules/api-connection.js');
     presetManagerModule = await import('./modules/preset-manager.js');
@@ -43,6 +45,12 @@ async function loadModules() {
     toolExecutorModule = await import('./modules/tool-executor.js');
     toolTriggerModule = await import('./modules/tool-trigger.js');
     bypassPromptsModule = await import('./modules/bypass-prompts.js');
+    
+    // 新模块
+    windowManagerModule = await import('./modules/window-manager.js');
+    toolRegistryModule = await import('./modules/tool-registry.js');
+    promptEditorModule = await import('./modules/prompt-editor.js');
+    
     return true;
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] 模块加载失败，使用内置功能:`, error);
@@ -76,19 +84,40 @@ function escapeHtml(unsafe) {
 // 样式注入
 // ============================================================
 
-function injectStyles() {
+async function injectStyles() {
   const styleId = `${SCRIPT_ID}-styles`;
   const targetDoc = topLevelWindow.document || document;
 
   // 检查是否已注入
   if (targetDoc.getElementById(styleId)) return;
 
-  const css = `
-    /* ============================================================
-       YouYou Toolkit - 现代化弹窗样式
-       ============================================================ */
-    
-    /* CSS变量 */
+  // 尝试加载外部样式文件
+  let css = '';
+  try {
+    const response = await fetch('./styles/main.css');
+    if (response.ok) {
+      css = await response.text();
+    }
+  } catch (e) {
+    log('无法加载外部样式文件，使用内置样式');
+  }
+
+  // 如果外部样式加载失败，使用基础样式
+  if (!css) {
+    css = getBaseStyles();
+  }
+
+  const style = targetDoc.createElement('style');
+  style.id = styleId;
+  style.textContent = css;
+  (targetDoc.head || targetDoc.documentElement).appendChild(style);
+
+  log('样式已注入');
+}
+
+function getBaseStyles() {
+  return `
+    /* 基础样式 */
     :root {
       --yyt-accent: #7bb7ff;
       --yyt-accent-glow: rgba(123, 183, 255, 0.4);
@@ -104,21 +133,12 @@ function injectStyles() {
       --yyt-text-muted: rgba(255, 255, 255, 0.45);
     }
     
-    /* 菜单项样式 */
-    #${MENU_CONTAINER_ID} {
-      display: flex;
-      align-items: center;
-    }
+    #${MENU_CONTAINER_ID} { display: flex; align-items: center; }
     
     #${MENU_ITEM_ID} {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border-radius: 8px;
-      margin: 2px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; cursor: pointer;
+      transition: all 0.2s ease; border-radius: 8px; margin: 2px;
     }
     
     #${MENU_ITEM_ID}:hover {
@@ -126,378 +146,22 @@ function injectStyles() {
     }
     
     #${MENU_ITEM_ID} .fa-fw {
-      font-size: 16px;
-      color: var(--yyt-accent);
+      font-size: 16px; color: var(--yyt-accent);
       filter: drop-shadow(0 0 6px var(--yyt-accent-glow));
-      transition: transform 0.2s ease;
     }
     
-    #${MENU_ITEM_ID}:hover .fa-fw {
-      transform: scale(1.1);
-    }
-    
-    #${MENU_ITEM_ID} span {
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-    
-    /* 弹窗遮罩 */
-    .yyt-popup-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 9999;
-      animation: yytFadeIn 0.25s ease-out;
-    }
-    
-    @keyframes yytFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    /* 弹窗主体 */
-    .yyt-popup {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: 
-        radial-gradient(ellipse at top, rgba(123, 183, 255, 0.08) 0%, transparent 50%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 30%),
-        #0d1117;
-      border: 1px solid var(--yyt-border-strong);
-      border-radius: 20px;
-      box-shadow: 
-        0 0 0 1px rgba(255, 255, 255, 0.05),
-        0 25px 80px rgba(0, 0, 0, 0.7),
-        0 0 60px rgba(123, 183, 255, 0.1);
-      width: 680px;
-      min-height: 480px;
-      max-width: 92vw;
-      max-height: 88vh;
-      z-index: 10000;
-      animation: yytSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
-      color: var(--yyt-text);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    
-    @keyframes yytSlideIn {
-      from { 
-        opacity: 0; 
-        transform: translate(-50%, -50%) scale(0.92) translateY(20px); 
-      }
-      to { 
-        opacity: 1; 
-        transform: translate(-50%, -50%) scale(1) translateY(0); 
-      }
-    }
-    
-    /* 弹窗头部 */
-    .yyt-popup-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 24px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
-      border-bottom: 1px solid var(--yyt-border);
-      flex-shrink: 0;
-    }
-    
-    .yyt-popup-title {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 17px;
-      font-weight: 700;
-      color: var(--yyt-text);
-      letter-spacing: 0.3px;
-    }
-    
-    .yyt-popup-title i {
-      font-size: 18px;
-      color: var(--yyt-accent);
-      filter: drop-shadow(0 0 10px var(--yyt-accent-glow));
-    }
-    
-    .yyt-popup-close {
-      width: 32px;
-      height: 32px;
-      border: 1px solid var(--yyt-border);
-      border-radius: 10px;
-      background: var(--yyt-surface);
-      color: var(--yyt-text-secondary);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      font-size: 14px;
-    }
-    
-    .yyt-popup-close:hover {
-      background: linear-gradient(135deg, rgba(248, 113, 113, 0.2) 0%, rgba(248, 113, 113, 0.08) 100%);
-      border-color: rgba(248, 113, 113, 0.35);
-      color: #f87171;
-      transform: rotate(90deg);
-    }
-    
-    /* 弹窗内容 */
-    .yyt-popup-body {
-      flex: 1;
-      padding: 24px;
-      overflow: auto;
-    }
-    
-    .yyt-popup-body::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    .yyt-popup-body::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    
-    .yyt-popup-body::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.12);
-      border-radius: 4px;
-    }
-    
-    .yyt-popup-body::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-    
-    /* 弹窗底部 */
-    .yyt-popup-footer {
-      padding: 18px 24px;
-      background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.02) 100%);
-      border-top: 1px solid var(--yyt-border);
-      flex-shrink: 0;
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-    }
-    
-    /* 按钮 */
-    .yyt-btn {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      letter-spacing: 0.3px;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .yyt-btn::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
-      pointer-events: none;
-    }
-    
-    .yyt-btn-primary {
-      background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
-      color: #0b0f15;
-      box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    
-    .yyt-btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 25px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    }
-    
-    .yyt-btn-secondary {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, var(--yyt-surface) 100%);
-      color: var(--yyt-text);
-      border: 1px solid var(--yyt-border);
-    }
-    
-    .yyt-btn-secondary:hover {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, var(--yyt-surface-hover) 100%);
-      border-color: var(--yyt-border-strong);
-      transform: translateY(-1px);
-    }
-    
-    /* 主导航样式 */
-    .yyt-nav {
-      display: flex;
-      gap: 8px;
-      padding: 6px;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
-      border-radius: 14px;
-      margin-bottom: 24px;
-      border: 1px solid var(--yyt-border);
-    }
-    
-    .yyt-nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      color: var(--yyt-text-secondary);
-      font-weight: 500;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .yyt-nav-item:hover {
-      color: var(--yyt-text);
-      background: var(--yyt-surface-hover);
-    }
-    
-    .yyt-nav-item.active {
-      color: #0b0f15;
-      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
-      box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    
-    .yyt-nav-item i {
-      font-size: 15px;
-      transition: transform 0.25s ease;
-    }
-    
-    .yyt-nav-item:hover i {
-      transform: scale(1.15);
-    }
-    
-    /* 页面内容 */
-    .yyt-page {
-      display: none;
-      animation: yytPageIn 0.3s ease-out;
-    }
-    
-    @keyframes yytPageIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    .yyt-page.active {
-      display: block;
-    }
-    
-    /* 欢迎页面 */
-    .yyt-welcome {
-      text-align: center;
-      padding: 50px 30px;
-    }
-    
-    .yyt-welcome h2 {
-      margin: 0 0 12px 0;
-      font-size: 26px;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 50%, var(--yyt-accent) 100%);
-      background-size: 200% auto;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: yytGradient 3s linear infinite;
-    }
-    
-    @keyframes yytGradient {
-      0% { background-position: 0% center; }
-      100% { background-position: 200% center; }
-    }
-    
-    .yyt-welcome p {
-      color: var(--yyt-text-secondary);
-      line-height: 1.7;
-      margin: 0 0 20px 0;
-      font-size: 15px;
-    }
-    
-    .yyt-version {
-      font-size: 12px;
-      color: var(--yyt-text-muted);
-      margin-top: 35px;
-      padding: 10px 20px;
-      background: var(--yyt-surface);
-      border-radius: 20px;
-      display: inline-block;
-      border: 1px solid var(--yyt-border);
-      letter-spacing: 0.5px;
-    }
-    
-    .yyt-features {
-      text-align: left;
-      max-width: 450px;
-      margin: 30px auto;
-    }
-    
-    .yyt-feature-item {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 16px 20px;
-      background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-      border-radius: 12px;
-      margin-bottom: 10px;
-      border: 1px solid var(--yyt-border);
-      transition: all 0.25s ease;
-    }
-    
-    .yyt-feature-item:hover {
-      background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
-      border-color: rgba(123, 183, 255, 0.2);
-      transform: translateX(6px);
-    }
-    
-    .yyt-feature-item i {
-      color: var(--yyt-accent);
-      font-size: 22px;
-      width: 28px;
-      filter: drop-shadow(0 0 8px var(--yyt-accent-glow));
-      transition: transform 0.25s ease;
-    }
-    
-    .yyt-feature-item:hover i {
-      transform: scale(1.1);
-    }
-    
-    .yyt-feature-item span {
-      color: var(--yyt-text);
-      font-size: 14px;
-      font-weight: 500;
-    }
+    #${MENU_ITEM_ID} span { font-weight: 500; letter-spacing: 0.3px; }
   `;
-
-  const style = targetDoc.createElement('style');
-  style.id = styleId;
-  style.textContent = css;
-  (targetDoc.head || targetDoc.documentElement).appendChild(style);
-
-  log('样式已注入');
 }
 
 // ============================================================
-// 弹窗管理
+// 弹窗管理（新架构）
 // ============================================================
 
 let currentPopup = null;
 let currentOverlay = null;
-let currentPage = 'welcome';
+let currentMainTab = 'apiPresets';
+let currentSubTab = {};
 
 function closePopup() {
   if (currentPopup) {
@@ -511,43 +175,270 @@ function closePopup() {
   log('弹窗已关闭');
 }
 
-function switchPage(pageName) {
-  currentPage = pageName;
+function switchMainTab(tabName) {
+  currentMainTab = tabName;
   
   const $ = topLevelWindow.jQuery || window.jQuery;
   if (!$ || !currentPopup) return;
   
-  // 更新导航状态
-  $(currentPopup).find('.yyt-nav-item').removeClass('active');
-  $(currentPopup).find(`.yyt-nav-item[data-page="${pageName}"]`).addClass('active');
+  // 更新主顶栏状态
+  $(currentPopup).find('.yyt-main-nav-item').removeClass('active');
+  $(currentPopup).find(`.yyt-main-nav-item[data-tab="${tabName}"]`).addClass('active');
   
-  // 更新页面显示
-  $(currentPopup).find('.yyt-page').removeClass('active');
-  $(currentPopup).find(`.yyt-page[data-page="${pageName}"]`).addClass('active');
-  
-  // 如果切换到API管理页面，渲染组件
-  if (pageName === 'api' && uiComponentsModule) {
-    const $apiContainer = $(currentPopup).find('#youyou_toolkit-api-container');
-    if ($apiContainer.length) {
-      uiComponentsModule.render($apiContainer);
-    }
+  // 更新次级顶栏显示
+  const toolConfig = toolRegistryModule?.getToolConfig(tabName);
+  if (toolConfig?.hasSubTabs) {
+    $(currentPopup).find('.yyt-sub-nav').show();
+    renderSubNav(tabName, toolConfig.subTabs);
+  } else {
+    $(currentPopup).find('.yyt-sub-nav').hide();
   }
   
-  // 如果切换到正则提取页面，渲染组件
-  if (pageName === 'regex' && uiComponentsModule) {
-    const $regexContainer = $(currentPopup).find('#youyou_toolkit-regex-container');
-    if ($regexContainer.length) {
-      uiComponentsModule.renderRegex($regexContainer);
-    }
+  // 更新内容区域
+  $(currentPopup).find('.yyt-tab-content').removeClass('active');
+  $(currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`).addClass('active');
+  
+  // 渲染对应内容
+  renderTabContent(tabName);
+}
+
+function switchSubTab(mainTab, subTab) {
+  currentSubTab[mainTab] = subTab;
+  
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup) return;
+  
+  // 更新次级顶栏状态
+  $(currentPopup).find('.yyt-sub-nav-item').removeClass('active');
+  $(currentPopup).find(`.yyt-sub-nav-item[data-subtab="${subTab}"]`).addClass('active');
+  
+  // 更新次级内容
+  renderSubTabContent(mainTab, subTab);
+}
+
+function renderSubNav(mainTab, subTabs) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup || !subTabs) return;
+  
+  const currentSub = currentSubTab[mainTab] || subTabs[0]?.id;
+  
+  const subNavHtml = subTabs.map(tab => `
+    <div class="yyt-sub-nav-item ${tab.id === currentSub ? 'active' : ''}" data-subtab="${tab.id}">
+      <i class="fa-solid ${tab.icon || 'fa-file'}"></i>
+      <span>${tab.name}</span>
+    </div>
+  `).join('');
+  
+  $(currentPopup).find('.yyt-sub-nav').html(subNavHtml);
+  
+  // 绑定点击事件
+  $(currentPopup).find('.yyt-sub-nav-item').on('click', function() {
+    const subTab = $(this).data('subtab');
+    switchSubTab(mainTab, subTab);
+  });
+}
+
+function renderTabContent(tabName) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup) return;
+  
+  const $content = $(currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`);
+  if (!$content.length) return;
+  
+  switch (tabName) {
+    case 'apiPresets':
+      if (uiComponentsModule) {
+        uiComponentsModule.render($content);
+      }
+      break;
+      
+    case 'regexExtract':
+      if (uiComponentsModule) {
+        uiComponentsModule.renderRegex($content);
+      }
+      break;
+      
+    default:
+      // 工具窗口 - 使用独立窗口系统
+      renderToolWindow(tabName, $content);
+      break;
+  }
+}
+
+function renderSubTabContent(mainTab, subTab) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup) return;
+  
+  const $content = $(currentPopup).find(`.yyt-tab-content[data-tab="${mainTab}"] .yyt-sub-content`);
+  if (!$content.length) return;
+  
+  // 根据工具和子标签渲染内容
+  switch (subTab) {
+    case 'config':
+      renderToolConfig(mainTab, $content);
+      break;
+    case 'prompts':
+      renderPromptEditor(mainTab, $content);
+      break;
+    case 'presets':
+      renderToolPresets(mainTab, $content);
+      break;
+    default:
+      $content.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>`);
+  }
+}
+
+function renderToolWindow(toolId, $container) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$) return;
+  
+  const toolConfig = toolRegistryModule?.getToolConfig(toolId);
+  if (!toolConfig) {
+    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置不存在</span></div>`);
+    return;
   }
   
-  // 如果切换到工具管理页面，渲染组件
-  if (pageName === 'tools' && uiComponentsModule) {
-    const $toolsContainer = $(currentPopup).find('#youyou_toolkit-tools-container');
-    if ($toolsContainer.length) {
-      uiComponentsModule.renderTool($toolsContainer);
+  const currentSub = currentSubTab[toolId] || toolConfig.subTabs?.[0]?.id || 'config';
+  
+  $container.html(`
+    <div class="yyt-tool-window">
+      <div class="yyt-sub-content" data-subtab="${currentSub}">
+        <!-- 子内容将在此渲染 -->
+      </div>
+    </div>
+  `);
+  
+  renderSubTabContent(toolId, currentSub);
+}
+
+function renderToolConfig(toolId, $container) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$) return;
+  
+  const tool = toolManagerModule?.getTool(toolId);
+  const apiPresets = presetManagerModule?.getAllPresets() || [];
+  const boundPreset = toolRegistryModule?.getToolApiPreset(toolId) || '';
+  
+  const presetOptions = apiPresets.map(p => 
+    `<option value="${escapeHtml(p.name)}" ${p.name === boundPreset ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+  ).join('');
+  
+  $container.html(`
+    <div class="yyt-panel">
+      <div class="yyt-panel-section">
+        <div class="yyt-section-title">
+          <i class="fa-solid fa-plug"></i>
+          <span>API预设绑定</span>
+        </div>
+        <div class="yyt-form-group">
+          <label>选择API预设</label>
+          <select class="yyt-select" id="yyt-tool-api-preset">
+            <option value="">使用当前配置</option>
+            ${presetOptions}
+          </select>
+        </div>
+        <button class="yyt-btn yyt-btn-primary" id="yyt-save-tool-preset">
+          <i class="fa-solid fa-save"></i> 保存绑定
+        </button>
+      </div>
+      
+      <div class="yyt-panel-section">
+        <div class="yyt-section-title">
+          <i class="fa-solid fa-cog"></i>
+          <span>执行配置</span>
+        </div>
+        <div class="yyt-form-row">
+          <div class="yyt-form-group yyt-flex-1">
+            <label>超时时间 (ms)</label>
+            <input type="number" class="yyt-input" id="yyt-tool-timeout" value="${tool?.config?.execution?.timeout || 60000}">
+          </div>
+          <div class="yyt-form-group yyt-flex-1">
+            <label>重试次数</label>
+            <input type="number" class="yyt-input" id="yyt-tool-retries" value="${tool?.config?.execution?.retries || 3}">
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+  
+  // 绑定保存事件
+  $container.find('#yyt-save-tool-preset').on('click', function() {
+    const presetName = $container.find('#yyt-tool-api-preset').val();
+    toolRegistryModule?.setToolApiPreset(toolId, presetName);
+    const toastr = topLevelWindow.toastr;
+    if (toastr) {
+      toastr.success(`API预设绑定已保存`, 'YouYou 工具箱');
+    }
+  });
+}
+
+function renderPromptEditor(toolId, $container) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !promptEditorModule) {
+    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>提示词编辑器模块未加载</span></div>`);
+    return;
+  }
+  
+  const tool = toolManagerModule?.getTool(toolId);
+  const messages = tool?.config?.messages || [];
+  
+  // 将消息转换为提示词段落
+  const segments = promptEditorModule.messagesToSegments ? 
+    promptEditorModule.messagesToSegments(messages) : 
+    promptEditorModule.DEFAULT_PROMPT_SEGMENTS;
+  
+  // 创建编辑器实例
+  const editor = new promptEditorModule.PromptEditor({
+    containerId: `yyt-prompt-editor-${toolId}`,
+    segments: segments,
+    onChange: (newSegments) => {
+      // 将段落转换回消息并保存
+      const newMessages = promptEditorModule.segmentsToMessages ? 
+        promptEditorModule.segmentsToMessages(newSegments) : [];
+      // TODO: 保存到工具配置
+      log('提示词已更新:', newMessages.length, '条消息');
+    }
+  });
+  
+  // 渲染编辑器
+  $container.html(`<div id="yyt-prompt-editor-${toolId}" class="yyt-prompt-editor-container"></div>`);
+  editor.init($container.find(`#yyt-prompt-editor-${toolId}`));
+  
+  // 注入提示词编辑器样式
+  const editorStyles = promptEditorModule.getPromptEditorStyles ? 
+    promptEditorModule.getPromptEditorStyles() : '';
+  if (editorStyles) {
+    const styleId = `yyt-prompt-editor-styles`;
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = editorStyles;
+      document.head.appendChild(style);
     }
   }
+}
+
+function renderToolPresets(toolId, $container) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$) return;
+  
+  $container.html(`
+    <div class="yyt-panel">
+      <div class="yyt-panel-section">
+        <div class="yyt-section-title">
+          <i class="fa-solid fa-bookmark"></i>
+          <span>工具预设</span>
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" style="margin-left: auto;">
+            <i class="fa-solid fa-plus"></i> 新建
+          </button>
+        </div>
+        <div class="yyt-empty-state-small">
+          <i class="fa-solid fa-bookmark"></i>
+          <span>暂无保存的预设</span>
+        </div>
+      </div>
+    </div>
+  `);
 }
 
 function openPopup() {
@@ -565,6 +456,9 @@ function openPopup() {
     return;
   }
 
+  // 获取工具列表
+  const tools = toolRegistryModule?.getToolList() || [];
+
   // 创建遮罩层
   currentOverlay = targetDoc.createElement('div');
   currentOverlay.className = 'yyt-popup-overlay';
@@ -574,6 +468,21 @@ function openPopup() {
     }
   });
   targetDoc.body.appendChild(currentOverlay);
+
+  // 主顶栏HTML
+  const mainNavHtml = tools.map(tool => `
+    <div class="yyt-main-nav-item ${tool.id === currentMainTab ? 'active' : ''}" data-tab="${tool.id}">
+      <i class="fa-solid ${tool.icon}"></i>
+      <span>${tool.name}</span>
+    </div>
+  `).join('');
+
+  // 内容区域HTML
+  const contentHtml = tools.map(tool => `
+    <div class="yyt-tab-content ${tool.id === currentMainTab ? 'active' : ''}" data-tab="${tool.id}">
+      <!-- 内容将动态渲染 -->
+    </div>
+  `).join('');
 
   // 创建弹窗HTML
   const popupHtml = `
@@ -590,65 +499,16 @@ function openPopup() {
       </div>
       
       <div class="yyt-popup-body">
-        <div class="yyt-nav">
-          <div class="yyt-nav-item active" data-page="welcome">
-            <i class="fa-solid fa-home"></i>
-            <span>首页</span>
-          </div>
-          <div class="yyt-nav-item" data-page="api">
-            <i class="fa-solid fa-plug"></i>
-            <span>API管理</span>
-          </div>
-          <div class="yyt-nav-item" data-page="regex">
-            <i class="fa-solid fa-regex"></i>
-            <span>正则提取</span>
-          </div>
-          <div class="yyt-nav-item" data-page="tools">
-            <i class="fa-solid fa-tools"></i>
-            <span>工具</span>
-          </div>
+        <div class="yyt-main-nav">
+          ${mainNavHtml}
         </div>
         
-        <div class="yyt-page active" data-page="welcome">
-          <div class="yyt-welcome">
-            <h2>🛠️ 欢迎使用 YouYou 工具箱</h2>
-            <p>这是一个为 SillyTavern 设计的工具插件框架。</p>
-            
-            <div class="yyt-features">
-              <div class="yyt-feature-item">
-                <i class="fa-solid fa-plug"></i>
-                <span>API连接管理 - 支持自定义API和主API切换</span>
-              </div>
-              <div class="yyt-feature-item">
-                <i class="fa-solid fa-bookmark"></i>
-                <span>预设管理 - 保存和切换多套API配置</span>
-              </div>
-              <div class="yyt-feature-item">
-                <i class="fa-solid fa-regex"></i>
-                <span>正则提取 - 从消息中提取特定内容</span>
-              </div>
-              <div class="yyt-feature-item">
-                <i class="fa-solid fa-file-import"></i>
-                <span>导入导出 - 方便备份和分享配置</span>
-              </div>
-            </div>
-            
-            <div class="yyt-version">
-              插件ID: ${SCRIPT_ID}
-            </div>
-          </div>
+        <div class="yyt-sub-nav" style="display: none;">
+          <!-- 次级顶栏将动态渲染 -->
         </div>
         
-        <div class="yyt-page" data-page="api">
-          <div id="${SCRIPT_ID}-api-container"></div>
-        </div>
-        
-        <div class="yyt-page" data-page="regex">
-          <div id="${SCRIPT_ID}-regex-container"></div>
-        </div>
-        
-        <div class="yyt-page" data-page="tools">
-          <div id="${SCRIPT_ID}-tools-container"></div>
+        <div class="yyt-content">
+          ${contentHtml}
         </div>
       </div>
       
@@ -667,13 +527,23 @@ function openPopup() {
   $(currentPopup).find('.yyt-popup-close').on('click', closePopup);
   $(currentPopup).find(`#${SCRIPT_ID}-close-btn`).on('click', closePopup);
   
-  // 绑定导航点击
-  $(currentPopup).find('.yyt-nav-item').on('click', function() {
-    const page = $(this).data('page');
-    if (page) {
-      switchPage(page);
+  // 绑定主顶栏点击
+  $(currentPopup).find('.yyt-main-nav-item').on('click', function() {
+    const tab = $(this).data('tab');
+    if (tab) {
+      switchMainTab(tab);
     }
   });
+
+  // 渲染初始内容
+  renderTabContent(currentMainTab);
+  
+  // 如果当前工具有次级顶栏，渲染它
+  const currentToolConfig = toolRegistryModule?.getToolConfig(currentMainTab);
+  if (currentToolConfig?.hasSubTabs) {
+    $(currentPopup).find('.yyt-sub-nav').show();
+    renderSubNav(currentMainTab, currentToolConfig.subTabs);
+  }
 
   log('弹窗已打开');
 }
@@ -761,8 +631,9 @@ const YouYouToolkit = {
   openPopup,
   closePopup,
   
-  // 页面切换
-  switchPage,
+  // 标签切换
+  switchMainTab,
+  switchSubTab,
   
   // 菜单管理
   addMenuItem,
@@ -777,6 +648,9 @@ const YouYouToolkit = {
   getToolExecutor: () => toolExecutorModule,
   getToolTrigger: () => toolTriggerModule,
   getBypassPrompts: () => bypassPromptsModule,
+  getWindowManager: () => windowManagerModule,
+  getToolRegistry: () => toolRegistryModule,
+  getPromptEditor: () => promptEditorModule,
   
   // 便捷方法
   async getApiConfig() {
@@ -812,6 +686,28 @@ const YouYouToolkit = {
       return apiConnectionModule.testApiConnection();
     }
     return { success: false, message: 'API模块未加载' };
+  },
+  
+  // 工具注册
+  registerTool(id, config) {
+    return toolRegistryModule?.registerTool(id, config) || false;
+  },
+  
+  unregisterTool(id) {
+    return toolRegistryModule?.unregisterTool(id) || false;
+  },
+  
+  getToolList() {
+    return toolRegistryModule?.getToolList() || [];
+  },
+  
+  // 窗口管理
+  createWindow(options) {
+    return windowManagerModule?.createWindow(options) || null;
+  },
+  
+  closeWindow(id) {
+    windowManagerModule?.closeWindow(id);
   }
 };
 
@@ -823,7 +719,7 @@ async function init() {
   log(`初始化开始... 版本: ${SCRIPT_VERSION}`);
 
   // 注入样式
-  injectStyles();
+  await injectStyles();
 
   // 加载模块
   const modulesLoaded = await loadModules();
@@ -832,8 +728,9 @@ async function init() {
     log('所有模块加载成功');
     
     // 注入UI组件样式
+    const targetDoc = topLevelWindow.document || document;
+    
     if (uiComponentsModule) {
-      const targetDoc = topLevelWindow.document || document;
       const uiStyleId = `${SCRIPT_ID}-ui-styles`;
       if (!targetDoc.getElementById(uiStyleId)) {
         const uiStyle = targetDoc.createElement('style');
@@ -858,6 +755,25 @@ async function init() {
         toolStyle.id = toolStyleId;
         toolStyle.textContent = uiComponentsModule.getToolStyles();
         (targetDoc.head || targetDoc.documentElement).appendChild(toolStyle);
+      }
+    }
+    
+    // 注入窗口管理器样式
+    if (windowManagerModule) {
+      const windowStyleId = `${SCRIPT_ID}-window-styles`;
+      if (!targetDoc.getElementById(windowStyleId)) {
+        // 窗口管理器会自动注入样式
+      }
+    }
+    
+    // 注入提示词编辑器样式
+    if (promptEditorModule && promptEditorModule.getPromptEditorStyles) {
+      const promptStyleId = `${SCRIPT_ID}-prompt-styles`;
+      if (!targetDoc.getElementById(promptStyleId)) {
+        const promptStyle = targetDoc.createElement('style');
+        promptStyle.id = promptStyleId;
+        promptStyle.textContent = promptEditorModule.getPromptEditorStyles();
+        (targetDoc.head || targetDoc.documentElement).appendChild(promptStyle);
       }
     }
   } else {
