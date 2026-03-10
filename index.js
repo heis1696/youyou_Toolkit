@@ -117,22 +117,29 @@ async function injectStyles() {
 
 function getBaseStyles() {
   return `
-    /* 基础样式 */
+    /* CSS变量 */
     :root {
       --yyt-accent: #7bb7ff;
       --yyt-accent-glow: rgba(123, 183, 255, 0.4);
       --yyt-accent-soft: rgba(123, 183, 255, 0.15);
       --yyt-success: #4ade80;
+      --yyt-success-glow: rgba(74, 222, 128, 0.3);
       --yyt-error: #f87171;
+      --yyt-error-glow: rgba(248, 113, 113, 0.3);
+      --yyt-warning: #fbbf24;
       --yyt-surface: rgba(255, 255, 255, 0.03);
       --yyt-surface-hover: rgba(255, 255, 255, 0.06);
+      --yyt-surface-active: rgba(255, 255, 255, 0.08);
       --yyt-border: rgba(255, 255, 255, 0.08);
       --yyt-border-strong: rgba(255, 255, 255, 0.15);
       --yyt-text: rgba(255, 255, 255, 0.95);
       --yyt-text-secondary: rgba(255, 255, 255, 0.7);
       --yyt-text-muted: rgba(255, 255, 255, 0.45);
+      --yyt-radius: 12px;
+      --yyt-radius-sm: 8px;
     }
     
+    /* 菜单项 */
     #${MENU_CONTAINER_ID} { display: flex; align-items: center; }
     
     #${MENU_ITEM_ID} {
@@ -151,6 +158,397 @@ function getBaseStyles() {
     }
     
     #${MENU_ITEM_ID} span { font-weight: 500; letter-spacing: 0.3px; }
+    
+    /* 主弹窗遮罩 */
+    .yyt-popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 9999;
+    }
+    
+    /* 主弹窗 */
+    .yyt-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      width: 950px;
+      max-width: 95vw;
+      height: 85vh;
+      max-height: 90vh;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(123, 183, 255, 0.12), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(155, 123, 255, 0.10), transparent 55%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 22%),
+        #0b0f15;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.65), 0 0 60px rgba(123, 183, 255, 0.1);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+      color: rgba(255, 255, 255, 0.92);
+      z-index: 10000;
+    }
+    
+    /* 弹窗头部 */
+    .yyt-popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px 16px 0 0;
+      flex-shrink: 0;
+    }
+    
+    .yyt-popup-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.95);
+    }
+    
+    .yyt-popup-title i {
+      color: rgba(123, 183, 255, 0.85);
+      font-size: 18px;
+    }
+    
+    .yyt-popup-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    
+    .yyt-popup-close:hover {
+      background: rgba(255, 107, 107, 0.25);
+      color: #ff6b6b;
+    }
+    
+    /* 弹窗主体 */
+    .yyt-popup-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 16px 20px;
+      overflow: hidden;
+    }
+    
+    /* 弹窗底部 */
+    .yyt-popup-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0 0 16px 16px;
+      flex-shrink: 0;
+    }
+    
+    /* 主顶栏 */
+    .yyt-main-nav {
+      display: flex;
+      gap: 4px;
+      padding: 8px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border-radius: 14px;
+      margin-bottom: 16px;
+      border: 1px solid var(--yyt-border);
+      flex-shrink: 0;
+    }
+    
+    .yyt-main-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      color: var(--yyt-text-secondary);
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .yyt-main-nav-item:hover {
+      color: var(--yyt-text);
+      background: var(--yyt-surface-hover);
+    }
+    
+    .yyt-main-nav-item.active {
+      color: #0b0f15;
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
+    }
+    
+    /* 次级顶栏 */
+    .yyt-sub-nav {
+      display: flex;
+      gap: 4px;
+      padding: 6px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      flex-shrink: 0;
+    }
+    
+    .yyt-sub-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: var(--yyt-text-secondary);
+      font-weight: 500;
+      font-size: 13px;
+    }
+    
+    .yyt-sub-nav-item:hover {
+      color: var(--yyt-text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .yyt-sub-nav-item.active {
+      color: var(--yyt-accent);
+      background: rgba(123, 183, 255, 0.1);
+    }
+    
+    /* 内容区域 */
+    .yyt-content {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 0 4px;
+    }
+    
+    /* 标签内容 */
+    .yyt-tab-content {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    
+    .yyt-tab-content.active {
+      display: block;
+    }
+    
+    /* 面板样式 */
+    .yyt-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .yyt-panel-section {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--yyt-surface) 0%, transparent 100%);
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius);
+    }
+    
+    .yyt-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--yyt-text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .yyt-section-title i {
+      color: var(--yyt-accent);
+      font-size: 16px;
+    }
+    
+    /* 按钮样式 */
+    .yyt-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--yyt-radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    
+    .yyt-btn-primary {
+      background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
+      color: #0b0f15;
+    }
+    
+    .yyt-btn-primary:hover {
+      transform: translateY(-1px);
+    }
+    
+    .yyt-btn-secondary {
+      background: linear-gradient(135deg, var(--yyt-surface-active) 0%, var(--yyt-surface) 100%);
+      color: var(--yyt-text);
+      border: 1px solid var(--yyt-border);
+    }
+    
+    .yyt-btn-secondary:hover {
+      border-color: var(--yyt-border-strong);
+    }
+    
+    .yyt-btn-danger {
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(248, 113, 113, 0.05) 100%);
+      color: var(--yyt-error);
+      border: 1px solid rgba(248, 113, 113, 0.25);
+    }
+    
+    .yyt-btn-small {
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+    
+    /* 表单样式 */
+    .yyt-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .yyt-form-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--yyt-text-secondary);
+    }
+    
+    .yyt-form-row {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .yyt-flex-1 {
+      flex: 1;
+    }
+    
+    .yyt-input,
+    .yyt-select,
+    .yyt-textarea {
+      padding: 10px 14px;
+      border: 1px solid var(--yyt-border);
+      border-radius: var(--yyt-radius-sm);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--yyt-text);
+      font-size: 13px;
+    }
+    
+    .yyt-input:focus,
+    .yyt-select:focus,
+    .yyt-textarea:focus {
+      outline: none;
+      border-color: var(--yyt-accent);
+    }
+    
+    .yyt-input::placeholder,
+    .yyt-textarea::placeholder {
+      color: var(--yyt-text-muted);
+    }
+    
+    .yyt-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    /* 面板底部 */
+    .yyt-panel-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding-top: 16px;
+      margin-top: 4px;
+      border-top: 1px solid var(--yyt-border);
+    }
+    
+    .yyt-footer-left,
+    .yyt-footer-right {
+      display: flex;
+      gap: 8px;
+    }
+    
+    /* 空状态 */
+    .yyt-empty-state-small {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--yyt-text-muted);
+      gap: 8px;
+    }
+    
+    .yyt-empty-state-small i {
+      font-size: 24px;
+      opacity: 0.4;
+    }
+    
+    .yyt-empty-state-small span {
+      font-size: 12px;
+    }
+    
+    /* 子内容区域 */
+    .yyt-sub-content {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    
+    /* 工具窗口容器 */
+    .yyt-tool-window {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    /* 响应式 */
+    @media screen and (max-width: 1100px) {
+      .yyt-popup {
+        width: 98vw;
+        height: 90vh;
+      }
+    }
+    
+    @media screen and (max-width: 768px) {
+      .yyt-popup {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+      }
+    }
   `;
 }
 
