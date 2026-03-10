@@ -3,6 +3,9 @@
  * @description 管理工具定义、预设和执行配置
  */
 
+import { toolStorage } from './core/storage-service.js';
+import { eventBus, EVENTS } from './core/event-bus.js';
+
 // ============================================================
 // 工具数据结构定义
 // ============================================================
@@ -76,67 +79,14 @@ const DEFAULT_TOOL_STRUCTURE = {
 const DEFAULT_TOOL_PRESETS = {};
 
 // ============================================================
-// 存储操作
+// 存储键（保持向后兼容）
 // ============================================================
 
 const TOOL_STORAGE_KEYS = {
-  TOOLS: 'youyou_toolkit_tools',
-  PRESETS: 'youyou_toolkit_tool_presets',
-  CURRENT_PRESET: 'youyou_toolkit_current_tool_preset'
+  TOOLS: 'tools',
+  PRESETS: 'tool_presets',
+  CURRENT_PRESET: 'current_tool_preset'
 };
-
-/**
- * 获取存储对象
- * @returns {Object}
- */
-function getStorage() {
-  try {
-    const topWindow = (typeof window.parent !== 'undefined' ? window.parent : window);
-    
-    if (topWindow.SillyTavern?.getContext) {
-      const context = topWindow.SillyTavern.getContext();
-      if (context?.extensionSettings) {
-        const namespace = 'youyou_toolkit';
-        if (!context.extensionSettings[namespace]) {
-          context.extensionSettings[namespace] = {};
-        }
-        return {
-          getItem: (key) => {
-            const value = context.extensionSettings[namespace][key];
-            return typeof value === 'string' ? value : (value ? JSON.stringify(value) : null);
-          },
-          setItem: (key, value) => {
-            context.extensionSettings[namespace][key] = value;
-            if (typeof context.saveSettings === 'function') {
-              try { context.saveSettings(); } catch (e) {}
-            }
-          },
-          removeItem: (key) => {
-            delete context.extensionSettings[namespace][key];
-            if (typeof context.saveSettings === 'function') {
-              try { context.saveSettings(); } catch (e) {}
-            }
-          }
-        };
-      }
-    }
-  } catch (e) {}
-  
-  return {
-    getItem: (key) => { try { return localStorage.getItem(key); } catch (e) { return null; } },
-    setItem: (key, value) => { try { localStorage.setItem(key, value); } catch (e) {} },
-    removeItem: (key) => { try { localStorage.removeItem(key); } catch (e) {} }
-  };
-}
-
-function safeJsonParse(str, fallback = null) {
-  if (!str || typeof str !== 'string') return fallback;
-  try { return JSON.parse(str); } catch (e) { return fallback; }
-}
-
-function safeJsonStringify(obj, fallback = '{}') {
-  try { return JSON.stringify(obj); } catch (e) { return fallback; }
-}
 
 // ============================================================
 // 工具管理API
@@ -147,14 +97,10 @@ function safeJsonStringify(obj, fallback = '{}') {
  * @returns {Object} 工具定义对象 { id: ToolDefinition }
  */
 export function getAllTools() {
-  const storage = getStorage();
-  const saved = storage.getItem(TOOL_STORAGE_KEYS.TOOLS);
+  const saved = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS);
   
-  if (saved) {
-    const parsed = safeJsonParse(saved, null);
-    if (parsed && typeof parsed === 'object') {
-      return { ...DEFAULT_TOOL_PRESETS, ...parsed };
-    }
+  if (saved && typeof saved === 'object') {
+    return { ...DEFAULT_TOOL_PRESETS, ...saved };
   }
   
   return { ...DEFAULT_TOOL_PRESETS };
@@ -181,9 +127,7 @@ export function saveTool(toolId, toolDef) {
     return false;
   }
   
-  const storage = getStorage();
-  const saved = storage.getItem(TOOL_STORAGE_KEYS.TOOLS);
-  const customTools = safeJsonParse(saved, {});
+  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
   
   // 合并默认结构
   const validatedTool = {
@@ -203,7 +147,10 @@ export function saveTool(toolId, toolDef) {
   }
   
   customTools[toolId] = validatedTool;
-  storage.setItem(TOOL_STORAGE_KEYS.TOOLS, safeJsonStringify(customTools));
+  toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
+  
+  // 发送事件
+  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, tool: validatedTool });
   
   return true;
 }
@@ -219,13 +166,15 @@ export function deleteTool(toolId) {
     return false;
   }
   
-  const storage = getStorage();
-  const saved = storage.getItem(TOOL_STORAGE_KEYS.TOOLS);
-  const customTools = safeJsonParse(saved, {});
+  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
   
   if (customTools[toolId]) {
     delete customTools[toolId];
-    storage.setItem(TOOL_STORAGE_KEYS.TOOLS, safeJsonStringify(customTools));
+    toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
+    
+    // 发送事件
+    eventBus.emit(EVENTS.TOOL_UNREGISTERED, { toolId });
+    
     return true;
   }
   
@@ -242,9 +191,7 @@ export function setToolEnabled(toolId, enabled) {
   const tool = getTool(toolId);
   if (!tool) return false;
   
-  const storage = getStorage();
-  const saved = storage.getItem(TOOL_STORAGE_KEYS.TOOLS);
-  const customTools = safeJsonParse(saved, {});
+  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
   
   // 如果是默认工具，创建一个覆盖条目
   if (!customTools[toolId]) {
@@ -257,7 +204,11 @@ export function setToolEnabled(toolId, enabled) {
     updatedAt: new Date().toISOString()
   };
   
-  storage.setItem(TOOL_STORAGE_KEYS.TOOLS, safeJsonStringify(customTools));
+  toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
+  
+  // 发送事件
+  eventBus.emit(enabled ? EVENTS.TOOL_ENABLED : EVENTS.TOOL_DISABLED, { toolId });
+  
   return true;
 }
 
@@ -292,14 +243,10 @@ export function cloneTool(toolId, newId, newName) {
  * @returns {Object} 预设对象
  */
 export function getAllToolPresets() {
-  const storage = getStorage();
-  const saved = storage.getItem(TOOL_STORAGE_KEYS.PRESETS);
+  const saved = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS);
   
-  if (saved) {
-    const parsed = safeJsonParse(saved, null);
-    if (parsed && typeof parsed === 'object') {
-      return { ...DEFAULT_TOOL_PRESETS, ...parsed };
-    }
+  if (saved && typeof saved === 'object') {
+    return { ...DEFAULT_TOOL_PRESETS, ...saved };
   }
   
   return { ...DEFAULT_TOOL_PRESETS };
@@ -324,9 +271,7 @@ export function getToolPreset(presetId) {
 export function saveToolPreset(presetId, preset) {
   if (!presetId || !preset) return false;
   
-  const storage = getStorage();
-  const saved = storage.getItem(TOOL_STORAGE_KEYS.PRESETS);
-  const customPresets = safeJsonParse(saved, {});
+  const customPresets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
   
   customPresets[presetId] = {
     ...preset,
@@ -336,7 +281,7 @@ export function saveToolPreset(presetId, preset) {
     }
   };
   
-  storage.setItem(TOOL_STORAGE_KEYS.PRESETS, safeJsonStringify(customPresets));
+  toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, customPresets);
   return true;
 }
 
@@ -348,13 +293,11 @@ export function saveToolPreset(presetId, preset) {
 export function deleteToolPreset(presetId) {
   if (DEFAULT_TOOL_PRESETS[presetId]) return false;
   
-  const storage = getStorage();
-  const saved = storage.getItem(TOOL_STORAGE_KEYS.PRESETS);
-  const customPresets = safeJsonParse(saved, {});
+  const customPresets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
   
   if (customPresets[presetId]) {
     delete customPresets[presetId];
-    storage.setItem(TOOL_STORAGE_KEYS.PRESETS, safeJsonStringify(customPresets));
+    toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, customPresets);
     return true;
   }
   
@@ -366,8 +309,7 @@ export function deleteToolPreset(presetId) {
  * @returns {string|null}
  */
 export function getCurrentToolPresetId() {
-  const storage = getStorage();
-  return storage.getItem(TOOL_STORAGE_KEYS.CURRENT_PRESET) || null;
+  return toolStorage.get(TOOL_STORAGE_KEYS.CURRENT_PRESET) || null;
 }
 
 /**
@@ -379,8 +321,7 @@ export function setCurrentToolPreset(presetId) {
   const presets = getAllToolPresets();
   if (!presets[presetId]) return false;
   
-  const storage = getStorage();
-  storage.setItem(TOOL_STORAGE_KEYS.CURRENT_PRESET, presetId);
+  toolStorage.set(TOOL_STORAGE_KEYS.CURRENT_PRESET, presetId);
   return true;
 }
 
@@ -393,16 +334,15 @@ export function setCurrentToolPreset(presetId) {
  * @returns {string} JSON字符串
  */
 export function exportTools() {
-  const storage = getStorage();
-  const tools = storage.getItem(TOOL_STORAGE_KEYS.TOOLS) || '{}';
-  const presets = storage.getItem(TOOL_STORAGE_KEYS.PRESETS) || '{}';
+  const tools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
+  const presets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
   
-  return safeJsonStringify({
+  return JSON.stringify({
     version: '1.0.0',
     exportedAt: new Date().toISOString(),
-    tools: safeJsonParse(tools, {}),
-    presets: safeJsonParse(presets, {})
-  });
+    tools,
+    presets
+  }, null, 2);
 }
 
 /**
@@ -413,14 +353,13 @@ export function exportTools() {
  */
 export function importTools(jsonString, overwrite = false) {
   try {
-    const imported = safeJsonParse(jsonString, null);
+    const imported = JSON.parse(jsonString);
     if (!imported || typeof imported !== 'object') {
       return { success: false, toolsImported: 0, presetsImported: 0, message: '无效的JSON格式' };
     }
     
-    const storage = getStorage();
-    const existingTools = overwrite ? {} : safeJsonParse(storage.getItem(TOOL_STORAGE_KEYS.TOOLS), {});
-    const existingPresets = overwrite ? {} : safeJsonParse(storage.getItem(TOOL_STORAGE_KEYS.PRESETS), {});
+    const existingTools = overwrite ? {} : (toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {});
+    const existingPresets = overwrite ? {} : (toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {});
     
     let toolsCount = 0;
     let presetsCount = 0;
@@ -434,7 +373,7 @@ export function importTools(jsonString, overwrite = false) {
           toolsCount++;
         }
       }
-      storage.setItem(TOOL_STORAGE_KEYS.TOOLS, safeJsonStringify(existingTools));
+      toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, existingTools);
     }
     
     // 导入预设
@@ -446,7 +385,7 @@ export function importTools(jsonString, overwrite = false) {
           presetsCount++;
         }
       }
-      storage.setItem(TOOL_STORAGE_KEYS.PRESETS, safeJsonStringify(existingPresets));
+      toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, existingPresets);
     }
     
     return {
@@ -464,10 +403,9 @@ export function importTools(jsonString, overwrite = false) {
  * 重置为默认工具和预设
  */
 export function resetTools() {
-  const storage = getStorage();
-  storage.removeItem(TOOL_STORAGE_KEYS.TOOLS);
-  storage.removeItem(TOOL_STORAGE_KEYS.PRESETS);
-  storage.removeItem(TOOL_STORAGE_KEYS.CURRENT_PRESET);
+  toolStorage.remove(TOOL_STORAGE_KEYS.TOOLS);
+  toolStorage.remove(TOOL_STORAGE_KEYS.PRESETS);
+  toolStorage.remove(TOOL_STORAGE_KEYS.CURRENT_PRESET);
 }
 
 // ============================================================

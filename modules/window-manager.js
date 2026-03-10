@@ -3,12 +3,14 @@
  * @description 提供独立窗口系统，支持拖拽、调整大小、最大化等功能
  */
 
+import { windowStorage } from './core/storage-service.js';
+
 // ============================================================
 // 常量定义
 // ============================================================
 
 const WINDOW_MANAGER_ID = 'youyou_toolkit_window_manager';
-const WINDOW_STATE_STORAGE_KEY = 'youyou_toolkit_window_states';
+const WINDOW_STATE_STORAGE_KEY = 'window_states';
 
 // ============================================================
 // 窗口管理器类
@@ -87,16 +89,12 @@ class WindowManager {
    * @param {object} state - 窗口状态
    */
   saveState(windowId, state) {
-    try {
-      const states = this.loadStates();
-      states[windowId] = {
-        ...state,
-        updatedAt: Date.now()
-      };
-      localStorage.setItem(WINDOW_STATE_STORAGE_KEY, JSON.stringify(states));
-    } catch (e) {
-      console.warn('[WindowManager] 保存窗口状态失败:', e);
-    }
+    const states = this.loadStates();
+    states[windowId] = {
+      ...state,
+      updatedAt: Date.now()
+    };
+    windowStorage.set(WINDOW_STATE_STORAGE_KEY, states);
   }
 
   /**
@@ -104,12 +102,7 @@ class WindowManager {
    * @returns {object}
    */
   loadStates() {
-    try {
-      const raw = localStorage.getItem(WINDOW_STATE_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      return {};
-    }
+    return windowStorage.get(WINDOW_STATE_STORAGE_KEY) || {};
   }
 
   /**

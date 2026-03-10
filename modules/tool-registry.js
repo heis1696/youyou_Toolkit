@@ -3,6 +3,9 @@
  * @description 管理工具列表、工具配置和工具-预设绑定
  */
 
+import { storage } from './core/storage-service.js';
+import { eventBus, EVENTS } from './core/event-bus.js';
+
 // ============================================================
 // 工具注册表常量
 // ============================================================
@@ -226,32 +229,7 @@ export function resetToolRegistry() {
 // 工具-API预设绑定管理
 // ============================================================
 
-const TOOL_API_PRESET_BINDING_KEY = 'youyou_toolkit_tool_api_bindings';
-
-/**
- * 获取工具-API预设绑定存储
- * @returns {object}
- */
-function getBindingStorage() {
-  try {
-    const raw = localStorage.getItem(TOOL_API_PRESET_BINDING_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    return {};
-  }
-}
-
-/**
- * 保存工具-API预设绑定存储
- * @param {object} bindings - 绑定数据
- */
-function saveBindingStorage(bindings) {
-  try {
-    localStorage.setItem(TOOL_API_PRESET_BINDING_KEY, JSON.stringify(bindings));
-  } catch (e) {
-    console.error('[ToolRegistry] 保存绑定失败:', e);
-  }
-}
+const TOOL_API_PRESET_BINDING_KEY = 'tool_api_bindings';
 
 /**
  * 设置工具的API预设绑定
@@ -264,9 +242,9 @@ export function setToolApiPreset(toolId, presetName) {
     return false;
   }
   
-  const bindings = getBindingStorage();
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
   bindings[toolId] = presetName || '';
-  saveBindingStorage(bindings);
+  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
   
   console.log(`[ToolRegistry] 工具 "${toolId}" 绑定到预设 "${presetName || '当前配置'}"`);
   return true;
@@ -278,7 +256,7 @@ export function setToolApiPreset(toolId, presetName) {
  * @returns {string} API预设名称（空字符串表示使用当前配置）
  */
 export function getToolApiPreset(toolId) {
-  const bindings = getBindingStorage();
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
   return bindings[toolId] || '';
 }
 
@@ -287,9 +265,9 @@ export function getToolApiPreset(toolId) {
  * @param {string} toolId - 工具ID
  */
 export function clearToolApiPreset(toolId) {
-  const bindings = getBindingStorage();
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
   delete bindings[toolId];
-  saveBindingStorage(bindings);
+  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
   console.log(`[ToolRegistry] 工具 "${toolId}" 的API预设绑定已清除`);
 }
 
@@ -298,7 +276,7 @@ export function clearToolApiPreset(toolId) {
  * @returns {object} 绑定数据
  */
 export function getAllToolApiBindings() {
-  return getBindingStorage();
+  return storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
 }
 
 /**
@@ -306,7 +284,7 @@ export function getAllToolApiBindings() {
  * @param {string} presetName - 被删除的预设名称
  */
 export function onPresetDeleted(presetName) {
-  const bindings = getBindingStorage();
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
   let changed = false;
   
   for (const toolId in bindings) {
@@ -318,7 +296,7 @@ export function onPresetDeleted(presetName) {
   }
   
   if (changed) {
-    saveBindingStorage(bindings);
+    storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
   }
 }
 
@@ -326,20 +304,7 @@ export function onPresetDeleted(presetName) {
 // 工具窗口状态管理
 // ============================================================
 
-const TOOL_WINDOW_STATE_KEY = 'youyou_toolkit_tool_window_states';
-
-/**
- * 获取工具窗口状态存储
- * @returns {object}
- */
-function getWindowStateStorage() {
-  try {
-    const raw = localStorage.getItem(TOOL_WINDOW_STATE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    return {};
-  }
-}
+const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
 
 /**
  * 保存工具窗口状态
@@ -347,16 +312,12 @@ function getWindowStateStorage() {
  * @param {object} state - 窗口状态（如当前标签页等）
  */
 export function saveToolWindowState(toolId, state) {
-  const states = getWindowStateStorage();
+  const states = storage.get(TOOL_WINDOW_STATE_KEY) || {};
   states[toolId] = {
     ...state,
     updatedAt: Date.now()
   };
-  try {
-    localStorage.setItem(TOOL_WINDOW_STATE_KEY, JSON.stringify(states));
-  } catch (e) {
-    console.error('[ToolRegistry] 保存窗口状态失败:', e);
-  }
+  storage.set(TOOL_WINDOW_STATE_KEY, states);
 }
 
 /**
@@ -365,7 +326,7 @@ export function saveToolWindowState(toolId, state) {
  * @returns {object|null} 窗口状态
  */
 export function getToolWindowState(toolId) {
-  const states = getWindowStateStorage();
+  const states = storage.get(TOOL_WINDOW_STATE_KEY) || {};
   return states[toolId] || null;
 }
 
