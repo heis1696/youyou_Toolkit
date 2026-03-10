@@ -37,6 +37,9 @@ export const EVENTS = {
   TOOL_EXECUTING: 'tool:executing',
   TOOL_EXECUTED: 'tool:executed',
   TOOL_ERROR: 'tool:error',
+  TOOL_EXECUTION_STARTED: 'tool:executionStarted',
+  TOOL_EXECUTION_FAILED: 'tool:executionFailed',
+  TOOL_TRIGGER_INITIALIZED: 'tool:triggerInitialized',
   
   // ==================== 正则提取事件 ====================
   REGEX_RULE_ADDED: 'regex:ruleAdded',

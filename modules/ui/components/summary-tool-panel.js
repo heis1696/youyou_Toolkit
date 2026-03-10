@@ -1,7 +1,7 @@
 /**
- * YouYou Toolkit - 摘要工具面板组件
- * @description 生成剧情摘要块
- * @version 1.0.0
+ * YouYou Toolkit - 通用工具面板组件
+ * @description 支持提示词编辑、API预设绑定、破限词选择
+ * @version 2.0.0
  */
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
@@ -14,50 +14,20 @@ import {
   copyToClipboard
 } from '../utils.js';
 
-// ============================================================
-// 默认摘要模板
-// ============================================================
+import {
+  getToolFullConfig,
+  saveToolConfig,
+  resetToolConfig,
+  getAllDefaultToolConfigs
+} from '../../tool-registry.js';
 
-const DEFAULT_SUMMARY_TEMPLATE = `<boo_FM>
-<pg>No.{{pg}}</pg>
-<time>{{time}}</time>
-<scene>{{scene}}</scene>
+import {
+  getAllBypassPresets
+} from '../../bypass-prompts.js';
 
-<plot>
-{{plot}}
-</plot>
-
-<event>
-MQ.{{mq}} | {{mqStatus}}
-SQ.{{sq}} | {{sqStatus}}
-本轮完成：{{completed}}
-最新支线编号：SQ.{{latestSq}}
-</event>
-
-<defined>
-{{defined}}
-</defined>
-
-<status>
-{{status}}
-</status>
-
-<seeds>
-{{seeds}}
-</seeds>
-</boo_FM>`;
-
-// ============================================================
-// 存储键
-// ============================================================
-
-const SUMMARY_STORAGE_KEYS = {
-  TEMPLATE: 'summary_template',
-  PG: 'summary_pg',
-  MQ: 'summary_mq',
-  SQ: 'summary_sq',
-  HISTORY: 'summary_history'
-};
+import {
+  getAllPresets
+} from '../../preset-manager.js';
 
 // ============================================================
 // 组件定义
@@ -65,6 +35,7 @@ const SUMMARY_STORAGE_KEYS = {
 
 export const SummaryToolPanel = {
   id: 'summaryToolPanel',
+  toolId: 'summaryTool',
   
   // ============================================================
   // 渲染
@@ -76,137 +47,136 @@ export const SummaryToolPanel = {
    * @returns {string} HTML
    */
   render(props) {
-    const template = this._getTemplate();
-    const state = this._getState();
+    const config = getToolFullConfig(this.toolId);
+    
+    if (!config) {
+      return `<div class="yyt-error">工具配置加载失败</div>`;
+    }
+    
+    const apiPresets = this._getApiPresets();
+    const bypassPresets = getAllBypassPresets();
     
     return `
-      <div class="yyt-summary-panel">
-        <!-- 状态设置 -->
+      <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
+        <!-- 工具配置区 -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
-            <i class="fa-solid fa-list-ol"></i>
-            <span>编号设置</span>
+            <i class="fa-solid fa-cog"></i>
+            <span>工具配置</span>
           </div>
+          
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
-              <label>页码 (pg)</label>
-              <input type="number" class="yyt-input" id="${SCRIPT_ID}-summary-pg" value="${state.pg}" min="1">
+              <label>API预设</label>
+              <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
+                <option value="">使用当前API配置</option>
+                ${apiPresets.map(p => 
+                  `<option value="${escapeHtml(p.name)}" ${p.name === config.apiPreset ? 'selected' : ''}>
+                    ${escapeHtml(p.name)}
+                  </option>`
+                ).join('')}
+              </select>
             </div>
+            
             <div class="yyt-form-group yyt-flex-1">
-              <label>主线 (MQ)</label>
-              <input type="text" class="yyt-input" id="${SCRIPT_ID}-summary-mq" value="${state.mq}" placeholder="Ⅰ">
-            </div>
-            <div class="yyt-form-group yyt-flex-1">
-              <label>主线状态</label>
-              <select class="yyt-select" id="${SCRIPT_ID}-summary-mq-status">
-                <option value="进行中" ${state.mqStatus === '进行中' ? 'selected' : ''}>进行中</option>
-                <option value="已完成" ${state.mqStatus === '已完成' ? 'selected' : ''}>已完成</option>
-                <option value="搁置" ${state.mqStatus === '搁置' ? 'selected' : ''}>搁置</option>
+              <label>破限词预设</label>
+              <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
+                <option value="">不使用破限词</option>
+                ${Object.entries(bypassPresets).map(([id, p]) => 
+                  `<option value="${id}" ${id === config.bypassPreset ? 'selected' : ''}>
+                    ${escapeHtml(p.name)}
+                  </option>`
+                ).join('')}
               </select>
             </div>
           </div>
+          
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
-              <label>支线 (SQ)</label>
-              <input type="text" class="yyt-input" id="${SCRIPT_ID}-summary-sq" value="${state.sq}" placeholder="1">
-            </div>
-            <div class="yyt-form-group yyt-flex-1">
-              <label>支线状态</label>
-              <select class="yyt-select" id="${SCRIPT_ID}-summary-sq-status">
-                <option value="进行中" ${state.sqStatus === '进行中' ? 'selected' : ''}>进行中</option>
-                <option value="已完成" ${state.sqStatus === '已完成' ? 'selected' : ''}>已完成</option>
-                <option value="搁置" ${state.sqStatus === '搁置' ? 'selected' : ''}>搁置</option>
+              <label>输出模式</label>
+              <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
+                <option value="inline" ${config.outputMode === 'inline' ? 'selected' : ''}>
+                  随AI输出
+                </option>
+                <option value="separate" ${config.outputMode === 'separate' ? 'selected' : ''}>
+                  额外AI解析
+                </option>
               </select>
             </div>
+            
             <div class="yyt-form-group yyt-flex-1">
-              <label>最新支线编号</label>
-              <input type="text" class="yyt-input" id="${SCRIPT_ID}-summary-latest-sq" value="${state.latestSq}" placeholder="1">
+              <label>提取标签 (逗号分隔)</label>
+              <input type="text" class="yyt-input" id="${SCRIPT_ID}-tool-extract-tags" 
+                     value="${escapeHtml((config.extractTags || []).join(', '))}" 
+                     placeholder="boo_FM, status_block">
             </div>
           </div>
-        </div>
-        
-        <!-- 内容编辑 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-edit"></i>
-            <span>内容编辑</span>
-          </div>
+          
           <div class="yyt-form-group">
-            <label>时间 (格式: yyyy-MM-dd HH:mm → HH:mm)</label>
-            <input type="text" class="yyt-input" id="${SCRIPT_ID}-summary-time" value="${state.time}" placeholder="2024-01-01 12:00 → 13:00">
+            <label class="yyt-checkbox-label">
+              <input type="checkbox" id="${SCRIPT_ID}-tool-enabled" ${config.enabled ? 'checked' : ''}>
+              <span>启用此工具</span>
+            </label>
           </div>
+          
           <div class="yyt-form-group">
-            <label>场景/地点</label>
-            <input type="text" class="yyt-input" id="${SCRIPT_ID}-summary-scene" value="${escapeHtml(state.scene)}" placeholder="场景/地点，移动需标注">
-          </div>
-          <div class="yyt-form-group">
-            <label>剧情概要 (80-150字，全知视角纯文本)</label>
-            <textarea class="yyt-textarea" id="${SCRIPT_ID}-summary-plot" rows="4" placeholder="含关键对话引用、动作序列、因果链。不做心理分析">${escapeHtml(state.plot)}</textarea>
-          </div>
-          <div class="yyt-form-group">
-            <label>本轮完成</label>
-            <input type="text" class="yyt-input" id="${SCRIPT_ID}-summary-completed" value="${escapeHtml(state.completed)}" placeholder="无 或 完成的事件">
+            <label class="yyt-checkbox-label">
+              <input type="checkbox" id="${SCRIPT_ID}-tool-auto-trigger" ${config.triggerEvents?.includes('GENERATION_ENDED') ? 'checked' : ''}>
+              <span>自动触发 (GENERATION_ENDED)</span>
+            </label>
           </div>
         </div>
         
-        <!-- defined和status -->
+        <!-- 提示词模板编辑区 -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
-            <i class="fa-solid fa-lock"></i>
-            <span>约束与状态</span>
+            <i class="fa-solid fa-file-code"></i>
+            <span>提示词模板</span>
+            <div class="yyt-title-actions">
+              <button class="yyt-btn yyt-btn-small" id="${SCRIPT_ID}-tool-reset-template">
+                <i class="fa-solid fa-undo"></i> 重置模板
+              </button>
+            </div>
           </div>
+          
           <div class="yyt-form-group">
-            <label>defined (硬约束: 口令、契约条款、数值、倒计时、发动代价等)</label>
-            <textarea class="yyt-textarea yyt-code-textarea" id="${SCRIPT_ID}-summary-defined" rows="3" placeholder="<kv>类别 :: 精确条件原文</kv>">${escapeHtml(state.defined)}</textarea>
+            <textarea class="yyt-textarea yyt-code-textarea" 
+                      id="${SCRIPT_ID}-tool-prompt-template" 
+                      rows="15" 
+                      placeholder="输入提示词模板...">${escapeHtml(config.promptTemplate || '')}</textarea>
           </div>
-          <div class="yyt-form-group">
-            <label>status (角色状态，格式: 角色 | 位置 | 状态 | 关键物)</label>
-            <textarea class="yyt-textarea" id="${SCRIPT_ID}-summary-status" rows="3" placeholder="角色 | 位置 | 状态 | 关键物">${escapeHtml(state.status)}</textarea>
-          </div>
-        </div>
-        
-        <!-- seeds -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-seedling"></i>
-            <span>伏笔 (seeds上限8条)</span>
-          </div>
-          <div class="yyt-form-group">
-            <label>seeds内容 (格式: 名称 | 内容 | 时效:长/中/短 | 状态:有效/回收中/已回收/失效)</label>
-            <textarea class="yyt-textarea" id="${SCRIPT_ID}-summary-seeds" rows="3" placeholder="<fb>名称 | 内容 | 时效:长 | 状态:有效</fb>">${escapeHtml(state.seeds)}</textarea>
-          </div>
-          <div class="yyt-form-row">
-            <input type="text" class="yyt-input yyt-flex-1" id="${SCRIPT_ID}-summary-seeds-change" placeholder="变动：新增X/回收X/失效X/无">
+          
+          <div class="yyt-help-text">
+            <p><strong>可用变量:</strong></p>
+            <code>{{userMessage}}</code> - 用户消息
+            <code>{{lastAiMessage}}</code> - 上一条AI消息
+            <code>{{extractedContent}}</code> - 正则提取的内容
+            <code>{{previousToolOutput}}</code> - 上一轮工具输出
+            <br>
+            <code>{{pg}}</code> - 页码
+            <code>{{time}}</code> - 时间
+            <code>{{scene}}</code> - 场景
+            <code>{{plot}}</code> - 剧情
+            <code>{{mq}}</code> - 主线
+            <code>{{sq}}</code> - 支线
           </div>
         </div>
         
         <!-- 操作按钮 -->
         <div class="yyt-panel-footer">
           <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-summary-reset">
-              <i class="fa-solid fa-undo"></i> 重置
-            </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-summary-clear-completed">
-              <i class="fa-solid fa-broom"></i> 清理已完成
+            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset">
+              <i class="fa-solid fa-undo"></i> 重置全部
             </button>
           </div>
           <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-summary-generate">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> 生成摘要
+            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-save">
+              <i class="fa-solid fa-save"></i> 保存配置
             </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-summary-copy">
-              <i class="fa-solid fa-copy"></i> 复制
+            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-copy-template">
+              <i class="fa-solid fa-copy"></i> 复制模板
             </button>
           </div>
-        </div>
-        
-        <!-- 预览区域 -->
-        <div class="yyt-panel-section" id="${SCRIPT_ID}-summary-preview-section" style="display: none;">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-eye"></i>
-            <span>预览</span>
-          </div>
-          <div class="yyt-summary-preview" id="${SCRIPT_ID}-summary-preview"></div>
         </div>
       </div>
     `;
@@ -217,122 +187,55 @@ export const SummaryToolPanel = {
   // ============================================================
   
   /**
-   * 获取模板
+   * 获取API预设列表
    * @private
    */
-  _getTemplate() {
-    const stored = localStorage.getItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.TEMPLATE}`);
-    return stored || DEFAULT_SUMMARY_TEMPLATE;
+  _getApiPresets() {
+    try {
+      const presets = getAllPresets();
+      return presets || [];
+    } catch (e) {
+      return [];
+    }
   },
   
   /**
-   * 获取状态
-   * @private
-   */
-  _getState() {
-    const now = new Date();
-    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    
-    return {
-      pg: parseInt(localStorage.getItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.PG}`)) || 1,
-      mq: localStorage.getItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.MQ}`) || 'Ⅰ',
-      mqStatus: '进行中',
-      sq: localStorage.getItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.SQ}`) || '1',
-      sqStatus: '进行中',
-      latestSq: localStorage.getItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.SQ}`) || '1',
-      time: timeStr,
-      scene: '',
-      plot: '',
-      completed: '无',
-      defined: '',
-      status: '',
-      seeds: ''
-    };
-  },
-  
-  /**
-   * 保存状态
-   * @private
-   */
-  _saveState(state) {
-    localStorage.setItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.PG}`, state.pg);
-    localStorage.setItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.MQ}`, state.mq);
-    localStorage.setItem(`${SCRIPT_ID}_${SUMMARY_STORAGE_KEYS.SQ}`, state.sq);
-  },
-  
-  /**
-   * 从表单获取数据
+   * 从表单获取配置数据
    * @private
    */
   _getFormData($container, $) {
+    const autoTrigger = $container.find(`#${SCRIPT_ID}-tool-auto-trigger`).is(':checked');
+    
     return {
-      pg: parseInt($container.find(`#${SCRIPT_ID}-summary-pg`).val()) || 1,
-      mq: $container.find(`#${SCRIPT_ID}-summary-mq`).val() || 'Ⅰ',
-      mqStatus: $container.find(`#${SCRIPT_ID}-summary-mq-status`).val() || '进行中',
-      sq: $container.find(`#${SCRIPT_ID}-summary-sq`).val() || '1',
-      sqStatus: $container.find(`#${SCRIPT_ID}-summary-sq-status`).val() || '进行中',
-      latestSq: $container.find(`#${SCRIPT_ID}-summary-latest-sq`).val() || '1',
-      time: $container.find(`#${SCRIPT_ID}-summary-time`).val() || '',
-      scene: $container.find(`#${SCRIPT_ID}-summary-scene`).val() || '',
-      plot: $container.find(`#${SCRIPT_ID}-summary-plot`).val() || '',
-      completed: $container.find(`#${SCRIPT_ID}-summary-completed`).val() || '无',
-      defined: $container.find(`#${SCRIPT_ID}-summary-defined`).val() || '',
-      status: $container.find(`#${SCRIPT_ID}-summary-status`).val() || '',
-      seeds: $container.find(`#${SCRIPT_ID}-summary-seeds`).val() || '',
-      seedsChange: $container.find(`#${SCRIPT_ID}-summary-seeds-change`).val() || '无'
+      apiPreset: $container.find(`#${SCRIPT_ID}-tool-api-preset`).val() || '',
+      bypassPreset: $container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || '',
+      outputMode: $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'inline',
+      extractTags: ($container.find(`#${SCRIPT_ID}-tool-extract-tags`).val() || '')
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean),
+      promptTemplate: $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || '',
+      enabled: $container.find(`#${SCRIPT_ID}-tool-enabled`).is(':checked'),
+      triggerEvents: autoTrigger ? ['GENERATION_ENDED'] : []
     };
   },
   
   /**
-   * 生成摘要文本
+   * 刷新UI
    * @private
    */
-  _generateSummary(data) {
-    let definedContent = data.defined;
-    if (!definedContent.trim()) {
-      definedContent = '<!-- 无硬约束 -->';
-    }
+  _refreshUI($container, $) {
+    const config = getToolFullConfig(this.toolId);
+    if (!config) return;
     
-    let statusContent = data.status;
-    if (!statusContent.trim()) {
-      statusContent = '<!-- 无状态更新 -->';
-    }
-    
-    let seedsContent = data.seeds;
-    if (!seedsContent.trim()) {
-      seedsContent = '<!-- 无伏笔 -->';
-    } else {
-      seedsContent += `\n<!-- 变动：${data.seedsChange} -->`;
-    }
-    
-    return `<boo_FM>
-<pg>No.${data.pg}</pg>
-<time>${data.time}</time>
-<scene>${data.scene}</scene>
-
-<plot>
-${data.plot}
-</plot>
-
-<event>
-MQ.${data.mq} | ${data.mqStatus}
-SQ.${data.sq} | ${data.sqStatus}
-本轮完成：${data.completed}
-最新支线编号：SQ.${data.latestSq}
-</event>
-
-<defined>
-${definedContent}
-</defined>
-
-<status>
-${statusContent}
-</status>
-
-<seeds>
-${seedsContent}
-</seeds>
-</boo_FM>`;
+    $container.find(`#${SCRIPT_ID}-tool-api-preset`).val(config.apiPreset || '');
+    $container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val(config.bypassPreset || '');
+    $container.find(`#${SCRIPT_ID}-tool-output-mode`).val(config.outputMode || 'inline');
+    $container.find(`#${SCRIPT_ID}-tool-extract-tags`).val((config.extractTags || []).join(', '));
+    $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(config.promptTemplate || '');
+    $container.find(`#${SCRIPT_ID}-tool-enabled`).prop('checked', config.enabled);
+    $container.find(`#${SCRIPT_ID}-tool-auto-trigger`).prop('checked', 
+      config.triggerEvents?.includes('GENERATION_ENDED'));
   },
   
   // ============================================================
@@ -350,75 +253,62 @@ ${seedsContent}
     
     const self = this;
     
-    // 生成摘要
-    $container.find(`#${SCRIPT_ID}-summary-generate`).on('click', () => {
-      const data = this._getFormData($container, $);
-      this._saveState(data);
-      
-      const summary = this._generateSummary(data);
-      
-      $container.find(`#${SCRIPT_ID}-summary-preview`).html(`<pre class="yyt-code-block">${escapeHtml(summary)}</pre>`);
-      $container.find(`#${SCRIPT_ID}-summary-preview-section`).show();
-      
-      // 自动增加页码
-      $container.find(`#${SCRIPT_ID}-summary-pg`).val(data.pg + 1);
-      
-      showToast('success', '摘要已生成');
+    // 保存配置
+    $container.find(`#${SCRIPT_ID}-tool-save`).on('click', () => {
+      this._saveConfig($container, $);
     });
     
-    // 复制摘要
-    $container.find(`#${SCRIPT_ID}-summary-copy`).on('click', async () => {
-      const previewText = $container.find(`#${SCRIPT_ID}-summary-preview pre`).text();
-      if (!previewText) {
-        showToast('warning', '请先生成摘要');
-        return;
-      }
-      
-      try {
-        await navigator.clipboard.writeText(previewText);
-        showToast('success', '已复制到剪贴板');
-      } catch (e) {
-        showToast('error', '复制失败');
-      }
-    });
-    
-    // 重置
-    $container.find(`#${SCRIPT_ID}-summary-reset`).on('click', () => {
-      if (confirm('确定要重置所有内容吗？')) {
-        $container.find(`#${SCRIPT_ID}-summary-scene`).val('');
-        $container.find(`#${SCRIPT_ID}-summary-plot`).val('');
-        $container.find(`#${SCRIPT_ID}-summary-completed`).val('无');
-        $container.find(`#${SCRIPT_ID}-summary-defined`).val('');
-        $container.find(`#${SCRIPT_ID}-summary-status`).val('');
-        $container.find(`#${SCRIPT_ID}-summary-seeds`).val('');
-        $container.find(`#${SCRIPT_ID}-summary-seeds-change`).val('');
-        $container.find(`#${SCRIPT_ID}-summary-preview-section`).hide();
+    // 重置全部
+    $container.find(`#${SCRIPT_ID}-tool-reset`).on('click', () => {
+      if (confirm('确定要重置所有配置吗？')) {
+        resetToolConfig(this.toolId);
+        this._refreshUI($container, $);
         showToast('info', '已重置');
       }
     });
     
-    // 清理已完成
-    $container.find(`#${SCRIPT_ID}-summary-clear-completed`).on('click', () => {
-      // 清理已完成的event
-      const mqStatus = $container.find(`#${SCRIPT_ID}-summary-mq-status`).val();
-      const sqStatus = $container.find(`#${SCRIPT_ID}-summary-sq-status`).val();
-      
-      if (mqStatus === '已完成') {
-        $container.find(`#${SCRIPT_ID}-summary-mq`).val('Ⅱ');
-        $container.find(`#${SCRIPT_ID}-summary-mq-status`).val('进行中');
+    // 重置模板
+    $container.find(`#${SCRIPT_ID}-tool-reset-template`).on('click', () => {
+      const defaultConfigs = getAllDefaultToolConfigs();
+      const defaultConfig = defaultConfigs[this.toolId];
+      if (defaultConfig && defaultConfig.promptTemplate) {
+        $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(defaultConfig.promptTemplate);
+        showToast('info', '模板已重置');
       }
-      
-      if (sqStatus === '已完成') {
-        const currentSq = parseInt($container.find(`#${SCRIPT_ID}-summary-sq`).val()) || 1;
-        $container.find(`#${SCRIPT_ID}-summary-sq`).val(currentSq + 1);
-        $container.find(`#${SCRIPT_ID}-summary-sq-status`).val('进行中');
-        $container.find(`#${SCRIPT_ID}-summary-latest-sq`).val(currentSq + 1);
-      }
-      
-      // 清理defined和seeds中的已完成项
-      // 这里只做提示，实际需要用户手动清理
-      showToast('info', '已清理已完成事件，请手动清理defined和seeds中的失效项');
     });
+    
+    // 复制模板
+    $container.find(`#${SCRIPT_ID}-tool-copy-template`).on('click', async () => {
+      const template = $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val();
+      if (!template) {
+        showToast('warning', '模板内容为空');
+        return;
+      }
+      
+      try {
+        await navigator.clipboard.writeText(template);
+        showToast('success', '模板已复制到剪贴板');
+      } catch (e) {
+        showToast('error', '复制失败');
+      }
+    });
+  },
+  
+  /**
+   * 保存配置
+   * @private
+   */
+  _saveConfig($container, $) {
+    const config = this._getFormData($container, $);
+    
+    const success = saveToolConfig(this.toolId, config);
+    
+    if (success) {
+      showToast('success', '配置已保存');
+      eventBus.emit(EVENTS.TOOL_UPDATED, { toolId: this.toolId, config });
+    } else {
+      showToast('error', '保存失败');
+    }
   },
   
   // ============================================================
@@ -446,32 +336,100 @@ ${seedsContent}
    */
   getStyles() {
     return `
-      /* 摘要工具面板样式 */
-      .yyt-summary-panel {
+      /* 工具面板样式 */
+      .yyt-tool-panel {
         display: flex;
         flex-direction: column;
         gap: 20px;
       }
       
-      .yyt-summary-preview {
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        padding: 14px;
-        max-height: 400px;
-        overflow-y: auto;
+      .yyt-code-textarea {
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        tab-size: 2;
+        background: rgba(0, 0, 0, 0.2);
+        border-color: rgba(255, 255, 255, 0.1);
       }
       
-      .yyt-summary-preview .yyt-code-block {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 6px;
-        padding: 12px;
-        font-family: 'Fira Code', 'Consolas', monospace;
+      .yyt-code-textarea:focus {
+        border-color: var(--yyt-accent);
+        box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
+      }
+      
+      .yyt-help-text {
         font-size: 12px;
-        color: var(--yyt-success);
-        white-space: pre-wrap;
-        word-break: break-all;
-        margin: 0;
+        color: var(--yyt-text-muted);
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--yyt-border);
+        border-radius: var(--yyt-radius-sm);
+        line-height: 1.8;
+      }
+      
+      .yyt-help-text code {
+        background: rgba(123, 183, 255, 0.15);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        color: #7bb7ff;
+        margin: 0 2px;
+      }
+      
+      .yyt-help-text p {
+        margin: 0 0 8px 0;
+        font-weight: 500;
+        color: var(--yyt-text);
+      }
+      
+      .yyt-title-actions {
+        margin-left: auto;
+      }
+      
+      .yyt-btn-small {
+        padding: 4px 10px;
+        font-size: 12px;
+      }
+      
+      .yyt-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+      }
+      
+      .yyt-checkbox-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+      
+      .yyt-checkbox-label:hover {
+        color: var(--yyt-text);
+      }
+      
+      .yyt-panel-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 16px;
+        border-top: 1px solid var(--yyt-border);
+      }
+      
+      .yyt-footer-left,
+      .yyt-footer-right {
+        display: flex;
+        gap: 8px;
+      }
+      
+      .yyt-error {
+        padding: 20px;
+        text-align: center;
+        color: var(--yyt-danger);
+        background: rgba(255, 107, 107, 0.1);
+        border: 1px solid rgba(255, 107, 107, 0.3);
+        border-radius: var(--yyt-radius-sm);
       }
     `;
   },

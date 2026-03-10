@@ -3,6 +3,10 @@
  * @description 负责工具的调度、并发控制和结果处理
  */
 
+import { getToolFullConfig } from './tool-registry.js';
+import { getBypassPreset } from './bypass-prompts.js';
+import { eventBus, EVENTS } from './core/event-bus.js';
+
 // ============================================================
 // 执行器状态
 // ============================================================
@@ -585,6 +589,256 @@ export function enhanceMessagesWithBypass(messages, bypassMessages) {
   
   // 在原始消息前添加破限词消息
   return [...bypassMessages, ...messages];
+}
+
+// ============================================================
+// 工具配置执行引擎
+// ============================================================
+
+/**
+ * 转义正则表达式特殊字符
+ * @param {string} string 需要转义的字符串
+ * @returns {string} 转义后的字符串
+ */
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 构建工具消息
+ * @param {Object} config 工具配置
+ * @param {Object} context 执行上下文
+ * @returns {Array} 消息数组
+ */
+export function buildToolMessages(config, context) {
+  const messages = [];
+  
+  // 1. 添加破限词消息
+  if (config.bypassPreset) {
+    const bypassPreset = getBypassPreset(config.bypassPreset);
+    if (bypassPreset && bypassPreset.messages) {
+      // 转换消息格式
+      for (const msg of bypassPreset.messages) {
+        messages.push({
+          role: msg.role?.toUpperCase() || 'USER',
+          content: msg.content || ''
+        });
+      }
+    }
+  }
+  
+  // 2. 处理提示词模板
+  let prompt = config.promptTemplate || '';
+  
+  // 定义模板变量
+  const variables = {
+    '{{userMessage}}': context.input?.userMessage || '',
+    '{{lastAiMessage}}': context.input?.lastAiMessage || '',
+    '{{extractedContent}}': context.input?.extractedContent || '',
+    '{{previousToolOutput}}': context.input?.previousToolOutput || '',
+    '{{context}}': JSON.stringify(context.input?.context || {}),
+    // 摘要工具特定变量
+    '{{pg}}': context.input?.context?.pg || '1',
+    '{{time}}': context.input?.context?.time || '',
+    '{{scene}}': context.input?.context?.scene || '',
+    '{{plot}}': context.input?.context?.plot || '',
+    '{{mq}}': context.input?.context?.mq || 'Ⅰ',
+    '{{mqStatus}}': context.input?.context?.mqStatus || '进行中',
+    '{{sq}}': context.input?.context?.sq || '1',
+    '{{sqStatus}}': context.input?.context?.sqStatus || '进行中',
+    '{{latestSq}}': context.input?.context?.latestSq || '1',
+    '{{completed}}': context.input?.context?.completed || '无',
+    '{{defined}}': context.input?.context?.defined || '',
+    '{{status}}': context.input?.context?.status || '',
+    '{{seeds}}': context.input?.context?.seeds || '',
+    // 状态栏特定变量
+    '{{name}}': context.input?.context?.name || '',
+    '{{location}}': context.input?.context?.location || '',
+    '{{condition}}': context.input?.context?.condition || '',
+    '{{equipment}}': context.input?.context?.equipment || '',
+    '{{skills}}': context.input?.context?.skills || ''
+  };
+  
+  // 替换模板变量
+  for (const [key, value] of Object.entries(variables)) {
+    prompt = prompt.replace(new RegExp(escapeRegex(key), 'g'), value);
+  }
+  
+  // 3. 添加提示词消息
+  messages.push({
+    role: 'USER',
+    content: prompt
+  });
+  
+  return messages;
+}
+
+/**
+ * 执行工具（使用工具配置）
+ * @param {string} toolId 工具ID
+ * @param {Object} context 执行上下文
+ * @param {Object} options 执行选项
+ * @returns {Promise<Object>} 执行结果
+ */
+export async function executeToolWithConfig(toolId, context, options = {}) {
+  const config = getToolFullConfig(toolId);
+  
+  if (!config) {
+    return {
+      success: false,
+      taskId: generateTaskId(),
+      toolId,
+      error: '工具配置不存在',
+      duration: 0
+    };
+  }
+  
+  if (!config.enabled) {
+    return {
+      success: false,
+      taskId: generateTaskId(),
+      toolId,
+      error: '工具未启用',
+      duration: 0
+    };
+  }
+  
+  const startTime = Date.now();
+  const taskId = generateTaskId();
+  
+  try {
+    // 发送执行开始事件
+    eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, { toolId, taskId, context });
+    
+    // 构建消息
+    const messages = buildToolMessages(config, context);
+    
+    // 检查是否有API调用函数
+    if (typeof options.callApi === 'function') {
+      // 使用提供的API调用函数
+      const apiConfig = config.apiPreset ? { preset: config.apiPreset } : null;
+      const response = await options.callApi(messages, apiConfig, options.signal);
+      
+      // 处理输出
+      let output = response;
+      
+      if (config.outputMode === 'separate' && config.extractTags?.length > 0) {
+        // 额外解析模式：提取指定标签内容
+        output = extractTagsFromResponse(response, config.extractTags);
+      }
+      
+      const result = {
+        success: true,
+        taskId,
+        toolId,
+        data: output,
+        duration: Date.now() - startTime
+      };
+      
+      // 发送执行完成事件
+      eventBus.emit(EVENTS.TOOL_EXECUTED, { toolId, taskId, result });
+      
+      return result;
+    } else {
+      // 没有API调用函数，返回构建的消息供外部处理
+      return {
+        success: true,
+        taskId,
+        toolId,
+        data: {
+          messages,
+          config: {
+            apiPreset: config.apiPreset,
+            outputMode: config.outputMode,
+            extractTags: config.extractTags
+          }
+        },
+        duration: Date.now() - startTime,
+        needsExecution: true  // 标记需要外部执行
+      };
+    }
+  } catch (error) {
+    const result = {
+      success: false,
+      taskId,
+      toolId,
+      error: error.message || String(error),
+      duration: Date.now() - startTime
+    };
+    
+    // 发送执行失败事件
+    eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, { toolId, taskId, error });
+    
+    return result;
+  }
+}
+
+/**
+ * 从响应中提取标签内容
+ * @param {string} response AI响应文本
+ * @param {Array<string>} tags 要提取的标签列表
+ * @returns {Object} 提取的内容
+ */
+function extractTagsFromResponse(response, tags) {
+  const result = {};
+  
+  for (const tag of tags) {
+    // 匹配 <tag>...</tag> 格式
+    const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
+    const match = response.match(regex);
+    
+    if (match) {
+      result[tag] = match.map(m => {
+        // 提取标签内容
+        const contentMatch = m.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+        return contentMatch ? contentMatch[1].trim() : '';
+      });
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * 批量执行工具（使用工具配置）
+ * @param {string[]} toolIds 工具ID列表
+ * @param {Object} context 执行上下文
+ * @param {Object} options 执行选项
+ * @returns {Promise<Object[]>} 执行结果列表
+ */
+export async function executeToolsBatch(toolIds, context, options = {}) {
+  const results = [];
+  
+  for (const toolId of toolIds) {
+    const config = getToolFullConfig(toolId);
+    if (config && config.enabled) {
+      const result = await executeToolWithConfig(toolId, context, options);
+      results.push(result);
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * 根据触发事件获取需要执行的工具
+ * @param {string} eventType 事件类型
+ * @returns {Array} 需要执行的工具配置列表
+ */
+export function getToolsForEvent(eventType) {
+  const allConfigs = [];
+  
+  // 获取摘要工具和状态栏工具的配置
+  const toolIds = ['summaryTool', 'statusBlock'];
+  
+  for (const toolId of toolIds) {
+    const config = getToolFullConfig(toolId);
+    if (config && config.enabled && config.triggerEvents?.includes(eventType)) {
+      allConfigs.push(config);
+    }
+  }
+  
+  return allConfigs;
 }
 
 // 导出

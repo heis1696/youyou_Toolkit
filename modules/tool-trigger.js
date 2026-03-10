@@ -3,6 +3,10 @@
  * @description 处理SillyTavern事件监听、门控检查和上下文获取
  */
 
+import { eventBus, EVENTS } from './core/event-bus.js';
+import { getToolFullConfig, getToolList, getEnabledTools } from './tool-registry.js';
+import { executeToolWithConfig, getToolsForEvent } from './tool-executor.js';
+
 // ============================================================
 // 事件类型定义
 // ============================================================
@@ -586,6 +590,153 @@ export function removeAllTriggerHandlers() {
 }
 
 // ============================================================
+// 工具触发管理器
+// ============================================================
+
+/**
+ * 工具触发管理器状态
+ */
+const toolTriggerManagerState = {
+  initialized: false,
+  listeners: new Map(),
+  lastExecutionContext: null
+};
+
+/**
+ * 初始化工具触发管理器
+ * @description 注册GENERATION_ENDED事件监听，自动触发工具执行
+ */
+export function initToolTriggerManager() {
+  if (toolTriggerManagerState.initialized) {
+    log('工具触发管理器已初始化');
+    return;
+  }
+  
+  // 注册GENERATION_ENDED事件监听
+  registerGenerationEndedListener();
+  
+  toolTriggerManagerState.initialized = true;
+  log('工具触发管理器已初始化');
+  
+  // 发送事件
+  eventBus.emit(EVENTS.TOOL_TRIGGER_INITIALIZED);
+}
+
+/**
+ * 注册GENERATION_ENDED事件监听
+ */
+function registerGenerationEndedListener() {
+  const eventType = EVENT_TYPES.GENERATION_ENDED;
+  
+  const listener = registerEventListener(eventType, async (data) => {
+    log('GENERATION_ENDED触发:', data);
+    
+    // 获取上下文
+    const context = await buildToolExecutionContext(data);
+    
+    // 获取需要触发的工具
+    const toolsToExecute = getToolsToExecute(eventType);
+    
+    if (toolsToExecute.length === 0) {
+      log('没有需要执行的工具');
+      return;
+    }
+    
+    log(`需要执行 ${toolsToExecute.length} 个工具:`, toolsToExecute.map(t => t.id));
+    
+    // 执行工具
+    for (const tool of toolsToExecute) {
+      try {
+        const result = await executeToolWithConfig(tool.id, context);
+        
+        if (result.success) {
+          log(`工具 ${tool.id} 执行成功`);
+          eventBus.emit(EVENTS.TOOL_EXECUTED, {
+            toolId: tool.id,
+            result: result.data
+          });
+        } else {
+          log(`工具 ${tool.id} 执行失败:`, result.error);
+        }
+      } catch (error) {
+        console.error(`[ToolTrigger] 工具执行失败: ${tool.id}`, error);
+      }
+    }
+    
+    toolTriggerManagerState.lastExecutionContext = context;
+  });
+  
+  toolTriggerManagerState.listeners.set(eventType, listener);
+}
+
+/**
+ * 构建工具执行上下文
+ * @param {Object} eventData 事件数据
+ * @returns {Promise<Object>} 执行上下文
+ */
+async function buildToolExecutionContext(eventData) {
+  const chat = await getChatContext({ depth: 5 });
+  const character = await getCurrentCharacter();
+  
+  // 获取最后一条用户消息和AI消息
+  const messages = chat?.messages || [];
+  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+  const lastAiMessage = messages.filter(m => m.role === 'assistant').pop();
+  
+  return {
+    triggeredAt: Date.now(),
+    triggerEvent: 'GENERATION_ENDED',
+    input: {
+      userMessage: lastUserMessage?.content || '',
+      lastAiMessage: lastAiMessage?.content || '',
+      extractedContent: '',
+      previousToolOutput: '',
+      context: {
+        character: character?.name || '',
+        chatLength: chat?.totalMessages || 0
+      }
+    },
+    config: {},
+    status: 'pending'
+  };
+}
+
+/**
+ * 获取需要执行的工具列表
+ * @param {string} eventType 事件类型
+ * @returns {Array} 需要执行的工具配置列表
+ */
+function getToolsToExecute(eventType) {
+  return getToolsForEvent(eventType);
+}
+
+/**
+ * 销毁工具触发管理器
+ */
+export function destroyToolTriggerManager() {
+  for (const [eventType, listener] of toolTriggerManagerState.listeners) {
+    unregisterEventListener(eventType, listener);
+  }
+  toolTriggerManagerState.listeners.clear();
+  toolTriggerManagerState.initialized = false;
+  toolTriggerManagerState.lastExecutionContext = null;
+  
+  log('工具触发管理器已销毁');
+}
+
+/**
+ * 获取工具触发管理器状态
+ * @returns {Object} 状态对象
+ */
+export function getToolTriggerManagerState() {
+  return {
+    initialized: toolTriggerManagerState.initialized,
+    listenersCount: toolTriggerManagerState.listeners.size,
+    lastExecutionContext: toolTriggerManagerState.lastExecutionContext
+  };
+}
+
+// ============================================================
 // 初始化
 // ============================================================
 
@@ -641,6 +792,9 @@ export async function initTriggerModule() {
       log('生成结束');
     });
   }
+  
+  // 初始化工具触发管理器
+  initToolTriggerManager();
   
   triggerState.isInitialized = true;
   log('触发模块初始化完成');

@@ -7,6 +7,86 @@ import { storage } from './core/storage-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
 
 // ============================================================
+// 工具配置存储键
+// ============================================================
+
+const TOOL_CONFIG_STORAGE_KEY = 'tool_configs';
+const TOOL_API_PRESET_BINDING_KEY = 'tool_api_bindings';
+const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
+
+// ============================================================
+// 默认工具配置
+// ============================================================
+
+/**
+ * 默认工具配置 - 包含提示词模板和执行配置
+ */
+const DEFAULT_TOOL_CONFIGS = {
+  summaryTool: {
+    id: 'summaryTool',
+    name: '摘要工具',
+    icon: 'fa-file-lines',
+    description: '生成剧情摘要块',
+    promptTemplate: `<boo_FM>
+<pg>No.{{pg}}</pg>
+<time>{{time}}</time>
+<scene>{{scene}}</scene>
+
+<plot>
+{{plot}}
+</plot>
+
+<event>
+MQ.{{mq}} | {{mqStatus}}
+SQ.{{sq}} | {{sqStatus}}
+本轮完成：{{completed}}
+最新支线编号：SQ.{{latestSq}}
+</event>
+
+<defined>
+{{defined}}
+</defined>
+
+<status>
+{{status}}
+</status>
+
+<seeds>
+{{seeds}}
+</seeds>
+</boo_FM>`,
+    apiPreset: '',
+    bypassPreset: '',
+    outputMode: 'inline',
+    extractTags: ['boo_FM'],
+    triggerEvents: ['GENERATION_ENDED'],
+    enabled: true,
+    order: 3
+  },
+  
+  statusBlock: {
+    id: 'statusBlock',
+    name: '主角状态栏',
+    icon: 'fa-user-check',
+    description: '生成主角状态代码块',
+    promptTemplate: `<status_block>
+<name>{{name}}</name>
+<location>{{location}}</location>
+<condition>{{condition}}</condition>
+<equipment>{{equipment}}</equipment>
+<skills>{{skills}}</skills>
+</status_block>`,
+    apiPreset: '',
+    bypassPreset: '',
+    outputMode: 'inline',
+    extractTags: ['status_block'],
+    triggerEvents: ['GENERATION_ENDED'],
+    enabled: true,
+    order: 4
+  }
+};
+
+// ============================================================
 // 工具注册表常量
 // ============================================================
 
@@ -209,8 +289,6 @@ export function resetToolRegistry() {
 // 工具-API预设绑定管理
 // ============================================================
 
-const TOOL_API_PRESET_BINDING_KEY = 'tool_api_bindings';
-
 /**
  * 设置工具的API预设绑定
  * @param {string} toolId - 工具ID
@@ -281,10 +359,113 @@ export function onPresetDeleted(presetName) {
 }
 
 // ============================================================
-// 工具窗口状态管理
+// 工具完整配置管理
 // ============================================================
 
-const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
+/**
+ * 获取工具完整配置（合并默认配置和用户配置）
+ * @param {string} toolId - 工具ID
+ * @returns {object|null} 完整配置
+ */
+export function getToolFullConfig(toolId) {
+  const defaultConfig = DEFAULT_TOOL_CONFIGS[toolId];
+  if (!defaultConfig) {
+    // 如果没有默认配置，返回基本注册信息
+    const basicConfig = getToolConfig(toolId);
+    return basicConfig;
+  }
+  
+  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  const userConfig = userConfigs[toolId] || {};
+  
+  return {
+    ...defaultConfig,
+    ...userConfig,
+    id: toolId  // ID不可覆盖
+  };
+}
+
+/**
+ * 保存工具配置
+ * @param {string} toolId - 工具ID
+ * @param {object} config - 配置对象
+ * @returns {boolean} 是否成功
+ */
+export function saveToolConfig(toolId, config) {
+  if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
+    console.warn('[ToolRegistry] 工具不存在:', toolId);
+    return false;
+  }
+  
+  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  
+  // 只保存用户可修改的字段
+  const saveableFields = [
+    'promptTemplate', 'apiPreset', 'bypassPreset', 
+    'outputMode', 'extractTags', 'enabled', 'triggerEvents'
+  ];
+  
+  userConfigs[toolId] = {};
+  saveableFields.forEach(field => {
+    if (config[field] !== undefined) {
+      userConfigs[toolId][field] = config[field];
+    }
+  });
+  
+  storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
+  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });
+  
+  console.log(`[ToolRegistry] 工具配置已保存: ${toolId}`);
+  return true;
+}
+
+/**
+ * 重置工具配置到默认
+ * @param {string} toolId - 工具ID
+ * @returns {boolean} 是否成功
+ */
+export function resetToolConfig(toolId) {
+  if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
+    console.warn('[ToolRegistry] 工具不存在:', toolId);
+    return false;
+  }
+  
+  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  delete userConfigs[toolId];
+  storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
+  
+  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: null });
+  console.log(`[ToolRegistry] 工具配置已重置: ${toolId}`);
+  return true;
+}
+
+/**
+ * 获取所有默认工具配置
+ * @returns {object} 默认配置对象
+ */
+export function getAllDefaultToolConfigs() {
+  return { ...DEFAULT_TOOL_CONFIGS };
+}
+
+/**
+ * 获取所有工具的完整配置
+ * @returns {Array} 配置数组
+ */
+export function getAllToolFullConfigs() {
+  return Object.keys(DEFAULT_TOOL_CONFIGS).map(toolId => getToolFullConfig(toolId));
+}
+
+/**
+ * 获取启用的工具列表（带有完整配置）
+ * @returns {Array} 启用的工具配置数组
+ */
+export function getEnabledTools() {
+  return getAllToolFullConfigs().filter(config => config && config.enabled);
+}
+
+// ============================================================
+// 工具窗口状态管理
+// ============================================================
 
 /**
  * 保存工具窗口状态
@@ -330,5 +511,12 @@ export default {
   getAllToolApiBindings,
   onPresetDeleted,
   saveToolWindowState,
-  getToolWindowState
+  getToolWindowState,
+  // 新增配置管理函数
+  getToolFullConfig,
+  saveToolConfig,
+  resetToolConfig,
+  getAllDefaultToolConfigs,
+  getAllToolFullConfigs,
+  getEnabledTools
 };
