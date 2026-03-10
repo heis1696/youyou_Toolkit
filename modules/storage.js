@@ -10,7 +10,14 @@
 const STORAGE_KEYS = {
   SETTINGS: 'youyou_toolkit_settings',
   API_PRESETS: 'youyou_toolkit_api_presets',
-  CURRENT_PRESET: 'youyou_toolkit_current_preset'
+  CURRENT_PRESET: 'youyou_toolkit_current_preset',
+  // 工具模块相关存储键
+  TOOLS: 'youyou_toolkit_tools',
+  TOOL_PRESETS: 'youyou_toolkit_tool_presets',
+  CURRENT_TOOL_PRESET: 'youyou_toolkit_current_tool_preset',
+  BYPASS_PRESETS: 'youyou_toolkit_bypass_presets',
+  CURRENT_BYPASS_PRESET: 'youyou_toolkit_current_bypass_preset',
+  BYPASS_ENABLED: 'youyou_toolkit_bypass_enabled'
 };
 
 // 默认设置

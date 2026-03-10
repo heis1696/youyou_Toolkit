@@ -25,6 +25,10 @@ let apiConnectionModule = null;
 let presetManagerModule = null;
 let uiComponentsModule = null;
 let regexExtractorModule = null;
+let toolManagerModule = null;
+let toolExecutorModule = null;
+let toolTriggerModule = null;
+let bypassPromptsModule = null;
 
 async function loadModules() {
   try {
@@ -35,6 +39,10 @@ async function loadModules() {
     presetManagerModule = await import('./modules/preset-manager.js');
     uiComponentsModule = await import('./modules/ui-components.js');
     regexExtractorModule = await import('./modules/regex-extractor.js');
+    toolManagerModule = await import('./modules/tool-manager.js');
+    toolExecutorModule = await import('./modules/tool-executor.js');
+    toolTriggerModule = await import('./modules/tool-trigger.js');
+    bypassPromptsModule = await import('./modules/bypass-prompts.js');
     return true;
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] 模块加载失败，使用内置功能:`, error);
@@ -532,6 +540,14 @@ function switchPage(pageName) {
       uiComponentsModule.renderRegex($regexContainer);
     }
   }
+  
+  // 如果切换到工具管理页面，渲染组件
+  if (pageName === 'tools' && uiComponentsModule) {
+    const $toolsContainer = $(currentPopup).find('#youyou_toolkit-tools-container');
+    if ($toolsContainer.length) {
+      uiComponentsModule.renderTool($toolsContainer);
+    }
+  }
 }
 
 function openPopup() {
@@ -587,6 +603,10 @@ function openPopup() {
             <i class="fa-solid fa-regex"></i>
             <span>正则提取</span>
           </div>
+          <div class="yyt-nav-item" data-page="tools">
+            <i class="fa-solid fa-tools"></i>
+            <span>工具</span>
+          </div>
         </div>
         
         <div class="yyt-page active" data-page="welcome">
@@ -625,6 +645,10 @@ function openPopup() {
         
         <div class="yyt-page" data-page="regex">
           <div id="${SCRIPT_ID}-regex-container"></div>
+        </div>
+        
+        <div class="yyt-page" data-page="tools">
+          <div id="${SCRIPT_ID}-tools-container"></div>
         </div>
       </div>
       
@@ -749,6 +773,10 @@ const YouYouToolkit = {
   getPresetManager: () => presetManagerModule,
   getUiComponents: () => uiComponentsModule,
   getRegexExtractor: () => regexExtractorModule,
+  getToolManager: () => toolManagerModule,
+  getToolExecutor: () => toolExecutorModule,
+  getToolTrigger: () => toolTriggerModule,
+  getBypassPrompts: () => bypassPromptsModule,
   
   // 便捷方法
   async getApiConfig() {
@@ -821,6 +849,15 @@ async function init() {
         regexStyle.id = regexStyleId;
         regexStyle.textContent = uiComponentsModule.getRegexStyles();
         (targetDoc.head || targetDoc.documentElement).appendChild(regexStyle);
+      }
+      
+      // 注入工具管理面板样式
+      const toolStyleId = `${SCRIPT_ID}-tool-styles`;
+      if (!targetDoc.getElementById(toolStyleId) && uiComponentsModule.getToolStyles) {
+        const toolStyle = targetDoc.createElement('style');
+        toolStyle.id = toolStyleId;
+        toolStyle.textContent = uiComponentsModule.getToolStyles();
+        (targetDoc.head || targetDoc.documentElement).appendChild(toolStyle);
       }
     }
   } else {

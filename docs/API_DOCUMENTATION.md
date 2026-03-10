@@ -260,6 +260,89 @@ const regex = YouYouToolkit.getRegexExtractor();
 // regex.importTemplates(json, options)
 ```
 
+### `getToolManager()`
+
+获取工具管理模块。
+
+```javascript
+const toolMgr = YouYouToolkit.getToolManager();
+// toolMgr.getAllTools()
+// toolMgr.getTool(toolId)
+// toolMgr.saveTool(toolId, toolDef)
+// toolMgr.deleteTool(toolId)
+// toolMgr.setToolEnabled(toolId, enabled)
+// toolMgr.cloneTool(toolId, newId, newName)
+// toolMgr.getAllToolPresets()
+// toolMgr.getToolPreset(presetId)
+// toolMgr.saveToolPreset(presetId, preset)
+// toolMgr.deleteToolPreset(presetId)
+// toolMgr.exportTools()
+// toolMgr.importTools(jsonString, overwrite)
+// toolMgr.resetTools()
+// toolMgr.validateTool(toolDef)
+```
+
+### `getToolExecutor()`
+
+获取工具执行引擎模块。
+
+```javascript
+const executor = YouYouToolkit.getToolExecutor();
+// executor.executeTool(toolId, options, executorFn)
+// executor.executeBatch(tasks, batchOptions)
+// executor.abortTask(taskId)
+// executor.abortAllTasks()
+// executor.pauseExecutor()
+// executor.resumeExecutor()
+// executor.getExecutorStatus()
+// executor.getExecutionHistory(filter)
+// executor.clearExecutionHistory()
+// executor.mergeResults(results)
+// executor.setMaxConcurrent(max)
+```
+
+### `getToolTrigger()`
+
+获取事件触发模块。
+
+```javascript
+const trigger = YouYouToolkit.getToolTrigger();
+// trigger.registerEventListener(eventType, callback, options)
+// trigger.unregisterEventListener(eventType, callback)
+// trigger.removeAllListeners()
+// trigger.checkGate(condition)
+// trigger.updateGateState(update)
+// trigger.getChatContext(options)
+// trigger.getCurrentCharacter()
+// trigger.getWorldbookContent(options)
+// trigger.getFullContext(options)
+// trigger.registerTriggerHandler(handlerId, config)
+// trigger.setTriggerHandlerEnabled(handlerId, enabled)
+// trigger.initTriggerModule()
+```
+
+### `getBypassPrompts()`
+
+获取破限词预设管理模块。
+
+```javascript
+const bypass = YouYouToolkit.getBypassPrompts();
+// bypass.getAllBypassPresets()
+// bypass.getBypassPreset(presetId)
+// bypass.saveBypassPreset(presetId, preset)
+// bypass.deleteBypassPreset(presetId)
+// bypass.getCurrentBypassPresetId()
+// bypass.setCurrentBypassPreset(presetId)
+// bypass.getCurrentBypassMessages()
+// bypass.isBypassEnabled()
+// bypass.setBypassEnabled(enabled)
+// bypass.exportBypassPresets()
+// bypass.importBypassPresets(jsonString, overwrite)
+// bypass.resetBypassPresets()
+// bypass.validateBypassPreset(preset)
+// bypass.cloneBypassPreset(presetId, newId, newName)
+```
+
 ---
 
 ## 正则提取模块 API
