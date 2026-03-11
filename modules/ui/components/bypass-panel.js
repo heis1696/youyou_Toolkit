@@ -517,36 +517,37 @@ export const BypassPanel = {
   getStyles() {
     return `
       /* ============================================================
-         破限词面板V2 - 左右分栏布局
+         破限词面板V2 - 现代化UI设计
          ============================================================ */
       
       .yyt-bypass-panel-v2 {
         display: flex;
-        gap: 20px;
+        gap: 16px;
         height: 100%;
         min-height: 0;
       }
       
       /* ---------- 左侧边栏：预设列表 ---------- */
       .yyt-bypass-sidebar {
-        width: 280px;
-        min-width: 240px;
-        max-width: 320px;
+        width: 260px;
+        min-width: 220px;
+        max-width: 300px;
         display: flex;
         flex-direction: column;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius);
+        background: linear-gradient(180deg, rgba(30, 35, 50, 0.8) 0%, rgba(20, 25, 35, 0.9) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
       }
       
       .yyt-bypass-sidebar-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 16px;
-        background: rgba(255, 255, 255, 0.04);
-        border-bottom: 1px solid var(--yyt-border);
+        padding: 16px;
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.08) 0%, rgba(100, 140, 200, 0.04) 100%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       }
       
       .yyt-sidebar-title {
@@ -555,12 +556,14 @@ export const BypassPanel = {
         gap: 10px;
         font-weight: 600;
         font-size: 14px;
-        color: var(--yyt-text);
+        color: rgba(255, 255, 255, 0.95);
+        letter-spacing: 0.3px;
       }
       
       .yyt-sidebar-title i {
-        color: var(--yyt-accent);
+        color: #7bb7ff;
         font-size: 16px;
+        filter: drop-shadow(0 0 6px rgba(123, 183, 255, 0.5));
       }
       
       .yyt-bypass-list-v2 {
@@ -569,77 +572,109 @@ export const BypassPanel = {
         padding: 12px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       }
       
-      /* 预设项V2 */
+      .yyt-bypass-list-v2::-webkit-scrollbar {
+        width: 4px;
+      }
+      
+      .yyt-bypass-list-v2::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 2px;
+      }
+      
+      /* 预设项卡片 */
       .yyt-bypass-item-v2 {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 10px 12px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid transparent;
-        border-radius: var(--yyt-radius-sm);
+        padding: 12px 14px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .yyt-bypass-item-v2::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.25s ease;
       }
       
       .yyt-bypass-item-v2:hover {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.1);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+        border-color: rgba(255, 255, 255, 0.12);
+        transform: translateX(3px);
+      }
+      
+      .yyt-bypass-item-v2:hover::before {
+        opacity: 1;
       }
       
       .yyt-bypass-item-v2.yyt-active-preset {
-        background: rgba(123, 183, 255, 0.12);
-        border-color: rgba(123, 183, 255, 0.3);
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.15) 0%, rgba(123, 183, 255, 0.05) 100%);
+        border-color: rgba(123, 183, 255, 0.35);
+        box-shadow: 0 0 20px rgba(123, 183, 255, 0.15);
       }
       
       .yyt-bypass-item-v2.yyt-editing {
-        background: rgba(105, 219, 124, 0.1);
-        border-color: rgba(105, 219, 124, 0.3);
+        background: linear-gradient(135deg, rgba(105, 219, 124, 0.12) 0%, rgba(105, 219, 124, 0.03) 100%);
+        border-color: rgba(105, 219, 124, 0.35);
+        box-shadow: 0 0 20px rgba(105, 219, 124, 0.12);
       }
       
       .yyt-bypass-item-v2.yyt-active-preset.yyt-editing {
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.1) 0%, rgba(105, 219, 124, 0.1) 100%);
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(105, 219, 124, 0.08) 100%);
         border-color: rgba(123, 183, 255, 0.4);
       }
       
       .yyt-item-main {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         flex: 1;
         min-width: 0;
       }
       
       .yyt-item-indicator {
         width: 4px;
-        height: 24px;
+        height: 28px;
         border-radius: 2px;
-        background: transparent;
-        transition: background 0.2s ease;
+        background: rgba(255, 255, 255, 0.1);
+        transition: all 0.25s ease;
       }
       
       .yyt-bypass-item-v2.yyt-active-preset .yyt-item-indicator {
-        background: var(--yyt-accent);
+        background: linear-gradient(180deg, #7bb7ff 0%, #5a9cf0 100%);
+        box-shadow: 0 0 10px rgba(123, 183, 255, 0.5);
       }
       
       .yyt-bypass-item-v2.yyt-editing .yyt-item-indicator {
-        background: #69db7c;
+        background: linear-gradient(180deg, #69db7c 0%, #4ade80 100%);
+        box-shadow: 0 0 10px rgba(105, 219, 124, 0.5);
       }
       
       .yyt-item-info {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 3px;
         min-width: 0;
       }
       
       .yyt-item-name {
         font-weight: 500;
         font-size: 13px;
-        color: var(--yyt-text);
+        color: rgba(255, 255, 255, 0.95);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -647,12 +682,12 @@ export const BypassPanel = {
       
       .yyt-item-count {
         font-size: 11px;
-        color: var(--yyt-text-muted);
+        color: rgba(255, 255, 255, 0.45);
       }
       
       .yyt-item-actions {
         display: flex;
-        gap: 4px;
+        gap: 6px;
         opacity: 0;
         transition: opacity 0.2s ease;
       }
@@ -661,44 +696,48 @@ export const BypassPanel = {
         opacity: 1;
       }
       
-      /* 预设项按钮 - 高对比度 */
+      /* 预设项按钮 - 清晰可见 */
       .yyt-item-btn {
-        width: 28px;
-        height: 28px;
+        width: 30px;
+        height: 30px;
         padding: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid transparent;
-        border-radius: 6px;
-        background: transparent;
-        color: var(--yyt-text-muted);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.7);
         font-size: 12px;
         cursor: pointer;
         transition: all 0.2s ease;
       }
       
       .yyt-item-btn:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.15);
-        color: var(--yyt-text);
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #fff;
+        transform: scale(1.05);
       }
       
       .yyt-item-btn.yy-btn-edit:hover:not(:disabled) {
-        background: rgba(123, 183, 255, 0.2);
-        border-color: rgba(123, 183, 255, 0.4);
-        color: var(--yyt-accent);
+        background: rgba(123, 183, 255, 0.25);
+        border-color: rgba(123, 183, 255, 0.5);
+        color: #7bb7ff;
+        box-shadow: 0 0 12px rgba(123, 183, 255, 0.3);
       }
       
       .yyt-item-btn.yy-btn-delete:hover:not(:disabled) {
-        background: rgba(248, 113, 113, 0.2);
-        border-color: rgba(248, 113, 113, 0.4);
-        color: var(--yyt-error);
+        background: rgba(255, 107, 107, 0.25);
+        border-color: rgba(255, 107, 107, 0.5);
+        color: #ff6b6b;
+        box-shadow: 0 0 12px rgba(255, 107, 107, 0.3);
       }
       
       .yyt-item-btn:disabled {
-        opacity: 0.3;
+        opacity: 0.25;
         cursor: not-allowed;
+        transform: none !important;
       }
       
       /* ---------- 右侧编辑区域 ---------- */
@@ -707,19 +746,20 @@ export const BypassPanel = {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius);
+        background: linear-gradient(180deg, rgba(30, 35, 50, 0.6) 0%, rgba(20, 25, 35, 0.8) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
       }
       
       .yyt-editor-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 18px;
-        background: rgba(255, 255, 255, 0.04);
-        border-bottom: 1px solid var(--yyt-border);
+        padding: 16px 20px;
+        background: linear-gradient(135deg, rgba(105, 219, 124, 0.08) 0%, rgba(80, 180, 100, 0.03) 100%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       }
       
       .yyt-editor-title {
@@ -728,24 +768,26 @@ export const BypassPanel = {
         gap: 10px;
         font-weight: 600;
         font-size: 15px;
-        color: var(--yyt-text);
+        color: rgba(255, 255, 255, 0.95);
+        letter-spacing: 0.3px;
       }
       
       .yyt-editor-title i {
         color: #69db7c;
         font-size: 16px;
+        filter: drop-shadow(0 0 6px rgba(105, 219, 124, 0.5));
       }
       
       .yyt-editor-actions {
         display: flex;
-        gap: 8px;
+        gap: 10px;
       }
       
       /* ---------- 基本信息区域 ---------- */
       .yyt-editor-basic-info {
-        padding: 16px 18px;
-        background: rgba(255, 255, 255, 0.02);
-        border-bottom: 1px solid var(--yyt-border);
+        padding: 18px 20px;
+        background: rgba(0, 0, 0, 0.15);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       }
       
       .yyt-form-row-v2 {
@@ -766,36 +808,39 @@ export const BypassPanel = {
         gap: 6px;
         font-size: 12px;
         font-weight: 600;
-        color: var(--yyt-text-secondary);
+        color: rgba(255, 255, 255, 0.65);
+        letter-spacing: 0.3px;
       }
       
       .yyt-form-group-v2 label i {
         font-size: 11px;
-        color: var(--yyt-accent);
+        color: #7bb7ff;
       }
       
       .yyt-input-v2 {
-        padding: 10px 14px;
-        background: rgba(0, 0, 0, 0.25);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: var(--yyt-radius-sm);
-        color: var(--yyt-text);
+        padding: 12px 14px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        color: rgba(255, 255, 255, 0.95);
         font-size: 13px;
-        transition: all 0.2s ease;
+        transition: all 0.25s ease;
       }
       
       .yyt-input-v2:hover {
-        border-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.4);
       }
       
       .yyt-input-v2:focus {
         outline: none;
-        border-color: var(--yyt-accent);
-        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.15);
+        border-color: #7bb7ff;
+        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.2), 0 0 20px rgba(123, 183, 255, 0.1);
+        background: rgba(0, 0, 0, 0.45);
       }
       
       .yyt-input-v2::placeholder {
-        color: var(--yyt-text-muted);
+        color: rgba(255, 255, 255, 0.35);
       }
       
       /* ---------- 消息段落编辑区 ---------- */
@@ -804,27 +849,28 @@ export const BypassPanel = {
         display: flex;
         flex-direction: column;
         min-height: 0;
-        padding: 16px 18px;
+        padding: 18px 20px;
       }
       
       .yyt-messages-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
       }
       
       .yyt-messages-header label {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
-        color: var(--yyt-text);
+        color: rgba(255, 255, 255, 0.9);
       }
       
       .yyt-messages-header label i {
-        color: var(--yyt-accent);
+        color: #7bb7ff;
+        filter: drop-shadow(0 0 4px rgba(123, 183, 255, 0.4));
       }
       
       .yyt-messages-list {
@@ -832,21 +878,26 @@ export const BypassPanel = {
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding-right: 4px;
+        gap: 14px;
+        padding-right: 6px;
       }
       
       .yyt-messages-list::-webkit-scrollbar {
-        width: 5px;
+        width: 6px;
       }
       
       .yyt-messages-list::-webkit-scrollbar-track {
-        background: transparent;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 3px;
       }
       
       .yyt-messages-list::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.12);
         border-radius: 3px;
+      }
+      
+      .yyt-messages-list::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
       }
       
       /* 空状态 */
@@ -855,197 +906,222 @@ export const BypassPanel = {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px 20px;
-        color: var(--yyt-text-muted);
-        gap: 12px;
+        padding: 50px 30px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: rgba(255, 255, 255, 0.4);
+        gap: 14px;
       }
       
       .yyt-empty-messages i {
-        font-size: 36px;
-        opacity: 0.4;
+        font-size: 42px;
+        opacity: 0.5;
+        color: rgba(255, 255, 255, 0.25);
       }
       
       .yyt-empty-messages span {
         font-size: 13px;
         text-align: center;
+        line-height: 1.5;
       }
       
-      /* ---------- 消息段落卡片 ---------- */
+      /* ---------- 消息段落卡片 - 精致设计 ---------- */
       .yyt-message-segment {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--yyt-radius-sm);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
         overflow: hidden;
-        transition: all 0.2s ease;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
       }
       
       .yyt-message-segment:hover {
-        border-color: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        transform: translateY(-2px);
       }
       
-      /* 角色左边框 */
+      /* 角色左边框 - 发光效果 */
       .yyt-message-segment[data-role="SYSTEM"] {
         border-left: 3px solid #ff6b6b;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), inset 3px 0 15px rgba(255, 107, 107, 0.1);
       }
       
       .yyt-message-segment[data-role="USER"] {
         border-left: 3px solid #4dabf7;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), inset 3px 0 15px rgba(77, 171, 247, 0.1);
       }
       
       .yyt-message-segment[data-role="assistant"] {
         border-left: 3px solid #69db7c;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), inset 3px 0 15px rgba(105, 219, 124, 0.1);
       }
       
       .yyt-segment-header-v2 {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 10px 14px;
-        background: rgba(255, 255, 255, 0.03);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        gap: 14px;
+        padding: 12px 16px;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       }
       
       .yyt-segment-number {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
-        color: rgba(255, 255, 255, 0.4);
-        min-width: 24px;
+        color: rgba(255, 255, 255, 0.35);
+        min-width: 28px;
       }
       
       .yyt-role-select-v2 {
-        padding: 6px 12px;
-        border-radius: 6px;
+        padding: 8px 14px;
+        border-radius: 8px;
         font-size: 12px;
-        font-weight: 500;
+        font-weight: 600;
         cursor: pointer;
         border: 1px solid;
         transition: all 0.2s ease;
-        min-width: 130px;
+        min-width: 135px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='white' opacity='0.6' d='M5 7L1 3h8z'/%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 10px center !important;
+        padding-right: 28px;
       }
       
       .yyt-role-select-v2:hover {
-        filter: brightness(1.1);
+        filter: brightness(1.15);
+        transform: scale(1.02);
       }
       
       .yyt-role-select-v2:focus {
         outline: none;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
       }
       
       .yyt-segment-actions-v2 {
         display: flex;
-        gap: 4px;
+        gap: 6px;
         margin-left: auto;
       }
       
-      /* 操作按钮 - 高对比度 */
+      /* 操作按钮 - 精致设计 */
       .yyt-action-btn {
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         padding: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--yyt-text);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.7);
         font-size: 12px;
         cursor: pointer;
         transition: all 0.2s ease;
       }
       
       .yyt-action-btn:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.15);
-        border-color: rgba(255, 255, 255, 0.25);
-        color: var(--yyt-text);
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.22);
+        color: #fff;
+        transform: scale(1.08);
       }
       
       .yyt-action-btn:disabled {
-        opacity: 0.3;
+        opacity: 0.25;
         cursor: not-allowed;
+        transform: none !important;
       }
       
       .yyt-action-btn.yy-action-danger:hover:not(:disabled) {
-        background: rgba(248, 113, 113, 0.25);
-        border-color: rgba(248, 113, 113, 0.4);
+        background: rgba(255, 107, 107, 0.2);
+        border-color: rgba(255, 107, 107, 0.4);
         color: #ff6b6b;
+        box-shadow: 0 0 12px rgba(255, 107, 107, 0.25);
       }
       
       .yyt-segment-content-v2 {
-        padding: 14px;
+        padding: 16px;
       }
       
       .yyt-segment-textarea {
         width: 100%;
-        min-height: 120px;
-        padding: 12px 14px;
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--yyt-radius-sm);
-        color: var(--yyt-text);
+        min-height: 130px;
+        padding: 14px 16px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        color: rgba(255, 255, 255, 0.95);
         font-size: 13px;
-        line-height: 1.6;
+        line-height: 1.65;
         resize: vertical;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-        transition: all 0.2s ease;
+        transition: all 0.25s ease;
       }
       
       .yyt-segment-textarea:hover {
-        border-color: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.15);
+        background: rgba(0, 0, 0, 0.35);
       }
       
       .yyt-segment-textarea:focus {
         outline: none;
-        border-color: var(--yyt-accent);
-        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.12);
+        border-color: #7bb7ff;
+        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.15), 0 0 20px rgba(123, 183, 255, 0.08);
+        background: rgba(0, 0, 0, 0.4);
       }
       
       .yyt-segment-textarea::placeholder {
-        color: var(--yyt-text-muted);
+        color: rgba(255, 255, 255, 0.3);
       }
       
-      /* ---------- 高对比度按钮样式 ---------- */
+      /* ---------- 按钮样式 - 清晰醒目 ---------- */
       
-      /* 强调按钮 - 蓝色高亮 */
+      /* 强调按钮 - 亮蓝色 */
       .yyt-btn-accent {
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.25) 0%, rgba(123, 183, 255, 0.15) 100%);
-        color: var(--yyt-accent);
-        border: 1px solid rgba(123, 183, 255, 0.4);
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.3) 0%, rgba(100, 160, 230, 0.2) 100%);
+        color: #7bb7ff !important;
+        border: 1px solid rgba(123, 183, 255, 0.5);
         font-weight: 600;
+        text-shadow: 0 0 10px rgba(123, 183, 255, 0.5);
       }
       
       .yyt-btn-accent:hover {
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.35) 0%, rgba(123, 183, 255, 0.25) 100%);
-        border-color: rgba(123, 183, 255, 0.6);
-        box-shadow: 0 0 12px rgba(123, 183, 255, 0.3);
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.4) 0%, rgba(100, 160, 230, 0.3) 100%);
+        border-color: rgba(123, 183, 255, 0.7);
+        box-shadow: 0 0 20px rgba(123, 183, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        transform: translateY(-1px);
       }
       
-      /* 轮廓按钮 - 清晰可见 */
+      /* 轮廓按钮 - 清晰边框 */
       .yyt-btn-outline {
-        background: transparent;
-        color: var(--yyt-text);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.85) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25);
         font-weight: 500;
       }
       
       .yyt-btn-outline:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.4);
+        transform: translateY(-1px);
       }
       
-      /* 主按钮保持不变 */
+      /* 主按钮 - 渐变发光 */
       .yyt-btn-primary {
-        background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
-        color: #0b0f15;
+        background: linear-gradient(135deg, #7bb7ff 0%, #5a9cf0 100%);
+        color: #0b0f15 !important;
         border: none;
         font-weight: 600;
-        box-shadow: 0 4px 15px rgba(123, 183, 255, 0.3);
+        box-shadow: 0 4px 20px rgba(123, 183, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        text-shadow: none;
       }
       
       .yyt-btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(123, 183, 255, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(123, 183, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
       }
       
       /* ---------- 响应式调整 ---------- */
@@ -1057,12 +1133,12 @@ export const BypassPanel = {
         .yyt-bypass-sidebar {
           width: 100%;
           max-width: none;
-          max-height: 200px;
+          max-height: 220px;
         }
         
         .yyt-form-row-v2 {
           flex-direction: column;
-          gap: 12px;
+          gap: 14px;
         }
       }
       
@@ -1080,7 +1156,7 @@ export const BypassPanel = {
         
         .yyt-messages-header {
           flex-direction: column;
-          gap: 10px;
+          gap: 12px;
           align-items: flex-start;
         }
         
@@ -1094,7 +1170,7 @@ export const BypassPanel = {
         
         .yyt-segment-actions-v2 {
           margin-left: 0;
-          margin-top: 8px;
+          margin-top: 10px;
           width: 100%;
           justify-content: flex-end;
         }
