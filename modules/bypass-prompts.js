@@ -154,6 +154,8 @@ export function saveBypassPreset(presetId, preset) {
     messages: preset.messages.map(msg => ({
       role: msg.role || 'USER',
       content: String(msg.content || ''),
+      title: String(msg.title || ''),
+      enabled: msg.enabled !== false,
       deletable: msg.deletable !== false
     }))
   };
@@ -292,6 +294,8 @@ export function importBypassPresets(jsonString, overwrite = false) {
           messages: preset.messages.map(msg => ({
             role: msg.role || 'USER',
             content: String(msg.content || ''),
+            title: String(msg.title || ''),
+            enabled: msg.enabled !== false,
             deletable: msg.deletable !== false
           }))
         };
