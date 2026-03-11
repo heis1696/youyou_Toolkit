@@ -1,7 +1,7 @@
 /**
  * YouYou Toolkit - 破限词面板组件
- * @description 提供破限词预设管理的UI
- * @version 1.1.0
+ * @description 提供破限词预设管理的UI（一级窗口直接编辑版）
+ * @version 2.0.0
  */
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
@@ -23,15 +23,15 @@ import {
   setCurrentBypassPreset
 } from '../../bypass-prompts.js';
 
-// 导入可视化编辑器组件
-import { BypassEditor } from './bypass-editor.js';
-
 // ============================================================
 // 组件定义
 // ============================================================
 
 export const BypassPanel = {
   id: 'bypassPanel',
+  
+  // 当前编辑的预设ID
+  _currentEditId: null,
   
   // ============================================================
   // 渲染
@@ -45,35 +45,74 @@ export const BypassPanel = {
   render(props) {
     const bypassPresets = getAllBypassPresets();
     const currentBypassId = getCurrentBypassPresetId();
+    // 默认编辑当前选中的预设
+    const editId = this._currentEditId || currentBypassId;
+    const editPreset = getBypassPreset(editId);
     
     return `
-      <div class="yyt-bypass-panel">
-        <!-- 破限词预设列表 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-shield-alt"></i>
-            <span>破限词预设</span>
-            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-add-bypass" style="margin-left: auto;">
-              <i class="fa-solid fa-plus"></i> 新建
+      <div class="yyt-bypass-panel-v2">
+        <!-- 左侧：预设列表 -->
+        <div class="yyt-bypass-sidebar">
+          <div class="yyt-bypass-sidebar-header">
+            <div class="yyt-sidebar-title">
+              <i class="fa-solid fa-shield-alt"></i>
+              <span>预设列表</span>
+            </div>
+            <button class="yyt-btn yyt-btn-small yyt-btn-accent" id="${SCRIPT_ID}-add-bypass" title="新建预设">
+              <i class="fa-solid fa-plus"></i>
             </button>
           </div>
-          <div class="yyt-bypass-list">
-            ${this._renderBypassList(bypassPresets, currentBypassId)}
+          <div class="yyt-bypass-list-v2">
+            ${this._renderBypassListV2(bypassPresets, currentBypassId, editId)}
           </div>
         </div>
         
-        <!-- 使用说明 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-info-circle"></i>
-            <span>使用说明</span>
+        <!-- 右侧：编辑区域 -->
+        <div class="yyt-bypass-editor-area">
+          <div class="yyt-editor-header">
+            <div class="yyt-editor-title">
+              <i class="fa-solid fa-edit"></i>
+              <span id="${SCRIPT_ID}-editor-preset-name">${editPreset ? escapeHtml(editPreset.name) : '新建预设'}</span>
+            </div>
+            <div class="yyt-editor-actions">
+              <button class="yyt-btn yyt-btn-small yyt-btn-outline" id="${SCRIPT_ID}-bypass-reset" title="重置更改">
+                <i class="fa-solid fa-undo"></i> 重置
+              </button>
+              <button class="yyt-btn yyt-btn-small yyt-btn-primary" id="${SCRIPT_ID}-bypass-save">
+                <i class="fa-solid fa-save"></i> 保存
+              </button>
+            </div>
           </div>
-          <div class="yyt-help-text">
-            <p>1. 在各个工具的配置中选择是否使用破限词预设</p>
-            <p>2. 点击预设可设为当前默认预设</p>
-            <p>3. 点击编辑按钮可使用可视化编辑器自定义消息段落</p>
-            <p>4. 支持添加、删除、排序消息段落，每个段落可选择角色类型</p>
-            <p>5. 默认预设不可删除，但可以编辑和克隆</p>
+          
+          <!-- 基本信息 -->
+          <div class="yyt-editor-basic-info">
+            <div class="yyt-form-row-v2">
+              <div class="yyt-form-group-v2">
+                <label><i class="fa-solid fa-tag"></i> 预设名称</label>
+                <input type="text" class="yyt-input-v2" id="${SCRIPT_ID}-bypass-name" 
+                       value="${editPreset ? escapeHtml(editPreset.name) : ''}" placeholder="输入预设名称">
+              </div>
+              <div class="yyt-form-group-v2">
+                <label><i class="fa-solid fa-info-circle"></i> 描述（可选）</label>
+                <input type="text" class="yyt-input-v2" id="${SCRIPT_ID}-bypass-desc" 
+                       value="${editPreset ? escapeHtml(editPreset.description || '') : ''}" placeholder="预设描述">
+              </div>
+            </div>
+          </div>
+          
+          <!-- 消息段落编辑器 -->
+          <div class="yyt-editor-messages">
+            <div class="yyt-messages-header">
+              <label><i class="fa-solid fa-list-alt"></i> 消息段落</label>
+              <div class="yyt-messages-actions">
+                <button class="yyt-btn yyt-btn-small yyt-btn-accent" id="${SCRIPT_ID}-bypass-add-segment" title="添加段落">
+                  <i class="fa-solid fa-plus"></i> 添加段落
+                </button>
+              </div>
+            </div>
+            <div class="yyt-messages-list" id="${SCRIPT_ID}-bypass-messages">
+              ${this._renderMessagesList(editPreset)}
+            </div>
           </div>
         </div>
       </div>
@@ -85,27 +124,93 @@ export const BypassPanel = {
   // ============================================================
   
   /**
-   * 渲染破限词列表
+   * 渲染预设列表V2 - 左侧边栏
    * @private
    */
-  _renderBypassList(bypassPresets, currentBypassId) {
+  _renderBypassListV2(bypassPresets, currentBypassId, editId) {
     return Object.entries(bypassPresets).map(([id, preset]) => `
-      <div class="yyt-bypass-item ${id === currentBypassId ? 'yyt-active' : ''}" data-bypass-id="${id}">
-        <div class="yyt-bypass-info">
-          <span class="yyt-bypass-name">${escapeHtml(preset.name)}</span>
-          <span class="yyt-bypass-count">${preset.messages?.length || 0} 条消息</span>
+      <div class="yyt-bypass-item-v2 ${id === currentBypassId ? 'yyt-active-preset' : ''} ${id === editId ? 'yyt-editing' : ''}" 
+           data-bypass-id="${id}">
+        <div class="yyt-item-main" data-action="select">
+          <div class="yyt-item-indicator"></div>
+          <div class="yyt-item-info">
+            <span class="yyt-item-name">${escapeHtml(preset.name)}</span>
+            <span class="yyt-item-count">${preset.messages?.length || 0} 条消息</span>
+          </div>
         </div>
-        <div class="yyt-bypass-actions">
-          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="edit" title="编辑">
-            <i class="fa-solid fa-edit"></i>
+        <div class="yyt-item-actions">
+          <button class="yyt-item-btn yyt-btn-edit" data-action="edit" title="编辑此预设">
+            <i class="fa-solid fa-pen"></i>
           </button>
-          <button class="yyt-btn yyt-btn-small yyt-btn-danger" data-action="delete" title="删除" 
+          <button class="yyt-item-btn yyt-btn-delete" data-action="delete" title="删除" 
                   ${preset.isDefault ? 'disabled' : ''}>
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
     `).join('');
+  },
+  
+  /**
+   * 渲染消息段落列表
+   * @private
+   */
+  _renderMessagesList(preset) {
+    const messages = preset?.messages || [];
+    if (messages.length === 0) {
+      return `
+        <div class="yyt-empty-messages">
+          <i class="fa-solid fa-inbox"></i>
+          <span>暂无消息段落，点击上方"添加段落"按钮创建</span>
+        </div>
+      `;
+    }
+    
+    return messages.map((msg, index) => this._renderMessageSegment(msg, index)).join('');
+  },
+  
+  /**
+   * 渲染单条消息段落
+   * @private
+   */
+  _renderMessageSegment(message, index) {
+    const role = (message.role || 'USER').toUpperCase();
+    const roleColors = {
+      'SYSTEM': { color: '#ff6b6b', bg: 'rgba(255, 107, 107, 0.15)', border: 'rgba(255, 107, 107, 0.4)' },
+      'USER': { color: '#4dabf7', bg: 'rgba(77, 171, 247, 0.15)', border: 'rgba(77, 171, 247, 0.4)' },
+      'assistant': { color: '#69db7c', bg: 'rgba(105, 219, 124, 0.15)', border: 'rgba(105, 219, 124, 0.4)' }
+    };
+    const roleStyle = roleColors[role] || roleColors['USER'];
+    const deletable = message.deletable !== false;
+    
+    return `
+      <div class="yyt-message-segment" data-index="${index}" data-deletable="${deletable}" data-role="${role}">
+        <div class="yyt-segment-header-v2">
+          <div class="yyt-segment-number">#${index + 1}</div>
+          <select class="yyt-role-select-v2" style="background-color: ${roleStyle.bg}; border-color: ${roleStyle.border}; color: ${roleStyle.color};">
+            <option value="SYSTEM" ${role === 'SYSTEM' ? 'selected' : ''} style="color: #ff6b6b;">系统 (SYSTEM)</option>
+            <option value="USER" ${role === 'USER' ? 'selected' : ''} style="color: #4dabf7;">用户 (USER)</option>
+            <option value="assistant" ${role === 'assistant' ? 'selected' : ''} style="color: #69db7c;">助手 (assistant)</option>
+          </select>
+          <div class="yyt-segment-actions-v2">
+            <button class="yyt-action-btn" data-action="move-up" title="上移" ${index === 0 ? 'disabled' : ''}>
+              <i class="fa-solid fa-chevron-up"></i>
+            </button>
+            <button class="yyt-action-btn" data-action="move-down" title="下移">
+              <i class="fa-solid fa-chevron-down"></i>
+            </button>
+            ${deletable ? `
+              <button class="yyt-action-btn yyt-action-danger" data-action="delete" title="删除">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+        <div class="yyt-segment-content-v2">
+          <textarea class="yyt-segment-textarea" rows="5" placeholder="输入此段落的内容...">${escapeHtml(message.content || '')}</textarea>
+        </div>
+      </div>
+    `;
   },
   
   // ============================================================
@@ -121,172 +226,269 @@ export const BypassPanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
     
-    this._bindBypassEvents($container, $);
+    this._bindBypassEventsV2($container, $);
   },
   
   /**
-   * 绑定破限词事件
+   * 绑定破限词事件V2 - 一级窗口直接编辑
    * @private
    */
-  _bindBypassEvents($container, $) {
-    // 破限词预设选择
-    $container.find('.yyt-bypass-item').on('click', function(e) {
-      // 如果点击的是按钮，不触发选择
-      if ($(e.target).closest('.yyt-bypass-actions').length) return;
+  _bindBypassEventsV2($container, $) {
+    const self = this;
+    
+    // ---------- 左侧预设列表事件 ----------
+    
+    // 点击预设项 - 设为当前默认预设
+    $container.find('.yyt-item-main').on('click', function(e) {
+      const $item = $(this).closest('.yyt-bypass-item-v2');
+      const bypassId = $item.data('bypass-id');
       
-      const bypassId = $(this).data('bypass-id');
+      // 设为当前默认预设
       setCurrentBypassPreset(bypassId);
-      $container.find('.yyt-bypass-item').removeClass('yyt-active');
-      $(this).addClass('yyt-active');
-      showToast('success', '已切换破限词预设');
+      
+      // 更新UI
+      $container.find('.yyt-bypass-item-v2').removeClass('yyt-active-preset');
+      $item.addClass('yyt-active-preset');
+      
+      showToast('success', '已切换默认预设');
       eventBus.emit(EVENTS.BYPASS_PRESET_ACTIVATED, { id: bypassId });
     });
     
-    // 破限词操作按钮
-    $container.find('.yyt-bypass-actions button').on('click', (e) => {
+    // 编辑按钮 - 切换到编辑此预设
+    $container.find('.yyt-item-btn[data-action="edit"]').on('click', function(e) {
       e.stopPropagation();
-      const $item = $(e.currentTarget).closest('.yyt-bypass-item');
+      const $item = $(this).closest('.yyt-bypass-item-v2');
       const bypassId = $item.data('bypass-id');
-      const action = $(e.currentTarget).data('action');
       
-      if (action === 'edit') {
-        this._showBypassEditDialog($container, $, bypassId);
-      } else if (action === 'delete') {
-        if (confirm('确定要删除这个破限词预设吗？')) {
-          const result = deleteBypassPreset(bypassId);
-          if (result) {
-            this.renderTo($container);
-            showToast('info', '预设已删除');
-            eventBus.emit(EVENTS.BYPASS_PRESET_DELETED, { id: bypassId });
-          } else {
-            showToast('warning', '默认预设不可删除');
+      // 设置当前编辑的预设
+      self._currentEditId = bypassId;
+      
+      // 更新编辑区域
+      self._refreshEditorArea($container, $);
+    });
+    
+    // 删除按钮
+    $container.find('.yyt-item-btn[data-action="delete"]').on('click', function(e) {
+      e.stopPropagation();
+      const $item = $(this).closest('.yyt-bypass-item-v2');
+      const bypassId = $item.data('bypass-id');
+      const preset = getBypassPreset(bypassId);
+      
+      if (preset?.isDefault) {
+        showToast('warning', '默认预设不可删除');
+        return;
+      }
+      
+      if (confirm(`确定要删除预设 "${preset?.name || bypassId}" 吗？`)) {
+        const result = deleteBypassPreset(bypassId);
+        if (result) {
+          // 如果删除的是当前编辑的预设，切换到默认预设
+          if (self._currentEditId === bypassId) {
+            self._currentEditId = getCurrentBypassPresetId();
           }
+          self.renderTo($container);
+          showToast('success', '预设已删除');
+          eventBus.emit(EVENTS.BYPASS_PRESET_DELETED, { id: bypassId });
         }
       }
     });
     
-    // 新建破限词预设
+    // 新建预设按钮
     $container.find(`#${SCRIPT_ID}-add-bypass`).on('click', () => {
-      this._showBypassEditDialog($container, $, null);
+      // 创建新预设ID
+      const newId = `custom_${Date.now()}`;
+      
+      // 创建空预设
+      saveBypassPreset(newId, {
+        name: '新预设',
+        description: '',
+        messages: [{ role: 'USER', content: '', deletable: true }]
+      });
+      
+      // 设为当前编辑的预设
+      this._currentEditId = newId;
+      
+      // 刷新UI
+      this.renderTo($container);
+      showToast('success', '已创建新预设，请编辑');
+    });
+    
+    // ---------- 右侧编辑区域事件 ----------
+    
+    // 保存按钮
+    $container.find(`#${SCRIPT_ID}-bypass-save`).on('click', () => {
+      this._saveCurrentPreset($container, $);
+    });
+    
+    // 重置按钮
+    $container.find(`#${SCRIPT_ID}-bypass-reset`).on('click', () => {
+      this._refreshEditorArea($container, $);
+      showToast('info', '已重置');
+    });
+    
+    // 添加段落按钮
+    $container.find(`#${SCRIPT_ID}-bypass-add-segment`).on('click', () => {
+      this._addSegment($container, $);
+    });
+    
+    // 段落操作按钮（上移、下移、删除）
+    $container.on('click', '.yyt-action-btn', function(e) {
+      const $segment = $(this).closest('.yyt-message-segment');
+      const action = $(this).data('action');
+      
+      if (action === 'move-up') {
+        const $prev = $segment.prev();
+        if ($prev.length) {
+          $segment.insertBefore($prev);
+          self._reindexSegments($container, $);
+        }
+      } else if (action === 'move-down') {
+        const $next = $segment.next();
+        if ($next.length) {
+          $segment.insertAfter($next);
+          self._reindexSegments($container, $);
+        }
+      } else if (action === 'delete') {
+        if (confirm('确定要删除这个段落吗？')) {
+          $segment.remove();
+          self._reindexSegments($container, $);
+          showToast('success', '已删除段落');
+        }
+      }
+    });
+    
+    // 角色选择变化时更新样式
+    $container.on('change', '.yyt-role-select-v2', function() {
+      const $segment = $(this).closest('.yyt-message-segment');
+      const role = $(this).val();
+      const roleColors = {
+        'SYSTEM': { color: '#ff6b6b', bg: 'rgba(255, 107, 107, 0.15)', border: 'rgba(255, 107, 107, 0.4)' },
+        'USER': { color: '#4dabf7', bg: 'rgba(77, 171, 247, 0.15)', border: 'rgba(77, 171, 247, 0.4)' },
+        'assistant': { color: '#69db7c', bg: 'rgba(105, 219, 124, 0.15)', border: 'rgba(105, 219, 124, 0.4)' }
+      };
+      const style = roleColors[role] || roleColors['USER'];
+      
+      $(this).css({
+        'background-color': style.bg,
+        'border-color': style.border,
+        'color': style.color
+      });
+      $segment.attr('data-role', role);
     });
   },
   
   // ============================================================
-  // 对话框
+  // 私有操作方法
   // ============================================================
   
   /**
-   * 显示破限词编辑对话框 - 使用可视化编辑器
+   * 刷新编辑区域
    * @private
    */
-  _showBypassEditDialog($container, $, bypassId) {
-    const preset = bypassId ? getBypassPreset(bypassId) : null;
-    const isEdit = !!preset;
-    const editingId = bypassId || `custom_${Date.now()}`;
+  _refreshEditorArea($container, $) {
+    const editId = this._currentEditId || getCurrentBypassPresetId();
+    const editPreset = getBypassPreset(editId);
     
-    // 使用更宽的对话框以容纳可视化编辑器
-    const dialogHtml = `
-      <div class="yyt-dialog-overlay" id="${SCRIPT_ID}-bypass-dialog-overlay">
-        <div class="yyt-dialog yyt-dialog-editor">
-          <div class="yyt-dialog-header">
-            <span class="yyt-dialog-title">${isEdit ? '编辑破限词预设' : '新建破限词预设'}</span>
-            <button class="yyt-dialog-close" id="${SCRIPT_ID}-bypass-dialog-close">
-              <i class="fa-solid fa-times"></i>
-            </button>
-          </div>
-          <div class="yyt-dialog-body">
-            <!-- 基本信息 -->
-            <div class="yyt-form-row">
-              <div class="yyt-form-group yyt-form-group-flex">
-                <label>预设名称</label>
-                <input type="text" class="yyt-input" id="${SCRIPT_ID}-bypass-name" 
-                       value="${preset ? escapeHtml(preset.name) : ''}" placeholder="输入预设名称">
-              </div>
-              <div class="yyt-form-group yyt-form-group-flex">
-                <label>描述（可选）</label>
-                <input type="text" class="yyt-input" id="${SCRIPT_ID}-bypass-desc" 
-                       value="${preset ? escapeHtml(preset.description || '') : ''}" placeholder="预设描述">
-              </div>
-            </div>
-            
-            <!-- 可视化编辑器容器 -->
-            <div class="yyt-form-group">
-              <label>
-                <i class="fa-solid fa-list-alt"></i> 消息段落
-                <span class="yyt-label-hint">每个段落包含角色和内容，将按顺序注入API请求</span>
-              </label>
-              <div id="${SCRIPT_ID}-bypass-editor-container" data-preset-id="${editingId}"></div>
-            </div>
-          </div>
-          <div class="yyt-dialog-footer">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-bypass-dialog-cancel">取消</button>
-            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-bypass-dialog-save">
-              <i class="fa-solid fa-save"></i> 保存预设
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
+    // 更新标题
+    $container.find(`#${SCRIPT_ID}-editor-preset-name`).text(editPreset?.name || '新建预设');
     
-    $(`#${SCRIPT_ID}-bypass-dialog-overlay`).remove();
-    $container.append(dialogHtml);
+    // 更新表单
+    $container.find(`#${SCRIPT_ID}-bypass-name`).val(editPreset?.name || '');
+    $container.find(`#${SCRIPT_ID}-bypass-desc`).val(editPreset?.description || '');
     
-    const $overlay = $(`#${SCRIPT_ID}-bypass-dialog-overlay`);
-    const $editorContainer = $(`#${SCRIPT_ID}-bypass-editor-container`);
+    // 更新消息列表
+    $container.find(`#${SCRIPT_ID}-bypass-messages`).html(this._renderMessagesList(editPreset));
     
-    // 初始化可视化编辑器
-    const editorHtml = BypassEditor.render({ presetId: editingId, readonly: false });
-    $editorContainer.html(editorHtml);
-    BypassEditor.bindEvents($editorContainer, {});
+    // 更新左侧列表的编辑状态
+    $container.find('.yyt-bypass-item-v2').removeClass('yyt-editing');
+    $container.find(`.yyt-bypass-item-v2[data-bypass-id="${editId}"]`).addClass('yyt-editing');
+  },
+  
+  /**
+   * 添加新段落
+   * @private
+   */
+  _addSegment($container, $) {
+    const $list = $container.find(`#${SCRIPT_ID}-bypass-messages`);
     
-    const closeDialog = () => {
-      $overlay.remove();
-    };
+    // 移除空状态提示（如果存在）
+    $list.find('.yyt-empty-messages').remove();
     
-    // 绑定关闭事件
-    $overlay.find(`#${SCRIPT_ID}-bypass-dialog-close, #${SCRIPT_ID}-bypass-dialog-cancel`).on('click', closeDialog);
-    $overlay.on('click', function(e) { 
-      if (e.target === this) closeDialog(); 
+    const index = $list.find('.yyt-message-segment').length;
+    const newSegment = this._renderMessageSegment({ role: 'USER', content: '', deletable: true }, index);
+    $list.append(newSegment);
+    
+    // 滚动到底部
+    $list.scrollTop($list[0].scrollHeight);
+    
+    showToast('success', '已添加新段落');
+  },
+  
+  /**
+   * 重新索引段落
+   * @private
+   */
+  _reindexSegments($container, $) {
+    $container.find('.yyt-message-segment').each(function(index) {
+      $(this).attr('data-index', index);
+      $(this).find('.yyt-segment-number').text('#' + (index + 1));
+    });
+  },
+  
+  /**
+   * 保存当前编辑的预设
+   * @private
+   */
+  _saveCurrentPreset($container, $) {
+    const presetId = this._currentEditId || getCurrentBypassPresetId();
+    
+    const name = $container.find(`#${SCRIPT_ID}-bypass-name`).val().trim();
+    const desc = $container.find(`#${SCRIPT_ID}-bypass-desc`).val().trim();
+    
+    if (!name) {
+      showToast('warning', '请输入预设名称');
+      return;
+    }
+    
+    // 收集消息段落
+    const messages = [];
+    $container.find('.yyt-message-segment').each(function() {
+      const role = $(this).find('.yyt-role-select-v2').val();
+      const content = $(this).find('.yyt-segment-textarea').val();
+      const deletable = $(this).data('deletable') !== false;
+      
+      // 只保存有内容的段落
+      if (content.trim()) {
+        messages.push({ role, content, deletable });
+      }
     });
     
-    // 保存按钮 - 收集编辑器数据
-    $overlay.find(`#${SCRIPT_ID}-bypass-dialog-save`).on('click', () => {
-      const name = $(`#${SCRIPT_ID}-bypass-name`).val().trim();
-      const desc = $(`#${SCRIPT_ID}-bypass-desc`).val().trim();
+    if (messages.length === 0) {
+      showToast('warning', '请至少添加一条有内容的消息');
+      return;
+    }
+    
+    // 保存预设
+    const success = saveBypassPreset(presetId, { name, description: desc, messages });
+    
+    if (success) {
+      // 更新编辑器标题
+      $container.find(`#${SCRIPT_ID}-editor-preset-name`).text(name);
       
-      if (!name) {
-        showToast('warning', '请输入预设名称');
-        return;
-      }
+      // 刷新左侧列表
+      const currentBypassId = getCurrentBypassPresetId();
+      $container.find('.yyt-bypass-list-v2').html(
+        this._renderBypassListV2(getAllBypassPresets(), currentBypassId, presetId)
+      );
       
-      // 从可视化编辑器收集消息
-      const messages = [];
-      $editorContainer.find('.yyt-bypass-segment').each(function() {
-        const role = $(this).find('.yyt-role-select').val();
-        const content = $(this).find('.yyt-content-textarea').val();
-        const deletable = $(this).data('deletable') !== false;
-        
-        if (content.trim()) {
-          messages.push({ role, content, deletable });
-        }
-      });
+      // 重新绑定左侧事件
+      this._bindBypassEventsV2($container, $);
       
-      if (messages.length === 0) {
-        showToast('warning', '请至少添加一条消息');
-        return;
-      }
-      
-      const success = saveBypassPreset(editingId, { name, description: desc, messages });
-      
-      if (success) {
-        closeDialog();
-        this.renderTo($container);
-        showToast('success', isEdit ? '预设已更新' : '预设已创建');
-        eventBus.emit(isEdit ? EVENTS.BYPASS_PRESET_UPDATED : EVENTS.BYPASS_PRESET_CREATED, { id: editingId });
-      } else {
-        showToast('error', '保存失败');
-      }
-    });
+      showToast('success', '预设已保存');
+      eventBus.emit(EVENTS.BYPASS_PRESET_UPDATED, { id: presetId });
+    } else {
+      showToast('error', '保存失败');
+    }
   },
   
   // ============================================================
@@ -314,211 +516,587 @@ export const BypassPanel = {
    */
   getStyles() {
     return `
-      /* 破限词面板样式 */
-      .yyt-bypass-panel {
+      /* ============================================================
+         破限词面板V2 - 左右分栏布局
+         ============================================================ */
+      
+      .yyt-bypass-panel-v2 {
         display: flex;
-        flex-direction: column;
         gap: 20px;
+        height: 100%;
+        min-height: 0;
       }
       
-      .yyt-toggle-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-      }
-      
-      .yyt-toggle-label {
+      /* ---------- 左侧边栏：预设列表 ---------- */
+      .yyt-bypass-sidebar {
+        width: 280px;
+        min-width: 240px;
+        max-width: 320px;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+        border: 1px solid var(--yyt-border);
+        border-radius: var(--yyt-radius);
+        overflow: hidden;
       }
       
-      .yyt-toggle-label span:first-child {
+      .yyt-bypass-sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--yyt-border);
+      }
+      
+      .yyt-sidebar-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         font-weight: 600;
+        font-size: 14px;
         color: var(--yyt-text);
       }
       
-      .yyt-toggle-hint {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
+      .yyt-sidebar-title i {
+        color: var(--yyt-accent);
+        font-size: 16px;
       }
       
-      .yyt-toggle {
-        position: relative;
-        display: inline-block;
-        width: 48px;
-        height: 26px;
-      }
-      
-      .yyt-toggle input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
-      
-      .yyt-toggle-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(255, 255, 255, 0.1);
-        transition: 0.3s;
-        border-radius: 26px;
-      }
-      
-      .yyt-toggle-slider:before {
-        position: absolute;
-        content: "";
-        height: 20px;
-        width: 20px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: 0.3s;
-        border-radius: 50%;
-      }
-      
-      .yyt-toggle input:checked + .yyt-toggle-slider {
-        background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
-      }
-      
-      .yyt-toggle input:checked + .yyt-toggle-slider:before {
-        transform: translateX(22px);
-      }
-      
-      .yyt-bypass-list {
+      .yyt-bypass-list-v2 {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        max-height: 300px;
-        overflow-y: auto;
+        gap: 6px;
       }
       
-      .yyt-bypass-item {
+      /* 预设项V2 */
+      .yyt-bypass-item-v2 {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 12px 14px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
+        justify-content: space-between;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid transparent;
         border-radius: var(--yyt-radius-sm);
         cursor: pointer;
         transition: all 0.2s ease;
       }
       
-      .yyt-bypass-item:hover {
-        border-color: rgba(255, 255, 255, 0.15);
+      .yyt-bypass-item-v2:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
       }
       
-      .yyt-bypass-item.yyt-active {
-        border-color: var(--yyt-accent);
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.1) 0%, rgba(123, 183, 255, 0.02) 100%);
+      .yyt-bypass-item-v2.yyt-active-preset {
+        background: rgba(123, 183, 255, 0.12);
+        border-color: rgba(123, 183, 255, 0.3);
       }
       
-      .yyt-bypass-info {
+      .yyt-bypass-item-v2.yyt-editing {
+        background: rgba(105, 219, 124, 0.1);
+        border-color: rgba(105, 219, 124, 0.3);
+      }
+      
+      .yyt-bypass-item-v2.yyt-active-preset.yyt-editing {
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.1) 0%, rgba(105, 219, 124, 0.1) 100%);
+        border-color: rgba(123, 183, 255, 0.4);
+      }
+      
+      .yyt-item-main {
         display: flex;
         align-items: center;
         gap: 10px;
+        flex: 1;
+        min-width: 0;
       }
       
-      .yyt-bypass-name {
+      .yyt-item-indicator {
+        width: 4px;
+        height: 24px;
+        border-radius: 2px;
+        background: transparent;
+        transition: background 0.2s ease;
+      }
+      
+      .yyt-bypass-item-v2.yyt-active-preset .yyt-item-indicator {
+        background: var(--yyt-accent);
+      }
+      
+      .yyt-bypass-item-v2.yyt-editing .yyt-item-indicator {
+        background: #69db7c;
+      }
+      
+      .yyt-item-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      
+      .yyt-item-name {
         font-weight: 500;
         font-size: 13px;
         color: var(--yyt-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       
-      .yyt-bypass-count {
+      .yyt-item-count {
         font-size: 11px;
         color: var(--yyt-text-muted);
       }
       
-      .yyt-bypass-actions {
+      .yyt-item-actions {
         display: flex;
         gap: 4px;
         opacity: 0;
         transition: opacity 0.2s ease;
       }
       
-      .yyt-bypass-item:hover .yyt-bypass-actions {
+      .yyt-bypass-item-v2:hover .yyt-item-actions {
         opacity: 1;
       }
       
-      .yyt-help-text {
+      /* 预设项按钮 - 高对比度 */
+      .yyt-item-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--yyt-text-muted);
         font-size: 12px;
-        color: var(--yyt-text-secondary);
-        line-height: 1.8;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
       
-      .yyt-help-text p {
-        margin: 0;
-        padding: 4px 0;
+      .yyt-item-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.15);
+        color: var(--yyt-text);
       }
       
-      .yyt-dialog-wide {
-        width: 480px;
+      .yyt-item-btn.yy-btn-edit:hover:not(:disabled) {
+        background: rgba(123, 183, 255, 0.2);
+        border-color: rgba(123, 183, 255, 0.4);
+        color: var(--yyt-accent);
       }
       
-      /* 编辑器对话框样式 */
-      .yyt-dialog-editor {
-        width: 800px;
-        max-width: 92vw;
-        max-height: 88vh;
+      .yyt-item-btn.yy-btn-delete:hover:not(:disabled) {
+        background: rgba(248, 113, 113, 0.2);
+        border-color: rgba(248, 113, 113, 0.4);
+        color: var(--yyt-error);
       }
       
-      .yyt-dialog-editor .yyt-dialog-body {
-        max-height: calc(88vh - 140px);
-        overflow-y: auto;
-        padding: 20px;
+      .yyt-item-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
       }
       
-      .yyt-dialog-editor .yyt-dialog-header {
-        padding: 16px 20px;
+      /* ---------- 右侧编辑区域 ---------- */
+      .yyt-bypass-editor-area {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+        border: 1px solid var(--yyt-border);
+        border-radius: var(--yyt-radius);
+        overflow: hidden;
       }
       
-      .yyt-dialog-editor .yyt-dialog-footer {
-        padding: 14px 20px;
+      .yyt-editor-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--yyt-border);
       }
       
-      .yyt-form-row {
+      .yyt-editor-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--yyt-text);
+      }
+      
+      .yyt-editor-title i {
+        color: #69db7c;
+        font-size: 16px;
+      }
+      
+      .yyt-editor-actions {
+        display: flex;
+        gap: 8px;
+      }
+      
+      /* ---------- 基本信息区域 ---------- */
+      .yyt-editor-basic-info {
+        padding: 16px 18px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid var(--yyt-border);
+      }
+      
+      .yyt-form-row-v2 {
         display: flex;
         gap: 16px;
-        margin-bottom: 20px;
       }
       
-      .yyt-form-group-flex {
+      .yyt-form-group-v2 {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
       }
       
-      .yyt-label-hint {
+      .yyt-form-group-v2 label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--yyt-text-secondary);
+      }
+      
+      .yyt-form-group-v2 label i {
         font-size: 11px;
+        color: var(--yyt-accent);
+      }
+      
+      .yyt-input-v2 {
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--yyt-radius-sm);
+        color: var(--yyt-text);
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+      
+      .yyt-input-v2:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      
+      .yyt-input-v2:focus {
+        outline: none;
+        border-color: var(--yyt-accent);
+        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.15);
+      }
+      
+      .yyt-input-v2::placeholder {
         color: var(--yyt-text-muted);
-        font-weight: 400;
-        margin-left: 8px;
       }
       
-      #${SCRIPT_ID}-bypass-editor-container {
-        margin-top: 12px;
+      /* ---------- 消息段落编辑区 ---------- */
+      .yyt-editor-messages {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 16px 18px;
+      }
+      
+      .yyt-messages-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      
+      .yyt-messages-header label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--yyt-text);
+      }
+      
+      .yyt-messages-header label i {
+        color: var(--yyt-accent);
+      }
+      
+      .yyt-messages-list {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-right: 4px;
+      }
+      
+      .yyt-messages-list::-webkit-scrollbar {
+        width: 5px;
+      }
+      
+      .yyt-messages-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      .yyt-messages-list::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 3px;
+      }
+      
+      /* 空状态 */
+      .yyt-empty-messages {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        color: var(--yyt-text-muted);
+        gap: 12px;
+      }
+      
+      .yyt-empty-messages i {
+        font-size: 36px;
+        opacity: 0.4;
+      }
+      
+      .yyt-empty-messages span {
+        font-size: 13px;
+        text-align: center;
+      }
+      
+      /* ---------- 消息段落卡片 ---------- */
+      .yyt-message-segment {
+        background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--yyt-radius);
-        padding: 16px;
-        background: rgba(0, 0, 0, 0.15);
+        border-radius: var(--yyt-radius-sm);
+        overflow: hidden;
+        transition: all 0.2s ease;
       }
       
-      /* 响应式调整 */
-      @media (max-width: 768px) {
-        .yyt-dialog-editor {
-          width: 95vw;
+      .yyt-message-segment:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      
+      /* 角色左边框 */
+      .yyt-message-segment[data-role="SYSTEM"] {
+        border-left: 3px solid #ff6b6b;
+      }
+      
+      .yyt-message-segment[data-role="USER"] {
+        border-left: 3px solid #4dabf7;
+      }
+      
+      .yyt-message-segment[data-role="assistant"] {
+        border-left: 3px solid #69db7c;
+      }
+      
+      .yyt-segment-header-v2 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      
+      .yyt-segment-number {
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.4);
+        min-width: 24px;
+      }
+      
+      .yyt-role-select-v2 {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid;
+        transition: all 0.2s ease;
+        min-width: 130px;
+      }
+      
+      .yyt-role-select-v2:hover {
+        filter: brightness(1.1);
+      }
+      
+      .yyt-role-select-v2:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+      }
+      
+      .yyt-segment-actions-v2 {
+        display: flex;
+        gap: 4px;
+        margin-left: auto;
+      }
+      
+      /* 操作按钮 - 高对比度 */
+      .yyt-action-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--yyt-text);
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .yyt-action-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: var(--yyt-text);
+      }
+      
+      .yyt-action-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      
+      .yyt-action-btn.yy-action-danger:hover:not(:disabled) {
+        background: rgba(248, 113, 113, 0.25);
+        border-color: rgba(248, 113, 113, 0.4);
+        color: #ff6b6b;
+      }
+      
+      .yyt-segment-content-v2 {
+        padding: 14px;
+      }
+      
+      .yyt-segment-textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 12px 14px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--yyt-radius-sm);
+        color: var(--yyt-text);
+        font-size: 13px;
+        line-height: 1.6;
+        resize: vertical;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        transition: all 0.2s ease;
+      }
+      
+      .yyt-segment-textarea:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      
+      .yyt-segment-textarea:focus {
+        outline: none;
+        border-color: var(--yyt-accent);
+        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.12);
+      }
+      
+      .yyt-segment-textarea::placeholder {
+        color: var(--yyt-text-muted);
+      }
+      
+      /* ---------- 高对比度按钮样式 ---------- */
+      
+      /* 强调按钮 - 蓝色高亮 */
+      .yyt-btn-accent {
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.25) 0%, rgba(123, 183, 255, 0.15) 100%);
+        color: var(--yyt-accent);
+        border: 1px solid rgba(123, 183, 255, 0.4);
+        font-weight: 600;
+      }
+      
+      .yyt-btn-accent:hover {
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.35) 0%, rgba(123, 183, 255, 0.25) 100%);
+        border-color: rgba(123, 183, 255, 0.6);
+        box-shadow: 0 0 12px rgba(123, 183, 255, 0.3);
+      }
+      
+      /* 轮廓按钮 - 清晰可见 */
+      .yyt-btn-outline {
+        background: transparent;
+        color: var(--yyt-text);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        font-weight: 500;
+      }
+      
+      .yyt-btn-outline:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+      
+      /* 主按钮保持不变 */
+      .yyt-btn-primary {
+        background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
+        color: #0b0f15;
+        border: none;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(123, 183, 255, 0.3);
+      }
+      
+      .yyt-btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(123, 183, 255, 0.4);
+      }
+      
+      /* ---------- 响应式调整 ---------- */
+      @media (max-width: 900px) {
+        .yyt-bypass-panel-v2 {
+          flex-direction: column;
         }
         
-        .yyt-form-row {
+        .yyt-bypass-sidebar {
+          width: 100%;
+          max-width: none;
+          max-height: 200px;
+        }
+        
+        .yyt-form-row-v2 {
           flex-direction: column;
           gap: 12px;
+        }
+      }
+      
+      @media (max-width: 600px) {
+        .yyt-editor-header {
+          flex-direction: column;
+          gap: 12px;
+          align-items: flex-start;
+        }
+        
+        .yyt-editor-actions {
+          width: 100%;
+          justify-content: flex-end;
+        }
+        
+        .yyt-messages-header {
+          flex-direction: column;
+          gap: 10px;
+          align-items: flex-start;
+        }
+        
+        .yyt-messages-actions {
+          width: 100%;
+        }
+        
+        .yyt-segment-header-v2 {
+          flex-wrap: wrap;
+        }
+        
+        .yyt-segment-actions-v2 {
+          margin-left: 0;
+          margin-top: 8px;
+          width: 100%;
+          justify-content: flex-end;
         }
       }
     `;
