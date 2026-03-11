@@ -49,14 +49,6 @@ export const EVENTS = {
   REGEX_PRESET_LOADED: 'regex:presetLoaded',
   REGEX_EXTRACTED: 'regex:extracted',
   
-  // ==================== 破限词事件 ====================
-  BYPASS_ENABLED: 'bypass:enabled',
-  BYPASS_DISABLED: 'bypass:disabled',
-  BYPASS_PRESET_CREATED: 'bypass:presetCreated',
-  BYPASS_PRESET_UPDATED: 'bypass:presetUpdated',
-  BYPASS_PRESET_DELETED: 'bypass:presetDeleted',
-  BYPASS_PRESET_ACTIVATED: 'bypass:presetActivated',
-  
   // ==================== UI事件 ====================
   UI_INITIALIZED: 'ui:initialized',
   UI_RENDER_REQUESTED: 'ui:renderRequested',

@@ -28,7 +28,6 @@ let regexExtractorModule = null;
 let toolManagerModule = null;
 let toolExecutorModule = null;
 let toolTriggerModule = null;
-let bypassPromptsModule = null;
 let windowManagerModule = null;
 let toolRegistryModule = null;
 let promptEditorModule = null;
@@ -44,7 +43,6 @@ async function loadModules() {
     toolManagerModule = await import('./modules/tool-manager.js');
     toolExecutorModule = await import('./modules/tool-executor.js');
     toolTriggerModule = await import('./modules/tool-trigger.js');
-    bypassPromptsModule = await import('./modules/bypass-prompts.js');
     
     // 新模块
     windowManagerModule = await import('./modules/window-manager.js');
@@ -652,14 +650,6 @@ function renderTabContent(tabName) {
       }
       break;
       
-    case 'bypassPanel':
-      if (uiComponentsModule && uiComponentsModule.BypassPanel) {
-        uiComponentsModule.BypassPanel.renderTo($content);
-      } else {
-        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>破限词面板加载失败</span></div>');
-      }
-      break;
-      
     case 'regexExtract':
       if (uiComponentsModule) {
         uiComponentsModule.renderRegex($content);
@@ -1111,7 +1101,6 @@ const YouYouToolkit = {
   getToolManager: () => toolManagerModule,
   getToolExecutor: () => toolExecutorModule,
   getToolTrigger: () => toolTriggerModule,
-  getBypassPrompts: () => bypassPromptsModule,
   getWindowManager: () => windowManagerModule,
   getToolRegistry: () => toolRegistryModule,
   getPromptEditor: () => promptEditorModule,
