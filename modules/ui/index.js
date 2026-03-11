@@ -10,7 +10,6 @@ import { RegexExtractPanel } from './components/regex-extract-panel.js';
 import { ToolManagePanel } from './components/tool-manage-panel.js';
 import { SummaryToolPanel } from './components/summary-tool-panel.js';
 import { StatusBlockPanel } from './components/status-block-panel.js';
-import { PolixianciPanel } from './components/polixianci-panel.js';
 
 // ============================================================
 // 工具导出
@@ -33,11 +32,6 @@ export { RegexExtractPanel } from './components/regex-extract-panel.js';
 export { ToolManagePanel } from './components/tool-manage-panel.js';
 export { SummaryToolPanel } from './components/summary-tool-panel.js';
 export { StatusBlockPanel } from './components/status-block-panel.js';
-export { PolixianciPanel } from './components/polixianci-panel.js';
-export { DEFAULT_CHAR_CARD_PROMPT, DEFAULT_PLOT_PROMPT } from './components/polixianci-panel.js';
-
-// 向后兼容：PolixianciPanel 也作为 BypassPanel 导出
-export const BypassPanel = PolixianciPanel;
 
 // ============================================================
 // 组件注册
@@ -52,7 +46,6 @@ export function registerComponents() {
   uiManager.register(ToolManagePanel.id, ToolManagePanel);
   uiManager.register(SummaryToolPanel.id, SummaryToolPanel);
   uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
-  uiManager.register(PolixianciPanel.id, PolixianciPanel);
   
   console.log('[UI] 组件注册完成');
 }
@@ -102,14 +95,6 @@ export function renderToolPanel(container) {
   uiManager.render(ToolManagePanel.id, container);
 }
 
-/**
- * 渲染破限词面板
- * @param {Object} container - 容器
- */
-export function renderPolixianciPanel(container) {
-  uiManager.render(PolixianciPanel.id, container);
-}
-
 // ============================================================
 // 获取所有样式
 // ============================================================
@@ -131,12 +116,10 @@ export default {
   ApiPresetPanel,
   RegexExtractPanel,
   ToolManagePanel,
-  PolixianciPanel,
   registerComponents,
   initUI,
   renderApiPanel,
   renderRegexPanel,
   renderToolPanel,
-  renderPolixianciPanel,
   getAllStyles
 };
