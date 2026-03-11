@@ -125,37 +125,35 @@ export const BypassEditor = {
     const deletable = message.deletable !== false;
     
     return `
-      <div class="yyt-bypass-segment" data-index="${index}" data-deletable="${deletable}">
+      <div class="yyt-bypass-segment" data-index="${index}" data-deletable="${deletable}" data-role="${role}">
         <div class="yyt-segment-header">
+          <div class="yyt-segment-number">#${index + 1}</div>
           <div class="yyt-segment-role">
-            <span class="yyt-role-badge" style="background-color: ${roleInfo.color}">
-              ${roleInfo.label}
-            </span>
-            <select class="yyt-role-select" ${readonly || !deletable ? 'disabled' : ''}>
+            <select class="yyt-role-select" data-current-color="${roleInfo.color}" ${readonly || !deletable ? 'disabled' : ''}>
               ${ROLE_OPTIONS.map(r => 
-                `<option value="${r.value}" ${r.value === role ? 'selected' : ''}>
+                `<option value="${r.value}" ${r.value === role ? 'selected' : ''} data-color="${r.color}">
                   ${r.label}
                 </option>`
               ).join('')}
             </select>
           </div>
           <div class="yyt-segment-actions">
+            <button class="yyt-segment-action-btn" data-action="move-up" title="上移" ${index === 0 ? 'disabled' : ''}>
+              <i class="fa-solid fa-chevron-up"></i>
+            </button>
+            <button class="yyt-segment-action-btn" data-action="move-down" title="下移">
+              <i class="fa-solid fa-chevron-down"></i>
+            </button>
             ${deletable && !readonly ? `
-              <button class="yyt-btn yyt-btn-icon yyt-btn-danger" data-action="delete" title="删除">
-                <i class="fa-solid fa-trash"></i>
+              <button class="yyt-segment-action-btn yyt-action-danger" data-action="delete" title="删除">
+                <i class="fa-solid fa-trash-can"></i>
               </button>
             ` : ''}
-            <button class="yyt-btn yyt-btn-icon" data-action="move-up" title="上移" ${index === 0 ? 'disabled' : ''}>
-              <i class="fa-solid fa-arrow-up"></i>
-            </button>
-            <button class="yyt-btn yyt-btn-icon" data-action="move-down" title="下移">
-              <i class="fa-solid fa-arrow-down"></i>
-            </button>
           </div>
         </div>
         <div class="yyt-segment-content">
           <textarea 
-            class="yyt-textarea yyt-content-textarea" 
+            class="yyt-content-textarea" 
             rows="4" 
             placeholder="输入段落内容..."
             ${readonly ? 'readonly' : ''}
@@ -308,16 +306,12 @@ export const BypassEditor = {
   },
   
   /**
-   * 更新角色徽章
+   * 更新角色边框颜色
    * @private
    */
   _updateRoleBadge($segment, $, newRole) {
-    const roleInfo = ROLE_OPTIONS.find(r => r.value === newRole);
-    if (roleInfo) {
-      $segment.find('.yyt-role-badge')
-        .css('background-color', roleInfo.color)
-        .text(roleInfo.label);
-    }
+    // 更新 data-role 属性以改变左边框颜色
+    $segment.attr('data-role', newRole);
   },
   
   /**
@@ -446,140 +440,259 @@ export const BypassEditor = {
    */
   getStyles() {
     return `
-      /* 破限词可视化编辑器样式 */
+      /* 破限词可视化编辑器样式 - 优化版 */
       .yyt-bypass-editor {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 20px;
       }
       
+      /* 工具栏 */
       .yyt-bypass-toolbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+        gap: 16px;
+        padding: 16px 18px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
         border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
+        border-radius: var(--yyt-radius);
       }
       
       .yyt-bypass-preset-select {
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid var(--yyt-border);
+        flex: 1;
+        max-width: 240px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: var(--yyt-radius-sm);
         color: var(--yyt-text);
-        padding: 8px 12px;
+        padding: 10px 14px;
         font-size: 13px;
-        min-width: 150px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .yyt-bypass-preset-select:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(0, 0, 0, 0.3);
+      }
+      
+      .yyt-bypass-preset-select:focus {
+        outline: none;
+        border-color: var(--yyt-accent);
+        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.15);
       }
       
       .yyt-bypass-actions {
         display: flex;
-        gap: 8px;
-      }
-      
-      .yyt-bypass-segments {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        max-height: 400px;
-        overflow-y: auto;
-        padding-right: 4px;
-      }
-      
-      .yyt-bypass-segment {
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        overflow: hidden;
-        transition: border-color 0.2s ease;
-      }
-      
-      .yyt-bypass-segment:hover {
-        border-color: rgba(255, 255, 255, 0.15);
-      }
-      
-      .yyt-segment-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 12px;
-        background: rgba(255, 255, 255, 0.02);
-        border-bottom: 1px solid var(--yyt-border);
-      }
-      
-      .yyt-segment-role {
-        display: flex;
-        align-items: center;
         gap: 10px;
       }
       
-      .yyt-role-badge {
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-        color: white;
-        text-transform: uppercase;
+      /* 段落列表 */
+      .yyt-bypass-segments {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-height: 450px;
+        overflow-y: auto;
+        padding: 4px;
+        margin: -4px;
+      }
+      
+      .yyt-bypass-segments::-webkit-scrollbar {
+        width: 5px;
+      }
+      
+      .yyt-bypass-segments::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      .yyt-bypass-segments::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 3px;
+      }
+      
+      /* 单个段落卡片 */
+      .yyt-bypass-segment {
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--yyt-radius);
+        overflow: hidden;
+        transition: all 0.25s ease;
+      }
+      
+      .yyt-bypass-segment:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      }
+      
+      /* 段落头部 */
+      .yyt-segment-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      
+      .yyt-segment-number {
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.4);
+        min-width: 24px;
+      }
+      
+      .yyt-segment-role {
+        flex: 1;
       }
       
       .yyt-role-select {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
         color: var(--yyt-text);
-        padding: 4px 8px;
+        padding: 6px 12px;
         font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 140px;
       }
       
+      .yyt-role-select:hover:not(:disabled) {
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      
+      .yyt-role-select:focus {
+        outline: none;
+        border-color: var(--yyt-accent);
+      }
+      
+      /* 根据角色设置左边框颜色 */
+      .yyt-bypass-segment[data-role="SYSTEM"] {
+        border-left: 3px solid #ff6b6b;
+      }
+      
+      .yyt-bypass-segment[data-role="USER"] {
+        border-left: 3px solid #4dabf7;
+      }
+      
+      .yyt-bypass-segment[data-role="assistant"] {
+        border-left: 3px solid #69db7c;
+      }
+      
+      /* 段落操作按钮 */
       .yyt-segment-actions {
         display: flex;
-        gap: 4px;
+        gap: 6px;
+        margin-left: auto;
       }
       
-      .yyt-segment-content {
-        padding: 12px;
-      }
-      
-      .yyt-content-textarea {
-        min-height: 80px;
-        resize: vertical;
-        font-family: inherit;
-      }
-      
-      .yyt-bypass-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        padding-top: 8px;
-        border-top: 1px solid var(--yyt-border);
-      }
-      
-      .yyt-btn-icon {
-        width: 32px;
-        height: 32px;
+      .yyt-segment-action-btn {
+        width: 30px;
+        height: 30px;
         padding: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         background: transparent;
         border: 1px solid transparent;
+        border-radius: 6px;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
       
-      .yyt-btn-icon:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.1);
+      .yyt-segment-action-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.9);
       }
       
-      .yyt-btn-icon:disabled {
-        opacity: 0.3;
+      .yyt-segment-action-btn:disabled {
+        opacity: 0.2;
         cursor: not-allowed;
       }
       
-      .yyt-btn-danger:hover:not(:disabled) {
+      .yyt-segment-action-btn.yy-action-danger:hover:not(:disabled) {
         background: rgba(255, 107, 107, 0.15);
-        border-color: rgba(255, 107, 107, 0.3);
+        border-color: rgba(255, 107, 107, 0.25);
         color: #ff6b6b;
+      }
+      
+      /* 段落内容区 */
+      .yyt-segment-content {
+        padding: 16px;
+      }
+      
+      .yyt-content-textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 14px 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--yyt-radius-sm);
+        color: var(--yyt-text);
+        font-size: 13px;
+        line-height: 1.6;
+        resize: vertical;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        transition: all 0.2s ease;
+      }
+      
+      .yyt-content-textarea:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      
+      .yyt-content-textarea:focus {
+        outline: none;
+        border-color: var(--yyt-accent);
+        box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.12);
+        background: rgba(0, 0, 0, 0.25);
+      }
+      
+      .yyt-content-textarea::placeholder {
+        color: rgba(255, 255, 255, 0.3);
+      }
+      
+      /* 底部操作栏 */
+      .yyt-bypass-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding-top: 16px;
+        margin-top: 4px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      
+      /* 响应式调整 */
+      @media (max-width: 600px) {
+        .yyt-bypass-toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        
+        .yyt-bypass-preset-select {
+          max-width: none;
+        }
+        
+        .yyt-bypass-actions {
+          justify-content: center;
+        }
+        
+        .yyt-segment-header {
+          flex-wrap: wrap;
+        }
+        
+        .yyt-segment-actions {
+          margin-left: 0;
+          width: 100%;
+          justify-content: flex-end;
+          margin-top: 8px;
+        }
       }
     `;
   },

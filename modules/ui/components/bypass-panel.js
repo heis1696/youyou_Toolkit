@@ -493,20 +493,29 @@ export const BypassPanel = {
       
       /* 编辑器对话框样式 */
       .yyt-dialog-editor {
-        width: 720px;
-        max-width: 90vw;
-        max-height: 85vh;
+        width: 800px;
+        max-width: 92vw;
+        max-height: 88vh;
       }
       
       .yyt-dialog-editor .yyt-dialog-body {
-        max-height: calc(85vh - 130px);
+        max-height: calc(88vh - 140px);
         overflow-y: auto;
+        padding: 20px;
+      }
+      
+      .yyt-dialog-editor .yyt-dialog-header {
+        padding: 16px 20px;
+      }
+      
+      .yyt-dialog-editor .yyt-dialog-footer {
+        padding: 14px 20px;
       }
       
       .yyt-form-row {
         display: flex;
         gap: 16px;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
       }
       
       .yyt-form-group-flex {
@@ -521,11 +530,11 @@ export const BypassPanel = {
       }
       
       #${SCRIPT_ID}-bypass-editor-container {
-        margin-top: 8px;
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        padding: 12px;
-        background: rgba(0, 0, 0, 0.1);
+        margin-top: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--yyt-radius);
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.15);
       }
       
       /* 响应式调整 */
