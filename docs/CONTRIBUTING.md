@@ -95,19 +95,45 @@ youyou_Toolkit/
 ├── package.json                # 项目配置
 ├── README.md                   # 项目说明
 ├── modules/                    # 模块目录
-│   ├── storage.js              # 存储管理模块
-│   ├── api-connection.js       # API连接管理模块
-│   ├── preset-manager.js       # 预设管理模块
-│   ├── ui-components.js        # UI组件模块
-│   └── regex-extractor.js      # 正则提取模块
+│   ├── core/                   # 核心层
+│   │   ├── event-bus.js        # 事件总线
+│   │   ├── storage-service.js  # 存储服务
+│   │   └── index.js            # 核心模块入口
+│   ├── ui/                     # UI层
+│   │   ├── index.js            # UI模块入口
+│   │   ├── ui-manager.js       # UI管理器
+│   │   ├── utils.js            # 工具函数
+│   │   └── components/         # UI组件
+│   │       ├── api-preset-panel.js
+│   │       ├── bypass-panel.js
+│   │       ├── bypass-editor.js
+│   │       ├── regex-extract-panel.js
+│   │       ├── summary-tool-panel.js
+│   │       ├── status-block-panel.js
+│   │       └── tool-manage-panel.js
+│   ├── storage.js              # 存储管理
+│   ├── api-connection.js       # API连接
+│   ├── preset-manager.js       # 预设管理
+│   ├── regex-extractor.js      # 正则提取
+│   ├── tool-manager.js         # 工具管理
+│   ├── tool-executor.js        # 工具执行
+│   ├── tool-trigger.js         # 事件触发
+│   ├── tool-registry.js        # 工具注册
+│   ├── bypass-prompts.js       # 破限词管理
+│   ├── window-manager.js       # 窗口管理
+│   ├── prompt-editor.js        # 提示词编辑器
+│   └── ui-components.js        # UI组件（兼容层）
+├── styles/
+│   └── main.css                # 主样式文件
 ├── docs/                       # 文档目录
 │   ├── API_DOCUMENTATION.md
-│   ├── CONTRIBUTING.md
+│   ├── ARCHITECTURE_ANALYSIS.md
 │   ├── CHANGELOG.md
+│   ├── CONTRIBUTING.md
 │   └── EXTENSION_GUIDE.md
-├── dist/                       # 构建输出
-│   └── bundle.js
-└── Reference/                  # 参考资料
+├── Reference/                  # 参考资料
+└── dist/                       # 构建输出
+    └── bundle.js
 ```
 
 ### 本地测试

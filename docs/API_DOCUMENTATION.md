@@ -1,6 +1,6 @@
 # API 文档
 
-本文档详细说明 YouYou Toolkit v0.3.0 提供的 API 接口。
+本文档详细说明 YouYou Toolkit v0.4.0 提供的 API 接口。
 
 ## 模块导入
 
@@ -33,7 +33,7 @@ const toolkit = window.YouYouToolkit;
 - **示例**:
 
 ```javascript
-console.log(YouYouToolkit.version); // "0.2.0"
+console.log(YouYouToolkit.version); // "0.4.0"
 ```
 
 #### `id`
@@ -70,116 +70,19 @@ console.log(YouYouToolkit.id); // "youyou_toolkit"
 
 - **类型**: `() => void`
 
-#### `switchPage(pageName)`
+#### `switchMainTab(pageName)`
 
-切换弹窗内的页面。
+切换弹窗内的主标签页。
 
 - **类型**: `(pageName: string) => void`
 - **参数**:
-  - `pageName`: 页面名称，可选值：`'welcome'` | `'api'` | `'regex'`
+  - `pageName`: 页面名称，如 `'apiPresets'`、`'bypassPanel'`、`'regexExtract'` 等
 
----
+#### `switchSubTab(mainTab, subTab)`
 
-## API 配置管理
+切换次级标签页。
 
-### `getApiConfig()`
-
-获取当前API配置。
-
-- **类型**: `() => Promise<Object>`
-- **返回**: API配置对象
-
-```javascript
-const config = await YouYouToolkit.getApiConfig();
-console.log(config);
-// {
-//   url: 'https://api.openai.com/v1/chat/completions',
-//   apiKey: 'sk-...',
-//   model: 'gpt-4',
-//   useMainApi: false,
-//   max_tokens: 4096,
-//   temperature: 0.7,
-//   top_p: 0.9
-// }
-```
-
-### `saveApiConfig(config)`
-
-保存API配置。
-
-- **类型**: `(config: Object) => Promise<boolean>`
-- **参数**:
-  - `config`: API配置对象
-
-```javascript
-const success = await YouYouToolkit.saveApiConfig({
-  url: 'https://api.openai.com/v1/chat/completions',
-  apiKey: 'sk-your-key',
-  model: 'gpt-4',
-  useMainApi: false,
-  max_tokens: 4096,
-  temperature: 0.7,
-  top_p: 0.9
-});
-```
-
-### `testApiConnection()`
-
-测试当前API连接。
-
-- **类型**: `() => Promise<Object>`
-- **返回**: `{ success: boolean, message: string, latency?: number }`
-
-```javascript
-const result = await YouYouToolkit.testApiConnection();
-if (result.success) {
-  console.log(`连接成功，延迟: ${result.latency}ms`);
-} else {
-  console.error(`连接失败: ${result.message}`);
-}
-```
-
-### `sendApiRequest(messages, options)`
-
-发送API请求。
-
-- **类型**: `(messages: Array, options?: Object) => Promise<string>`
-- **参数**:
-  - `messages`: OpenAI格式的消息数组
-  - `options`: 可选配置
-
-```javascript
-const response = await YouYouToolkit.sendApiRequest([
-  { role: 'user', content: 'Hello!' }
-]);
-console.log(response);
-```
-
----
-
-## 预设管理
-
-### `getPresets()`
-
-获取所有预设。
-
-- **类型**: `() => Promise<Array>`
-- **返回**: 预设数组
-
-```javascript
-const presets = await YouYouToolkit.getPresets();
-console.log(presets);
-// [
-//   {
-//     name: 'GPT-4',
-//     description: 'OpenAI GPT-4',
-//     apiConfig: { ... },
-//     createdAt: 1709900000000,
-//     updatedAt: 1709900000000
-//   },
-//   ...
-// ]
-```
+- **类型**: `(mainTab: string, subTab: string) => void`
 
 ---
 
@@ -237,8 +140,6 @@ const ui = YouYouToolkit.getUiComponents();
 // ui.renderRegex(container)
 // ui.getStyles()
 // ui.getRegexStyles()
-// ui.getCurrentTab()
-// ui.setCurrentTab(tab)
 ```
 
 ### `getRegexExtractor()`
@@ -272,14 +173,6 @@ const toolMgr = YouYouToolkit.getToolManager();
 // toolMgr.deleteTool(toolId)
 // toolMgr.setToolEnabled(toolId, enabled)
 // toolMgr.cloneTool(toolId, newId, newName)
-// toolMgr.getAllToolPresets()
-// toolMgr.getToolPreset(presetId)
-// toolMgr.saveToolPreset(presetId, preset)
-// toolMgr.deleteToolPreset(presetId)
-// toolMgr.exportTools()
-// toolMgr.importTools(jsonString, overwrite)
-// toolMgr.resetTools()
-// toolMgr.validateTool(toolDef)
 ```
 
 ### `getToolExecutor()`
@@ -292,13 +185,6 @@ const executor = YouYouToolkit.getToolExecutor();
 // executor.executeBatch(tasks, batchOptions)
 // executor.abortTask(taskId)
 // executor.abortAllTasks()
-// executor.pauseExecutor()
-// executor.resumeExecutor()
-// executor.getExecutorStatus()
-// executor.getExecutionHistory(filter)
-// executor.clearExecutionHistory()
-// executor.mergeResults(results)
-// executor.setMaxConcurrent(max)
 ```
 
 ### `getToolTrigger()`
@@ -309,16 +195,8 @@ const executor = YouYouToolkit.getToolExecutor();
 const trigger = YouYouToolkit.getToolTrigger();
 // trigger.registerEventListener(eventType, callback, options)
 // trigger.unregisterEventListener(eventType, callback)
-// trigger.removeAllListeners()
-// trigger.checkGate(condition)
-// trigger.updateGateState(update)
 // trigger.getChatContext(options)
 // trigger.getCurrentCharacter()
-// trigger.getWorldbookContent(options)
-// trigger.getFullContext(options)
-// trigger.registerTriggerHandler(handlerId, config)
-// trigger.setTriggerHandlerEnabled(handlerId, enabled)
-// trigger.initTriggerModule()
 ```
 
 ### `getBypassPrompts()`
@@ -338,338 +216,260 @@ const bypass = YouYouToolkit.getBypassPrompts();
 // bypass.setBypassEnabled(enabled)
 // bypass.exportBypassPresets()
 // bypass.importBypassPresets(jsonString, overwrite)
-// bypass.resetBypassPresets()
-// bypass.validateBypassPreset(preset)
-// bypass.cloneBypassPreset(presetId, newId, newName)
+```
+
+### `getWindowManager()`
+
+获取窗口管理模块。
+
+```javascript
+const windowMgr = YouYouToolkit.getWindowManager();
+// windowMgr.createWindow(options)
+// windowMgr.closeWindow(id)
+// windowMgr.bringToFront(id)
+// windowMgr.closeAll()
+```
+
+### `getToolRegistry()`
+
+获取工具注册模块。
+
+```javascript
+const registry = YouYouToolkit.getToolRegistry();
+// registry.registerTool(id, config)
+// registry.unregisterTool(id)
+// registry.getToolList()
+// registry.getToolConfig(id)
+// registry.getToolApiPreset(toolId)
+// registry.setToolApiPreset(toolId, presetName)
+```
+
+### `getPromptEditor()`
+
+获取提示词编辑器模块。
+
+```javascript
+const promptEditor = YouYouToolkit.getPromptEditor();
+// promptEditor.PromptEditor - 提示词编辑器类
+// promptEditor.messagesToSegments(messages)
+// promptEditor.segmentsToMessages(segments)
+// promptEditor.DEFAULT_PROMPT_SEGMENTS
+// promptEditor.getPromptEditorStyles()
 ```
 
 ---
 
-## 正则提取模块 API
+## 便捷方法
 
-### 模板管理
+### `getApiConfig()`
 
-#### `getAllTemplates()`
+获取当前API配置。
 
-获取所有正则模板。
-
-- **类型**: `() => Array<RegexTemplate>`
-- **返回**: 模板数组
+- **类型**: `() => Promise<Object>`
+- **返回**: API配置对象
 
 ```javascript
-const regex = YouYouToolkit.getRegexExtractor();
-const templates = regex.getAllTemplates();
-console.log(templates);
-// [
-//   {
-//     id: 'json-content',
-//     name: 'JSON内容提取',
-//     description: '提取JSON格式的内容',
-//     pattern: '"content"\\s*:\\s*"([^"]+)"',
-//     flags: 'g',
-//     groupIndex: 1
-//   },
-//   ...
-// ]
+const config = await YouYouToolkit.getApiConfig();
 ```
 
-#### `getTemplate(id)`
+### `saveApiConfig(config)`
 
-获取指定模板。
+保存API配置。
 
-- **类型**: `(id: string) => RegexTemplate | undefined`
-- **参数**: `id` - 模板ID
-
-#### `createTemplate(template)`
-
-创建新模板。
-
-- **类型**: `(template: Object) => { success: boolean, message: string, template?: RegexTemplate }`
+- **类型**: `(config: Object) => Promise<boolean>`
 
 ```javascript
-const result = regex.createTemplate({
-  name: '我的模板',
-  description: '提取特定内容',
-  pattern: '```(\\w*)\\n([\\s\\S]*?)```',
-  flags: 'g',
-  groupIndex: 2
+const success = await YouYouToolkit.saveApiConfig({
+  url: 'https://api.openai.com/v1/chat/completions',
+  apiKey: 'sk-your-key',
+  model: 'gpt-4',
+  useMainApi: false,
+  max_tokens: 4096,
+  temperature: 0.7,
+  top_p: 0.9
 });
 ```
 
-#### `updateTemplate(id, updates)`
+### `getPresets()`
 
-更新模板。
+获取所有预设。
 
-- **类型**: `(id: string, updates: Object) => { success: boolean, message: string }`
-
-#### `deleteTemplate(id)`
-
-删除模板。
-
-- **类型**: `(id: string) => { success: boolean, message: string }`
-
-### 正则测试
-
-#### `testRegex(pattern, text, flags, groupIndex)`
-
-测试正则表达式。
-
-- **类型**: `(pattern: string, text: string, flags?: string, groupIndex?: number) => Object`
-- **参数**:
-  - `pattern`: 正则表达式
-  - `text`: 测试文本
-  - `flags`: 标志位，默认 `'g'`
-  - `groupIndex`: 捕获组索引，默认 `0`
-- **返回**: `{ success: boolean, matches: Array, count: number, extracted: Array, error?: string }`
+- **类型**: `() => Promise<Array>`
+- **返回**: 预设数组
 
 ```javascript
-const result = regex.testRegex('"([^"]+)"', '他说"你好"然后"再见"', 'g', 1);
-if (result.success) {
-  console.log(`找到 ${result.count} 个匹配`);
-  console.log('提取内容:', result.extracted); // ['你好', '再见']
-}
+const presets = await YouYouToolkit.getPresets();
 ```
 
-#### `extractWithTemplate(templateId, text)`
+### `sendApiRequest(messages, options)`
 
-使用模板提取内容。
+发送API请求。
 
-- **类型**: `(templateId: string, text: string) => Object`
+- **类型**: `(messages: Array, options?: Object) => Promise<string>`
 
 ```javascript
-const result = regex.extractWithTemplate('code-block', '这是一段代码：\n```javascript\nconsole.log("Hello");\n```\n结束');
+const response = await YouYouToolkit.sendApiRequest([
+  { role: 'user', content: 'Hello!' }
+]);
 ```
 
-### 脚本生成
+### `testApiConnection()`
 
-#### `generateExtractionScript(templateId, source, varName)`
+测试当前API连接。
 
-生成STScript提取脚本。
-
-- **类型**: `(templateId: string, source?: string, varName?: string) => string | null`
-- **参数**:
-  - `templateId`: 模板ID
-  - `source`: 消息源，默认 `'lastMessage'`
-  - `varName`: 变量名，默认 `'extracted_content'`
+- **类型**: `() => Promise<Object>`
+- **返回**: `{ success: boolean, message: string, latency?: number }`
 
 ```javascript
-const script = regex.generateExtractionScript('dialogue-quote', 'lastMessage', 'dialogues');
-// 返回: /match pattern="\"([^\"]+)\"" {{lastMessage}} | /setvar key=dialogues
-```
-
-#### `generateReplaceScript(pattern, replacement, source)`
-
-生成正则替换脚本。
-
-- **类型**: `(pattern: string, replacement: string, source?: string) => string`
-
-```javascript
-const script = regex.generateReplaceScript('\\b\\w{4}\\b', '****', 'lastMessage');
-```
-
-### 导入导出
-
-#### `exportTemplates()`
-
-导出所有模板为JSON字符串。
-
-```javascript
-const json = regex.exportTemplates();
-// 保存到文件...
-```
-
-#### `importTemplates(json, options)`
-
-导入模板。
-
-- **参数**:
-  - `json`: JSON字符串
-  - `options`: `{ overwrite: boolean }` - 是否覆盖现有模板
-
-```javascript
-const result = regex.importTemplates(jsonString, { overwrite: false });
-console.log(`导入了 ${result.imported} 个模板`);
-```
-
-### 消息源常量
-
-`MESSAGE_MACROS` 提供了SillyTavern消息源的映射：
-
-```javascript
-console.log(regex.MESSAGE_MACROS);
-// {
-//   lastMessage: { macro: '{{lastMessage}}', description: '最后一条消息' },
-//   lastCharMessage: { macro: '{{lastCharMessage}}', description: '最后一条角色消息' },
-//   lastUserMessage: { macro: '{{lastUserMessage}}', description: '最后一条用户消息' },
-//   char: { macro: '{{char}}', description: '角色名称' },
-//   user: { macro: '{{user}}', description: '用户名称' },
-//   input: { macro: '{{input}}', description: '当前输入框内容' }
-// }
+const result = await YouYouToolkit.testApiConnection();
 ```
 
 ---
 
-## 正则模板对象结构
+## 工具注册 API
 
-```typescript
-interface RegexTemplate {
-  // 模板ID
-  id: string;
-  
-  // 模板名称
-  name: string;
-  
-  // 模板描述
-  description: string;
-  
-  // 正则表达式
-  pattern: string;
-  
-  // 标志位 (g/i/m)
-  flags: string;
-  
-  // 捕获组索引
-  groupIndex: number;
-  
-  // 创建时间
-  createdAt?: string;
-  
-  // 更新时间
-  updatedAt?: string;
-}
+### `registerTool(id, config)`
+
+注册新工具。
+
+- **类型**: `(id: string, config: Object) => boolean`
+- **参数**:
+  - `id`: 工具唯一标识
+  - `config`: 工具配置对象
+
+```javascript
+YouYouToolkit.registerTool('myTool', {
+  id: 'myTool',
+  name: '我的工具',
+  icon: 'fa-tools',
+  description: '工具描述',
+  hasSubTabs: false
+});
 ```
+
+### `unregisterTool(id)`
+
+注销工具。
+
+- **类型**: `(id: string) => boolean`
+
+### `getToolList()`
+
+获取所有已注册工具列表。
+
+- **类型**: `() => Array<Object>`
 
 ---
 
-## API配置对象结构
+## 窗口管理 API
+
+### `createWindow(options)`
+
+创建独立窗口。
+
+- **类型**: `(options: Object) => Object|null`
+- **参数**:
+  - `options.id`: 窗口ID
+  - `options.title`: 窗口标题
+  - `options.content`: 窗口内容HTML
+  - `options.width`: 宽度（默认900）
+  - `options.height`: 高度（默认700）
+  - `options.modal`: 是否模态（默认false）
+  - `options.resizable`: 是否可调整大小（默认true）
+
+```javascript
+const win = YouYouToolkit.createWindow({
+  id: 'my-window',
+  title: '我的窗口',
+  content: '<div>窗口内容</div>',
+  width: 600,
+  height: 400
+});
+```
+
+### `closeWindow(id)`
+
+关闭指定窗口。
+
+- **类型**: `(id: string) => void`
+
+---
+
+## 数据结构
+
+### API配置对象
 
 ```typescript
 interface ApiConfig {
-  // API URL（自定义API时必填）
-  url: string;
-  
-  // API密钥
-  apiKey: string;
-  
-  // 模型名称
-  model: string;
-  
-  // 是否使用SillyTavern主API
-  useMainApi: boolean;
-  
-  // 最大token数
-  max_tokens: number;
-  
-  // 温度参数 (0-2)
-  temperature: number;
-  
-  // Top P参数 (0-1)
-  top_p: number;
+  url: string;           // API URL
+  apiKey: string;        // API密钥
+  model: string;         // 模型名称
+  useMainApi: boolean;   // 是否使用SillyTavern主API
+  max_tokens: number;    // 最大token数
+  temperature: number;   // 温度参数 (0-2)
+  top_p: number;         // Top P参数 (0-1)
 }
 ```
 
----
-
-## 预设对象结构
+### 预设对象
 
 ```typescript
 interface ApiPreset {
-  // 预设名称
-  name: string;
-  
-  // 预设描述
-  description: string;
-  
-  // API配置
-  apiConfig: ApiConfig;
-  
-  // 创建时间戳
-  createdAt: number;
-  
-  // 更新时间戳
-  updatedAt: number;
+  name: string;          // 预设名称
+  description: string;   // 预设描述
+  apiConfig: ApiConfig;  // API配置
+  createdAt: number;     // 创建时间戳
+  updatedAt: number;     // 更新时间戳
 }
 ```
 
----
+### 正则模板对象
 
-## 完整使用示例
-
-### 示例 1：配置自定义API
-
-```javascript
-import YouYouToolkit from './dist/bundle.js';
-
-// 配置自定义API
-await YouYouToolkit.saveApiConfig({
-  url: 'https://api.openai.com/v1/chat/completions',
-  apiKey: 'sk-your-api-key',
-  model: 'gpt-4-turbo',
-  useMainApi: false,
-  max_tokens: 8192,
-  temperature: 0.8,
-  top_p: 0.95
-});
-
-// 测试连接
-const result = await YouYouToolkit.testApiConnection();
-console.log(result.message);
+```typescript
+interface RegexTemplate {
+  id: string;            // 模板ID
+  name: string;          // 模板名称
+  description: string;   // 模板描述
+  pattern: string;       // 正则表达式
+  flags: string;         // 标志位 (g/i/m)
+  groupIndex: number;    // 捕获组索引
+  createdAt?: string;    // 创建时间
+  updatedAt?: string;    // 更新时间
+}
 ```
 
-### 示例 2：使用预设
+### 破限词预设对象
 
-```javascript
-// 获取预设管理模块
-const presetMgr = YouYouToolkit.getPresetManager();
-
-// 从当前配置创建预设
-const result = presetMgr.createPresetFromCurrentConfig('我的GPT-4配置', '用于日常对话');
-console.log(result.message);
-
-// 列出所有预设
-const presets = presetMgr.getAllPresets();
-presets.forEach(preset => {
-  console.log(`- ${preset.name}: ${preset.description}`);
-});
-
-// 切换预设
-presetMgr.switchToPreset('我的GPT-4配置');
+```typescript
+interface BypassPreset {
+  name: string;          // 预设名称
+  description: string;   // 预设描述
+  messages: Array<{
+    role: 'SYSTEM' | 'USER' | 'assistant';
+    content: string;
+    deletable: boolean;
+  }>;
+}
 ```
 
-### 示例 3：发送API请求
+### 工具配置对象
 
-```javascript
-// 发送简单请求
-const response = await YouYouToolkit.sendApiRequest([
-  { role: 'system', content: '你是一个有用的助手。' },
-  { role: 'user', content: '你好！' }
-]);
-console.log(response);
-
-// 带中止信号的请求
-const controller = new AbortController();
-const response = await YouYouToolkit.sendApiRequest(
-  [{ role: 'user', content: '写一首诗' }],
-  { signal: controller.signal }
-);
-
-// 取消请求
-controller.abort();
-```
-
-### 示例 4：导入导出预设
-
-```javascript
-const presetMgr = YouYouToolkit.getPresetManager();
-
-// 导出所有预设
-const json = presetMgr.exportPresets();
-// 保存到文件...
-console.log(json);
-
-// 导入预设
-const importResult = presetMgr.importPresets(json, { overwrite: true });
-console.log(`导入了 ${importResult.imported} 个预设`);
+```typescript
+interface ToolConfig {
+  id: string;            // 工具ID
+  name: string;          // 显示名称
+  icon: string;          // FontAwesome图标类名
+  description: string;   // 描述
+  hasSubTabs?: boolean;  // 是否有子标签
+  subTabs?: Array<{      // 子标签列表
+    id: string;
+    name: string;
+    icon?: string;
+  }>;
+  apiPreset?: string;    // 绑定的API预设
+  bypassPreset?: string; // 绑定的破限词预设
+  enabled?: boolean;     // 是否启用
+}
 ```
 
 ---
@@ -679,7 +479,7 @@ console.log(`导入了 ${importResult.imported} 个预设`);
 | 常量名 | 值 | 说明 |
 |--------|-----|------|
 | `SCRIPT_ID` | `"youyou_toolkit"` | 脚本唯一标识 |
-| `SCRIPT_VERSION` | `"0.2.0"` | 脚本版本 |
+| `SCRIPT_VERSION` | `"0.4.0"` | 脚本版本 |
 | `MENU_ITEM_ID` | `"youyou_toolkit-menu-item"` | 菜单项 DOM ID |
 | `MENU_CONTAINER_ID` | `"youyou_toolkit-menu-container"` | 菜单容器 DOM ID |
 | `POPUP_ID` | `"youyou_toolkit-popup"` | 弹窗 DOM ID |
@@ -692,7 +492,7 @@ console.log(`导入了 ${importResult.imported} 个预设`);
 
 ```javascript
 // 正常日志
-[youyou_toolkit] 初始化开始... 版本: 0.2.0
+[youyou_toolkit] 初始化开始... 版本: 0.4.0
 [youyou_toolkit] 所有模块加载成功
 [youyou_toolkit] 样式已注入
 
@@ -707,8 +507,9 @@ console.log(`导入了 ${importResult.imported} 个预设`);
 
 | YouYou Toolkit | SillyTavern | jQuery |
 |----------------|-------------|--------|
-| 0.2.0 | 最新版 | 内置 |
-| 0.1.0 | 最新版 | 内置 |
+| 0.4.0 | 最新版 | 内置 |
+| 0.3.x | 最新版 | 内置 |
+| 0.2.x | 最新版 | 内置 |
 
 ---
 

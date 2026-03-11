@@ -643,6 +643,8 @@ function renderTabContent(tabName) {
   const $content = $(currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`);
   if (!$content.length) return;
   
+  const toolConfig = toolRegistryModule?.getToolConfig(tabName);
+  
   switch (tabName) {
     case 'apiPresets':
       if (uiComponentsModule) {
@@ -664,19 +666,13 @@ function renderTabContent(tabName) {
       }
       break;
       
-    case 'summaryTool':
-      if (uiComponentsModule && uiComponentsModule.SummaryToolPanel) {
-        uiComponentsModule.SummaryToolPanel.renderTo($content);
+    case 'tools':
+      // 工具集合 - 渲染次级顶栏和内容
+      if (toolConfig?.hasSubTabs && toolConfig.subTabs?.length > 0) {
+        const defaultSubTab = toolConfig.subTabs[0].id;
+        renderSubTabContent(tabName, defaultSubTab);
       } else {
-        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
-      }
-      break;
-      
-    case 'statusBlock':
-      if (uiComponentsModule && uiComponentsModule.StatusBlockPanel) {
-        uiComponentsModule.StatusBlockPanel.renderTo($content);
-      } else {
-        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
+        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置加载失败</span></div>');
       }
       break;
       
@@ -691,7 +687,53 @@ function renderSubTabContent(mainTab, subTab) {
   const $ = topLevelWindow.jQuery || window.jQuery;
   if (!$ || !currentPopup) return;
   
-  const $content = $(currentPopup).find(`.yyt-tab-content[data-tab="${mainTab}"] .yyt-sub-content`);
+  // 获取主标签的内容容器
+  const $mainContent = $(currentPopup).find(`.yyt-tab-content[data-tab="${mainTab}"]`);
+  if (!$mainContent.length) return;
+  
+  // 获取主工具配置，检查是否是子工具ID
+  const mainToolConfig = toolRegistryModule?.getToolConfig(mainTab);
+  
+  // 如果是子工具ID（如summaryTool, statusBlock），直接渲染对应的组件
+  if (mainToolConfig?.hasSubTabs) {
+    // 主工具有次级标签，找到对应的子工具配置
+    const subToolConfig = mainToolConfig.subTabs?.find(st => st.id === subTab);
+    
+    if (subToolConfig) {
+      // 确保 $mainContent 有内容结构
+      let $subContent = $mainContent.find('.yyt-sub-content');
+      if (!$subContent.length) {
+        $mainContent.html(`<div class="yyt-sub-content"></div>`);
+        $subContent = $mainContent.find('.yyt-sub-content');
+      }
+      
+      // 根据子工具组件渲染
+      switch (subToolConfig.component) {
+        case 'SummaryToolPanel':
+          if (uiComponentsModule?.SummaryToolPanel) {
+            uiComponentsModule.SummaryToolPanel.renderTo($subContent);
+          } else {
+            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
+          }
+          break;
+          
+        case 'StatusBlockPanel':
+          if (uiComponentsModule?.StatusBlockPanel) {
+            uiComponentsModule.StatusBlockPanel.renderTo($subContent);
+          } else {
+            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
+          }
+          break;
+          
+        default:
+          $subContent.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>`);
+      }
+    }
+    return;
+  }
+  
+  // 查找子内容容器
+  const $content = $mainContent.find('.yyt-sub-content');
   if (!$content.length) return;
   
   // 根据工具和子标签渲染内容

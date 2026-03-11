@@ -129,23 +129,17 @@ export const TOOL_REGISTRY = {
       excludeRules: []
     }
   },
-  summaryTool: {
-    id: 'summaryTool',
-    name: '摘要工具',
-    icon: 'fa-file-lines',
-    hasSubTabs: false,
-    description: '生成剧情摘要块',
-    component: 'SummaryToolPanel',
-    order: 3
-  },
-  statusBlock: {
-    id: 'statusBlock',
-    name: '主角状态栏',
-    icon: 'fa-user-check',
-    hasSubTabs: false,
-    description: '生成主角状态代码块',
-    component: 'StatusBlockPanel',
-    order: 4
+  tools: {
+    id: 'tools',
+    name: '工具',
+    icon: 'fa-tools',
+    hasSubTabs: true,
+    description: '工具集合',
+    order: 3,
+    subTabs: [
+      { id: 'summaryTool', name: '摘要工具', icon: 'fa-file-lines', component: 'SummaryToolPanel' },
+      { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' }
+    ]
   }
 };
 

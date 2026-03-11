@@ -20,11 +20,7 @@ import {
   saveBypassPreset,
   deleteBypassPreset,
   getCurrentBypassPresetId,
-  setCurrentBypassPreset,
-  isBypassEnabled,
-  setBypassEnabled,
-  exportBypassPresets,
-  importBypassPresets
+  setCurrentBypassPreset
 } from '../../bypass-prompts.js';
 
 // 导入可视化编辑器组件
@@ -49,24 +45,9 @@ export const BypassPanel = {
   render(props) {
     const bypassPresets = getAllBypassPresets();
     const currentBypassId = getCurrentBypassPresetId();
-    const bypassEnabled = isBypassEnabled();
     
     return `
       <div class="yyt-bypass-panel">
-        <!-- 破限词开关 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-toggle-row">
-            <div class="yyt-toggle-label">
-              <span>启用破限词</span>
-              <span class="yyt-toggle-hint">在API请求前自动注入破限词预设</span>
-            </div>
-            <label class="yyt-toggle">
-              <input type="checkbox" id="${SCRIPT_ID}-bypass-enabled" ${bypassEnabled ? 'checked' : ''}>
-              <span class="yyt-toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-        
         <!-- 破限词预设列表 -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
@@ -88,8 +69,8 @@ export const BypassPanel = {
             <span>使用说明</span>
           </div>
           <div class="yyt-help-text">
-            <p>1. 启用破限词功能后，每次API请求都会自动在消息前注入所选预设的内容</p>
-            <p>2. 点击预设可切换当前使用的预设</p>
+            <p>1. 在各个工具的配置中选择是否使用破限词预设</p>
+            <p>2. 点击预设可设为当前默认预设</p>
             <p>3. 点击编辑按钮可使用可视化编辑器自定义消息段落</p>
             <p>4. 支持添加、删除、排序消息段落，每个段落可选择角色类型</p>
             <p>5. 默认预设不可删除，但可以编辑和克隆</p>
@@ -148,14 +129,6 @@ export const BypassPanel = {
    * @private
    */
   _bindBypassEvents($container, $) {
-    // 破限词开关
-    $container.find(`#${SCRIPT_ID}-bypass-enabled`).on('change', function() {
-      const enabled = $(this).is(':checked');
-      setBypassEnabled(enabled);
-      showToast('success', enabled ? '破限词已启用' : '破限词已禁用');
-      eventBus.emit(enabled ? EVENTS.BYPASS_ENABLED : EVENTS.BYPASS_DISABLED);
-    });
-    
     // 破限词预设选择
     $container.find('.yyt-bypass-item').on('click', function(e) {
       // 如果点击的是按钮，不触发选择

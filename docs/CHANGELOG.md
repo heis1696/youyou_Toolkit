@@ -11,13 +11,60 @@
 
 ### 计划中的功能
 
-- 事件监听系统
-- 弹窗内容可配置化
 - 多主题支持
 - 国际化支持
 - API请求历史记录
 - 更多API参数配置选项
 - 更多内置正则模板
+
+---
+
+## [0.4.0] - 2026-03-11
+
+### 新增
+
+- ✨ **核心层模块** (`modules/core/`)
+  - `event-bus.js` - 事件总线，实现模块间松耦合通信
+  - `storage-service.js` - 统一存储服务，支持命名空间隔离
+
+- ✨ **UI层重构** (`modules/ui/`)
+  - `ui-manager.js` - UI管理器
+  - `components/` - 独立UI组件目录
+    - `api-preset-panel.js` - API预设管理面板
+    - `bypass-panel.js` - 破限词预设列表面板
+    - `bypass-editor.js` - 破限词可视化编辑器
+    - `regex-extract-panel.js` - 正则提取面板
+    - `summary-tool-panel.js` - 摘要工具面板
+    - `status-block-panel.js` - 状态栏工具面板
+    - `tool-manage-panel.js` - 工具管理面板
+
+- ✨ **工具注册系统** (`modules/tool-registry.js`)
+  - 工具动态注册与注销
+  - 工具配置管理
+  - API预设绑定
+
+- ✨ **窗口管理模块** (`modules/window-manager.js`)
+  - 独立浮动窗口创建
+  - 窗口层级管理
+  - 窗口状态持久化
+
+- ✨ **提示词编辑器** (`modules/prompt-editor.js`)
+  - 可视化段落编辑
+  - 消息格式转换
+  - 角色类型选择
+
+### 更改
+
+- 🔧 **架构重构** - 采用分层架构（核心层/服务层/UI层）
+- 🔧 **入口优化** - index.js 简化为模块协调器
+- 🔧 **弹窗系统** - 支持主顶栏和次级顶栏
+- 🔧 **版本号更新** 到 0.4.0
+
+### 文档
+
+- 📝 更新架构文档，反映当前模块结构
+- 📝 更新API文档，添加新增模块API
+- 📝 删除过时的施工文档和参考项目文档
 
 ---
 
