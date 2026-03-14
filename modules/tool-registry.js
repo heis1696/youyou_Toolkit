@@ -19,8 +19,8 @@ const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
 // ============================================================
 
 /**
- * 默认工具配置 - v0.5 扩展结构
- * 支持独立提示词、破限词绑定、输出模式配置
+ * 默认工具配置 - v0.6 简化结构
+ * 单提示词模板、两种输出模式、破限词绑定
  */
 const DEFAULT_TOOL_CONFIGS = {
   summaryTool: {
@@ -37,44 +37,6 @@ const DEFAULT_TOOL_CONFIGS = {
       enabled: true
     },
     
-    // 提示词配置（新结构）
-    prompt: {
-      segments: [
-        {
-          id: 'system_1',
-          type: 'system',
-          role: 'SYSTEM',
-          content: '你是一个信息提炼助手，负责从对话中提取关键信息并生成结构化的摘要。',
-          enabled: true,
-          expanded: true,
-          deletable: false
-        },
-        {
-          id: 'user_1',
-          type: 'user',
-          role: 'USER',
-          content: `请根据以下AI回复生成摘要块：
-
-{{lastAiMessage}}
-
-输出格式：
-<boo_FM>
-<pg>No.{{pg}}</pg>
-<time>{{time}}</time>
-<scene>{{scene}}</scene>
-<plot>{{plot}}</plot>
-<event>MQ.{{mq}} | {{mqStatus}}</event>
-<defined>{{defined}}</defined>
-<status>{{status}}</status>
-<seeds>{{seeds}}</seeds>
-</boo_FM>`,
-          enabled: true,
-          expanded: true,
-          deletable: true
-        }
-      ]
-    },
-    
     // 破限词绑定
     bypass: {
       enabled: false,
@@ -83,13 +45,26 @@ const DEFAULT_TOOL_CONFIGS = {
     
     // 输出模式配置
     output: {
-      mode: 'inline', // inline | post_response_api
+      mode: 'follow_ai', // follow_ai | post_response_api
       apiPreset: '',
-      injectTarget: 'context',
-      injectScope: 'chat',
       overwrite: true,
       enabled: true
     },
+    
+    // 提示词模板（单文本）
+    promptTemplate: `请根据以下AI回复生成摘要块：
+
+输出格式：
+<boo_FM>
+<pg>页码</pg>
+<time>时间</time>
+<scene>场景</scene>
+<plot>剧情概要</plot>
+<event>事件描述</event>
+<defined>已定义元素</defined>
+<status>状态</status>
+<seeds>伏笔</seeds>
+</boo_FM>`,
     
     // 运行时状态
     runtime: {
@@ -101,12 +76,9 @@ const DEFAULT_TOOL_CONFIGS = {
       errorCount: 0
     },
     
-    // 兼容旧字段
-    promptTemplate: '',
+    // 兼容字段
     apiPreset: '',
-    outputMode: 'inline',
-    extractTags: ['boo_FM'],
-    triggerEvents: ['GENERATION_ENDED']
+    extractTags: ['boo_FM']
   },
   
   statusBlock: {
@@ -123,41 +95,6 @@ const DEFAULT_TOOL_CONFIGS = {
       enabled: true
     },
     
-    // 提示词配置
-    prompt: {
-      segments: [
-        {
-          id: 'system_1',
-          type: 'system',
-          role: 'SYSTEM',
-          content: '你是一个状态追踪助手，负责从对话中提取角色的当前状态信息。',
-          enabled: true,
-          expanded: true,
-          deletable: false
-        },
-        {
-          id: 'user_1',
-          type: 'user',
-          role: 'USER',
-          content: `请根据以下对话内容生成角色状态块：
-
-{{lastAiMessage}}
-
-输出格式：
-<status_block>
-<name>{{name}}</name>
-<location>{{location}}</location>
-<condition>{{condition}}</condition>
-<equipment>{{equipment}}</equipment>
-<skills>{{skills}}</skills>
-</status_block>`,
-          enabled: true,
-          expanded: true,
-          deletable: true
-        }
-      ]
-    },
-    
     // 破限词绑定
     bypass: {
       enabled: false,
@@ -166,13 +103,23 @@ const DEFAULT_TOOL_CONFIGS = {
     
     // 输出模式配置
     output: {
-      mode: 'inline',
+      mode: 'follow_ai',
       apiPreset: '',
-      injectTarget: 'context',
-      injectScope: 'chat',
       overwrite: true,
       enabled: true
     },
+    
+    // 提示词模板（单文本）
+    promptTemplate: `请根据以下对话内容生成角色状态块：
+
+输出格式：
+<status_block>
+<name>角色名</name>
+<location>位置</location>
+<condition>状态</condition>
+<equipment>装备</equipment>
+<skills>技能</skills>
+</status_block>`,
     
     // 运行时状态
     runtime: {
@@ -184,12 +131,9 @@ const DEFAULT_TOOL_CONFIGS = {
       errorCount: 0
     },
     
-    // 兼容旧字段
-    promptTemplate: '',
+    // 兼容字段
     apiPreset: '',
-    outputMode: 'inline',
-    extractTags: ['status_block'],
-    triggerEvents: ['GENERATION_ENDED']
+    extractTags: ['status_block']
   }
 };
 
@@ -510,10 +454,16 @@ export function saveToolConfig(toolId, config) {
   
   const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
   
-  // 只保存用户可修改的字段
+  // v0.6 简化后的可保存字段
   const saveableFields = [
-    'promptTemplate', 'apiPreset', 
-    'outputMode', 'extractTags', 'enabled', 'triggerEvents'
+    'promptTemplate',      // 单提示词模板
+    'enabled',             // 启用状态
+    'extractTags',         // 提取标签（兼容）
+    // 新结构
+    'trigger',             // 触发配置
+    'output',              // 输出配置（包含 mode, apiPreset, overwrite）
+    'bypass',              // 破限词配置
+    'runtime'              // 运行时状态
   ];
   
   userConfigs[toolId] = {};
@@ -528,6 +478,99 @@ export function saveToolConfig(toolId, config) {
   
   console.log(`[ToolRegistry] 工具配置已保存: ${toolId}`);
   return true;
+}
+
+/**
+ * 设置工具的输出模式
+ * @param {string} toolId - 工具ID
+ * @param {string} mode - 输出模式 (follow_ai | post_response_api)
+ * @returns {boolean} 是否成功
+ */
+export function setToolOutputMode(toolId, mode) {
+  const config = getToolFullConfig(toolId);
+  if (!config) return false;
+  
+  return saveToolConfig(toolId, {
+    ...config,
+    output: {
+      ...config.output,
+      mode
+    }
+  });
+}
+
+/**
+ * 设置工具的API预设
+ * @param {string} toolId - 工具ID
+ * @param {string} presetName - API预设名称
+ * @returns {boolean} 是否成功
+ */
+export function setToolApiPresetConfig(toolId, presetName) {
+  const config = getToolFullConfig(toolId);
+  if (!config) return false;
+  
+  return saveToolConfig(toolId, {
+    ...config,
+    output: {
+      ...config.output,
+      apiPreset: presetName
+    }
+  });
+}
+
+/**
+ * 设置工具的破限词配置
+ * @param {string} toolId - 工具ID
+ * @param {Object} bypassConfig - 破限词配置 { enabled: boolean, presetId: string }
+ * @returns {boolean} 是否成功
+ */
+export function setToolBypassConfig(toolId, bypassConfig) {
+  const config = getToolFullConfig(toolId);
+  if (!config) return false;
+  
+  return saveToolConfig(toolId, {
+    ...config,
+    bypass: {
+      ...config.bypass,
+      ...bypassConfig
+    }
+  });
+}
+
+/**
+ * 设置工具的提示词模板
+ * @param {string} toolId - 工具ID
+ * @param {string} template - 提示词模板文本
+ * @returns {boolean} 是否成功
+ */
+export function setToolPromptTemplate(toolId, template) {
+  const config = getToolFullConfig(toolId);
+  if (!config) return false;
+  
+  return saveToolConfig(toolId, {
+    ...config,
+    promptTemplate: template
+  });
+}
+
+/**
+ * 更新工具运行时状态
+ * @param {string} toolId - 工具ID
+ * @param {Object} runtimePartial - 部分运行时状态
+ * @returns {boolean} 是否成功
+ */
+export function updateToolRuntime(toolId, runtimePartial) {
+  const config = getToolFullConfig(toolId);
+  if (!config) return false;
+  
+  return saveToolConfig(toolId, {
+    ...config,
+    runtime: {
+      ...config.runtime,
+      ...runtimePartial,
+      lastRunAt: Date.now()
+    }
+  });
 }
 
 /**

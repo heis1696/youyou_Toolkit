@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
- * @version 0.5.0
+ * @version 0.6.0
  * @description 一个轻量级的 SillyTavern 工具插件框架，支持API连接、预设管理、正则提取、独立窗口系统、工具提示词、破限词和上下文注入
  * @author YouYou
  */
@@ -9,7 +9,7 @@
 // 常量定义
 // ============================================================
 const SCRIPT_ID = 'youyou_toolkit';
-const SCRIPT_VERSION = '0.5.0';
+const SCRIPT_VERSION = '0.6.0';
 const MENU_ITEM_ID = `${SCRIPT_ID}-menu-item`;
 const MENU_CONTAINER_ID = `${SCRIPT_ID}-menu-container`;
 const POPUP_ID = `${SCRIPT_ID}-popup`;

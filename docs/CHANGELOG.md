@@ -14,8 +14,67 @@
 - 世界书注入集成
 - 多作用域支持 (profile/character)
 - 可视化执行历史面板
-- 高级变量系统 (正则提取结果)
 - 国际化支持
+
+---
+
+## [0.6.0] - 2026-03-15
+
+### 简化重构
+
+这次重构的核心是"收敛"——简化工具配置，删除过度设计，统一输出模式语义。
+
+#### 更改
+
+- 🔧 **工具配置结构简化** (`modules/tool-registry.js`)
+  - 删除 `prompt.segments` 复杂结构，改为单字段 `promptTemplate`
+  - 输出模式重命名：`inline` → `follow_ai`，避免语义歧义
+  - 简化 `output` 配置结构
+  - 新增便捷方法：`setToolOutputMode`、`setToolApiPresetConfig`、`setToolBypassConfig`、`setToolPromptTemplate`、`updateToolRuntime`
+
+- 🔧 **工具提示词服务简化** (`modules/tool-prompt-service.js`)
+  - 删除复杂的分段处理逻辑
+  - 改为单模板 + AI回复附加的处理方式
+  - 保留破限词合并能力
+  - 删除对外暴露的变量系统接口
+
+- 🔧 **工具输出服务更新** (`modules/tool-output-service.js`)
+  - 输出模式常量更新：`INLINE` → `FOLLOW_AI`
+  - 新增 `LEGACY_OUTPUT_MODES` 兼容映射
+  - 新增 `shouldRunFollowAi` 方法（替代 `shouldRunInline`）
+  - 保留旧方法作为兼容层
+
+- 🔧 **UI组件简化** (`modules/ui/components/summary-tool-panel.js`)
+  - 删除"可用变量"说明区
+  - 输出模式选择：显示/隐藏额外API配置选项
+  - 破限词绑定：启用后显示预设选择
+  - 新增可折叠调试信息区
+  - 样式优化：隐藏类、折叠动画、调试信息样式
+
+#### 删除
+
+- 🗑️ 删除工具页中的变量说明展示（内部保留变量系统）
+- 🗑️ 删除 `PromptSegment` 外部概念
+- 🗑️ 删除工具页复杂分段编辑器支持
+
+#### 输出模式语义
+
+新的输出模式定义：
+
+- **`follow_ai`** (随 AI 输出)
+  - 不执行额外解析链
+  - 不调用额外模型
+  - 不做上下文注入
+
+- **`post_response_api`** (额外 AI 模型解析)
+  - 监听 AI 回复结束
+  - 使用工具绑定的 API 预设调用额外模型
+  - 将结果注入上下文
+
+#### 文档
+
+- 📝 更新 CHANGELOG 记录 v0.6 简化重构
+- 📝 更新 API 文档反映新的数据结构
 
 ---
 

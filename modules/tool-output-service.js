@@ -15,8 +15,13 @@ import { bypassManager } from './bypass-manager.js';
 // ============================================================
 
 export const OUTPUT_MODES = {
-  INLINE: 'inline',                    // 随AI输出（直接注入上下文）
+  FOLLOW_AI: 'follow_ai',              // 随AI输出（不执行额外解析链）
   POST_RESPONSE_API: 'post_response_api' // 额外AI模型解析
+};
+
+// 兼容旧模式名称
+export const LEGACY_OUTPUT_MODES = {
+  inline: 'follow_ai'  // 旧 inline 映射到新 follow_ai
 };
 
 // ============================================================
@@ -69,18 +74,30 @@ class ToolOutputService {
   }
 
   /**
-   * 检查工具是否应该运行 inline 模式
+   * 检查工具是否应该运行 follow_ai 模式
    * @param {Object} toolConfig - 工具配置
    * @returns {boolean}
    */
-  shouldRunInline(toolConfig) {
+  shouldRunFollowAi(toolConfig) {
     if (!toolConfig) return false;
     
     if (!toolConfig.enabled) return false;
     if (!toolConfig.trigger?.enabled) return false;
     if (!toolConfig.output?.enabled) return false;
     
-    return toolConfig.output?.mode === OUTPUT_MODES.INLINE;
+    const mode = toolConfig.output?.mode;
+    // 支持新模式名称和旧模式名称
+    return mode === OUTPUT_MODES.FOLLOW_AI || mode === 'inline';
+  }
+
+  /**
+   * 检查工具是否应该运行 inline 模式（兼容旧方法名）
+   * @deprecated 使用 shouldRunFollowAi 替代
+   * @param {Object} toolConfig - 工具配置
+   * @returns {boolean}
+   */
+  shouldRunInline(toolConfig) {
+    return this.shouldRunFollowAi(toolConfig);
   }
 
   /**

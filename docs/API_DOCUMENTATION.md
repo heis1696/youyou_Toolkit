@@ -1,6 +1,6 @@
 # API 文档
 
-本文档详细说明 YouYou Toolkit v0.5.0 提供的 API 接口。
+本文档详细说明 YouYou Toolkit v0.6.0 提供的 API 接口。
 
 ## 模块导入
 
@@ -285,16 +285,14 @@ const injector = YouYouToolkit.getContextInjector();
 
 ```javascript
 const promptService = YouYouToolkit.getToolPromptService();
+// v0.6 简化版 API
 // promptService.buildToolMessages(toolConfig, context) // 构建工具消息数组
-// promptService.resolvePromptSegments(segments, context) // 解析提示词段落
-// promptService.mergeBypassMessages(bypassPreset, messages) // 合并破限词消息
-// promptService.validatePrompt(promptConfig) // 验证提示词结构
-// promptService.getDefaultPromptTemplate(toolType) // 获取默认提示词模板
-// promptService.createEmptyPrompt() // 创建空的提示词配置
-// promptService.addSegment(promptConfig, segmentData) // 添加提示词段落
-// promptService.removeSegment(promptConfig, segmentId) // 移除提示词段落
-// promptService.updateSegment(promptConfig, segmentId, updates) // 更新提示词段落
+// promptService.buildPromptText(toolConfig, context)   // 构建提示词文本
+// promptService.getToolPromptTemplate(toolConfig)      // 获取工具提示词模板
+// promptService.setDebugMode(enabled)                  // 设置调试模式
 ```
+
+> **v0.6 变更**: 删除了分段相关的方法（`resolvePromptSegments`、`addSegment`、`removeSegment`、`updateSegment`），改用简化的单模板模式。
 
 ### `getToolOutputService()`
 
@@ -302,14 +300,18 @@ const promptService = YouYouToolkit.getToolPromptService();
 
 ```javascript
 const outputService = YouYouToolkit.getToolOutputService();
-// outputService.shouldRunPostResponse(toolConfig) // 检查是否应运行 post_response_api 模式
-// outputService.shouldRunInline(toolConfig) // 检查是否应运行 inline 模式
+// v0.6 API
+// outputService.shouldRunPostResponse(toolConfig)     // 检查是否应运行 post_response_api 模式
+// outputService.shouldRunFollowAi(toolConfig)         // 检查是否应运行 follow_ai 模式（新增）
+// outputService.shouldRunInline(toolConfig)           // 已弃用，使用 shouldRunFollowAi
 // outputService.runToolPostResponse(toolConfig, rawContext) // 执行 post_response_api 输出
-// outputService.runToolInline(toolConfig, rawContext) // 执行 inline 输出
-// outputService.filterPostResponseTools(toolConfigs) // 过滤出 post_response_api 工具
-// outputService.filterInlineTools(toolConfigs) // 过滤出 inline 工具
-// outputService.setDebugMode(enabled) // 设置调试模式
+// outputService.runToolInline(toolConfig, rawContext) // 执行 inline 输出（已弃用）
+// outputService.filterPostResponseTools(toolConfigs)  // 过滤出 post_response_api 工具
+// outputService.filterInlineTools(toolConfigs)        // 过滤出 inline 工具（已弃用）
+// outputService.setDebugMode(enabled)                 // 设置调试模式
 ```
+
+> **v0.6 变更**: `shouldRunInline` 已弃用，请使用 `shouldRunFollowAi`。输出模式 `inline` 已重命名为 `follow_ai`。
 
 ### `getWindowManager()`
 
@@ -545,7 +547,7 @@ interface BypassPreset {
 }
 ```
 
-### 工具配置对象
+### 工具配置对象 (v0.6 简化版)
 
 ```typescript
 interface ToolConfig {
@@ -553,57 +555,59 @@ interface ToolConfig {
   name: string;          // 显示名称
   icon: string;          // FontAwesome图标类名
   description: string;   // 描述
-  hasSubTabs?: boolean;  // 是否有子标签
-  subTabs?: Array<{      // 子标签列表
-    id: string;
-    name: string;
-    icon?: string;
-    component?: string;  // 组件名称
-  }>;
-  apiPreset?: string;    // 绑定的API预设
-  enabled?: boolean;     // 是否启用
-  
-  // v0.5 新增配置
-  trigger?: {            // 触发配置
-    enabled: boolean;
-    eventType: string;
-    conditions?: object;
-  };
-  prompt?: {             // 提示词配置
-    segments: PromptSegment[];
-  };
-  bypass?: {             // 破限词配置
-    enabled: boolean;
-    presetId: string;
-  };
-  output?: {             // 输出配置
-    enabled: boolean;
-    mode: 'inline' | 'post_response_api';
-    apiPreset?: string;
-    overwrite?: boolean;
-  };
-  runtime?: {            // 运行时状态
-    status: 'idle' | 'running' | 'success' | 'error';
-    lastRun?: number;
-    lastError?: string;
-  };
-}
-```
-
-### 提示词段落对象
-
-```typescript
-interface PromptSegment {
-  id: string;            // 段落ID
-  type: 'system' | 'user' | 'assistant'; // 段落类型
-  role: 'SYSTEM' | 'USER' | 'assistant'; // 消息角色
-  content: string;       // 内容（支持变量替换）
   enabled: boolean;      // 是否启用
-  expanded: boolean;     // UI展开状态
-  deletable: boolean;    // 是否可删除
-  mainSlot?: '' | 'A' | 'B'; // 主槽位
+  
+  // 触发配置
+  trigger: {
+    event: 'GENERATION_ENDED';
+    enabled: boolean;
+  };
+  
+  // 破限词绑定
+  bypass: {
+    enabled: boolean;
+    presetId?: string;
+  };
+  
+  // 输出配置
+  output: {
+    mode: 'follow_ai' | 'post_response_api';  // v0.6: inline 改为 follow_ai
+    apiPreset?: string;    // 当 mode = post_response_api 时使用
+    overwrite: boolean;    // 是否覆盖旧的注入结果
+    enabled: boolean;
+  };
+  
+  // 提示词模板（v0.6 简化为单文本）
+  promptTemplate: string;
+  
+  // 运行时状态
+  runtime: {
+    lastRunAt: number;
+    lastStatus: 'idle' | 'running' | 'success' | 'error';
+    lastError: string;
+    lastDurationMs: number;
+    successCount: number;
+    errorCount: number;
+  };
+  
+  // 兼容字段
+  apiPreset?: string;
+  extractTags?: string[];
 }
 ```
+
+### 输出模式说明 (v0.6)
+
+| 模式 | 说明 |
+|------|------|
+| `follow_ai` | 随 AI 输出：不执行额外解析链，不调用额外模型，不做上下文注入 |
+| `post_response_api` | 额外 AI 模型解析：监听 AI 回复结束，使用工具绑定的 API 预设调用额外模型，将结果注入上下文 |
+
+> ⚠️ **注意**: 旧的 `inline` 模式已重命名为 `follow_ai`，API 内部会自动兼容旧名称。
+
+### ~~提示词段落对象~~ (v0.6 已弃用)
+
+`PromptSegment` 结构已在 v0.6 中弃用，改用简化的 `promptTemplate` 单文本字段。
 
 ### 设置对象
 
@@ -642,7 +646,7 @@ interface Settings {
 | 常量名 | 值 | 说明 |
 |--------|-----|------|
 | `SCRIPT_ID` | `"youyou_toolkit"` | 脚本唯一标识 |
-| `SCRIPT_VERSION` | `"0.5.0"` | 脚本版本 |
+| `SCRIPT_VERSION` | `"0.6.0"` | 脚本版本 |
 | `MENU_ITEM_ID` | `"youyou_toolkit-menu-item"` | 菜单项 DOM ID |
 | `MENU_CONTAINER_ID` | `"youyou_toolkit-menu-container"` | 菜单容器 DOM ID |
 | `POPUP_ID` | `"youyou_toolkit-popup"` | 弹窗 DOM ID |

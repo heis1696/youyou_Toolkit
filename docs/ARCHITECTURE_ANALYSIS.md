@@ -2,7 +2,7 @@
 
 ## 一、项目概述
 
-YouYou Toolkit 是一个 SillyTavern 工具插件框架，当前版本 **0.5.0**，采用分层架构设计。
+YouYou Toolkit 是一个 SillyTavern 工具插件框架，当前版本 **0.6.0**，采用分层架构设计。
 
 ### 核心功能
 - **API连接管理** - 支持自定义API和SillyTavern主API切换
@@ -715,6 +715,7 @@ const postResponseTools = toolOutputService.filterPostResponseTools(toolConfigs)
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
+| 0.6.0 | 2026-03-15 | 简化重构：工具配置简化、输出模式重命名（inline→follow_ai）、工具提示词服务简化 |
 | 0.5.0 | 2026-03-14 | 设置服务、变量解析、上下文注入、破限词管理、工具输出服务 |
 | 0.4.0 | 2026-03-11 | 模块化架构重构、UI组件拆分 |
 | 0.3.0 | 2026-03-09 | 正则提取模块、UI扩展 |

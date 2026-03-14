@@ -549,4 +549,23 @@ class BypassManager {
 
 export const bypassManager = new BypassManager();
 export { DEFAULT_BYPASS_PRESETS, BypassManager };
+
+// 导出便捷函数
+export const getAllPresets = () => bypassManager.getAllPresets();
+export const getPresetList = () => bypassManager.getPresetList();
+export const getPreset = (presetId) => bypassManager.getPreset(presetId);
+export const createPreset = (presetData) => bypassManager.createPreset(presetData);
+export const updatePreset = (presetId, updates) => bypassManager.updatePreset(presetId, updates);
+export const deletePreset = (presetId) => bypassManager.deletePreset(presetId);
+export const duplicatePreset = (sourceId, newId, newName) => bypassManager.duplicatePreset(sourceId, newId, newName);
+export const getDefaultPresetId = () => bypassManager.getDefaultPresetId();
+export const setDefaultPresetId = (presetId) => bypassManager.setDefaultPresetId(presetId);
+export const getEnabledMessages = (presetId) => bypassManager.getEnabledMessages(presetId);
+export const addMessage = (presetId, message) => bypassManager.addMessage(presetId, message);
+export const updateMessage = (presetId, messageId, updates) => bypassManager.updateMessage(presetId, messageId, updates);
+export const deleteMessage = (presetId, messageId) => bypassManager.deleteMessage(presetId, messageId);
+export const exportPresets = (presetId) => bypassManager.exportPresets(presetId);
+export const importPresets = (jsonString, options) => bypassManager.importPresets(jsonString, options);
+export const buildBypassMessages = (toolConfig) => bypassManager.buildBypassMessages(toolConfig);
+
 export default bypassManager;
