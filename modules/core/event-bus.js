@@ -67,7 +67,25 @@ export const EVENTS = {
   // ==================== 应用事件 ====================
   APP_INITIALIZING: 'app:initializing',
   APP_INITIALIZED: 'app:initialized',
-  APP_ERROR: 'app:error'
+  APP_ERROR: 'app:error',
+  
+  // ==================== v0.5 新增事件 ====================
+  // 设置事件
+  SETTINGS_UPDATED: 'settings:updated',
+  
+  // 工具上下文注入事件
+  TOOL_CONTEXT_INJECTED: 'tool:contextInjected',
+  TOOL_CONTEXT_CLEARED: 'tool:contextCleared',
+  
+  // 破限词事件
+  BYPASS_PRESET_CREATED: 'bypass:presetCreated',
+  BYPASS_PRESET_UPDATED: 'bypass:presetUpdated',
+  BYPASS_PRESET_DELETED: 'bypass:presetDeleted',
+  BYPASS_PRESET_ACTIVATED: 'bypass:presetActivated',
+  
+  // 工具执行事件（增强）
+  TOOL_EXECUTION_REQUESTED: 'tool:executionRequested',
+  TOOL_OUTPUT_MODE_CHANGED: 'tool:outputModeChanged'
 };
 
 // ============================================================

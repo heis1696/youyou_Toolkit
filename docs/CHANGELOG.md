@@ -11,11 +11,76 @@
 
 ### 计划中的功能
 
-- 多主题支持
+- 世界书注入集成
+- 多作用域支持 (profile/character)
+- 可视化执行历史面板
+- 高级变量系统 (正则提取结果)
 - 国际化支持
-- API请求历史记录
-- 更多API参数配置选项
-- 更多内置正则模板
+
+---
+
+## [0.5.0] - 2026-03-14
+
+### 新增
+
+- ✨ **设置服务** (`modules/core/settings-service.js`)
+  - 统一全局配置管理
+  - 执行器设置（并发数、重试次数、超时时间、队列策略）
+  - 监听器设置（事件监听、过滤规则、防抖设置）
+  - 调试设置（日志、执行历史、状态徽章）
+  - UI设置（主题、紧凑模式、动画效果）
+
+- ✨ **变量解析服务** (`modules/variable-resolver.js`)
+  - 模板变量替换 `{{variableName}}`
+  - 内置变量支持：`lastUserMessage`、`lastAiMessage`、`chatHistory`、`characterCard`、`toolName`、`injectedContext`
+  - 正则提取变量 `{{regex.xxx}}`
+  - 自定义变量注册
+
+- ✨ **上下文注入服务** (`modules/context-injector.js`)
+  - 按聊天隔离存储工具输出
+  - 聚合上下文输出
+  - 覆盖/追加模式支持
+  - 上下文导入/导出
+
+- ✨ **工具提示词服务** (`modules/tool-prompt-service.js`)
+  - 提示词段落结构转API消息
+  - 变量替换集成
+  - 破限词消息合并
+  - 提示词模板管理
+
+- ✨ **破限词管理模块** (`modules/bypass-manager.js`)
+  - 破限词预设CRUD
+  - 消息列表管理（role、content、enabled）
+  - 默认预设设置
+  - 预设导入/导出
+  - 工具绑定支持
+
+- ✨ **UI组件**
+  - `settings-panel.js` - 设置面板（执行器/监听器/调试/外观四个标签页）
+  - `bypass-panel.js` - 破限词面板（左右布局，预设列表+编辑器）
+
+- ✨ **工具配置结构扩展**
+  - `trigger` - 触发配置
+  - `prompt.segments` - 结构化提示词段落
+  - `bypass` - 破限词绑定配置
+  - `output` - 输出模式配置（inline/post_response_api）
+  - `runtime` - 运行时状态
+
+- ✨ **事件系统增强**
+  - 新增 `SETTINGS_UPDATED` 事件
+  - 新增 `TOOL_CONTEXT_INJECTED`、`TOOL_CONTEXT_CLEARED` 事件
+  - 新增破限词相关事件
+  - 新增工具执行事件
+
+### 更改
+
+- 🔧 **版本号更新** 到 0.5.0
+- 🔧 **工具注册表** 扩展支持新的配置结构
+- 🔧 **核心模块入口** 导出设置服务
+
+### 文档
+
+- 📝 更新架构文档，反映v0.5新增模块
 
 ---
 

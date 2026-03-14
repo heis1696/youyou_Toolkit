@@ -1,7 +1,7 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
- * @version 0.4.0
- * @description 一个轻量级的 SillyTavern 工具插件框架，支持API连接、预设管理、正则提取和独立窗口系统
+ * @version 0.5.0
+ * @description 一个轻量级的 SillyTavern 工具插件框架，支持API连接、预设管理、正则提取、独立窗口系统、工具提示词、破限词和上下文注入
  * @author YouYou
  */
 
@@ -9,7 +9,7 @@
 // 常量定义
 // ============================================================
 const SCRIPT_ID = 'youyou_toolkit';
-const SCRIPT_VERSION = '0.4.0';
+const SCRIPT_VERSION = '0.5.0';
 const MENU_ITEM_ID = `${SCRIPT_ID}-menu-item`;
 const MENU_CONTAINER_ID = `${SCRIPT_ID}-menu-container`;
 const POPUP_ID = `${SCRIPT_ID}-popup`;
@@ -32,6 +32,14 @@ let windowManagerModule = null;
 let toolRegistryModule = null;
 let promptEditorModule = null;
 
+// v0.5 新模块
+let settingsServiceModule = null;
+let bypassManagerModule = null;
+let variableResolverModule = null;
+let contextInjectorModule = null;
+let toolPromptServiceModule = null;
+let toolOutputServiceModule = null;
+
 async function loadModules() {
   try {
     // 在浏览器环境中，这些模块需要通过相对路径加载
@@ -48,6 +56,14 @@ async function loadModules() {
     windowManagerModule = await import('./modules/window-manager.js');
     toolRegistryModule = await import('./modules/tool-registry.js');
     promptEditorModule = await import('./modules/prompt-editor.js');
+    
+    // v0.5 新模块
+    settingsServiceModule = await import('./modules/core/settings-service.js');
+    bypassManagerModule = await import('./modules/bypass-manager.js');
+    variableResolverModule = await import('./modules/variable-resolver.js');
+    contextInjectorModule = await import('./modules/context-injector.js');
+    toolPromptServiceModule = await import('./modules/tool-prompt-service.js');
+    toolOutputServiceModule = await import('./modules/tool-output-service.js');
     
     return true;
   } catch (error) {
@@ -634,7 +650,7 @@ function renderSubNav(mainTab, subTabs) {
   });
 }
 
-function renderTabContent(tabName) {
+async function renderTabContent(tabName) {
   const $ = topLevelWindow.jQuery || window.jQuery;
   if (!$ || !currentPopup) return;
   
@@ -666,10 +682,77 @@ function renderTabContent(tabName) {
       }
       break;
       
+    // v0.5 新增页面
+    case 'bypass':
+      await renderBypassPanel($content);
+      break;
+      
+    case 'settings':
+      await renderSettingsPanel($content);
+      break;
+      
     default:
       // 工具窗口 - 使用独立窗口系统
       renderToolWindow(tabName, $content);
       break;
+  }
+}
+
+/**
+ * 渲染破限词面板
+ */
+async function renderBypassPanel($container) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$) return;
+  
+  try {
+    // 动态导入 BypassPanel 组件
+    const { BypassPanel } = await import('./modules/ui/components/bypass-panel.js');
+    
+    // 注入样式
+    const styleId = `${SCRIPT_ID}-bypass-styles`;
+    const targetDoc = topLevelWindow.document || document;
+    if (!targetDoc.getElementById(styleId) && BypassPanel.getStyles) {
+      const style = targetDoc.createElement('style');
+      style.id = styleId;
+      style.textContent = BypassPanel.getStyles();
+      (targetDoc.head || targetDoc.documentElement).appendChild(style);
+    }
+    
+    // 渲染组件
+    BypassPanel.renderTo($container);
+  } catch (error) {
+    console.error(`[${SCRIPT_ID}] 破限词面板加载失败:`, error);
+    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>破限词面板加载失败</span></div>`);
+  }
+}
+
+/**
+ * 渲染设置面板
+ */
+async function renderSettingsPanel($container) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$) return;
+  
+  try {
+    // 动态导入 SettingsPanel 组件
+    const { SettingsPanel } = await import('./modules/ui/components/settings-panel.js');
+    
+    // 注入样式
+    const styleId = `${SCRIPT_ID}-settings-styles`;
+    const targetDoc = topLevelWindow.document || document;
+    if (!targetDoc.getElementById(styleId) && SettingsPanel.getStyles) {
+      const style = targetDoc.createElement('style');
+      style.id = styleId;
+      style.textContent = SettingsPanel.getStyles();
+      (targetDoc.head || targetDoc.documentElement).appendChild(style);
+    }
+    
+    // 渲染组件
+    SettingsPanel.renderTo($container);
+  } catch (error) {
+    console.error(`[${SCRIPT_ID}] 设置面板加载失败:`, error);
+    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>设置面板加载失败</span></div>`);
   }
 }
 
@@ -1104,6 +1187,14 @@ const YouYouToolkit = {
   getWindowManager: () => windowManagerModule,
   getToolRegistry: () => toolRegistryModule,
   getPromptEditor: () => promptEditorModule,
+  
+  // v0.5 新模块访问
+  getSettingsService: () => settingsServiceModule,
+  getBypassManager: () => bypassManagerModule,
+  getVariableResolver: () => variableResolverModule,
+  getContextInjector: () => contextInjectorModule,
+  getToolPromptService: () => toolPromptServiceModule,
+  getToolOutputService: () => toolOutputServiceModule,
   
   // 便捷方法
   async getApiConfig() {

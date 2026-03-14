@@ -1,7 +1,7 @@
 /**
  * YouYou Toolkit - Core模块入口
  * @description 导出核心服务和工具
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 // ============================================================
@@ -24,3 +24,13 @@ export {
 // ============================================================
 
 export { EventBus, eventBus, EVENTS } from './event-bus.js';
+
+// ============================================================
+// 设置服务 (v0.5 新增)
+// ============================================================
+
+export { 
+  settingsService, 
+  SettingsService, 
+  DEFAULT_SETTINGS 
+} from './settings-service.js';

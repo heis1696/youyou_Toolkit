@@ -19,7 +19,8 @@ const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
 // ============================================================
 
 /**
- * 默认工具配置 - 包含提示词模板和执行配置
+ * 默认工具配置 - v0.5 扩展结构
+ * 支持独立提示词、破限词绑定、输出模式配置
  */
 const DEFAULT_TOOL_CONFIGS = {
   summaryTool: {
@@ -27,41 +28,85 @@ const DEFAULT_TOOL_CONFIGS = {
     name: '摘要工具',
     icon: 'fa-file-lines',
     description: '生成剧情摘要块',
-    promptTemplate: `<boo_FM>
+    enabled: true,
+    order: 3,
+    
+    // 触发配置
+    trigger: {
+      event: 'GENERATION_ENDED',
+      enabled: true
+    },
+    
+    // 提示词配置（新结构）
+    prompt: {
+      segments: [
+        {
+          id: 'system_1',
+          type: 'system',
+          role: 'SYSTEM',
+          content: '你是一个信息提炼助手，负责从对话中提取关键信息并生成结构化的摘要。',
+          enabled: true,
+          expanded: true,
+          deletable: false
+        },
+        {
+          id: 'user_1',
+          type: 'user',
+          role: 'USER',
+          content: `请根据以下AI回复生成摘要块：
+
+{{lastAiMessage}}
+
+输出格式：
+<boo_FM>
 <pg>No.{{pg}}</pg>
 <time>{{time}}</time>
 <scene>{{scene}}</scene>
-
-<plot>
-{{plot}}
-</plot>
-
-<event>
-MQ.{{mq}} | {{mqStatus}}
-SQ.{{sq}} | {{sqStatus}}
-本轮完成：{{completed}}
-最新支线编号：SQ.{{latestSq}}
-</event>
-
-<defined>
-{{defined}}
-</defined>
-
-<status>
-{{status}}
-</status>
-
-<seeds>
-{{seeds}}
-</seeds>
+<plot>{{plot}}</plot>
+<event>MQ.{{mq}} | {{mqStatus}}</event>
+<defined>{{defined}}</defined>
+<status>{{status}}</status>
+<seeds>{{seeds}}</seeds>
 </boo_FM>`,
+          enabled: true,
+          expanded: true,
+          deletable: true
+        }
+      ]
+    },
+    
+    // 破限词绑定
+    bypass: {
+      enabled: false,
+      presetId: ''
+    },
+    
+    // 输出模式配置
+    output: {
+      mode: 'inline', // inline | post_response_api
+      apiPreset: '',
+      injectTarget: 'context',
+      injectScope: 'chat',
+      overwrite: true,
+      enabled: true
+    },
+    
+    // 运行时状态
+    runtime: {
+      lastRunAt: 0,
+      lastStatus: 'idle',
+      lastError: '',
+      lastDurationMs: 0,
+      successCount: 0,
+      errorCount: 0
+    },
+    
+    // 兼容旧字段
+    promptTemplate: '',
     apiPreset: '',
-    bypassPreset: '',
     outputMode: 'inline',
     extractTags: ['boo_FM'],
-    triggerEvents: ['GENERATION_ENDED'],
-    enabled: true,
-    order: 3
+    triggerEvents: ['GENERATION_ENDED']
   },
   
   statusBlock: {
@@ -69,20 +114,82 @@ SQ.{{sq}} | {{sqStatus}}
     name: '主角状态栏',
     icon: 'fa-user-check',
     description: '生成主角状态代码块',
-    promptTemplate: `<status_block>
+    enabled: true,
+    order: 4,
+    
+    // 触发配置
+    trigger: {
+      event: 'GENERATION_ENDED',
+      enabled: true
+    },
+    
+    // 提示词配置
+    prompt: {
+      segments: [
+        {
+          id: 'system_1',
+          type: 'system',
+          role: 'SYSTEM',
+          content: '你是一个状态追踪助手，负责从对话中提取角色的当前状态信息。',
+          enabled: true,
+          expanded: true,
+          deletable: false
+        },
+        {
+          id: 'user_1',
+          type: 'user',
+          role: 'USER',
+          content: `请根据以下对话内容生成角色状态块：
+
+{{lastAiMessage}}
+
+输出格式：
+<status_block>
 <name>{{name}}</name>
 <location>{{location}}</location>
 <condition>{{condition}}</condition>
 <equipment>{{equipment}}</equipment>
 <skills>{{skills}}</skills>
 </status_block>`,
+          enabled: true,
+          expanded: true,
+          deletable: true
+        }
+      ]
+    },
+    
+    // 破限词绑定
+    bypass: {
+      enabled: false,
+      presetId: ''
+    },
+    
+    // 输出模式配置
+    output: {
+      mode: 'inline',
+      apiPreset: '',
+      injectTarget: 'context',
+      injectScope: 'chat',
+      overwrite: true,
+      enabled: true
+    },
+    
+    // 运行时状态
+    runtime: {
+      lastRunAt: 0,
+      lastStatus: 'idle',
+      lastError: '',
+      lastDurationMs: 0,
+      successCount: 0,
+      errorCount: 0
+    },
+    
+    // 兼容旧字段
+    promptTemplate: '',
     apiPreset: '',
-    bypassPreset: '',
     outputMode: 'inline',
     extractTags: ['status_block'],
-    triggerEvents: ['GENERATION_ENDED'],
-    enabled: true,
-    order: 4
+    triggerEvents: ['GENERATION_ENDED']
   }
 };
 
@@ -103,15 +210,6 @@ export const TOOL_REGISTRY = {
     description: '管理API配置和预设',
     component: 'ApiPresetPanel',
     order: 0
-  },
-  bypassPanel: {
-    id: 'bypassPanel',
-    name: '破限词',
-    icon: 'fa-shield-alt',
-    hasSubTabs: false,
-    description: '管理破限词预设',
-    component: 'BypassPanel',
-    order: 1
   },
   regexExtract: {
     id: 'regexExtract',
@@ -140,6 +238,25 @@ export const TOOL_REGISTRY = {
       { id: 'summaryTool', name: '摘要工具', icon: 'fa-file-lines', component: 'SummaryToolPanel' },
       { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' }
     ]
+  },
+  // v0.5 新增页面
+  bypass: {
+    id: 'bypass',
+    name: '破限词',
+    icon: 'fa-shield-halved',
+    hasSubTabs: false,
+    description: '管理破限词预设',
+    component: 'BypassPanel',
+    order: 4
+  },
+  settings: {
+    id: 'settings',
+    name: '设置',
+    icon: 'fa-cog',
+    hasSubTabs: false,
+    description: '全局设置',
+    component: 'SettingsPanel',
+    order: 5
   }
 };
 
@@ -395,7 +512,7 @@ export function saveToolConfig(toolId, config) {
   
   // 只保存用户可修改的字段
   const saveableFields = [
-    'promptTemplate', 'apiPreset', 'bypassPreset', 
+    'promptTemplate', 'apiPreset', 
     'outputMode', 'extractTags', 'enabled', 'triggerEvents'
   ];
   
