@@ -18,27 +18,41 @@
 
 ---
 
+## [0.6.1] - 2026-03-15
+
+### 修复
+
+- 🐛 **破限词面板jQuery data属性修复** (`modules/ui/components/bypass-panel.js`)
+  - 修复 jQuery data 属性访问问题：`data('preset-id')` → `data('presetId')`
+  - 修复预设选择、删除、复制、设为默认等操作无法获取预设ID的问题
+  - 修复消息ID访问问题：`data('message-id')` → `data('messageId')`
+
+- 🐛 **主角状态面板旧格式修复** (`modules/ui/components/status-block-panel.js`)
+  - 更新输出模式配置以兼容新的简化版格式
+
+---
+
 ## [0.6.0] - 2026-03-15
 
 ### 简化重构
 
 这次重构的核心是"收敛"——简化工具配置，删除过度设计，统一输出模式语义。
 
+#### 修复
+
+- 🐛 **主角状态面板旧格式修复** (`modules/ui/components/status-block-panel.js`)
+  - 更新到 v3.0.0 简化版，与 summary-tool-panel.js 保持一致
+  - 输出模式从 `inline/separate` 改为 `follow_ai/post_response_api`
+  - 删除"可用变量"帮助文本（内部保留变量系统）
+  - 新增破限词绑定配置区
+  - 新增可折叠调试信息区
+
+- 🐛 **破限词面板jQuery data属性修复** (`modules/ui/components/bypass-panel.js`)
+  - 修复 jQuery data 属性访问问题：`data('preset-id')` → `data('presetId')`
+  - 修复预设选择、删除、复制、设为默认等操作无法获取预设ID的问题
+  - 修复消息ID访问问题：`data('message-id')` → `data('messageId')`
+
 #### 更改
-
-- 🔧 **工具配置结构简化** (`modules/tool-registry.js`)
-  - 删除 `prompt.segments` 复杂结构，改为单字段 `promptTemplate`
-  - 输出模式重命名：`inline` → `follow_ai`，避免语义歧义
-  - 简化 `output` 配置结构
-  - 新增便捷方法：`setToolOutputMode`、`setToolApiPresetConfig`、`setToolBypassConfig`、`setToolPromptTemplate`、`updateToolRuntime`
-
-- 🔧 **工具提示词服务简化** (`modules/tool-prompt-service.js`)
-  - 删除复杂的分段处理逻辑
-  - 改为单模板 + AI回复附加的处理方式
-  - 保留破限词合并能力
-  - 删除对外暴露的变量系统接口
-
-- 🔧 **工具输出服务更新** (`modules/tool-output-service.js`)
   - 输出模式常量更新：`INLINE` → `FOLLOW_AI`
   - 新增 `LEGACY_OUTPUT_MODES` 兼容映射
   - 新增 `shouldRunFollowAi` 方法（替代 `shouldRunInline`）

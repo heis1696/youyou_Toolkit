@@ -221,14 +221,14 @@ export const BypassPanel = {
       if ($(e.target).closest('.yyt-bypass-quick-delete').length) {
         return;
       }
-      const presetId = $(e.currentTarget).data('preset-id');
+      const presetId = $(e.currentTarget).data('presetId');
       this._selectPreset($container, $, presetId);
     });
     
     // 快速删除预设
     $container.on('click', '.yyt-bypass-quick-delete', (e) => {
       e.stopPropagation();
-      const presetId = $(e.currentTarget).data('preset-id');
+      const presetId = $(e.currentTarget).data('presetId');
       if (!presetId) return;
       
       if (!confirm('确定要删除这个预设吗？')) return;
@@ -238,7 +238,7 @@ export const BypassPanel = {
       if (result.success) {
         // 如果删除的是当前选中的预设，清空编辑器
         const $editor = $container.find('.yyt-bypass-editor-content');
-        const currentPresetId = $editor.data('preset-id');
+        const currentPresetId = $editor.data('presetId');
         if (currentPresetId === presetId) {
           $container.find('#yyt-bypass-editor').html(`
             <div class="yyt-bypass-empty">
@@ -294,7 +294,7 @@ export const BypassPanel = {
     // 删除消息
     $container.on('click', '.yyt-bypass-delete-message', (e) => {
       const $message = $(e.currentTarget).closest('.yyt-bypass-message');
-      const messageId = $message.data('message-id');
+      const messageId = $message.data('messageId');
       $message.remove();
     });
     
@@ -390,7 +390,7 @@ export const BypassPanel = {
    */
   _saveCurrentPreset($container, $) {
     const $editor = $container.find('.yyt-bypass-editor-content');
-    const presetId = $editor.data('preset-id');
+    const presetId = $editor.data('presetId');
     if (!presetId) return;
     
     const name = $editor.find('.yyt-bypass-name-input').val().trim();
@@ -406,7 +406,7 @@ export const BypassPanel = {
     $editor.find('.yyt-bypass-message').each(function() {
       const $msg = $(this);
       messages.push({
-        id: $msg.data('message-id'),
+        id: $msg.data('messageId'),
         role: $msg.find('.yyt-bypass-role-select').val(),
         content: $msg.find('.yyt-bypass-message-content').val(),
         enabled: $msg.find('.yyt-bypass-message-enabled').is(':checked'),
@@ -435,7 +435,7 @@ export const BypassPanel = {
    */
   _deleteCurrentPreset($container, $) {
     const $editor = $container.find('.yyt-bypass-editor-content');
-    const presetId = $editor.data('preset-id');
+    const presetId = $editor.data('presetId');
     if (!presetId) return;
     
     if (!confirm('确定要删除这个预设吗？')) return;
@@ -456,7 +456,7 @@ export const BypassPanel = {
    */
   _duplicateCurrentPreset($container, $) {
     const $editor = $container.find('.yyt-bypass-editor-content');
-    const presetId = $editor.data('preset-id');
+    const presetId = $editor.data('presetId');
     if (!presetId) return;
     
     const newId = `bypass_${Date.now()}`;
@@ -477,7 +477,7 @@ export const BypassPanel = {
    */
   _setAsDefault($container, $) {
     const $editor = $container.find('.yyt-bypass-editor-content');
-    const presetId = $editor.data('preset-id');
+    const presetId = $editor.data('presetId');
     if (!presetId) return;
     
     bypassManager.setDefaultPresetId(presetId);
