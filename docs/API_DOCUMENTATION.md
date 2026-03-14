@@ -1,6 +1,6 @@
 # API 文档
 
-本文档详细说明 YouYou Toolkit v0.4.0 提供的 API 接口。
+本文档详细说明 YouYou Toolkit v0.5.0 提供的 API 接口。
 
 ## 模块导入
 
@@ -76,7 +76,7 @@ console.log(YouYouToolkit.id); // "youyou_toolkit"
 
 - **类型**: `(pageName: string) => void`
 - **参数**:
-  - `pageName`: 页面名称，如 `'apiPresets'`、`'bypassPanel'`、`'regexExtract'` 等
+  - `pageName`: 页面名称，如 `'apiPresets'`、`'bypass'`、`'regexExtract'`、`'settings'`、`'tools'` 等
 
 #### `switchSubTab(mainTab, subTab)`
 
@@ -199,23 +199,116 @@ const trigger = YouYouToolkit.getToolTrigger();
 // trigger.getCurrentCharacter()
 ```
 
-### `getBypassPrompts()`
+### `getBypassManager()`
 
-获取破限词预设管理模块。
+获取破限词管理模块。
 
 ```javascript
-const bypass = YouYouToolkit.getBypassPrompts();
-// bypass.getAllBypassPresets()
-// bypass.getBypassPreset(presetId)
-// bypass.saveBypassPreset(presetId, preset)
-// bypass.deleteBypassPreset(presetId)
-// bypass.getCurrentBypassPresetId()
-// bypass.setCurrentBypassPreset(presetId)
-// bypass.getCurrentBypassMessages()
-// bypass.isBypassEnabled()
-// bypass.setBypassEnabled(enabled)
-// bypass.exportBypassPresets()
-// bypass.importBypassPresets(jsonString, overwrite)
+const bypass = YouYouToolkit.getBypassManager();
+// bypass.getAllPresets()          // 获取所有预设（对象形式）
+// bypass.getPresetList()          // 获取预设列表（数组形式）
+// bypass.getPreset(presetId)      // 获取单个预设
+// bypass.createPreset(presetData) // 创建预设
+// bypass.updatePreset(presetId, updates) // 更新预设
+// bypass.deletePreset(presetId)   // 删除预设
+// bypass.duplicatePreset(sourceId, newId, newName) // 复制预设
+// bypass.getDefaultPresetId()     // 获取默认预设ID
+// bypass.setDefaultPresetId(presetId) // 设置默认预设
+// bypass.getEnabledMessages(presetId) // 获取启用的消息
+// bypass.addMessage(presetId, message) // 添加消息
+// bypass.updateMessage(presetId, messageId, updates) // 更新消息
+// bypass.deleteMessage(presetId, messageId) // 删除消息
+// bypass.exportPresets(presetId)  // 导出预设
+// bypass.importPresets(jsonString, options) // 导入预设
+// bypass.buildBypassMessages(toolConfig) // 构建工具的破限词消息
+```
+
+### `getSettingsService()`
+
+获取设置服务模块。
+
+```javascript
+const settings = YouYouToolkit.getSettingsService();
+// settings.getSettings()          // 获取所有设置
+// settings.saveSettings(settings) // 保存设置
+// settings.updateSettings(partial) // 更新部分设置
+// settings.getExecutorSettings()  // 获取执行器设置
+// settings.updateExecutorSettings(executorSettings) // 更新执行器设置
+// settings.getListenerSettings()  // 获取监听器设置
+// settings.updateListenerSettings(listenerSettings) // 更新监听器设置
+// settings.getDebugSettings()     // 获取调试设置
+// settings.updateDebugSettings(debugSettings) // 更新调试设置
+// settings.getUiSettings()        // 获取UI设置
+// settings.updateUiSettings(uiSettings) // 更新UI设置
+// settings.resetSettings()        // 重置为默认设置
+// settings.get(path, defaultValue) // 获取单个设置值
+// settings.set(path, value)       // 设置单个值
+```
+
+### `getVariableResolver()`
+
+获取变量解析服务模块。
+
+```javascript
+const resolver = YouYouToolkit.getVariableResolver();
+// resolver.resolveTemplate(template, context) // 解析模板字符串
+// resolver.resolveObject(obj, context) // 解析对象中的所有字符串值
+// resolver.buildToolContext(rawContext) // 构建工具执行上下文
+// resolver.registerVariable(name, handler) // 注册自定义变量
+// resolver.unregisterVariable(name) // 注销自定义变量
+// resolver.registerHandler(prefix, handler) // 注册变量处理器
+// resolver.getAvailableVariables() // 获取所有可用变量
+// resolver.getVariableHelp()       // 获取变量帮助文本
+```
+
+### `getContextInjector()`
+
+获取上下文注入服务模块。
+
+```javascript
+const injector = YouYouToolkit.getContextInjector();
+// injector.inject(toolId, content, options) // 注入工具上下文
+// injector.getAggregatedContext(chatId) // 获取聚合的注入上下文
+// injector.getToolContext(chatId, toolId) // 获取单个工具的注入上下文
+// injector.getAllToolContexts(chatId) // 获取聊天下所有工具上下文
+// injector.clearToolContext(chatId, toolId) // 清除单个工具的上下文
+// injector.clearAllContext(chatId) // 清除聊天的所有工具上下文
+// injector.hasToolContext(chatId, toolId) // 检查工具是否有注入上下文
+// injector.getContextSummary(chatId) // 获取聊天的工具注入状态摘要
+// injector.exportContext(chatId)   // 导出聊天的上下文数据
+// injector.importContext(data, options) // 导入上下文数据
+```
+
+### `getToolPromptService()`
+
+获取工具提示词服务模块。
+
+```javascript
+const promptService = YouYouToolkit.getToolPromptService();
+// promptService.buildToolMessages(toolConfig, context) // 构建工具消息数组
+// promptService.resolvePromptSegments(segments, context) // 解析提示词段落
+// promptService.mergeBypassMessages(bypassPreset, messages) // 合并破限词消息
+// promptService.validatePrompt(promptConfig) // 验证提示词结构
+// promptService.getDefaultPromptTemplate(toolType) // 获取默认提示词模板
+// promptService.createEmptyPrompt() // 创建空的提示词配置
+// promptService.addSegment(promptConfig, segmentData) // 添加提示词段落
+// promptService.removeSegment(promptConfig, segmentId) // 移除提示词段落
+// promptService.updateSegment(promptConfig, segmentId, updates) // 更新提示词段落
+```
+
+### `getToolOutputService()`
+
+获取工具输出服务模块。
+
+```javascript
+const outputService = YouYouToolkit.getToolOutputService();
+// outputService.shouldRunPostResponse(toolConfig) // 检查是否应运行 post_response_api 模式
+// outputService.shouldRunInline(toolConfig) // 检查是否应运行 inline 模式
+// outputService.runToolPostResponse(toolConfig, rawContext) // 执行 post_response_api 输出
+// outputService.runToolInline(toolConfig, rawContext) // 执行 inline 输出
+// outputService.filterPostResponseTools(toolConfigs) // 过滤出 post_response_api 工具
+// outputService.filterInlineTools(toolConfigs) // 过滤出 inline 工具
+// outputService.setDebugMode(enabled) // 设置调试模式
 ```
 
 ### `getWindowManager()`
@@ -465,10 +558,80 @@ interface ToolConfig {
     id: string;
     name: string;
     icon?: string;
+    component?: string;  // 组件名称
   }>;
   apiPreset?: string;    // 绑定的API预设
-  bypassPreset?: string; // 绑定的破限词预设
   enabled?: boolean;     // 是否启用
+  
+  // v0.5 新增配置
+  trigger?: {            // 触发配置
+    enabled: boolean;
+    eventType: string;
+    conditions?: object;
+  };
+  prompt?: {             // 提示词配置
+    segments: PromptSegment[];
+  };
+  bypass?: {             // 破限词配置
+    enabled: boolean;
+    presetId: string;
+  };
+  output?: {             // 输出配置
+    enabled: boolean;
+    mode: 'inline' | 'post_response_api';
+    apiPreset?: string;
+    overwrite?: boolean;
+  };
+  runtime?: {            // 运行时状态
+    status: 'idle' | 'running' | 'success' | 'error';
+    lastRun?: number;
+    lastError?: string;
+  };
+}
+```
+
+### 提示词段落对象
+
+```typescript
+interface PromptSegment {
+  id: string;            // 段落ID
+  type: 'system' | 'user' | 'assistant'; // 段落类型
+  role: 'SYSTEM' | 'USER' | 'assistant'; // 消息角色
+  content: string;       // 内容（支持变量替换）
+  enabled: boolean;      // 是否启用
+  expanded: boolean;     // UI展开状态
+  deletable: boolean;    // 是否可删除
+  mainSlot?: '' | 'A' | 'B'; // 主槽位
+}
+```
+
+### 设置对象
+
+```typescript
+interface Settings {
+  executor: {
+    maxConcurrent: number;      // 最大并发数，默认3
+    maxRetries: number;         // 最大重试次数，默认2
+    retryDelayMs: number;       // 重试延迟(ms)，默认5000
+    requestTimeoutMs: number;   // 请求超时(ms)，默认90000
+    queueStrategy: 'fifo' | 'lifo' | 'priority'; // 队列策略
+  };
+  listener: {
+    listenGenerationEnded: boolean;  // 监听生成结束事件
+    ignoreQuietGeneration: boolean;  // 忽略静默生成
+    ignoreAutoTrigger: boolean;      // 忽略自动触发
+    debounceMs: number;              // 防抖延迟(ms)
+  };
+  debug: {
+    enableDebugLog: boolean;         // 启用调试日志
+    saveExecutionHistory: boolean;   // 保存执行历史
+    showRuntimeBadge: boolean;       // 显示运行时徽章
+  };
+  ui: {
+    compactMode: boolean;            // 紧凑模式
+    animationEnabled: boolean;       // 动画效果
+    theme: string;                   // 主题名称
+  };
 }
 ```
 
@@ -479,7 +642,7 @@ interface ToolConfig {
 | 常量名 | 值 | 说明 |
 |--------|-----|------|
 | `SCRIPT_ID` | `"youyou_toolkit"` | 脚本唯一标识 |
-| `SCRIPT_VERSION` | `"0.4.0"` | 脚本版本 |
+| `SCRIPT_VERSION` | `"0.5.0"` | 脚本版本 |
 | `MENU_ITEM_ID` | `"youyou_toolkit-menu-item"` | 菜单项 DOM ID |
 | `MENU_CONTAINER_ID` | `"youyou_toolkit-menu-container"` | 菜单容器 DOM ID |
 | `POPUP_ID` | `"youyou_toolkit-popup"` | 弹窗 DOM ID |
@@ -507,7 +670,8 @@ interface ToolConfig {
 
 | YouYou Toolkit | SillyTavern | jQuery |
 |----------------|-------------|--------|
-| 0.4.0 | 最新版 | 内置 |
+| 0.5.0 | 最新版 | 内置 |
+| 0.4.x | 最新版 | 内置 |
 | 0.3.x | 最新版 | 内置 |
 | 0.2.x | 最新版 | 内置 |
 

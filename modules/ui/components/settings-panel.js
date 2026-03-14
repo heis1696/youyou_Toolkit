@@ -9,6 +9,77 @@ import { settingsService, DEFAULT_SETTINGS } from '../../core/settings-service.j
 import { showToast, getJQuery, isContainerValid } from '../utils.js';
 
 // ============================================================
+// 主题配置
+// ============================================================
+
+const THEME_CONFIGS = {
+  'dark-blue': {
+    '--yyt-accent': '#7bb7ff',
+    '--yyt-accent-glow': 'rgba(123, 183, 255, 0.4)',
+    '--yyt-accent-soft': 'rgba(123, 183, 255, 0.15)',
+    '--yyt-bg-base': '#0b0f15',
+    '--yyt-bg-gradient-1': 'rgba(123, 183, 255, 0.12)',
+    '--yyt-bg-gradient-2': 'rgba(155, 123, 255, 0.10)'
+  },
+  'dark-purple': {
+    '--yyt-accent': '#a78bfa',
+    '--yyt-accent-glow': 'rgba(167, 139, 250, 0.4)',
+    '--yyt-accent-soft': 'rgba(167, 139, 250, 0.15)',
+    '--yyt-bg-base': '#0f0b15',
+    '--yyt-bg-gradient-1': 'rgba(167, 139, 250, 0.12)',
+    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)'
+  },
+  'dark-green': {
+    '--yyt-accent': '#4ade80',
+    '--yyt-accent-glow': 'rgba(74, 222, 128, 0.4)',
+    '--yyt-accent-soft': 'rgba(74, 222, 128, 0.15)',
+    '--yyt-bg-base': '#0b150f',
+    '--yyt-bg-gradient-1': 'rgba(74, 222, 128, 0.12)',
+    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)'
+  },
+  'light': {
+    '--yyt-accent': '#3b82f6',
+    '--yyt-accent-glow': 'rgba(59, 130, 246, 0.3)',
+    '--yyt-accent-soft': 'rgba(59, 130, 246, 0.1)',
+    '--yyt-bg-base': '#f8fafc',
+    '--yyt-bg-gradient-1': 'rgba(59, 130, 246, 0.08)',
+    '--yyt-bg-gradient-2': 'rgba(139, 92, 246, 0.06)',
+    '--yyt-text': 'rgba(15, 23, 42, 0.95)',
+    '--yyt-text-secondary': 'rgba(15, 23, 42, 0.7)',
+    '--yyt-text-muted': 'rgba(15, 23, 42, 0.45)',
+    '--yyt-surface': 'rgba(0, 0, 0, 0.03)',
+    '--yyt-surface-hover': 'rgba(0, 0, 0, 0.06)',
+    '--yyt-surface-active': 'rgba(0, 0, 0, 0.08)',
+    '--yyt-border': 'rgba(0, 0, 0, 0.08)',
+    '--yyt-border-strong': 'rgba(0, 0, 0, 0.15)'
+  }
+};
+
+/**
+ * 应用主题
+ * @param {string} themeName - 主题名称
+ */
+function applyTheme(themeName) {
+  const root = document.documentElement;
+  const theme = THEME_CONFIGS[themeName] || THEME_CONFIGS['dark-blue'];
+  
+  // 应用主题变量
+  Object.entries(theme).forEach(([property, value]) => {
+    root.style.setProperty(property, value);
+  });
+  
+  // 设置主题属性
+  root.setAttribute('data-yyt-theme', themeName);
+  
+  // 对于浅色主题，需要额外处理
+  if (themeName === 'light') {
+    root.style.setProperty('--yyt-text', 'rgba(15, 23, 42, 0.95)');
+  } else {
+    root.style.setProperty('--yyt-text', 'rgba(255, 255, 255, 0.95)');
+  }
+}
+
+// ============================================================
 // 组件定义
 // ============================================================
 
@@ -338,6 +409,16 @@ export const SettingsPanel = {
     };
     
     settingsService.saveSettings(settings);
+    
+    // 应用主题
+    applyTheme(settings.ui.theme);
+    
+    // 应用紧凑模式
+    document.documentElement.classList.toggle('yyt-compact-mode', settings.ui.compactMode);
+    
+    // 应用动画设置
+    document.documentElement.classList.toggle('yyt-no-animation', !settings.ui.animationEnabled);
+    
     showToast('success', '设置已保存');
   },
   
@@ -496,4 +577,6 @@ export const SettingsPanel = {
   }
 };
 
+// 导出主题应用函数供初始化使用
+export { applyTheme, THEME_CONFIGS };
 export default SettingsPanel;

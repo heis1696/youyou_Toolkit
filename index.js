@@ -1320,6 +1320,30 @@ async function init() {
         (targetDoc.head || targetDoc.documentElement).appendChild(promptStyle);
       }
     }
+    
+    // 加载保存的主题设置
+    try {
+      const { applyTheme } = await import('./modules/ui/components/settings-panel.js');
+      if (settingsServiceModule && settingsServiceModule.settingsService) {
+        const uiSettings = settingsServiceModule.settingsService.getUiSettings();
+        if (uiSettings && uiSettings.theme) {
+          applyTheme(uiSettings.theme);
+          log(`主题已应用: ${uiSettings.theme}`);
+          
+          // 应用紧凑模式
+          if (uiSettings.compactMode) {
+            document.documentElement.classList.add('yyt-compact-mode');
+          }
+          
+          // 应用动画设置
+          if (!uiSettings.animationEnabled) {
+            document.documentElement.classList.add('yyt-no-animation');
+          }
+        }
+      }
+    } catch (themeError) {
+      log('主题加载失败:', themeError);
+    }
   } else {
     log('部分模块加载失败，使用基础功能');
   }

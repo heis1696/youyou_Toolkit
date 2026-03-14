@@ -68,13 +68,21 @@ export const BypassPanel = {
    * @private
    */
   _renderPresetItem(preset, isDefault) {
+    const isBuiltIn = preset.id === 'standard';
     return `
       <div class="yyt-bypass-preset-item ${isDefault ? 'yyt-default' : ''}" data-preset-id="${preset.id}">
         <div class="yyt-bypass-preset-info">
           <span class="yyt-bypass-preset-name">${escapeHtml(preset.name)}</span>
           <span class="yyt-bypass-preset-count">${preset.messages?.length || 0} 条消息</span>
         </div>
-        ${isDefault ? '<span class="yyt-bypass-default-badge">默认</span>' : ''}
+        <div class="yyt-bypass-preset-actions">
+          ${isDefault ? '<span class="yyt-bypass-default-badge">默认</span>' : ''}
+          ${!isBuiltIn ? `
+            <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-bypass-quick-delete" title="删除预设" data-preset-id="${preset.id}">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          ` : ''}
+        </div>
       </div>
     `;
   },
@@ -209,8 +217,42 @@ export const BypassPanel = {
   _bindPresetListEvents($container, $) {
     // 选择预设
     $container.on('click', '.yyt-bypass-preset-item', (e) => {
+      // 如果点击的是删除按钮，不触发选择
+      if ($(e.target).closest('.yyt-bypass-quick-delete').length) {
+        return;
+      }
       const presetId = $(e.currentTarget).data('preset-id');
       this._selectPreset($container, $, presetId);
+    });
+    
+    // 快速删除预设
+    $container.on('click', '.yyt-bypass-quick-delete', (e) => {
+      e.stopPropagation();
+      const presetId = $(e.currentTarget).data('preset-id');
+      if (!presetId) return;
+      
+      if (!confirm('确定要删除这个预设吗？')) return;
+      
+      const result = bypassManager.deletePreset(presetId);
+      
+      if (result.success) {
+        // 如果删除的是当前选中的预设，清空编辑器
+        const $editor = $container.find('.yyt-bypass-editor-content');
+        const currentPresetId = $editor.data('preset-id');
+        if (currentPresetId === presetId) {
+          $container.find('#yyt-bypass-editor').html(`
+            <div class="yyt-bypass-empty">
+              <i class="fa-solid fa-shield-halved"></i>
+              <p>选择或创建破限词预设</p>
+            </div>
+          `);
+        }
+        // 刷新列表
+        this._refreshPresetList($container, $);
+        showToast('success', '预设已删除');
+      } else {
+        showToast('error', result.message);
+      }
     });
     
     // 新建预设
@@ -546,6 +588,10 @@ export const BypassPanel = {
         cursor: pointer;
         transition: all 0.2s ease;
         margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
       }
       
       .yyt-bypass-preset-item:hover {
@@ -560,6 +606,26 @@ export const BypassPanel = {
         display: flex;
         flex-direction: column;
         gap: 4px;
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .yyt-bypass-preset-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        opacity: 0.5;
+        transition: opacity 0.2s ease;
+      }
+      
+      .yyt-bypass-preset-item:hover .yyt-bypass-preset-actions {
+        opacity: 1;
+      }
+      
+      .yyt-bypass-quick-delete {
+        padding: 4px 8px !important;
+        font-size: 10px !important;
       }
       
       .yyt-bypass-preset-name {
