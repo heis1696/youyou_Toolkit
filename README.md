@@ -128,24 +128,42 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 
 ```
 youyou_Toolkit/
-├── index.js                    # 主入口文件
+├── index.js                      # 主入口文件
 ├── modules/
-│   ├── storage.js              # 存储管理模块
-│   ├── api-connection.js       # API连接管理模块
-│   ├── preset-manager.js       # 预设管理模块
-│   ├── ui-components.js        # UI组件模块
-│   └── regex-extractor.js      # 正则提取模块
-├── dist/
-│   └── bundle.js               # 构建输出
+│   ├── core/                     # 核心层
+│   │   ├── index.js              # 核心模块入口
+│   │   ├── event-bus.js          # 事件总线
+│   │   └── storage-service.js    # 统一存储服务
+│   ├── ui/                       # UI层
+│   │   ├── index.js              # UI模块入口
+│   │   ├── ui-manager.js         # UI管理器
+│   │   ├── utils.js              # UI工具函数
+│   │   └── components/           # UI组件目录
+│   │       ├── api-preset-panel.js
+│   │       ├── regex-extract-panel.js
+│   │       ├── summary-tool-panel.js
+│   │       ├── status-block-panel.js
+│   │       └── tool-manage-panel.js
+│   ├── storage.js                # 存储后端抽象
+│   ├── api-connection.js         # API连接管理
+│   ├── preset-manager.js         # 预设管理
+│   ├── regex-extractor.js        # 正则提取
+│   ├── tool-registry.js          # 工具注册表
+│   ├── tool-executor.js          # 工具执行引擎
+│   ├── tool-trigger.js           # 事件触发管理
+│   ├── tool-manager.js           # 工具管理
+│   ├── window-manager.js         # 窬口管理
+│   ├── prompt-editor.js          # 提示词编辑器
+│   └── ui-components.js          # UI组件（兼容层）
+├── styles/
+│   └── main.css                  # 主样式文件
 ├── docs/
-│   ├── API_DOCUMENTATION.md    # API文档
-│   ├── EXTENSION_GUIDE.md      # 扩展指南
-│   ├── CONTRIBUTING.md         # 贡献指南
-│   └── CHANGELOG.md            # 更新日志
-└── Reference/
-    ├── SillyTavern_Macros.txt  # SillyTavern宏参考
-    ├── slash_command.txt       # STScript命令参考
-    └── shujuku-main/           # 参考项目
+│   ├── ARCHITECTURE_ANALYSIS.md  # 架构文档
+│   ├── API_DOCUMENTATION.md      # API文档
+│   ├── EXTENSION_GUIDE.md        # 扩展指南
+│   ├── CONTRIBUTING.md           # 贡献指南
+│   └── CHANGELOG.md              # 更新日志
+└── Reference/                    # 参考文档
 ```
 
 ## 🔧 开发指南
@@ -199,41 +217,74 @@ npm run watch      # 监听文件变化自动构建
 
 ### 模块说明
 
-#### storage.js - 存储管理模块
-- 管理设置的持久化存储
-- 优先使用SillyTavern的extensionSettings
-- 回退到localStorage
-- 支持深度合并设置
+#### 核心层 (modules/core/)
 
-#### api-connection.js - API连接管理模块
-- 管理API配置
-- 发送API请求
-- 支持主API和自定义API
-- 获取模型列表
-- 测试API连接
+**event-bus.js - 事件总线**
+- 模块间松耦合通信
+- 支持优先级订阅
+- 一次性订阅、事件等待
+- 调试模式和历史记录
 
-#### preset-manager.js - 预设管理模块
-- 创建/更新/删除预设
-- 切换预设
-- 导入/导出预设
-- 预设验证
+**storage-service.js - 统一存储服务**
+- 命名空间隔离的存储接口
+- 支持SillyTavern extensionSettings和localStorage双后端
+- 预定义的存储实例：storage、toolStorage、presetStorage、windowStorage
 
-#### ui-components.js - UI组件模块
-- 统一管理面板（API配置与预设合并）
-- API配置表单
-- 预设选择与管理
-- 正则提取面板
-- 模态对话框
-- 美观的Toggle开关和下拉框
-- 事件绑定
+#### 服务层 (modules/)
 
-#### regex-extractor.js - 正则提取模块
+**api-connection.js - API连接管理**
+- 支持自定义API和SillyTavern主API切换
+- OpenAI格式的请求发送
+- 模型列表获取
+- 连接测试
+
+**preset-manager.js - 预设管理**
+- API预设的CRUD操作
+- 预设导入/导出
+- 预设切换和验证
+
+**regex-extractor.js - 正则提取**
 - 正则表达式测试与验证
-- 正则模板管理（创建/编辑/删除）
-- 内置常用正则模板
-- 生成STScript提取脚本
-- 模板导入/导出
-- 支持多种SillyTavern消息源
+- 正则模板管理
+- STScript脚本生成
+- 多种消息源支持
+
+**tool-registry.js - 工具注册表**
+- 工具动态注册与注销
+- 工具-API预设绑定
+- 工具配置管理
+
+**tool-executor.js - 工具执行引擎**
+- 任务队列调度
+- 并发控制（默认3个并发）
+- 自动重试机制
+- AbortController支持
+
+**window-manager.js - 窗口管理**
+- 独立浮动窗口创建
+- 拖拽移动、八方向调整大小
+- 最大化/还原
+- 窗口状态持久化
+
+**prompt-editor.js - 提示词编辑器**
+- 三段式可视化编辑（System/AI/User）
+- 展开/折叠
+- 导入/导出
+- 消息格式转换
+
+#### UI层 (modules/ui/)
+
+**ui-manager.js - UI管理器**
+- 组件注册与生命周期管理
+- 统一样式注入
+- 标签页切换
+
+**components/ - UI组件**
+- `api-preset-panel.js` - API预设管理面板
+- `regex-extract-panel.js` - 正则提取面板
+- `summary-tool-panel.js` - 摘要工具面板
+- `status-block-panel.js` - 状态栏工具面板
+- `tool-manage-panel.js` - 工具管理面板
 
 ## 📚 文档
 
@@ -243,6 +294,22 @@ npm run watch      # 监听文件变化自动构建
 - [扩展开发指南](./docs/EXTENSION_GUIDE.md) - 基于框架开发新功能
 
 ## 📝 版本历史
+
+### v0.4.0 (2026-03-11)
+- 🏗️ **架构重构** - 采用分层架构设计（核心层/服务层/UI层）
+- ✨ **核心层新增**
+  - `event-bus.js` - 事件总线，模块间松耦合通信
+  - `storage-service.js` - 统一存储服务，命名空间隔离
+- ✨ **服务层新增**
+  - `tool-registry.js` - 工具注册表
+  - `tool-executor.js` - 工具执行引擎（任务调度、并发控制）
+  - `window-manager.js` - 独立窗口系统（拖拽、调整大小、最大化）
+  - `prompt-editor.js` - 提示词可视化编辑器
+- ✨ **UI层重构**
+  - `ui-manager.js` - UI管理器
+  - 组件化拆分：API预设面板、正则提取面板、摘要工具面板、状态栏面板、工具管理面板
+- 🔧 入口优化，index.js 简化为模块协调器
+- 📝 更新架构文档和API文档
 
 ### v0.3.0 (2025-03-09)
 - 🆕 新增正则提取板块

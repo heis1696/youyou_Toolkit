@@ -4,7 +4,6 @@
  */
 
 import { getToolFullConfig } from './tool-registry.js';
-import { getBypassPreset } from './bypass-prompts.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
 
 // ============================================================
@@ -613,21 +612,7 @@ function escapeRegex(string) {
 export function buildToolMessages(config, context) {
   const messages = [];
   
-  // 1. 添加破限词消息
-  if (config.bypassPreset) {
-    const bypassPreset = getBypassPreset(config.bypassPreset);
-    if (bypassPreset && bypassPreset.messages) {
-      // 转换消息格式
-      for (const msg of bypassPreset.messages) {
-        messages.push({
-          role: msg.role?.toUpperCase() || 'USER',
-          content: msg.content || ''
-        });
-      }
-    }
-  }
-  
-  // 2. 处理提示词模板
+  // 处理提示词模板
   let prompt = config.promptTemplate || '';
   
   // 定义模板变量

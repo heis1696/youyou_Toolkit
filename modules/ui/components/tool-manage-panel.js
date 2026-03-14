@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - 工具管理面板组件
- * @description 提供工具和破限词预设管理的UI
+ * @description 提供工具管理的UI
  * @version 1.0.0
  */
 
@@ -27,18 +27,6 @@ import {
   resetTools
 } from '../../tool-manager.js';
 
-// 破限词导入
-import {
-  getAllBypassPresets,
-  getBypassPreset,
-  saveBypassPreset,
-  deleteBypassPreset,
-  getCurrentBypassPresetId,
-  setCurrentBypassPreset,
-  isBypassEnabled,
-  setBypassEnabled
-} from '../../bypass-prompts.js';
-
 // ============================================================
 // 组件定义
 // ============================================================
@@ -57,40 +45,9 @@ export const ToolManagePanel = {
    */
   render(props) {
     const tools = getAllTools();
-    const bypassPresets = getAllBypassPresets();
-    const currentBypassId = getCurrentBypassPresetId();
-    const bypassEnabled = isBypassEnabled();
     
     return `
       <div class="yyt-tool-manager">
-        <!-- 破限词开关 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-toggle-row">
-            <div class="yyt-toggle-label">
-              <span>启用破限词</span>
-              <span class="yyt-toggle-hint">在API请求前自动注入破限词预设</span>
-            </div>
-            <label class="yyt-toggle">
-              <input type="checkbox" id="yyt-bypass-enabled" ${bypassEnabled ? 'checked' : ''}>
-              <span class="yyt-toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-        
-        <!-- 破限词预设 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-shield-alt"></i>
-            <span>破限词预设</span>
-            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="yyt-add-bypass" style="margin-left: auto;">
-              <i class="fa-solid fa-plus"></i> 新建
-            </button>
-          </div>
-          <div class="yyt-bypass-list">
-            ${this._renderBypassList(bypassPresets, currentBypassId)}
-          </div>
-        </div>
-        
         <!-- 工具列表 -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
@@ -131,30 +88,6 @@ export const ToolManagePanel = {
   // ============================================================
   
   /**
-   * 渲染破限词列表
-   * @private
-   */
-  _renderBypassList(bypassPresets, currentBypassId) {
-    return Object.entries(bypassPresets).map(([id, preset]) => `
-      <div class="yyt-bypass-item ${id === currentBypassId ? 'yyt-active' : ''}" data-bypass-id="${id}">
-        <div class="yyt-bypass-info">
-          <span class="yyt-bypass-name">${escapeHtml(preset.name)}</span>
-          <span class="yyt-bypass-count">${preset.messages?.length || 0} 条消息</span>
-        </div>
-        <div class="yyt-bypass-actions">
-          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="edit" title="编辑">
-            <i class="fa-solid fa-edit"></i>
-          </button>
-          <button class="yyt-btn yyt-btn-small yyt-btn-danger" data-action="delete" title="删除" 
-                  ${preset.isDefault ? 'disabled' : ''}>
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </div>
-      </div>
-    `).join('');
-  },
-  
-  /**
    * 渲染工具列表
    * @private
    */
@@ -191,57 +124,8 @@ export const ToolManagePanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
     
-    this._bindBypassEvents($container, $);
     this._bindToolEvents($container, $);
     this._bindFileEvents($container, $);
-  },
-  
-  /**
-   * 绑定破限词事件
-   * @private
-   */
-  _bindBypassEvents($container, $) {
-    // 破限词开关
-    $container.find('#yyt-bypass-enabled').on('change', function() {
-      const enabled = $(this).is(':checked');
-      setBypassEnabled(enabled);
-      showToast('success', enabled ? '破限词已启用' : '破限词已禁用');
-      eventBus.emit(enabled ? EVENTS.BYPASS_ENABLED : EVENTS.BYPASS_DISABLED);
-    });
-    
-    // 破限词预设选择
-    $container.find('.yyt-bypass-item').on('click', function() {
-      const bypassId = $(this).data('bypass-id');
-      setCurrentBypassPreset(bypassId);
-      $container.find('.yyt-bypass-item').removeClass('yyt-active');
-      $(this).addClass('yyt-active');
-      showToast('success', '已切换破限词预设');
-      eventBus.emit(EVENTS.BYPASS_PRESET_ACTIVATED, { id: bypassId });
-    });
-    
-    // 破限词操作按钮
-    $container.find('.yyt-bypass-actions button').on('click', (e) => {
-      e.stopPropagation();
-      const $item = $(e.currentTarget).closest('.yyt-bypass-item');
-      const bypassId = $item.data('bypass-id');
-      const action = $(e.currentTarget).data('action');
-      
-      if (action === 'edit') {
-        this._showBypassEditDialog($container, $, bypassId);
-      } else if (action === 'delete') {
-        if (confirm('确定要删除这个破限词预设吗？')) {
-          deleteBypassPreset(bypassId);
-          this.renderTo($container);
-          showToast('info', '预设已删除');
-          eventBus.emit(EVENTS.BYPASS_PRESET_DELETED, { id: bypassId });
-        }
-      }
-    });
-    
-    // 新建破限词预设
-    $container.find('#yyt-add-bypass').on('click', () => {
-      this._showBypassEditDialog($container, $, null);
-    });
   },
   
   /**
@@ -316,85 +200,6 @@ export const ToolManagePanel = {
   // ============================================================
   // 对话框
   // ============================================================
-  
-  /**
-   * 显示破限词编辑对话框
-   * @private
-   */
-  _showBypassEditDialog($container, $, bypassId) {
-    const preset = bypassId ? getBypassPreset(bypassId) : null;
-    const isEdit = !!preset;
-    
-    const dialogHtml = `
-      <div class="yyt-dialog-overlay" id="yyt-bypass-dialog-overlay">
-        <div class="yyt-dialog yyt-dialog-wide">
-          <div class="yyt-dialog-header">
-            <span class="yyt-dialog-title">${isEdit ? '编辑破限词预设' : '新建破限词预设'}</span>
-            <button class="yyt-dialog-close" id="yyt-bypass-dialog-close">
-              <i class="fa-solid fa-times"></i>
-            </button>
-          </div>
-          <div class="yyt-dialog-body">
-            <div class="yyt-form-group">
-              <label>预设名称</label>
-              <input type="text" class="yyt-input" id="yyt-bypass-name" 
-                     value="${preset ? escapeHtml(preset.name) : ''}" placeholder="输入预设名称">
-            </div>
-            <div class="yyt-form-group">
-              <label>描述</label>
-              <input type="text" class="yyt-input" id="yyt-bypass-desc" 
-                     value="${preset ? escapeHtml(preset.description || '') : ''}" placeholder="预设描述">
-            </div>
-            <div class="yyt-form-group">
-              <label>消息内容（JSON数组格式）</label>
-              <textarea class="yyt-textarea yyt-code-textarea" id="yyt-bypass-messages" rows="10"
-                        placeholder='[{"role":"SYSTEM","content":"...","deletable":true}]'>${preset ? escapeHtml(JSON.stringify(preset.messages, null, 2)) : '[]'}</textarea>
-            </div>
-          </div>
-          <div class="yyt-dialog-footer">
-            <button class="yyt-btn yyt-btn-secondary" id="yyt-bypass-dialog-cancel">取消</button>
-            <button class="yyt-btn yyt-btn-primary" id="yyt-bypass-dialog-save">保存</button>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    $('#yyt-bypass-dialog-overlay').remove();
-    $container.append(dialogHtml);
-    
-    const $overlay = $('#yyt-bypass-dialog-overlay');
-    
-    const closeDialog = () => $overlay.remove();
-    
-    $overlay.find('#yyt-bypass-dialog-close, #yyt-bypass-dialog-cancel').on('click', closeDialog);
-    $overlay.on('click', function(e) { if (e.target === this) closeDialog(); });
-    
-    $overlay.find('#yyt-bypass-dialog-save').on('click', () => {
-      const name = $('#yyt-bypass-name').val().trim();
-      const desc = $('#yyt-bypass-desc').val().trim();
-      const messagesStr = $('#yyt-bypass-messages').val().trim();
-      
-      if (!name) {
-        showToast('warning', '请输入预设名称');
-        return;
-      }
-      
-      let messages;
-      try {
-        messages = JSON.parse(messagesStr);
-      } catch (e) {
-        showToast('error', '消息内容JSON格式无效');
-        return;
-      }
-      
-      const id = bypassId || `custom_${Date.now()}`;
-      saveBypassPreset(id, { name, description: desc, messages });
-      closeDialog();
-      this.renderTo($container);
-      showToast('success', isEdit ? '预设已更新' : '预设已创建');
-      eventBus.emit(isEdit ? EVENTS.BYPASS_PRESET_UPDATED : EVENTS.BYPASS_PRESET_CREATED, { id });
-    });
-  },
   
   /**
    * 显示工具编辑对话框
@@ -485,7 +290,7 @@ export const ToolManagePanel = {
         config: {
           trigger: { type: 'manual', events: [] },
           execution: { timeout, retries },
-          api: { preset: '', useBypass: true, bypassPreset: 'standard' },
+          api: { preset: '' },
           messages: [],
           context: { depth: 3, includeTags: [], excludeTags: [] }
         },
@@ -585,63 +390,6 @@ export const ToolManagePanel = {
       .yyt-tool-desc {
         font-size: 12px;
         color: var(--yyt-text-muted);
-      }
-      
-      .yyt-bypass-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        max-height: 200px;
-        overflow-y: auto;
-      }
-      
-      .yyt-bypass-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 14px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-      
-      .yyt-bypass-item:hover {
-        border-color: rgba(255, 255, 255, 0.15);
-      }
-      
-      .yyt-bypass-item.yyt-active {
-        border-color: var(--yyt-accent);
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.1) 0%, rgba(123, 183, 255, 0.02) 100%);
-      }
-      
-      .yyt-bypass-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      
-      .yyt-bypass-name {
-        font-weight: 500;
-        font-size: 13px;
-        color: var(--yyt-text);
-      }
-      
-      .yyt-bypass-count {
-        font-size: 11px;
-        color: var(--yyt-text-muted);
-      }
-      
-      .yyt-bypass-actions {
-        display: flex;
-        gap: 4px;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      }
-      
-      .yyt-bypass-item:hover .yyt-bypass-actions {
-        opacity: 1;
       }
       
       .yyt-dialog-wide {

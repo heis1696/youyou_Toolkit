@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - 通用工具面板组件
- * @description 支持提示词编辑、API预设绑定、破限词选择
+ * @description 支持提示词编辑、API预设绑定
  * @version 2.0.0
  */
 
@@ -20,10 +20,6 @@ import {
   resetToolConfig,
   getAllDefaultToolConfigs
 } from '../../tool-registry.js';
-
-import {
-  getAllBypassPresets
-} from '../../bypass-prompts.js';
 
 import {
   getAllPresets
@@ -54,7 +50,6 @@ export const SummaryToolPanel = {
     }
     
     const apiPresets = this._getApiPresets();
-    const bypassPresets = getAllBypassPresets();
     
     return `
       <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
@@ -79,20 +74,6 @@ export const SummaryToolPanel = {
             </div>
             
             <div class="yyt-form-group yyt-flex-1">
-              <label>破限词预设</label>
-              <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
-                <option value="">不使用破限词</option>
-                ${Object.entries(bypassPresets).map(([id, p]) => 
-                  `<option value="${id}" ${id === config.bypassPreset ? 'selected' : ''}>
-                    ${escapeHtml(p.name)}
-                  </option>`
-                ).join('')}
-              </select>
-            </div>
-          </div>
-          
-          <div class="yyt-form-row">
-            <div class="yyt-form-group yyt-flex-1">
               <label>输出模式</label>
               <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
                 <option value="inline" ${config.outputMode === 'inline' ? 'selected' : ''}>
@@ -103,7 +84,9 @@ export const SummaryToolPanel = {
                 </option>
               </select>
             </div>
-            
+          </div>
+          
+          <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
               <label>提取标签 (逗号分隔)</label>
               <input type="text" class="yyt-input" id="${SCRIPT_ID}-tool-extract-tags" 
@@ -208,7 +191,6 @@ export const SummaryToolPanel = {
     
     return {
       apiPreset: $container.find(`#${SCRIPT_ID}-tool-api-preset`).val() || '',
-      bypassPreset: $container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || '',
       outputMode: $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'inline',
       extractTags: ($container.find(`#${SCRIPT_ID}-tool-extract-tags`).val() || '')
         .split(',')
@@ -229,7 +211,6 @@ export const SummaryToolPanel = {
     if (!config) return;
     
     $container.find(`#${SCRIPT_ID}-tool-api-preset`).val(config.apiPreset || '');
-    $container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val(config.bypassPreset || '');
     $container.find(`#${SCRIPT_ID}-tool-output-mode`).val(config.outputMode || 'inline');
     $container.find(`#${SCRIPT_ID}-tool-extract-tags`).val((config.extractTags || []).join(', '));
     $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(config.promptTemplate || '');
