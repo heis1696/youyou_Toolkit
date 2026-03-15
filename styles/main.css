@@ -677,6 +677,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow-y: auto;
   z-index: 10001;
   animation: yytFadeIn 0.2s ease-out;
 }
@@ -693,6 +696,10 @@
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
   width: 380px;
   max-width: 90vw;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   animation: yytSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -745,6 +752,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .yyt-dialog-footer {
@@ -756,7 +766,24 @@
 }
 
 .yyt-dialog-wide {
-  width: 480px;
+  width: min(720px, calc(100vw - 32px));
+}
+
+.yyt-dialog-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.yyt-dialog-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.yyt-dialog-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+
+.yyt-dialog-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
 }
 
 /* ============================================================
@@ -1034,6 +1061,27 @@
 }
 
 @media screen and (max-width: 768px) {
+  .yyt-dialog-overlay {
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .yyt-dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 20px);
+  }
+
+  .yyt-dialog-body {
+    padding: 16px;
+  }
+
+  .yyt-dialog-footer,
+  .yyt-dialog-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
   .yyt-popup {
     width: 100vw;
     height: 100vh;
