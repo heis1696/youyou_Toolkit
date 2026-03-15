@@ -134,6 +134,13 @@ class ToolPromptService {
     const lastAiMessage = context?.lastAiMessage || context?.input?.lastAiMessage || '';
     const extractedContent = context?.extractedContent || context?.input?.extractedContent || '';
     const recentMessagesText = context?.recentMessagesText || '';
+    const rawRecentMessagesText = context?.rawRecentMessagesText || '';
+    const injectedContext = context?.injectedContext || context?.input?.injectedContext || '';
+    const userMessage = context?.userMessage || context?.input?.userMessage || '';
+    const previousToolOutput = context?.previousToolOutput || context?.input?.previousToolOutput || '';
+    const toolName = context?.toolName || '';
+    const toolId = context?.toolId || '';
+    const usedPlaceholders = new Set();
     
     // 添加提示词模板
     if (promptTemplate && promptTemplate.trim()) {
@@ -141,24 +148,42 @@ class ToolPromptService {
       const replacements = {
         '{{lastAiMessage}}': lastAiMessage,
         '{{extractedContent}}': extractedContent,
-        '{{recentMessagesText}}': recentMessagesText
+        '{{recentMessagesText}}': recentMessagesText,
+        '{{rawRecentMessagesText}}': rawRecentMessagesText,
+        '{{injectedContext}}': injectedContext,
+        '{{userMessage}}': userMessage,
+        '{{previousToolOutput}}': previousToolOutput,
+        '{{toolName}}': toolName,
+        '{{toolId}}': toolId
       };
 
       Object.entries(replacements).forEach(([placeholder, value]) => {
+        if (resolvedTemplate.includes(placeholder)) {
+          usedPlaceholders.add(placeholder);
+        }
         resolvedTemplate = resolvedTemplate.split(placeholder).join(value || '');
       });
 
       parts.push(resolvedTemplate.trim());
     }
+
+    const appendSection = (placeholder, label, value) => {
+      if (!value || usedPlaceholders.has(placeholder)) {
+        return;
+      }
+      parts.push(`\n${label}\n${value}`);
+    };
+
+    appendSection('{{injectedContext}}', '以下是当前已注入的工具上下文：', injectedContext);
     
-    if (extractedContent) {
-      parts.push(`\n以下是基于提取规则筛出的内容：\n${extractedContent}`);
+    appendSection('{{extractedContent}}', '以下是基于提取规则筛出的内容：', extractedContent);
+
+    if (recentMessagesText && !usedPlaceholders.has('{{recentMessagesText}}') && recentMessagesText !== lastAiMessage) {
+      parts.push(`\n以下是最近提取到的 AI 消息正文：\n${recentMessagesText}`);
     }
 
     // 添加 AI 回复内容
-    if (lastAiMessage) {
-      parts.push(`\n以下是需要处理的AI回复内容：\n${lastAiMessage}`);
-    }
+    appendSection('{{lastAiMessage}}', '以下是需要处理的AI回复内容：', lastAiMessage);
     
     return parts.join('\n');
   }

@@ -287,6 +287,8 @@ const injector = YouYouToolkit.getContextInjector();
 // injector.importContext(data, options) // 导入上下文数据
 ```
 
+> 从 `v0.6.2+` 开始，`inject()` 除了写入插件自己的上下文存储/世界书外，还会把工具结果镜像写入“最新 AI 回复消息对象”上，字段包括 `YouYouToolkit_toolOutputs` 与 `YouYouToolkit_injectedContext`，并尝试触发 `MESSAGE_UPDATED` 刷新当前消息。
+
 ### `getToolPromptService()`
 
 获取工具提示词服务模块。
@@ -299,6 +301,8 @@ const promptService = YouYouToolkit.getToolPromptService();
 // promptService.getToolPromptTemplate(toolConfig)      // 获取工具提示词模板
 // promptService.setDebugMode(enabled)                  // 设置调试模式
 ```
+
+> 模板中可直接使用 `{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{injectedContext}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。若模板未显式引用 `{{injectedContext}}`，服务仍会自动追加当前已注入的工具上下文，便于后续链式工具读取前置结果。
 
 > **v0.6 变更**: 删除了分段相关的方法（`resolvePromptSegments`、`addSegment`、`removeSegment`、`updateSegment`），改用简化的单模板模式。
 
@@ -589,7 +593,7 @@ interface ToolConfig {
   // 提取配置
   extraction: {
     enabled: boolean;          // 是否启用提取规则
-    maxMessages: number;       // 提取时最多回看多少条角色消息
+    maxMessages: number;       // 提取时最多回看多少条 AI 消息
     selectors: string[];       // 每个工具独立的标签/正则规则，regex: 前缀表示正则第一捕获组
   };
 
@@ -637,8 +641,9 @@ interface ToolConfig {
 - 当输出模式为 `follow_ai` 时，视为**不启用额外工具链**，不会在 AI 回复后自动调用额外模型
 - 当输出模式为 `post_response_api` 时，才会在监听到 `GENERATION_ENDED` 后自动执行工具
 - 手动操作区支持直接触发一次工具执行，并复用当前模板、API 预设与破限预设配置
-- 每个工具现在都支持独立的“测试提取”能力，可基于最近若干条角色消息预览标签/正则提取结果
+- 每个工具现在都支持独立的“测试提取”能力，可基于最近若干条 AI 消息预览标签/正则提取结果
 - 每个工具现在都支持独立绑定世界书、设置最大提取消息数，以及配置单独的提取标签/正则规则
+- 工具自身的标签/正则提取现在会优先直接作用于原始 AI 消息，再按需回退到正文规则筛选后的文本，避免全局正文规则先裁剪后导致工具标签无法命中
 - AI 回复自动触发时会在页面顶部显示通知，用于确认是否真正进入执行链路，以及是否执行成功/失败
 - 当工具执行成功后，会将提取后的结果真正写入目标世界书；若世界书写入失败，执行会被标记为失败并给出提示
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`

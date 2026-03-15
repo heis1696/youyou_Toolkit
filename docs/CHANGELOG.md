@@ -11,6 +11,14 @@
 
 ### 修复
 
+- 🐛 **工具提取顺序与上下文注入修复** (`modules/tool-output-service.js`, `modules/tool-prompt-service.js`, `modules/context-injector.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`)
+  - 修复最近消息收集逻辑，明确按“最近 N 条 AI 消息”逆序回溯采集，避免用户消息夹在中间时导致可用 AI 条数不足
+  - 修复“测试提取 / 工具提取”先应用全局正文规则、再应用工具标签规则导致工具标签被提前裁掉的问题；工具自身规则现在优先作用于原始 AI 消息文本
+  - 修复工具提示词未真正带入 `injectedContext` 的问题；现在既支持 `{{injectedContext}}` 等占位符，也会在模板未显式引用时自动追加已注入上下文
+  - 聚合工具上下文时按更新时间稳定排序，并让世界书目标解析兼容 `character` / `__character__` 两种写法
+  - 修复“工具输出没有写回最新 AI 回复消息对象”的问题；现在注入成功后会额外把结果镜像保存到最新 AI 消息的自定义字段中，并尝试触发消息刷新
+  - 工具面板中的提取相关文案改为“AI 消息”，避免与用户消息混淆
+
 - 🐛 **工具管理事件与导入参数兼容修复** (`modules/tool-manager.js`, `modules/ui/components/tool-manage-panel.js`)
   - 修复新建工具时统一发出 `TOOL_REGISTERED` 事件，避免创建工具也被错误视为更新工具
   - 修复工具管理面板与底层存储重复触发事件的问题，避免启用/禁用、创建、更新时出现重复事件广播

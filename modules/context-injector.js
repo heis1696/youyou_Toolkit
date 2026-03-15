@@ -12,6 +12,8 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 // ============================================================
 
 const CONTEXT_INJECTION_KEY = 'context_injection';
+const MESSAGE_TOOL_OUTPUTS_KEY = 'YouYouToolkit_toolOutputs';
+const MESSAGE_TOOL_CONTEXT_KEY = 'YouYouToolkit_injectedContext';
 
 // ============================================================
 // 默认配置
@@ -109,6 +111,8 @@ class ContextInjector {
         return false;
       }
     }
+
+    await this._mirrorToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions);
     
     this._log(`注入成功: ${toolId} -> ${chatId}`);
     return true;
@@ -188,7 +192,8 @@ class ContextInjector {
     if (!actualChatId) return '';
 
     const chatContexts = this._getChatContexts(actualChatId);
-    const entries = Object.entries(chatContexts);
+    const entries = Object.entries(chatContexts)
+      .sort(([, a], [, b]) => (a?.updatedAt || 0) - (b?.updatedAt || 0));
     
     if (entries.length === 0) return '';
 
@@ -387,6 +392,173 @@ class ContextInjector {
   }
 
   /**
+   * 获取聊天数组与可用 API
+   * @private
+   */
+  _getChatRuntime() {
+    try {
+      const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window)
+        ? window.parent
+        : window;
+      const api = topWindow.SillyTavern || null;
+      const context = api?.getContext?.() || null;
+      const chat = Array.isArray(context?.chat)
+        ? context.chat
+        : (Array.isArray(api?.chat) ? api.chat : []);
+
+      return {
+        topWindow,
+        api,
+        context,
+        chat
+      };
+    } catch (error) {
+      return {
+        topWindow: null,
+        api: null,
+        context: null,
+        chat: []
+      };
+    }
+  }
+
+  /**
+   * 判断是否为 AI / assistant 消息
+   * @private
+   */
+  _isAssistantMessage(message) {
+    if (!message) return false;
+    if (message.is_user || message.is_system) return false;
+
+    const role = String(message.role || '').toLowerCase();
+    return role === 'assistant' || role === 'ai' || !role;
+  }
+
+  /**
+   * 在聊天记录中寻找目标 AI 消息
+   * @private
+   */
+  _findAssistantMessageIndex(chatMessages, sourceMessageId) {
+    const chat = Array.isArray(chatMessages) ? chatMessages : [];
+    if (!chat.length) return -1;
+
+    const matchBySourceId = (message, index) => {
+      if (!this._isAssistantMessage(message)) return false;
+      if (sourceMessageId === undefined || sourceMessageId === null || sourceMessageId === '') {
+        return false;
+      }
+
+      if (typeof sourceMessageId === 'number') {
+        return index === sourceMessageId;
+      }
+
+      const normalizedSourceId = String(sourceMessageId).trim();
+      if (!normalizedSourceId) return false;
+
+      const candidates = [
+        message.id,
+        message.messageId,
+        message.mes_id,
+        message.swipe_id,
+        index
+      ].map(value => value === undefined || value === null ? '' : String(value).trim());
+
+      return candidates.includes(normalizedSourceId);
+    };
+
+    for (let index = chat.length - 1; index >= 0; index -= 1) {
+      if (matchBySourceId(chat[index], index)) {
+        return index;
+      }
+    }
+
+    for (let index = chat.length - 1; index >= 0; index -= 1) {
+      if (this._isAssistantMessage(chat[index])) {
+        return index;
+      }
+    }
+
+    return -1;
+  }
+
+  /**
+   * 构建写回到最新 AI 消息上的工具上下文文本
+   * @private
+   */
+  _buildMessageInjectedContext(toolOutputs) {
+    const outputs = toolOutputs && typeof toolOutputs === 'object' ? toolOutputs : {};
+    const entries = Object.entries(outputs)
+      .sort(([, a], [, b]) => (a?.updatedAt || 0) - (b?.updatedAt || 0));
+
+    if (!entries.length) return '';
+
+    const lines = ['[工具上下文注入]', ''];
+    for (const [toolId, entry] of entries) {
+      lines.push(`[${toolId}]`);
+      lines.push(entry?.content || '');
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * 将工具结果镜像写入最新 AI 回复消息对象
+   * 参考 shujuku 的“立即手动更新”思路，将结果挂在目标消息上并保存聊天记录。
+   * @private
+   */
+  async _mirrorToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}) {
+    try {
+      const { api, context, chat } = this._getChatRuntime();
+      if (!Array.isArray(chat) || !chat.length) {
+        this._log('未找到聊天消息，跳过写回最新 AI 回复消息');
+        return false;
+      }
+
+      const messageIndex = this._findAssistantMessageIndex(chat, options.sourceMessageId);
+      if (messageIndex < 0) {
+        this._log('未找到可写入的最新 AI 回复消息');
+        return false;
+      }
+
+      const targetMessage = chat[messageIndex];
+      const existingOutputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
+        && typeof targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] === 'object'
+        ? targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
+        : {};
+
+      existingOutputs[toolId] = {
+        toolId,
+        content: injectionEntry.content,
+        updatedAt: injectionEntry.updatedAt,
+        sourceMessageId: injectionEntry.sourceMessageId || null,
+        options: injectionEntry.options || {}
+      };
+
+      targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = existingOutputs;
+      targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(existingOutputs);
+
+      const saveChat = context?.saveChat || api?.saveChat || null;
+      if (typeof saveChat === 'function') {
+        await saveChat.call(context || api);
+      }
+
+      const eventSource = api?.eventSource || null;
+      const eventTypes = api?.eventTypes || {};
+      const messageUpdatedEvent = eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED';
+      if (eventSource && typeof eventSource.emit === 'function') {
+        eventSource.emit(messageUpdatedEvent, messageIndex);
+      }
+
+      this._log(`已将工具输出写回最新 AI 回复消息: ${toolId} -> #${messageIndex}`);
+      return true;
+    } catch (error) {
+      this._log('写回最新 AI 回复消息失败', error);
+      return false;
+    }
+  }
+
+  /**
    * 获取 TavernHelper
    * @private
    */
@@ -421,7 +593,7 @@ class ContextInjector {
     const helper = this._getTavernHelper();
     if (!helper) return '';
 
-    if (!target || target === '__character__') {
+    if (!target || target === '__character__' || target === 'character') {
       if (typeof helper.getCurrentCharPrimaryLorebook === 'function') {
         return await helper.getCurrentCharPrimaryLorebook();
       }

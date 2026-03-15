@@ -242,7 +242,7 @@ class ToolOutputService {
   async previewExtraction(toolConfig, rawContext) {
     const sourceText = this._collectRecentAssistantMessages(toolConfig, rawContext);
     const filteredSourceText = this._applyGlobalContextRules(sourceText);
-    const extracted = this._applyExtractionSelectors(filteredSourceText, toolConfig);
+    const extracted = this._extractToolContent(toolConfig, sourceText, filteredSourceText);
 
     return {
       success: true,
@@ -267,7 +267,7 @@ class ToolOutputService {
     const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
     const rawRecentMessagesText = this._collectRecentAssistantMessages(toolConfig, rawContext);
     const recentMessagesText = this._applyGlobalContextRules(rawRecentMessagesText);
-    const extractedContent = this._applyExtractionSelectors(recentMessagesText, toolConfig);
+    const extractedContent = this._extractToolContent(toolConfig, rawRecentMessagesText, recentMessagesText);
     
     // 构建完整上下文
     const fullContext = {
@@ -414,8 +414,17 @@ class ToolOutputService {
    * @private
    */
   _applyExtractionSelectors(text, toolConfig) {
+    return this._applyExtractionSelectorsInternal(text, toolConfig, { strict: false });
+  }
+
+  /**
+   * 应用提取规则（内部实现）
+   * @private
+   */
+  _applyExtractionSelectorsInternal(text, toolConfig, options = {}) {
     const sourceText = typeof text === 'string' ? text : String(text || '');
     const selectors = this._getExtractionSelectors(toolConfig);
+    const { strict = false } = options;
 
     if (!selectors.length) {
       return sourceText.trim();
@@ -433,7 +442,39 @@ class ToolOutputService {
     }).filter(rule => rule.value);
 
     const extracted = extractTagContent(sourceText, rules, []);
+    if (strict) {
+      return (extracted || '').trim();
+    }
+
     return extracted || sourceText.trim();
+  }
+
+  /**
+   * 工具自身提取规则优先对原始 AI 消息生效，避免全局正文规则先裁剪后导致工具标签丢失
+   * @private
+   */
+  _extractToolContent(toolConfig, rawSourceText, filteredSourceText = '') {
+    const rawText = typeof rawSourceText === 'string' ? rawSourceText : String(rawSourceText || '');
+    const filteredText = typeof filteredSourceText === 'string' ? filteredSourceText : String(filteredSourceText || '');
+    const selectors = this._getExtractionSelectors(toolConfig);
+
+    if (!selectors.length) {
+      return (filteredText || rawText).trim();
+    }
+
+    const extractedFromRaw = this._applyExtractionSelectorsInternal(rawText, toolConfig, { strict: true });
+    if (extractedFromRaw) {
+      return extractedFromRaw;
+    }
+
+    if (filteredText && filteredText !== rawText) {
+      const extractedFromFiltered = this._applyExtractionSelectorsInternal(filteredText, toolConfig, { strict: true });
+      if (extractedFromFiltered) {
+        return extractedFromFiltered;
+      }
+    }
+
+    return '';
   }
 
   /**
@@ -494,16 +535,19 @@ class ToolOutputService {
     const maxMessages = Math.max(1, parseInt(toolConfig?.extraction?.maxMessages, 10) || 5);
     const chatMessages = Array.isArray(rawContext?.chatMessages) ? rawContext.chatMessages : [];
 
-    const assistantMessages = chatMessages
-      .filter((message) => {
-        const normalizedRole = String(message?.role || '').toLowerCase();
-        const isAssistant = normalizedRole === 'assistant'
-          || (!message?.is_user && !message?.is_system && !normalizedRole);
-        return isAssistant && this._getMessageText(message);
-      })
-      .slice(-maxMessages)
-      .map(message => this._getMessageText(message))
-      .filter(Boolean);
+    const assistantMessages = [];
+    for (let index = chatMessages.length - 1; index >= 0 && assistantMessages.length < maxMessages; index -= 1) {
+      const message = chatMessages[index];
+      const normalizedRole = String(message?.role || '').toLowerCase();
+      const isAssistant = normalizedRole === 'assistant'
+        || normalizedRole === 'ai'
+        || (!message?.is_user && !message?.is_system && !normalizedRole);
+      const text = this._getMessageText(message);
+
+      if (isAssistant && text) {
+        assistantMessages.unshift(text);
+      }
+    }
 
     if (assistantMessages.length > 0) {
       return assistantMessages.join('\n\n');

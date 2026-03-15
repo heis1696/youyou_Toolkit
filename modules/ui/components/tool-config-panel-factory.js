@@ -311,7 +311,7 @@ export function createToolConfigPanel(options) {
             </div>
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
-                <label>最大提取消息数</label>
+                <label>最大提取 AI 消息数</label>
                 <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-max-messages" min="1" max="50" value="${Number(extraction.maxMessages) || 5}">
               </div>
             </div>
@@ -526,7 +526,7 @@ export function createToolConfigPanel(options) {
             <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join('\n') || '无')}</div>
           </div>
           <div class="yyt-form-group">
-            <label>原始内容（最近 ${result.maxMessages} 条角色消息）</label>
+            <label>原始内容（最近 ${result.maxMessages} 条 AI 消息）</label>
             <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || '无可用消息')}</pre>
           </div>
         <div class="yyt-form-group">
