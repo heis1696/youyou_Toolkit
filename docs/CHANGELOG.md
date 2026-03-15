@@ -18,6 +18,28 @@
 
 ---
 
+## [0.6.2] - 2026-03-15
+
+### 修复
+
+- 🐛 **工具触发模块初始化修复** (`index.js`)
+  - **关键修复**：`initTriggerModule()` 从未被调用，导致 GENERATION_ENDED 事件监听器从未注册
+  - 工具现在可以正确监听 AI 消息回复并自动触发执行
+  - 在模块加载成功后立即初始化工具触发模块
+
+- 🐛 **破限词面板内置预设判断修复** (`modules/ui/components/bypass-panel.js`)
+  - 修复内置预设判断逻辑：从硬编码 `'standard'` 改为使用 `DEFAULT_BYPASS_PRESETS` 对象检查
+  - 现在所有在 `DEFAULT_BYPASS_PRESETS` 中定义的预设都会被正确识别为内置预设
+  - 内置预设不显示删除按钮，防止用户尝试删除不可删除的预设
+
+- 🐛 **Toast通知显示修复** (`modules/ui/utils.js`)
+  - 修复 toastr 不可用时错误消息不显示的问题
+  - 新增自定义 Fallback Toast 实现，当 SillyTavern 的 toastr 不可用时显示可视化通知
+  - 添加消息为空时的默认消息处理
+  - 支持成功/错误/警告/信息四种类型的不同颜色显示
+
+---
+
 ## [0.6.1] - 2026-03-15
 
 ### 修复

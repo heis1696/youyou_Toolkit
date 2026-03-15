@@ -1271,6 +1271,16 @@ async function init() {
   if (modulesLoaded) {
     log('所有模块加载成功');
     
+    // 初始化工具触发模块 - 关键！必须在加载模块后立即调用
+    if (toolTriggerModule && toolTriggerModule.initTriggerModule) {
+      try {
+        toolTriggerModule.initTriggerModule();
+        log('工具触发模块已初始化');
+      } catch (triggerError) {
+        console.error(`[${SCRIPT_ID}] 工具触发模块初始化失败:`, triggerError);
+      }
+    }
+    
     // 注入UI组件样式
     const targetDoc = topLevelWindow.document || document;
     

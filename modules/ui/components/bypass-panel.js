@@ -5,7 +5,7 @@
  */
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
-import { bypassManager } from '../../bypass-manager.js';
+import { bypassManager, DEFAULT_BYPASS_PRESETS } from '../../bypass-manager.js';
 import { showToast, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
 
 // ============================================================
@@ -68,7 +68,8 @@ export const BypassPanel = {
    * @private
    */
   _renderPresetItem(preset, isDefault) {
-    const isBuiltIn = preset.id === 'standard';
+    // 使用 DEFAULT_BYPASS_PRESETS 检查是否为内置预设
+    const isBuiltIn = DEFAULT_BYPASS_PRESETS && DEFAULT_BYPASS_PRESETS[preset.id];
     return `
       <div class="yyt-bypass-preset-item ${isDefault ? 'yyt-default' : ''}" data-preset-id="${preset.id}">
         <div class="yyt-bypass-preset-info">
@@ -102,7 +103,8 @@ export const BypassPanel = {
     }
     
     const isDefaultPreset = bypassManager.getDefaultPresetId() === preset.id;
-    const isBuiltIn = preset.id === 'standard';
+    // 使用 DEFAULT_BYPASS_PRESETS 检查是否为内置预设
+    const isBuiltIn = DEFAULT_BYPASS_PRESETS && DEFAULT_BYPASS_PRESETS[preset.id];
     
     return `
       <div class="yyt-bypass-editor-content" data-preset-id="${preset.id}">

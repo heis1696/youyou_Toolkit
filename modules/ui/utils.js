@@ -40,6 +40,11 @@ export function escapeHtml(unsafe) {
  * @param {number} duration - 持续时间(ms)
  */
 export function showToast(type, message, duration = 3000) {
+  // 确保message不为空
+  if (!message) {
+    message = type === 'error' ? '操作失败' : '操作完成';
+  }
+  
   // 尝试使用SillyTavern的toastr
   const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window) ? window.parent : window;
   
@@ -51,8 +56,90 @@ export function showToast(type, message, duration = 3000) {
     return;
   }
   
-  // 回退到console
-  console.log(`[${type.toUpperCase()}] ${message}`);
+  // 回退到自定义Toast
+  _showFallbackToast(type, message, duration);
+  
+  // 同时输出到console
+  console.log(`[YouYou 工具箱] [${type.toUpperCase()}] ${message}`);
+}
+
+/**
+ * 显示回退Toast（当toastr不可用时）
+ * @private
+ */
+function _showFallbackToast(type, message, duration) {
+  const targetDoc = (typeof window.parent !== 'undefined' && window.parent !== window) 
+    ? window.parent.document 
+    : document;
+  
+  if (!targetDoc) {
+    return;
+  }
+  
+  // 移除已有的toast
+  const existingToast = targetDoc.getElementById('yyt-fallback-toast');
+  if (existingToast) {
+    existingToast.remove();
+  }
+  
+  // 颜色映射
+  const colors = {
+    success: { bg: 'rgba(74, 222, 128, 0.9)', border: '#22c55e' },
+    error: { bg: 'rgba(248, 113, 113, 0.9)', border: '#ef4444' },
+    warning: { bg: 'rgba(251, 191, 36, 0.9)', border: '#f59e0b' },
+    info: { bg: 'rgba(123, 183, 255, 0.9)', border: '#7bb7ff' }
+  };
+  
+  const color = colors[type] || colors.info;
+  
+  // 创建toast元素
+  const toast = targetDoc.createElement('div');
+  toast.id = 'yyt-fallback-toast';
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    background: ${color.bg};
+    color: #0b0f15;
+    border-radius: 8px;
+    border: 2px solid ${color.border};
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 99999;
+    max-width: 350px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: yyt-toast-in 0.3s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+  `;
+  toast.textContent = message;
+  
+  // 添加动画样式
+  if (!targetDoc.getElementById('yyt-toast-styles')) {
+    const style = targetDoc.createElement('style');
+    style.id = 'yyt-toast-styles';
+    style.textContent = `
+      @keyframes yyt-toast-in {
+        from { opacity: 0; transform: translateX(100px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes yyt-toast-out {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(100px); }
+      }
+    `;
+    targetDoc.head.appendChild(style);
+  }
+  
+  targetDoc.body.appendChild(toast);
+  
+  // 自动移除
+  setTimeout(() => {
+    toast.style.animation = 'yyt-toast-out 0.3s ease forwards';
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, duration);
 }
 
 // ============================================================
