@@ -1546,6 +1546,58 @@ function fillFormWithConfig($container2, config, scriptId = SCRIPT_ID) {
   $container2.find(`#${scriptId}-model`).show();
   $container2.find(`#${scriptId}-model-select`).hide();
 }
+function createDialogHtml(options) {
+  const {
+    id,
+    title,
+    body,
+    width = "380px",
+    wide = false
+  } = options;
+  return `
+    <div class="yyt-dialog-overlay" id="${id}-overlay">
+      <div class="yyt-dialog ${wide ? "yyt-dialog-wide" : ""}" style="${width !== "380px" ? `width: ${width}` : ""}">
+        <div class="yyt-dialog-header">
+          <span class="yyt-dialog-title">${title}</span>
+          <button class="yyt-dialog-close" id="${id}-close">
+            <i class="fa-solid fa-times"></i>
+          </button>
+        </div>
+        <div class="yyt-dialog-body">
+          ${body}
+        </div>
+        <div class="yyt-dialog-footer">
+          <button class="yyt-btn yyt-btn-secondary" id="${id}-cancel">\u53D6\u6D88</button>
+          <button class="yyt-btn yyt-btn-primary" id="${id}-save">\u4FDD\u5B58</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function bindDialogEvents($container2, id, callbacks = {}) {
+  const $ = getJQuery();
+  if (!$)
+    return () => {
+    };
+  const $overlay = $container2.find(`#${id}-overlay`);
+  const closeDialog = () => {
+    $overlay.remove();
+    if (callbacks.onClose)
+      callbacks.onClose();
+  };
+  $overlay.find(`#${id}-close, #${id}-cancel`).on("click", closeDialog);
+  $overlay.on("click", function(e) {
+    if (e.target === this) {
+      closeDialog();
+    }
+  });
+  $overlay.find(`#${id}-save`).on("click", function() {
+    if (callbacks.onSave) {
+      callbacks.onSave(closeDialog);
+    }
+  });
+  return closeDialog;
+}
 function downloadJson(json, filename) {
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -5307,12 +5359,43 @@ function getToolFullConfig(toolId) {
   }
   const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
   const userConfig = userConfigs[toolId] || {};
-  return {
+  const mergedConfig = {
     ...defaultConfig,
     ...userConfig,
     id: toolId
     // ID不可覆盖
   };
+  mergedConfig.trigger = {
+    ...defaultConfig.trigger || {},
+    ...userConfig.trigger || {}
+  };
+  mergedConfig.output = {
+    ...defaultConfig.output || {},
+    ...userConfig.output || {}
+  };
+  mergedConfig.bypass = {
+    ...defaultConfig.bypass || {},
+    ...userConfig.bypass || {}
+  };
+  mergedConfig.runtime = {
+    ...defaultConfig.runtime || {},
+    ...userConfig.runtime || {}
+  };
+  mergedConfig.extraction = {
+    ...defaultConfig.extraction || {},
+    ...userConfig.extraction || {}
+  };
+  mergedConfig.injection = {
+    ...defaultConfig.injection || {},
+    ...userConfig.injection || {}
+  };
+  if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0) && Array.isArray(mergedConfig.extractTags) && mergedConfig.extractTags.length > 0) {
+    mergedConfig.extraction.selectors = [...mergedConfig.extractTags];
+  }
+  if (!Array.isArray(mergedConfig.extractTags) || mergedConfig.extractTags.length === 0) {
+    mergedConfig.extractTags = Array.isArray(mergedConfig.extraction.selectors) ? [...mergedConfig.extraction.selectors] : [];
+  }
+  return mergedConfig;
 }
 function saveToolConfig(toolId, config) {
   if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
@@ -5334,6 +5417,10 @@ function saveToolConfig(toolId, config) {
     // 输出配置（包含 mode, apiPreset, overwrite）
     "bypass",
     // 破限词配置
+    "extraction",
+    // 提取配置
+    "injection",
+    // 世界书注入配置
     "runtime"
     // 运行时状态
   ];
@@ -5473,6 +5560,21 @@ var init_tool_registry = __esm({
           overwrite: true,
           enabled: true
         },
+        // 提取配置
+        extraction: {
+          enabled: true,
+          maxMessages: 5,
+          selectors: ["boo_FM"]
+        },
+        // 注入配置
+        injection: {
+          enabled: true,
+          target: "__character__",
+          comment: "YouYouToolkit:summaryTool",
+          position: "at_depth_as_system",
+          depth: 4,
+          order: 1e4
+        },
         // 提示词模板（单文本）
         promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0BAI\u56DE\u590D\u751F\u6210\u6458\u8981\u5757\uFF1A
 
@@ -5523,6 +5625,21 @@ var init_tool_registry = __esm({
           apiPreset: "",
           overwrite: true,
           enabled: true
+        },
+        // 提取配置
+        extraction: {
+          enabled: true,
+          maxMessages: 5,
+          selectors: ["status_block"]
+        },
+        // 注入配置
+        injection: {
+          enabled: true,
+          target: "__character__",
+          comment: "YouYouToolkit:statusBlock",
+          position: "at_depth_as_system",
+          depth: 4,
+          order: 10001
         },
         // 提示词模板（单文本）
         promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0B\u5BF9\u8BDD\u5185\u5BB9\u751F\u6210\u89D2\u8272\u72B6\u6001\u5757\uFF1A
@@ -7021,7 +7138,12 @@ var init_context_injector = __esm({
       // 作用域：chat, global, character
       overwrite: true,
       // 是否覆盖现有内容
-      enabled: true
+      enabled: true,
+      worldbookTarget: "__character__",
+      comment: "",
+      position: "at_depth_as_system",
+      depth: 4,
+      order: 1e4
     };
     ContextInjector = class {
       constructor() {
@@ -7038,7 +7160,7 @@ var init_context_injector = __esm({
        * @param {Object} options - 注入选项
        * @returns {boolean} 是否成功
        */
-      inject(toolId, content, options = {}) {
+      async inject(toolId, content, options = {}) {
         if (!toolId || content === void 0 || content === null) {
           this._log("\u6CE8\u5165\u5931\u8D25: \u53C2\u6570\u65E0\u6548");
           return false;
@@ -7073,8 +7195,73 @@ var init_context_injector = __esm({
           content: injectionEntry.content,
           options: mergedOptions
         });
+        if (mergedOptions.enabled !== false && mergedOptions.target === "worldbook") {
+          const synced = await this._syncWorldbookEntry(toolId, injectionEntry.content, mergedOptions);
+          if (!synced) {
+            this._log(`\u4E16\u754C\u4E66\u6CE8\u5165\u5931\u8D25: ${toolId}`);
+            return false;
+          }
+        }
         this._log(`\u6CE8\u5165\u6210\u529F: ${toolId} -> ${chatId}`);
         return true;
+      }
+      /**
+       * 获取可用世界书列表
+       * @returns {Promise<Array<{value: string, label: string, kind: string, isPrimary?: boolean}>>}
+       */
+      async getAvailableLorebooks() {
+        const helper = this._getTavernHelper();
+        const result = [];
+        const seen = /* @__PURE__ */ new Set();
+        result.push({
+          value: "__character__",
+          label: "\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66",
+          kind: "character",
+          isPrimary: true
+        });
+        seen.add("__character__");
+        if (!helper) {
+          return result;
+        }
+        try {
+          let primary = "";
+          if (typeof helper.getCurrentCharPrimaryLorebook === "function") {
+            primary = await helper.getCurrentCharPrimaryLorebook();
+          } else if (typeof helper.getCharLorebooks === "function") {
+            const lorebooks = await helper.getCharLorebooks({ type: "all" });
+            primary = lorebooks?.primary || "";
+          }
+          if (primary && !seen.has(primary)) {
+            result.push({
+              value: primary,
+              label: `${primary} [\u89D2\u8272\u4E3B\u4E16\u754C\u4E66]`,
+              kind: "lorebook",
+              isPrimary: true
+            });
+            seen.add(primary);
+          }
+        } catch (error) {
+          this._log("\u83B7\u53D6\u89D2\u8272\u4E3B\u4E16\u754C\u4E66\u5931\u8D25", error);
+        }
+        try {
+          if (typeof helper.getLorebooks === "function") {
+            const lorebooks = await Promise.resolve(helper.getLorebooks());
+            const names = Array.isArray(lorebooks) ? lorebooks : [];
+            names.forEach((name) => {
+              if (!name || seen.has(name))
+                return;
+              result.push({
+                value: name,
+                label: name,
+                kind: "lorebook"
+              });
+              seen.add(name);
+            });
+          }
+        } catch (error) {
+          this._log("\u83B7\u53D6\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25", error);
+        }
+        return result;
       }
       /**
        * 获取聚合的注入上下文
@@ -7256,6 +7443,106 @@ var init_context_injector = __esm({
         return `${CONTEXT_INJECTION_KEY}:${chatId}`;
       }
       /**
+       * 获取 TavernHelper
+       * @private
+       */
+      _getTavernHelper() {
+        try {
+          const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
+          return topWindow.TavernHelper || null;
+        } catch (error) {
+          return null;
+        }
+      }
+      /**
+       * 规范化世界书位置
+       * @private
+       */
+      _normalizeWorldbookPosition(position) {
+        const normalized = String(position || "").trim().toLowerCase();
+        if (normalized === "before_char" || normalized === "after_char" || normalized === "at_depth_as_system") {
+          return normalized;
+        }
+        return "at_depth_as_system";
+      }
+      /**
+       * 解析注入目标世界书名称
+       * @private
+       */
+      async _resolveWorldbookTarget(target) {
+        const helper = this._getTavernHelper();
+        if (!helper)
+          return "";
+        if (!target || target === "__character__") {
+          if (typeof helper.getCurrentCharPrimaryLorebook === "function") {
+            return await helper.getCurrentCharPrimaryLorebook();
+          }
+          if (typeof helper.getCharLorebooks === "function") {
+            const lorebooks = await helper.getCharLorebooks({ type: "all" });
+            return lorebooks?.primary || "";
+          }
+          return "";
+        }
+        return target;
+      }
+      /**
+       * 将内容同步到世界书条目
+       * @private
+       */
+      async _syncWorldbookEntry(toolId, content, options) {
+        const helper = this._getTavernHelper();
+        if (!helper || typeof helper.getLorebookEntries !== "function") {
+          this._log("TavernHelper \u4E0D\u53EF\u7528\uFF0C\u65E0\u6CD5\u5199\u5165\u4E16\u754C\u4E66");
+          return false;
+        }
+        const targetName = await this._resolveWorldbookTarget(options.worldbookTarget || options.targetName || options.target);
+        if (!targetName) {
+          this._log("\u672A\u627E\u5230\u53EF\u7528\u4E16\u754C\u4E66\uFF0C\u65E0\u6CD5\u5199\u5165");
+          return false;
+        }
+        const comment = options.comment || `YouYouToolkit:${toolId}`;
+        const position = this._normalizeWorldbookPosition(options.position);
+        const depth = Number.isFinite(Number(options.depth)) ? Number(options.depth) : 4;
+        const order = Number.isFinite(Number(options.order)) ? Number(options.order) : 1e4;
+        try {
+          const existingEntries = await helper.getLorebookEntries(targetName);
+          const entries = Array.isArray(existingEntries) ? existingEntries : [];
+          const existingEntry = entries.find((entry) => entry?.comment === comment || entry?.key === comment);
+          let nextContent = String(content);
+          if (existingEntry && options.overwrite === false) {
+            nextContent = [existingEntry.content || "", content].filter(Boolean).join("\n\n");
+          }
+          const payload = {
+            key: comment,
+            comment,
+            content: nextContent,
+            type: "constant",
+            enabled: true,
+            disable: false,
+            prevent_recursion: true,
+            position,
+            order
+          };
+          if (position === "at_depth_as_system") {
+            payload.depth = depth;
+          }
+          if (existingEntry?.uid != null && typeof helper.setLorebookEntries === "function") {
+            await helper.setLorebookEntries(targetName, [{
+              ...payload,
+              uid: existingEntry.uid
+            }]);
+            return true;
+          }
+          if (typeof helper.createLorebookEntries === "function") {
+            await helper.createLorebookEntries(targetName, [payload]);
+            return true;
+          }
+        } catch (error) {
+          this._log("\u5199\u5165\u4E16\u754C\u4E66\u5931\u8D25", error);
+        }
+        return false;
+      }
+      /**
        * 获取当前聊天ID
        * @private
        */
@@ -7419,8 +7706,24 @@ var init_tool_prompt_service = __esm({
       _buildUserContent(promptTemplate, context) {
         const parts = [];
         const lastAiMessage = context?.lastAiMessage || context?.input?.lastAiMessage || "";
+        const extractedContent = context?.extractedContent || context?.input?.extractedContent || "";
+        const recentMessagesText = context?.recentMessagesText || "";
         if (promptTemplate && promptTemplate.trim()) {
-          parts.push(promptTemplate.trim());
+          let resolvedTemplate = promptTemplate;
+          const replacements = {
+            "{{lastAiMessage}}": lastAiMessage,
+            "{{extractedContent}}": extractedContent,
+            "{{recentMessagesText}}": recentMessagesText
+          };
+          Object.entries(replacements).forEach(([placeholder, value]) => {
+            resolvedTemplate = resolvedTemplate.split(placeholder).join(value || "");
+          });
+          parts.push(resolvedTemplate.trim());
+        }
+        if (extractedContent) {
+          parts.push(`
+\u4EE5\u4E0B\u662F\u57FA\u4E8E\u63D0\u53D6\u89C4\u5219\u7B5B\u51FA\u7684\u5185\u5BB9\uFF1A
+${extractedContent}`);
         }
         if (lastAiMessage) {
           parts.push(`
@@ -7489,6 +7792,7 @@ var init_tool_output_service = __esm({
     init_settings_service();
     init_context_injector();
     init_tool_prompt_service();
+    init_regex_extractor();
     OUTPUT_MODES = {
       FOLLOW_AI: "follow_ai",
       // 随AI输出（不执行额外解析链）
@@ -7583,11 +7887,21 @@ var init_tool_output_service = __esm({
           });
           const outputContent = this._extractOutputContent(result, toolConfig);
           if (outputContent) {
-            await contextInjector.inject(toolId, outputContent, {
+            const injected = await contextInjector.inject(toolId, outputContent, {
               chatId: rawContext.chatId,
               overwrite: toolConfig.output?.overwrite !== false,
-              sourceMessageId: rawContext.messageId || ""
+              sourceMessageId: rawContext.messageId || "",
+              target: toolConfig.injection?.enabled === false ? "context" : "worldbook",
+              worldbookTarget: toolConfig.injection?.target || "__character__",
+              comment: toolConfig.injection?.comment || `YouYouToolkit:${toolId}`,
+              position: toolConfig.injection?.position || "at_depth_as_system",
+              depth: toolConfig.injection?.depth ?? 4,
+              order: toolConfig.injection?.order ?? 1e4,
+              enabled: toolConfig.injection?.enabled !== false
             });
+            if (!injected) {
+              throw new Error("\u5DE5\u5177\u7ED3\u679C\u5DF2\u751F\u6210\uFF0C\u4F46\u5199\u5165\u4E0A\u4E0B\u6587/\u4E16\u754C\u4E66\u5931\u8D25");
+            }
           }
           const duration = Date.now() - startTime;
           eventBus.emit(EVENTS.TOOL_EXECUTED, {
@@ -7645,6 +7959,23 @@ var init_tool_output_service = __esm({
           };
         }
       }
+      /**
+       * 预览工具的提取结果
+       * @param {Object} toolConfig
+       * @param {Object} rawContext
+       * @returns {Promise<Object>}
+       */
+      async previewExtraction(toolConfig, rawContext) {
+        const sourceText = this._collectRecentAssistantMessages(toolConfig, rawContext);
+        const extracted = this._applyExtractionSelectors(sourceText, toolConfig);
+        return {
+          success: true,
+          sourceText,
+          extractedText: extracted,
+          selectors: this._getExtractionSelectors(toolConfig),
+          maxMessages: toolConfig?.extraction?.maxMessages || 5
+        };
+      }
       // ============================================================
       // 消息构建
       // ============================================================
@@ -7654,9 +7985,13 @@ var init_tool_output_service = __esm({
        */
       async _buildToolMessages(toolConfig, rawContext) {
         const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
+        const recentMessagesText = this._collectRecentAssistantMessages(toolConfig, rawContext);
+        const extractedContent = this._applyExtractionSelectors(recentMessagesText, toolConfig);
         const fullContext = {
           ...rawContext,
           injectedContext,
+          recentMessagesText,
+          extractedContent,
           toolName: toolConfig.name,
           toolId: toolConfig.id
         };
@@ -7726,28 +8061,78 @@ var init_tool_output_service = __esm({
         if (!response)
           return "";
         if (typeof response === "string") {
-          return response;
+          return this._applyExtractionSelectors(response, toolConfig);
         }
         if (typeof response === "object") {
           if (response.choices && response.choices[0]?.message?.content) {
-            return response.choices[0].message.content;
+            return this._applyExtractionSelectors(response.choices[0].message.content, toolConfig);
           }
           if (response.content) {
-            return response.content;
+            return this._applyExtractionSelectors(response.content, toolConfig);
           }
           if (response.text) {
-            return response.text;
+            return this._applyExtractionSelectors(response.text, toolConfig);
           }
           if (response.message) {
-            return response.message;
+            return this._applyExtractionSelectors(response.message, toolConfig);
           }
           try {
-            return JSON.stringify(response, null, 2);
+            return this._applyExtractionSelectors(JSON.stringify(response, null, 2), toolConfig);
           } catch (e) {
-            return String(response);
+            return this._applyExtractionSelectors(String(response), toolConfig);
           }
         }
-        return String(response);
+        return this._applyExtractionSelectors(String(response), toolConfig);
+      }
+      /**
+       * 获取提取标签
+       * @private
+       */
+      _getExtractionSelectors(toolConfig) {
+        const selectors = toolConfig?.extraction?.selectors;
+        if (Array.isArray(selectors) && selectors.length > 0) {
+          return selectors.map((item) => String(item || "").trim()).filter(Boolean);
+        }
+        if (Array.isArray(toolConfig?.extractTags) && toolConfig.extractTags.length > 0) {
+          return toolConfig.extractTags.map((item) => String(item || "").trim()).filter(Boolean);
+        }
+        return [];
+      }
+      /**
+       * 应用提取规则
+       * @private
+       */
+      _applyExtractionSelectors(text, toolConfig) {
+        const sourceText = typeof text === "string" ? text : String(text || "");
+        const selectors = this._getExtractionSelectors(toolConfig);
+        if (!selectors.length) {
+          return sourceText.trim();
+        }
+        const rules = selectors.map((selector, index) => {
+          const value = String(selector || "").trim();
+          const isRegex = value.startsWith("regex:");
+          return {
+            id: `tool-extract-${index}`,
+            type: isRegex ? "regex_include" : "include",
+            value: isRegex ? value.slice(6).trim() : value,
+            enabled: true
+          };
+        }).filter((rule) => rule.value);
+        const extracted = extractTagContent(sourceText, rules, []);
+        return extracted || sourceText.trim();
+      }
+      /**
+       * 收集最近的角色消息
+       * @private
+       */
+      _collectRecentAssistantMessages(toolConfig, rawContext) {
+        const maxMessages = Math.max(1, parseInt(toolConfig?.extraction?.maxMessages, 10) || 5);
+        const chatMessages = Array.isArray(rawContext?.chatMessages) ? rawContext.chatMessages : [];
+        const assistantMessages = chatMessages.filter((message) => message?.role === "assistant" && message?.content).slice(-maxMessages).map((message) => message.content.trim()).filter(Boolean);
+        if (assistantMessages.length > 0) {
+          return assistantMessages.join("\n\n");
+        }
+        return rawContext?.lastAiMessage || rawContext?.input?.lastAiMessage || "";
       }
       // ============================================================
       // 工具配置过滤
@@ -7810,6 +8195,7 @@ __export(tool_trigger_exports, {
   getWorldbookContent: () => getWorldbookContent,
   initToolTriggerManager: () => initToolTriggerManager,
   initTriggerModule: () => initTriggerModule,
+  previewToolExtraction: () => previewToolExtraction,
   registerEventListener: () => registerEventListener,
   registerTriggerHandler: () => registerTriggerHandler,
   removeAllListeners: () => removeAllListeners,
@@ -8198,7 +8584,7 @@ function registerGenerationEndedListener() {
   toolTriggerManagerState.listeners.set(eventType, listener);
 }
 async function buildToolExecutionContext(eventData) {
-  const chat = await getChatContext({ depth: 5 });
+  const chat = await getChatContext({ depth: 50 });
   const character = await getCurrentCharacter();
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
@@ -8212,6 +8598,7 @@ async function buildToolExecutionContext(eventData) {
     messageId: eventData?.messageId || eventData?.id || "",
     lastAiMessage: lastAiMessage?.content || "",
     userMessage: lastUserMessage?.content || "",
+    chatMessages: messages,
     input: {
       userMessage: lastUserMessage?.content || "",
       lastAiMessage: lastAiMessage?.content || "",
@@ -8336,6 +8723,17 @@ async function runToolManually(toolId) {
   }
   const context = await buildToolExecutionContext({ triggerEvent: "MANUAL" });
   return executeTriggeredTool(tool, context);
+}
+async function previewToolExtraction(toolId) {
+  if (!toolId) {
+    return { success: false, error: "\u7F3A\u5C11\u5DE5\u5177ID" };
+  }
+  const tool = getToolFullConfig(toolId);
+  if (!tool) {
+    return { success: false, error: "\u5DE5\u5177\u4E0D\u5B58\u5728" };
+  }
+  const context = await buildToolExecutionContext({ triggerEvent: "MANUAL_PREVIEW" });
+  return toolOutputService.previewExtraction(tool, context);
 }
 function destroyToolTriggerManager() {
   for (const [eventType, listener] of toolTriggerManagerState.listeners) {
@@ -8468,6 +8866,7 @@ var init_summary_tool_panel = __esm({
     init_preset_manager();
     init_bypass_manager();
     init_tool_trigger();
+    init_context_injector();
     SummaryToolPanel = {
       id: "summaryToolPanel",
       toolId: "summaryTool",
@@ -8484,6 +8883,9 @@ var init_summary_tool_panel = __esm({
         const runtimeStatus = config.runtime?.lastStatus || "idle";
         const lastRunText = config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : "\u672A\u8FD0\u884C";
         const lastError = config.runtime?.lastError || "";
+        const extraction = config.extraction || {};
+        const injection = config.injection || {};
+        const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join("\n") : "";
         const modeText = outputMode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u8FDB\u884C\u6458\u8981\u89E3\u6790\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
         return `
       <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
@@ -8547,6 +8949,67 @@ var init_summary_tool_panel = __esm({
 
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
+            <i class="fa-solid fa-filter"></i>
+            <span>\u63D0\u53D6\u914D\u7F6E</span>
+          </div>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
+              <label>\u6700\u5927\u63D0\u53D6\u6D88\u606F\u6570</label>
+              <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-max-messages" min="1" max="50" value="${Number(extraction.maxMessages) || 5}">
+            </div>
+          </div>
+          <div class="yyt-form-group">
+            <label>\u63D0\u53D6\u6807\u7B7E / \u6B63\u5219</label>
+            <textarea class="yyt-textarea yyt-code-textarea yyt-code-textarea-small"
+                      id="${SCRIPT_ID}-tool-extraction-selectors"
+                      rows="5"
+                      placeholder="\u6BCF\u884C\u4E00\u4E2A\u6807\u7B7E\uFF0C\u5982 boo_FM
+\u6216 regex:<boo_FM>([\\s\\S]*?)</boo_FM>">${escapeHtml(selectorText)}</textarea>
+            <div class="yyt-tool-compact-hint">\u6BCF\u884C\u4E00\u4E2A\u89C4\u5219\u3002\u666E\u901A\u6587\u672C\u6309\u6807\u7B7E\u63D0\u53D6\uFF1B\u4EE5 <code>regex:</code> \u5F00\u5934\u65F6\u6309\u6B63\u5219\u7B2C\u4E00\u6355\u83B7\u7EC4\u63D0\u53D6\u3002</div>
+          </div>
+        </div>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-book"></i>
+            <span>\u4E16\u754C\u4E66\u6CE8\u5165</span>
+          </div>
+          <div class="yyt-form-group">
+            <label class="yyt-checkbox-label">
+              <input type="checkbox" id="${SCRIPT_ID}-tool-injection-enabled" ${injection.enabled !== false ? "checked" : ""}>
+              <span>\u6267\u884C\u540E\u5199\u5165\u4E16\u754C\u4E66</span>
+            </label>
+          </div>
+          <div class="yyt-injection-fields ${injection.enabled === false ? "yyt-hidden" : ""}">
+            <div class="yyt-form-group">
+              <label>\u76EE\u6807\u4E16\u754C\u4E66</label>
+              <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-target" data-current-value="${escapeHtml(injection.target || "__character__")}">
+                <option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>
+              </select>
+            </div>
+            <div class="yyt-form-row">
+              <div class="yyt-form-group yyt-flex-1">
+                <label>\u6CE8\u5165\u4F4D\u7F6E</label>
+                <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-position">
+                  <option value="at_depth_as_system" ${injection.position === "at_depth_as_system" ? "selected" : ""}>\u7CFB\u7EDF\u6DF1\u5EA6</option>
+                  <option value="before_char" ${injection.position === "before_char" ? "selected" : ""}>\u89D2\u8272\u5361\u524D</option>
+                  <option value="after_char" ${injection.position === "after_char" ? "selected" : ""}>\u89D2\u8272\u5361\u540E</option>
+                </select>
+              </div>
+              <div class="yyt-form-group yyt-flex-1">
+                <label>Depth</label>
+                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-depth" value="${Number(injection.depth) || 4}">
+              </div>
+              <div class="yyt-form-group yyt-flex-1">
+                <label>Order</label>
+                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-order" value="${Number(injection.order) || 1e4}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
             <i class="fa-solid fa-file-code"></i>
             <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
             <div class="yyt-title-actions">
@@ -8594,6 +9057,9 @@ var init_summary_tool_panel = __esm({
               <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
                 <i class="fa-solid fa-play"></i> \u7ACB\u5373\u6267\u884C\u4E00\u6B21
               </button>
+              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-preview-extraction">
+                <i class="fa-solid fa-vial"></i> \u6D4B\u8BD5\u63D0\u53D6
+              </button>
               <div class="yyt-tool-compact-hint">\u7528\u4E8E\u624B\u52A8\u9A8C\u8BC1\u5F53\u524D\u6A21\u677F\u3001API\u9884\u8BBE\u548C\u7834\u9650\u9884\u8BBE\u662F\u5426\u80FD\u6B63\u5E38\u5DE5\u4F5C\u3002</div>
             </div>
           </div>
@@ -8628,10 +9094,12 @@ var init_summary_tool_panel = __esm({
         const outputMode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
         const bypassEnabled = $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(":checked");
         const postResponseEnabled = outputMode === "post_response_api";
+        const selectorLines = ($container2.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+        const injectionEnabled = $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).is(":checked");
         return {
           enabled: true,
           promptTemplate: $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || "",
-          extractTags: currentConfig?.extractTags || [],
+          extractTags: selectorLines,
           trigger: {
             event: "GENERATION_ENDED",
             enabled: postResponseEnabled
@@ -8645,13 +9113,73 @@ var init_summary_tool_panel = __esm({
           bypass: {
             enabled: bypassEnabled,
             presetId: bypassEnabled ? $container2.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || "" : ""
+          },
+          extraction: {
+            enabled: true,
+            maxMessages: Math.max(1, parseInt($container2.find(`#${SCRIPT_ID}-tool-max-messages`).val(), 10) || 5),
+            selectors: selectorLines
+          },
+          injection: {
+            enabled: injectionEnabled,
+            target: $container2.find(`#${SCRIPT_ID}-tool-injection-target`).val() || "__character__",
+            comment: currentConfig?.injection?.comment || `YouYouToolkit:${this.toolId}`,
+            position: $container2.find(`#${SCRIPT_ID}-tool-injection-position`).val() || "at_depth_as_system",
+            depth: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-depth`).val(), 10) || 4,
+            order: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-order`).val(), 10) || 1e4
           }
         };
+      },
+      async _populateLorebookOptions($container2) {
+        try {
+          const currentValue = $container2.find(`#${SCRIPT_ID}-tool-injection-target`).data("currentValue") || "__character__";
+          const lorebooks = await contextInjector.getAvailableLorebooks();
+          const optionsHtml = lorebooks.map((item) => `
+        <option value="${escapeHtml(item.value)}" ${item.value === currentValue ? "selected" : ""}>${escapeHtml(item.label)}</option>
+      `).join("");
+          $container2.find(`#${SCRIPT_ID}-tool-injection-target`).html(optionsHtml || '<option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>');
+          if (!lorebooks.some((item) => item.value === currentValue)) {
+            $container2.find(`#${SCRIPT_ID}-tool-injection-target`).append(`<option value="${escapeHtml(currentValue)}" selected>${escapeHtml(currentValue)}</option>`);
+          }
+        } catch (error) {
+          console.warn("[SummaryToolPanel] \u52A0\u8F7D\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25:", error);
+        }
+      },
+      _showExtractionPreview($container2, result) {
+        const $ = getJQuery();
+        if (!$)
+          return;
+        const dialogId = `${SCRIPT_ID}-summary-extraction-preview`;
+        $container2.append(createDialogHtml({
+          id: dialogId,
+          title: "\u6D4B\u8BD5\u63D0\u53D6\u7ED3\u679C",
+          width: "720px",
+          wide: true,
+          body: `
+        <div class="yyt-form-group">
+          <label>\u63D0\u53D6\u89C4\u5219</label>
+          <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join("\n") || "\u65E0")}</div>
+        </div>
+        <div class="yyt-form-group">
+          <label>\u539F\u59CB\u5185\u5BB9\uFF08\u6700\u8FD1 ${result.maxMessages} \u6761\u89D2\u8272\u6D88\u606F\uFF09</label>
+          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || "\u65E0\u53EF\u7528\u6D88\u606F")}</pre>
+        </div>
+        <div class="yyt-form-group">
+          <label>\u63D0\u53D6\u7ED3\u679C</label>
+          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.extractedText || "\u672A\u63D0\u53D6\u5230\u5185\u5BB9")}</pre>
+        </div>
+      `
+        }));
+        bindDialogEvents($container2, dialogId, {
+          onSave: (closeDialog) => closeDialog()
+        });
+        $container2.find(`#${dialogId}-save`).text("\u5173\u95ED");
+        $container2.find(`#${dialogId}-cancel`).remove();
       },
       bindEvents($container2) {
         const $ = getJQuery();
         if (!$ || !isContainerValid($container2))
           return;
+        this._populateLorebookOptions($container2);
         $container2.find(`#${SCRIPT_ID}-tool-output-mode`).on("change", () => {
           const mode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
           const modeText = mode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u8FDB\u884C\u6458\u8981\u89E3\u6790\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
@@ -8660,6 +9188,10 @@ var init_summary_tool_panel = __esm({
         $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on("change", (event) => {
           const enabled = $(event.currentTarget).is(":checked");
           $container2.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden", !enabled);
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).on("change", (event) => {
+          const enabled = $(event.currentTarget).is(":checked");
+          $container2.find(".yyt-injection-fields").toggleClass("yyt-hidden", !enabled);
         });
         $container2.find(`#${SCRIPT_ID}-tool-save`).on("click", () => {
           this._saveConfig($container2, { silent: false });
@@ -8689,6 +9221,22 @@ var init_summary_tool_panel = __esm({
             showToast("error", error?.message || "\u624B\u52A8\u6267\u884C\u5931\u8D25");
           } finally {
             this.renderTo($container2);
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-preview-extraction`).on("click", async () => {
+          const saveSuccess = this._saveConfig($container2, { silent: true });
+          if (!saveSuccess) {
+            return;
+          }
+          try {
+            const result = await previewToolExtraction(this.toolId);
+            if (!result?.success) {
+              showToast("error", result?.error || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
+              return;
+            }
+            this._showExtractionPreview($container2, result);
+          } catch (error) {
+            showToast("error", error?.message || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
           }
         });
       },
@@ -8739,6 +9287,10 @@ var init_summary_tool_panel = __esm({
         border-color: rgba(255, 255, 255, 0.1);
         resize: vertical;
         min-height: 220px;
+      }
+
+      .yyt-code-textarea-small {
+        min-height: 120px;
       }
 
       .yyt-code-textarea:focus {
@@ -8845,6 +9397,25 @@ var init_summary_tool_panel = __esm({
         min-width: 180px;
       }
 
+      .yyt-preview-box {
+        padding: 10px 12px;
+        border-radius: var(--yyt-radius-sm);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--yyt-text);
+        font-size: 12px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .yyt-preview-pre {
+        max-height: 220px;
+        overflow: auto;
+        margin: 0;
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+      }
+
       .yyt-error {
         padding: 20px;
         text-align: center;
@@ -8887,6 +9458,7 @@ var init_status_block_panel = __esm({
     init_preset_manager();
     init_bypass_manager();
     init_tool_trigger();
+    init_context_injector();
     StatusBlockPanel = {
       id: "statusBlockPanel",
       toolId: "statusBlock",
@@ -8903,6 +9475,9 @@ var init_status_block_panel = __esm({
         const runtimeStatus = config.runtime?.lastStatus || "idle";
         const lastRunText = config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : "\u672A\u8FD0\u884C";
         const lastError = config.runtime?.lastError || "";
+        const extraction = config.extraction || {};
+        const injection = config.injection || {};
+        const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join("\n") : "";
         const modeText = outputMode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u680F\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
         return `
       <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
@@ -8966,6 +9541,67 @@ var init_status_block_panel = __esm({
 
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
+            <i class="fa-solid fa-filter"></i>
+            <span>\u63D0\u53D6\u914D\u7F6E</span>
+          </div>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
+              <label>\u6700\u5927\u63D0\u53D6\u6D88\u606F\u6570</label>
+              <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-max-messages" min="1" max="50" value="${Number(extraction.maxMessages) || 5}">
+            </div>
+          </div>
+          <div class="yyt-form-group">
+            <label>\u63D0\u53D6\u6807\u7B7E / \u6B63\u5219</label>
+            <textarea class="yyt-textarea yyt-code-textarea yyt-code-textarea-small"
+                      id="${SCRIPT_ID}-tool-extraction-selectors"
+                      rows="5"
+                      placeholder="\u6BCF\u884C\u4E00\u4E2A\u6807\u7B7E\uFF0C\u5982 status_block
+\u6216 regex:<status_block>([\\s\\S]*?)</status_block>">${escapeHtml(selectorText)}</textarea>
+            <div class="yyt-tool-compact-hint">\u6BCF\u884C\u4E00\u4E2A\u89C4\u5219\u3002\u666E\u901A\u6587\u672C\u6309\u6807\u7B7E\u63D0\u53D6\uFF1B\u4EE5 <code>regex:</code> \u5F00\u5934\u65F6\u6309\u6B63\u5219\u7B2C\u4E00\u6355\u83B7\u7EC4\u63D0\u53D6\u3002</div>
+          </div>
+        </div>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-book"></i>
+            <span>\u4E16\u754C\u4E66\u6CE8\u5165</span>
+          </div>
+          <div class="yyt-form-group">
+            <label class="yyt-checkbox-label">
+              <input type="checkbox" id="${SCRIPT_ID}-tool-injection-enabled" ${injection.enabled !== false ? "checked" : ""}>
+              <span>\u6267\u884C\u540E\u5199\u5165\u4E16\u754C\u4E66</span>
+            </label>
+          </div>
+          <div class="yyt-injection-fields ${injection.enabled === false ? "yyt-hidden" : ""}">
+            <div class="yyt-form-group">
+              <label>\u76EE\u6807\u4E16\u754C\u4E66</label>
+              <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-target" data-current-value="${escapeHtml(injection.target || "__character__")}">
+                <option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>
+              </select>
+            </div>
+            <div class="yyt-form-row">
+              <div class="yyt-form-group yyt-flex-1">
+                <label>\u6CE8\u5165\u4F4D\u7F6E</label>
+                <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-position">
+                  <option value="at_depth_as_system" ${injection.position === "at_depth_as_system" ? "selected" : ""}>\u7CFB\u7EDF\u6DF1\u5EA6</option>
+                  <option value="before_char" ${injection.position === "before_char" ? "selected" : ""}>\u89D2\u8272\u5361\u524D</option>
+                  <option value="after_char" ${injection.position === "after_char" ? "selected" : ""}>\u89D2\u8272\u5361\u540E</option>
+                </select>
+              </div>
+              <div class="yyt-form-group yyt-flex-1">
+                <label>Depth</label>
+                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-depth" value="${Number(injection.depth) || 4}">
+              </div>
+              <div class="yyt-form-group yyt-flex-1">
+                <label>Order</label>
+                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-order" value="${Number(injection.order) || 10001}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
             <i class="fa-solid fa-file-code"></i>
             <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
             <div class="yyt-title-actions">
@@ -9013,6 +9649,9 @@ var init_status_block_panel = __esm({
               <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
                 <i class="fa-solid fa-play"></i> \u7ACB\u5373\u6267\u884C\u4E00\u6B21
               </button>
+              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-preview-extraction">
+                <i class="fa-solid fa-vial"></i> \u6D4B\u8BD5\u63D0\u53D6
+              </button>
               <div class="yyt-tool-compact-hint">\u7528\u4E8E\u624B\u52A8\u9A8C\u8BC1\u5F53\u524D\u6A21\u677F\u3001API\u9884\u8BBE\u548C\u7834\u9650\u9884\u8BBE\u662F\u5426\u80FD\u6B63\u5E38\u5DE5\u4F5C\u3002</div>
             </div>
           </div>
@@ -9047,10 +9686,12 @@ var init_status_block_panel = __esm({
         const outputMode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
         const bypassEnabled = $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(":checked");
         const postResponseEnabled = outputMode === "post_response_api";
+        const selectorLines = ($container2.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+        const injectionEnabled = $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).is(":checked");
         return {
           enabled: true,
           promptTemplate: $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || "",
-          extractTags: currentConfig?.extractTags || [],
+          extractTags: selectorLines,
           trigger: {
             event: "GENERATION_ENDED",
             enabled: postResponseEnabled
@@ -9064,13 +9705,73 @@ var init_status_block_panel = __esm({
           bypass: {
             enabled: bypassEnabled,
             presetId: bypassEnabled ? $container2.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || "" : ""
+          },
+          extraction: {
+            enabled: true,
+            maxMessages: Math.max(1, parseInt($container2.find(`#${SCRIPT_ID}-tool-max-messages`).val(), 10) || 5),
+            selectors: selectorLines
+          },
+          injection: {
+            enabled: injectionEnabled,
+            target: $container2.find(`#${SCRIPT_ID}-tool-injection-target`).val() || "__character__",
+            comment: currentConfig?.injection?.comment || `YouYouToolkit:${this.toolId}`,
+            position: $container2.find(`#${SCRIPT_ID}-tool-injection-position`).val() || "at_depth_as_system",
+            depth: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-depth`).val(), 10) || 4,
+            order: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-order`).val(), 10) || 10001
           }
         };
+      },
+      async _populateLorebookOptions($container2) {
+        try {
+          const currentValue = $container2.find(`#${SCRIPT_ID}-tool-injection-target`).data("currentValue") || "__character__";
+          const lorebooks = await contextInjector.getAvailableLorebooks();
+          const optionsHtml = lorebooks.map((item) => `
+        <option value="${escapeHtml(item.value)}" ${item.value === currentValue ? "selected" : ""}>${escapeHtml(item.label)}</option>
+      `).join("");
+          $container2.find(`#${SCRIPT_ID}-tool-injection-target`).html(optionsHtml || '<option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>');
+          if (!lorebooks.some((item) => item.value === currentValue)) {
+            $container2.find(`#${SCRIPT_ID}-tool-injection-target`).append(`<option value="${escapeHtml(currentValue)}" selected>${escapeHtml(currentValue)}</option>`);
+          }
+        } catch (error) {
+          console.warn("[StatusBlockPanel] \u52A0\u8F7D\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25:", error);
+        }
+      },
+      _showExtractionPreview($container2, result) {
+        const $ = getJQuery();
+        if (!$)
+          return;
+        const dialogId = `${SCRIPT_ID}-status-extraction-preview`;
+        $container2.append(createDialogHtml({
+          id: dialogId,
+          title: "\u6D4B\u8BD5\u63D0\u53D6\u7ED3\u679C",
+          width: "720px",
+          wide: true,
+          body: `
+        <div class="yyt-form-group">
+          <label>\u63D0\u53D6\u89C4\u5219</label>
+          <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join("\n") || "\u65E0")}</div>
+        </div>
+        <div class="yyt-form-group">
+          <label>\u539F\u59CB\u5185\u5BB9\uFF08\u6700\u8FD1 ${result.maxMessages} \u6761\u89D2\u8272\u6D88\u606F\uFF09</label>
+          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || "\u65E0\u53EF\u7528\u6D88\u606F")}</pre>
+        </div>
+        <div class="yyt-form-group">
+          <label>\u63D0\u53D6\u7ED3\u679C</label>
+          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.extractedText || "\u672A\u63D0\u53D6\u5230\u5185\u5BB9")}</pre>
+        </div>
+      `
+        }));
+        bindDialogEvents($container2, dialogId, {
+          onSave: (closeDialog) => closeDialog()
+        });
+        $container2.find(`#${dialogId}-save`).text("\u5173\u95ED");
+        $container2.find(`#${dialogId}-cancel`).remove();
       },
       bindEvents($container2) {
         const $ = getJQuery();
         if (!$ || !isContainerValid($container2))
           return;
+        this._populateLorebookOptions($container2);
         $container2.find(`#${SCRIPT_ID}-tool-output-mode`).on("change", () => {
           const mode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
           const modeText = mode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u680F\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
@@ -9079,6 +9780,10 @@ var init_status_block_panel = __esm({
         $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on("change", (event) => {
           const enabled = $(event.currentTarget).is(":checked");
           $container2.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden", !enabled);
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).on("change", (event) => {
+          const enabled = $(event.currentTarget).is(":checked");
+          $container2.find(".yyt-injection-fields").toggleClass("yyt-hidden", !enabled);
         });
         $container2.find(`#${SCRIPT_ID}-tool-save`).on("click", () => {
           this._saveConfig($container2, { silent: false });
@@ -9108,6 +9813,22 @@ var init_status_block_panel = __esm({
             showToast("error", error?.message || "\u624B\u52A8\u6267\u884C\u5931\u8D25");
           } finally {
             this.renderTo($container2);
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-preview-extraction`).on("click", async () => {
+          const saveSuccess = this._saveConfig($container2, { silent: true });
+          if (!saveSuccess) {
+            return;
+          }
+          try {
+            const result = await previewToolExtraction(this.toolId);
+            if (!result?.success) {
+              showToast("error", result?.error || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
+              return;
+            }
+            this._showExtractionPreview($container2, result);
+          } catch (error) {
+            showToast("error", error?.message || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
           }
         });
       },
@@ -9158,6 +9879,10 @@ var init_status_block_panel = __esm({
         border-color: rgba(255, 255, 255, 0.1);
         resize: vertical;
         min-height: 220px;
+      }
+
+      .yyt-code-textarea-small {
+        min-height: 120px;
       }
 
       .yyt-code-textarea:focus {
@@ -9262,6 +9987,25 @@ var init_status_block_panel = __esm({
         flex-direction: column;
         gap: 10px;
         min-width: 180px;
+      }
+
+      .yyt-preview-box {
+        padding: 10px 12px;
+        border-radius: var(--yyt-radius-sm);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--yyt-text);
+        font-size: 12px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .yyt-preview-pre {
+        max-height: 220px;
+        overflow: auto;
+        margin: 0;
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
       }
 
       .yyt-error {

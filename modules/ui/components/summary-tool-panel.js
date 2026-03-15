@@ -11,7 +11,9 @@ import {
   showToast,
   showTopNotice,
   getJQuery,
-  isContainerValid
+  isContainerValid,
+  createDialogHtml,
+  bindDialogEvents
 } from '../utils.js';
 
 import {
@@ -29,8 +31,13 @@ import {
 } from '../../bypass-manager.js';
 
 import {
-  runToolManually
+  runToolManually,
+  previewToolExtraction
 } from '../../tool-trigger.js';
+
+import {
+  contextInjector
+} from '../../context-injector.js';
 
 export const SummaryToolPanel = {
   id: 'summaryToolPanel',
@@ -53,6 +60,9 @@ export const SummaryToolPanel = {
       ? new Date(config.runtime.lastRunAt).toLocaleString()
       : '未运行';
     const lastError = config.runtime?.lastError || '';
+    const extraction = config.extraction || {};
+    const injection = config.injection || {};
+    const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join('\n') : '';
     const modeText = outputMode === 'post_response_api'
       ? '监听 AI 回复结束后，调用额外模型进行摘要解析。'
       : '随 AI 输出即不启用额外工具链，不会自动调用额外模型。';
@@ -119,6 +129,66 @@ export const SummaryToolPanel = {
 
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
+            <i class="fa-solid fa-filter"></i>
+            <span>提取配置</span>
+          </div>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
+              <label>最大提取消息数</label>
+              <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-max-messages" min="1" max="50" value="${Number(extraction.maxMessages) || 5}">
+            </div>
+          </div>
+          <div class="yyt-form-group">
+            <label>提取标签 / 正则</label>
+            <textarea class="yyt-textarea yyt-code-textarea yyt-code-textarea-small"
+                      id="${SCRIPT_ID}-tool-extraction-selectors"
+                      rows="5"
+                      placeholder="每行一个标签，如 boo_FM\n或 regex:<boo_FM>([\\s\\S]*?)</boo_FM>">${escapeHtml(selectorText)}</textarea>
+            <div class="yyt-tool-compact-hint">每行一个规则。普通文本按标签提取；以 <code>regex:</code> 开头时按正则第一捕获组提取。</div>
+          </div>
+        </div>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-book"></i>
+            <span>世界书注入</span>
+          </div>
+          <div class="yyt-form-group">
+            <label class="yyt-checkbox-label">
+              <input type="checkbox" id="${SCRIPT_ID}-tool-injection-enabled" ${injection.enabled !== false ? 'checked' : ''}>
+              <span>执行后写入世界书</span>
+            </label>
+          </div>
+          <div class="yyt-injection-fields ${injection.enabled === false ? 'yyt-hidden' : ''}">
+            <div class="yyt-form-group">
+              <label>目标世界书</label>
+              <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-target" data-current-value="${escapeHtml(injection.target || '__character__')}">
+                <option value="__character__">当前角色绑定世界书</option>
+              </select>
+            </div>
+            <div class="yyt-form-row">
+              <div class="yyt-form-group yyt-flex-1">
+                <label>注入位置</label>
+                <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-position">
+                  <option value="at_depth_as_system" ${injection.position === 'at_depth_as_system' ? 'selected' : ''}>系统深度</option>
+                  <option value="before_char" ${injection.position === 'before_char' ? 'selected' : ''}>角色卡前</option>
+                  <option value="after_char" ${injection.position === 'after_char' ? 'selected' : ''}>角色卡后</option>
+                </select>
+              </div>
+              <div class="yyt-form-group yyt-flex-1">
+                <label>Depth</label>
+                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-depth" value="${Number(injection.depth) || 4}">
+              </div>
+              <div class="yyt-form-group yyt-flex-1">
+                <label>Order</label>
+                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-order" value="${Number(injection.order) || 10000}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
             <i class="fa-solid fa-file-code"></i>
             <span>模板修改框</span>
             <div class="yyt-title-actions">
@@ -166,6 +236,9 @@ export const SummaryToolPanel = {
               <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
                 <i class="fa-solid fa-play"></i> 立即执行一次
               </button>
+              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-preview-extraction">
+                <i class="fa-solid fa-vial"></i> 测试提取
+              </button>
               <div class="yyt-tool-compact-hint">用于手动验证当前模板、API预设和破限预设是否能正常工作。</div>
             </div>
           </div>
@@ -203,11 +276,16 @@ export const SummaryToolPanel = {
     const outputMode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
     const bypassEnabled = $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(':checked');
     const postResponseEnabled = outputMode === 'post_response_api';
+    const selectorLines = ($container.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || '')
+      .split(/\r?\n/)
+      .map(item => item.trim())
+      .filter(Boolean);
+    const injectionEnabled = $container.find(`#${SCRIPT_ID}-tool-injection-enabled`).is(':checked');
 
     return {
       enabled: true,
       promptTemplate: $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || '',
-      extractTags: currentConfig?.extractTags || [],
+      extractTags: selectorLines,
       trigger: {
         event: 'GENERATION_ENDED',
         enabled: postResponseEnabled
@@ -221,13 +299,79 @@ export const SummaryToolPanel = {
       bypass: {
         enabled: bypassEnabled,
         presetId: bypassEnabled ? ($container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || '') : ''
+      },
+      extraction: {
+        enabled: true,
+        maxMessages: Math.max(1, parseInt($container.find(`#${SCRIPT_ID}-tool-max-messages`).val(), 10) || 5),
+        selectors: selectorLines
+      },
+      injection: {
+        enabled: injectionEnabled,
+        target: $container.find(`#${SCRIPT_ID}-tool-injection-target`).val() || '__character__',
+        comment: currentConfig?.injection?.comment || `YouYouToolkit:${this.toolId}`,
+        position: $container.find(`#${SCRIPT_ID}-tool-injection-position`).val() || 'at_depth_as_system',
+        depth: parseInt($container.find(`#${SCRIPT_ID}-tool-injection-depth`).val(), 10) || 4,
+        order: parseInt($container.find(`#${SCRIPT_ID}-tool-injection-order`).val(), 10) || 10000
       }
     };
+  },
+
+  async _populateLorebookOptions($container) {
+    try {
+      const currentValue = $container.find(`#${SCRIPT_ID}-tool-injection-target`).data('currentValue') || '__character__';
+      const lorebooks = await contextInjector.getAvailableLorebooks();
+      const optionsHtml = lorebooks.map(item => `
+        <option value="${escapeHtml(item.value)}" ${item.value === currentValue ? 'selected' : ''}>${escapeHtml(item.label)}</option>
+      `).join('');
+
+      $container.find(`#${SCRIPT_ID}-tool-injection-target`).html(optionsHtml || '<option value="__character__">当前角色绑定世界书</option>');
+      if (!lorebooks.some(item => item.value === currentValue)) {
+        $container.find(`#${SCRIPT_ID}-tool-injection-target`).append(`<option value="${escapeHtml(currentValue)}" selected>${escapeHtml(currentValue)}</option>`);
+      }
+    } catch (error) {
+      console.warn('[SummaryToolPanel] 加载世界书列表失败:', error);
+    }
+  },
+
+  _showExtractionPreview($container, result) {
+    const $ = getJQuery();
+    if (!$) return;
+
+    const dialogId = `${SCRIPT_ID}-summary-extraction-preview`;
+    $container.append(createDialogHtml({
+      id: dialogId,
+      title: '测试提取结果',
+      width: '720px',
+      wide: true,
+      body: `
+        <div class="yyt-form-group">
+          <label>提取规则</label>
+          <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join('\n') || '无')}</div>
+        </div>
+        <div class="yyt-form-group">
+          <label>原始内容（最近 ${result.maxMessages} 条角色消息）</label>
+          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || '无可用消息')}</pre>
+        </div>
+        <div class="yyt-form-group">
+          <label>提取结果</label>
+          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.extractedText || '未提取到内容')}</pre>
+        </div>
+      `
+    }));
+
+    bindDialogEvents($container, dialogId, {
+      onSave: (closeDialog) => closeDialog()
+    });
+
+    $container.find(`#${dialogId}-save`).text('关闭');
+    $container.find(`#${dialogId}-cancel`).remove();
   },
 
   bindEvents($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
+
+    this._populateLorebookOptions($container);
 
     $container.find(`#${SCRIPT_ID}-tool-output-mode`).on('change', () => {
       const mode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
@@ -240,6 +384,11 @@ export const SummaryToolPanel = {
     $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on('change', (event) => {
       const enabled = $(event.currentTarget).is(':checked');
       $container.find('.yyt-bypass-preset-select').toggleClass('yyt-hidden', !enabled);
+    });
+
+    $container.find(`#${SCRIPT_ID}-tool-injection-enabled`).on('change', (event) => {
+      const enabled = $(event.currentTarget).is(':checked');
+      $container.find('.yyt-injection-fields').toggleClass('yyt-hidden', !enabled);
     });
 
     $container.find(`#${SCRIPT_ID}-tool-save`).on('click', () => {
@@ -273,6 +422,24 @@ export const SummaryToolPanel = {
         showToast('error', error?.message || '手动执行失败');
       } finally {
         this.renderTo($container);
+      }
+    });
+
+    $container.find(`#${SCRIPT_ID}-tool-preview-extraction`).on('click', async () => {
+      const saveSuccess = this._saveConfig($container, { silent: true });
+      if (!saveSuccess) {
+        return;
+      }
+
+      try {
+        const result = await previewToolExtraction(this.toolId);
+        if (!result?.success) {
+          showToast('error', result?.error || '测试提取失败');
+          return;
+        }
+        this._showExtractionPreview($container, result);
+      } catch (error) {
+        showToast('error', error?.message || '测试提取失败');
       }
     });
   },
@@ -327,6 +494,10 @@ export const SummaryToolPanel = {
         border-color: rgba(255, 255, 255, 0.1);
         resize: vertical;
         min-height: 220px;
+      }
+
+      .yyt-code-textarea-small {
+        min-height: 120px;
       }
 
       .yyt-code-textarea:focus {
@@ -431,6 +602,25 @@ export const SummaryToolPanel = {
         flex-direction: column;
         gap: 10px;
         min-width: 180px;
+      }
+
+      .yyt-preview-box {
+        padding: 10px 12px;
+        border-radius: var(--yyt-radius-sm);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--yyt-text);
+        font-size: 12px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .yyt-preview-pre {
+        max-height: 220px;
+        overflow: auto;
+        margin: 0;
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
       }
 
       .yyt-error {

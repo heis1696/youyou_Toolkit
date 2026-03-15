@@ -8,6 +8,7 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 import { settingsService } from './core/settings-service.js';
 import { contextInjector } from './context-injector.js';
 import { toolPromptService } from './tool-prompt-service.js';
+import { extractTagContent } from './regex-extractor.js';
 
 // ============================================================
 // 输出模式定义
@@ -142,11 +143,22 @@ class ToolOutputService {
       
       // 5. 注入上下文
       if (outputContent) {
-        await contextInjector.inject(toolId, outputContent, {
+        const injected = await contextInjector.inject(toolId, outputContent, {
           chatId: rawContext.chatId,
           overwrite: toolConfig.output?.overwrite !== false,
-          sourceMessageId: rawContext.messageId || ''
+          sourceMessageId: rawContext.messageId || '',
+          target: toolConfig.injection?.enabled === false ? 'context' : 'worldbook',
+          worldbookTarget: toolConfig.injection?.target || '__character__',
+          comment: toolConfig.injection?.comment || `YouYouToolkit:${toolId}`,
+          position: toolConfig.injection?.position || 'at_depth_as_system',
+          depth: toolConfig.injection?.depth ?? 4,
+          order: toolConfig.injection?.order ?? 10000,
+          enabled: toolConfig.injection?.enabled !== false
         });
+
+        if (!injected) {
+          throw new Error('工具结果已生成，但写入上下文/世界书失败');
+        }
       }
       
       const duration = Date.now() - startTime;
@@ -221,6 +233,25 @@ class ToolOutputService {
     }
   }
 
+  /**
+   * 预览工具的提取结果
+   * @param {Object} toolConfig
+   * @param {Object} rawContext
+   * @returns {Promise<Object>}
+   */
+  async previewExtraction(toolConfig, rawContext) {
+    const sourceText = this._collectRecentAssistantMessages(toolConfig, rawContext);
+    const extracted = this._applyExtractionSelectors(sourceText, toolConfig);
+
+    return {
+      success: true,
+      sourceText,
+      extractedText: extracted,
+      selectors: this._getExtractionSelectors(toolConfig),
+      maxMessages: toolConfig?.extraction?.maxMessages || 5
+    };
+  }
+
   // ============================================================
   // 消息构建
   // ============================================================
@@ -232,11 +263,15 @@ class ToolOutputService {
   async _buildToolMessages(toolConfig, rawContext) {
     // 获取聚合的注入上下文
     const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
+    const recentMessagesText = this._collectRecentAssistantMessages(toolConfig, rawContext);
+    const extractedContent = this._applyExtractionSelectors(recentMessagesText, toolConfig);
     
     // 构建完整上下文
     const fullContext = {
       ...rawContext,
       injectedContext,
+      recentMessagesText,
+      extractedContent,
       toolName: toolConfig.name,
       toolId: toolConfig.id
     };
@@ -319,38 +354,103 @@ class ToolOutputService {
     
     // 如果响应是字符串，直接返回
     if (typeof response === 'string') {
-      return response;
+      return this._applyExtractionSelectors(response, toolConfig);
     }
     
     // 如果响应是对象，尝试提取内容
     if (typeof response === 'object') {
       // OpenAI 格式
       if (response.choices && response.choices[0]?.message?.content) {
-        return response.choices[0].message.content;
+        return this._applyExtractionSelectors(response.choices[0].message.content, toolConfig);
       }
       
       // 简单格式
       if (response.content) {
-        return response.content;
+        return this._applyExtractionSelectors(response.content, toolConfig);
       }
       
       if (response.text) {
-        return response.text;
+        return this._applyExtractionSelectors(response.text, toolConfig);
       }
       
       if (response.message) {
-        return response.message;
+        return this._applyExtractionSelectors(response.message, toolConfig);
       }
       
       // 尝试JSON序列化
       try {
-        return JSON.stringify(response, null, 2);
+        return this._applyExtractionSelectors(JSON.stringify(response, null, 2), toolConfig);
       } catch (e) {
-        return String(response);
+        return this._applyExtractionSelectors(String(response), toolConfig);
       }
     }
     
-    return String(response);
+    return this._applyExtractionSelectors(String(response), toolConfig);
+  }
+
+  /**
+   * 获取提取标签
+   * @private
+   */
+  _getExtractionSelectors(toolConfig) {
+    const selectors = toolConfig?.extraction?.selectors;
+    if (Array.isArray(selectors) && selectors.length > 0) {
+      return selectors.map(item => String(item || '').trim()).filter(Boolean);
+    }
+
+    if (Array.isArray(toolConfig?.extractTags) && toolConfig.extractTags.length > 0) {
+      return toolConfig.extractTags.map(item => String(item || '').trim()).filter(Boolean);
+    }
+
+    return [];
+  }
+
+  /**
+   * 应用提取规则
+   * @private
+   */
+  _applyExtractionSelectors(text, toolConfig) {
+    const sourceText = typeof text === 'string' ? text : String(text || '');
+    const selectors = this._getExtractionSelectors(toolConfig);
+
+    if (!selectors.length) {
+      return sourceText.trim();
+    }
+
+    const rules = selectors.map((selector, index) => {
+      const value = String(selector || '').trim();
+      const isRegex = value.startsWith('regex:');
+      return {
+        id: `tool-extract-${index}`,
+        type: isRegex ? 'regex_include' : 'include',
+        value: isRegex ? value.slice(6).trim() : value,
+        enabled: true
+      };
+    }).filter(rule => rule.value);
+
+    const extracted = extractTagContent(sourceText, rules, []);
+    return extracted || sourceText.trim();
+  }
+
+  /**
+   * 收集最近的角色消息
+   * @private
+   */
+  _collectRecentAssistantMessages(toolConfig, rawContext) {
+    const maxMessages = Math.max(1, parseInt(toolConfig?.extraction?.maxMessages, 10) || 5);
+    const chatMessages = Array.isArray(rawContext?.chatMessages) ? rawContext.chatMessages : [];
+
+    const assistantMessages = chatMessages
+      .filter(message => message?.role === 'assistant' && message?.content)
+      .slice(-maxMessages)
+      .map(message => message.content.trim())
+      .filter(Boolean);
+
+    if (assistantMessages.length > 0) {
+      return assistantMessages.join('\n\n');
+    }
+
+    return rawContext?.lastAiMessage || rawContext?.input?.lastAiMessage || '';
   }
 
   // ============================================================

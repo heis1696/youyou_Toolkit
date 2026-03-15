@@ -50,6 +50,23 @@ const DEFAULT_TOOL_CONFIGS = {
       overwrite: true,
       enabled: true
     },
+
+    // 提取配置
+    extraction: {
+      enabled: true,
+      maxMessages: 5,
+      selectors: ['boo_FM']
+    },
+
+    // 注入配置
+    injection: {
+      enabled: true,
+      target: '__character__',
+      comment: 'YouYouToolkit:summaryTool',
+      position: 'at_depth_as_system',
+      depth: 4,
+      order: 10000
+    },
     
     // 提示词模板（单文本）
     promptTemplate: `请根据以下AI回复生成摘要块：
@@ -107,6 +124,23 @@ const DEFAULT_TOOL_CONFIGS = {
       apiPreset: '',
       overwrite: true,
       enabled: true
+    },
+
+    // 提取配置
+    extraction: {
+      enabled: true,
+      maxMessages: 5,
+      selectors: ['status_block']
+    },
+
+    // 注入配置
+    injection: {
+      enabled: true,
+      target: '__character__',
+      comment: 'YouYouToolkit:statusBlock',
+      position: 'at_depth_as_system',
+      depth: 4,
+      order: 10001
     },
     
     // 提示词模板（单文本）
@@ -432,12 +466,56 @@ export function getToolFullConfig(toolId) {
   
   const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
   const userConfig = userConfigs[toolId] || {};
-  
-  return {
+
+  const mergedConfig = {
     ...defaultConfig,
     ...userConfig,
     id: toolId  // ID不可覆盖
   };
+
+  mergedConfig.trigger = {
+    ...(defaultConfig.trigger || {}),
+    ...(userConfig.trigger || {})
+  };
+
+  mergedConfig.output = {
+    ...(defaultConfig.output || {}),
+    ...(userConfig.output || {})
+  };
+
+  mergedConfig.bypass = {
+    ...(defaultConfig.bypass || {}),
+    ...(userConfig.bypass || {})
+  };
+
+  mergedConfig.runtime = {
+    ...(defaultConfig.runtime || {}),
+    ...(userConfig.runtime || {})
+  };
+
+  mergedConfig.extraction = {
+    ...(defaultConfig.extraction || {}),
+    ...(userConfig.extraction || {})
+  };
+
+  mergedConfig.injection = {
+    ...(defaultConfig.injection || {}),
+    ...(userConfig.injection || {})
+  };
+
+  if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0)
+    && Array.isArray(mergedConfig.extractTags)
+    && mergedConfig.extractTags.length > 0) {
+    mergedConfig.extraction.selectors = [...mergedConfig.extractTags];
+  }
+
+  if (!Array.isArray(mergedConfig.extractTags) || mergedConfig.extractTags.length === 0) {
+    mergedConfig.extractTags = Array.isArray(mergedConfig.extraction.selectors)
+      ? [...mergedConfig.extraction.selectors]
+      : [];
+  }
+
+  return mergedConfig;
 }
 
 /**
@@ -463,6 +541,8 @@ export function saveToolConfig(toolId, config) {
     'trigger',             // 触发配置
     'output',              // 输出配置（包含 mode, apiPreset, overwrite）
     'bypass',              // 破限词配置
+    'extraction',          // 提取配置
+    'injection',           // 世界书注入配置
     'runtime'              // 运行时状态
   ];
   

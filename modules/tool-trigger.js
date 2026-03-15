@@ -681,7 +681,7 @@ function registerGenerationEndedListener() {
  * @returns {Promise<Object>} 执行上下文
  */
 async function buildToolExecutionContext(eventData) {
-  const chat = await getChatContext({ depth: 5 });
+  const chat = await getChatContext({ depth: 50 });
   const character = await getCurrentCharacter();
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
@@ -698,6 +698,7 @@ async function buildToolExecutionContext(eventData) {
     messageId: eventData?.messageId || eventData?.id || '',
     lastAiMessage: lastAiMessage?.content || '',
     userMessage: lastUserMessage?.content || '',
+    chatMessages: messages,
     input: {
       userMessage: lastUserMessage?.content || '',
       lastAiMessage: lastAiMessage?.content || '',
@@ -867,6 +868,25 @@ export async function runToolManually(toolId) {
 
   const context = await buildToolExecutionContext({ triggerEvent: 'MANUAL' });
   return executeTriggeredTool(tool, context);
+}
+
+/**
+ * 预览工具提取结果
+ * @param {string} toolId
+ * @returns {Promise<Object>}
+ */
+export async function previewToolExtraction(toolId) {
+  if (!toolId) {
+    return { success: false, error: '缺少工具ID' };
+  }
+
+  const tool = getToolFullConfig(toolId);
+  if (!tool) {
+    return { success: false, error: '工具不存在' };
+  }
+
+  const context = await buildToolExecutionContext({ triggerEvent: 'MANUAL_PREVIEW' });
+  return toolOutputService.previewExtraction(tool, context);
 }
 
 /**

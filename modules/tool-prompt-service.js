@@ -132,12 +132,29 @@ class ToolPromptService {
   _buildUserContent(promptTemplate, context) {
     const parts = [];
     const lastAiMessage = context?.lastAiMessage || context?.input?.lastAiMessage || '';
+    const extractedContent = context?.extractedContent || context?.input?.extractedContent || '';
+    const recentMessagesText = context?.recentMessagesText || '';
     
     // 添加提示词模板
     if (promptTemplate && promptTemplate.trim()) {
-      parts.push(promptTemplate.trim());
+      let resolvedTemplate = promptTemplate;
+      const replacements = {
+        '{{lastAiMessage}}': lastAiMessage,
+        '{{extractedContent}}': extractedContent,
+        '{{recentMessagesText}}': recentMessagesText
+      };
+
+      Object.entries(replacements).forEach(([placeholder, value]) => {
+        resolvedTemplate = resolvedTemplate.split(placeholder).join(value || '');
+      });
+
+      parts.push(resolvedTemplate.trim());
     }
     
+    if (extractedContent) {
+      parts.push(`\n以下是基于提取规则筛出的内容：\n${extractedContent}`);
+    }
+
     // 添加 AI 回复内容
     if (lastAiMessage) {
       parts.push(`\n以下是需要处理的AI回复内容：\n${lastAiMessage}`);

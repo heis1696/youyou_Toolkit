@@ -21,7 +21,12 @@ const DEFAULT_INJECTION_OPTIONS = {
   target: 'context',    // 注入目标：context, worldbook, message
   scope: 'chat',        // 作用域：chat, global, character
   overwrite: true,      // 是否覆盖现有内容
-  enabled: true
+  enabled: true,
+  worldbookTarget: '__character__',
+  comment: '',
+  position: 'at_depth_as_system',
+  depth: 4,
+  order: 10000
 };
 
 // ============================================================
@@ -48,7 +53,7 @@ class ContextInjector {
    * @param {Object} options - 注入选项
    * @returns {boolean} 是否成功
    */
-  inject(toolId, content, options = {}) {
+  async inject(toolId, content, options = {}) {
     if (!toolId || content === undefined || content === null) {
       this._log('注入失败: 参数无效');
       return false;
@@ -96,9 +101,81 @@ class ContextInjector {
       content: injectionEntry.content,
       options: mergedOptions
     });
+
+    if (mergedOptions.enabled !== false && mergedOptions.target === 'worldbook') {
+      const synced = await this._syncWorldbookEntry(toolId, injectionEntry.content, mergedOptions);
+      if (!synced) {
+        this._log(`世界书注入失败: ${toolId}`);
+        return false;
+      }
+    }
     
     this._log(`注入成功: ${toolId} -> ${chatId}`);
     return true;
+  }
+
+  /**
+   * 获取可用世界书列表
+   * @returns {Promise<Array<{value: string, label: string, kind: string, isPrimary?: boolean}>>}
+   */
+  async getAvailableLorebooks() {
+    const helper = this._getTavernHelper();
+    const result = [];
+    const seen = new Set();
+
+    result.push({
+      value: '__character__',
+      label: '当前角色绑定世界书',
+      kind: 'character',
+      isPrimary: true
+    });
+    seen.add('__character__');
+
+    if (!helper) {
+      return result;
+    }
+
+    try {
+      let primary = '';
+      if (typeof helper.getCurrentCharPrimaryLorebook === 'function') {
+        primary = await helper.getCurrentCharPrimaryLorebook();
+      } else if (typeof helper.getCharLorebooks === 'function') {
+        const lorebooks = await helper.getCharLorebooks({ type: 'all' });
+        primary = lorebooks?.primary || '';
+      }
+
+      if (primary && !seen.has(primary)) {
+        result.push({
+          value: primary,
+          label: `${primary} [角色主世界书]`,
+          kind: 'lorebook',
+          isPrimary: true
+        });
+        seen.add(primary);
+      }
+    } catch (error) {
+      this._log('获取角色主世界书失败', error);
+    }
+
+    try {
+      if (typeof helper.getLorebooks === 'function') {
+        const lorebooks = await Promise.resolve(helper.getLorebooks());
+        const names = Array.isArray(lorebooks) ? lorebooks : [];
+        names.forEach((name) => {
+          if (!name || seen.has(name)) return;
+          result.push({
+            value: name,
+            label: name,
+            kind: 'lorebook'
+          });
+          seen.add(name);
+        });
+      }
+    } catch (error) {
+      this._log('获取世界书列表失败', error);
+    }
+
+    return result;
   }
 
   /**
@@ -307,6 +384,122 @@ class ContextInjector {
    */
   _getStorageKey(chatId) {
     return `${CONTEXT_INJECTION_KEY}:${chatId}`;
+  }
+
+  /**
+   * 获取 TavernHelper
+   * @private
+   */
+  _getTavernHelper() {
+    try {
+      const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window)
+        ? window.parent
+        : window;
+      return topWindow.TavernHelper || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * 规范化世界书位置
+   * @private
+   */
+  _normalizeWorldbookPosition(position) {
+    const normalized = String(position || '').trim().toLowerCase();
+    if (normalized === 'before_char' || normalized === 'after_char' || normalized === 'at_depth_as_system') {
+      return normalized;
+    }
+    return 'at_depth_as_system';
+  }
+
+  /**
+   * 解析注入目标世界书名称
+   * @private
+   */
+  async _resolveWorldbookTarget(target) {
+    const helper = this._getTavernHelper();
+    if (!helper) return '';
+
+    if (!target || target === '__character__') {
+      if (typeof helper.getCurrentCharPrimaryLorebook === 'function') {
+        return await helper.getCurrentCharPrimaryLorebook();
+      }
+      if (typeof helper.getCharLorebooks === 'function') {
+        const lorebooks = await helper.getCharLorebooks({ type: 'all' });
+        return lorebooks?.primary || '';
+      }
+      return '';
+    }
+
+    return target;
+  }
+
+  /**
+   * 将内容同步到世界书条目
+   * @private
+   */
+  async _syncWorldbookEntry(toolId, content, options) {
+    const helper = this._getTavernHelper();
+    if (!helper || typeof helper.getLorebookEntries !== 'function') {
+      this._log('TavernHelper 不可用，无法写入世界书');
+      return false;
+    }
+
+    const targetName = await this._resolveWorldbookTarget(options.worldbookTarget || options.targetName || options.target);
+    if (!targetName) {
+      this._log('未找到可用世界书，无法写入');
+      return false;
+    }
+
+    const comment = options.comment || `YouYouToolkit:${toolId}`;
+    const position = this._normalizeWorldbookPosition(options.position);
+    const depth = Number.isFinite(Number(options.depth)) ? Number(options.depth) : 4;
+    const order = Number.isFinite(Number(options.order)) ? Number(options.order) : 10000;
+
+    try {
+      const existingEntries = await helper.getLorebookEntries(targetName);
+      const entries = Array.isArray(existingEntries) ? existingEntries : [];
+      const existingEntry = entries.find((entry) => entry?.comment === comment || entry?.key === comment);
+
+      let nextContent = String(content);
+      if (existingEntry && options.overwrite === false) {
+        nextContent = [existingEntry.content || '', content].filter(Boolean).join('\n\n');
+      }
+
+      const payload = {
+        key: comment,
+        comment,
+        content: nextContent,
+        type: 'constant',
+        enabled: true,
+        disable: false,
+        prevent_recursion: true,
+        position,
+        order
+      };
+
+      if (position === 'at_depth_as_system') {
+        payload.depth = depth;
+      }
+
+      if (existingEntry?.uid != null && typeof helper.setLorebookEntries === 'function') {
+        await helper.setLorebookEntries(targetName, [{
+          ...payload,
+          uid: existingEntry.uid
+        }]);
+        return true;
+      }
+
+      if (typeof helper.createLorebookEntries === 'function') {
+        await helper.createLorebookEntries(targetName, [payload]);
+        return true;
+      }
+    } catch (error) {
+      this._log('写入世界书失败', error);
+    }
+
+    return false;
   }
 
   /**

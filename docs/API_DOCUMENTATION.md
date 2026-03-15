@@ -198,6 +198,8 @@ const trigger = YouYouToolkit.getToolTrigger();
 // trigger.getChatContext(options)
 // trigger.getCurrentCharacter()
 // trigger.initToolTriggerManager()
+// trigger.runToolManually(toolId)
+// trigger.previewToolExtraction(toolId)
 // trigger.getToolTriggerManagerState()
 ```
 
@@ -270,6 +272,7 @@ const resolver = YouYouToolkit.getVariableResolver();
 ```javascript
 const injector = YouYouToolkit.getContextInjector();
 // injector.inject(toolId, content, options) // 注入工具上下文
+// injector.getAvailableLorebooks() // 获取可选世界书列表
 // injector.getAggregatedContext(chatId) // 获取聚合的注入上下文
 // injector.getToolContext(chatId, toolId) // 获取单个工具的注入上下文
 // injector.getAllToolContexts(chatId) // 获取聊天下所有工具上下文
@@ -308,6 +311,7 @@ const outputService = YouYouToolkit.getToolOutputService();
 // outputService.shouldRunInline(toolConfig)           // 已弃用，使用 shouldRunFollowAi
 // outputService.runToolPostResponse(toolConfig, rawContext) // 执行 post_response_api 输出
 // outputService.runToolInline(toolConfig, rawContext) // 执行 inline 输出（已弃用）
+// outputService.previewExtraction(toolConfig, rawContext) // 预览工具提取结果
 // outputService.filterPostResponseTools(toolConfigs)  // 过滤出 post_response_api 工具
 // outputService.filterInlineTools(toolConfigs)        // 过滤出 inline 工具（已弃用）
 // outputService.setDebugMode(enabled)                 // 设置调试模式
@@ -578,6 +582,23 @@ interface ToolConfig {
     overwrite: boolean;    // 是否覆盖旧的注入结果
     enabled: boolean;
   };
+
+  // 提取配置
+  extraction: {
+    enabled: boolean;          // 是否启用提取规则
+    maxMessages: number;       // 提取时最多回看多少条角色消息
+    selectors: string[];       // 每个工具独立的标签/正则规则，regex: 前缀表示正则第一捕获组
+  };
+
+  // 世界书注入配置
+  injection: {
+    enabled: boolean;          // 是否将结果写入世界书
+    target: string;            // 目标世界书，__character__ 表示当前角色绑定世界书
+    comment: string;           // 写入/更新时使用的世界书条目标识
+    position: 'at_depth_as_system' | 'before_char' | 'after_char';
+    depth: number;             // system depth 模式下的深度
+    order: number;             // 世界书条目顺序
+  };
   
   // 提示词模板（v0.6 简化为单文本）
   promptTemplate: string;
@@ -613,7 +634,10 @@ interface ToolConfig {
 - 当输出模式为 `follow_ai` 时，视为**不启用额外工具链**，不会在 AI 回复后自动调用额外模型
 - 当输出模式为 `post_response_api` 时，才会在监听到 `GENERATION_ENDED` 后自动执行工具
 - 手动操作区支持直接触发一次工具执行，并复用当前模板、API 预设与破限预设配置
+- 每个工具现在都支持独立的“测试提取”能力，可基于最近若干条角色消息预览标签/正则提取结果
+- 每个工具现在都支持独立绑定世界书、设置最大提取消息数，以及配置单独的提取标签/正则规则
 - AI 回复自动触发时会在页面顶部显示通知，用于确认是否真正进入执行链路，以及是否执行成功/失败
+- 当工具执行成功后，会将提取后的结果真正写入目标世界书；若世界书写入失败，执行会被标记为失败并给出提示
 
 ### 输出模式说明 (v0.6)
 
