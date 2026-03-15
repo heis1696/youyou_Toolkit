@@ -240,15 +240,17 @@ class ToolOutputService {
    * @returns {Promise<Object>}
    */
   async previewExtraction(toolConfig, rawContext) {
-    const sourceText = this._collectRecentAssistantMessages(toolConfig, rawContext);
-    const filteredSourceText = this._applyGlobalContextRules(sourceText);
-    const extracted = this._extractToolContent(toolConfig, sourceText, filteredSourceText);
+    const messageEntries = this._buildRecentMessageExtractionEntries(toolConfig, rawContext);
+    const sourceText = this._joinMessageBlocks(messageEntries, 'rawText');
+    const filteredSourceText = this._joinMessageBlocks(messageEntries, 'filteredText');
+    const extracted = this._joinMessageBlocks(messageEntries, 'extractedText', { skipEmpty: true });
 
     return {
       success: true,
       sourceText,
       filteredSourceText,
       extractedText: extracted,
+      messageEntries,
       selectors: this._getExtractionSelectors(toolConfig),
       maxMessages: toolConfig?.extraction?.maxMessages || 5
     };
@@ -265,9 +267,10 @@ class ToolOutputService {
   async _buildToolMessages(toolConfig, rawContext) {
     // 获取聚合的注入上下文
     const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
-    const rawRecentMessagesText = this._collectRecentAssistantMessages(toolConfig, rawContext);
-    const recentMessagesText = this._applyGlobalContextRules(rawRecentMessagesText);
-    const extractedContent = this._extractToolContent(toolConfig, rawRecentMessagesText, recentMessagesText);
+    const messageEntries = this._buildRecentMessageExtractionEntries(toolConfig, rawContext);
+    const rawRecentMessagesText = this._joinMessageBlocks(messageEntries, 'rawText');
+    const recentMessagesText = this._joinMessageBlocks(messageEntries, 'filteredText');
+    const extractedContent = this._joinMessageBlocks(messageEntries, 'extractedText', { skipEmpty: true });
     
     // 构建完整上下文
     const fullContext = {
@@ -453,28 +456,15 @@ class ToolOutputService {
    * 工具自身提取规则优先对原始 AI 消息生效，避免全局正文规则先裁剪后导致工具标签丢失
    * @private
    */
-  _extractToolContent(toolConfig, rawSourceText, filteredSourceText = '') {
+  _extractToolContent(toolConfig, rawSourceText) {
     const rawText = typeof rawSourceText === 'string' ? rawSourceText : String(rawSourceText || '');
-    const filteredText = typeof filteredSourceText === 'string' ? filteredSourceText : String(filteredSourceText || '');
     const selectors = this._getExtractionSelectors(toolConfig);
 
     if (!selectors.length) {
-      return (filteredText || rawText).trim();
+      return rawText.trim();
     }
 
-    const extractedFromRaw = this._applyExtractionSelectorsInternal(rawText, toolConfig, { strict: true });
-    if (extractedFromRaw) {
-      return extractedFromRaw;
-    }
-
-    if (filteredText && filteredText !== rawText) {
-      const extractedFromFiltered = this._applyExtractionSelectorsInternal(filteredText, toolConfig, { strict: true });
-      if (extractedFromFiltered) {
-        return extractedFromFiltered;
-      }
-    }
-
-    return '';
+    return this._applyExtractionSelectorsInternal(rawText, toolConfig, { strict: true });
   }
 
   /**
@@ -532,6 +522,17 @@ class ToolOutputService {
    * @private
    */
   _collectRecentAssistantMessages(toolConfig, rawContext) {
+    return this._collectRecentAssistantMessageEntries(toolConfig, rawContext)
+      .map(entry => entry.text)
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
+  /**
+   * 收集最近的 AI 消息条目
+   * @private
+   */
+  _collectRecentAssistantMessageEntries(toolConfig, rawContext) {
     const maxMessages = Math.max(1, parseInt(toolConfig?.extraction?.maxMessages, 10) || 5);
     const chatMessages = Array.isArray(rawContext?.chatMessages) ? rawContext.chatMessages : [];
 
@@ -545,15 +546,67 @@ class ToolOutputService {
       const text = this._getMessageText(message);
 
       if (isAssistant && text) {
-        assistantMessages.unshift(text);
+        assistantMessages.unshift({
+          text,
+          message,
+          chatIndex: index
+        });
       }
     }
 
     if (assistantMessages.length > 0) {
-      return assistantMessages.join('\n\n');
+      return assistantMessages;
     }
 
-    return rawContext?.lastAiMessage || rawContext?.input?.lastAiMessage || '';
+    const fallbackText = rawContext?.lastAiMessage || rawContext?.input?.lastAiMessage || '';
+    return fallbackText
+      ? [{ text: fallbackText, message: null, chatIndex: -1 }]
+      : [];
+  }
+
+  /**
+   * 基于原始消息分别计算正文提取和工具提取
+   * @private
+   */
+  _buildRecentMessageExtractionEntries(toolConfig, rawContext) {
+    const assistantMessages = this._collectRecentAssistantMessageEntries(toolConfig, rawContext);
+
+    return assistantMessages.map((entry, index) => {
+      const rawText = entry.text || '';
+      const filteredText = this._applyGlobalContextRules(rawText);
+      const extractedText = this._extractToolContent(toolConfig, rawText);
+
+      return {
+        ...entry,
+        order: index + 1,
+        rawText,
+        filteredText,
+        extractedText
+      };
+    });
+  }
+
+  /**
+   * 将多条消息拼接为带分隔的文本块，便于区分不同楼层
+   * @private
+   */
+  _joinMessageBlocks(entries, fieldName, options = {}) {
+    const list = Array.isArray(entries) ? entries : [];
+    const { skipEmpty = false } = options;
+
+    const blocks = list
+      .map((entry) => {
+        const content = String(entry?.[fieldName] || '').trim();
+        if (skipEmpty && !content) {
+          return '';
+        }
+
+        const label = `【第 ${entry?.order || 0} 条 AI 消息】`;
+        return `${label}\n${content || '(空)'}`;
+      })
+      .filter(Boolean);
+
+    return blocks.join('\n\n--------------------------------\n\n');
   }
 
   // ============================================================

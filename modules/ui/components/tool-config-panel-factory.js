@@ -180,6 +180,28 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
   }
 
+  .yyt-preview-message-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .yyt-preview-message-item {
+    padding: 12px;
+    border-radius: var(--yyt-radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .yyt-preview-message-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--yyt-accent);
+  }
+
   .yyt-error {
     padding: 20px;
     text-align: center;
@@ -515,6 +537,34 @@ export function createToolConfigPanel(options) {
       if (!$) return;
 
       const dialogId = `${SCRIPT_ID}-${previewDialogId}`;
+      const messageEntries = Array.isArray(result.messageEntries) ? result.messageEntries : [];
+      const messageEntriesHtml = messageEntries.length > 0
+        ? `
+          <div class="yyt-form-group">
+            <label>逐条消息预览</label>
+            <div class="yyt-preview-message-list">
+              ${messageEntries.map((entry) => `
+                <div class="yyt-preview-message-item">
+                  <div class="yyt-preview-message-title">第 ${entry.order} 条 AI 消息</div>
+                  <div>
+                    <label>原文</label>
+                    <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(entry.rawText || '无可用消息')}</pre>
+                  </div>
+                  <div>
+                    <label>正文提取</label>
+                    <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(entry.filteredText || '正文规则未命中')}</pre>
+                  </div>
+                  <div>
+                    <label>工具标签提取</label>
+                    <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(entry.extractedText || '未提取到内容')}</pre>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `
+        : '';
+
       $container.append(createDialogHtml({
         id: dialogId,
         title: previewTitle,
@@ -526,17 +576,18 @@ export function createToolConfigPanel(options) {
             <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join('\n') || '无')}</div>
           </div>
           <div class="yyt-form-group">
-            <label>原始内容（最近 ${result.maxMessages} 条 AI 消息）</label>
+            <label>原始内容汇总（最近 ${result.maxMessages} 条 AI 消息）</label>
             <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || '无可用消息')}</pre>
           </div>
-        <div class="yyt-form-group">
-          <label>正文规则筛选后</label>
-          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.filteredSourceText || '正文规则未命中，回退原文')}</pre>
-        </div>
           <div class="yyt-form-group">
-            <label>提取结果</label>
+            <label>正文提取汇总</label>
+            <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.filteredSourceText || '正文规则未命中')}</pre>
+          </div>
+          <div class="yyt-form-group">
+            <label>工具标签提取汇总</label>
             <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.extractedText || '未提取到内容')}</pre>
           </div>
+          ${messageEntriesHtml}
         `
       }));
 
