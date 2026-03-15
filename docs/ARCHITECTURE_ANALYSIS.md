@@ -149,6 +149,8 @@ tool-trigger.js 检测触发条件
          └── 处理输出结果
 ```
 
+补充说明：当前实现中，自动工具链以 `GENERATION_ENDED` 为主触发源，同时增加 `MESSAGE_RECEIVED` 作为兜底来源；二者都会先重试读取“最新 AI 回复”并按 `chatId + messageId` 去重，避免同一条消息重复触发。
+
 ---
 
 ## 四、存储架构
@@ -623,6 +625,8 @@ const aggregated = contextInjector.getAggregatedContext('chat_123');
 // 清除单个工具的上下文
 contextInjector.clearToolContext('chat_123', 'summaryTool');
 ```
+
+从当前版本开始，`getAggregatedContext()` 除了读取插件自身按聊天存储的上下文缓存，也会合并“最新 AI 消息对象”上镜像写回的工具结果，从而让手动执行后的结果能立刻参与下一次工具调用。
 
 ### 8.10 破限词管理 (bypass-manager.js) - v0.5新增
 

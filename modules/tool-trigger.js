@@ -120,6 +120,127 @@ function getMessageContent(msg) {
 }
 
 /**
+ * 等待指定时长
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 获取消息标识，优先使用消息自身ID，回退到聊天索引
+ * @param {Object} msg
+ * @param {number} index
+ * @returns {string|number}
+ */
+function getMessageIdentity(msg, index) {
+  const candidates = [
+    msg?.messageId,
+    msg?.id,
+    msg?.mes_id,
+    msg?.swipe_id,
+    index
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      return candidate;
+    }
+
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return index;
+}
+
+/**
+ * 基于原始聊天消息构建最近会话快照
+ * @param {Array} rawMessages
+ * @param {string|number|null} preferredMessageId
+ * @returns {{messages: Array, lastUserMessage: Object|null, lastAiMessage: Object|null}}
+ */
+function buildConversationSnapshot(rawMessages, preferredMessageId = null) {
+  const chat = Array.isArray(rawMessages) ? rawMessages : [];
+  const normalizedMessages = chat.map((message, index) => ({
+    role: normalizeMessageRole(message),
+    content: getMessageContent(message),
+    name: message?.name || '',
+    timestamp: message?.send_date || message?.timestamp || '',
+    isSystem: !!message?.is_system,
+    isUser: !!message?.is_user,
+    sourceId: getMessageIdentity(message, index),
+    chatIndex: index,
+    originalMessage: message
+  }));
+
+  const normalizedPreferredId = preferredMessageId === undefined || preferredMessageId === null || preferredMessageId === ''
+    ? null
+    : String(preferredMessageId).trim();
+
+  let lastAiMessage = null;
+  let lastUserMessage = null;
+
+  for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
+    const message = normalizedMessages[index];
+
+    if (!lastAiMessage && message.role === 'assistant' && message.content) {
+      if (!normalizedPreferredId || String(message.sourceId).trim() === normalizedPreferredId || message.chatIndex === Number(normalizedPreferredId)) {
+        lastAiMessage = message;
+      } else if (!lastAiMessage) {
+        lastAiMessage = message;
+      }
+    }
+
+    if (!lastUserMessage && message.role === 'user' && message.content) {
+      lastUserMessage = message;
+    }
+
+    if (lastAiMessage && lastUserMessage) {
+      break;
+    }
+  }
+
+  return {
+    messages: normalizedMessages,
+    lastUserMessage,
+    lastAiMessage
+  };
+}
+
+/**
+ * 带重试地读取最近聊天快照，兼容生成结束事件与消息写回时序差异
+ * @param {Object} options
+ * @returns {Promise<{messages: Array, lastUserMessage: Object|null, lastAiMessage: Object|null}>}
+ */
+async function getConversationSnapshot(options = {}) {
+  const {
+    preferredMessageId = null,
+    retries = 0,
+    retryDelayMs = 250
+  } = options;
+
+  let snapshot = { messages: [], lastUserMessage: null, lastAiMessage: null };
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const rawMessages = await getRawChatMessages();
+    snapshot = buildConversationSnapshot(rawMessages, preferredMessageId);
+
+    if (snapshot.lastAiMessage?.content) {
+      return snapshot;
+    }
+
+    if (attempt < retries) {
+      await wait(retryDelayMs);
+    }
+  }
+
+  return snapshot;
+}
+
+/**
  * 标记用户发送意图
  */
 function markUserSendIntent() {
@@ -840,8 +961,92 @@ export function removeAllTriggerHandlers() {
 const toolTriggerManagerState = {
   initialized: false,
   listeners: new Map(),
-  lastExecutionContext: null
+  lastExecutionContext: null,
+  lastHandledMessageKey: ''
 };
+
+/**
+ * 生成自动触发去重键
+ * @param {Object} context
+ * @returns {string}
+ */
+function getAutoTriggerMessageKey(context) {
+  const chatId = context?.chatId || 'chat_default';
+  const messageId = context?.messageId === undefined || context?.messageId === null || context?.messageId === ''
+    ? 'latest'
+    : String(context.messageId);
+  return `${chatId}::${messageId}`;
+}
+
+/**
+ * 统一处理自动触发链路
+ * @param {string} eventType
+ * @param {Object|string|number} data
+ */
+async function handleAutoTrigger(eventType, data) {
+  log(`${eventType}触发:`, data);
+
+  if (isQuietLikeGeneration(
+    triggerState.gateState.lastGenerationType,
+    triggerState.gateState.lastGenerationParams,
+    triggerState.gateState.lastGenerationDryRun
+  )) {
+    log('检测到 quiet / dryRun 生成，跳过工具自动执行');
+    return;
+  }
+
+  const context = await buildToolExecutionContext({
+    ...(typeof data === 'object' && data ? data : {}),
+    triggerEvent: eventType,
+    messageId: (typeof data === 'string' || typeof data === 'number')
+      ? data
+      : (data?.messageId || data?.id || '')
+  });
+
+  if (!context?.lastAiMessage) {
+    log(`${eventType} 后未读取到最新 AI 回复，跳过工具执行`);
+    return;
+  }
+
+  const messageKey = getAutoTriggerMessageKey(context);
+  if (toolTriggerManagerState.lastHandledMessageKey === messageKey) {
+    log(`检测到重复自动触发，跳过: ${messageKey}`);
+    return;
+  }
+
+  const toolsToExecute = getToolsToExecute(EVENT_TYPES.GENERATION_ENDED);
+  if (toolsToExecute.length === 0) {
+    log('没有需要执行的工具');
+    return;
+  }
+
+  toolTriggerManagerState.lastHandledMessageKey = messageKey;
+  log(`需要执行 ${toolsToExecute.length} 个工具:`, toolsToExecute.map(t => t.id));
+  showTopNotice('info', `检测到 AI 回复，开始自动执行 ${toolsToExecute.length} 个工具`, {
+    duration: 2400,
+    noticeId: 'yyt-tool-batch-start'
+  });
+
+  for (const tool of toolsToExecute) {
+    try {
+      const result = await executeTriggeredTool(tool, context);
+
+      if (result.success) {
+        log(`工具 ${tool.id} 执行成功`);
+        eventBus.emit(EVENTS.TOOL_EXECUTED, {
+          toolId: tool.id,
+          result: result.result || result.data || result
+        });
+      } else {
+        log(`工具 ${tool.id} 执行失败:`, result.error);
+      }
+    } catch (error) {
+      console.error(`[ToolTrigger] 工具执行失败: ${tool.id}`, error);
+    }
+  }
+
+  toolTriggerManagerState.lastExecutionContext = context;
+}
 
 /**
  * 初始化工具触发管理器
@@ -867,65 +1072,16 @@ export function initToolTriggerManager() {
  * 注册GENERATION_ENDED事件监听
  */
 function registerGenerationEndedListener() {
-  const eventType = EVENT_TYPES.GENERATION_ENDED;
-  
-  const listener = registerEventListener(eventType, async (data) => {
-    log('GENERATION_ENDED触发:', data);
+  const generationEndedListener = registerEventListener(EVENT_TYPES.GENERATION_ENDED, async (data) => {
+    await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, data);
+  });
 
-    if (isQuietLikeGeneration(
-      triggerState.gateState.lastGenerationType,
-      triggerState.gateState.lastGenerationParams,
-      triggerState.gateState.lastGenerationDryRun
-    )) {
-      log('检测到 quiet / dryRun 生成，跳过工具自动执行');
-      return;
-    }
-    
-    // 获取上下文
-    const context = await buildToolExecutionContext(data);
-
-    if (!context?.lastAiMessage) {
-      log('生成结束后未读取到最新 AI 回复，跳过工具执行');
-      return;
-    }
-    
-    // 获取需要触发的工具
-    const toolsToExecute = getToolsToExecute(eventType);
-    
-    if (toolsToExecute.length === 0) {
-      log('没有需要执行的工具');
-      return;
-    }
-    
-    log(`需要执行 ${toolsToExecute.length} 个工具:`, toolsToExecute.map(t => t.id));
-    showTopNotice('info', `检测到 AI 回复，开始自动执行 ${toolsToExecute.length} 个工具`, {
-      duration: 2400,
-      noticeId: 'yyt-tool-batch-start'
-    });
-    
-    // 执行工具
-    for (const tool of toolsToExecute) {
-      try {
-        const result = await executeTriggeredTool(tool, context);
-        
-        if (result.success) {
-          log(`工具 ${tool.id} 执行成功`);
-          eventBus.emit(EVENTS.TOOL_EXECUTED, {
-            toolId: tool.id,
-            result: result.result || result.data || result
-          });
-        } else {
-          log(`工具 ${tool.id} 执行失败:`, result.error);
-        }
-      } catch (error) {
-        console.error(`[ToolTrigger] 工具执行失败: ${tool.id}`, error);
-      }
-    }
-    
-    toolTriggerManagerState.lastExecutionContext = context;
+  const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
+    await handleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data);
   });
   
-  toolTriggerManagerState.listeners.set(eventType, listener);
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_ENDED, generationEndedListener);
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.MESSAGE_RECEIVED, messageReceivedListener);
 }
 
 /**
@@ -934,22 +1090,28 @@ function registerGenerationEndedListener() {
  * @returns {Promise<Object>} 执行上下文
  */
 async function buildToolExecutionContext(eventData) {
-  const chat = await getChatContext({ depth: 50 });
   const character = await getCurrentCharacter();
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
-  const messageId = (typeof eventData === 'string' || typeof eventData === 'number')
+  const preferredMessageId = (typeof eventData === 'string' || typeof eventData === 'number')
     ? eventData
     : (eventData?.messageId || eventData?.id || '');
-  
-  // 获取最后一条用户消息和AI消息
-  const messages = chat?.messages || [];
-  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-  const lastAiMessage = messages.filter(m => m.role === 'assistant').pop();
+  const triggerEvent = eventData?.triggerEvent || 'GENERATION_ENDED';
+
+  const conversation = await getConversationSnapshot({
+    preferredMessageId,
+    retries: triggerEvent === 'GENERATION_ENDED' ? 6 : 2,
+    retryDelayMs: triggerEvent === 'GENERATION_ENDED' ? 300 : 120
+  });
+
+  const messages = conversation.messages || [];
+  const lastUserMessage = conversation.lastUserMessage;
+  const lastAiMessage = conversation.lastAiMessage;
+  const messageId = lastAiMessage?.sourceId ?? preferredMessageId ?? '';
   
   return {
     triggeredAt: Date.now(),
-    triggerEvent: eventData?.triggerEvent || 'GENERATION_ENDED',
+    triggerEvent,
     chatId: resolveStableChatId(api, stContext, character),
     messageId,
     lastAiMessage: lastAiMessage?.content || '',
@@ -962,7 +1124,7 @@ async function buildToolExecutionContext(eventData) {
       previousToolOutput: '',
       context: {
         character: character?.name || '',
-        chatLength: chat?.totalMessages || 0
+        chatLength: messages.length || 0
       }
     },
     config: {},
@@ -1155,6 +1317,7 @@ export function destroyToolTriggerManager() {
   toolTriggerManagerState.listeners.clear();
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
+  toolTriggerManagerState.lastHandledMessageKey = '';
   
   log('工具触发管理器已销毁');
 }

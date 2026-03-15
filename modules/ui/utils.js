@@ -512,14 +512,14 @@ export function createDialogHtml(options) {
   
   return `
     <div class="yyt-dialog-overlay" id="${id}-overlay">
-      <div class="yyt-dialog ${wide ? 'yyt-dialog-wide' : ''}" style="${width !== '380px' ? `width: ${width}` : ''}">
+      <div class="yyt-dialog ${wide ? 'yyt-dialog-wide' : ''}" style="${width !== '380px' ? `width: ${width};` : ''} max-height: calc(100vh - 32px);">
         <div class="yyt-dialog-header">
           <span class="yyt-dialog-title">${title}</span>
           <button class="yyt-dialog-close" id="${id}-close">
             <i class="fa-solid fa-times"></i>
           </button>
         </div>
-        <div class="yyt-dialog-body">
+        <div class="yyt-dialog-body" style="overflow-y: auto; overflow-x: hidden; max-height: calc(100vh - 160px);">
           ${body}
         </div>
         <div class="yyt-dialog-footer">

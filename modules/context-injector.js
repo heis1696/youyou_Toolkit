@@ -192,7 +192,12 @@ class ContextInjector {
     if (!actualChatId) return '';
 
     const chatContexts = this._getChatContexts(actualChatId);
-    const entries = Object.entries(chatContexts)
+    const mergedContexts = {
+      ...chatContexts,
+      ...this._getLatestAssistantMessageOutputs()
+    };
+
+    const entries = Object.entries(mergedContexts)
       .sort(([, a], [, b]) => (a?.updatedAt || 0) - (b?.updatedAt || 0));
     
     if (entries.length === 0) return '';
@@ -207,6 +212,27 @@ class ContextInjector {
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * 获取最新 AI 消息镜像写回的工具结果
+   * @private
+   */
+  _getLatestAssistantMessageOutputs() {
+    try {
+      const { chat } = this._getChatRuntime();
+      const messageIndex = this._findAssistantMessageIndex(chat, null);
+      if (messageIndex < 0) {
+        return {};
+      }
+
+      const targetMessage = chat[messageIndex] || {};
+      const outputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY];
+      return outputs && typeof outputs === 'object' ? outputs : {};
+    } catch (error) {
+      this._log('读取最新 AI 消息上下文失败', error);
+      return {};
+    }
   }
 
   /**

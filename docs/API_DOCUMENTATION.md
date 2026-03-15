@@ -649,6 +649,10 @@ interface ToolConfig {
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 - 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
 - 自动监听会记录用户发送意图，并跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
+- 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底触发来源；两条链路会按 `chatId + 最新 AI 消息ID` 去重，避免同一条回复重复执行工具
+- 构建工具执行上下文时会对“最新 AI 回复”做短暂重试读取，优先锁定刚生成完成的那一条消息，降低读取到旧回复的概率
+- `{{injectedContext}}` 现在不仅会读取插件持久化的上下文缓存，还会合并“最新 AI 消息对象”上镜像写回的工具结果，因此手动执行后也能立即进入下一次工具调用上下文
+- 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕
 
 ### 输出模式说明 (v0.6)
 
@@ -660,6 +664,8 @@ interface ToolConfig {
 > ⚠️ **注意**: 旧的 `inline` 模式已重命名为 `follow_ai`，API 内部会自动兼容旧名称。
 >
 > 从 `v0.6.2+` 开始，工具在监听到 `GENERATION_ENDED` 后会同步更新运行时状态，并在触发开始、成功、失败时显示顶部通知，便于确认监听链路是否正常工作。
+
+> 在部分酒馆 / TavernHelper 环境中，最新 AI 回复写入聊天记录与 `GENERATION_ENDED` 的时序可能不稳定，因此当前版本会同时监听 `MESSAGE_RECEIVED` 作为补充兜底，并自动去重。
 
 ### ~~提示词段落对象~~ (v0.6 已弃用)
 
