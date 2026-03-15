@@ -17,6 +17,7 @@
   - 修复手动执行虽然控制台成功但未真正写入上下文的问题：工具执行成功后现在会同步写入目标世界书，写入失败会直接标记执行失败
   - 参考 shujuku 的世界书注入思路，为每个工具增加独立世界书绑定、注入位置、Depth、Order 配置，并默认支持写入当前角色绑定世界书
   - 工具提示词上下文新增 `{{extractedContent}}` 与 `{{recentMessagesText}}` 变量，便于模板直接引用提取结果和最近消息原文
+  - 最近消息提取改为优先使用 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，并在不可用时回退到 `SillyTavern.getContext().chat` 与 `SillyTavern.chat`，修复部分环境下“测试提取拿不到消息”的问题
 
 - 🐛 **工具面板收敛与自动触发通知增强** (`modules/ui/components/summary-tool-panel.js`, `modules/ui/components/status-block-panel.js`, `modules/tool-trigger.js`, `modules/ui/utils.js`, `modules/ui-components.js`, `docs/API_DOCUMENTATION.md`)
   - 参考 shujuku / MVU 的配置思路，将工具页收敛为 5 个核心区块：模板修改框、输出模式、API 预设、破限预设、手动操作区

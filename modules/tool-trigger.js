@@ -92,6 +92,14 @@ function getSillyTavernAPI() {
 }
 
 /**
+ * 获取 TavernHelper API
+ */
+function getTavernHelperAPI() {
+  const topWindow = getTopWindow();
+  return topWindow.TavernHelper || null;
+}
+
+/**
  * 获取事件源
  */
 function getEventSource() {
@@ -375,8 +383,8 @@ export async function getChatContext(options = {}) {
   }
   
   try {
-    // 获取聊天记录
-    const chat = api.chat || [];
+    // 优先使用 TavernHelper 获取完整聊天记录，回退到 SillyTavern 上下文
+    const chat = await getRawChatMessages();
     
     // 提取指定深度的消息
     const messages = [];
@@ -385,21 +393,24 @@ export async function getChatContext(options = {}) {
     for (let i = startIndex; i < chat.length; i++) {
       const msg = chat[i];
       if (!msg) continue;
+      const role = normalizeMessageRole(msg);
       
       // 过滤消息类型
-      if (msg.is_user && !includeUser) continue;
-      if (!msg.is_user && msg.is_system && !includeSystem) continue;
-      if (!msg.is_user && !msg.is_system && !includeAssistant) continue;
+      if (role === 'user' && !includeUser) continue;
+      if (role === 'system' && !includeSystem) continue;
+      if (role === 'assistant' && !includeAssistant) continue;
       
       if (format === 'messages') {
         messages.push({
-          role: msg.is_user ? 'user' : (msg.is_system ? 'system' : 'assistant'),
-          content: msg.mes || '',
+          role,
+          content: msg.mes || msg.content || '',
           name: msg.name || '',
-          timestamp: msg.send_date
+          timestamp: msg.send_date || msg.timestamp,
+          isSystem: !!msg.is_system,
+          isUser: !!msg.is_user
         });
       } else {
-        messages.push(msg.mes || '');
+        messages.push(msg.mes || msg.content || '');
       }
     }
     
@@ -413,6 +424,80 @@ export async function getChatContext(options = {}) {
     console.error('[YouYouToolkit:Trigger] 获取聊天上下文失败:', error);
     return null;
   }
+}
+
+/**
+ * 规范化消息角色
+ * @param {Object} msg
+ * @returns {'user'|'assistant'|'system'}
+ */
+function normalizeMessageRole(msg) {
+  if (!msg) return 'assistant';
+
+  if (msg.is_user) return 'user';
+  if (msg.is_system) return 'system';
+
+  const role = String(msg.role || '').toLowerCase();
+  if (role === 'user' || role === 'assistant' || role === 'system') {
+    return role;
+  }
+
+  return 'assistant';
+}
+
+/**
+ * 获取原始聊天消息
+ * @returns {Promise<Array>}
+ */
+async function getRawChatMessages() {
+  const helper = getTavernHelperAPI();
+  const api = getSillyTavernAPI();
+
+  if (helper?.getChatMessages) {
+    try {
+      let lastMessageId = -1;
+
+      if (typeof helper.getLastMessageId === 'function') {
+        lastMessageId = helper.getLastMessageId();
+      }
+
+      if (!Number.isFinite(lastMessageId) || lastMessageId < 0) {
+        const context = api?.getContext?.() || null;
+        const contextChat = Array.isArray(context?.chat) ? context.chat : [];
+        const apiChat = Array.isArray(api?.chat) ? api.chat : [];
+        const fallbackChat = contextChat.length ? contextChat : apiChat;
+        lastMessageId = fallbackChat.length - 1;
+      }
+
+      if (Number.isFinite(lastMessageId) && lastMessageId >= 0) {
+        const messages = await helper.getChatMessages(`0-${lastMessageId}`, {
+          include_swipes: false,
+          include_hidden: true
+        });
+
+        if (Array.isArray(messages) && messages.length > 0) {
+          return messages;
+        }
+      }
+    } catch (error) {
+      console.warn('[YouYouToolkit:Trigger] 通过 TavernHelper 读取聊天消息失败，回退到默认来源:', error);
+    }
+  }
+
+  try {
+    const context = api?.getContext?.() || null;
+    if (Array.isArray(context?.chat) && context.chat.length > 0) {
+      return context.chat;
+    }
+  } catch (error) {
+    console.warn('[YouYouToolkit:Trigger] 通过 getContext() 读取聊天失败:', error);
+  }
+
+  if (Array.isArray(api?.chat)) {
+    return api.chat;
+  }
+
+  return [];
 }
 
 /**

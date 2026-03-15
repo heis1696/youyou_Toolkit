@@ -8215,6 +8215,10 @@ function getSillyTavernAPI() {
   const topWindow = getTopWindow();
   return topWindow.SillyTavern || null;
 }
+function getTavernHelperAPI() {
+  const topWindow = getTopWindow();
+  return topWindow.TavernHelper || null;
+}
 function getEventSource() {
   const topWindow = getTopWindow();
   const api = topWindow.SillyTavern;
@@ -8384,28 +8388,31 @@ async function getChatContext(options = {}) {
     return null;
   }
   try {
-    const chat = api.chat || [];
+    const chat = await getRawChatMessages();
     const messages = [];
     const startIndex = Math.max(0, chat.length - depth);
     for (let i = startIndex; i < chat.length; i++) {
       const msg = chat[i];
       if (!msg)
         continue;
-      if (msg.is_user && !includeUser)
+      const role = normalizeMessageRole(msg);
+      if (role === "user" && !includeUser)
         continue;
-      if (!msg.is_user && msg.is_system && !includeSystem)
+      if (role === "system" && !includeSystem)
         continue;
-      if (!msg.is_user && !msg.is_system && !includeAssistant)
+      if (role === "assistant" && !includeAssistant)
         continue;
       if (format === "messages") {
         messages.push({
-          role: msg.is_user ? "user" : msg.is_system ? "system" : "assistant",
-          content: msg.mes || "",
+          role,
+          content: msg.mes || msg.content || "",
           name: msg.name || "",
-          timestamp: msg.send_date
+          timestamp: msg.send_date || msg.timestamp,
+          isSystem: !!msg.is_system,
+          isUser: !!msg.is_user
         });
       } else {
-        messages.push(msg.mes || "");
+        messages.push(msg.mes || msg.content || "");
       }
     }
     return {
@@ -8418,6 +8425,61 @@ async function getChatContext(options = {}) {
     console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u804A\u5929\u4E0A\u4E0B\u6587\u5931\u8D25:", error);
     return null;
   }
+}
+function normalizeMessageRole(msg) {
+  if (!msg)
+    return "assistant";
+  if (msg.is_user)
+    return "user";
+  if (msg.is_system)
+    return "system";
+  const role = String(msg.role || "").toLowerCase();
+  if (role === "user" || role === "assistant" || role === "system") {
+    return role;
+  }
+  return "assistant";
+}
+async function getRawChatMessages() {
+  const helper = getTavernHelperAPI();
+  const api = getSillyTavernAPI();
+  if (helper?.getChatMessages) {
+    try {
+      let lastMessageId = -1;
+      if (typeof helper.getLastMessageId === "function") {
+        lastMessageId = helper.getLastMessageId();
+      }
+      if (!Number.isFinite(lastMessageId) || lastMessageId < 0) {
+        const context = api?.getContext?.() || null;
+        const contextChat = Array.isArray(context?.chat) ? context.chat : [];
+        const apiChat = Array.isArray(api?.chat) ? api.chat : [];
+        const fallbackChat = contextChat.length ? contextChat : apiChat;
+        lastMessageId = fallbackChat.length - 1;
+      }
+      if (Number.isFinite(lastMessageId) && lastMessageId >= 0) {
+        const messages = await helper.getChatMessages(`0-${lastMessageId}`, {
+          include_swipes: false,
+          include_hidden: true
+        });
+        if (Array.isArray(messages) && messages.length > 0) {
+          return messages;
+        }
+      }
+    } catch (error) {
+      console.warn("[YouYouToolkit:Trigger] \u901A\u8FC7 TavernHelper \u8BFB\u53D6\u804A\u5929\u6D88\u606F\u5931\u8D25\uFF0C\u56DE\u9000\u5230\u9ED8\u8BA4\u6765\u6E90:", error);
+    }
+  }
+  try {
+    const context = api?.getContext?.() || null;
+    if (Array.isArray(context?.chat) && context.chat.length > 0) {
+      return context.chat;
+    }
+  } catch (error) {
+    console.warn("[YouYouToolkit:Trigger] \u901A\u8FC7 getContext() \u8BFB\u53D6\u804A\u5929\u5931\u8D25:", error);
+  }
+  if (Array.isArray(api?.chat)) {
+    return api.chat;
+  }
+  return [];
 }
 async function getCurrentCharacter() {
   const api = getSillyTavernAPI();

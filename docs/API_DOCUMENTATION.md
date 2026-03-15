@@ -638,6 +638,7 @@ interface ToolConfig {
 - 每个工具现在都支持独立绑定世界书、设置最大提取消息数，以及配置单独的提取标签/正则规则
 - AI 回复自动触发时会在页面顶部显示通知，用于确认是否真正进入执行链路，以及是否执行成功/失败
 - 当工具执行成功后，会将提取后的结果真正写入目标世界书；若世界书写入失败，执行会被标记为失败并给出提示
+- 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 
 ### 输出模式说明 (v0.6)
 
