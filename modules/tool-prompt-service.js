@@ -131,6 +131,7 @@ class ToolPromptService {
    */
   _buildUserContent(promptTemplate, context) {
     const parts = [];
+    const lastAiMessage = context?.lastAiMessage || context?.input?.lastAiMessage || '';
     
     // 添加提示词模板
     if (promptTemplate && promptTemplate.trim()) {
@@ -138,8 +139,8 @@ class ToolPromptService {
     }
     
     // 添加 AI 回复内容
-    if (context?.lastAiMessage) {
-      parts.push(`\n以下是需要处理的AI回复内容：\n${context.lastAiMessage}`);
+    if (lastAiMessage) {
+      parts.push(`\n以下是需要处理的AI回复内容：\n${lastAiMessage}`);
     }
     
     return parts.join('\n');

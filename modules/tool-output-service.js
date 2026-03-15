@@ -8,7 +8,6 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 import { settingsService } from './core/settings-service.js';
 import { contextInjector } from './context-injector.js';
 import { toolPromptService } from './tool-prompt-service.js';
-import { bypassManager } from './bypass-manager.js';
 
 // ============================================================
 // 输出模式定义
@@ -143,15 +142,11 @@ class ToolOutputService {
       
       // 5. 注入上下文
       if (outputContent) {
-        await contextInjector.inject(
-          rawContext.chatId,
-          toolId,
-          outputContent,
-          {
-            overwrite: toolConfig.output?.overwrite !== false,
-            sourceMessageId: rawContext.messageId || ''
-          }
-        );
+        await contextInjector.inject(toolId, outputContent, {
+          chatId: rawContext.chatId,
+          overwrite: toolConfig.output?.overwrite !== false,
+          sourceMessageId: rawContext.messageId || ''
+        });
       }
       
       const duration = Date.now() - startTime;
@@ -246,23 +241,8 @@ class ToolOutputService {
       toolId: toolConfig.id
     };
     
-    // 使用 toolPromptService 构建基础消息
-    let messages = toolPromptService.buildToolMessages(toolConfig, fullContext);
-    
-    // 如果启用破限词，合并破限词消息
-    if (toolConfig.bypass?.enabled) {
-      const bypassMessages = bypassManager.buildBypassMessages(toolConfig);
-      if (bypassMessages && bypassMessages.length > 0) {
-        // 转换破限词消息格式
-        const formattedBypass = bypassMessages.map(msg => ({
-          role: this._normalizeRole(msg.role),
-          content: msg.content || ''
-        }));
-        messages = [...formattedBypass, ...messages];
-      }
-    }
-    
-    return messages;
+    // toolPromptService 已负责合并破限词消息，这里不再重复追加
+    return toolPromptService.buildToolMessages(toolConfig, fullContext);
   }
 
   /**
@@ -303,17 +283,15 @@ class ToolOutputService {
     // 如果有预设名称，使用预设发送
     if (presetName && this._apiConnection.sendWithPreset) {
       return await this._apiConnection.sendWithPreset(presetName, messages, {
-        timeoutMs,
-        signal
-      });
+        timeoutMs
+      }, signal);
     }
     
     // 否则使用默认API
     if (this._apiConnection.sendApiRequest) {
       return await this._apiConnection.sendApiRequest(messages, {
-        timeoutMs,
-        signal
-      });
+        timeoutMs
+      }, signal);
     }
     
     throw new Error('没有可用的API发送方法');

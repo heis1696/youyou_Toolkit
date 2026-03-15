@@ -106,6 +106,22 @@ export function getEffectiveApiConfig(presetName = '') {
 }
 
 /**
+ * 使用指定预设发送API请求
+ * @param {string} presetName - 预设名称
+ * @param {Array} messages - OpenAI格式消息
+ * @param {Object} options - 请求选项
+ * @param {AbortSignal} abortSignal - 中止信号
+ * @returns {Promise<string>}
+ */
+export async function sendWithPreset(presetName, messages, options = {}, abortSignal = null) {
+  const apiConfig = getEffectiveApiConfig(presetName);
+  return await sendApiRequest(messages, {
+    ...options,
+    apiConfig
+  }, abortSignal);
+}
+
+/**
  * 构建请求消息
  * @param {Array} messages - OpenAI格式的消息数组
  * @param {Object} options - 额外选项

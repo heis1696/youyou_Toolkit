@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+### 修复
+
+- 🐛 **破限词面板默认预设清理** (`modules/bypass-manager.js`, `modules/ui/components/bypass-panel.js`)
+  - 移除强制注入的内置 `standard` 破限词预设，避免面板出现多余且难以处理的默认模板
+  - 补充破限词面板各类失败场景的兜底提示，避免出现空白错误通知
+
+- 🐛 **AI 回复监听与工具触发链路修复** (`modules/tool-executor.js`, `modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/tool-prompt-service.js`, `index.js`)
+  - 修复 `getToolsForEvent()` 仍读取旧版 `triggerEvents` 字段，导致 `GENERATION_ENDED` 后无法找到应执行工具的问题
+  - 在工具触发时按输出模式分别执行：`post_response_api` 走额外模型调用链，`follow_ai` 也会记录触发状态并显示通知
+  - 修复工具输出服务的上下文注入参数顺序错误、重复拼接破限词消息、无法读取最新 AI 回复内容的问题
+  - 初始化时为 `toolOutputService` 注入 API 连接模块，确保额外模型解析模式可以真正发起请求
+  - 新增工具触发成功/失败 Toast 通知，并回写运行时状态到调试面板
+
 ### 计划中的功能
 
 - 世界书注入集成

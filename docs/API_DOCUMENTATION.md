@@ -197,6 +197,8 @@ const trigger = YouYouToolkit.getToolTrigger();
 // trigger.unregisterEventListener(eventType, callback)
 // trigger.getChatContext(options)
 // trigger.getCurrentCharacter()
+// trigger.initToolTriggerManager()
+// trigger.getToolTriggerManagerState()
 ```
 
 ### `getBypassManager()`
@@ -604,6 +606,8 @@ interface ToolConfig {
 | `post_response_api` | 额外 AI 模型解析：监听 AI 回复结束，使用工具绑定的 API 预设调用额外模型，将结果注入上下文 |
 
 > ⚠️ **注意**: 旧的 `inline` 模式已重命名为 `follow_ai`，API 内部会自动兼容旧名称。
+>
+> 从 `v0.6.2+` 开始，工具在监听到 `GENERATION_ENDED` 后会同步更新运行时状态，并在触发成功/失败时显示通知，便于确认监听链路是否正常工作。
 
 ### ~~提示词段落对象~~ (v0.6 已弃用)
 

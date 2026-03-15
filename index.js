@@ -64,6 +64,10 @@ async function loadModules() {
     contextInjectorModule = await import('./modules/context-injector.js');
     toolPromptServiceModule = await import('./modules/tool-prompt-service.js');
     toolOutputServiceModule = await import('./modules/tool-output-service.js');
+
+    if (toolOutputServiceModule?.toolOutputService && apiConnectionModule) {
+      toolOutputServiceModule.toolOutputService.setApiConnection(apiConnectionModule);
+    }
     
     return true;
   } catch (error) {

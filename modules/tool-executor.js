@@ -818,7 +818,10 @@ export function getToolsForEvent(eventType) {
   
   for (const toolId of toolIds) {
     const config = getToolFullConfig(toolId);
-    if (config && config.enabled && config.triggerEvents?.includes(eventType)) {
+    const matchesNewTrigger = config?.trigger?.enabled && config?.trigger?.event === eventType;
+    const matchesLegacyTrigger = Array.isArray(config?.triggerEvents) && config.triggerEvents.includes(eventType);
+
+    if (config && config.enabled && (matchesNewTrigger || matchesLegacyTrigger)) {
       allConfigs.push(config);
     }
   }

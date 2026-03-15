@@ -253,7 +253,7 @@ export const BypassPanel = {
         this._refreshPresetList($container, $);
         showToast('success', '预设已删除');
       } else {
-        showToast('error', result.message);
+        showToast('error', result?.message || '删除预设失败');
       }
     });
     
@@ -382,7 +382,7 @@ export const BypassPanel = {
       this._selectPreset($container, $, id);
       showToast('success', '预设已创建');
     } else {
-      showToast('error', result.message);
+      showToast('error', result?.message || '创建预设失败');
     }
   },
   
@@ -427,7 +427,7 @@ export const BypassPanel = {
       // 刷新列表
       this._refreshPresetList($container, $);
     } else {
-      showToast('error', result.message);
+      showToast('error', result?.message || '保存预设失败');
     }
   },
   
@@ -448,7 +448,7 @@ export const BypassPanel = {
       this.renderTo($container);
       showToast('success', '预设已删除');
     } else {
-      showToast('error', result.message);
+      showToast('error', result?.message || '删除预设失败');
     }
   },
   
@@ -469,7 +469,7 @@ export const BypassPanel = {
       this._selectPreset($container, $, newId);
       showToast('success', '预设已复制');
     } else {
-      showToast('error', result.message);
+      showToast('error', result?.message || '复制预设失败');
     }
   },
   

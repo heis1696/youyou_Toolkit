@@ -4,8 +4,10 @@
  */
 
 import { eventBus, EVENTS } from './core/event-bus.js';
-import { getToolFullConfig, getToolList, getEnabledTools } from './tool-registry.js';
+import { getToolFullConfig, updateToolRuntime } from './tool-registry.js';
 import { executeToolWithConfig, getToolsForEvent } from './tool-executor.js';
+import { toolOutputService, OUTPUT_MODES } from './tool-output-service.js';
+import { showToast } from './ui/utils.js';
 
 // ============================================================
 // 事件类型定义
@@ -647,13 +649,13 @@ function registerGenerationEndedListener() {
     // 执行工具
     for (const tool of toolsToExecute) {
       try {
-        const result = await executeToolWithConfig(tool.id, context);
+        const result = await executeTriggeredTool(tool, context);
         
         if (result.success) {
           log(`工具 ${tool.id} 执行成功`);
           eventBus.emit(EVENTS.TOOL_EXECUTED, {
             toolId: tool.id,
-            result: result.data
+            result: result.result || result.data || result
           });
         } else {
           log(`工具 ${tool.id} 执行失败:`, result.error);
@@ -677,6 +679,8 @@ function registerGenerationEndedListener() {
 async function buildToolExecutionContext(eventData) {
   const chat = await getChatContext({ depth: 5 });
   const character = await getCurrentCharacter();
+  const api = getSillyTavernAPI();
+  const stContext = api?.getContext?.() || null;
   
   // 获取最后一条用户消息和AI消息
   const messages = chat?.messages || [];
@@ -686,6 +690,10 @@ async function buildToolExecutionContext(eventData) {
   return {
     triggeredAt: Date.now(),
     triggerEvent: 'GENERATION_ENDED',
+    chatId: stContext?.chatId || stContext?.chat_id || stContext?.chat_filename || '',
+    messageId: eventData?.messageId || eventData?.id || '',
+    lastAiMessage: lastAiMessage?.content || '',
+    userMessage: lastUserMessage?.content || '',
     input: {
       userMessage: lastUserMessage?.content || '',
       lastAiMessage: lastAiMessage?.content || '',
@@ -708,6 +716,92 @@ async function buildToolExecutionContext(eventData) {
  */
 function getToolsToExecute(eventType) {
   return getToolsForEvent(eventType);
+}
+
+/**
+ * 更新工具运行时状态
+ * @param {string} toolId
+ * @param {Object} runtimePartial
+ */
+function updateRuntime(toolId, runtimePartial) {
+  try {
+    updateToolRuntime(toolId, runtimePartial);
+  } catch (error) {
+    console.warn('[ToolTrigger] 更新工具运行时状态失败:', toolId, error);
+  }
+}
+
+/**
+ * 执行单个工具
+ * @param {Object} tool
+ * @param {Object} context
+ * @returns {Promise<Object>}
+ */
+async function executeTriggeredTool(tool, context) {
+  const startedAt = Date.now();
+  const toolId = tool.id;
+
+  updateRuntime(toolId, {
+    lastStatus: 'running',
+    lastError: '',
+    lastDurationMs: 0
+  });
+
+  try {
+    let result;
+
+    if (tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API) {
+      result = await toolOutputService.runToolPostResponse(tool, context);
+    } else {
+      result = await executeToolWithConfig(toolId, context);
+    }
+
+    const duration = Date.now() - startedAt;
+
+    if (result?.success) {
+      const config = getToolFullConfig(toolId);
+      updateRuntime(toolId, {
+        lastStatus: 'success',
+        lastError: '',
+        lastDurationMs: duration,
+        successCount: (config?.runtime?.successCount || 0) + 1
+      });
+
+      const message = tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API
+        ? `已监听 AI 回复并执行 ${tool.name}`
+        : `已监听 AI 回复：${tool.name} 已触发`;
+
+      showToast('success', message);
+      return { success: true, duration, result };
+    }
+
+    const config = getToolFullConfig(toolId);
+    const errorMessage = result?.error || '工具执行失败';
+
+    updateRuntime(toolId, {
+      lastStatus: 'error',
+      lastError: errorMessage,
+      lastDurationMs: duration,
+      errorCount: (config?.runtime?.errorCount || 0) + 1
+    });
+
+    showToast('error', `${tool.name} 执行失败：${errorMessage}`);
+    return { success: false, duration, error: errorMessage, result };
+  } catch (error) {
+    const duration = Date.now() - startedAt;
+    const config = getToolFullConfig(toolId);
+    const errorMessage = error?.message || String(error);
+
+    updateRuntime(toolId, {
+      lastStatus: 'error',
+      lastError: errorMessage,
+      lastDurationMs: duration,
+      errorCount: (config?.runtime?.errorCount || 0) + 1
+    });
+
+    showToast('error', `${tool.name} 执行失败：${errorMessage}`);
+    throw error;
+  }
 }
 
 /**

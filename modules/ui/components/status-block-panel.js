@@ -10,8 +10,7 @@ import {
   escapeHtml, 
   showToast, 
   getJQuery, 
-  isContainerValid,
-  copyToClipboard
+  isContainerValid
 } from '../utils.js';
 
 import {
