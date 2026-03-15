@@ -2,7 +2,7 @@
 
 ## 一、项目概述
 
-YouYou Toolkit 是一个 SillyTavern 工具插件框架，当前版本 **0.6.0**，采用分层架构设计。
+YouYou Toolkit 是一个 SillyTavern 工具插件框架，当前版本 **0.6.2**，采用分层架构设计。
 
 ### 核心功能
 - **API连接管理** - 支持自定义API和SillyTavern主API切换
@@ -15,7 +15,7 @@ YouYou Toolkit 是一个 SillyTavern 工具插件框架，当前版本 **0.6.0**
 - **变量解析服务** - 模板变量替换与上下文注入（v0.5新增）
 - **破限词管理** - 破限词预设的CRUD与工具绑定（v0.5新增）
 - **上下文注入** - 按聊天隔离存储工具输出（v0.5新增）
-- **工具输出服务** - 支持inline和post_response_api模式（v0.5新增）
+- **工具输出服务** - 支持 follow_ai 和 post_response_api 模式（v0.5新增，v0.6 重命名）
 
 ---
 
@@ -68,6 +68,7 @@ YouYou Toolkit 是一个 SillyTavern 工具插件框架，当前版本 **0.6.0**
 │  components/           独立UI组件                                │
 │    ├── api-preset-panel.js      API预设面板                     │
 │    ├── regex-extract-panel.js   正则提取面板                    │
+│    ├── tool-config-panel-factory.js 工具配置面板工厂            │
 │    ├── summary-tool-panel.js    摘要工具面板                    │
 │    ├── status-block-panel.js    状态栏工具面板                  │
 │    ├── tool-manage-panel.js     工具管理面板                    │
@@ -687,10 +688,10 @@ const validation = toolPromptService.validatePrompt(promptConfig);
 
 ### 8.12 工具输出服务 (tool-output-service.js) - v0.5新增
 
-处理工具的输出模式，支持 inline 和 post_response_api 模式。
+处理工具的输出模式，支持 follow_ai 和 post_response_api 模式。
 
 **输出模式：**
-- `inline` - 随AI输出直接注入上下文
+- `follow_ai` - 随AI输出，不启用额外解析链
 - `post_response_api` - 额外AI模型解析后注入
 
 **使用示例：**

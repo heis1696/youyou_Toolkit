@@ -5,7 +5,7 @@
  */
 
 import { eventBus, EVENTS } from '../core/event-bus.js';
-import { getJQuery, isContainerValid, showToast } from './utils.js';
+import { getJQuery, isContainerValid } from './utils.js';
 
 // ============================================================
 // UI管理器类

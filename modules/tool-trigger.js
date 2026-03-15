@@ -57,10 +57,13 @@ const triggerState = {
   
   // 门控状态
   gateState: {
+    lastUserSendIntentAt: 0,
     lastUserMessageId: null,
     lastUserMessageText: '',
     lastUserMessageAt: 0,
     lastGenerationType: null,
+    lastGenerationParams: null,
+    lastGenerationDryRun: false,
     lastGenerationAt: 0,
     isGenerating: false
   },
@@ -80,7 +83,121 @@ const triggerState = {
  * 获取顶层窗口
  */
 function getTopWindow() {
-  return (typeof window.parent !== 'undefined' ? window.parent : window);
+  try {
+    if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
+      return window.parent;
+    }
+  } catch (error) {
+    // 忽略跨窗口访问异常，回退到当前窗口
+  }
+
+  return window;
+}
+
+/**
+ * 获取消息文本内容（兼容 SillyTavern / TavernHelper 多种字段）
+ * @param {Object} msg
+ * @returns {string}
+ */
+function getMessageContent(msg) {
+  if (!msg) return '';
+
+  const candidates = [
+    msg.mes,
+    msg.message,
+    msg.content,
+    msg.text,
+    msg?.data?.content
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * 标记用户发送意图
+ */
+function markUserSendIntent() {
+  updateGateState({
+    lastUserSendIntentAt: Date.now()
+  });
+}
+
+/**
+ * 安装发送意图捕获钩子
+ * 参考 shujuku，尽量在 SillyTavern 自身发送逻辑前记录一次“用户真实发送”意图
+ */
+function installSendIntentCaptureHooks() {
+  const topWindow = getTopWindow();
+  const targetDoc = topWindow?.document;
+
+  if (!targetDoc?.body) {
+    return false;
+  }
+
+  if (topWindow.__YYT_sendIntentHooksInstalled) {
+    return true;
+  }
+
+  const sendButtonSelectors = [
+    '#send_but',
+    '#option_send',
+    '#send_button',
+    'button[title*="发送"]',
+    'button[title*="Send"]'
+  ];
+
+  const textareaSelectors = [
+    '#send_textarea',
+    '#send_textarea textarea',
+    'textarea#send_textarea',
+    'textarea[data-testid="send_textarea"]'
+  ];
+
+  const bindOnce = (selectorList, eventName, handler) => {
+    selectorList.forEach((selector) => {
+      const element = targetDoc.querySelector(selector);
+      if (!element) return;
+      element.addEventListener(eventName, handler, true);
+    });
+  };
+
+  bindOnce(sendButtonSelectors, 'click', () => markUserSendIntent());
+  bindOnce(sendButtonSelectors, 'pointerup', () => markUserSendIntent());
+  bindOnce(sendButtonSelectors, 'touchend', () => markUserSendIntent());
+  bindOnce(textareaSelectors, 'keydown', (event) => {
+    const key = event?.key || '';
+    if ((key === 'Enter' || key === 'NumpadEnter') && !event.shiftKey) {
+      markUserSendIntent();
+    }
+  });
+
+  topWindow.__YYT_sendIntentHooksInstalled = true;
+  log('已安装发送意图捕获钩子');
+  return true;
+}
+
+/**
+ * 判断是否为 quiet / 后台生成
+ * @param {string} type
+ * @param {Object} params
+ * @param {boolean} dryRun
+ * @returns {boolean}
+ */
+function isQuietLikeGeneration(type, params = {}, dryRun = false) {
+  if (dryRun) return true;
+
+  const normalizedType = String(type || params?.type || '').trim().toLowerCase();
+
+  return normalizedType.includes('quiet')
+    || params?.quiet === true
+    || params?.isQuiet === true
+    || params?.quiet_prompt === true;
 }
 
 /**
@@ -135,6 +252,39 @@ function log(...args) {
   if (triggerState.debugMode) {
     console.log('[YouYouToolkit:Trigger]', ...args);
   }
+}
+
+/**
+ * 获取稳定的聊天ID，避免回退到时间戳导致上下文无法复用
+ */
+function resolveStableChatId(api, context, character) {
+  const candidates = [
+    context?.chatId,
+    context?.chat_id,
+    context?.chat_filename,
+    context?.chatMetadata?.chatId,
+    context?.chatMetadata?.chat_id,
+    context?.chatMetadata?.file_name,
+    context?.chatMetadata?.name,
+    api?.chatId,
+    api?.chat_id,
+    api?.chat_filename
+  ];
+
+  const matched = candidates.find(value => typeof value === 'string' && value.trim());
+  if (matched) {
+    return matched;
+  }
+
+  if (character?.id !== undefined && character?.id !== null) {
+    return `chat_char_${character.id}`;
+  }
+
+  if (api?.this_chid !== undefined && api?.this_chid !== null) {
+    return `chat_char_${api.this_chid}`;
+  }
+
+  return 'chat_default';
 }
 
 // ============================================================
@@ -349,10 +499,13 @@ export function updateGateState(update) {
  */
 export function resetGateState() {
   triggerState.gateState = {
+    lastUserSendIntentAt: 0,
     lastUserMessageId: null,
     lastUserMessageText: '',
     lastUserMessageAt: 0,
     lastGenerationType: null,
+    lastGenerationParams: null,
+    lastGenerationDryRun: false,
     lastGenerationAt: 0,
     isGenerating: false
   };
@@ -401,16 +554,17 @@ export async function getChatContext(options = {}) {
       if (role === 'assistant' && !includeAssistant) continue;
       
       if (format === 'messages') {
+        const content = getMessageContent(msg);
         messages.push({
           role,
-          content: msg.mes || msg.content || '',
+          content,
           name: msg.name || '',
           timestamp: msg.send_date || msg.timestamp,
           isSystem: !!msg.is_system,
           isUser: !!msg.is_user
         });
       } else {
-        messages.push(msg.mes || msg.content || '');
+        messages.push(getMessageContent(msg));
       }
     }
     
@@ -717,9 +871,23 @@ function registerGenerationEndedListener() {
   
   const listener = registerEventListener(eventType, async (data) => {
     log('GENERATION_ENDED触发:', data);
+
+    if (isQuietLikeGeneration(
+      triggerState.gateState.lastGenerationType,
+      triggerState.gateState.lastGenerationParams,
+      triggerState.gateState.lastGenerationDryRun
+    )) {
+      log('检测到 quiet / dryRun 生成，跳过工具自动执行');
+      return;
+    }
     
     // 获取上下文
     const context = await buildToolExecutionContext(data);
+
+    if (!context?.lastAiMessage) {
+      log('生成结束后未读取到最新 AI 回复，跳过工具执行');
+      return;
+    }
     
     // 获取需要触发的工具
     const toolsToExecute = getToolsToExecute(eventType);
@@ -770,6 +938,9 @@ async function buildToolExecutionContext(eventData) {
   const character = await getCurrentCharacter();
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
+  const messageId = (typeof eventData === 'string' || typeof eventData === 'number')
+    ? eventData
+    : (eventData?.messageId || eventData?.id || '');
   
   // 获取最后一条用户消息和AI消息
   const messages = chat?.messages || [];
@@ -779,13 +950,13 @@ async function buildToolExecutionContext(eventData) {
   return {
     triggeredAt: Date.now(),
     triggerEvent: eventData?.triggerEvent || 'GENERATION_ENDED',
-    chatId: stContext?.chatId || stContext?.chat_id || stContext?.chat_filename || '',
-    messageId: eventData?.messageId || eventData?.id || '',
+    chatId: resolveStableChatId(api, stContext, character),
+    messageId,
     lastAiMessage: lastAiMessage?.content || '',
-    userMessage: lastUserMessage?.content || '',
+    userMessage: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || '',
     chatMessages: messages,
     input: {
-      userMessage: lastUserMessage?.content || '',
+      userMessage: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || '',
       lastAiMessage: lastAiMessage?.content || '',
       extractedContent: '',
       previousToolOutput: '',
@@ -1020,42 +1191,47 @@ export async function initTriggerModule() {
     setTimeout(initTriggerModule, 1000);
     return;
   }
+
+  installSendIntentCaptureHooks();
   
   // 注册核心事件监听器
-  const eventTypes = getEventTypes();
-  
   // 监听消息发送事件
-  if (eventTypes.MESSAGE_SENT) {
-    registerEventListener(eventTypes.MESSAGE_SENT, (messageId) => {
+  registerEventListener(EVENT_TYPES.MESSAGE_SENT, async (messageId) => {
+      const chatContext = await getChatContext({
+        depth: 10,
+        includeAssistant: false,
+        includeSystem: false
+      });
+      const lastUserMessage = chatContext?.messages?.filter(msg => msg.role === 'user').pop();
+
       updateGateState({
+        lastUserSendIntentAt: Date.now(),
         lastUserMessageId: messageId,
-        lastUserMessageAt: Date.now()
+        lastUserMessageAt: Date.now(),
+        lastUserMessageText: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || ''
       });
       log(`用户消息已发送: ${messageId}`);
     });
-  }
   
   // 监听生成开始事件
-  if (eventTypes.GENERATION_STARTED) {
-    registerEventListener(eventTypes.GENERATION_STARTED, (type, params) => {
+  registerEventListener(EVENT_TYPES.GENERATION_STARTED, (type, params, dryRun) => {
       updateGateState({
         lastGenerationType: type,
+        lastGenerationParams: params || null,
+        lastGenerationDryRun: !!dryRun,
         isGenerating: true
       });
       log(`生成开始: ${type}`);
     });
-  }
   
   // 监听生成结束事件
-  if (eventTypes.GENERATION_ENDED) {
-    registerEventListener(eventTypes.GENERATION_ENDED, () => {
+  registerEventListener(EVENT_TYPES.GENERATION_ENDED, () => {
       updateGateState({
         lastGenerationAt: Date.now(),
         isGenerating: false
       });
       log('生成结束');
     });
-  }
   
   // 初始化工具触发管理器
   initToolTriggerManager();

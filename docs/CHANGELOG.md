@@ -11,6 +11,24 @@
 
 ### 修复
 
+- 🐛 **工具管理事件与导入参数兼容修复** (`modules/tool-manager.js`, `modules/ui/components/tool-manage-panel.js`)
+  - 修复新建工具时统一发出 `TOOL_REGISTERED` 事件，避免创建工具也被错误视为更新工具
+  - 修复工具管理面板与底层存储重复触发事件的问题，避免启用/禁用、创建、更新时出现重复事件广播
+  - 修复 `importTools()` 只接受布尔值、但 UI 传入 `{ overwrite: false }` 对象时的逻辑歧义，现在同时兼容布尔参数和对象参数
+
+- 🐛 **工具面板错误样式变量兼容修复** (`modules/ui/components/summary-tool-panel.js`, `modules/ui/components/status-block-panel.js`, `styles/main.css`, `index.js`)
+  - 修复工具面板中使用不存在的 `--yyt-danger` 变量导致错误状态颜色在部分场景下失效的问题
+  - 统一改为 `--yyt-error`，并增加 `--yyt-danger` 到 `--yyt-error` 的兼容别名，避免旧样式引用失效
+
+- 🐛 **入口版本标识修正** (`index.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
+  - 修正文档和入口注释中的版本号漂移问题，统一到当前版本 `0.6.2`
+
+- 🐛 **消息监听门控与最近消息读取兼容性修复** (`modules/tool-trigger.js`)
+  - 参考 shujuku 补充“发送意图”捕获逻辑：在发送按钮点击、回车发送等路径上提前记录用户真实发送意图，降低部分环境下 `MESSAGE_SENT` 时序不稳定带来的监听丢失概率
+  - 为 `GENERATION_STARTED / GENERATION_ENDED` 补充 quiet / dryRun 门控上下文记录，自动工具执行会跳过静默生成与后台生成，避免误触发
+  - 最近消息读取新增多字段兼容：聊天消息内容现在会同时兼容 `mes`、`message`、`content`、`text` 等结构，修复部分 TavernHelper / SillyTavern 环境下“测试提取拿不到任何消息”或自动执行后读不到最新 AI 回复的问题
+  - 当 `GENERATION_ENDED` 后仍未取到有效 AI 回复时，自动工具链会直接跳过并写日志，避免空消息进入后续解析流程
+
 - 🐛 **工具独立提取与世界书注入链路增强** (`modules/tool-registry.js`, `modules/context-injector.js`, `modules/tool-output-service.js`, `modules/tool-prompt-service.js`, `modules/tool-trigger.js`, `modules/ui/components/summary-tool-panel.js`, `modules/ui/components/status-block-panel.js`, `docs/API_DOCUMENTATION.md`)
   - 为每个工具新增独立提取配置：最大提取消息数、单独标签/正则规则，并保留 `extractTags` 兼容映射
   - 新增“测试提取”能力，可直接基于最近若干条角色消息预览提取前原文与提取后结果，方便排查规则是否生效

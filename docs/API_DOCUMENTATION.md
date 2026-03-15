@@ -1,6 +1,6 @@
 # API 文档
 
-本文档详细说明 YouYou Toolkit v0.6.0 提供的 API 接口。
+本文档详细说明 YouYou Toolkit v0.6.2 提供的 API 接口。
 
 ## 模块导入
 
@@ -33,7 +33,7 @@ const toolkit = window.YouYouToolkit;
 - **示例**:
 
 ```javascript
-console.log(YouYouToolkit.version); // "0.4.0"
+console.log(YouYouToolkit.version); // "0.6.2"
 ```
 
 #### `id`
@@ -173,7 +173,10 @@ const toolMgr = YouYouToolkit.getToolManager();
 // toolMgr.deleteTool(toolId)
 // toolMgr.setToolEnabled(toolId, enabled)
 // toolMgr.cloneTool(toolId, newId, newName)
+// toolMgr.importTools(jsonString, overwriteOrOptions)
 ```
+
+> `importTools()` 兼容两种调用方式：`importTools(json, true)` 与 `importTools(json, { overwrite: true })`。
 
 ### `getToolExecutor()`
 
@@ -639,6 +642,8 @@ interface ToolConfig {
 - AI 回复自动触发时会在页面顶部显示通知，用于确认是否真正进入执行链路，以及是否执行成功/失败
 - 当工具执行成功后，会将提取后的结果真正写入目标世界书；若世界书写入失败，执行会被标记为失败并给出提示
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
+- 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
+- 自动监听会记录用户发送意图，并跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
 
 ### 输出模式说明 (v0.6)
 
@@ -692,7 +697,7 @@ interface Settings {
 | 常量名 | 值 | 说明 |
 |--------|-----|------|
 | `SCRIPT_ID` | `"youyou_toolkit"` | 脚本唯一标识 |
-| `SCRIPT_VERSION` | `"0.6.0"` | 脚本版本 |
+| `SCRIPT_VERSION` | `"0.6.2"` | 脚本版本 |
 | `MENU_ITEM_ID` | `"youyou_toolkit-menu-item"` | 菜单项 DOM ID |
 | `MENU_CONTAINER_ID` | `"youyou_toolkit-menu-container"` | 菜单容器 DOM ID |
 | `POPUP_ID` | `"youyou_toolkit-popup"` | 弹窗 DOM ID |

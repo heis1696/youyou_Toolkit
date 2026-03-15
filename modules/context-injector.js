@@ -515,14 +515,33 @@ class ContextInjector {
       // 尝试从SillyTavern获取
       if (topWindow.SillyTavern?.getContext) {
         const context = topWindow.SillyTavern.getContext();
-        // 聊天ID可能是文件名或特定ID
-        return context.chatId || context.chat_filename || `chat_${Date.now()}`;
+        const candidates = [
+          context?.chatId,
+          context?.chat_id,
+          context?.chat_filename,
+          context?.chatMetadata?.chatId,
+          context?.chatMetadata?.chat_id,
+          context?.chatMetadata?.file_name,
+          context?.chatMetadata?.name,
+          topWindow.SillyTavern?.chatId,
+          topWindow.SillyTavern?.chat_id,
+          topWindow.SillyTavern?.chat_filename
+        ];
+
+        const stableChatId = candidates.find(value => typeof value === 'string' && value.trim());
+        if (stableChatId) {
+          return stableChatId;
+        }
+
+        const currentCharId = topWindow.SillyTavern?.this_chid;
+        if (currentCharId !== undefined && currentCharId !== null) {
+          return `chat_char_${currentCharId}`;
+        }
       }
 
-      // 回退到时间戳
-      return `chat_${Date.now()}`;
+      return 'chat_default';
     } catch (e) {
-      return `chat_${Date.now()}`;
+      return 'chat_default';
     }
   }
 

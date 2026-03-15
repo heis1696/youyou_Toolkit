@@ -67,14 +67,14 @@ YouYou Toolkit 采用分层模块化架构设计：
 │  tool-manager.js       工具管理                                   │
 │  tool-executor.js      工具执行                                   │
 │  tool-registry.js      工具注册                                   │
-│  bypass-prompts.js     破限词管理                                 │
+│  bypass-manager.js     破限词管理                                 │
 │  window-manager.js     窗口管理                                   │
 │  prompt-editor.js      提示词编辑器                               │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
 │                        UI Layer (UI层)                           │
-│  ui-components.js      UI组件主模块                               │
+│  ui-components.js      UI组件主模块（兼容层）                     │
 │  ui-manager.js         UI管理器                                   │
 │  components/           独立UI组件                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -641,8 +641,8 @@ youyou_Toolkit/
 │   │   └── components/         # UI组件
 │   │       ├── api-preset-panel.js
 │   │       ├── bypass-panel.js
-│   │       ├── bypass-editor.js
 │   │       ├── regex-extract-panel.js
+│   │       ├── tool-config-panel-factory.js
 │   │       ├── summary-tool-panel.js
 │   │       ├── status-block-panel.js
 │   │       └── tool-manage-panel.js
@@ -654,7 +654,7 @@ youyou_Toolkit/
 │   ├── tool-executor.js        # 工具执行
 │   ├── tool-trigger.js         # 事件触发
 │   ├── tool-registry.js        # 工具注册
-│   ├── bypass-prompts.js       # 破限词管理
+│   ├── bypass-manager.js       # 破限词管理
 │   ├── window-manager.js       # 窗口管理
 │   ├── prompt-editor.js        # 提示词编辑器
 │   └── ui-components.js        # UI组件（兼容层）

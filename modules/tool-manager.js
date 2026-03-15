@@ -128,6 +128,7 @@ export function saveTool(toolId, toolDef) {
   }
   
   const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
+  const isNewTool = !customTools[toolId] && !DEFAULT_TOOL_PRESETS[toolId];
   
   // 合并默认结构
   const validatedTool = {
@@ -150,7 +151,10 @@ export function saveTool(toolId, toolDef) {
   toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
   
   // 发送事件
-  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, tool: validatedTool });
+  eventBus.emit(isNewTool ? EVENTS.TOOL_REGISTERED : EVENTS.TOOL_UPDATED, {
+    toolId,
+    tool: validatedTool
+  });
   
   return true;
 }
@@ -353,13 +357,17 @@ export function exportTools() {
  */
 export function importTools(jsonString, overwrite = false) {
   try {
+    const shouldOverwrite = typeof overwrite === 'object'
+      ? !!overwrite?.overwrite
+      : !!overwrite;
+
     const imported = JSON.parse(jsonString);
     if (!imported || typeof imported !== 'object') {
       return { success: false, toolsImported: 0, presetsImported: 0, message: '无效的JSON格式' };
     }
     
-    const existingTools = overwrite ? {} : (toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {});
-    const existingPresets = overwrite ? {} : (toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {});
+    const existingTools = shouldOverwrite ? {} : (toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {});
+    const existingPresets = shouldOverwrite ? {} : (toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {});
     
     let toolsCount = 0;
     let presetsCount = 0;
@@ -367,7 +375,7 @@ export function importTools(jsonString, overwrite = false) {
     // 导入工具
     if (imported.tools && typeof imported.tools === 'object') {
       for (const [id, tool] of Object.entries(imported.tools)) {
-        if (DEFAULT_TOOL_PRESETS[id] && !overwrite) continue;
+        if (DEFAULT_TOOL_PRESETS[id] && !shouldOverwrite) continue;
         if (tool && typeof tool === 'object') {
           existingTools[id] = tool;
           toolsCount++;
@@ -379,7 +387,7 @@ export function importTools(jsonString, overwrite = false) {
     // 导入预设
     if (imported.presets && typeof imported.presets === 'object') {
       for (const [id, preset] of Object.entries(imported.presets)) {
-        if (DEFAULT_TOOL_PRESETS[id] && !overwrite) continue;
+        if (DEFAULT_TOOL_PRESETS[id] && !shouldOverwrite) continue;
         if (preset && typeof preset === 'object') {
           existingPresets[id] = preset;
           presetsCount++;

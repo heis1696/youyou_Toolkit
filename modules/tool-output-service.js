@@ -8,7 +8,7 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 import { settingsService } from './core/settings-service.js';
 import { contextInjector } from './context-injector.js';
 import { toolPromptService } from './tool-prompt-service.js';
-import { extractTagContent } from './regex-extractor.js';
+import { extractTagContent, getTagRules, getContentBlacklist } from './regex-extractor.js';
 
 // ============================================================
 // 输出模式定义
@@ -241,11 +241,13 @@ class ToolOutputService {
    */
   async previewExtraction(toolConfig, rawContext) {
     const sourceText = this._collectRecentAssistantMessages(toolConfig, rawContext);
-    const extracted = this._applyExtractionSelectors(sourceText, toolConfig);
+    const filteredSourceText = this._applyGlobalContextRules(sourceText);
+    const extracted = this._applyExtractionSelectors(filteredSourceText, toolConfig);
 
     return {
       success: true,
       sourceText,
+      filteredSourceText,
       extractedText: extracted,
       selectors: this._getExtractionSelectors(toolConfig),
       maxMessages: toolConfig?.extraction?.maxMessages || 5
@@ -263,13 +265,15 @@ class ToolOutputService {
   async _buildToolMessages(toolConfig, rawContext) {
     // 获取聚合的注入上下文
     const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
-    const recentMessagesText = this._collectRecentAssistantMessages(toolConfig, rawContext);
+    const rawRecentMessagesText = this._collectRecentAssistantMessages(toolConfig, rawContext);
+    const recentMessagesText = this._applyGlobalContextRules(rawRecentMessagesText);
     const extractedContent = this._applyExtractionSelectors(recentMessagesText, toolConfig);
     
     // 构建完整上下文
     const fullContext = {
       ...rawContext,
       injectedContext,
+      rawRecentMessagesText,
       recentMessagesText,
       extractedContent,
       toolName: toolConfig.name,
@@ -433,6 +437,56 @@ class ToolOutputService {
   }
 
   /**
+   * 先应用全局正则/标签提取规则，再交给工具自身提取规则处理
+   * @private
+   */
+  _applyGlobalContextRules(text) {
+    const sourceText = typeof text === 'string' ? text : String(text || '');
+    if (!sourceText.trim()) {
+      return '';
+    }
+
+    try {
+      const rules = getTagRules() || [];
+      const blacklist = getContentBlacklist() || [];
+
+      if (!Array.isArray(rules) || rules.length === 0) {
+        return sourceText.trim();
+      }
+
+      const filtered = extractTagContent(sourceText, rules, blacklist);
+      return filtered || sourceText.trim();
+    } catch (error) {
+      this._log('应用全局正文提取规则失败，回退原始文本', error);
+      return sourceText.trim();
+    }
+  }
+
+  /**
+   * 获取消息正文（兼容不同环境字段）
+   * @private
+   */
+  _getMessageText(message) {
+    if (!message) return '';
+
+    const candidates = [
+      message.content,
+      message.mes,
+      message.message,
+      message.text,
+      message?.data?.content
+    ];
+
+    for (const value of candidates) {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return '';
+  }
+
+  /**
    * 收集最近的角色消息
    * @private
    */
@@ -441,9 +495,14 @@ class ToolOutputService {
     const chatMessages = Array.isArray(rawContext?.chatMessages) ? rawContext.chatMessages : [];
 
     const assistantMessages = chatMessages
-      .filter(message => message?.role === 'assistant' && message?.content)
+      .filter((message) => {
+        const normalizedRole = String(message?.role || '').toLowerCase();
+        const isAssistant = normalizedRole === 'assistant'
+          || (!message?.is_user && !message?.is_system && !normalizedRole);
+        return isAssistant && this._getMessageText(message);
+      })
       .slice(-maxMessages)
-      .map(message => message.content.trim())
+      .map(message => this._getMessageText(message))
       .filter(Boolean);
 
     if (assistantMessages.length > 0) {

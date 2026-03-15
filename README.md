@@ -67,7 +67,7 @@
 - ✅ 工具绑定支持
 
 #### 工具输出模式
-- ✅ inline 模式 - 随AI输出直接注入上下文
+- ✅ follow_ai 模式 - 随AI输出，不启用额外解析链
 - ✅ post_response_api 模式 - 额外AI模型解析后注入
 
 ## 📦 安装方法
@@ -218,8 +218,8 @@ YouYouToolkit.id         // 插件ID
 // 弹窗控制
 YouYouToolkit.openPopup()   // 打开弹窗
 YouYouToolkit.closePopup()  // 关闭弹窗
-YouYouToolkit.switchPage('api')    // 切换到API管理页
-YouYouToolkit.switchPage('regex')  // 切换到正则提取页
+YouYouToolkit.switchMainTab('apiPresets')   // 切换到API管理页
+YouYouToolkit.switchMainTab('regexExtract') // 切换到正则提取页
 
 // API配置（异步方法）
 await YouYouToolkit.getApiConfig()     // 获取当前API配置
@@ -340,6 +340,11 @@ npm run watch      # 监听文件变化自动构建
 - 🔧 **工具提示词服务简化** - 改为单模板 + AI回复附加的处理方式
 - 🔧 **UI组件优化** - 摘要工具面板简化，新增调试信息折叠区
 - 📝 更新所有文档反映 v0.6 简化重构
+
+### v0.6.2 (2026-03-15)
+- 🐛 **触发链路修复** - 修复工具自动监听初始化与最近消息读取兼容性
+- 🔧 **UI瘦身** - 抽离工具配置面板工厂，收敛摘要工具 / 状态栏重复代码
+- 📝 同步修正文档、版本号与兼容说明
 
 ### v0.5.0 (2026-03-14)
 - ✨ **设置服务** - 统一全局配置管理

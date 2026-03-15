@@ -4,7 +4,6 @@
  * @version 1.0.0
  */
 
-import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { 
   SCRIPT_ID, 
   escapeHtml, 
@@ -142,7 +141,6 @@ export const ToolManagePanel = {
       setToolEnabled(toolId, enabled);
       $item.toggleClass('yyt-enabled', enabled).toggleClass('yyt-disabled', !enabled);
       showToast('info', enabled ? '工具已启用' : '工具已禁用');
-      eventBus.emit(enabled ? EVENTS.TOOL_ENABLED : EVENTS.TOOL_DISABLED, { toolId });
     });
     
     // 新建工具
@@ -300,7 +298,6 @@ export const ToolManagePanel = {
       closeDialog();
       this.renderTo($container);
       showToast('success', isEdit ? '工具已更新' : '工具已创建');
-      eventBus.emit(isEdit ? EVENTS.TOOL_UPDATED : EVENTS.TOOL_REGISTERED, { toolId: id });
     });
   },
   

@@ -18,7 +18,6 @@ import {
   StatusBlockPanel,
   registerComponents,
   initUI,
-  getAllStyles,
   SCRIPT_ID,
   escapeHtml,
   showToast,
@@ -36,6 +35,28 @@ let $container = null;
 let $regexContainer = null;
 let $toolContainer = null;
 
+function resolveContainer(container, currentContainer) {
+  const $ = getJQuery();
+  if (!$) {
+    console.error('[YouYouToolkit] jQuery not available');
+    return null;
+  }
+
+  if (!container) {
+    return currentContainer;
+  }
+
+  if (typeof container === 'string') {
+    return $(container);
+  }
+
+  if (container?.jquery) {
+    return container;
+  }
+
+  return $(container);
+}
+
 // ============================================================
 // 主面板渲染（向后兼容）
 // ============================================================
@@ -45,22 +66,7 @@ let $toolContainer = null;
  * @param {Object} container - 容器
  */
 export function render(container) {
-  const $ = getJQuery();
-  if (!$) {
-    console.error('[YouYouToolkit] jQuery not available');
-    return;
-  }
-  
-  // 更新容器引用
-  if (container) {
-    if (typeof container === 'string') {
-      $container = $(container);
-    } else if (container && container.jquery) {
-      $container = container;
-    } else if (container) {
-      $container = $(container);
-    }
-  }
+  $container = resolveContainer(container, $container);
   
   if (!$container || !$container.length) {
     console.error('[YouYouToolkit] Container not found or invalid');
@@ -80,22 +86,7 @@ export function render(container) {
  * @param {Object} container - 容器
  */
 export function renderRegex(container) {
-  const $ = getJQuery();
-  if (!$) {
-    console.error('[YouYouToolkit] jQuery not available');
-    return;
-  }
-  
-  // 更新容器引用
-  if (container) {
-    if (typeof container === 'string') {
-      $regexContainer = $(container);
-    } else if (container && container.jquery) {
-      $regexContainer = container;
-    } else if (container) {
-      $regexContainer = $(container);
-    }
-  }
+  $regexContainer = resolveContainer(container, $regexContainer);
   
   if (!$regexContainer || !$regexContainer.length) {
     console.error('[YouYouToolkit] Regex container not found');
@@ -115,22 +106,7 @@ export function renderRegex(container) {
  * @param {Object} container - 容器
  */
 export function renderTool(container) {
-  const $ = getJQuery();
-  if (!$) {
-    console.error('[YouYouToolkit] jQuery not available');
-    return;
-  }
-  
-  // 更新容器引用
-  if (container) {
-    if (typeof container === 'string') {
-      $toolContainer = $(container);
-    } else if (container && container.jquery) {
-      $toolContainer = container;
-    } else if (container) {
-      $toolContainer = $(container);
-    }
-  }
+  $toolContainer = resolveContainer(container, $toolContainer);
   
   if (!$toolContainer || !$toolContainer.length) {
     console.error('[YouYouToolkit] Tool container not found');
@@ -168,8 +144,7 @@ export function getRegexStyles() {
 export function getToolStyles() {
   return [
     ToolManagePanel.getStyles(),
-    SummaryToolPanel.getStyles(),
-    StatusBlockPanel.getStyles()
+    SummaryToolPanel.getStyles()
   ].join('\n');
 }
 

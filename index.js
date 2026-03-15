@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
- * @version 0.6.0
+ * @version 0.6.2
  * @description 一个轻量级的 SillyTavern 工具插件框架，支持API连接、预设管理、正则提取、独立窗口系统、工具提示词、破限词和上下文注入
  * @author YouYou
  */
@@ -143,6 +143,7 @@ function getBaseStyles() {
       --yyt-success: #4ade80;
       --yyt-success-glow: rgba(74, 222, 128, 0.3);
       --yyt-error: #f87171;
+      --yyt-danger: var(--yyt-error);
       --yyt-error-glow: rgba(248, 113, 113, 0.3);
       --yyt-warning: #fbbf24;
       --yyt-surface: rgba(255, 255, 255, 0.03);

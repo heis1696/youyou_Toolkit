@@ -1,1249 +1,4 @@
-var __defProp = Object.defineProperty;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-};
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-
-// modules/core/storage-service.js
-function getStorage() {
-  const instance = storage;
-  instance._getStorage();
-  return instance._storage;
-}
-function loadSettings() {
-  return storage.get("settings", {
-    apiConfig: {
-      url: "",
-      apiKey: "",
-      model: "",
-      useMainApi: true,
-      max_tokens: 4096,
-      temperature: 0.7,
-      top_p: 0.9
-    },
-    currentPreset: "",
-    uiSettings: {
-      theme: "dark",
-      lastTab: "api"
-    }
-  });
-}
-function saveSettings(settings) {
-  storage.set("settings", settings);
-}
-var StorageService, storage, toolStorage, presetStorage, windowStorage;
-var init_storage_service = __esm({
-  "modules/core/storage-service.js"() {
-    StorageService = class _StorageService {
-      /**
-       * @param {string} namespace - 存储命名空间
-       */
-      constructor(namespace = "youyou_toolkit") {
-        this.namespace = namespace;
-        this._storage = null;
-        this._cache = /* @__PURE__ */ new Map();
-      }
-      // ============================================================
-      // 存储后端获取
-      // ============================================================
-      /**
-       * 获取存储后端
-       * @private
-       * @returns {Object} 存储对象 { getItem, setItem, removeItem }
-       */
-      _getStorage() {
-        if (this._storage)
-          return this._storage;
-        try {
-          const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
-          if (topWindow.SillyTavern?.getContext) {
-            const context = topWindow.SillyTavern.getContext();
-            if (context?.extensionSettings) {
-              if (!context.extensionSettings[this.namespace]) {
-                context.extensionSettings[this.namespace] = {};
-              }
-              this._storage = {
-                _target: context.extensionSettings[this.namespace],
-                getItem: (key) => {
-                  const value = context.extensionSettings[this.namespace][key];
-                  return typeof value === "string" ? value : value ? JSON.stringify(value) : null;
-                },
-                setItem: (key, value) => {
-                  context.extensionSettings[this.namespace][key] = value;
-                  this._saveSettings(context);
-                },
-                removeItem: (key) => {
-                  delete context.extensionSettings[this.namespace][key];
-                  this._saveSettings(context);
-                },
-                _isTavern: true
-              };
-              return this._storage;
-            }
-          }
-        } catch (e) {
-          console.warn(`[${this.namespace}] SillyTavern\u5B58\u50A8\u4E0D\u53EF\u7528\uFF0C\u4F7F\u7528localStorage`);
-        }
-        this._storage = {
-          getItem: (key) => {
-            try {
-              return localStorage.getItem(key);
-            } catch (e) {
-              return null;
-            }
-          },
-          setItem: (key, value) => {
-            try {
-              localStorage.setItem(key, value);
-            } catch (e) {
-              console.error(`[${this.namespace}] localStorage\u5199\u5165\u5931\u8D25:`, e);
-            }
-          },
-          removeItem: (key) => {
-            try {
-              localStorage.removeItem(key);
-            } catch (e) {
-            }
-          },
-          _isTavern: false
-        };
-        return this._storage;
-      }
-      /**
-       * 触发SillyTavern设置保存
-       * @private
-       */
-      _saveSettings(context) {
-        if (typeof context.saveSettings === "function") {
-          try {
-            context.saveSettings();
-          } catch (e) {
-          }
-        } else if (typeof context.saveSettingsDebounced === "function") {
-          try {
-            context.saveSettingsDebounced();
-          } catch (e) {
-          }
-        }
-      }
-      // ============================================================
-      // 公共API
-      // ============================================================
-      /**
-       * 获取存储值
-       * @param {string} key - 键名
-       * @param {*} defaultValue - 默认值
-       * @returns {*}
-       */
-      get(key, defaultValue = null) {
-        const cacheKey = `${this.namespace}:${key}`;
-        if (this._cache.has(cacheKey)) {
-          return this._cache.get(cacheKey);
-        }
-        const storage2 = this._getStorage();
-        const fullKey = this._getFullKey(key);
-        const value = storage2.getItem(fullKey);
-        if (value === null)
-          return defaultValue;
-        try {
-          const parsed = JSON.parse(value);
-          this._cache.set(cacheKey, parsed);
-          return parsed;
-        } catch (e) {
-          return value;
-        }
-      }
-      /**
-       * 设置存储值
-       * @param {string} key - 键名
-       * @param {*} value - 值
-       */
-      set(key, value) {
-        const storage2 = this._getStorage();
-        const fullKey = this._getFullKey(key);
-        const cacheKey = `${this.namespace}:${key}`;
-        this._cache.set(cacheKey, value);
-        try {
-          storage2.setItem(fullKey, JSON.stringify(value));
-        } catch (e) {
-          console.error(`[${this.namespace}] \u5B58\u50A8\u5931\u8D25:`, e);
-        }
-      }
-      /**
-       * 删除存储值
-       * @param {string} key - 键名
-       */
-      remove(key) {
-        const storage2 = this._getStorage();
-        const fullKey = this._getFullKey(key);
-        const cacheKey = `${this.namespace}:${key}`;
-        this._cache.delete(cacheKey);
-        storage2.removeItem(fullKey);
-      }
-      /**
-       * 检查键是否存在
-       * @param {string} key - 键名
-       * @returns {boolean}
-       */
-      has(key) {
-        const storage2 = this._getStorage();
-        const fullKey = this._getFullKey(key);
-        return storage2.getItem(fullKey) !== null;
-      }
-      /**
-       * 清除命名空间下所有数据
-       */
-      clear() {
-        const storage2 = this._getStorage();
-        if (storage2._isTavern) {
-          const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
-          if (topWindow.SillyTavern?.getContext) {
-            const context = topWindow.SillyTavern.getContext();
-            if (context?.extensionSettings?.[this.namespace]) {
-              context.extensionSettings[this.namespace] = {};
-              this._saveSettings(context);
-            }
-          }
-        } else {
-          const prefix = `${this.namespace}_`;
-          const keysToRemove = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(prefix)) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach((key) => localStorage.removeItem(key));
-        }
-        this._cache.clear();
-      }
-      /**
-       * 获取完整键名
-       * @private
-       */
-      _getFullKey(key) {
-        if (this._getStorage()._isTavern) {
-          return key;
-        }
-        return `${this.namespace}_${key}`;
-      }
-      /**
-       * 创建子命名空间存储
-       * @param {string} subNamespace - 子命名空间
-       * @returns {StorageService}
-       */
-      namespace(subNamespace) {
-        return new _StorageService(`${this.namespace}:${subNamespace}`);
-      }
-      // ============================================================
-      // 工具方法
-      // ============================================================
-      /**
-       * 批量获取
-       * @param {string[]} keys - 键名数组
-       * @returns {Object}
-       */
-      getMultiple(keys) {
-        const result = {};
-        keys.forEach((key) => {
-          result[key] = this.get(key);
-        });
-        return result;
-      }
-      /**
-       * 批量设置
-       * @param {Object} data - 键值对对象
-       */
-      setMultiple(data) {
-        Object.entries(data).forEach(([key, value]) => {
-          this.set(key, value);
-        });
-      }
-      /**
-       * 导出所有数据
-       * @returns {Object}
-       */
-      exportAll() {
-        const storage2 = this._getStorage();
-        const result = {};
-        if (storage2._isTavern) {
-          const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
-          if (topWindow.SillyTavern?.getContext) {
-            const context = topWindow.SillyTavern.getContext();
-            const data = context?.extensionSettings?.[this.namespace] || {};
-            Object.entries(data).forEach(([key, value]) => {
-              result[key] = typeof value === "string" ? JSON.parse(value) : value;
-            });
-          }
-        } else {
-          const prefix = `${this.namespace}_`;
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(prefix)) {
-              const shortKey = key.slice(prefix.length);
-              try {
-                result[shortKey] = JSON.parse(localStorage.getItem(key));
-              } catch (e) {
-                result[shortKey] = localStorage.getItem(key);
-              }
-            }
-          }
-        }
-        return result;
-      }
-    };
-    storage = new StorageService("youyou_toolkit");
-    toolStorage = new StorageService("youyou_toolkit:tools");
-    presetStorage = new StorageService("youyou_toolkit:presets");
-    windowStorage = new StorageService("youyou_toolkit:windows");
-  }
-});
-
-// modules/storage.js
-var storage_exports = {};
-__export(storage_exports, {
-  DEFAULT_API_PRESETS: () => DEFAULT_API_PRESETS,
-  DEFAULT_SETTINGS: () => DEFAULT_SETTINGS,
-  STORAGE_KEYS: () => STORAGE_KEYS,
-  StorageService: () => StorageService,
-  deepMerge: () => deepMerge,
-  getCurrentPresetName: () => getCurrentPresetName,
-  getStorage: () => getStorage,
-  loadApiPresets: () => loadApiPresets,
-  loadSettings: () => loadSettings,
-  presetStorage: () => presetStorage,
-  saveApiPresets: () => saveApiPresets,
-  saveSettings: () => saveSettings,
-  setCurrentPresetName: () => setCurrentPresetName,
-  storage: () => storage,
-  toolStorage: () => toolStorage,
-  windowStorage: () => windowStorage
-});
-function loadApiPresets() {
-  return storage.get(STORAGE_KEYS.API_PRESETS) || [];
-}
-function saveApiPresets(presets) {
-  storage.set(STORAGE_KEYS.API_PRESETS, presets);
-}
-function getCurrentPresetName() {
-  return storage.get(STORAGE_KEYS.CURRENT_PRESET) || "";
-}
-function setCurrentPresetName(name) {
-  storage.set(STORAGE_KEYS.CURRENT_PRESET, name || "");
-}
-function deepMerge(target, source) {
-  const isObject = (obj) => obj && typeof obj === "object" && !Array.isArray(obj);
-  let output = { ...target };
-  if (isObject(target) && isObject(source)) {
-    Object.keys(source).forEach((key) => {
-      if (isObject(source[key])) {
-        if (!(key in target)) {
-          Object.assign(output, { [key]: source[key] });
-        } else {
-          output[key] = deepMerge(target[key], source[key]);
-        }
-      } else {
-        Object.assign(output, { [key]: source[key] });
-      }
-    });
-  }
-  return output;
-}
-var STORAGE_KEYS, DEFAULT_SETTINGS, DEFAULT_API_PRESETS;
-var init_storage = __esm({
-  "modules/storage.js"() {
-    init_storage_service();
-    init_storage_service();
-    STORAGE_KEYS = {
-      SETTINGS: "settings",
-      API_PRESETS: "api_presets",
-      CURRENT_PRESET: "current_preset",
-      // 工具模块相关存储键
-      TOOLS: "tools",
-      TOOL_PRESETS: "tool_presets",
-      CURRENT_TOOL_PRESET: "current_tool_preset",
-      BYPASS_PRESETS: "bypass_presets",
-      CURRENT_BYPASS_PRESET: "current_bypass_preset",
-      BYPASS_ENABLED: "bypass_enabled"
-    };
-    DEFAULT_SETTINGS = {
-      // API配置
-      apiConfig: {
-        url: "",
-        apiKey: "",
-        model: "",
-        useMainApi: true,
-        max_tokens: 4096,
-        temperature: 0.7,
-        top_p: 0.9
-      },
-      // 当前使用的预设名称（空表示使用当前配置）
-      currentPreset: "",
-      // UI设置
-      uiSettings: {
-        theme: "dark",
-        lastTab: "api"
-      }
-    };
-    DEFAULT_API_PRESETS = [];
-  }
-});
-
-// modules/api-connection.js
-var api_connection_exports = {};
-__export(api_connection_exports, {
-  API_STATUS: () => API_STATUS,
-  fetchAvailableModels: () => fetchAvailableModels,
-  getApiConfig: () => getApiConfig,
-  getEffectiveApiConfig: () => getEffectiveApiConfig,
-  sendApiRequest: () => sendApiRequest,
-  sendWithPreset: () => sendWithPreset,
-  testApiConnection: () => testApiConnection,
-  updateApiConfig: () => updateApiConfig,
-  validateApiConfig: () => validateApiConfig
-});
-function getApiConfig() {
-  const settings = loadSettings();
-  return settings.apiConfig || {};
-}
-function updateApiConfig(config) {
-  const settings = loadSettings();
-  settings.apiConfig = {
-    ...settings.apiConfig,
-    ...config
-  };
-  saveSettings(settings);
-}
-function validateApiConfig(config) {
-  const errors = [];
-  if (config.useMainApi) {
-    return { valid: true, errors: [] };
-  }
-  if (!config.url || !config.url.trim()) {
-    errors.push("API URL \u4E0D\u80FD\u4E3A\u7A7A");
-  } else {
-    try {
-      new URL(config.url);
-    } catch (e) {
-      errors.push("API URL \u683C\u5F0F\u65E0\u6548");
-    }
-  }
-  if (!config.model || !config.model.trim()) {
-    errors.push("\u6A21\u578B\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A");
-  }
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-function getEffectiveApiConfig(presetName = "") {
-  const settings = loadSettings();
-  if (presetName) {
-    const presets = settings.apiPresets || [];
-    const preset = presets.find((p) => p.name === presetName);
-    if (preset && preset.apiConfig) {
-      return {
-        ...preset.apiConfig,
-        presetName: preset.name
-      };
-    }
-  }
-  return settings.apiConfig || {};
-}
-async function sendWithPreset(presetName, messages, options = {}, abortSignal = null) {
-  const apiConfig = getEffectiveApiConfig(presetName);
-  return await sendApiRequest(messages, {
-    ...options,
-    apiConfig
-  }, abortSignal);
-}
-function buildRequestBody(messages, options = {}) {
-  const config = options.apiConfig || getApiConfig();
-  return {
-    messages,
-    model: config.model || "gpt-3.5-turbo",
-    max_tokens: config.max_tokens || 4096,
-    temperature: config.temperature ?? 0.7,
-    top_p: config.top_p ?? 0.9,
-    stream: false,
-    ...options.extraParams
-  };
-}
-async function sendApiRequest(messages, options = {}, abortSignal = null) {
-  const config = options.apiConfig || getApiConfig();
-  const useMainApi = config.useMainApi;
-  const validation = validateApiConfig(config);
-  if (!validation.valid && !useMainApi) {
-    throw new Error(`API\u914D\u7F6E\u65E0\u6548: ${validation.errors.join(", ")}`);
-  }
-  if (useMainApi) {
-    return await sendViaMainApi(messages, options, abortSignal);
-  }
-  return await sendViaCustomApi(messages, config, options, abortSignal);
-}
-async function sendViaMainApi(messages, options, abortSignal) {
-  const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
-  if (!topWindow.TavernHelper?.generateRaw) {
-    throw new Error("TavernHelper.generateRaw \u4E0D\u53EF\u7528\u3002\u8BF7\u68C0\u67E5SillyTavern\u7248\u672C\u3002");
-  }
-  try {
-    const response = await topWindow.TavernHelper.generateRaw({
-      ordered_prompts: messages,
-      should_stream: false,
-      ...options.extraParams
-    });
-    if (typeof response !== "string") {
-      throw new Error("\u4E3BAPI\u8FD4\u56DE\u4E86\u975E\u9884\u671F\u7684\u54CD\u5E94\u7C7B\u578B");
-    }
-    return response.trim();
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw error;
-    }
-    throw new Error(`\u4E3BAPI\u8BF7\u6C42\u5931\u8D25: ${error.message}`);
-  }
-}
-async function sendViaCustomApi(messages, config, options, abortSignal) {
-  const requestBody = buildRequestBody(messages, { apiConfig: config, ...options });
-  const headers = {
-    "Content-Type": "application/json"
-  };
-  if (config.apiKey) {
-    headers["Authorization"] = `Bearer ${config.apiKey}`;
-  }
-  const response = await fetch(config.url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(requestBody),
-    signal: abortSignal
-  });
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`API\u8BF7\u6C42\u5931\u8D25 (${response.status}): ${errorText}`);
-  }
-  const data = await response.json();
-  let content = "";
-  if (data.choices && data.choices[0]?.message?.content) {
-    content = data.choices[0].message.content;
-  } else if (data.content) {
-    content = data.content;
-  } else if (data.text) {
-    content = data.text;
-  } else if (data.response) {
-    content = data.response;
-  } else {
-    throw new Error(`\u65E0\u6CD5\u89E3\u6790API\u54CD\u5E94\u683C\u5F0F: ${JSON.stringify(data).slice(0, 200)}`);
-  }
-  return content.trim();
-}
-async function testApiConnection(config = null) {
-  const apiConfig = config || getApiConfig();
-  const startTime = Date.now();
-  try {
-    const testMessages = [
-      { role: "user", content: 'Hello, this is a connection test. Please respond with "OK".' }
-    ];
-    await sendApiRequest(testMessages, { apiConfig });
-    const latency = Date.now() - startTime;
-    return {
-      success: true,
-      message: `\u8FDE\u63A5\u6210\u529F (\u5EF6\u8FDF: ${latency}ms)`,
-      latency
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: `\u8FDE\u63A5\u5931\u8D25: ${error.message}`,
-      latency: Date.now() - startTime
-    };
-  }
-}
-async function fetchAvailableModels(config = null) {
-  const apiConfig = config || getApiConfig();
-  if (apiConfig.useMainApi) {
-    return await fetchMainApiModels();
-  }
-  return await fetchCustomApiModels(apiConfig);
-}
-async function fetchMainApiModels() {
-  const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
-  try {
-    if (topWindow.SillyTavern?.getContext) {
-      const context = topWindow.SillyTavern.getContext();
-      if (context.settings?.api_server) {
-        return [context.settings.api_server];
-      }
-    }
-    return ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-opus", "claude-3-sonnet"];
-  } catch (e) {
-    return ["gpt-4", "gpt-3.5-turbo"];
-  }
-}
-async function fetchCustomApiModels(config) {
-  if (!config.url || !config.apiKey) {
-    return [];
-  }
-  try {
-    const baseUrl = config.url.replace(/\/chat\/completions$/, "").replace(/\/completions$/, "");
-    const modelsUrl = `${baseUrl}/models`;
-    const response = await fetch(modelsUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${config.apiKey}`
-      }
-    });
-    if (!response.ok) {
-      return [];
-    }
-    const data = await response.json();
-    if (data.data && Array.isArray(data.data)) {
-      return data.data.map((model) => model.id || model.name).filter(Boolean).sort();
-    }
-    return [];
-  } catch (e) {
-    return [];
-  }
-}
-var API_STATUS;
-var init_api_connection = __esm({
-  "modules/api-connection.js"() {
-    init_storage();
-    API_STATUS = {
-      IDLE: "idle",
-      CONNECTING: "connecting",
-      SUCCESS: "success",
-      ERROR: "error"
-    };
-  }
-});
-
-// modules/preset-manager.js
-var preset_manager_exports = {};
-__export(preset_manager_exports, {
-  createPreset: () => createPreset,
-  createPresetFromCurrentConfig: () => createPresetFromCurrentConfig,
-  deletePreset: () => deletePreset,
-  duplicatePreset: () => duplicatePreset,
-  exportPresets: () => exportPresets,
-  generateUniquePresetName: () => generateUniquePresetName,
-  getActiveConfig: () => getActiveConfig,
-  getActivePresetName: () => getActivePresetName,
-  getAllPresets: () => getAllPresets,
-  getPreset: () => getPreset,
-  getPresetNames: () => getPresetNames,
-  getStarredPresets: () => getStarredPresets,
-  importPresets: () => importPresets,
-  presetExists: () => presetExists,
-  renamePreset: () => renamePreset,
-  switchToPreset: () => switchToPreset,
-  togglePresetStar: () => togglePresetStar,
-  updatePreset: () => updatePreset,
-  validatePreset: () => validatePreset
-});
-function getAllPresets() {
-  return loadApiPresets();
-}
-function getPresetNames() {
-  const presets = loadApiPresets();
-  return presets.map((p) => p.name);
-}
-function getPreset(name) {
-  if (!name || typeof name !== "string")
-    return null;
-  const presets = loadApiPresets();
-  return presets.find((p) => p.name === name) || null;
-}
-function presetExists(name) {
-  if (!name || typeof name !== "string")
-    return false;
-  const presets = loadApiPresets();
-  return presets.some((p) => p.name === name);
-}
-function createPreset(presetData) {
-  const { name, description, apiConfig } = presetData;
-  if (!name || typeof name !== "string" || !name.trim()) {
-    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  const trimmedName = name.trim();
-  if (presetExists(trimmedName)) {
-    return { success: false, message: `\u9884\u8BBE "${trimmedName}" \u5DF2\u5B58\u5728` };
-  }
-  const preset = {
-    name: trimmedName,
-    description: description || "",
-    apiConfig: {
-      url: apiConfig?.url || "",
-      apiKey: apiConfig?.apiKey || "",
-      model: apiConfig?.model || "",
-      useMainApi: apiConfig?.useMainApi ?? true,
-      max_tokens: apiConfig?.max_tokens || 4096,
-      temperature: apiConfig?.temperature ?? 0.7,
-      top_p: apiConfig?.top_p ?? 0.9
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  };
-  const presets = loadApiPresets();
-  presets.push(preset);
-  saveApiPresets(presets);
-  return { success: true, message: `\u9884\u8BBE "${trimmedName}" \u521B\u5EFA\u6210\u529F`, preset };
-}
-function updatePreset(name, updates) {
-  if (!name || typeof name !== "string") {
-    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  const presets = loadApiPresets();
-  const index = presets.findIndex((p) => p.name === name);
-  if (index === -1) {
-    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
-  }
-  if (updates.name && updates.name !== name) {
-    return { success: false, message: "\u4E0D\u652F\u6301\u4FEE\u6539\u9884\u8BBE\u540D\u79F0\uFF0C\u8BF7\u521B\u5EFA\u65B0\u9884\u8BBE" };
-  }
-  const existingPreset = presets[index];
-  const updatedPreset = {
-    ...existingPreset,
-    ...updates,
-    name: existingPreset.name,
-    // 保持原名称
-    updatedAt: Date.now()
-  };
-  if (updates.apiConfig) {
-    updatedPreset.apiConfig = {
-      ...existingPreset.apiConfig,
-      ...updates.apiConfig
-    };
-  }
-  presets[index] = updatedPreset;
-  saveApiPresets(presets);
-  return { success: true, message: `\u9884\u8BBE "${name}" \u66F4\u65B0\u6210\u529F`, preset: updatedPreset };
-}
-function deletePreset(name) {
-  if (!name || typeof name !== "string") {
-    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  const presets = loadApiPresets();
-  const index = presets.findIndex((p) => p.name === name);
-  if (index === -1) {
-    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
-  }
-  presets.splice(index, 1);
-  saveApiPresets(presets);
-  if (getCurrentPresetName() === name) {
-    setCurrentPresetName("");
-  }
-  return { success: true, message: `\u9884\u8BBE "${name}" \u5DF2\u5220\u9664` };
-}
-function renamePreset(oldName, newName) {
-  if (!oldName || typeof oldName !== "string") {
-    return { success: false, message: "\u539F\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  if (!newName || typeof newName !== "string" || !newName.trim()) {
-    return { success: false, message: "\u65B0\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  const trimmedNewName = newName.trim();
-  if (!presetExists(oldName)) {
-    return { success: false, message: `\u9884\u8BBE "${oldName}" \u4E0D\u5B58\u5728` };
-  }
-  if (presetExists(trimmedNewName)) {
-    return { success: false, message: `\u9884\u8BBE "${trimmedNewName}" \u5DF2\u5B58\u5728` };
-  }
-  const presets = loadApiPresets();
-  const preset = presets.find((p) => p.name === oldName);
-  if (preset) {
-    preset.name = trimmedNewName;
-    preset.updatedAt = Date.now();
-    saveApiPresets(presets);
-    if (getCurrentPresetName() === oldName) {
-      setCurrentPresetName(trimmedNewName);
-    }
-  }
-  return { success: true, message: `\u9884\u8BBE\u5DF2\u91CD\u547D\u540D\u4E3A "${trimmedNewName}"` };
-}
-function duplicatePreset(sourceName, targetName) {
-  if (!sourceName || typeof sourceName !== "string") {
-    return { success: false, message: "\u6E90\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  if (!targetName || typeof targetName !== "string" || !targetName.trim()) {
-    return { success: false, message: "\u76EE\u6807\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  const trimmedTargetName = targetName.trim();
-  const sourcePreset = getPreset(sourceName);
-  if (!sourcePreset) {
-    return { success: false, message: `\u6E90\u9884\u8BBE "${sourceName}" \u4E0D\u5B58\u5728` };
-  }
-  if (presetExists(trimmedTargetName)) {
-    return { success: false, message: `\u9884\u8BBE "${trimmedTargetName}" \u5DF2\u5B58\u5728` };
-  }
-  const newPreset = {
-    ...JSON.parse(JSON.stringify(sourcePreset)),
-    name: trimmedTargetName,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  };
-  const presets = loadApiPresets();
-  presets.push(newPreset);
-  saveApiPresets(presets);
-  return { success: true, message: `\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${trimmedTargetName}"`, preset: newPreset };
-}
-function togglePresetStar(name) {
-  if (!name || typeof name !== "string") {
-    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  const presets = loadApiPresets();
-  const preset = presets.find((p) => p.name === name);
-  if (!preset) {
-    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
-  }
-  preset.starred = !preset.starred;
-  preset.updatedAt = Date.now();
-  saveApiPresets(presets);
-  return {
-    success: true,
-    message: preset.starred ? `\u5DF2\u5C06 "${name}" \u6DFB\u52A0\u5230\u9884\u89C8\u5217\u8868` : `\u5DF2\u5C06 "${name}" \u4ECE\u9884\u89C8\u5217\u8868\u79FB\u9664`,
-    starred: preset.starred
-  };
-}
-function getStarredPresets() {
-  const presets = loadApiPresets();
-  return presets.filter((p) => p.starred === true);
-}
-function switchToPreset(name) {
-  if (!name) {
-    setCurrentPresetName("");
-    return { success: true, message: "\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E" };
-  }
-  const preset = getPreset(name);
-  if (!preset) {
-    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
-  }
-  setCurrentPresetName(name);
-  return {
-    success: true,
-    message: `\u5DF2\u5207\u6362\u5230\u9884\u8BBE "${name}"`,
-    apiConfig: preset.apiConfig
-  };
-}
-function getActivePresetName() {
-  return getCurrentPresetName();
-}
-function getActiveConfig() {
-  const presetName = getCurrentPresetName();
-  if (presetName) {
-    const preset = getPreset(presetName);
-    if (preset) {
-      return {
-        presetName,
-        apiConfig: preset.apiConfig
-      };
-    }
-  }
-  const settings = loadSettings();
-  return {
-    presetName: "",
-    apiConfig: settings.apiConfig || {}
-  };
-}
-function exportPresets(name = null) {
-  if (name) {
-    const preset = getPreset(name);
-    if (!preset) {
-      throw new Error(`\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728`);
-    }
-    return JSON.stringify(preset, null, 2);
-  }
-  const presets = loadApiPresets();
-  return JSON.stringify(presets, null, 2);
-}
-function importPresets(jsonString, options = { overwrite: false }) {
-  let data;
-  try {
-    data = JSON.parse(jsonString);
-  } catch (e) {
-    return { success: false, message: "JSON\u89E3\u6790\u5931\u8D25", imported: 0 };
-  }
-  const presetsToImport = Array.isArray(data) ? data : [data];
-  if (presetsToImport.length === 0) {
-    return { success: false, message: "\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E", imported: 0 };
-  }
-  const existingPresets = loadApiPresets();
-  let imported = 0;
-  for (const preset of presetsToImport) {
-    if (!preset.name || typeof preset.name !== "string") {
-      continue;
-    }
-    if (!preset.apiConfig || typeof preset.apiConfig !== "object") {
-      continue;
-    }
-    const existingIndex = existingPresets.findIndex((p) => p.name === preset.name);
-    if (existingIndex >= 0) {
-      if (options.overwrite) {
-        preset.updatedAt = Date.now();
-        existingPresets[existingIndex] = preset;
-        imported++;
-      }
-    } else {
-      preset.createdAt = preset.createdAt || Date.now();
-      preset.updatedAt = Date.now();
-      existingPresets.push(preset);
-      imported++;
-    }
-  }
-  if (imported > 0) {
-    saveApiPresets(existingPresets);
-  }
-  return {
-    success: true,
-    message: `\u6210\u529F\u5BFC\u5165 ${imported} \u4E2A\u9884\u8BBE`,
-    imported
-  };
-}
-function createPresetFromCurrentConfig(name, description = "") {
-  const settings = loadSettings();
-  return createPreset({
-    name,
-    description,
-    apiConfig: settings.apiConfig
-  });
-}
-function validatePreset(preset) {
-  const errors = [];
-  if (!preset.name || typeof preset.name !== "string" || !preset.name.trim()) {
-    errors.push("\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A");
-  }
-  if (!preset.apiConfig || typeof preset.apiConfig !== "object") {
-    errors.push("\u7F3A\u5C11API\u914D\u7F6E");
-  }
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-function generateUniquePresetName(baseName) {
-  if (!baseName || typeof baseName !== "string") {
-    baseName = "\u65B0\u9884\u8BBE";
-  }
-  const presets = loadApiPresets();
-  const existingNames = new Set(presets.map((p) => p.name));
-  if (!existingNames.has(baseName)) {
-    return baseName;
-  }
-  let counter = 1;
-  while (existingNames.has(`${baseName} (${counter})`)) {
-    counter++;
-  }
-  return `${baseName} (${counter})`;
-}
-var init_preset_manager = __esm({
-  "modules/preset-manager.js"() {
-    init_storage();
-  }
-});
-
-// modules/core/event-bus.js
-var EVENTS, EventBus, eventBus;
-var init_event_bus = __esm({
-  "modules/core/event-bus.js"() {
-    EVENTS = {
-      // ==================== 存储事件 ====================
-      STORAGE_CHANGED: "storage:changed",
-      STORAGE_CLEARED: "storage:cleared",
-      // ==================== 预设事件 ====================
-      PRESET_CREATED: "preset:created",
-      PRESET_UPDATED: "preset:updated",
-      PRESET_DELETED: "preset:deleted",
-      PRESET_ACTIVATED: "preset:activated",
-      PRESET_IMPORTED: "preset:imported",
-      PRESET_EXPORTED: "preset:exported",
-      // ==================== API事件 ====================
-      API_CONFIG_UPDATED: "api:configUpdated",
-      API_REQUEST_START: "api:requestStart",
-      API_REQUEST_SUCCESS: "api:requestSuccess",
-      API_REQUEST_ERROR: "api:requestError",
-      API_CONNECTION_TESTED: "api:connectionTested",
-      // ==================== 工具事件 ====================
-      TOOL_REGISTERED: "tool:registered",
-      TOOL_UNREGISTERED: "tool:unregistered",
-      TOOL_UPDATED: "tool:updated",
-      TOOL_ENABLED: "tool:enabled",
-      TOOL_DISABLED: "tool:disabled",
-      TOOL_EXECUTING: "tool:executing",
-      TOOL_EXECUTED: "tool:executed",
-      TOOL_ERROR: "tool:error",
-      TOOL_EXECUTION_STARTED: "tool:executionStarted",
-      TOOL_EXECUTION_FAILED: "tool:executionFailed",
-      TOOL_TRIGGER_INITIALIZED: "tool:triggerInitialized",
-      // ==================== 正则提取事件 ====================
-      REGEX_RULE_ADDED: "regex:ruleAdded",
-      REGEX_RULE_UPDATED: "regex:ruleUpdated",
-      REGEX_RULE_DELETED: "regex:ruleDeleted",
-      REGEX_RULES_CLEARED: "regex:rulesCleared",
-      REGEX_PRESET_LOADED: "regex:presetLoaded",
-      REGEX_EXTRACTED: "regex:extracted",
-      // ==================== UI事件 ====================
-      UI_INITIALIZED: "ui:initialized",
-      UI_RENDER_REQUESTED: "ui:renderRequested",
-      UI_TAB_CHANGED: "ui:tabChanged",
-      UI_SUBTAB_CHANGED: "ui:subTabChanged",
-      UI_POPUP_OPENED: "ui:popupOpened",
-      UI_POPUP_CLOSED: "ui:popupClosed",
-      UI_WINDOW_CREATED: "ui:windowCreated",
-      UI_WINDOW_CLOSED: "ui:windowClosed",
-      // ==================== 触发器事件 ====================
-      TRIGGER_REGISTERED: "trigger:registered",
-      TRIGGER_UNREGISTERED: "trigger:unregistered",
-      TRIGGER_FIRED: "trigger:fired",
-      // ==================== 应用事件 ====================
-      APP_INITIALIZING: "app:initializing",
-      APP_INITIALIZED: "app:initialized",
-      APP_ERROR: "app:error",
-      // ==================== v0.5 新增事件 ====================
-      // 设置事件
-      SETTINGS_UPDATED: "settings:updated",
-      // 工具上下文注入事件
-      TOOL_CONTEXT_INJECTED: "tool:contextInjected",
-      TOOL_CONTEXT_CLEARED: "tool:contextCleared",
-      // 破限词事件
-      BYPASS_PRESET_CREATED: "bypass:presetCreated",
-      BYPASS_PRESET_UPDATED: "bypass:presetUpdated",
-      BYPASS_PRESET_DELETED: "bypass:presetDeleted",
-      BYPASS_PRESET_ACTIVATED: "bypass:presetActivated",
-      // 工具执行事件（增强）
-      TOOL_EXECUTION_REQUESTED: "tool:executionRequested",
-      TOOL_OUTPUT_MODE_CHANGED: "tool:outputModeChanged"
-    };
-    EventBus = class {
-      constructor() {
-        this.listeners = /* @__PURE__ */ new Map();
-        this.onceCallbacks = /* @__PURE__ */ new Map();
-        this.history = [];
-        this.maxHistorySize = 100;
-        this.debugMode = false;
-      }
-      // ============================================================
-      // 核心方法
-      // ============================================================
-      /**
-       * 订阅事件
-       * @param {string} event - 事件名
-       * @param {Function} callback - 回调函数
-       * @param {Object} options - 选项
-       * @returns {Function} 取消订阅函数
-       */
-      on(event, callback, options = {}) {
-        if (!event || typeof callback !== "function") {
-          console.warn("[EventBus] \u65E0\u6548\u7684\u4E8B\u4EF6\u6216\u56DE\u8C03");
-          return () => {
-          };
-        }
-        const { priority = 0 } = options;
-        if (!this.listeners.has(event)) {
-          this.listeners.set(event, /* @__PURE__ */ new Set());
-        }
-        const listener = { callback, priority };
-        this.listeners.get(event).add(listener);
-        if (this.debugMode) {
-          console.log(`[EventBus] \u8BA2\u9605: ${event}`);
-        }
-        return () => this.off(event, callback);
-      }
-      /**
-       * 取消订阅
-       * @param {string} event - 事件名
-       * @param {Function} callback - 回调函数
-       */
-      off(event, callback) {
-        const listeners = this.listeners.get(event);
-        if (!listeners)
-          return;
-        for (const listener of listeners) {
-          if (listener.callback === callback) {
-            listeners.delete(listener);
-            break;
-          }
-        }
-        if (this.debugMode) {
-          console.log(`[EventBus] \u53D6\u6D88\u8BA2\u9605: ${event}`);
-        }
-      }
-      /**
-       * 发布事件
-       * @param {string} event - 事件名
-       * @param {*} data - 事件数据
-       */
-      emit(event, data) {
-        if (this.debugMode) {
-          console.log(`[EventBus] \u53D1\u5E03: ${event}`, data);
-        }
-        this._addToHistory(event, data);
-        const listeners = this.listeners.get(event);
-        if (!listeners || listeners.size === 0)
-          return;
-        const sortedListeners = Array.from(listeners).sort((a, b) => b.priority - a.priority);
-        for (const { callback } of sortedListeners) {
-          try {
-            callback(data);
-          } catch (error) {
-            console.error(`[EventBus] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF (${event}):`, error);
-          }
-        }
-      }
-      /**
-       * 一次性订阅
-       * @param {string} event - 事件名
-       * @param {Function} callback - 回调函数
-       * @returns {Function} 取消订阅函数
-       */
-      once(event, callback) {
-        const wrapper = (data) => {
-          this.off(event, wrapper);
-          callback(data);
-        };
-        return this.on(event, wrapper);
-      }
-      /**
-       * 等待事件
-       * @param {string} event - 事件名
-       * @param {number} timeout - 超时时间(ms)
-       * @returns {Promise<*>}
-       */
-      wait(event, timeout = 0) {
-        return new Promise((resolve, reject) => {
-          let timer = null;
-          const unsubscribe = this.once(event, (data) => {
-            if (timer)
-              clearTimeout(timer);
-            resolve(data);
-          });
-          if (timeout > 0) {
-            timer = setTimeout(() => {
-              unsubscribe();
-              reject(new Error(`\u7B49\u5F85\u4E8B\u4EF6\u8D85\u65F6: ${event}`));
-            }, timeout);
-          }
-        });
-      }
-      // ============================================================
-      // 工具方法
-      // ============================================================
-      /**
-       * 检查是否有监听器
-       * @param {string} event - 事件名
-       * @returns {boolean}
-       */
-      hasListeners(event) {
-        const listeners = this.listeners.get(event);
-        return listeners && listeners.size > 0;
-      }
-      /**
-       * 获取监听器数量
-       * @param {string} event - 事件名
-       * @returns {number}
-       */
-      listenerCount(event) {
-        const listeners = this.listeners.get(event);
-        return listeners ? listeners.size : 0;
-      }
-      /**
-       * 移除所有监听器
-       * @param {string} event - 事件名（可选，不传则清除所有）
-       */
-      removeAllListeners(event) {
-        if (event) {
-          this.listeners.delete(event);
-        } else {
-          this.listeners.clear();
-        }
-      }
-      /**
-       * 设置调试模式
-       * @param {boolean} enabled
-       */
-      setDebugMode(enabled) {
-        this.debugMode = enabled;
-      }
-      /**
-       * 添加到历史记录
-       * @private
-       */
-      _addToHistory(event, data) {
-        this.history.push({
-          event,
-          data,
-          timestamp: Date.now()
-        });
-        if (this.history.length > this.maxHistorySize) {
-          this.history.shift();
-        }
-      }
-      /**
-       * 获取事件历史
-       * @param {string} event - 事件名（可选）
-       * @returns {Array}
-       */
-      getHistory(event) {
-        if (event) {
-          return this.history.filter((h) => h.event === event);
-        }
-        return [...this.history];
-      }
-      /**
-       * 清除历史
-       */
-      clearHistory() {
-        this.history = [];
-      }
-    };
-    eventBus = new EventBus();
-  }
-});
-
-// modules/ui/utils.js
-function escapeHtml(unsafe) {
-  if (typeof unsafe !== "string")
-    return "";
-  return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
-}
-function showToast(type, message, duration = 3e3) {
-  if (!message) {
-    message = type === "error" ? "\u64CD\u4F5C\u5931\u8D25" : "\u64CD\u4F5C\u5B8C\u6210";
-  }
-  const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
-  if (topWindow.toastr) {
-    topWindow.toastr[type](message, "YouYou \u5DE5\u5177\u7BB1", {
-      timeOut: duration,
-      progressBar: true
-    });
-    return;
-  }
-  _showFallbackToast(type, message, duration);
-  console.log(`[YouYou \u5DE5\u5177\u7BB1] [${type.toUpperCase()}] ${message}`);
-}
-function showTopNotice(type, message, options = {}) {
-  if (!message) {
-    message = type === "error" ? "\u64CD\u4F5C\u5931\u8D25" : "\u64CD\u4F5C\u5B8C\u6210";
-  }
-  const {
-    duration = 3500,
-    sticky = false,
-    noticeId = ""
-  } = options;
-  const targetDoc = typeof window.parent !== "undefined" && window.parent !== window ? window.parent.document : document;
-  if (!targetDoc?.body) {
-    showToast(type, message, duration);
-    return;
-  }
-  const containerId = "yyt-top-notice-container";
-  const styleId = "yyt-top-notice-styles";
-  let container = targetDoc.getElementById(containerId);
-  if (!container) {
-    container = targetDoc.createElement("div");
-    container.id = containerId;
-    container.style.cssText = `
+var jo=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var N=(e,t)=>{for(var s in t)jo(e,s,{get:t[s],enumerable:!0})};function Kn(){let e=b;return e._getStorage(),e._storage}function R(){return b.get("settings",{apiConfig:{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9},currentPreset:"",uiSettings:{theme:"dark",lastTab:"api"}})}function Q(e){b.set("settings",e)}var vt,b,P,Vn,ie,at=E(()=>{vt=class e{constructor(t="youyou_toolkit"){this.namespace=t,this._storage=null,this._cache=new Map}_getStorage(){if(this._storage)return this._storage;try{let t=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(t.SillyTavern?.getContext){let s=t.SillyTavern.getContext();if(s?.extensionSettings)return s.extensionSettings[this.namespace]||(s.extensionSettings[this.namespace]={}),this._storage={_target:s.extensionSettings[this.namespace],getItem:n=>{let r=s.extensionSettings[this.namespace][n];return typeof r=="string"?r:r?JSON.stringify(r):null},setItem:(n,r)=>{s.extensionSettings[this.namespace][n]=r,this._saveSettings(s)},removeItem:n=>{delete s.extensionSettings[this.namespace][n],this._saveSettings(s)},_isTavern:!0},this._storage}}catch{console.warn(`[${this.namespace}] SillyTavern\u5B58\u50A8\u4E0D\u53EF\u7528\uFF0C\u4F7F\u7528localStorage`)}return this._storage={getItem:t=>{try{return localStorage.getItem(t)}catch{return null}},setItem:(t,s)=>{try{localStorage.setItem(t,s)}catch(n){console.error(`[${this.namespace}] localStorage\u5199\u5165\u5931\u8D25:`,n)}},removeItem:t=>{try{localStorage.removeItem(t)}catch{}},_isTavern:!1},this._storage}_saveSettings(t){if(typeof t.saveSettings=="function")try{t.saveSettings()}catch{}else if(typeof t.saveSettingsDebounced=="function")try{t.saveSettingsDebounced()}catch{}}get(t,s=null){let n=`${this.namespace}:${t}`;if(this._cache.has(n))return this._cache.get(n);let r=this._getStorage(),o=this._getFullKey(t),i=r.getItem(o);if(i===null)return s;try{let a=JSON.parse(i);return this._cache.set(n,a),a}catch{return i}}set(t,s){let n=this._getStorage(),r=this._getFullKey(t),o=`${this.namespace}:${t}`;this._cache.set(o,s);try{n.setItem(r,JSON.stringify(s))}catch(i){console.error(`[${this.namespace}] \u5B58\u50A8\u5931\u8D25:`,i)}}remove(t){let s=this._getStorage(),n=this._getFullKey(t),r=`${this.namespace}:${t}`;this._cache.delete(r),s.removeItem(n)}has(t){let s=this._getStorage(),n=this._getFullKey(t);return s.getItem(n)!==null}clear(){if(this._getStorage()._isTavern){let s=typeof window.parent<"u"?window.parent:window;if(s.SillyTavern?.getContext){let n=s.SillyTavern.getContext();n?.extensionSettings?.[this.namespace]&&(n.extensionSettings[this.namespace]={},this._saveSettings(n))}}else{let s=`${this.namespace}_`,n=[];for(let r=0;r<localStorage.length;r++){let o=localStorage.key(r);o&&o.startsWith(s)&&n.push(o)}n.forEach(r=>localStorage.removeItem(r))}this._cache.clear()}_getFullKey(t){return this._getStorage()._isTavern?t:`${this.namespace}_${t}`}namespace(t){return new e(`${this.namespace}:${t}`)}getMultiple(t){let s={};return t.forEach(n=>{s[n]=this.get(n)}),s}setMultiple(t){Object.entries(t).forEach(([s,n])=>{this.set(s,n)})}exportAll(){let t=this._getStorage(),s={};if(t._isTavern){let n=typeof window.parent<"u"?window.parent:window;if(n.SillyTavern?.getContext){let o=n.SillyTavern.getContext()?.extensionSettings?.[this.namespace]||{};Object.entries(o).forEach(([i,a])=>{s[i]=typeof a=="string"?JSON.parse(a):a})}}else{let n=`${this.namespace}_`;for(let r=0;r<localStorage.length;r++){let o=localStorage.key(r);if(o&&o.startsWith(n)){let i=o.slice(n.length);try{s[i]=JSON.parse(localStorage.getItem(o))}catch{s[i]=localStorage.getItem(o)}}}}return s}},b=new vt("youyou_toolkit"),P=new vt("youyou_toolkit:tools"),Vn=new vt("youyou_toolkit:presets"),ie=new vt("youyou_toolkit:windows")});var Zn={};N(Zn,{DEFAULT_API_PRESETS:()=>zo,DEFAULT_SETTINGS:()=>Uo,STORAGE_KEYS:()=>ae,StorageService:()=>vt,deepMerge:()=>Xn,getCurrentPresetName:()=>Ft,getStorage:()=>Kn,loadApiPresets:()=>U,loadSettings:()=>R,presetStorage:()=>Vn,saveApiPresets:()=>lt,saveSettings:()=>Q,setCurrentPresetName:()=>Ht,storage:()=>b,toolStorage:()=>P,windowStorage:()=>ie});function U(){return b.get(ae.API_PRESETS)||[]}function lt(e){b.set(ae.API_PRESETS,e)}function Ft(){return b.get(ae.CURRENT_PRESET)||""}function Ht(e){b.set(ae.CURRENT_PRESET,e||"")}function Xn(e,t){let s=r=>r&&typeof r=="object"&&!Array.isArray(r),n={...e};return s(e)&&s(t)&&Object.keys(t).forEach(r=>{s(t[r])?r in e?n[r]=Xn(e[r],t[r]):Object.assign(n,{[r]:t[r]}):Object.assign(n,{[r]:t[r]})}),n}var ae,Uo,zo,le=E(()=>{at();at();ae={SETTINGS:"settings",API_PRESETS:"api_presets",CURRENT_PRESET:"current_preset",TOOLS:"tools",TOOL_PRESETS:"tool_presets",CURRENT_TOOL_PRESET:"current_tool_preset",BYPASS_PRESETS:"bypass_presets",CURRENT_BYPASS_PRESET:"current_bypass_preset",BYPASS_ENABLED:"bypass_enabled"},Uo={apiConfig:{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9},currentPreset:"",uiSettings:{theme:"dark",lastTab:"api"}},zo=[]});var er={};N(er,{API_STATUS:()=>Bo,fetchAvailableModels:()=>Ds,getApiConfig:()=>It,getEffectiveApiConfig:()=>tr,sendApiRequest:()=>Ms,sendWithPreset:()=>Yo,testApiConnection:()=>Wo,updateApiConfig:()=>Mt,validateApiConfig:()=>Oe});function It(){return R().apiConfig||{}}function Mt(e){let t=R();t.apiConfig={...t.apiConfig,...e},Q(t)}function Oe(e){let t=[];if(e.useMainApi)return{valid:!0,errors:[]};if(!e.url||!e.url.trim())t.push("API URL \u4E0D\u80FD\u4E3A\u7A7A");else try{new URL(e.url)}catch{t.push("API URL \u683C\u5F0F\u65E0\u6548")}return(!e.model||!e.model.trim())&&t.push("\u6A21\u578B\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),{valid:t.length===0,errors:t}}function tr(e=""){let t=R();if(e){let n=(t.apiPresets||[]).find(r=>r.name===e);if(n&&n.apiConfig)return{...n.apiConfig,presetName:n.name}}return t.apiConfig||{}}async function Yo(e,t,s={},n=null){let r=tr(e);return await Ms(t,{...s,apiConfig:r},n)}function Go(e,t={}){let s=t.apiConfig||It();return{messages:e,model:s.model||"gpt-3.5-turbo",max_tokens:s.max_tokens||4096,temperature:s.temperature??.7,top_p:s.top_p??.9,stream:!1,...t.extraParams}}async function Ms(e,t={},s=null){let n=t.apiConfig||It(),r=n.useMainApi,o=Oe(n);if(!o.valid&&!r)throw new Error(`API\u914D\u7F6E\u65E0\u6548: ${o.errors.join(", ")}`);return r?await Fo(e,t,s):await Ho(e,n,t,s)}async function Fo(e,t,s){let n=typeof window.parent<"u"?window.parent:window;if(!n.TavernHelper?.generateRaw)throw new Error("TavernHelper.generateRaw \u4E0D\u53EF\u7528\u3002\u8BF7\u68C0\u67E5SillyTavern\u7248\u672C\u3002");try{let r=await n.TavernHelper.generateRaw({ordered_prompts:e,should_stream:!1,...t.extraParams});if(typeof r!="string")throw new Error("\u4E3BAPI\u8FD4\u56DE\u4E86\u975E\u9884\u671F\u7684\u54CD\u5E94\u7C7B\u578B");return r.trim()}catch(r){throw r.name==="AbortError"?r:new Error(`\u4E3BAPI\u8BF7\u6C42\u5931\u8D25: ${r.message}`)}}async function Ho(e,t,s,n){let r=Go(e,{apiConfig:t,...s}),o={"Content-Type":"application/json"};t.apiKey&&(o.Authorization=`Bearer ${t.apiKey}`);let i=await fetch(t.url,{method:"POST",headers:o,body:JSON.stringify(r),signal:n});if(!i.ok){let l=await i.text().catch(()=>"Unknown error");throw new Error(`API\u8BF7\u6C42\u5931\u8D25 (${i.status}): ${l}`)}let a=await i.json(),c="";if(a.choices&&a.choices[0]?.message?.content)c=a.choices[0].message.content;else if(a.content)c=a.content;else if(a.text)c=a.text;else if(a.response)c=a.response;else throw new Error(`\u65E0\u6CD5\u89E3\u6790API\u54CD\u5E94\u683C\u5F0F: ${JSON.stringify(a).slice(0,200)}`);return c.trim()}async function Wo(e=null){let t=e||It(),s=Date.now();try{await Ms([{role:"user",content:'Hello, this is a connection test. Please respond with "OK".'}],{apiConfig:t});let r=Date.now()-s;return{success:!0,message:`\u8FDE\u63A5\u6210\u529F (\u5EF6\u8FDF: ${r}ms)`,latency:r}}catch(n){return{success:!1,message:`\u8FDE\u63A5\u5931\u8D25: ${n.message}`,latency:Date.now()-s}}}async function Ds(e=null){let t=e||It();return t.useMainApi?await Qo():await qo(t)}async function Qo(){let e=typeof window.parent<"u"?window.parent:window;try{if(e.SillyTavern?.getContext){let t=e.SillyTavern.getContext();if(t.settings?.api_server)return[t.settings.api_server]}return["gpt-4","gpt-4-turbo","gpt-3.5-turbo","claude-3-opus","claude-3-sonnet"]}catch{return["gpt-4","gpt-3.5-turbo"]}}async function qo(e){if(!e.url||!e.apiKey)return[];try{let s=`${e.url.replace(/\/chat\/completions$/,"").replace(/\/completions$/,"")}/models`,n=await fetch(s,{method:"GET",headers:{Authorization:`Bearer ${e.apiKey}`}});if(!n.ok)return[];let r=await n.json();return r.data&&Array.isArray(r.data)?r.data.map(o=>o.id||o.name).filter(Boolean).sort():[]}catch{return[]}}var Bo,Os=E(()=>{le();Bo={IDLE:"idle",CONNECTING:"connecting",SUCCESS:"success",ERROR:"error"}});var sr={};N(sr,{createPreset:()=>Le,createPresetFromCurrentConfig:()=>Zo,deletePreset:()=>je,duplicatePreset:()=>Ko,exportPresets:()=>Us,generateUniquePresetName:()=>Bs,getActiveConfig:()=>js,getActivePresetName:()=>Ue,getAllPresets:()=>Wt,getPreset:()=>wt,getPresetNames:()=>Jo,getStarredPresets:()=>Ns,importPresets:()=>zs,presetExists:()=>ce,renamePreset:()=>Vo,switchToPreset:()=>Xo,togglePresetStar:()=>Ls,updatePreset:()=>Ne,validatePreset:()=>ti});function Wt(){return U()}function Jo(){return U().map(t=>t.name)}function wt(e){return!e||typeof e!="string"?null:U().find(s=>s.name===e)||null}function ce(e){return!e||typeof e!="string"?!1:U().some(s=>s.name===e)}function Le(e){let{name:t,description:s,apiConfig:n}=e;if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let r=t.trim();if(ce(r))return{success:!1,message:`\u9884\u8BBE "${r}" \u5DF2\u5B58\u5728`};let o={name:r,description:s||"",apiConfig:{url:n?.url||"",apiKey:n?.apiKey||"",model:n?.model||"",useMainApi:n?.useMainApi??!0,max_tokens:n?.max_tokens||4096,temperature:n?.temperature??.7,top_p:n?.top_p??.9},createdAt:Date.now(),updatedAt:Date.now()},i=U();return i.push(o),lt(i),{success:!0,message:`\u9884\u8BBE "${r}" \u521B\u5EFA\u6210\u529F`,preset:o}}function Ne(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=U(),n=s.findIndex(i=>i.name===e);if(n===-1)return{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(t.name&&t.name!==e)return{success:!1,message:"\u4E0D\u652F\u6301\u4FEE\u6539\u9884\u8BBE\u540D\u79F0\uFF0C\u8BF7\u521B\u5EFA\u65B0\u9884\u8BBE"};let r=s[n],o={...r,...t,name:r.name,updatedAt:Date.now()};return t.apiConfig&&(o.apiConfig={...r.apiConfig,...t.apiConfig}),s[n]=o,lt(s),{success:!0,message:`\u9884\u8BBE "${e}" \u66F4\u65B0\u6210\u529F`,preset:o}}function je(e){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let t=U(),s=t.findIndex(n=>n.name===e);return s===-1?{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}:(t.splice(s,1),lt(t),Ft()===e&&Ht(""),{success:!0,message:`\u9884\u8BBE "${e}" \u5DF2\u5220\u9664`})}function Vo(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u539F\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u65B0\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=t.trim();if(!ce(e))return{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(ce(s))return{success:!1,message:`\u9884\u8BBE "${s}" \u5DF2\u5B58\u5728`};let n=U(),r=n.find(o=>o.name===e);return r&&(r.name=s,r.updatedAt=Date.now(),lt(n),Ft()===e&&Ht(s)),{success:!0,message:`\u9884\u8BBE\u5DF2\u91CD\u547D\u540D\u4E3A "${s}"`}}function Ko(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u6E90\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u76EE\u6807\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=t.trim(),n=wt(e);if(!n)return{success:!1,message:`\u6E90\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(ce(s))return{success:!1,message:`\u9884\u8BBE "${s}" \u5DF2\u5B58\u5728`};let r={...JSON.parse(JSON.stringify(n)),name:s,createdAt:Date.now(),updatedAt:Date.now()},o=U();return o.push(r),lt(o),{success:!0,message:`\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${s}"`,preset:r}}function Ls(e){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let t=U(),s=t.find(n=>n.name===e);return s?(s.starred=!s.starred,s.updatedAt=Date.now(),lt(t),{success:!0,message:s.starred?`\u5DF2\u5C06 "${e}" \u6DFB\u52A0\u5230\u9884\u89C8\u5217\u8868`:`\u5DF2\u5C06 "${e}" \u4ECE\u9884\u89C8\u5217\u8868\u79FB\u9664`,starred:s.starred}):{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}}function Ns(){return U().filter(t=>t.starred===!0)}function Xo(e){if(!e)return Ht(""),{success:!0,message:"\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E"};let t=wt(e);return t?(Ht(e),{success:!0,message:`\u5DF2\u5207\u6362\u5230\u9884\u8BBE "${e}"`,apiConfig:t.apiConfig}):{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}}function Ue(){return Ft()}function js(){let e=Ft();if(e){let s=wt(e);if(s)return{presetName:e,apiConfig:s.apiConfig}}return{presetName:"",apiConfig:R().apiConfig||{}}}function Us(e=null){if(e){let s=wt(e);if(!s)throw new Error(`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`);return JSON.stringify(s,null,2)}let t=U();return JSON.stringify(t,null,2)}function zs(e,t={overwrite:!1}){let s;try{s=JSON.parse(e)}catch{return{success:!1,message:"JSON\u89E3\u6790\u5931\u8D25",imported:0}}let n=Array.isArray(s)?s:[s];if(n.length===0)return{success:!1,message:"\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E",imported:0};let r=U(),o=0;for(let i of n){if(!i.name||typeof i.name!="string"||!i.apiConfig||typeof i.apiConfig!="object")continue;let a=r.findIndex(c=>c.name===i.name);a>=0?t.overwrite&&(i.updatedAt=Date.now(),r[a]=i,o++):(i.createdAt=i.createdAt||Date.now(),i.updatedAt=Date.now(),r.push(i),o++)}return o>0&&lt(r),{success:!0,message:`\u6210\u529F\u5BFC\u5165 ${o} \u4E2A\u9884\u8BBE`,imported:o}}function Zo(e,t=""){let s=R();return Le({name:e,description:t,apiConfig:s.apiConfig})}function ti(e){let t=[];return(!e.name||typeof e.name!="string"||!e.name.trim())&&t.push("\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),(!e.apiConfig||typeof e.apiConfig!="object")&&t.push("\u7F3A\u5C11API\u914D\u7F6E"),{valid:t.length===0,errors:t}}function Bs(e){(!e||typeof e!="string")&&(e="\u65B0\u9884\u8BBE");let t=U(),s=new Set(t.map(r=>r.name));if(!s.has(e))return e;let n=1;for(;s.has(`${e} (${n})`);)n++;return`${e} (${n})`}var ze=E(()=>{le()});var h,Ys,x,z=E(()=>{h={STORAGE_CHANGED:"storage:changed",STORAGE_CLEARED:"storage:cleared",PRESET_CREATED:"preset:created",PRESET_UPDATED:"preset:updated",PRESET_DELETED:"preset:deleted",PRESET_ACTIVATED:"preset:activated",PRESET_IMPORTED:"preset:imported",PRESET_EXPORTED:"preset:exported",API_CONFIG_UPDATED:"api:configUpdated",API_REQUEST_START:"api:requestStart",API_REQUEST_SUCCESS:"api:requestSuccess",API_REQUEST_ERROR:"api:requestError",API_CONNECTION_TESTED:"api:connectionTested",TOOL_REGISTERED:"tool:registered",TOOL_UNREGISTERED:"tool:unregistered",TOOL_UPDATED:"tool:updated",TOOL_ENABLED:"tool:enabled",TOOL_DISABLED:"tool:disabled",TOOL_EXECUTING:"tool:executing",TOOL_EXECUTED:"tool:executed",TOOL_ERROR:"tool:error",TOOL_EXECUTION_STARTED:"tool:executionStarted",TOOL_EXECUTION_FAILED:"tool:executionFailed",TOOL_TRIGGER_INITIALIZED:"tool:triggerInitialized",REGEX_RULE_ADDED:"regex:ruleAdded",REGEX_RULE_UPDATED:"regex:ruleUpdated",REGEX_RULE_DELETED:"regex:ruleDeleted",REGEX_RULES_CLEARED:"regex:rulesCleared",REGEX_PRESET_LOADED:"regex:presetLoaded",REGEX_EXTRACTED:"regex:extracted",UI_INITIALIZED:"ui:initialized",UI_RENDER_REQUESTED:"ui:renderRequested",UI_TAB_CHANGED:"ui:tabChanged",UI_SUBTAB_CHANGED:"ui:subTabChanged",UI_POPUP_OPENED:"ui:popupOpened",UI_POPUP_CLOSED:"ui:popupClosed",UI_WINDOW_CREATED:"ui:windowCreated",UI_WINDOW_CLOSED:"ui:windowClosed",TRIGGER_REGISTERED:"trigger:registered",TRIGGER_UNREGISTERED:"trigger:unregistered",TRIGGER_FIRED:"trigger:fired",APP_INITIALIZING:"app:initializing",APP_INITIALIZED:"app:initialized",APP_ERROR:"app:error",SETTINGS_UPDATED:"settings:updated",TOOL_CONTEXT_INJECTED:"tool:contextInjected",TOOL_CONTEXT_CLEARED:"tool:contextCleared",BYPASS_PRESET_CREATED:"bypass:presetCreated",BYPASS_PRESET_UPDATED:"bypass:presetUpdated",BYPASS_PRESET_DELETED:"bypass:presetDeleted",BYPASS_PRESET_ACTIVATED:"bypass:presetActivated",TOOL_EXECUTION_REQUESTED:"tool:executionRequested",TOOL_OUTPUT_MODE_CHANGED:"tool:outputModeChanged"},Ys=class{constructor(){this.listeners=new Map,this.onceCallbacks=new Map,this.history=[],this.maxHistorySize=100,this.debugMode=!1}on(t,s,n={}){if(!t||typeof s!="function")return console.warn("[EventBus] \u65E0\u6548\u7684\u4E8B\u4EF6\u6216\u56DE\u8C03"),()=>{};let{priority:r=0}=n;this.listeners.has(t)||this.listeners.set(t,new Set);let o={callback:s,priority:r};return this.listeners.get(t).add(o),this.debugMode&&console.log(`[EventBus] \u8BA2\u9605: ${t}`),()=>this.off(t,s)}off(t,s){let n=this.listeners.get(t);if(n){for(let r of n)if(r.callback===s){n.delete(r);break}this.debugMode&&console.log(`[EventBus] \u53D6\u6D88\u8BA2\u9605: ${t}`)}}emit(t,s){this.debugMode&&console.log(`[EventBus] \u53D1\u5E03: ${t}`,s),this._addToHistory(t,s);let n=this.listeners.get(t);if(!n||n.size===0)return;let r=Array.from(n).sort((o,i)=>i.priority-o.priority);for(let{callback:o}of r)try{o(s)}catch(i){console.error(`[EventBus] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF (${t}):`,i)}}once(t,s){let n=r=>{this.off(t,n),s(r)};return this.on(t,n)}wait(t,s=0){return new Promise((n,r)=>{let o=null,i=this.once(t,a=>{o&&clearTimeout(o),n(a)});s>0&&(o=setTimeout(()=>{i(),r(new Error(`\u7B49\u5F85\u4E8B\u4EF6\u8D85\u65F6: ${t}`))},s))})}hasListeners(t){let s=this.listeners.get(t);return s&&s.size>0}listenerCount(t){let s=this.listeners.get(t);return s?s.size:0}removeAllListeners(t){t?this.listeners.delete(t):this.listeners.clear()}setDebugMode(t){this.debugMode=t}_addToHistory(t,s){this.history.push({event:t,data:s,timestamp:Date.now()}),this.history.length>this.maxHistorySize&&this.history.shift()}getHistory(t){return t?this.history.filter(s=>s.event===t):[...this.history]}clearHistory(){this.history=[]}},x=new Ys});function m(e){return typeof e!="string"?"":e.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}function p(e,t,s=3e3){t||(t=e==="error"?"\u64CD\u4F5C\u5931\u8D25":"\u64CD\u4F5C\u5B8C\u6210");let n=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(n.toastr){n.toastr[e](t,"YouYou \u5DE5\u5177\u7BB1",{timeOut:s,progressBar:!0});return}ei(e,t,s),console.log(`[YouYou \u5DE5\u5177\u7BB1] [${e.toUpperCase()}] ${t}`)}function nt(e,t,s={}){t||(t=e==="error"?"\u64CD\u4F5C\u5931\u8D25":"\u64CD\u4F5C\u5B8C\u6210");let{duration:n=3500,sticky:r=!1,noticeId:o=""}=s,i=typeof window.parent<"u"&&window.parent!==window?window.parent.document:document;if(!i?.body){p(e,t,n);return}let a="yyt-top-notice-container",c="yyt-top-notice-styles",l=i.getElementById(a);if(l||(l=i.createElement("div"),l.id=a,l.style.cssText=`
       position: fixed;
       top: 12px;
       left: 50%;
@@ -1254,13 +9,7 @@ function showTopNotice(type, message, options = {}) {
       width: min(560px, calc(100vw - 24px));
       z-index: 100000;
       pointer-events: none;
-    `;
-    targetDoc.body.appendChild(container);
-  }
-  if (!targetDoc.getElementById(styleId)) {
-    const style = targetDoc.createElement("style");
-    style.id = styleId;
-    style.textContent = `
+    `,i.body.appendChild(l)),!i.getElementById(c)){let J=i.createElement("style");J.id=c,J.textContent=`
       .yyt-top-notice {
         display: flex;
         align-items: center;
@@ -1373,77 +122,15 @@ function showTopNotice(type, message, options = {}) {
           transform: translateY(-8px);
         }
       }
-    `;
-    targetDoc.head.appendChild(style);
-  }
-  if (noticeId) {
-    const existing = container.querySelector(`[data-notice-id="${noticeId}"]`);
-    if (existing) {
-      existing.remove();
-    }
-  }
-  const iconMap = {
-    success: "\u2713",
-    error: "!",
-    warning: "\u2022",
-    info: "i"
-  };
-  const notice = targetDoc.createElement("div");
-  notice.className = `yyt-top-notice yyt-top-notice--${type || "info"}`;
-  if (noticeId) {
-    notice.dataset.noticeId = noticeId;
-  }
-  const icon = targetDoc.createElement("span");
-  icon.className = "yyt-top-notice__icon";
-  icon.textContent = iconMap[type] || iconMap.info;
-  const content = targetDoc.createElement("div");
-  content.className = "yyt-top-notice__content";
-  content.textContent = message;
-  const closeBtn = targetDoc.createElement("button");
-  closeBtn.className = "yyt-top-notice__close";
-  closeBtn.type = "button";
-  closeBtn.setAttribute("aria-label", "\u5173\u95ED\u901A\u77E5");
-  closeBtn.textContent = "\xD7";
-  const removeNotice = () => {
-    notice.style.animation = "yyt-top-notice-out 0.18s ease forwards";
-    setTimeout(() => notice.remove(), 180);
-  };
-  closeBtn.addEventListener("click", removeNotice);
-  notice.appendChild(icon);
-  notice.appendChild(content);
-  notice.appendChild(closeBtn);
-  container.appendChild(notice);
-  if (!sticky) {
-    setTimeout(removeNotice, duration);
-  }
-}
-function _showFallbackToast(type, message, duration) {
-  const targetDoc = typeof window.parent !== "undefined" && window.parent !== window ? window.parent.document : document;
-  if (!targetDoc) {
-    return;
-  }
-  const existingToast = targetDoc.getElementById("yyt-fallback-toast");
-  if (existingToast) {
-    existingToast.remove();
-  }
-  const colors = {
-    success: { bg: "rgba(74, 222, 128, 0.9)", border: "#22c55e" },
-    error: { bg: "rgba(248, 113, 113, 0.9)", border: "#ef4444" },
-    warning: { bg: "rgba(251, 191, 36, 0.9)", border: "#f59e0b" },
-    info: { bg: "rgba(123, 183, 255, 0.9)", border: "#7bb7ff" }
-  };
-  const color = colors[type] || colors.info;
-  const toast = targetDoc.createElement("div");
-  toast.id = "yyt-fallback-toast";
-  toast.style.cssText = `
+    `,i.head.appendChild(J)}if(o){let J=l.querySelector(`[data-notice-id="${o}"]`);J&&J.remove()}let y={success:"\u2713",error:"!",warning:"\u2022",info:"i"},u=i.createElement("div");u.className=`yyt-top-notice yyt-top-notice--${e||"info"}`,o&&(u.dataset.noticeId=o);let g=i.createElement("span");g.className="yyt-top-notice__icon",g.textContent=y[e]||y.info;let f=i.createElement("div");f.className="yyt-top-notice__content",f.textContent=t;let T=i.createElement("button");T.className="yyt-top-notice__close",T.type="button",T.setAttribute("aria-label","\u5173\u95ED\u901A\u77E5"),T.textContent="\xD7";let G=()=>{u.style.animation="yyt-top-notice-out 0.18s ease forwards",setTimeout(()=>u.remove(),180)};T.addEventListener("click",G),u.appendChild(g),u.appendChild(f),u.appendChild(T),l.appendChild(u),r||setTimeout(G,n)}function ei(e,t,s){let n=typeof window.parent<"u"&&window.parent!==window?window.parent.document:document;if(!n)return;let r=n.getElementById("yyt-fallback-toast");r&&r.remove();let o={success:{bg:"rgba(74, 222, 128, 0.9)",border:"#22c55e"},error:{bg:"rgba(248, 113, 113, 0.9)",border:"#ef4444"},warning:{bg:"rgba(251, 191, 36, 0.9)",border:"#f59e0b"},info:{bg:"rgba(123, 183, 255, 0.9)",border:"#7bb7ff"}},i=o[e]||o.info,a=n.createElement("div");if(a.id="yyt-fallback-toast",a.style.cssText=`
     position: fixed;
     top: 20px;
     right: 20px;
     padding: 12px 20px;
-    background: ${color.bg};
+    background: ${i.bg};
     color: #0b0f15;
     border-radius: 8px;
-    border: 2px solid ${color.border};
+    border: 2px solid ${i.border};
     font-size: 14px;
     font-weight: 500;
     z-index: 99999;
@@ -1451,12 +138,7 @@ function _showFallbackToast(type, message, duration) {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     animation: yyt-toast-in 0.3s ease;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
-  `;
-  toast.textContent = message;
-  if (!targetDoc.getElementById("yyt-toast-styles")) {
-    const style = targetDoc.createElement("style");
-    style.id = "yyt-toast-styles";
-    style.textContent = `
+  `,a.textContent=t,!n.getElementById("yyt-toast-styles")){let c=n.createElement("style");c.id="yyt-toast-styles",c.textContent=`
       @keyframes yyt-toast-in {
         from { opacity: 0; transform: translateX(100px); }
         to { opacity: 1; transform: translateX(0); }
@@ -1465,426 +147,25 @@ function _showFallbackToast(type, message, duration) {
         from { opacity: 1; transform: translateX(0); }
         to { opacity: 0; transform: translateX(100px); }
       }
-    `;
-    targetDoc.head.appendChild(style);
-  }
-  targetDoc.body.appendChild(toast);
-  setTimeout(() => {
-    toast.style.animation = "yyt-toast-out 0.3s ease forwards";
-    setTimeout(() => {
-      toast.remove();
-    }, 300);
-  }, duration);
-}
-function getJQuery() {
-  if (cachedJQuery)
-    return cachedJQuery;
-  if (typeof window.parent !== "undefined" && window.parent !== window) {
-    try {
-      if (window.parent.jQuery) {
-        cachedJQuery = window.parent.jQuery;
-        return cachedJQuery;
-      }
-    } catch (e) {
-    }
-  }
-  if (window.jQuery) {
-    cachedJQuery = window.jQuery;
-  }
-  return cachedJQuery;
-}
-function isContainerValid($container2) {
-  return $container2 && $container2.length > 0;
-}
-function getFormApiConfig($container2, scriptId = SCRIPT_ID) {
-  const $ = getJQuery();
-  if (!$ || !isContainerValid($container2)) {
-    return {
-      url: "",
-      apiKey: "",
-      model: "",
-      useMainApi: true,
-      max_tokens: 4096,
-      temperature: 0.7,
-      top_p: 0.9
-    };
-  }
-  let model = $container2.find(`#${scriptId}-model`).val()?.trim() || "";
-  const $modelSelect = $container2.find(`#${scriptId}-model-select`);
-  if ($modelSelect.is(":visible")) {
-    model = $modelSelect.val() || model;
-  }
-  return {
-    url: $container2.find(`#${scriptId}-api-url`).val()?.trim() || "",
-    apiKey: $container2.find(`#${scriptId}-api-key`).val() || "",
-    model,
-    useMainApi: $container2.find(`#${scriptId}-use-main-api`).is(":checked"),
-    max_tokens: parseInt($container2.find(`#${scriptId}-max-tokens`).val()) || 4096,
-    temperature: parseFloat($container2.find(`#${scriptId}-temperature`).val()) ?? 0.7,
-    top_p: parseFloat($container2.find(`#${scriptId}-top-p`).val()) ?? 0.9
-  };
-}
-function fillFormWithConfig($container2, config, scriptId = SCRIPT_ID) {
-  const $ = getJQuery();
-  if (!$ || !isContainerValid($container2) || !config)
-    return;
-  $container2.find(`#${scriptId}-api-url`).val(config.url || "");
-  $container2.find(`#${scriptId}-api-key`).val(config.apiKey || "");
-  $container2.find(`#${scriptId}-model`).val(config.model || "");
-  $container2.find(`#${scriptId}-max-tokens`).val(config.max_tokens || 4096);
-  $container2.find(`#${scriptId}-temperature`).val(config.temperature ?? 0.7);
-  $container2.find(`#${scriptId}-top-p`).val(config.top_p ?? 0.9);
-  const useMainApi = config.useMainApi ?? true;
-  const $checkbox = $container2.find(`#${scriptId}-use-main-api`);
-  $checkbox.prop("checked", useMainApi);
-  const $customFields = $container2.find(`#${scriptId}-custom-api-fields`);
-  if (useMainApi) {
-    $customFields.addClass("yyt-disabled").find("input, button, select").prop("disabled", true);
-  } else {
-    $customFields.removeClass("yyt-disabled").find("input, button, select").prop("disabled", false);
-  }
-  $container2.find(`#${scriptId}-model`).show();
-  $container2.find(`#${scriptId}-model-select`).hide();
-}
-function createDialogHtml(options) {
-  const {
-    id,
-    title,
-    body,
-    width = "380px",
-    wide = false
-  } = options;
-  return `
-    <div class="yyt-dialog-overlay" id="${id}-overlay">
-      <div class="yyt-dialog ${wide ? "yyt-dialog-wide" : ""}" style="${width !== "380px" ? `width: ${width}` : ""}">
+    `,n.head.appendChild(c)}n.body.appendChild(a),setTimeout(()=>{a.style.animation="yyt-toast-out 0.3s ease forwards",setTimeout(()=>{a.remove()},300)},s)}function S(){if(Qt)return Qt;if(typeof window.parent<"u"&&window.parent!==window)try{if(window.parent.jQuery)return Qt=window.parent.jQuery,Qt}catch{}return window.jQuery&&(Qt=window.jQuery),Qt}function $(e){return e&&e.length>0}function Dt(e,t=d){if(!S()||!$(e))return{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9};let n=e.find(`#${t}-model`).val()?.trim()||"",r=e.find(`#${t}-model-select`);return r.is(":visible")&&(n=r.val()||n),{url:e.find(`#${t}-api-url`).val()?.trim()||"",apiKey:e.find(`#${t}-api-key`).val()||"",model:n,useMainApi:e.find(`#${t}-use-main-api`).is(":checked"),max_tokens:parseInt(e.find(`#${t}-max-tokens`).val())||4096,temperature:parseFloat(e.find(`#${t}-temperature`).val())??.7,top_p:parseFloat(e.find(`#${t}-top-p`).val())??.9}}function qt(e,t,s=d){if(!S()||!$(e)||!t)return;e.find(`#${s}-api-url`).val(t.url||""),e.find(`#${s}-api-key`).val(t.apiKey||""),e.find(`#${s}-model`).val(t.model||""),e.find(`#${s}-max-tokens`).val(t.max_tokens||4096),e.find(`#${s}-temperature`).val(t.temperature??.7),e.find(`#${s}-top-p`).val(t.top_p??.9);let r=t.useMainApi??!0;e.find(`#${s}-use-main-api`).prop("checked",r);let i=e.find(`#${s}-custom-api-fields`);r?i.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):i.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1),e.find(`#${s}-model`).show(),e.find(`#${s}-model-select`).hide()}function nr(e){let{id:t,title:s,body:n,width:r="380px",wide:o=!1}=e;return`
+    <div class="yyt-dialog-overlay" id="${t}-overlay">
+      <div class="yyt-dialog ${o?"yyt-dialog-wide":""}" style="${r!=="380px"?`width: ${r}`:""}">
         <div class="yyt-dialog-header">
-          <span class="yyt-dialog-title">${title}</span>
-          <button class="yyt-dialog-close" id="${id}-close">
+          <span class="yyt-dialog-title">${s}</span>
+          <button class="yyt-dialog-close" id="${t}-close">
             <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="yyt-dialog-body">
-          ${body}
+          ${n}
         </div>
         <div class="yyt-dialog-footer">
-          <button class="yyt-btn yyt-btn-secondary" id="${id}-cancel">\u53D6\u6D88</button>
-          <button class="yyt-btn yyt-btn-primary" id="${id}-save">\u4FDD\u5B58</button>
+          <button class="yyt-btn yyt-btn-secondary" id="${t}-cancel">\u53D6\u6D88</button>
+          <button class="yyt-btn yyt-btn-primary" id="${t}-save">\u4FDD\u5B58</button>
         </div>
       </div>
     </div>
-  `;
-}
-function bindDialogEvents($container2, id, callbacks = {}) {
-  const $ = getJQuery();
-  if (!$)
-    return () => {
-    };
-  const $overlay = $container2.find(`#${id}-overlay`);
-  const closeDialog = () => {
-    $overlay.remove();
-    if (callbacks.onClose)
-      callbacks.onClose();
-  };
-  $overlay.find(`#${id}-close, #${id}-cancel`).on("click", closeDialog);
-  $overlay.on("click", function(e) {
-    if (e.target === this) {
-      closeDialog();
-    }
-  });
-  $overlay.find(`#${id}-save`).on("click", function() {
-    if (callbacks.onSave) {
-      callbacks.onSave(closeDialog);
-    }
-  });
-  return closeDialog;
-}
-function downloadJson(json, filename) {
-  const blob = new Blob([json], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-function readFileContent(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = (e) => reject(new Error("\u6587\u4EF6\u8BFB\u53D6\u5931\u8D25"));
-    reader.readAsText(file);
-  });
-}
-var SCRIPT_ID, cachedJQuery;
-var init_utils = __esm({
-  "modules/ui/utils.js"() {
-    SCRIPT_ID = "youyou_toolkit";
-    cachedJQuery = null;
-  }
-});
-
-// modules/ui/ui-manager.js
-var UIManager, uiManager;
-var init_ui_manager = __esm({
-  "modules/ui/ui-manager.js"() {
-    init_event_bus();
-    init_utils();
-    UIManager = class {
-      constructor() {
-        this.components = /* @__PURE__ */ new Map();
-        this.activeInstances = /* @__PURE__ */ new Map();
-        this.dependencies = {};
-        this.currentTab = "main";
-        this.currentSubTab = {};
-        this.initialized = false;
-      }
-      // ============================================================
-      // 初始化
-      // ============================================================
-      /**
-       * 初始化UI管理器
-       * @param {Object} options
-       */
-      init(options = {}) {
-        if (this.initialized)
-          return;
-        this.dependencies = options.services || {};
-        this._subscribeEvents();
-        this.initialized = true;
-        eventBus.emit(EVENTS.UI_INITIALIZED);
-        console.log("[UIManager] \u521D\u59CB\u5316\u5B8C\u6210");
-      }
-      // ============================================================
-      // 组件注册
-      // ============================================================
-      /**
-       * 注册组件
-       * @param {string} id - 组件ID
-       * @param {Object} component - 组件配置
-       * @returns {boolean}
-       */
-      register(id, component) {
-        if (!id || !component) {
-          console.warn("[UIManager] \u65E0\u6548\u7684\u7EC4\u4EF6\u6CE8\u518C");
-          return false;
-        }
-        this.components.set(id, {
-          id,
-          ...component,
-          render: component.render || (() => ""),
-          bindEvents: component.bindEvents || (() => {
-          }),
-          destroy: component.destroy || (() => {
-          }),
-          getStyles: component.getStyles || (() => "")
-        });
-        return true;
-      }
-      /**
-       * 注销组件
-       * @param {string} id
-       */
-      unregister(id) {
-        this.destroyInstance(id);
-        this.components.delete(id);
-      }
-      /**
-       * 获取组件
-       * @param {string} id
-       * @returns {Object|undefined}
-       */
-      getComponent(id) {
-        return this.components.get(id);
-      }
-      // ============================================================
-      // 渲染
-      // ============================================================
-      /**
-       * 渲染组件
-       * @param {string} id - 组件ID
-       * @param {HTMLElement|Object} container - 容器
-       * @param {Object} props - 属性
-       */
-      render(id, container, props = {}) {
-        const $ = getJQuery();
-        if (!$) {
-          console.error("[UIManager] jQuery\u4E0D\u53EF\u7528");
-          return;
-        }
-        const component = this.components.get(id);
-        if (!component) {
-          console.warn(`[UIManager] \u7EC4\u4EF6\u4E0D\u5B58\u5728: ${id}`);
-          return;
-        }
-        let $container2;
-        if (typeof container === "string") {
-          $container2 = $(container);
-        } else if (container && container.jquery) {
-          $container2 = container;
-        } else if (container) {
-          $container2 = $(container);
-        }
-        if (!isContainerValid($container2)) {
-          console.warn(`[UIManager] \u5BB9\u5668\u4E0D\u5B58\u5728`);
-          return;
-        }
-        this.destroyInstance(id);
-        const html = component.render({
-          ...props,
-          dependencies: this.dependencies
-        });
-        $container2.html(html);
-        component.bindEvents($container2, this.dependencies);
-        this.activeInstances.set(id, {
-          container: $container2,
-          component,
-          props
-        });
-        eventBus.emit(EVENTS.UI_RENDER_REQUESTED, { componentId: id });
-      }
-      /**
-       * 销毁组件实例
-       * @param {string} id
-       */
-      destroyInstance(id) {
-        const instance = this.activeInstances.get(id);
-        if (!instance)
-          return;
-        instance.component.destroy(instance.container);
-        this.activeInstances.delete(id);
-      }
-      // ============================================================
-      // 标签页管理
-      // ============================================================
-      /**
-       * 切换标签页
-       * @param {string} tabId
-       */
-      switchTab(tabId) {
-        const oldTab = this.currentTab;
-        this.currentTab = tabId;
-        eventBus.emit(EVENTS.UI_TAB_CHANGED, { tabId, oldTab });
-      }
-      /**
-       * 获取当前标签页
-       * @returns {string}
-       */
-      getCurrentTab() {
-        return this.currentTab;
-      }
-      /**
-       * 切换子标签页
-       * @param {string} mainTab
-       * @param {string} subTab
-       */
-      switchSubTab(mainTab, subTab) {
-        this.currentSubTab[mainTab] = subTab;
-        eventBus.emit(EVENTS.UI_SUBTAB_CHANGED, { mainTab, subTab });
-      }
-      /**
-       * 获取当前子标签页
-       * @param {string} mainTab
-       * @returns {string}
-       */
-      getCurrentSubTab(mainTab) {
-        return this.currentSubTab[mainTab] || "";
-      }
-      // ============================================================
-      // 样式管理
-      // ============================================================
-      /**
-       * 获取所有组件样式
-       * @returns {string}
-       */
-      getAllStyles() {
-        let styles = "";
-        this.components.forEach((component, id) => {
-          if (component.getStyles) {
-            styles += component.getStyles();
-          }
-        });
-        return styles;
-      }
-      /**
-       * 注入样式到页面
-       */
-      injectStyles() {
-        const styleId = "yyt-component-styles";
-        if (document.getElementById(styleId))
-          return;
-        const style = document.createElement("style");
-        style.id = styleId;
-        style.textContent = this.getAllStyles();
-        document.head.appendChild(style);
-      }
-      // ============================================================
-      // 依赖注入
-      // ============================================================
-      /**
-       * 设置依赖
-       * @param {string} name
-       * @param {*} service
-       */
-      setDependency(name, service) {
-        this.dependencies[name] = service;
-      }
-      /**
-       * 获取依赖
-       * @param {string} name
-       * @returns {*}
-       */
-      getDependency(name) {
-        return this.dependencies[name];
-      }
-      // ============================================================
-      // 私有方法
-      // ============================================================
-      /**
-       * 订阅事件
-       * @private
-       */
-      _subscribeEvents() {
-        eventBus.on(EVENTS.PRESET_UPDATED, () => {
-        });
-        eventBus.on(EVENTS.TOOL_UPDATED, () => {
-        });
-      }
-    };
-    uiManager = new UIManager();
-  }
-});
-
-// modules/ui/components/api-preset-panel.js
-var currentLoadedPresetName, ApiPresetPanel;
-var init_api_preset_panel = __esm({
-  "modules/ui/components/api-preset-panel.js"() {
-    init_event_bus();
-    init_utils();
-    init_api_connection();
-    init_preset_manager();
-    currentLoadedPresetName = "";
-    ApiPresetPanel = {
-      id: "apiPresetPanel",
-      // ============================================================
-      // 渲染
-      // ============================================================
-      /**
-       * 渲染组件
-       * @param {Object} props
-       * @returns {string} HTML
-       */
-      render(props) {
-        const config = getApiConfig();
-        const activeConfig = getActiveConfig();
-        const activePresetName = getActivePresetName();
-        const presets = getAllPresets();
-        const starredPresets = getStarredPresets();
-        const maxPresetsToShow = 8;
-        const starredToShow = starredPresets.slice(0, maxPresetsToShow);
-        const presetListHtml = starredToShow.length > 0 ? starredToShow.map((preset) => this._renderPresetItem(preset)).join("") : "";
-        const initialSelectValue = currentLoadedPresetName || activePresetName || "";
-        const initialSelectText = initialSelectValue || "-- \u5F53\u524D\u914D\u7F6E --";
-        return `
+  `}function rr(e,t,s={}){if(!S())return()=>{};let r=e.find(`#${t}-overlay`),o=()=>{r.remove(),s.onClose&&s.onClose()};return r.find(`#${t}-close, #${t}-cancel`).on("click",o),r.on("click",function(i){i.target===this&&o()}),r.find(`#${t}-save`).on("click",function(){s.onSave&&s.onSave(o)}),o}function Tt(e,t){let s=new Blob([e],{type:"application/json"}),n=URL.createObjectURL(s),r=document.createElement("a");r.href=n,r.download=t,r.click(),URL.revokeObjectURL(n)}function _t(e){return new Promise((t,s)=>{let n=new FileReader;n.onload=r=>t(r.target.result),n.onerror=r=>s(new Error("\u6587\u4EF6\u8BFB\u53D6\u5931\u8D25")),n.readAsText(e)})}var d,Qt,rt=E(()=>{d="youyou_toolkit";Qt=null});var Be,q,Gs=E(()=>{z();rt();Be=class{constructor(){this.components=new Map,this.activeInstances=new Map,this.dependencies={},this.currentTab="main",this.currentSubTab={},this.initialized=!1}init(t={}){this.initialized||(this.dependencies=t.services||{},this._subscribeEvents(),this.initialized=!0,x.emit(h.UI_INITIALIZED),console.log("[UIManager] \u521D\u59CB\u5316\u5B8C\u6210"))}register(t,s){return!t||!s?(console.warn("[UIManager] \u65E0\u6548\u7684\u7EC4\u4EF6\u6CE8\u518C"),!1):(this.components.set(t,{id:t,...s,render:s.render||(()=>""),bindEvents:s.bindEvents||(()=>{}),destroy:s.destroy||(()=>{}),getStyles:s.getStyles||(()=>"")}),!0)}unregister(t){this.destroyInstance(t),this.components.delete(t)}getComponent(t){return this.components.get(t)}render(t,s,n={}){let r=S();if(!r){console.error("[UIManager] jQuery\u4E0D\u53EF\u7528");return}let o=this.components.get(t);if(!o){console.warn(`[UIManager] \u7EC4\u4EF6\u4E0D\u5B58\u5728: ${t}`);return}let i;if(typeof s=="string"?i=r(s):s&&s.jquery?i=s:s&&(i=r(s)),!$(i)){console.warn("[UIManager] \u5BB9\u5668\u4E0D\u5B58\u5728");return}this.destroyInstance(t);let a=o.render({...n,dependencies:this.dependencies});i.html(a),o.bindEvents(i,this.dependencies),this.activeInstances.set(t,{container:i,component:o,props:n}),x.emit(h.UI_RENDER_REQUESTED,{componentId:t})}destroyInstance(t){let s=this.activeInstances.get(t);s&&(s.component.destroy(s.container),this.activeInstances.delete(t))}switchTab(t){let s=this.currentTab;this.currentTab=t,x.emit(h.UI_TAB_CHANGED,{tabId:t,oldTab:s})}getCurrentTab(){return this.currentTab}switchSubTab(t,s){this.currentSubTab[t]=s,x.emit(h.UI_SUBTAB_CHANGED,{mainTab:t,subTab:s})}getCurrentSubTab(t){return this.currentSubTab[t]||""}getAllStyles(){let t="";return this.components.forEach((s,n)=>{s.getStyles&&(t+=s.getStyles())}),t}injectStyles(){let t="yyt-component-styles";if(document.getElementById(t))return;let s=document.createElement("style");s.id=t,s.textContent=this.getAllStyles(),document.head.appendChild(s)}setDependency(t,s){this.dependencies[t]=s}getDependency(t){return this.dependencies[t]}_subscribeEvents(){x.on(h.PRESET_UPDATED,()=>{}),x.on(h.TOOL_UPDATED,()=>{})}},q=new Be});var ct,dt,Fs=E(()=>{z();rt();Os();ze();ct="",dt={id:"apiPresetPanel",render(e){let t=It(),s=js(),n=Ue(),r=Wt(),a=Ns().slice(0,8),c=a.length>0?a.map(u=>this._renderPresetItem(u)).join(""):"",l=ct||n||"",y=l||"-- \u5F53\u524D\u914D\u7F6E --";return`
       <div class="yyt-api-manager">
         <div class="yyt-panel">
           <!-- \u9884\u8BBE\u9009\u62E9\u533A -->
@@ -1896,29 +177,29 @@ var init_api_preset_panel = __esm({
             
             <div class="yyt-preset-selector">
               <!-- \u81EA\u5B9A\u4E49\u4E0B\u62C9\u6846 -->
-              <div class="yyt-custom-select" id="${SCRIPT_ID}-preset-dropdown">
+              <div class="yyt-custom-select" id="${d}-preset-dropdown">
                 <div class="yyt-select-trigger">
-                  <span class="yyt-select-value" data-value="${escapeHtml(initialSelectValue)}">${escapeHtml(initialSelectText)}</span>
+                  <span class="yyt-select-value" data-value="${m(l)}">${m(y)}</span>
                   <i class="fa-solid fa-chevron-down yyt-select-arrow"></i>
                 </div>
                 <div class="yyt-select-dropdown">
-                  <div class="yyt-select-option ${!initialSelectValue ? "yyt-selected" : ""}" data-value="">
+                  <div class="yyt-select-option ${l?"":"yyt-selected"}" data-value="">
                     <span class="yyt-option-star yyt-placeholder"></span>
                     <span class="yyt-option-text">-- \u5F53\u524D\u914D\u7F6E --</span>
                   </div>
-                  ${presets.length > 0 ? presets.map((p) => this._renderSelectOption(p, initialSelectValue)).join("") : ""}
+                  ${r.length>0?r.map(u=>this._renderSelectOption(u,l)).join(""):""}
                 </div>
               </div>
-              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-load-preset" title="\u52A0\u8F7D\u9009\u4E2D\u9884\u8BBE">
+              <button class="yyt-btn yyt-btn-secondary" id="${d}-load-preset" title="\u52A0\u8F7D\u9009\u4E2D\u9884\u8BBE">
                 <i class="fa-solid fa-download"></i> \u52A0\u8F7D
               </button>
             </div>
             
-            ${presetListHtml ? `
+            ${c?`
             <div class="yyt-preset-list-compact">
-              ${presetListHtml}
+              ${c}
             </div>
-            ` : ""}
+            `:""}
           </div>
           
           <!-- API\u914D\u7F6E\u533A -->
@@ -1926,52 +207,42 @@ var init_api_preset_panel = __esm({
             <div class="yyt-section-title">
               <i class="fa-solid fa-sliders"></i>
               <span>API\u914D\u7F6E</span>
-              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-save-as-preset" style="margin-left: auto;">
+              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${d}-save-as-preset" style="margin-left: auto;">
                 <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u4E3A\u9884\u8BBE
               </button>
             </div>
             
-            ${this._renderApiConfigForm(config)}
+            ${this._renderApiConfigForm(t)}
           </div>
           
           <!-- \u5E95\u90E8\u64CD\u4F5C\u533A -->
           <div class="yyt-panel-footer">
             <div class="yyt-footer-left">
-              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-import-presets">
+              <button class="yyt-btn yyt-btn-secondary" id="${d}-import-presets">
                 <i class="fa-solid fa-file-import"></i> \u5BFC\u5165
               </button>
-              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-export-presets">
+              <button class="yyt-btn yyt-btn-secondary" id="${d}-export-presets">
                 <i class="fa-solid fa-file-export"></i> \u5BFC\u51FA
               </button>
-              <input type="file" id="${SCRIPT_ID}-import-file" accept=".json" style="display:none">
+              <input type="file" id="${d}-import-file" accept=".json" style="display:none">
             </div>
             <div class="yyt-footer-right">
-              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-reset-api-config">
+              <button class="yyt-btn yyt-btn-secondary" id="${d}-reset-api-config">
                 <i class="fa-solid fa-undo"></i> \u91CD\u7F6E
               </button>
-              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-save-api-config">
+              <button class="yyt-btn yyt-btn-primary" id="${d}-save-api-config">
                 <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
               </button>
             </div>
           </div>
         </div>
       </div>
-    `;
-      },
-      // ============================================================
-      // 私有渲染方法
-      // ============================================================
-      /**
-       * 渲染预设项
-       * @private
-       */
-      _renderPresetItem(preset) {
-        return `
-      <div class="yyt-preset-item" data-preset-name="${escapeHtml(preset.name)}">
+    `},_renderPresetItem(e){return`
+      <div class="yyt-preset-item" data-preset-name="${m(e.name)}">
         <div class="yyt-preset-info">
-          <div class="yyt-preset-name">${escapeHtml(preset.name)}</div>
+          <div class="yyt-preset-name">${m(e.name)}</div>
           <div class="yyt-preset-meta">
-            ${preset.apiConfig.useMainApi ? '<span class="yyt-badge yyt-badge-small">\u4E3BAPI</span>' : `<span class="yyt-badge yyt-badge-small">${escapeHtml(preset.apiConfig.model || "\u672A\u8BBE\u7F6E")}</span>`}
+            ${e.apiConfig.useMainApi?'<span class="yyt-badge yyt-badge-small">\u4E3BAPI</span>':`<span class="yyt-badge yyt-badge-small">${m(e.apiConfig.model||"\u672A\u8BBE\u7F6E")}</span>`}
           </div>
         </div>
         <div class="yyt-preset-actions">
@@ -1983,30 +254,12 @@ var init_api_preset_panel = __esm({
           </button>
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染下拉选项
-       * @private
-       */
-      _renderSelectOption(preset, selectedValue) {
-        const isStarred = preset.starred === true;
-        const starClass = isStarred ? "yyt-option-star yyt-starred" : "yyt-option-star";
-        const starIcon = isStarred ? "\u2605" : "\u2606";
-        const isSelected = preset.name === selectedValue;
-        return `
-      <div class="yyt-select-option ${isSelected ? "yyt-selected" : ""}" data-value="${escapeHtml(preset.name)}">
-        <button class="${starClass}" data-preset="${escapeHtml(preset.name)}" title="${isStarred ? "\u70B9\u51FB\u53D6\u6D88\u661F\u6807" : "\u70B9\u51FB\u6DFB\u52A0\u661F\u6807"}">${starIcon}</button>
-        <span class="yyt-option-text">${escapeHtml(preset.name)}</span>
+    `},_renderSelectOption(e,t){let s=e.starred===!0,n=s?"yyt-option-star yyt-starred":"yyt-option-star",r=s?"\u2605":"\u2606";return`
+      <div class="yyt-select-option ${e.name===t?"yyt-selected":""}" data-value="${m(e.name)}">
+        <button class="${n}" data-preset="${m(e.name)}" title="${s?"\u70B9\u51FB\u53D6\u6D88\u661F\u6807":"\u70B9\u51FB\u6DFB\u52A0\u661F\u6807"}">${r}</button>
+        <span class="yyt-option-text">${m(e.name)}</span>
       </div>
-    `;
-      },
-      /**
-       * 渲染API配置表单
-       * @private
-       */
-      _renderApiConfigForm(config) {
-        return `
+    `},_renderApiConfigForm(e){return`
       <div class="yyt-form-group">
         <div class="yyt-toggle-row">
           <div class="yyt-toggle-label">
@@ -2014,18 +267,18 @@ var init_api_preset_panel = __esm({
             <span class="yyt-toggle-hint">\u542F\u7528\u540E\u5C06\u4F7F\u7528SillyTavern\u5185\u7F6E\u7684API\u914D\u7F6E</span>
           </div>
           <label class="yyt-toggle">
-            <input type="checkbox" id="${SCRIPT_ID}-use-main-api" ${config.useMainApi ? "checked" : ""}>
+            <input type="checkbox" id="${d}-use-main-api" ${e.useMainApi?"checked":""}>
             <span class="yyt-toggle-slider"></span>
           </label>
         </div>
       </div>
       
-      <div id="${SCRIPT_ID}-custom-api-fields" class="${config.useMainApi ? "yyt-disabled" : ""}">
+      <div id="${d}-custom-api-fields" class="${e.useMainApi?"yyt-disabled":""}">
         <div class="yyt-form-row">
           <div class="yyt-form-group yyt-flex-1">
             <label>API URL</label>
-            <input type="text" class="yyt-input" id="${SCRIPT_ID}-api-url" 
-                   value="${escapeHtml(config.url || "")}" 
+            <input type="text" class="yyt-input" id="${d}-api-url" 
+                   value="${m(e.url||"")}" 
                    placeholder="https://api.openai.com/v1/chat/completions">
           </div>
         </div>
@@ -2034,10 +287,10 @@ var init_api_preset_panel = __esm({
           <div class="yyt-form-group yyt-flex-1">
             <label>API Key</label>
             <div class="yyt-input-group">
-              <input type="password" class="yyt-input" id="${SCRIPT_ID}-api-key" 
-                     value="${escapeHtml(config.apiKey || "")}" 
+              <input type="password" class="yyt-input" id="${d}-api-key" 
+                     value="${m(e.apiKey||"")}" 
                      placeholder="sk-...">
-              <button class="yyt-btn yyt-btn-icon" id="${SCRIPT_ID}-toggle-key-visibility" title="\u663E\u793A/\u9690\u85CF">
+              <button class="yyt-btn yyt-btn-icon" id="${d}-toggle-key-visibility" title="\u663E\u793A/\u9690\u85CF">
                 <i class="fa-solid fa-eye"></i>
               </button>
             </div>
@@ -2048,12 +301,12 @@ var init_api_preset_panel = __esm({
           <div class="yyt-form-group yyt-flex-1">
             <label>\u6A21\u578B</label>
             <div class="yyt-model-row">
-              <input type="text" class="yyt-input yyt-model-input" id="${SCRIPT_ID}-model" 
-                     value="${escapeHtml(config.model || "")}" 
+              <input type="text" class="yyt-input yyt-model-input" id="${d}-model" 
+                     value="${m(e.model||"")}" 
                      placeholder="gpt-4">
-              <select class="yyt-select yyt-model-select" id="${SCRIPT_ID}-model-select" style="display: none;">
+              <select class="yyt-select yyt-model-select" id="${d}-model-select" style="display: none;">
               </select>
-              <button class="yyt-btn yyt-btn-secondary yyt-model-btn" id="${SCRIPT_ID}-load-models" title="\u83B7\u53D6\u6A21\u578B\u5217\u8868">
+              <button class="yyt-btn yyt-btn-secondary yyt-model-btn" id="${d}-load-models" title="\u83B7\u53D6\u6A21\u578B\u5217\u8868">
                 <i class="fa-solid fa-sync-alt"></i>
               </button>
             </div>
@@ -2063,401 +316,55 @@ var init_api_preset_panel = __esm({
         <div class="yyt-form-row yyt-form-row-2col">
           <div class="yyt-form-group">
             <label>Max Tokens</label>
-            <input type="number" class="yyt-input" id="${SCRIPT_ID}-max-tokens" 
-                   value="${config.max_tokens || 4096}" min="1" max="128000">
+            <input type="number" class="yyt-input" id="${d}-max-tokens" 
+                   value="${e.max_tokens||4096}" min="1" max="128000">
           </div>
           
           <div class="yyt-form-group">
             <label>Temperature</label>
-            <input type="number" class="yyt-input" id="${SCRIPT_ID}-temperature" 
-                   value="${config.temperature ?? 0.7}" min="0" max="2" step="0.1">
+            <input type="number" class="yyt-input" id="${d}-temperature" 
+                   value="${e.temperature??.7}" min="0" max="2" step="0.1">
           </div>
         </div>
         
         <div class="yyt-form-row">
           <div class="yyt-form-group yyt-flex-1">
             <label>Top P</label>
-            <input type="number" class="yyt-input" id="${SCRIPT_ID}-top-p" 
-                   value="${config.top_p ?? 0.9}" min="0" max="1" step="0.1">
+            <input type="number" class="yyt-input" id="${d}-top-p" 
+                   value="${e.top_p??.9}" min="0" max="1" step="0.1">
           </div>
         </div>
       </div>
-    `;
-      },
-      // ============================================================
-      // 事件绑定
-      // ============================================================
-      /**
-       * 绑定事件
-       * @param {Object} $container
-       * @param {Object} dependencies
-       */
-      bindEvents($container2, dependencies) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        this._bindDropdownEvents($container2, $);
-        this._bindPresetListEvents($container2, $);
-        this._bindApiConfigEvents($container2, $);
-        this._bindFileEvents($container2, $);
-      },
-      /**
-       * 绑定下拉框事件
-       * @private
-       */
-      _bindDropdownEvents($container2, $) {
-        const $dropdown = $container2.find(`#${SCRIPT_ID}-preset-dropdown`);
-        const $trigger = $dropdown.find(".yyt-select-trigger");
-        const $selectValue = $dropdown.find(".yyt-select-value");
-        $trigger.on("click", function(e) {
-          e.stopPropagation();
-          $dropdown.toggleClass("yyt-open");
-        });
-        $dropdown.find(".yyt-select-option").on("click", (e) => {
-          if ($(e.target).hasClass("yyt-option-star"))
-            return;
-          const $option = $(e.currentTarget);
-          const value = $option.data("value");
-          const text = $option.find(".yyt-option-text").text();
-          $selectValue.text(text).data("value", value);
-          $dropdown.find(".yyt-select-option").removeClass("yyt-selected");
-          $option.addClass("yyt-selected");
-          $dropdown.removeClass("yyt-open");
-          if (value) {
-            const preset = getPreset(value);
-            if (preset) {
-              fillFormWithConfig($container2, preset.apiConfig, SCRIPT_ID);
-            }
-          }
-        });
-        $dropdown.find(".yyt-option-star").on("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const presetName = $(e.currentTarget).data("preset");
-          if (!presetName)
-            return;
-          const result = togglePresetStar(presetName);
-          if (result.success) {
-            showToast("success", result.message);
-            const $panel = $container2.closest(".yyt-api-manager").parent();
-            if ($panel.length) {
-              this.renderTo($panel);
-            }
-          } else {
-            showToast("error", result.message);
-          }
-        });
-        $(document).on("click.yyt-dropdown", (e) => {
-          if (!$(e.target).closest($dropdown).length) {
-            $dropdown.removeClass("yyt-open");
-          }
-        });
-      },
-      /**
-       * 绑定预设列表事件
-       * @private
-       */
-      _bindPresetListEvents($container2, $) {
-        $container2.find(".yyt-preset-item").on("click", (e) => {
-          const $item = $(e.currentTarget);
-          const presetName = $item.data("preset-name");
-          const action = $(e.target).closest("[data-action]").data("action");
-          if (!action)
-            return;
-          e.stopPropagation();
-          switch (action) {
-            case "load":
-              const preset = getPreset(presetName);
-              if (preset) {
-                fillFormWithConfig($container2, preset.apiConfig, SCRIPT_ID);
-                currentLoadedPresetName = presetName;
-                $container2.find(".yyt-preset-item").removeClass("yyt-loaded");
-                $item.addClass("yyt-loaded");
-                showToast("info", `\u5DF2\u52A0\u8F7D\u9884\u8BBE "${presetName}"\uFF0C\u4FEE\u6539\u540E\u53EF\u70B9\u51FB"\u4FDD\u5B58\u914D\u7F6E"\u8986\u76D6\u6B64\u9884\u8BBE`);
-              }
-              break;
-            case "delete":
-              if (confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${presetName}" \u5417\uFF1F`)) {
-                const delResult = deletePreset(presetName);
-                showToast(delResult.success ? "info" : "error", delResult.message);
-                if (delResult.success) {
-                  if (currentLoadedPresetName === presetName) {
-                    currentLoadedPresetName = "";
-                  }
-                  const $panel = $container2.closest(".yyt-api-manager").parent();
-                  if ($panel.length) {
-                    this.renderTo($panel);
-                  }
-                }
-              }
-              break;
-          }
-        });
-      },
-      /**
-       * 绑定API配置事件
-       * @private
-       */
-      _bindApiConfigEvents($container2, $) {
-        $container2.find(`#${SCRIPT_ID}-use-main-api`).on("change", function() {
-          const useMainApi = $(this).is(":checked");
-          const $customFields = $container2.find(`#${SCRIPT_ID}-custom-api-fields`);
-          if (useMainApi) {
-            $customFields.addClass("yyt-disabled").find("input, button, select").prop("disabled", true);
-          } else {
-            $customFields.removeClass("yyt-disabled").find("input, button, select").prop("disabled", false);
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-toggle-key-visibility`).on("click", function() {
-          const $input = $container2.find(`#${SCRIPT_ID}-api-key`);
-          const type = $input.attr("type");
-          $input.attr("type", type === "password" ? "text" : "password");
-          $(this).find("i").toggleClass("fa-eye fa-eye-slash");
-        });
-        $container2.find(`#${SCRIPT_ID}-load-models`).on("click", async () => {
-          const $btn = $container2.find(`#${SCRIPT_ID}-load-models`);
-          const $modelInput = $container2.find(`#${SCRIPT_ID}-model`);
-          const $modelSelect = $container2.find(`#${SCRIPT_ID}-model-select`);
-          $btn.prop("disabled", true).find("i").addClass("fa-spin");
-          try {
-            const config = getFormApiConfig($container2, SCRIPT_ID);
-            const models = await fetchAvailableModels(config);
-            if (models.length > 0) {
-              $modelSelect.empty();
-              models.forEach((model) => {
-                $modelSelect.append(`<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`);
-              });
-              $modelInput.hide();
-              $modelSelect.show();
-              const currentModel = $modelInput.val();
-              if (currentModel && models.includes(currentModel)) {
-                $modelSelect.val(currentModel);
-              }
-              $modelSelect.off("change").on("change", function() {
-                $modelInput.val($(this).val());
-              });
-              showToast("success", `\u5DF2\u52A0\u8F7D ${models.length} \u4E2A\u6A21\u578B`);
-            } else {
-              showToast("warning", "\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165");
-            }
-          } catch (e) {
-            showToast("error", `\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${e.message}`);
-          } finally {
-            $btn.prop("disabled", false).find("i").removeClass("fa-spin");
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-model`).on("focus", function() {
-          const $modelSelect = $container2.find(`#${SCRIPT_ID}-model-select`);
-          $(this).show();
-          $modelSelect.hide();
-        });
-        $container2.find(`#${SCRIPT_ID}-save-api-config`).on("click", () => {
-          const config = getFormApiConfig($container2, SCRIPT_ID);
-          const validation = validateApiConfig(config);
-          if (!validation.valid && !config.useMainApi) {
-            showToast("error", validation.errors.join(", "));
-            return;
-          }
-          if (currentLoadedPresetName) {
-            if (!confirm(`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE "${currentLoadedPresetName}" \u7684\u914D\u7F6E\uFF1F
+    `},bindEvents(e,t){let s=S();!s||!$(e)||(this._bindDropdownEvents(e,s),this._bindPresetListEvents(e,s),this._bindApiConfigEvents(e,s),this._bindFileEvents(e,s))},_bindDropdownEvents(e,t){let s=e.find(`#${d}-preset-dropdown`),n=s.find(".yyt-select-trigger"),r=s.find(".yyt-select-value");n.on("click",function(o){o.stopPropagation(),s.toggleClass("yyt-open")}),s.find(".yyt-select-option").on("click",o=>{if(t(o.target).hasClass("yyt-option-star"))return;let i=t(o.currentTarget),a=i.data("value"),c=i.find(".yyt-option-text").text();if(r.text(c).data("value",a),s.find(".yyt-select-option").removeClass("yyt-selected"),i.addClass("yyt-selected"),s.removeClass("yyt-open"),a){let l=wt(a);l&&qt(e,l.apiConfig,d)}}),s.find(".yyt-option-star").on("click",o=>{o.preventDefault(),o.stopPropagation();let i=t(o.currentTarget).data("preset");if(!i)return;let a=Ls(i);if(a.success){p("success",a.message);let c=e.closest(".yyt-api-manager").parent();c.length&&this.renderTo(c)}else p("error",a.message)}),t(document).on("click.yyt-dropdown",o=>{t(o.target).closest(s).length||s.removeClass("yyt-open")})},_bindPresetListEvents(e,t){e.find(".yyt-preset-item").on("click",s=>{let n=t(s.currentTarget),r=n.data("preset-name"),o=t(s.target).closest("[data-action]").data("action");if(o)switch(s.stopPropagation(),o){case"load":let i=wt(r);i&&(qt(e,i.apiConfig,d),ct=r,e.find(".yyt-preset-item").removeClass("yyt-loaded"),n.addClass("yyt-loaded"),p("info",`\u5DF2\u52A0\u8F7D\u9884\u8BBE "${r}"\uFF0C\u4FEE\u6539\u540E\u53EF\u70B9\u51FB"\u4FDD\u5B58\u914D\u7F6E"\u8986\u76D6\u6B64\u9884\u8BBE`));break;case"delete":if(confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${r}" \u5417\uFF1F`)){let a=je(r);if(p(a.success?"info":"error",a.message),a.success){ct===r&&(ct="");let c=e.closest(".yyt-api-manager").parent();c.length&&this.renderTo(c)}}break}})},_bindApiConfigEvents(e,t){e.find(`#${d}-use-main-api`).on("change",function(){let s=t(this).is(":checked"),n=e.find(`#${d}-custom-api-fields`);s?n.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):n.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1)}),e.find(`#${d}-toggle-key-visibility`).on("click",function(){let s=e.find(`#${d}-api-key`),n=s.attr("type");s.attr("type",n==="password"?"text":"password"),t(this).find("i").toggleClass("fa-eye fa-eye-slash")}),e.find(`#${d}-load-models`).on("click",async()=>{let s=e.find(`#${d}-load-models`),n=e.find(`#${d}-model`),r=e.find(`#${d}-model-select`);s.prop("disabled",!0).find("i").addClass("fa-spin");try{let o=Dt(e,d),i=await Ds(o);if(i.length>0){r.empty(),i.forEach(c=>{r.append(`<option value="${m(c)}">${m(c)}</option>`)}),n.hide(),r.show();let a=n.val();a&&i.includes(a)&&r.val(a),r.off("change").on("change",function(){n.val(t(this).val())}),p("success",`\u5DF2\u52A0\u8F7D ${i.length} \u4E2A\u6A21\u578B`)}else p("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(o){p("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${o.message}`)}finally{s.prop("disabled",!1).find("i").removeClass("fa-spin")}}),e.find(`#${d}-model`).on("focus",function(){let s=e.find(`#${d}-model-select`);t(this).show(),s.hide()}),e.find(`#${d}-save-api-config`).on("click",()=>{let s=Dt(e,d),n=Oe(s);if(!n.valid&&!s.useMainApi){p("error",n.errors.join(", "));return}if(ct){if(!confirm(`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE "${ct}" \u7684\u914D\u7F6E\uFF1F
 
-\u70B9\u51FB"\u786E\u5B9A"\u8986\u76D6\u9884\u8BBE\uFF0C\u70B9\u51FB"\u53D6\u6D88"\u4EC5\u4FDD\u5B58\u5F53\u524D\u914D\u7F6E`)) {
-              updateApiConfig(config);
-              showToast("success", "API\u914D\u7F6E\u5DF2\u4FDD\u5B58");
-              return;
-            }
-            updateApiConfig(config);
-            const result = updatePreset(currentLoadedPresetName, { apiConfig: config });
-            if (result.success) {
-              showToast("success", `\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u8986\u76D6\u9884\u8BBE "${currentLoadedPresetName}"`);
-              eventBus.emit(EVENTS.PRESET_UPDATED, { name: currentLoadedPresetName });
-              const $panel = $container2.closest(".yyt-api-manager").parent();
-              if ($panel.length) {
-                this.renderTo($panel);
-              }
-            } else {
-              showToast("error", result.message);
-            }
-            return;
-          }
-          const activePreset = getActivePresetName();
-          if (activePreset) {
-            updateApiConfig(config);
-            updatePreset(activePreset, { apiConfig: config });
-            showToast("success", "API\u914D\u7F6E\u5DF2\u4FDD\u5B58");
-            return;
-          }
-          updateApiConfig(config);
-          showToast("success", "API\u914D\u7F6E\u5DF2\u4FDD\u5B58");
-        });
-        $container2.find(`#${SCRIPT_ID}-reset-api-config`).on("click", () => {
-          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F")) {
-            updateApiConfig({
-              url: "",
-              apiKey: "",
-              model: "",
-              useMainApi: true,
-              max_tokens: 4096,
-              temperature: 0.7,
-              top_p: 0.9
-            });
-            const $panel = $container2.closest(".yyt-api-manager").parent();
-            if ($panel.length) {
-              this.renderTo($panel);
-            }
-            showToast("info", "API\u914D\u7F6E\u5DF2\u91CD\u7F6E");
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-save-as-preset`).on("click", () => {
-          this._showSavePresetDialog($container2, $);
-        });
-      },
-      /**
-       * 绑定文件事件
-       * @private
-       */
-      _bindFileEvents($container2, $) {
-        $container2.find(`#${SCRIPT_ID}-export-presets`).on("click", () => {
-          try {
-            const json = exportPresets();
-            downloadJson(json, `youyou_toolkit_presets_${Date.now()}.json`);
-            showToast("success", "\u9884\u8BBE\u5DF2\u5BFC\u51FA");
-          } catch (e) {
-            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${e.message}`);
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-import-presets`).on("click", () => {
-          $container2.find(`#${SCRIPT_ID}-import-file`).click();
-        });
-        $container2.find(`#${SCRIPT_ID}-import-file`).on("change", async (e) => {
-          const file = e.target.files[0];
-          if (!file)
-            return;
-          try {
-            const text = await readFileContent(file);
-            const result = importPresets(text, { overwrite: true });
-            showToast(result.success ? "success" : "error", result.message);
-            if (result.imported > 0) {
-              const $panel = $container2.closest(".yyt-api-manager").parent();
-              if ($panel.length) {
-                this.renderTo($panel);
-              }
-            }
-          } catch (e2) {
-            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${e2.message}`);
-          }
-          $(e.target).val("");
-        });
-      },
-      /**
-       * 显示保存预设对话框
-       * @private
-       */
-      _showSavePresetDialog($container2, $) {
-        const presets = getAllPresets();
-        const existingNames = presets.map((p) => p.name);
-        const defaultName = generateUniquePresetName("\u65B0\u9884\u8BBE");
-        const dialogHtml = `
-      <div class="yyt-dialog-overlay" id="${SCRIPT_ID}-dialog-overlay">
+\u70B9\u51FB"\u786E\u5B9A"\u8986\u76D6\u9884\u8BBE\uFF0C\u70B9\u51FB"\u53D6\u6D88"\u4EC5\u4FDD\u5B58\u5F53\u524D\u914D\u7F6E`)){Mt(s),p("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58");return}Mt(s);let o=Ne(ct,{apiConfig:s});if(o.success){p("success",`\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u8986\u76D6\u9884\u8BBE "${ct}"`),x.emit(h.PRESET_UPDATED,{name:ct});let i=e.closest(".yyt-api-manager").parent();i.length&&this.renderTo(i)}else p("error",o.message);return}let r=Ue();if(r){Mt(s),Ne(r,{apiConfig:s}),p("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58");return}Mt(s),p("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58")}),e.find(`#${d}-reset-api-config`).on("click",()=>{if(confirm("\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F")){Mt({url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9});let s=e.closest(".yyt-api-manager").parent();s.length&&this.renderTo(s),p("info","API\u914D\u7F6E\u5DF2\u91CD\u7F6E")}}),e.find(`#${d}-save-as-preset`).on("click",()=>{this._showSavePresetDialog(e,t)})},_bindFileEvents(e,t){e.find(`#${d}-export-presets`).on("click",()=>{try{let s=Us();Tt(s,`youyou_toolkit_presets_${Date.now()}.json`),p("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(s){p("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),e.find(`#${d}-import-presets`).on("click",()=>{e.find(`#${d}-import-file`).click()}),e.find(`#${d}-import-file`).on("change",async s=>{let n=s.target.files[0];if(n){try{let r=await _t(n),o=zs(r,{overwrite:!0});if(p(o.success?"success":"error",o.message),o.imported>0){let i=e.closest(".yyt-api-manager").parent();i.length&&this.renderTo(i)}}catch(r){p("error",`\u5BFC\u5165\u5931\u8D25: ${r.message}`)}t(s.target).val("")}})},_showSavePresetDialog(e,t){let n=Wt().map(y=>y.name),r=Bs("\u65B0\u9884\u8BBE"),o=`
+      <div class="yyt-dialog-overlay" id="${d}-dialog-overlay">
         <div class="yyt-dialog">
           <div class="yyt-dialog-header">
             <span class="yyt-dialog-title">\u4FDD\u5B58\u4E3A\u65B0\u9884\u8BBE</span>
-            <button class="yyt-dialog-close" id="${SCRIPT_ID}-dialog-close">
+            <button class="yyt-dialog-close" id="${d}-dialog-close">
               <i class="fa-solid fa-times"></i>
             </button>
           </div>
           <div class="yyt-dialog-body">
             <div class="yyt-form-group">
               <label>\u9884\u8BBE\u540D\u79F0</label>
-              <input type="text" class="yyt-input" id="${SCRIPT_ID}-dialog-preset-name" 
-                     value="${escapeHtml(defaultName)}" placeholder="\u8F93\u5165\u9884\u8BBE\u540D\u79F0">
+              <input type="text" class="yyt-input" id="${d}-dialog-preset-name" 
+                     value="${m(r)}" placeholder="\u8F93\u5165\u9884\u8BBE\u540D\u79F0">
             </div>
             <div class="yyt-form-group">
               <label>\u63CF\u8FF0\uFF08\u53EF\u9009\uFF09</label>
-              <textarea class="yyt-textarea" id="${SCRIPT_ID}-dialog-preset-desc" rows="2" 
+              <textarea class="yyt-textarea" id="${d}-dialog-preset-desc" rows="2" 
                         placeholder="\u9884\u8BBE\u63CF\u8FF0..."></textarea>
             </div>
           </div>
           <div class="yyt-dialog-footer">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-dialog-cancel">\u53D6\u6D88</button>
-            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-dialog-save">\u4FDD\u5B58</button>
+            <button class="yyt-btn yyt-btn-secondary" id="${d}-dialog-cancel">\u53D6\u6D88</button>
+            <button class="yyt-btn yyt-btn-primary" id="${d}-dialog-save">\u4FDD\u5B58</button>
           </div>
         </div>
       </div>
-    `;
-        $(`#${SCRIPT_ID}-dialog-overlay`).remove();
-        $container2.append(dialogHtml);
-        const $overlay = $(`#${SCRIPT_ID}-dialog-overlay`);
-        const $nameInput = $(`#${SCRIPT_ID}-dialog-preset-name`);
-        const $descInput = $(`#${SCRIPT_ID}-dialog-preset-desc`);
-        $nameInput.focus().select();
-        const closeDialog = () => $overlay.remove();
-        $overlay.find(`#${SCRIPT_ID}-dialog-close, #${SCRIPT_ID}-dialog-cancel`).on("click", closeDialog);
-        $overlay.on("click", function(e) {
-          if (e.target === this)
-            closeDialog();
-        });
-        $overlay.find(`#${SCRIPT_ID}-dialog-save`).on("click", () => {
-          const name = $nameInput.val().trim();
-          const desc = $descInput.val().trim();
-          if (!name) {
-            showToast("warning", "\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0");
-            $nameInput.focus();
-            return;
-          }
-          if (existingNames.includes(name)) {
-            if (!confirm(`\u9884\u8BBE "${name}" \u5DF2\u5B58\u5728\uFF0C\u662F\u5426\u8986\u76D6\uFF1F`)) {
-              return;
-            }
-            deletePreset(name);
-          }
-          const currentConfig = getFormApiConfig($container2, SCRIPT_ID);
-          const result = createPreset({
-            name,
-            description: desc,
-            apiConfig: currentConfig
-          });
-          if (result.success) {
-            showToast("success", result.message);
-            closeDialog();
-            eventBus.emit(EVENTS.PRESET_CREATED, { preset: result.preset });
-            const $panel = $container2.closest(".yyt-api-manager").parent();
-            if ($panel.length) {
-              this.renderTo($panel);
-            }
-          } else {
-            showToast("error", result.message);
-          }
-        });
-        $nameInput.on("keypress", function(e) {
-          if (e.which === 13) {
-            $overlay.find(`#${SCRIPT_ID}-dialog-save`).click();
-          }
-        });
-      },
-      // ============================================================
-      // 销毁
-      // ============================================================
-      /**
-       * 销毁组件
-       * @param {Object} $container
-       */
-      destroy($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find("*").off();
-        $(document).off("click.yyt-dropdown");
-      },
-      // ============================================================
-      // 样式
-      // ============================================================
-      /**
-       * 获取样式
-       * @returns {string}
-       */
-      getStyles() {
-        return `
+    `;t(`#${d}-dialog-overlay`).remove(),e.append(o);let i=t(`#${d}-dialog-overlay`),a=t(`#${d}-dialog-preset-name`),c=t(`#${d}-dialog-preset-desc`);a.focus().select();let l=()=>i.remove();i.find(`#${d}-dialog-close, #${d}-dialog-cancel`).on("click",l),i.on("click",function(y){y.target===this&&l()}),i.find(`#${d}-dialog-save`).on("click",()=>{let y=a.val().trim(),u=c.val().trim();if(!y){p("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0"),a.focus();return}if(n.includes(y)){if(!confirm(`\u9884\u8BBE "${y}" \u5DF2\u5B58\u5728\uFF0C\u662F\u5426\u8986\u76D6\uFF1F`))return;je(y)}let g=Dt(e,d),f=Le({name:y,description:u,apiConfig:g});if(f.success){p("success",f.message),l(),x.emit(h.PRESET_CREATED,{preset:f.preset});let T=e.closest(".yyt-api-manager").parent();T.length&&this.renderTo(T)}else p("error",f.message)}),a.on("keypress",function(y){y.which===13&&i.find(`#${d}-dialog-save`).click()})},destroy(e){let t=S();!t||!$(e)||(e.find("*").off(),t(document).off("click.yyt-dropdown"))},getStyles(){return`
       /* CSS\u53D8\u91CF\u5B9A\u4E49 */
       .yyt-api-manager {
         --yyt-accent: #7bb7ff;
@@ -3201,751 +1108,23 @@ var init_api_preset_panel = __esm({
       .yyt-panel-section:nth-child(1) { animation-delay: 0s; }
       .yyt-panel-section:nth-child(2) { animation-delay: 0.05s; }
       .yyt-panel-section:nth-child(3) { animation-delay: 0.1s; }
-    `;
-      },
-      // ============================================================
-      // 便捷方法
-      // ============================================================
-      /**
-       * 渲染到容器
-       * @param {Object} $container
-       */
-      renderTo($container2) {
-        const html = this.render({});
-        $container2.html(html);
-        this.bindEvents($container2, {});
-      }
-    };
-  }
-});
+    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var mr={};N(mr,{MESSAGE_MACROS:()=>fr,addTagRule:()=>Jt,createRuleTemplate:()=>dr,default:()=>ni,deleteRulePreset:()=>ur,deleteRuleTemplate:()=>pr,deleteTagRule:()=>de,escapeRegex:()=>Ot,exportRulesConfig:()=>Je,extractComplexTag:()=>ir,extractCurlyBraceTag:()=>qs,extractHtmlFormatTag:()=>ar,extractSimpleTag:()=>Qs,extractTagContent:()=>Lt,generateTagSuggestions:()=>Fe,getAllRulePresets:()=>Qe,getAllRuleTemplates:()=>lr,getContentBlacklist:()=>Nt,getRuleTemplate:()=>cr,getTagRules:()=>yt,importRulesConfig:()=>Ve,isValidTagName:()=>Ws,loadRulePreset:()=>qe,saveRulesAsPreset:()=>We,scanTextForTags:()=>Ge,setContentBlacklist:()=>ye,setTagRules:()=>He,shouldSkipContent:()=>Hs,testRegex:()=>gr,updateRuleTemplate:()=>yr,updateTagRule:()=>Vt});function Ye(){let e=R();return B=e.ruleTemplates||[...or],I=e.tagRules||[],V=e.contentBlacklist||[],{ruleTemplates:B,tagRules:I,contentBlacklist:V}}function Ot(e){return typeof e!="string"?"":e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function Hs(e,t){if(!t||t.length===0||!e||typeof e!="string")return!1;let s=e.toLowerCase();return t.some(n=>{let r=n.trim().toLowerCase();return r&&s.includes(r)})}function Ws(e){return!e||typeof e!="string"?!1:/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(e)&&!si.includes(e.toLowerCase())}function Qs(e,t){if(!e||!t)return[];let s=[],n=Ot(t),r=new RegExp(`<${n}>([\\s\\S]*?)<\\/${n}>`,"gi");[...e.matchAll(r)].forEach(c=>{c[1]&&s.push(c[1].trim())});let i=(e.match(new RegExp(`<${n}>`,"gi"))||[]).length,a=(e.match(new RegExp(`<\\/${n}>`,"gi"))||[]).length;return i>a&&console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${i-a} \u4E2A\u672A\u95ED\u5408\u7684 <${t}> \u6807\u7B7E`),s}function qs(e,t){if(!e||!t)return[];let s=[],n=Ot(t),r=new RegExp(`\\{${n}\\|`,"gi"),o;for(;(o=r.exec(e))!==null;){let i=o.index,a=i+o[0].length,c=1,l=a;for(;l<e.length&&c>0;)e[l]==="{"?c++:e[l]==="}"&&c--,l++;if(c===0){let y=e.substring(a,l-1);y.trim()&&s.push(y.trim())}r.lastIndex=i+1}return s}function ir(e,t){if(!e||!t)return[];let s=t.split(",");if(s.length!==2)return console.error(`[YouYouToolkit] \u590D\u6742\u6807\u7B7E\u914D\u7F6E\u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u8BE5\u5305\u542B\u4E00\u4E2A\u9017\u53F7: ${t}`),[];let n=s[0].trim(),r=s[1].trim(),o=r.match(/<\/(\w+)>/);if(!o)return console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790\u7ED3\u675F\u6807\u7B7E: ${r}`),[];let i=o[1],a=new RegExp(`${Ot(n)}([\\s\\S]*?)<\\/${i}>`,"gi"),c=[];return[...e.matchAll(a)].forEach(y=>{y[1]&&c.push(y[1].trim())}),c}function ar(e,t){if(!e||!t)return[];let s=t.match(/<(\w+)(?:\s[^>]*)?>/);if(!s)return console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790HTML\u683C\u5F0F\u6807\u7B7E: ${t}`),[];let n=s[1],r=[],o=new RegExp(`<${n}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${n}>`,"gi");[...e.matchAll(o)].forEach(l=>{l[1]&&r.push(l[1].trim())});let a=(e.match(new RegExp(`<${n}(?:\\s[^>]*)?>`,"gi"))||[]).length,c=(e.match(new RegExp(`<\\/${n}>`,"gi"))||[]).length;return a>c&&console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${a-c} \u4E2A\u672A\u95ED\u5408\u7684 <${n}> \u6807\u7B7E`),r}function Lt(e,t,s=[]){if(!e)return"";if(!t||t.length===0)return e;let n=t.filter(y=>y.type==="exclude"&&y.enabled),r=t.filter(y=>(y.type==="include"||y.type==="regex_include")&&y.enabled),o=t.filter(y=>y.type==="regex_exclude"&&y.enabled),i=e;for(let y of n)try{let u=new RegExp(`<${Ot(y.value)}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${Ot(y.value)}>`,"gi");i=i.replace(u,"")}catch(u){console.error("[YouYouToolkit] Error applying block exclusion rule:",{rule:y,error:u})}let a=[];if(r.length>0)for(let y of r){let u=[];try{if(y.type==="include")u.push(...Qs(i,y.value)),u.push(...qs(i,y.value));else if(y.type==="regex_include"){let g=new RegExp(y.value,"gi");[...i.matchAll(g)].forEach(T=>{T[1]&&u.push(T[1])})}}catch(g){console.error("[YouYouToolkit] Error applying inclusion rule:",{rule:y,error:g})}u.forEach(g=>a.push(g.trim()))}else a.push(i);let c=[];for(let y of a){for(let u of o)try{let g=new RegExp(u.value,"gi");y=y.replace(g,"")}catch(g){console.error("[YouYouToolkit] Error applying cleanup rule:",{rule:u,error:g})}Hs(y,s)||c.push(y)}return c.join(`
 
-// modules/regex-extractor.js
-var regex_extractor_exports = {};
-__export(regex_extractor_exports, {
-  MESSAGE_MACROS: () => MESSAGE_MACROS,
-  addTagRule: () => addTagRule,
-  createRuleTemplate: () => createRuleTemplate,
-  default: () => regex_extractor_default,
-  deleteRulePreset: () => deleteRulePreset,
-  deleteRuleTemplate: () => deleteRuleTemplate,
-  deleteTagRule: () => deleteTagRule,
-  escapeRegex: () => escapeRegex,
-  exportRulesConfig: () => exportRulesConfig,
-  extractComplexTag: () => extractComplexTag,
-  extractCurlyBraceTag: () => extractCurlyBraceTag,
-  extractHtmlFormatTag: () => extractHtmlFormatTag,
-  extractSimpleTag: () => extractSimpleTag,
-  extractTagContent: () => extractTagContent,
-  generateTagSuggestions: () => generateTagSuggestions,
-  getAllRulePresets: () => getAllRulePresets,
-  getAllRuleTemplates: () => getAllRuleTemplates,
-  getContentBlacklist: () => getContentBlacklist,
-  getRuleTemplate: () => getRuleTemplate,
-  getTagRules: () => getTagRules,
-  importRulesConfig: () => importRulesConfig,
-  isValidTagName: () => isValidTagName,
-  loadRulePreset: () => loadRulePreset,
-  saveRulesAsPreset: () => saveRulesAsPreset,
-  scanTextForTags: () => scanTextForTags,
-  setContentBlacklist: () => setContentBlacklist,
-  setTagRules: () => setTagRules,
-  shouldSkipContent: () => shouldSkipContent,
-  testRegex: () => testRegex,
-  updateRuleTemplate: () => updateRuleTemplate,
-  updateTagRule: () => updateTagRule
-});
-function init() {
-  const settings = loadSettings();
-  ruleTemplates = settings.ruleTemplates || [...DEFAULT_RULE_TEMPLATES];
-  tagRules = settings.tagRules || [];
-  contentBlacklist = settings.contentBlacklist || [];
-  return { ruleTemplates, tagRules, contentBlacklist };
-}
-function escapeRegex(str) {
-  if (typeof str !== "string")
-    return "";
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function shouldSkipContent(text, blacklist) {
-  if (!blacklist || blacklist.length === 0)
-    return false;
-  if (!text || typeof text !== "string")
-    return false;
-  const lowerText = text.toLowerCase();
-  return blacklist.some((keyword) => {
-    const lowerKeyword = keyword.trim().toLowerCase();
-    return lowerKeyword && lowerText.includes(lowerKeyword);
-  });
-}
-function isValidTagName(tagName) {
-  if (!tagName || typeof tagName !== "string")
-    return false;
-  const validPattern = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
-  return validPattern.test(tagName) && !EXCLUDED_HTML_TAGS.includes(tagName.toLowerCase());
-}
-function extractSimpleTag(text, tag) {
-  if (!text || !tag)
-    return [];
-  const extractedContent = [];
-  const escapedTag = escapeRegex(tag);
-  const regex = new RegExp(`<${escapedTag}>([\\s\\S]*?)<\\/${escapedTag}>`, "gi");
-  const matches = [...text.matchAll(regex)];
-  matches.forEach((match) => {
-    if (match[1]) {
-      extractedContent.push(match[1].trim());
-    }
-  });
-  const openTags = (text.match(new RegExp(`<${escapedTag}>`, "gi")) || []).length;
-  const closeTags = (text.match(new RegExp(`<\\/${escapedTag}>`, "gi")) || []).length;
-  if (openTags > closeTags) {
-    console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${openTags - closeTags} \u4E2A\u672A\u95ED\u5408\u7684 <${tag}> \u6807\u7B7E`);
-  }
-  return extractedContent;
-}
-function extractCurlyBraceTag(text, tag) {
-  if (!text || !tag)
-    return [];
-  const extractedContent = [];
-  const escapedTag = escapeRegex(tag);
-  const startPattern = new RegExp(`\\{${escapedTag}\\|`, "gi");
-  let match;
-  while ((match = startPattern.exec(text)) !== null) {
-    const startPos = match.index;
-    const contentStart = startPos + match[0].length;
-    let braceCount = 1;
-    let pos = contentStart;
-    while (pos < text.length && braceCount > 0) {
-      if (text[pos] === "{") {
-        braceCount++;
-      } else if (text[pos] === "}") {
-        braceCount--;
-      }
-      pos++;
-    }
-    if (braceCount === 0) {
-      const content = text.substring(contentStart, pos - 1);
-      if (content.trim()) {
-        extractedContent.push(content.trim());
-      }
-    }
-    startPattern.lastIndex = startPos + 1;
-  }
-  return extractedContent;
-}
-function extractComplexTag(text, tag) {
-  if (!text || !tag)
-    return [];
-  const parts = tag.split(",");
-  if (parts.length !== 2) {
-    console.error(`[YouYouToolkit] \u590D\u6742\u6807\u7B7E\u914D\u7F6E\u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u8BE5\u5305\u542B\u4E00\u4E2A\u9017\u53F7: ${tag}`);
-    return [];
-  }
-  const startPattern = parts[0].trim();
-  const endPattern = parts[1].trim();
-  const endTagMatch = endPattern.match(/<\/(\w+)>/);
-  if (!endTagMatch) {
-    console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790\u7ED3\u675F\u6807\u7B7E: ${endPattern}`);
-    return [];
-  }
-  const endTagName = endTagMatch[1];
-  const regex = new RegExp(`${escapeRegex(startPattern)}([\\s\\S]*?)<\\/${endTagName}>`, "gi");
-  const extractedContent = [];
-  const matches = [...text.matchAll(regex)];
-  matches.forEach((match) => {
-    if (match[1]) {
-      extractedContent.push(match[1].trim());
-    }
-  });
-  return extractedContent;
-}
-function extractHtmlFormatTag(text, tag) {
-  if (!text || !tag)
-    return [];
-  const tagMatch = tag.match(/<(\w+)(?:\s[^>]*)?>/);
-  if (!tagMatch) {
-    console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790HTML\u683C\u5F0F\u6807\u7B7E: ${tag}`);
-    return [];
-  }
-  const tagName = tagMatch[1];
-  const extractedContent = [];
-  const regex = new RegExp(`<${tagName}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tagName}>`, "gi");
-  const matches = [...text.matchAll(regex)];
-  matches.forEach((match) => {
-    if (match[1]) {
-      extractedContent.push(match[1].trim());
-    }
-  });
-  const openTags = (text.match(new RegExp(`<${tagName}(?:\\s[^>]*)?>`, "gi")) || []).length;
-  const closeTags = (text.match(new RegExp(`<\\/${tagName}>`, "gi")) || []).length;
-  if (openTags > closeTags) {
-    console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${openTags - closeTags} \u4E2A\u672A\u95ED\u5408\u7684 <${tagName}> \u6807\u7B7E`);
-  }
-  return extractedContent;
-}
-function extractTagContent(text, rules, blacklist = []) {
-  if (!text)
-    return "";
-  if (!rules || rules.length === 0) {
-    return text;
-  }
-  const blockExcludeRules = rules.filter((rule) => rule.type === "exclude" && rule.enabled);
-  const includeRules = rules.filter((rule) => (rule.type === "include" || rule.type === "regex_include") && rule.enabled);
-  const cleanupRules = rules.filter((rule) => rule.type === "regex_exclude" && rule.enabled);
-  let workingText = text;
-  for (const rule of blockExcludeRules) {
-    try {
-      const tagRegex = new RegExp(
-        `<${escapeRegex(rule.value)}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${escapeRegex(rule.value)}>`,
-        "gi"
-      );
-      workingText = workingText.replace(tagRegex, "");
-    } catch (error) {
-      console.error(`[YouYouToolkit] Error applying block exclusion rule:`, { rule, error });
-    }
-  }
-  let extractedContents = [];
-  if (includeRules.length > 0) {
-    for (const rule of includeRules) {
-      let results = [];
-      try {
-        if (rule.type === "include") {
-          results.push(...extractSimpleTag(workingText, rule.value));
-          results.push(...extractCurlyBraceTag(workingText, rule.value));
-        } else if (rule.type === "regex_include") {
-          const regex = new RegExp(rule.value, "gi");
-          const matches = [...workingText.matchAll(regex)];
-          matches.forEach((match) => {
-            if (match[1])
-              results.push(match[1]);
-          });
-        }
-      } catch (error) {
-        console.error(`[YouYouToolkit] Error applying inclusion rule:`, { rule, error });
-      }
-      results.forEach((content) => extractedContents.push(content.trim()));
-    }
-  } else {
-    extractedContents.push(workingText);
-  }
-  let finalContents = [];
-  for (let contentBlock of extractedContents) {
-    for (const rule of cleanupRules) {
-      try {
-        const regex = new RegExp(rule.value, "gi");
-        contentBlock = contentBlock.replace(regex, "");
-      } catch (error) {
-        console.error(`[YouYouToolkit] Error applying cleanup rule:`, { rule, error });
-      }
-    }
-    if (!shouldSkipContent(contentBlock, blacklist)) {
-      finalContents.push(contentBlock);
-    }
-  }
-  const joinedContent = finalContents.join("\n\n");
-  return joinedContent.replace(/\n\s*\n\s*\n/g, "\n\n").replace(/^\s+|\s+$/g, "").trim();
-}
-async function scanTextForTags(text, options = {}) {
-  const startTime = performance.now();
-  const {
-    chunkSize = 5e4,
-    maxTags = 100,
-    timeoutMs = 5e3
-  } = options;
-  const foundTags = /* @__PURE__ */ new Set();
-  const tagRegex = /<(?:\/|)([a-zA-Z0-9_-]+)(?:[^>]*)>|\{([a-zA-Z0-9_-]+)(?:\||})/g;
-  let processedChars = 0;
-  let chunkCount = 0;
-  for (let i = 0; i < text.length; i += chunkSize) {
-    const chunk = text.slice(i, Math.min(i + chunkSize, text.length));
-    chunkCount++;
-    processedChars += chunk.length;
-    if (performance.now() - startTime > timeoutMs) {
-      console.warn(`[YouYouToolkit] Tag scanning timed out after ${timeoutMs}ms`);
-      break;
-    }
-    let match;
-    while ((match = tagRegex.exec(chunk)) !== null && foundTags.size < maxTags) {
-      const tagName = (match[1] || match[2]).toLowerCase();
-      if (isValidTagName(tagName)) {
-        foundTags.add(tagName);
-      }
-    }
-    if (foundTags.size >= maxTags)
-      break;
-    if (chunkCount % 5 === 0) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-  }
-  const endTime = performance.now();
-  return {
-    tags: Array.from(foundTags).sort(),
-    stats: {
-      processingTimeMs: Math.round(endTime - startTime),
-      processedChars,
-      totalChars: text.length,
-      chunkCount,
-      tagsFound: foundTags.size
-    }
-  };
-}
-function generateTagSuggestions(scanResult, limit = 25) {
-  const suggestions = scanResult.tags.slice(0, limit);
-  return {
-    suggestions,
-    stats: {
-      totalFound: scanResult.stats.tagsFound,
-      finalCount: suggestions.length
-    }
-  };
-}
-function getAllRuleTemplates() {
-  if (ruleTemplates.length === 0) {
-    init();
-  }
-  return ruleTemplates;
-}
-function getRuleTemplate(id) {
-  return ruleTemplates.find((t) => t.id === id);
-}
-function createRuleTemplate(template) {
-  const newTemplate = {
-    id: `rule-${Date.now()}`,
-    name: template.name || "\u65B0\u89C4\u5219",
-    description: template.description || "",
-    type: template.type || "include",
-    value: template.value || "",
-    enabled: template.enabled !== false,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  ruleTemplates.push(newTemplate);
-  saveRuleTemplates();
-  return { success: true, template: newTemplate, message: "\u89C4\u5219\u6A21\u677F\u521B\u5EFA\u6210\u529F" };
-}
-function updateRuleTemplate(id, updates) {
-  const index = ruleTemplates.findIndex((t) => t.id === id);
-  if (index === -1) {
-    return { success: false, message: "\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728" };
-  }
-  ruleTemplates[index] = {
-    ...ruleTemplates[index],
-    ...updates,
-    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  saveRuleTemplates();
-  return { success: true, template: ruleTemplates[index], message: "\u89C4\u5219\u6A21\u677F\u66F4\u65B0\u6210\u529F" };
-}
-function deleteRuleTemplate(id) {
-  const index = ruleTemplates.findIndex((t) => t.id === id);
-  if (index === -1) {
-    return { success: false, message: "\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728" };
-  }
-  ruleTemplates.splice(index, 1);
-  saveRuleTemplates();
-  return { success: true, message: "\u89C4\u5219\u6A21\u677F\u5DF2\u5220\u9664" };
-}
-function saveRuleTemplates() {
-  const settings = loadSettings();
-  settings.ruleTemplates = ruleTemplates;
-  saveSettings(settings);
-}
-function getTagRules() {
-  if (!tagRules) {
-    init();
-  }
-  return tagRules;
-}
-function setTagRules(rules) {
-  tagRules = rules || [];
-  const settings = loadSettings();
-  settings.tagRules = tagRules;
-  saveSettings(settings);
-}
-function addTagRule(rule) {
-  const newRule = {
-    id: `tag-${Date.now()}`,
-    type: rule.type || "include",
-    value: rule.value || "",
-    enabled: rule.enabled !== false
-  };
-  tagRules.push(newRule);
-  const settings = loadSettings();
-  settings.tagRules = tagRules;
-  saveSettings(settings);
-  return { success: true, rule: newRule, message: "\u89C4\u5219\u6DFB\u52A0\u6210\u529F" };
-}
-function updateTagRule(index, updates) {
-  if (index < 0 || index >= tagRules.length) {
-    return { success: false, message: "\u89C4\u5219\u7D22\u5F15\u65E0\u6548" };
-  }
-  tagRules[index] = {
-    ...tagRules[index],
-    ...updates
-  };
-  const settings = loadSettings();
-  settings.tagRules = tagRules;
-  saveSettings(settings);
-  return { success: true, rule: tagRules[index], message: "\u89C4\u5219\u66F4\u65B0\u6210\u529F" };
-}
-function deleteTagRule(index) {
-  if (index < 0 || index >= tagRules.length) {
-    return { success: false, message: "\u89C4\u5219\u7D22\u5F15\u65E0\u6548" };
-  }
-  tagRules.splice(index, 1);
-  const settings = loadSettings();
-  settings.tagRules = tagRules;
-  saveSettings(settings);
-  return { success: true, message: "\u89C4\u5219\u5DF2\u5220\u9664" };
-}
-function getContentBlacklist() {
-  if (!contentBlacklist) {
-    init();
-  }
-  return contentBlacklist;
-}
-function setContentBlacklist(blacklist) {
-  contentBlacklist = blacklist || [];
-  const settings = loadSettings();
-  settings.contentBlacklist = contentBlacklist;
-  saveSettings(settings);
-}
-function saveRulesAsPreset(name, description = "") {
-  if (!name || !name.trim()) {
-    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-  }
-  const settings = loadSettings();
-  if (!settings.tagRulePresets) {
-    settings.tagRulePresets = {};
-  }
-  const presetId = `preset-${Date.now()}`;
-  settings.tagRulePresets[presetId] = {
-    id: presetId,
-    name: name.trim(),
-    description: description.trim(),
-    rules: JSON.parse(JSON.stringify(tagRules)),
-    blacklist: JSON.parse(JSON.stringify(contentBlacklist)),
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  saveSettings(settings);
-  return { success: true, preset: settings.tagRulePresets[presetId], message: "\u9884\u8BBE\u4FDD\u5B58\u6210\u529F" };
-}
-function getAllRulePresets() {
-  const settings = loadSettings();
-  const presets = settings.tagRulePresets || {};
-  return Object.values(presets);
-}
-function loadRulePreset(presetId) {
-  const settings = loadSettings();
-  const presets = settings.tagRulePresets || {};
-  const preset = presets[presetId];
-  if (!preset) {
-    return { success: false, message: "\u9884\u8BBE\u4E0D\u5B58\u5728" };
-  }
-  tagRules = JSON.parse(JSON.stringify(preset.rules || []));
-  contentBlacklist = JSON.parse(JSON.stringify(preset.blacklist || []));
-  settings.tagRules = tagRules;
-  settings.contentBlacklist = contentBlacklist;
-  saveSettings(settings);
-  return { success: true, preset, message: "\u9884\u8BBE\u52A0\u8F7D\u6210\u529F" };
-}
-function deleteRulePreset(presetId) {
-  const settings = loadSettings();
-  const presets = settings.tagRulePresets || {};
-  if (!presets[presetId]) {
-    return { success: false, message: "\u9884\u8BBE\u4E0D\u5B58\u5728" };
-  }
-  delete presets[presetId];
-  settings.tagRulePresets = presets;
-  saveSettings(settings);
-  return { success: true, message: "\u9884\u8BBE\u5DF2\u5220\u9664" };
-}
-function exportRulesConfig() {
-  return JSON.stringify({
-    tagRules,
-    contentBlacklist,
-    ruleTemplates,
-    tagRulePresets: loadSettings().tagRulePresets || {}
-  }, null, 2);
-}
-function importRulesConfig(json, options = { overwrite: true }) {
-  try {
-    const imported = JSON.parse(json);
-    if (options.overwrite) {
-      tagRules = imported.tagRules || [];
-      contentBlacklist = imported.contentBlacklist || [];
-      ruleTemplates = imported.ruleTemplates || DEFAULT_RULE_TEMPLATES;
-    } else {
-      if (imported.tagRules) {
-        tagRules.push(...imported.tagRules);
-      }
-      if (imported.contentBlacklist) {
-        const existingBlacklist = new Set(contentBlacklist.map((k) => k.toLowerCase()));
-        imported.contentBlacklist.forEach((k) => {
-          if (!existingBlacklist.has(k.toLowerCase())) {
-            contentBlacklist.push(k);
-          }
-        });
-      }
-    }
-    const settings = loadSettings();
-    settings.tagRules = tagRules;
-    settings.contentBlacklist = contentBlacklist;
-    settings.ruleTemplates = ruleTemplates;
-    if (imported.tagRulePresets) {
-      settings.tagRulePresets = {
-        ...settings.tagRulePresets || {},
-        ...imported.tagRulePresets
-      };
-    }
-    saveSettings(settings);
-    return { success: true, message: "\u914D\u7F6E\u5BFC\u5165\u6210\u529F" };
-  } catch (e) {
-    return { success: false, message: `\u5BFC\u5165\u5931\u8D25: ${e.message}` };
-  }
-}
-function testRegex(pattern, text, flags = "g", groupIndex = 0) {
-  try {
-    if (!pattern || typeof pattern !== "string") {
-      return { success: false, error: "\u6B63\u5219\u8868\u8FBE\u5F0F\u4E0D\u80FD\u4E3A\u7A7A", matches: [] };
-    }
-    const regex = new RegExp(pattern, flags);
-    const matches = [];
-    if (flags.includes("g")) {
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        if (match.length > 1) {
-          matches.push({
-            fullMatch: match[0],
-            groups: match.slice(1),
-            index: match.index,
-            extracted: match[groupIndex] || match[1] || match[0]
-          });
-        } else {
-          matches.push({
-            fullMatch: match[0],
-            groups: [],
-            index: match.index,
-            extracted: match[0]
-          });
-        }
-      }
-    } else {
-      const match = regex.exec(text);
-      if (match) {
-        matches.push({
-          fullMatch: match[0],
-          groups: match.length > 1 ? match.slice(1) : [],
-          index: match.index,
-          extracted: match.length > 1 ? match[groupIndex] || match[1] : match[0]
-        });
-      }
-    }
-    return {
-      success: true,
-      matches,
-      count: matches.length,
-      extracted: matches.map((m) => m.extracted)
-    };
-  } catch (e) {
-    return { success: false, error: e.message, matches: [] };
-  }
-}
-var EXCLUDED_HTML_TAGS, DEFAULT_RULE_TEMPLATES, ruleTemplates, tagRules, contentBlacklist, MESSAGE_MACROS, regex_extractor_default;
-var init_regex_extractor = __esm({
-  "modules/regex-extractor.js"() {
-    init_storage();
-    EXCLUDED_HTML_TAGS = [
-      "font",
-      "span",
-      "div",
-      "p",
-      "br",
-      "hr",
-      "img",
-      "a",
-      "b",
-      "i",
-      "u",
-      "s",
-      "em",
-      "strong",
-      "small",
-      "big",
-      "sub",
-      "sup",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "table",
-      "tr",
-      "td",
-      "th",
-      "tbody",
-      "thead",
-      "tfoot",
-      "ul",
-      "ol",
-      "li",
-      "form",
-      "input",
-      "button",
-      "select",
-      "option",
-      "textarea",
-      "label",
-      "script",
-      "style",
-      "meta",
-      "link",
-      "title",
-      "head",
-      "body",
-      "html"
-    ];
-    DEFAULT_RULE_TEMPLATES = [
-      {
-        id: "exclude-thinking",
-        name: "\u6392\u9664\u601D\u8003\u6807\u7B7E",
-        description: "\u79FB\u9664<thinking>\u6807\u7B7E\u5757",
-        type: "exclude",
-        value: "thinking",
-        enabled: true
-      },
-      {
-        id: "include-content",
-        name: "\u63D0\u53D6\u5185\u5BB9\u6807\u7B7E",
-        description: "\u63D0\u53D6<content>\u6807\u7B7E\u5185\u5BB9",
-        type: "include",
-        value: "content",
-        enabled: true
-      },
-      {
-        id: "regex-exclude-cot",
-        name: "\u6392\u9664\u5C0FCoT",
-        description: "\u79FB\u9664HTML\u6CE8\u91CA",
-        type: "regex_exclude",
-        value: "<!--[\\s\\S]*?-->",
-        enabled: false
-      },
-      {
-        id: "regex-include-details",
-        name: "\u63D0\u53D6details\u6807\u7B7E",
-        description: "\u63D0\u53D6<details>\u6807\u7B7E\u5185\u5BB9",
-        type: "regex_include",
-        value: "<details[^>]*>([\\s\\S]*?)</details>",
-        enabled: false
-      }
-    ];
-    ruleTemplates = [];
-    tagRules = [];
-    contentBlacklist = [];
-    MESSAGE_MACROS = {
-      lastMessage: {
-        macro: "{{lastMessage}}",
-        description: "\u6700\u540E\u4E00\u6761\u6D88\u606F"
-      },
-      lastCharMessage: {
-        macro: "{{lastCharMessage}}",
-        description: "\u6700\u540E\u4E00\u6761\u89D2\u8272\u6D88\u606F"
-      },
-      lastUserMessage: {
-        macro: "{{lastUserMessage}}",
-        description: "\u6700\u540E\u4E00\u6761\u7528\u6237\u6D88\u606F"
-      },
-      char: {
-        macro: "{{char}}",
-        description: "\u89D2\u8272\u540D\u79F0"
-      },
-      user: {
-        macro: "{{user}}",
-        description: "\u7528\u6237\u540D\u79F0"
-      },
-      input: {
-        macro: "{{input}}",
-        description: "\u5F53\u524D\u8F93\u5165\u6846\u5185\u5BB9"
-      }
-    };
-    init();
-    regex_extractor_default = {
-      // 核心提取函数
-      extractTagContent,
-      extractSimpleTag,
-      extractCurlyBraceTag,
-      extractComplexTag,
-      extractHtmlFormatTag,
-      // 工具函数
-      escapeRegex,
-      shouldSkipContent,
-      isValidTagName,
-      // 标签扫描
-      scanTextForTags,
-      generateTagSuggestions,
-      // 规则管理
-      getAllRuleTemplates,
-      getRuleTemplate,
-      createRuleTemplate,
-      updateRuleTemplate,
-      deleteRuleTemplate,
-      getTagRules,
-      setTagRules,
-      addTagRule,
-      updateTagRule,
-      deleteTagRule,
-      // 黑名单管理
-      getContentBlacklist,
-      setContentBlacklist,
-      // 预设管理
-      saveRulesAsPreset,
-      getAllRulePresets,
-      loadRulePreset,
-      deleteRulePreset,
-      // 导入导出
-      exportRulesConfig,
-      importRulesConfig,
-      // 正则测试
-      testRegex,
-      // 消息宏
-      MESSAGE_MACROS
-    };
-  }
-});
+`).replace(/\n\s*\n\s*\n/g,`
 
-// modules/ui/components/regex-extract-panel.js
-var RegexExtractPanel;
-var init_regex_extract_panel = __esm({
-  "modules/ui/components/regex-extract-panel.js"() {
-    init_event_bus();
-    init_utils();
-    init_regex_extractor();
-    RegexExtractPanel = {
-      id: "regexExtractPanel",
-      // ============================================================
-      // 渲染
-      // ============================================================
-      /**
-       * 渲染组件
-       * @param {Object} props
-       * @returns {string} HTML
-       */
-      render(props) {
-        const rules = getTagRules();
-        const blacklist = getContentBlacklist();
-        const presets = getAllRulePresets();
-        return `
+`).replace(/^\s+|\s+$/g,"").trim()}async function Ge(e,t={}){let s=performance.now(),{chunkSize:n=5e4,maxTags:r=100,timeoutMs:o=5e3}=t,i=new Set,a=/<(?:\/|)([a-zA-Z0-9_-]+)(?:[^>]*)>|\{([a-zA-Z0-9_-]+)(?:\||})/g,c=0,l=0;for(let u=0;u<e.length;u+=n){let g=e.slice(u,Math.min(u+n,e.length));if(l++,c+=g.length,performance.now()-s>o){console.warn(`[YouYouToolkit] Tag scanning timed out after ${o}ms`);break}let f;for(;(f=a.exec(g))!==null&&i.size<r;){let T=(f[1]||f[2]).toLowerCase();Ws(T)&&i.add(T)}if(i.size>=r)break;l%5===0&&await new Promise(T=>setTimeout(T,0))}let y=performance.now();return{tags:Array.from(i).sort(),stats:{processingTimeMs:Math.round(y-s),processedChars:c,totalChars:e.length,chunkCount:l,tagsFound:i.size}}}function Fe(e,t=25){let s=e.tags.slice(0,t);return{suggestions:s,stats:{totalFound:e.stats.tagsFound,finalCount:s.length}}}function lr(){return B.length===0&&Ye(),B}function cr(e){return B.find(t=>t.id===e)}function dr(e){let t={id:`rule-${Date.now()}`,name:e.name||"\u65B0\u89C4\u5219",description:e.description||"",type:e.type||"include",value:e.value||"",enabled:e.enabled!==!1,createdAt:new Date().toISOString()};return B.push(t),Js(),{success:!0,template:t,message:"\u89C4\u5219\u6A21\u677F\u521B\u5EFA\u6210\u529F"}}function yr(e,t){let s=B.findIndex(n=>n.id===e);return s===-1?{success:!1,message:"\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728"}:(B[s]={...B[s],...t,updatedAt:new Date().toISOString()},Js(),{success:!0,template:B[s],message:"\u89C4\u5219\u6A21\u677F\u66F4\u65B0\u6210\u529F"})}function pr(e){let t=B.findIndex(s=>s.id===e);return t===-1?{success:!1,message:"\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728"}:(B.splice(t,1),Js(),{success:!0,message:"\u89C4\u5219\u6A21\u677F\u5DF2\u5220\u9664"})}function Js(){let e=R();e.ruleTemplates=B,Q(e)}function yt(){return I||Ye(),I}function He(e){I=e||[];let t=R();t.tagRules=I,Q(t)}function Jt(e){let t={id:`tag-${Date.now()}`,type:e.type||"include",value:e.value||"",enabled:e.enabled!==!1};I.push(t);let s=R();return s.tagRules=I,Q(s),{success:!0,rule:t,message:"\u89C4\u5219\u6DFB\u52A0\u6210\u529F"}}function Vt(e,t){if(e<0||e>=I.length)return{success:!1,message:"\u89C4\u5219\u7D22\u5F15\u65E0\u6548"};I[e]={...I[e],...t};let s=R();return s.tagRules=I,Q(s),{success:!0,rule:I[e],message:"\u89C4\u5219\u66F4\u65B0\u6210\u529F"}}function de(e){if(e<0||e>=I.length)return{success:!1,message:"\u89C4\u5219\u7D22\u5F15\u65E0\u6548"};I.splice(e,1);let t=R();return t.tagRules=I,Q(t),{success:!0,message:"\u89C4\u5219\u5DF2\u5220\u9664"}}function Nt(){return V||Ye(),V}function ye(e){V=e||[];let t=R();t.contentBlacklist=V,Q(t)}function We(e,t=""){if(!e||!e.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=R();s.tagRulePresets||(s.tagRulePresets={});let n=`preset-${Date.now()}`;return s.tagRulePresets[n]={id:n,name:e.trim(),description:t.trim(),rules:JSON.parse(JSON.stringify(I)),blacklist:JSON.parse(JSON.stringify(V)),createdAt:new Date().toISOString()},Q(s),{success:!0,preset:s.tagRulePresets[n],message:"\u9884\u8BBE\u4FDD\u5B58\u6210\u529F"}}function Qe(){let t=R().tagRulePresets||{};return Object.values(t)}function qe(e){let t=R(),n=(t.tagRulePresets||{})[e];return n?(I=JSON.parse(JSON.stringify(n.rules||[])),V=JSON.parse(JSON.stringify(n.blacklist||[])),t.tagRules=I,t.contentBlacklist=V,Q(t),{success:!0,preset:n,message:"\u9884\u8BBE\u52A0\u8F7D\u6210\u529F"}):{success:!1,message:"\u9884\u8BBE\u4E0D\u5B58\u5728"}}function ur(e){let t=R(),s=t.tagRulePresets||{};return s[e]?(delete s[e],t.tagRulePresets=s,Q(t),{success:!0,message:"\u9884\u8BBE\u5DF2\u5220\u9664"}):{success:!1,message:"\u9884\u8BBE\u4E0D\u5B58\u5728"}}function Je(){return JSON.stringify({tagRules:I,contentBlacklist:V,ruleTemplates:B,tagRulePresets:R().tagRulePresets||{}},null,2)}function Ve(e,t={overwrite:!0}){try{let s=JSON.parse(e);if(t.overwrite)I=s.tagRules||[],V=s.contentBlacklist||[],B=s.ruleTemplates||or;else if(s.tagRules&&I.push(...s.tagRules),s.contentBlacklist){let r=new Set(V.map(o=>o.toLowerCase()));s.contentBlacklist.forEach(o=>{r.has(o.toLowerCase())||V.push(o)})}let n=R();return n.tagRules=I,n.contentBlacklist=V,n.ruleTemplates=B,s.tagRulePresets&&(n.tagRulePresets={...n.tagRulePresets||{},...s.tagRulePresets}),Q(n),{success:!0,message:"\u914D\u7F6E\u5BFC\u5165\u6210\u529F"}}catch(s){return{success:!1,message:`\u5BFC\u5165\u5931\u8D25: ${s.message}`}}}function gr(e,t,s="g",n=0){try{if(!e||typeof e!="string")return{success:!1,error:"\u6B63\u5219\u8868\u8FBE\u5F0F\u4E0D\u80FD\u4E3A\u7A7A",matches:[]};let r=new RegExp(e,s),o=[];if(s.includes("g")){let i;for(;(i=r.exec(t))!==null;)i.length>1?o.push({fullMatch:i[0],groups:i.slice(1),index:i.index,extracted:i[n]||i[1]||i[0]}):o.push({fullMatch:i[0],groups:[],index:i.index,extracted:i[0]})}else{let i=r.exec(t);i&&o.push({fullMatch:i[0],groups:i.length>1?i.slice(1):[],index:i.index,extracted:i.length>1?i[n]||i[1]:i[0]})}return{success:!0,matches:o,count:o.length,extracted:o.map(i=>i.extracted)}}catch(r){return{success:!1,error:r.message,matches:[]}}}var si,or,B,I,V,fr,ni,Ke=E(()=>{le();si=["font","span","div","p","br","hr","img","a","b","i","u","s","em","strong","small","big","sub","sup","h1","h2","h3","h4","h5","h6","table","tr","td","th","tbody","thead","tfoot","ul","ol","li","form","input","button","select","option","textarea","label","script","style","meta","link","title","head","body","html"],or=[{id:"exclude-thinking",name:"\u6392\u9664\u601D\u8003\u6807\u7B7E",description:"\u79FB\u9664<thinking>\u6807\u7B7E\u5757",type:"exclude",value:"thinking",enabled:!0},{id:"include-content",name:"\u63D0\u53D6\u5185\u5BB9\u6807\u7B7E",description:"\u63D0\u53D6<content>\u6807\u7B7E\u5185\u5BB9",type:"include",value:"content",enabled:!0},{id:"regex-exclude-cot",name:"\u6392\u9664\u5C0FCoT",description:"\u79FB\u9664HTML\u6CE8\u91CA",type:"regex_exclude",value:"<!--[\\s\\S]*?-->",enabled:!1},{id:"regex-include-details",name:"\u63D0\u53D6details\u6807\u7B7E",description:"\u63D0\u53D6<details>\u6807\u7B7E\u5185\u5BB9",type:"regex_include",value:"<details[^>]*>([\\s\\S]*?)</details>",enabled:!1}],B=[],I=[],V=[];fr={lastMessage:{macro:"{{lastMessage}}",description:"\u6700\u540E\u4E00\u6761\u6D88\u606F"},lastCharMessage:{macro:"{{lastCharMessage}}",description:"\u6700\u540E\u4E00\u6761\u89D2\u8272\u6D88\u606F"},lastUserMessage:{macro:"{{lastUserMessage}}",description:"\u6700\u540E\u4E00\u6761\u7528\u6237\u6D88\u606F"},char:{macro:"{{char}}",description:"\u89D2\u8272\u540D\u79F0"},user:{macro:"{{user}}",description:"\u7528\u6237\u540D\u79F0"},input:{macro:"{{input}}",description:"\u5F53\u524D\u8F93\u5165\u6846\u5185\u5BB9"}};Ye();ni={extractTagContent:Lt,extractSimpleTag:Qs,extractCurlyBraceTag:qs,extractComplexTag:ir,extractHtmlFormatTag:ar,escapeRegex:Ot,shouldSkipContent:Hs,isValidTagName:Ws,scanTextForTags:Ge,generateTagSuggestions:Fe,getAllRuleTemplates:lr,getRuleTemplate:cr,createRuleTemplate:dr,updateRuleTemplate:yr,deleteRuleTemplate:pr,getTagRules:yt,setTagRules:He,addTagRule:Jt,updateTagRule:Vt,deleteTagRule:de,getContentBlacklist:Nt,setContentBlacklist:ye,saveRulesAsPreset:We,getAllRulePresets:Qe,loadRulePreset:qe,deleteRulePreset:ur,exportRulesConfig:Je,importRulesConfig:Ve,testRegex:gr,MESSAGE_MACROS:fr}});var pt,Vs=E(()=>{z();rt();Ke();pt={id:"regexExtractPanel",render(e){let t=yt(),s=Nt(),n=Qe();return`
       <div class="yyt-regex-panel">
         <!-- \u89C4\u5219\u7F16\u8F91\u533A -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-filter"></i>
             <span>\u6807\u7B7E\u63D0\u53D6\u89C4\u5219</span>
-            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-show-examples" style="margin-left: auto;">
+            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${d}-show-examples" style="margin-left: auto;">
               <i class="fa-solid fa-lightbulb"></i> \u67E5\u770B\u793A\u4F8B
             </button>
           </div>
           
-          ${this._renderRulesEditor(rules, blacklist, presets)}
+          ${this._renderRulesEditor(t,s,n)}
         </div>
         
         <!-- \u6D4B\u8BD5\u533A -->
@@ -3961,79 +1140,67 @@ var init_regex_extract_panel = __esm({
         <!-- \u5E95\u90E8\u64CD\u4F5C\u533A -->
         <div class="yyt-panel-footer">
           <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-import-rules">
+            <button class="yyt-btn yyt-btn-secondary" id="${d}-import-rules">
               <i class="fa-solid fa-file-import"></i> \u5BFC\u5165
             </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-export-rules">
+            <button class="yyt-btn yyt-btn-secondary" id="${d}-export-rules">
               <i class="fa-solid fa-file-export"></i> \u5BFC\u51FA
             </button>
-            <input type="file" id="${SCRIPT_ID}-import-rules-file" accept=".json" style="display:none">
+            <input type="file" id="${d}-import-rules-file" accept=".json" style="display:none">
           </div>
           <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-reset-rules">
+            <button class="yyt-btn yyt-btn-secondary" id="${d}-reset-rules">
               <i class="fa-solid fa-undo"></i> \u91CD\u7F6E
             </button>
           </div>
         </div>
         
         <!-- \u6807\u7B7E\u626B\u63CF\u7ED3\u679C\u5BB9\u5668 -->
-        <div id="${SCRIPT_ID}-tag-suggestions-container" style="display: none;">
+        <div id="${d}-tag-suggestions-container" style="display: none;">
           <div class="yyt-tag-suggestions">
             <div class="yyt-tag-suggestions-header">
               <span>\u53D1\u73B0\u7684\u6807\u7B7E:</span>
-              <span id="${SCRIPT_ID}-tag-scan-stats"></span>
+              <span id="${d}-tag-scan-stats"></span>
             </div>
-            <div class="yyt-tag-list" id="${SCRIPT_ID}-tag-list"></div>
+            <div class="yyt-tag-list" id="${d}-tag-list"></div>
           </div>
         </div>
       </div>
-    `;
-      },
-      // ============================================================
-      // 私有渲染方法
-      // ============================================================
-      /**
-       * 渲染规则编辑器
-       * @private
-       */
-      _renderRulesEditor(rules, blacklist, presets) {
-        const rulesList = rules.length > 0 ? rules.map((rule, index) => this._renderRuleItem(rule, index)).join("") : '<div class="yyt-empty-state-small"><i class="fa-solid fa-filter"></i><span>\u6CA1\u6709\u5B9A\u4E49\u4EFB\u4F55\u63D0\u53D6\u89C4\u5219</span></div>';
-        const presetOptions = presets.length > 0 ? presets.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("") : "";
-        return `
+    `},_renderRulesEditor(e,t,s){let n=e.length>0?e.map((o,i)=>this._renderRuleItem(o,i)).join(""):'<div class="yyt-empty-state-small"><i class="fa-solid fa-filter"></i><span>\u6CA1\u6709\u5B9A\u4E49\u4EFB\u4F55\u63D0\u53D6\u89C4\u5219</span></div>',r=s.length>0?s.map(o=>`<option value="${o.id}">${m(o.name)}</option>`).join(""):"";return`
       <div class="yyt-tag-rules-editor">
-        ${presetOptions ? `
+        ${r?`
         <div class="yyt-form-row">
-          <select class="yyt-select yyt-flex-1" id="${SCRIPT_ID}-rule-preset-select">
+          <select class="yyt-select yyt-flex-1" id="${d}-rule-preset-select">
             <option value="">-- \u9009\u62E9\u9884\u8BBE --</option>
-            ${presetOptions}
+            ${r}
           </select>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-load-rule-preset">
+          <button class="yyt-btn yyt-btn-secondary" id="${d}-load-rule-preset">
             <i class="fa-solid fa-download"></i> \u52A0\u8F7D
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-save-rule-preset">
+          <button class="yyt-btn yyt-btn-secondary" id="${d}-save-rule-preset">
             <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u9884\u8BBE
           </button>
         </div>
-        ` : `
+        `:`
         <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-save-rule-preset">
+          <button class="yyt-btn yyt-btn-secondary" id="${d}-save-rule-preset">
             <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u4E3A\u9884\u8BBE
           </button>
         </div>
         `}
         
         <div class="yyt-rules-list">
-          ${rulesList}
+          ${n}
         </div>
         
         <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-add-rule">
+          <button class="yyt-btn yyt-btn-primary" id="${d}-add-rule">
             <i class="fa-solid fa-plus"></i> \u6DFB\u52A0\u89C4\u5219
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-scan-tags">
+          <button class="yyt-btn yyt-btn-secondary" id="${d}-scan-tags">
             <i class="fa-solid fa-search"></i> \u626B\u63CF\u6807\u7B7E
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-add-exclude-cot">
+          <button class="yyt-btn yyt-btn-secondary" id="${d}-add-exclude-cot">
             <i class="fa-solid fa-ban"></i> \u6392\u9664\u5C0FCoT
           </button>
         </div>
@@ -4041,208 +1208,53 @@ var init_regex_extract_panel = __esm({
         <!-- \u9ED1\u540D\u5355\u8BBE\u7F6E -->
         <div class="yyt-form-group">
           <label>\u5185\u5BB9\u9ED1\u540D\u5355\uFF08\u5305\u542B\u8FD9\u4E9B\u5173\u952E\u8BCD\u7684\u5185\u5BB9\u5C06\u88AB\u8FC7\u6EE4\uFF0C\u7528\u9017\u53F7\u5206\u9694\uFF09</label>
-          <input type="text" class="yyt-input" id="${SCRIPT_ID}-content-blacklist" 
-                 value="${escapeHtml(blacklist.join(", "))}" 
+          <input type="text" class="yyt-input" id="${d}-content-blacklist" 
+                 value="${m(t.join(", "))}" 
                  placeholder="\u5173\u952E\u8BCD1, \u5173\u952E\u8BCD2, ...">
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染单个规则项
-       * @private
-       */
-      _renderRuleItem(rule, index) {
-        return `
-      <div class="yyt-rule-item" data-rule-index="${index}">
+    `},_renderRuleItem(e,t){return`
+      <div class="yyt-rule-item" data-rule-index="${t}">
         <select class="yyt-select yyt-rule-type" style="flex: 2; min-width: 100px;">
-          <option value="include" ${rule.type === "include" ? "selected" : ""}>\u5305\u542B</option>
-          <option value="regex_include" ${rule.type === "regex_include" ? "selected" : ""}>\u6B63\u5219\u5305\u542B</option>
-          <option value="exclude" ${rule.type === "exclude" ? "selected" : ""}>\u6392\u9664</option>
-          <option value="regex_exclude" ${rule.type === "regex_exclude" ? "selected" : ""}>\u6B63\u5219\u6392\u9664</option>
+          <option value="include" ${e.type==="include"?"selected":""}>\u5305\u542B</option>
+          <option value="regex_include" ${e.type==="regex_include"?"selected":""}>\u6B63\u5219\u5305\u542B</option>
+          <option value="exclude" ${e.type==="exclude"?"selected":""}>\u6392\u9664</option>
+          <option value="regex_exclude" ${e.type==="regex_exclude"?"selected":""}>\u6B63\u5219\u6392\u9664</option>
         </select>
         <input type="text" class="yyt-input yyt-rule-value" style="flex: 5;" 
                placeholder="\u6807\u7B7E\u540D\u6216\u6B63\u5219\u8868\u8FBE\u5F0F" 
-               value="${escapeHtml(rule.value || "")}">
+               value="${m(e.value||"")}">
         <label class="yyt-checkbox-label yyt-rule-enabled-label">
-          <input type="checkbox" class="yyt-rule-enabled" ${rule.enabled ? "checked" : ""}>
+          <input type="checkbox" class="yyt-rule-enabled" ${e.enabled?"checked":""}>
           <span>\u542F\u7528</span>
         </label>
         <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger yyt-rule-delete" title="\u5220\u9664\u89C4\u5219">
           <i class="fa-solid fa-trash"></i>
         </button>
       </div>
-    `;
-      },
-      /**
-       * 渲染测试区
-       * @private
-       */
-      _renderTestSection() {
-        return `
+    `},_renderTestSection(){return`
       <div class="yyt-test-section">
         <div class="yyt-form-group">
           <label>\u6D4B\u8BD5\u6587\u672C</label>
-          <textarea class="yyt-textarea" id="${SCRIPT_ID}-test-input" rows="6" 
+          <textarea class="yyt-textarea" id="${d}-test-input" rows="6" 
                     placeholder="\u8F93\u5165\u8981\u6D4B\u8BD5\u63D0\u53D6\u7684\u6587\u672C\u5185\u5BB9..."></textarea>
         </div>
         
         <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-test-extract">
+          <button class="yyt-btn yyt-btn-primary" id="${d}-test-extract">
             <i class="fa-solid fa-play"></i> \u6D4B\u8BD5\u63D0\u53D6
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-test-clear">
+          <button class="yyt-btn yyt-btn-secondary" id="${d}-test-clear">
             <i class="fa-solid fa-eraser"></i> \u6E05\u7A7A
           </button>
         </div>
         
-        <div class="yyt-form-group" id="${SCRIPT_ID}-test-result-container" style="display: none;">
+        <div class="yyt-form-group" id="${d}-test-result-container" style="display: none;">
           <label>\u63D0\u53D6\u7ED3\u679C</label>
-          <div class="yyt-test-result" id="${SCRIPT_ID}-test-result"></div>
+          <div class="yyt-test-result" id="${d}-test-result"></div>
         </div>
       </div>
-    `;
-      },
-      // ============================================================
-      // 事件绑定
-      // ============================================================
-      /**
-       * 绑定事件
-       * @param {Object} $container
-       * @param {Object} dependencies
-       */
-      bindEvents($container2, dependencies) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        this._bindRuleEditorEvents($container2, $);
-        this._bindPresetEvents($container2, $);
-        this._bindTestEvents($container2, $);
-        this._bindFileEvents($container2, $);
-      },
-      /**
-       * 绑定规则编辑器事件
-       * @private
-       */
-      _bindRuleEditorEvents($container2, $) {
-        $container2.find(".yyt-rule-type").on("change", function() {
-          const $item = $(this).closest(".yyt-rule-item");
-          const index = $item.data("rule-index");
-          const type = $(this).val();
-          updateTagRule(index, { type });
-          showToast("info", "\u89C4\u5219\u7C7B\u578B\u5DF2\u66F4\u65B0");
-        });
-        $container2.find(".yyt-rule-value").on("change", function() {
-          const $item = $(this).closest(".yyt-rule-item");
-          const index = $item.data("rule-index");
-          const value = $(this).val().trim();
-          updateTagRule(index, { value });
-        });
-        $container2.find(".yyt-rule-enabled").on("change", function() {
-          const $item = $(this).closest(".yyt-rule-item");
-          const index = $item.data("rule-index");
-          const enabled = $(this).is(":checked");
-          updateTagRule(index, { enabled });
-          showToast("info", enabled ? "\u89C4\u5219\u5DF2\u542F\u7528" : "\u89C4\u5219\u5DF2\u7981\u7528");
-        });
-        $container2.find(".yyt-rule-delete").on("click", () => {
-          const $item = $container2.find(".yyt-rule-delete").closest(".yyt-rule-item");
-          const index = $item.data("rule-index");
-          if (confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")) {
-            deleteTagRule(index);
-            this.renderTo($container2);
-            showToast("info", "\u89C4\u5219\u5DF2\u5220\u9664");
-          }
-        });
-        $container2.on("click", ".yyt-rule-delete", (e) => {
-          const $item = $(e.currentTarget).closest(".yyt-rule-item");
-          const index = $item.data("rule-index");
-          if (confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")) {
-            deleteTagRule(index);
-            this.renderTo($container2);
-            showToast("info", "\u89C4\u5219\u5DF2\u5220\u9664");
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-add-rule`).on("click", () => {
-          addTagRule({
-            type: "include",
-            value: "",
-            enabled: true
-          });
-          this.renderTo($container2);
-          showToast("success", "\u5DF2\u6DFB\u52A0\u65B0\u89C4\u5219");
-        });
-        $container2.find(`#${SCRIPT_ID}-scan-tags`).on("click", async () => {
-          const $btn = $container2.find(`#${SCRIPT_ID}-scan-tags`);
-          const testText = $container2.find(`#${SCRIPT_ID}-test-input`).val();
-          if (!testText || !testText.trim()) {
-            showToast("warning", "\u8BF7\u5148\u8F93\u5165\u8981\u626B\u63CF\u7684\u6587\u672C");
-            return;
-          }
-          $btn.prop("disabled", true).find("i").addClass("fa-spin");
-          try {
-            const scanResult = await scanTextForTags(testText, { maxTags: 50, timeoutMs: 3e3 });
-            const { suggestions, stats } = generateTagSuggestions(scanResult, 25);
-            if (suggestions.length === 0) {
-              showToast("info", "\u672A\u53D1\u73B0\u53EF\u7528\u7684\u6807\u7B7E");
-              $container2.find(`#${SCRIPT_ID}-tag-suggestions-container`).hide();
-              return;
-            }
-            const $tagList = $container2.find(`#${SCRIPT_ID}-tag-list`);
-            const $stats = $container2.find(`#${SCRIPT_ID}-tag-scan-stats`);
-            $stats.text(`${stats.finalCount}/${stats.totalFound} \u4E2A\u6807\u7B7E, ${scanResult.stats.processingTimeMs}ms`);
-            $tagList.empty();
-            suggestions.forEach((tag) => {
-              const $tagBtn = $(`<button class="yyt-btn yyt-btn-small yyt-btn-secondary" title="\u70B9\u51FB\u6DFB\u52A0\u4E3A\u5305\u542B\u89C4\u5219">${escapeHtml(tag)}</button>`);
-              $tagBtn.on("click", () => {
-                const rules = getTagRules();
-                const exists = rules.some((r) => r.type === "include" && r.value === tag);
-                if (exists) {
-                  showToast("warning", `\u89C4\u5219 "\u5305\u542B: ${tag}" \u5DF2\u5B58\u5728`);
-                  return;
-                }
-                addTagRule({
-                  type: "include",
-                  value: tag,
-                  enabled: true
-                });
-                this.renderTo($container2);
-                showToast("success", `\u5DF2\u6DFB\u52A0\u89C4\u5219: \u5305\u542B "${tag}"`);
-              });
-              $tagList.append($tagBtn);
-            });
-            $container2.find(`#${SCRIPT_ID}-tag-suggestions-container`).show();
-            showToast("success", `\u53D1\u73B0 ${suggestions.length} \u4E2A\u6807\u7B7E`);
-          } catch (e) {
-            showToast("error", `\u626B\u63CF\u5931\u8D25: ${e.message}`);
-          } finally {
-            $btn.prop("disabled", false).find("i").removeClass("fa-spin");
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-add-exclude-cot`).on("click", () => {
-          const rules = getTagRules();
-          const cotPattern = "<!--[\\s\\S]*?-->";
-          const exists = rules.some((r) => r.type === "regex_exclude" && r.value === cotPattern);
-          if (exists) {
-            showToast("warning", "\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219\u5DF2\u5B58\u5728");
-            return;
-          }
-          addTagRule({
-            type: "regex_exclude",
-            value: cotPattern,
-            enabled: true
-          });
-          this.renderTo($container2);
-          showToast("success", "\u5DF2\u6DFB\u52A0\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219");
-        });
-        $container2.find(`#${SCRIPT_ID}-content-blacklist`).on("change", function() {
-          const value = $(this).val();
-          const blacklist = value.split(",").map((k) => k.trim()).filter((k) => k);
-          setContentBlacklist(blacklist);
-          showToast("info", `\u9ED1\u540D\u5355\u5DF2\u66F4\u65B0\uFF0C\u5171 ${blacklist.length} \u4E2A\u5173\u952E\u8BCD`);
-        });
-        $container2.find(`#${SCRIPT_ID}-show-examples`).on("click", () => {
-          const examples = `
+    `},bindEvents(e,t){let s=S();!s||!$(e)||(this._bindRuleEditorEvents(e,s),this._bindPresetEvents(e,s),this._bindTestEvents(e,s),this._bindFileEvents(e,s))},_bindRuleEditorEvents(e,t){e.find(".yyt-rule-type").on("change",function(){let n=t(this).closest(".yyt-rule-item").data("rule-index"),r=t(this).val();Vt(n,{type:r}),p("info","\u89C4\u5219\u7C7B\u578B\u5DF2\u66F4\u65B0")}),e.find(".yyt-rule-value").on("change",function(){let n=t(this).closest(".yyt-rule-item").data("rule-index"),r=t(this).val().trim();Vt(n,{value:r})}),e.find(".yyt-rule-enabled").on("change",function(){let n=t(this).closest(".yyt-rule-item").data("rule-index"),r=t(this).is(":checked");Vt(n,{enabled:r}),p("info",r?"\u89C4\u5219\u5DF2\u542F\u7528":"\u89C4\u5219\u5DF2\u7981\u7528")}),e.find(".yyt-rule-delete").on("click",()=>{let n=e.find(".yyt-rule-delete").closest(".yyt-rule-item").data("rule-index");confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")&&(de(n),this.renderTo(e),p("info","\u89C4\u5219\u5DF2\u5220\u9664"))}),e.on("click",".yyt-rule-delete",s=>{let r=t(s.currentTarget).closest(".yyt-rule-item").data("rule-index");confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")&&(de(r),this.renderTo(e),p("info","\u89C4\u5219\u5DF2\u5220\u9664"))}),e.find(`#${d}-add-rule`).on("click",()=>{Jt({type:"include",value:"",enabled:!0}),this.renderTo(e),p("success","\u5DF2\u6DFB\u52A0\u65B0\u89C4\u5219")}),e.find(`#${d}-scan-tags`).on("click",async()=>{let s=e.find(`#${d}-scan-tags`),n=e.find(`#${d}-test-input`).val();if(!n||!n.trim()){p("warning","\u8BF7\u5148\u8F93\u5165\u8981\u626B\u63CF\u7684\u6587\u672C");return}s.prop("disabled",!0).find("i").addClass("fa-spin");try{let r=await Ge(n,{maxTags:50,timeoutMs:3e3}),{suggestions:o,stats:i}=Fe(r,25);if(o.length===0){p("info","\u672A\u53D1\u73B0\u53EF\u7528\u7684\u6807\u7B7E"),e.find(`#${d}-tag-suggestions-container`).hide();return}let a=e.find(`#${d}-tag-list`);e.find(`#${d}-tag-scan-stats`).text(`${i.finalCount}/${i.totalFound} \u4E2A\u6807\u7B7E, ${r.stats.processingTimeMs}ms`),a.empty(),o.forEach(l=>{let y=t(`<button class="yyt-btn yyt-btn-small yyt-btn-secondary" title="\u70B9\u51FB\u6DFB\u52A0\u4E3A\u5305\u542B\u89C4\u5219">${m(l)}</button>`);y.on("click",()=>{if(yt().some(f=>f.type==="include"&&f.value===l)){p("warning",`\u89C4\u5219 "\u5305\u542B: ${l}" \u5DF2\u5B58\u5728`);return}Jt({type:"include",value:l,enabled:!0}),this.renderTo(e),p("success",`\u5DF2\u6DFB\u52A0\u89C4\u5219: \u5305\u542B "${l}"`)}),a.append(y)}),e.find(`#${d}-tag-suggestions-container`).show(),p("success",`\u53D1\u73B0 ${o.length} \u4E2A\u6807\u7B7E`)}catch(r){p("error",`\u626B\u63CF\u5931\u8D25: ${r.message}`)}finally{s.prop("disabled",!1).find("i").removeClass("fa-spin")}}),e.find(`#${d}-add-exclude-cot`).on("click",()=>{let s=yt(),n="<!--[\\s\\S]*?-->";if(s.some(o=>o.type==="regex_exclude"&&o.value===n)){p("warning","\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219\u5DF2\u5B58\u5728");return}Jt({type:"regex_exclude",value:n,enabled:!0}),this.renderTo(e),p("success","\u5DF2\u6DFB\u52A0\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219")}),e.find(`#${d}-content-blacklist`).on("change",function(){let n=t(this).val().split(",").map(r=>r.trim()).filter(r=>r);ye(n),p("info",`\u9ED1\u540D\u5355\u5DF2\u66F4\u65B0\uFF0C\u5171 ${n.length} \u4E2A\u5173\u952E\u8BCD`)}),e.find(`#${d}-show-examples`).on("click",()=>{alert(`
 \u89C4\u5219\u7C7B\u578B\u8BF4\u660E:
 
 1. \u3010\u5305\u542B\u3011include
@@ -4277,140 +1289,7 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
 \u2022 \u63D0\u53D6\u5185\u5BB9\u6807\u7B7E: \u7C7B\u578B=\u5305\u542B, \u503C=content
 \u2022 \u6392\u9664HTML\u6CE8\u91CA: \u7C7B\u578B=\u6B63\u5219\u6392\u9664, \u503C=<!--[\\s\\S]*?-->
 \u2022 \u63D0\u53D6\u82B1\u62EC\u53F7\u5185\u5BB9: \u7C7B\u578B=\u5305\u542B, \u503C=story
-      `;
-          alert(examples);
-        });
-      },
-      /**
-       * 绑定预设事件
-       * @private
-       */
-      _bindPresetEvents($container2, $) {
-        $container2.find(`#${SCRIPT_ID}-load-rule-preset`).on("click", () => {
-          const presetId = $container2.find(`#${SCRIPT_ID}-rule-preset-select`).val();
-          if (!presetId) {
-            showToast("warning", "\u8BF7\u9009\u62E9\u4E00\u4E2A\u9884\u8BBE");
-            return;
-          }
-          const result = loadRulePreset(presetId);
-          if (result.success) {
-            this.renderTo($container2);
-            showToast("success", `\u5DF2\u52A0\u8F7D\u9884\u8BBE: ${result.preset.name}`);
-            eventBus.emit(EVENTS.REGEX_PRESET_LOADED, { preset: result.preset });
-          } else {
-            showToast("error", result.message);
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-save-rule-preset`).on("click", () => {
-          const name = prompt("\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0:");
-          if (!name || !name.trim())
-            return;
-          const result = saveRulesAsPreset(name.trim());
-          if (result.success) {
-            this.renderTo($container2);
-            showToast("success", `\u9884\u8BBE "${name.trim()}" \u5DF2\u4FDD\u5B58`);
-          } else {
-            showToast("error", result.message);
-          }
-        });
-      },
-      /**
-       * 绑定测试事件
-       * @private
-       */
-      _bindTestEvents($container2, $) {
-        $container2.find(`#${SCRIPT_ID}-test-extract`).on("click", () => {
-          const text = $container2.find(`#${SCRIPT_ID}-test-input`).val();
-          if (!text || !text.trim()) {
-            showToast("warning", "\u8BF7\u8F93\u5165\u6D4B\u8BD5\u6587\u672C");
-            return;
-          }
-          const rules = getTagRules();
-          const blacklist = getContentBlacklist();
-          const result = extractTagContent(text, rules, blacklist);
-          const $resultContainer = $container2.find(`#${SCRIPT_ID}-test-result-container`);
-          const $result = $container2.find(`#${SCRIPT_ID}-test-result`);
-          $resultContainer.show();
-          if (!result || !result.trim()) {
-            $result.html('<div class="yyt-result-empty">\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A</div>');
-            showToast("warning", "\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A\uFF0C\u8BF7\u68C0\u67E5\u89C4\u5219\u914D\u7F6E");
-          } else {
-            $result.html(`<pre class="yyt-code-block">${escapeHtml(result)}</pre>`);
-            showToast("success", "\u63D0\u53D6\u5B8C\u6210");
-            eventBus.emit(EVENTS.REGEX_EXTRACTED, { result });
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-test-clear`).on("click", () => {
-          $container2.find(`#${SCRIPT_ID}-test-input`).val("");
-          $container2.find(`#${SCRIPT_ID}-test-result-container`).hide();
-        });
-      },
-      /**
-       * 绑定文件事件
-       * @private
-       */
-      _bindFileEvents($container2, $) {
-        $container2.find(`#${SCRIPT_ID}-import-rules`).on("click", () => {
-          $container2.find(`#${SCRIPT_ID}-import-rules-file`).click();
-        });
-        $container2.find(`#${SCRIPT_ID}-import-rules-file`).on("change", async (e) => {
-          const file = e.target.files[0];
-          if (!file)
-            return;
-          try {
-            const text = await readFileContent(file);
-            const result = importRulesConfig(text, { overwrite: true });
-            if (result.success) {
-              this.renderTo($container2);
-              showToast("success", "\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u5165");
-            } else {
-              showToast("error", result.message);
-            }
-          } catch (e2) {
-            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${e2.message}`);
-          }
-          $(e.target).val("");
-        });
-        $container2.find(`#${SCRIPT_ID}-export-rules`).on("click", () => {
-          try {
-            const json = exportRulesConfig();
-            downloadJson(json, `youyou_toolkit_rules_${Date.now()}.json`);
-            showToast("success", "\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u51FA");
-          } catch (e) {
-            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${e.message}`);
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-reset-rules`).on("click", () => {
-          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u89C4\u5219\u5417\uFF1F\u8FD9\u5C06\u6E05\u7A7A\u5F53\u524D\u7684\u89C4\u5219\u914D\u7F6E\u3002")) {
-            setTagRules([]);
-            setContentBlacklist([]);
-            this.renderTo($container2);
-            showToast("info", "\u89C4\u5219\u5DF2\u91CD\u7F6E");
-          }
-        });
-      },
-      // ============================================================
-      // 销毁
-      // ============================================================
-      /**
-       * 销毁组件
-       * @param {Object} $container
-       */
-      destroy($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find("*").off();
-      },
-      // ============================================================
-      // 样式
-      // ============================================================
-      /**
-       * 获取样式
-       * @returns {string}
-       */
-      getStyles() {
-        return `
+      `)})},_bindPresetEvents(e,t){e.find(`#${d}-load-rule-preset`).on("click",()=>{let s=e.find(`#${d}-rule-preset-select`).val();if(!s){p("warning","\u8BF7\u9009\u62E9\u4E00\u4E2A\u9884\u8BBE");return}let n=qe(s);n.success?(this.renderTo(e),p("success",`\u5DF2\u52A0\u8F7D\u9884\u8BBE: ${n.preset.name}`),x.emit(h.REGEX_PRESET_LOADED,{preset:n.preset})):p("error",n.message)}),e.find(`#${d}-save-rule-preset`).on("click",()=>{let s=prompt("\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0:");if(!s||!s.trim())return;let n=We(s.trim());n.success?(this.renderTo(e),p("success",`\u9884\u8BBE "${s.trim()}" \u5DF2\u4FDD\u5B58`)):p("error",n.message)})},_bindTestEvents(e,t){e.find(`#${d}-test-extract`).on("click",()=>{let s=e.find(`#${d}-test-input`).val();if(!s||!s.trim()){p("warning","\u8BF7\u8F93\u5165\u6D4B\u8BD5\u6587\u672C");return}let n=yt(),r=Nt(),o=Lt(s,n,r),i=e.find(`#${d}-test-result-container`),a=e.find(`#${d}-test-result`);i.show(),!o||!o.trim()?(a.html('<div class="yyt-result-empty">\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A</div>'),p("warning","\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A\uFF0C\u8BF7\u68C0\u67E5\u89C4\u5219\u914D\u7F6E")):(a.html(`<pre class="yyt-code-block">${m(o)}</pre>`),p("success","\u63D0\u53D6\u5B8C\u6210"),x.emit(h.REGEX_EXTRACTED,{result:o}))}),e.find(`#${d}-test-clear`).on("click",()=>{e.find(`#${d}-test-input`).val(""),e.find(`#${d}-test-result-container`).hide()})},_bindFileEvents(e,t){e.find(`#${d}-import-rules`).on("click",()=>{e.find(`#${d}-import-rules-file`).click()}),e.find(`#${d}-import-rules-file`).on("change",async s=>{let n=s.target.files[0];if(n){try{let r=await _t(n),o=Ve(r,{overwrite:!0});o.success?(this.renderTo(e),p("success","\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u5165")):p("error",o.message)}catch(r){p("error",`\u5BFC\u5165\u5931\u8D25: ${r.message}`)}t(s.target).val("")}}),e.find(`#${d}-export-rules`).on("click",()=>{try{let s=Je();Tt(s,`youyou_toolkit_rules_${Date.now()}.json`),p("success","\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u51FA")}catch(s){p("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),e.find(`#${d}-reset-rules`).on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u89C4\u5219\u5417\uFF1F\u8FD9\u5C06\u6E05\u7A7A\u5F53\u524D\u7684\u89C4\u5219\u914D\u7F6E\u3002")&&(He([]),ye([]),this.renderTo(e),p("info","\u89C4\u5219\u5DF2\u91CD\u7F6E"))})},destroy(e){!S()||!$(e)||e.find("*").off()},getStyles(){return`
       /* \u6B63\u5219\u63D0\u53D6\u9762\u677F\u6837\u5F0F */
       .yyt-regex-panel {
         display: flex;
@@ -4563,328 +1442,7 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
       .yyt-empty-state-small span {
         font-size: 12px;
       }
-    `;
-      },
-      // ============================================================
-      // 便捷方法
-      // ============================================================
-      /**
-       * 渲染到容器
-       * @param {Object} $container
-       */
-      renderTo($container2) {
-        const html = this.render({});
-        $container2.html(html);
-        this.bindEvents($container2, {});
-      }
-    };
-  }
-});
-
-// modules/tool-manager.js
-var tool_manager_exports = {};
-__export(tool_manager_exports, {
-  DEFAULT_TOOL_PRESETS: () => DEFAULT_TOOL_PRESETS,
-  DEFAULT_TOOL_STRUCTURE: () => DEFAULT_TOOL_STRUCTURE,
-  TOOL_STORAGE_KEYS: () => TOOL_STORAGE_KEYS,
-  cloneTool: () => cloneTool,
-  deleteTool: () => deleteTool,
-  deleteToolPreset: () => deleteToolPreset,
-  exportTools: () => exportTools,
-  getAllToolPresets: () => getAllToolPresets,
-  getAllTools: () => getAllTools,
-  getCurrentToolPresetId: () => getCurrentToolPresetId,
-  getTool: () => getTool,
-  getToolPreset: () => getToolPreset,
-  importTools: () => importTools,
-  resetTools: () => resetTools,
-  saveTool: () => saveTool,
-  saveToolPreset: () => saveToolPreset,
-  setCurrentToolPreset: () => setCurrentToolPreset,
-  setToolEnabled: () => setToolEnabled,
-  validateTool: () => validateTool
-});
-function getAllTools() {
-  const saved = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS);
-  if (saved && typeof saved === "object") {
-    return { ...DEFAULT_TOOL_PRESETS, ...saved };
-  }
-  return { ...DEFAULT_TOOL_PRESETS };
-}
-function getTool(toolId) {
-  const tools = getAllTools();
-  return tools[toolId] || null;
-}
-function saveTool(toolId, toolDef) {
-  if (!toolId || !toolDef) {
-    return false;
-  }
-  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
-  const validatedTool = {
-    ...DEFAULT_TOOL_STRUCTURE,
-    ...toolDef,
-    id: toolId,
-    metadata: {
-      ...DEFAULT_TOOL_STRUCTURE.metadata,
-      ...toolDef.metadata,
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-    }
-  };
-  if (!customTools[toolId]) {
-    validatedTool.metadata.createdAt = (/* @__PURE__ */ new Date()).toISOString();
-  }
-  customTools[toolId] = validatedTool;
-  toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
-  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, tool: validatedTool });
-  return true;
-}
-function deleteTool(toolId) {
-  if (DEFAULT_TOOL_PRESETS[toolId]) {
-    return false;
-  }
-  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
-  if (customTools[toolId]) {
-    delete customTools[toolId];
-    toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
-    eventBus.emit(EVENTS.TOOL_UNREGISTERED, { toolId });
-    return true;
-  }
-  return false;
-}
-function setToolEnabled(toolId, enabled) {
-  const tool = getTool(toolId);
-  if (!tool)
-    return false;
-  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
-  if (!customTools[toolId]) {
-    customTools[toolId] = { ...tool };
-  }
-  customTools[toolId].enabled = enabled;
-  customTools[toolId].metadata = {
-    ...customTools[toolId].metadata,
-    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
-  eventBus.emit(enabled ? EVENTS.TOOL_ENABLED : EVENTS.TOOL_DISABLED, { toolId });
-  return true;
-}
-function cloneTool(toolId, newId, newName) {
-  const tool = getTool(toolId);
-  if (!tool)
-    return false;
-  const clonedTool = JSON.parse(JSON.stringify(tool));
-  clonedTool.name = newName || `${tool.name} (\u526F\u672C)`;
-  clonedTool.metadata = {
-    ...clonedTool.metadata,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  return saveTool(newId, clonedTool);
-}
-function getAllToolPresets() {
-  const saved = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS);
-  if (saved && typeof saved === "object") {
-    return { ...DEFAULT_TOOL_PRESETS, ...saved };
-  }
-  return { ...DEFAULT_TOOL_PRESETS };
-}
-function getToolPreset(presetId) {
-  const presets = getAllToolPresets();
-  return presets[presetId] || null;
-}
-function saveToolPreset(presetId, preset) {
-  if (!presetId || !preset)
-    return false;
-  const customPresets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
-  customPresets[presetId] = {
-    ...preset,
-    metadata: {
-      ...preset.metadata,
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-    }
-  };
-  toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, customPresets);
-  return true;
-}
-function deleteToolPreset(presetId) {
-  if (DEFAULT_TOOL_PRESETS[presetId])
-    return false;
-  const customPresets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
-  if (customPresets[presetId]) {
-    delete customPresets[presetId];
-    toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, customPresets);
-    return true;
-  }
-  return false;
-}
-function getCurrentToolPresetId() {
-  return toolStorage.get(TOOL_STORAGE_KEYS.CURRENT_PRESET) || null;
-}
-function setCurrentToolPreset(presetId) {
-  const presets = getAllToolPresets();
-  if (!presets[presetId])
-    return false;
-  toolStorage.set(TOOL_STORAGE_KEYS.CURRENT_PRESET, presetId);
-  return true;
-}
-function exportTools() {
-  const tools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
-  const presets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
-  return JSON.stringify({
-    version: "1.0.0",
-    exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    tools,
-    presets
-  }, null, 2);
-}
-function importTools(jsonString, overwrite = false) {
-  try {
-    const imported = JSON.parse(jsonString);
-    if (!imported || typeof imported !== "object") {
-      return { success: false, toolsImported: 0, presetsImported: 0, message: "\u65E0\u6548\u7684JSON\u683C\u5F0F" };
-    }
-    const existingTools = overwrite ? {} : toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
-    const existingPresets = overwrite ? {} : toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
-    let toolsCount = 0;
-    let presetsCount = 0;
-    if (imported.tools && typeof imported.tools === "object") {
-      for (const [id, tool] of Object.entries(imported.tools)) {
-        if (DEFAULT_TOOL_PRESETS[id] && !overwrite)
-          continue;
-        if (tool && typeof tool === "object") {
-          existingTools[id] = tool;
-          toolsCount++;
-        }
-      }
-      toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, existingTools);
-    }
-    if (imported.presets && typeof imported.presets === "object") {
-      for (const [id, preset] of Object.entries(imported.presets)) {
-        if (DEFAULT_TOOL_PRESETS[id] && !overwrite)
-          continue;
-        if (preset && typeof preset === "object") {
-          existingPresets[id] = preset;
-          presetsCount++;
-        }
-      }
-      toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, existingPresets);
-    }
-    return {
-      success: true,
-      toolsImported: toolsCount,
-      presetsImported: presetsCount,
-      message: `\u6210\u529F\u5BFC\u5165 ${toolsCount} \u4E2A\u5DE5\u5177\u548C ${presetsCount} \u4E2A\u9884\u8BBE`
-    };
-  } catch (e) {
-    return { success: false, toolsImported: 0, presetsImported: 0, message: `\u5BFC\u5165\u5931\u8D25: ${e.message}` };
-  }
-}
-function resetTools() {
-  toolStorage.remove(TOOL_STORAGE_KEYS.TOOLS);
-  toolStorage.remove(TOOL_STORAGE_KEYS.PRESETS);
-  toolStorage.remove(TOOL_STORAGE_KEYS.CURRENT_PRESET);
-}
-function validateTool(toolDef) {
-  const errors = [];
-  if (!toolDef) {
-    return { valid: false, errors: ["\u5DE5\u5177\u5B9A\u4E49\u4E3A\u7A7A"] };
-  }
-  if (!toolDef.name || typeof toolDef.name !== "string") {
-    errors.push("\u5DE5\u5177\u540D\u79F0\u65E0\u6548");
-  }
-  if (!toolDef.category || typeof toolDef.category !== "string") {
-    errors.push("\u5DE5\u5177\u5206\u7C7B\u65E0\u6548");
-  }
-  if (toolDef.config) {
-    const { trigger, execution, api, context } = toolDef.config;
-    if (trigger && !["manual", "event", "scheduled"].includes(trigger.type)) {
-      errors.push("\u89E6\u53D1\u7C7B\u578B\u65E0\u6548");
-    }
-    if (execution) {
-      if (typeof execution.timeout !== "number" || execution.timeout < 0) {
-        errors.push("\u8D85\u65F6\u65F6\u95F4\u5FC5\u987B\u4E3A\u6B63\u6570");
-      }
-      if (typeof execution.retries !== "number" || execution.retries < 0) {
-        errors.push("\u91CD\u8BD5\u6B21\u6570\u5FC5\u987B\u4E3A\u6B63\u6570");
-      }
-    }
-    if (context && typeof context.depth !== "number") {
-      errors.push("\u4E0A\u4E0B\u6587\u6DF1\u5EA6\u5FC5\u987B\u4E3A\u6570\u5B57");
-    }
-  }
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-var DEFAULT_TOOL_STRUCTURE, DEFAULT_TOOL_PRESETS, TOOL_STORAGE_KEYS;
-var init_tool_manager = __esm({
-  "modules/tool-manager.js"() {
-    init_storage_service();
-    init_event_bus();
-    DEFAULT_TOOL_STRUCTURE = {
-      id: "",
-      name: "",
-      description: "",
-      category: "utility",
-      config: {
-        trigger: {
-          type: "manual",
-          events: []
-        },
-        execution: {
-          timeout: 6e4,
-          retries: 3
-        },
-        api: {
-          preset: "",
-          useBypass: true,
-          bypassPreset: "standard"
-        },
-        messages: [],
-        context: {
-          depth: 3,
-          includeTags: [],
-          excludeTags: []
-        }
-      },
-      enabled: true,
-      metadata: {
-        createdAt: null,
-        updatedAt: null,
-        author: "",
-        version: "1.0.0"
-      }
-    };
-    DEFAULT_TOOL_PRESETS = {};
-    TOOL_STORAGE_KEYS = {
-      TOOLS: "tools",
-      PRESETS: "tool_presets",
-      CURRENT_PRESET: "current_tool_preset"
-    };
-  }
-});
-
-// modules/ui/components/tool-manage-panel.js
-var ToolManagePanel;
-var init_tool_manage_panel = __esm({
-  "modules/ui/components/tool-manage-panel.js"() {
-    init_event_bus();
-    init_utils();
-    init_tool_manager();
-    ToolManagePanel = {
-      id: "toolManagePanel",
-      // ============================================================
-      // 渲染
-      // ============================================================
-      /**
-       * 渲染组件
-       * @param {Object} props
-       * @returns {string} HTML
-       */
-      render(props) {
-        const tools = getAllTools();
-        return `
+    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var br={};N(br,{DEFAULT_TOOL_PRESETS:()=>ot,DEFAULT_TOOL_STRUCTURE:()=>Ks,TOOL_STORAGE_KEYS:()=>k,cloneTool:()=>oi,deleteTool:()=>ri,deleteToolPreset:()=>li,exportTools:()=>tn,getAllToolPresets:()=>Zs,getAllTools:()=>Xe,getCurrentToolPresetId:()=>ci,getTool:()=>pe,getToolPreset:()=>ii,importTools:()=>en,resetTools:()=>sn,saveTool:()=>Ze,saveToolPreset:()=>ai,setCurrentToolPreset:()=>di,setToolEnabled:()=>Xs,validateTool:()=>yi});function Xe(){let e=P.get(k.TOOLS);return e&&typeof e=="object"?{...ot,...e}:{...ot}}function pe(e){return Xe()[e]||null}function Ze(e,t){if(!e||!t)return!1;let s=P.get(k.TOOLS)||{},n=!s[e]&&!ot[e],r={...Ks,...t,id:e,metadata:{...Ks.metadata,...t.metadata,updatedAt:new Date().toISOString()}};return s[e]||(r.metadata.createdAt=new Date().toISOString()),s[e]=r,P.set(k.TOOLS,s),x.emit(n?h.TOOL_REGISTERED:h.TOOL_UPDATED,{toolId:e,tool:r}),!0}function ri(e){if(ot[e])return!1;let t=P.get(k.TOOLS)||{};return t[e]?(delete t[e],P.set(k.TOOLS,t),x.emit(h.TOOL_UNREGISTERED,{toolId:e}),!0):!1}function Xs(e,t){let s=pe(e);if(!s)return!1;let n=P.get(k.TOOLS)||{};return n[e]||(n[e]={...s}),n[e].enabled=t,n[e].metadata={...n[e].metadata,updatedAt:new Date().toISOString()},P.set(k.TOOLS,n),x.emit(t?h.TOOL_ENABLED:h.TOOL_DISABLED,{toolId:e}),!0}function oi(e,t,s){let n=pe(e);if(!n)return!1;let r=JSON.parse(JSON.stringify(n));return r.name=s||`${n.name} (\u526F\u672C)`,r.metadata={...r.metadata,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},Ze(t,r)}function Zs(){let e=P.get(k.PRESETS);return e&&typeof e=="object"?{...ot,...e}:{...ot}}function ii(e){return Zs()[e]||null}function ai(e,t){if(!e||!t)return!1;let s=P.get(k.PRESETS)||{};return s[e]={...t,metadata:{...t.metadata,updatedAt:new Date().toISOString()}},P.set(k.PRESETS,s),!0}function li(e){if(ot[e])return!1;let t=P.get(k.PRESETS)||{};return t[e]?(delete t[e],P.set(k.PRESETS,t),!0):!1}function ci(){return P.get(k.CURRENT_PRESET)||null}function di(e){return Zs()[e]?(P.set(k.CURRENT_PRESET,e),!0):!1}function tn(){let e=P.get(k.TOOLS)||{},t=P.get(k.PRESETS)||{};return JSON.stringify({version:"1.0.0",exportedAt:new Date().toISOString(),tools:e,presets:t},null,2)}function en(e,t=!1){try{let s=typeof t=="object"?!!t?.overwrite:!!t,n=JSON.parse(e);if(!n||typeof n!="object")return{success:!1,toolsImported:0,presetsImported:0,message:"\u65E0\u6548\u7684JSON\u683C\u5F0F"};let r=s?{}:P.get(k.TOOLS)||{},o=s?{}:P.get(k.PRESETS)||{},i=0,a=0;if(n.tools&&typeof n.tools=="object"){for(let[c,l]of Object.entries(n.tools))ot[c]&&!s||l&&typeof l=="object"&&(r[c]=l,i++);P.set(k.TOOLS,r)}if(n.presets&&typeof n.presets=="object"){for(let[c,l]of Object.entries(n.presets))ot[c]&&!s||l&&typeof l=="object"&&(o[c]=l,a++);P.set(k.PRESETS,o)}return{success:!0,toolsImported:i,presetsImported:a,message:`\u6210\u529F\u5BFC\u5165 ${i} \u4E2A\u5DE5\u5177\u548C ${a} \u4E2A\u9884\u8BBE`}}catch(s){return{success:!1,toolsImported:0,presetsImported:0,message:`\u5BFC\u5165\u5931\u8D25: ${s.message}`}}}function sn(){P.remove(k.TOOLS),P.remove(k.PRESETS),P.remove(k.CURRENT_PRESET)}function yi(e){let t=[];if(!e)return{valid:!1,errors:["\u5DE5\u5177\u5B9A\u4E49\u4E3A\u7A7A"]};if((!e.name||typeof e.name!="string")&&t.push("\u5DE5\u5177\u540D\u79F0\u65E0\u6548"),(!e.category||typeof e.category!="string")&&t.push("\u5DE5\u5177\u5206\u7C7B\u65E0\u6548"),e.config){let{trigger:s,execution:n,api:r,context:o}=e.config;s&&!["manual","event","scheduled"].includes(s.type)&&t.push("\u89E6\u53D1\u7C7B\u578B\u65E0\u6548"),n&&((typeof n.timeout!="number"||n.timeout<0)&&t.push("\u8D85\u65F6\u65F6\u95F4\u5FC5\u987B\u4E3A\u6B63\u6570"),(typeof n.retries!="number"||n.retries<0)&&t.push("\u91CD\u8BD5\u6B21\u6570\u5FC5\u987B\u4E3A\u6B63\u6570")),o&&typeof o.depth!="number"&&t.push("\u4E0A\u4E0B\u6587\u6DF1\u5EA6\u5FC5\u987B\u4E3A\u6570\u5B57")}return{valid:t.length===0,errors:t}}var Ks,ot,k,nn=E(()=>{at();z();Ks={id:"",name:"",description:"",category:"utility",config:{trigger:{type:"manual",events:[]},execution:{timeout:6e4,retries:3},api:{preset:"",useBypass:!0,bypassPreset:"standard"},messages:[],context:{depth:3,includeTags:[],excludeTags:[]}},enabled:!0,metadata:{createdAt:null,updatedAt:null,author:"",version:"1.0.0"}},ot={},k={TOOLS:"tools",PRESETS:"tool_presets",CURRENT_PRESET:"current_tool_preset"}});var ut,rn=E(()=>{rt();nn();ut={id:"toolManagePanel",render(e){let t=Xe();return`
       <div class="yyt-tool-manager">
         <!-- \u5DE5\u5177\u5217\u8868 -->
         <div class="yyt-panel-section">
@@ -4896,7 +1454,7 @@ var init_tool_manage_panel = __esm({
             </button>
           </div>
           <div class="yyt-tool-list">
-            ${this._renderToolList(tools)}
+            ${this._renderToolList(t)}
           </div>
         </div>
         
@@ -4918,122 +1476,27 @@ var init_tool_manage_panel = __esm({
           </div>
         </div>
       </div>
-    `;
-      },
-      // ============================================================
-      // 私有渲染方法
-      // ============================================================
-      /**
-       * 渲染工具列表
-       * @private
-       */
-      _renderToolList(tools) {
-        return Object.entries(tools).map(([id, tool]) => `
-      <div class="yyt-tool-item ${tool.enabled ? "yyt-enabled" : "yyt-disabled"}" data-tool-id="${id}">
+    `},_renderToolList(e){return Object.entries(e).map(([t,s])=>`
+      <div class="yyt-tool-item ${s.enabled?"yyt-enabled":"yyt-disabled"}" data-tool-id="${t}">
         <div class="yyt-tool-header">
           <div class="yyt-tool-info">
-            <span class="yyt-tool-name">${escapeHtml(tool.name)}</span>
-            <span class="yyt-tool-category">${escapeHtml(tool.category)}</span>
+            <span class="yyt-tool-name">${m(s.name)}</span>
+            <span class="yyt-tool-category">${m(s.category)}</span>
           </div>
           <div class="yyt-tool-controls">
             <label class="yyt-toggle yyt-tool-toggle">
-              <input type="checkbox" ${tool.enabled ? "checked" : ""}>
+              <input type="checkbox" ${s.enabled?"checked":""}>
               <span class="yyt-toggle-slider"></span>
             </label>
           </div>
         </div>
-        <div class="yyt-tool-desc">${escapeHtml(tool.description)}</div>
+        <div class="yyt-tool-desc">${m(s.description)}</div>
       </div>
-    `).join("");
-      },
-      // ============================================================
-      // 事件绑定
-      // ============================================================
-      /**
-       * 绑定事件
-       * @param {Object} $container
-       * @param {Object} dependencies
-       */
-      bindEvents($container2, dependencies) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        this._bindToolEvents($container2, $);
-        this._bindFileEvents($container2, $);
-      },
-      /**
-       * 绑定工具事件
-       * @private
-       */
-      _bindToolEvents($container2, $) {
-        $container2.find(".yyt-tool-toggle input").on("change", (e) => {
-          const $item = $(e.currentTarget).closest(".yyt-tool-item");
-          const toolId = $item.data("tool-id");
-          const enabled = $(e.currentTarget).is(":checked");
-          setToolEnabled(toolId, enabled);
-          $item.toggleClass("yyt-enabled", enabled).toggleClass("yyt-disabled", !enabled);
-          showToast("info", enabled ? "\u5DE5\u5177\u5DF2\u542F\u7528" : "\u5DE5\u5177\u5DF2\u7981\u7528");
-          eventBus.emit(enabled ? EVENTS.TOOL_ENABLED : EVENTS.TOOL_DISABLED, { toolId });
-        });
-        $container2.find("#yyt-add-tool").on("click", () => {
-          this._showToolEditDialog($container2, $, null);
-        });
-      },
-      /**
-       * 绑定文件事件
-       * @private
-       */
-      _bindFileEvents($container2, $) {
-        $container2.find("#yyt-import-tools").on("click", () => {
-          $container2.find("#yyt-import-tools-file").click();
-        });
-        $container2.find("#yyt-import-tools-file").on("change", async (e) => {
-          const file = e.target.files[0];
-          if (!file)
-            return;
-          try {
-            const text = await readFileContent(file);
-            const result = importTools(text, { overwrite: false });
-            showToast(result.success ? "success" : "error", result.message);
-            if (result.success)
-              this.renderTo($container2);
-          } catch (e2) {
-            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${e2.message}`);
-          }
-          $(e.target).val("");
-        });
-        $container2.find("#yyt-export-tools").on("click", () => {
-          try {
-            const json = exportTools();
-            downloadJson(json, `youyou_toolkit_tools_${Date.now()}.json`);
-            showToast("success", "\u5DE5\u5177\u5DF2\u5BFC\u51FA");
-          } catch (e) {
-            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${e.message}`);
-          }
-        });
-        $container2.find("#yyt-reset-tools").on("click", () => {
-          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u5DE5\u5177\u5417\uFF1F")) {
-            resetTools();
-            this.renderTo($container2);
-            showToast("info", "\u5DE5\u5177\u5DF2\u91CD\u7F6E");
-          }
-        });
-      },
-      // ============================================================
-      // 对话框
-      // ============================================================
-      /**
-       * 显示工具编辑对话框
-       * @private
-       */
-      _showToolEditDialog($container2, $, toolId) {
-        const tool = toolId ? getTool(toolId) : null;
-        const isEdit = !!tool;
-        const dialogHtml = `
+    `).join("")},bindEvents(e,t){let s=S();!s||!$(e)||(this._bindToolEvents(e,s),this._bindFileEvents(e,s))},_bindToolEvents(e,t){e.find(".yyt-tool-toggle input").on("change",s=>{let n=t(s.currentTarget).closest(".yyt-tool-item"),r=n.data("tool-id"),o=t(s.currentTarget).is(":checked");Xs(r,o),n.toggleClass("yyt-enabled",o).toggleClass("yyt-disabled",!o),p("info",o?"\u5DE5\u5177\u5DF2\u542F\u7528":"\u5DE5\u5177\u5DF2\u7981\u7528")}),e.find("#yyt-add-tool").on("click",()=>{this._showToolEditDialog(e,t,null)})},_bindFileEvents(e,t){e.find("#yyt-import-tools").on("click",()=>{e.find("#yyt-import-tools-file").click()}),e.find("#yyt-import-tools-file").on("change",async s=>{let n=s.target.files[0];if(n){try{let r=await _t(n),o=en(r,{overwrite:!1});p(o.success?"success":"error",o.message),o.success&&this.renderTo(e)}catch(r){p("error",`\u5BFC\u5165\u5931\u8D25: ${r.message}`)}t(s.target).val("")}}),e.find("#yyt-export-tools").on("click",()=>{try{let s=tn();Tt(s,`youyou_toolkit_tools_${Date.now()}.json`),p("success","\u5DE5\u5177\u5DF2\u5BFC\u51FA")}catch(s){p("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),e.find("#yyt-reset-tools").on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u5DE5\u5177\u5417\uFF1F")&&(sn(),this.renderTo(e),p("info","\u5DE5\u5177\u5DF2\u91CD\u7F6E"))})},_showToolEditDialog(e,t,s){let n=s?pe(s):null,r=!!n,o=`
       <div class="yyt-dialog-overlay" id="yyt-tool-dialog-overlay">
         <div class="yyt-dialog yyt-dialog-wide">
           <div class="yyt-dialog-header">
-            <span class="yyt-dialog-title">${isEdit ? "\u7F16\u8F91\u5DE5\u5177" : "\u65B0\u5EFA\u5DE5\u5177"}</span>
+            <span class="yyt-dialog-title">${r?"\u7F16\u8F91\u5DE5\u5177":"\u65B0\u5EFA\u5DE5\u5177"}</span>
             <button class="yyt-dialog-close" id="yyt-tool-dialog-close">
               <i class="fa-solid fa-times"></i>
             </button>
@@ -5043,32 +1506,32 @@ var init_tool_manage_panel = __esm({
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u5DE5\u5177\u540D\u79F0</label>
                 <input type="text" class="yyt-input" id="yyt-tool-name" 
-                       value="${tool ? escapeHtml(tool.name) : ""}" placeholder="\u5DE5\u5177\u540D\u79F0">
+                       value="${n?m(n.name):""}" placeholder="\u5DE5\u5177\u540D\u79F0">
               </div>
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u5206\u7C7B</label>
                 <select class="yyt-select" id="yyt-tool-category">
-                  <option value="api" ${tool?.category === "api" ? "selected" : ""}>API</option>
-                  <option value="prompt" ${tool?.category === "prompt" ? "selected" : ""}>Prompt</option>
-                  <option value="utility" ${tool?.category === "utility" ? "selected" : ""}>Utility</option>
+                  <option value="api" ${n?.category==="api"?"selected":""}>API</option>
+                  <option value="prompt" ${n?.category==="prompt"?"selected":""}>Prompt</option>
+                  <option value="utility" ${n?.category==="utility"?"selected":""}>Utility</option>
                 </select>
               </div>
             </div>
             <div class="yyt-form-group">
               <label>\u63CF\u8FF0</label>
               <input type="text" class="yyt-input" id="yyt-tool-desc" 
-                     value="${tool ? escapeHtml(tool.description || "") : ""}" placeholder="\u5DE5\u5177\u63CF\u8FF0">
+                     value="${n?m(n.description||""):""}" placeholder="\u5DE5\u5177\u63CF\u8FF0">
             </div>
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u8D85\u65F6\u65F6\u95F4(ms)</label>
                 <input type="number" class="yyt-input" id="yyt-tool-timeout" 
-                       value="${tool?.config?.execution?.timeout || 6e4}">
+                       value="${n?.config?.execution?.timeout||6e4}">
               </div>
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u91CD\u8BD5\u6B21\u6570</label>
                 <input type="number" class="yyt-input" id="yyt-tool-retries" 
-                       value="${tool?.config?.execution?.retries || 3}">
+                       value="${n?.config?.execution?.retries||3}">
               </div>
             </div>
           </div>
@@ -5078,68 +1541,7 @@ var init_tool_manage_panel = __esm({
           </div>
         </div>
       </div>
-    `;
-        $("#yyt-tool-dialog-overlay").remove();
-        $container2.append(dialogHtml);
-        const $overlay = $("#yyt-tool-dialog-overlay");
-        const closeDialog = () => $overlay.remove();
-        $overlay.find("#yyt-tool-dialog-close, #yyt-tool-dialog-cancel").on("click", closeDialog);
-        $overlay.on("click", function(e) {
-          if (e.target === this)
-            closeDialog();
-        });
-        $overlay.find("#yyt-tool-dialog-save").on("click", () => {
-          const name = $("#yyt-tool-name").val().trim();
-          const category = $("#yyt-tool-category").val();
-          const desc = $("#yyt-tool-desc").val().trim();
-          const timeout = parseInt($("#yyt-tool-timeout").val()) || 6e4;
-          const retries = parseInt($("#yyt-tool-retries").val()) || 3;
-          if (!name) {
-            showToast("warning", "\u8BF7\u8F93\u5165\u5DE5\u5177\u540D\u79F0");
-            return;
-          }
-          const id = toolId || `tool_${Date.now()}`;
-          saveTool(id, {
-            name,
-            category,
-            description: desc,
-            config: {
-              trigger: { type: "manual", events: [] },
-              execution: { timeout, retries },
-              api: { preset: "" },
-              messages: [],
-              context: { depth: 3, includeTags: [], excludeTags: [] }
-            },
-            enabled: true
-          });
-          closeDialog();
-          this.renderTo($container2);
-          showToast("success", isEdit ? "\u5DE5\u5177\u5DF2\u66F4\u65B0" : "\u5DE5\u5177\u5DF2\u521B\u5EFA");
-          eventBus.emit(isEdit ? EVENTS.TOOL_UPDATED : EVENTS.TOOL_REGISTERED, { toolId: id });
-        });
-      },
-      // ============================================================
-      // 销毁
-      // ============================================================
-      /**
-       * 销毁组件
-       * @param {Object} $container
-       */
-      destroy($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find("*").off();
-      },
-      // ============================================================
-      // 样式
-      // ============================================================
-      /**
-       * 获取样式
-       * @returns {string}
-       */
-      getStyles() {
-        return `
+    `;t("#yyt-tool-dialog-overlay").remove(),e.append(o);let i=t("#yyt-tool-dialog-overlay"),a=()=>i.remove();i.find("#yyt-tool-dialog-close, #yyt-tool-dialog-cancel").on("click",a),i.on("click",function(c){c.target===this&&a()}),i.find("#yyt-tool-dialog-save").on("click",()=>{let c=t("#yyt-tool-name").val().trim(),l=t("#yyt-tool-category").val(),y=t("#yyt-tool-desc").val().trim(),u=parseInt(t("#yyt-tool-timeout").val())||6e4,g=parseInt(t("#yyt-tool-retries").val())||3;if(!c){p("warning","\u8BF7\u8F93\u5165\u5DE5\u5177\u540D\u79F0");return}let f=s||`tool_${Date.now()}`;Ze(f,{name:c,category:l,description:y,config:{trigger:{type:"manual",events:[]},execution:{timeout:u,retries:g},api:{preset:""},messages:[],context:{depth:3,includeTags:[],excludeTags:[]}},enabled:!0}),a(),this.renderTo(e),p("success",r?"\u5DE5\u5177\u5DF2\u66F4\u65B0":"\u5DE5\u5177\u5DF2\u521B\u5EFA")})},destroy(e){!S()||!$(e)||e.find("*").off()},getStyles(){return`
       /* \u5DE5\u5177\u7BA1\u7406\u9762\u677F\u6837\u5F0F */
       .yyt-tool-manager {
         display: flex;
@@ -5206,377 +1608,7 @@ var init_tool_manage_panel = __esm({
       .yyt-dialog-wide {
         width: 480px;
       }
-    `;
-      },
-      // ============================================================
-      // 便捷方法
-      // ============================================================
-      /**
-       * 渲染到容器
-       * @param {Object} $container
-       */
-      renderTo($container2) {
-        const html = this.render({});
-        $container2.html(html);
-        this.bindEvents($container2, {});
-      }
-    };
-  }
-});
-
-// modules/tool-registry.js
-var tool_registry_exports = {};
-__export(tool_registry_exports, {
-  TOOL_CATEGORIES: () => TOOL_CATEGORIES,
-  TOOL_REGISTRY: () => TOOL_REGISTRY,
-  clearToolApiPreset: () => clearToolApiPreset,
-  default: () => tool_registry_default,
-  getAllDefaultToolConfigs: () => getAllDefaultToolConfigs,
-  getAllToolApiBindings: () => getAllToolApiBindings,
-  getAllToolFullConfigs: () => getAllToolFullConfigs,
-  getEnabledTools: () => getEnabledTools,
-  getToolApiPreset: () => getToolApiPreset,
-  getToolConfig: () => getToolConfig,
-  getToolFullConfig: () => getToolFullConfig,
-  getToolList: () => getToolList,
-  getToolSubTabs: () => getToolSubTabs,
-  getToolWindowState: () => getToolWindowState,
-  hasTool: () => hasTool,
-  onPresetDeleted: () => onPresetDeleted,
-  registerTool: () => registerTool,
-  resetToolConfig: () => resetToolConfig,
-  resetToolRegistry: () => resetToolRegistry,
-  saveToolConfig: () => saveToolConfig,
-  saveToolWindowState: () => saveToolWindowState,
-  setToolApiPreset: () => setToolApiPreset,
-  setToolApiPresetConfig: () => setToolApiPresetConfig,
-  setToolBypassConfig: () => setToolBypassConfig,
-  setToolOutputMode: () => setToolOutputMode,
-  setToolPromptTemplate: () => setToolPromptTemplate,
-  unregisterTool: () => unregisterTool,
-  updateToolRuntime: () => updateToolRuntime
-});
-function registerTool(id, toolConfig) {
-  if (!id || typeof id !== "string") {
-    console.error("[ToolRegistry] \u5DE5\u5177ID\u65E0\u6548");
-    return false;
-  }
-  if (!toolConfig || typeof toolConfig !== "object") {
-    console.error("[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u65E0\u6548");
-    return false;
-  }
-  const requiredFields = ["name", "icon", "component"];
-  for (const field of requiredFields) {
-    if (!toolConfig[field]) {
-      console.error(`[ToolRegistry] \u5DE5\u5177\u7F3A\u5C11\u5FC5\u9700\u5B57\u6BB5: ${field}`);
-      return false;
-    }
-  }
-  registeredTools[id] = {
-    id,
-    ...toolConfig,
-    order: toolConfig.order ?? Object.keys(registeredTools).length
-  };
-  console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u518C: ${id}`);
-  return true;
-}
-function unregisterTool(id) {
-  if (!registeredTools[id]) {
-    console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${id}`);
-    return false;
-  }
-  delete registeredTools[id];
-  console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u9500: ${id}`);
-  return true;
-}
-function getToolList(sorted = true) {
-  const tools = Object.values(registeredTools);
-  if (sorted) {
-    return tools.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }
-  return tools;
-}
-function getToolConfig(id) {
-  return registeredTools[id] || null;
-}
-function hasTool(id) {
-  return !!registeredTools[id];
-}
-function getToolSubTabs(toolId) {
-  const tool = registeredTools[toolId];
-  if (!tool || !tool.hasSubTabs) {
-    return [];
-  }
-  return tool.subTabs || [];
-}
-function resetToolRegistry() {
-  registeredTools = { ...TOOL_REGISTRY };
-  console.log("[ToolRegistry] \u5DE5\u5177\u6CE8\u518C\u8868\u5DF2\u91CD\u7F6E");
-}
-function setToolApiPreset(toolId, presetName) {
-  if (!hasTool(toolId)) {
-    console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${toolId}`);
-    return false;
-  }
-  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
-  bindings[toolId] = presetName || "";
-  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
-  console.log(`[ToolRegistry] \u5DE5\u5177 "${toolId}" \u7ED1\u5B9A\u5230\u9884\u8BBE "${presetName || "\u5F53\u524D\u914D\u7F6E"}"`);
-  return true;
-}
-function getToolApiPreset(toolId) {
-  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
-  return bindings[toolId] || "";
-}
-function clearToolApiPreset(toolId) {
-  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
-  delete bindings[toolId];
-  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
-  console.log(`[ToolRegistry] \u5DE5\u5177 "${toolId}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664`);
-}
-function getAllToolApiBindings() {
-  return storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
-}
-function onPresetDeleted(presetName) {
-  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
-  let changed = false;
-  for (const toolId in bindings) {
-    if (bindings[toolId] === presetName) {
-      bindings[toolId] = "";
-      changed = true;
-      console.log(`[ToolRegistry] \u5DE5\u5177 "${toolId}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664\uFF08\u9884\u8BBE\u88AB\u5220\u9664\uFF09`);
-    }
-  }
-  if (changed) {
-    storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
-  }
-}
-function getToolFullConfig(toolId) {
-  const defaultConfig = DEFAULT_TOOL_CONFIGS[toolId];
-  if (!defaultConfig) {
-    const basicConfig = getToolConfig(toolId);
-    return basicConfig;
-  }
-  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
-  const userConfig = userConfigs[toolId] || {};
-  const mergedConfig = {
-    ...defaultConfig,
-    ...userConfig,
-    id: toolId
-    // ID不可覆盖
-  };
-  mergedConfig.trigger = {
-    ...defaultConfig.trigger || {},
-    ...userConfig.trigger || {}
-  };
-  mergedConfig.output = {
-    ...defaultConfig.output || {},
-    ...userConfig.output || {}
-  };
-  mergedConfig.bypass = {
-    ...defaultConfig.bypass || {},
-    ...userConfig.bypass || {}
-  };
-  mergedConfig.runtime = {
-    ...defaultConfig.runtime || {},
-    ...userConfig.runtime || {}
-  };
-  mergedConfig.extraction = {
-    ...defaultConfig.extraction || {},
-    ...userConfig.extraction || {}
-  };
-  mergedConfig.injection = {
-    ...defaultConfig.injection || {},
-    ...userConfig.injection || {}
-  };
-  if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0) && Array.isArray(mergedConfig.extractTags) && mergedConfig.extractTags.length > 0) {
-    mergedConfig.extraction.selectors = [...mergedConfig.extractTags];
-  }
-  if (!Array.isArray(mergedConfig.extractTags) || mergedConfig.extractTags.length === 0) {
-    mergedConfig.extractTags = Array.isArray(mergedConfig.extraction.selectors) ? [...mergedConfig.extraction.selectors] : [];
-  }
-  return mergedConfig;
-}
-function saveToolConfig(toolId, config) {
-  if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
-    console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:", toolId);
-    return false;
-  }
-  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
-  const saveableFields = [
-    "promptTemplate",
-    // 单提示词模板
-    "enabled",
-    // 启用状态
-    "extractTags",
-    // 提取标签（兼容）
-    // 新结构
-    "trigger",
-    // 触发配置
-    "output",
-    // 输出配置（包含 mode, apiPreset, overwrite）
-    "bypass",
-    // 破限词配置
-    "extraction",
-    // 提取配置
-    "injection",
-    // 世界书注入配置
-    "runtime"
-    // 运行时状态
-  ];
-  userConfigs[toolId] = {};
-  saveableFields.forEach((field) => {
-    if (config[field] !== void 0) {
-      userConfigs[toolId][field] = config[field];
-    }
-  });
-  storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
-  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });
-  console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u4FDD\u5B58: ${toolId}`);
-  return true;
-}
-function setToolOutputMode(toolId, mode) {
-  const config = getToolFullConfig(toolId);
-  if (!config)
-    return false;
-  return saveToolConfig(toolId, {
-    ...config,
-    output: {
-      ...config.output,
-      mode
-    }
-  });
-}
-function setToolApiPresetConfig(toolId, presetName) {
-  const config = getToolFullConfig(toolId);
-  if (!config)
-    return false;
-  return saveToolConfig(toolId, {
-    ...config,
-    output: {
-      ...config.output,
-      apiPreset: presetName
-    }
-  });
-}
-function setToolBypassConfig(toolId, bypassConfig) {
-  const config = getToolFullConfig(toolId);
-  if (!config)
-    return false;
-  return saveToolConfig(toolId, {
-    ...config,
-    bypass: {
-      ...config.bypass,
-      ...bypassConfig
-    }
-  });
-}
-function setToolPromptTemplate(toolId, template) {
-  const config = getToolFullConfig(toolId);
-  if (!config)
-    return false;
-  return saveToolConfig(toolId, {
-    ...config,
-    promptTemplate: template
-  });
-}
-function updateToolRuntime(toolId, runtimePartial) {
-  const config = getToolFullConfig(toolId);
-  if (!config)
-    return false;
-  return saveToolConfig(toolId, {
-    ...config,
-    runtime: {
-      ...config.runtime,
-      ...runtimePartial,
-      lastRunAt: Date.now()
-    }
-  });
-}
-function resetToolConfig(toolId) {
-  if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
-    console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:", toolId);
-    return false;
-  }
-  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
-  delete userConfigs[toolId];
-  storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
-  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: null });
-  console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u91CD\u7F6E: ${toolId}`);
-  return true;
-}
-function getAllDefaultToolConfigs() {
-  return { ...DEFAULT_TOOL_CONFIGS };
-}
-function getAllToolFullConfigs() {
-  return Object.keys(DEFAULT_TOOL_CONFIGS).map((toolId) => getToolFullConfig(toolId));
-}
-function getEnabledTools() {
-  return getAllToolFullConfigs().filter((config) => config && config.enabled);
-}
-function saveToolWindowState(toolId, state) {
-  const states = storage.get(TOOL_WINDOW_STATE_KEY) || {};
-  states[toolId] = {
-    ...state,
-    updatedAt: Date.now()
-  };
-  storage.set(TOOL_WINDOW_STATE_KEY, states);
-}
-function getToolWindowState(toolId) {
-  const states = storage.get(TOOL_WINDOW_STATE_KEY) || {};
-  return states[toolId] || null;
-}
-var TOOL_CONFIG_STORAGE_KEY, TOOL_API_PRESET_BINDING_KEY, TOOL_WINDOW_STATE_KEY, DEFAULT_TOOL_CONFIGS, TOOL_REGISTRY, TOOL_CATEGORIES, registeredTools, tool_registry_default;
-var init_tool_registry = __esm({
-  "modules/tool-registry.js"() {
-    init_storage_service();
-    init_event_bus();
-    TOOL_CONFIG_STORAGE_KEY = "tool_configs";
-    TOOL_API_PRESET_BINDING_KEY = "tool_api_bindings";
-    TOOL_WINDOW_STATE_KEY = "tool_window_states";
-    DEFAULT_TOOL_CONFIGS = {
-      summaryTool: {
-        id: "summaryTool",
-        name: "\u6458\u8981\u5DE5\u5177",
-        icon: "fa-file-lines",
-        description: "\u751F\u6210\u5267\u60C5\u6458\u8981\u5757",
-        enabled: true,
-        order: 3,
-        // 触发配置
-        trigger: {
-          event: "GENERATION_ENDED",
-          enabled: true
-        },
-        // 破限词绑定
-        bypass: {
-          enabled: false,
-          presetId: ""
-        },
-        // 输出模式配置
-        output: {
-          mode: "follow_ai",
-          // follow_ai | post_response_api
-          apiPreset: "",
-          overwrite: true,
-          enabled: true
-        },
-        // 提取配置
-        extraction: {
-          enabled: true,
-          maxMessages: 5,
-          selectors: ["boo_FM"]
-        },
-        // 注入配置
-        injection: {
-          enabled: true,
-          target: "__character__",
-          comment: "YouYouToolkit:summaryTool",
-          position: "at_depth_as_system",
-          depth: 4,
-          order: 1e4
-        },
-        // 提示词模板（单文本）
-        promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0BAI\u56DE\u590D\u751F\u6210\u6458\u8981\u5757\uFF1A
+    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var Mr={};N(Mr,{TOOL_CATEGORIES:()=>hr,TOOL_REGISTRY:()=>ts,clearToolApiPreset:()=>Cr,default:()=>mi,getAllDefaultToolConfigs:()=>es,getAllToolApiBindings:()=>Pr,getAllToolFullConfigs:()=>dn,getEnabledTools:()=>kr,getToolApiPreset:()=>Sr,getToolConfig:()=>an,getToolFullConfig:()=>D,getToolList:()=>wr,getToolSubTabs:()=>Tr,getToolWindowState:()=>Ir,hasTool:()=>ln,onPresetDeleted:()=>$r,registerTool:()=>xr,resetToolConfig:()=>Ar,resetToolRegistry:()=>_r,saveToolConfig:()=>ft,saveToolWindowState:()=>Rr,setToolApiPreset:()=>Er,setToolApiPresetConfig:()=>ui,setToolBypassConfig:()=>gi,setToolOutputMode:()=>pi,setToolPromptTemplate:()=>fi,unregisterTool:()=>vr,updateToolRuntime:()=>cn});function xr(e,t){if(!e||typeof e!="string")return console.error("[ToolRegistry] \u5DE5\u5177ID\u65E0\u6548"),!1;if(!t||typeof t!="object")return console.error("[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u65E0\u6548"),!1;let s=["name","icon","component"];for(let n of s)if(!t[n])return console.error(`[ToolRegistry] \u5DE5\u5177\u7F3A\u5C11\u5FC5\u9700\u5B57\u6BB5: ${n}`),!1;return gt[e]={id:e,...t,order:t.order??Object.keys(gt).length},console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u518C: ${e}`),!0}function vr(e){return gt[e]?(delete gt[e],console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u9500: ${e}`),!0):(console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${e}`),!1)}function wr(e=!0){let t=Object.values(gt);return e?t.sort((s,n)=>(s.order??0)-(n.order??0)):t}function an(e){return gt[e]||null}function ln(e){return!!gt[e]}function Tr(e){let t=gt[e];return!t||!t.hasSubTabs?[]:t.subTabs||[]}function _r(){gt={...ts},console.log("[ToolRegistry] \u5DE5\u5177\u6CE8\u518C\u8868\u5DF2\u91CD\u7F6E")}function Er(e,t){if(!ln(e))return console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${e}`),!1;let s=b.get(Et)||{};return s[e]=t||"",b.set(Et,s),console.log(`[ToolRegistry] \u5DE5\u5177 "${e}" \u7ED1\u5B9A\u5230\u9884\u8BBE "${t||"\u5F53\u524D\u914D\u7F6E"}"`),!0}function Sr(e){return(b.get(Et)||{})[e]||""}function Cr(e){let t=b.get(Et)||{};delete t[e],b.set(Et,t),console.log(`[ToolRegistry] \u5DE5\u5177 "${e}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664`)}function Pr(){return b.get(Et)||{}}function $r(e){let t=b.get(Et)||{},s=!1;for(let n in t)t[n]===e&&(t[n]="",s=!0,console.log(`[ToolRegistry] \u5DE5\u5177 "${n}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664\uFF08\u9884\u8BBE\u88AB\u5220\u9664\uFF09`));s&&b.set(Et,t)}function D(e){let t=ge[e];if(!t)return an(e);let n=(b.get(ue)||{})[e]||{},r={...t,...n,id:e};return r.trigger={...t.trigger||{},...n.trigger||{}},r.output={...t.output||{},...n.output||{}},r.bypass={...t.bypass||{},...n.bypass||{}},r.runtime={...t.runtime||{},...n.runtime||{}},r.extraction={...t.extraction||{},...n.extraction||{}},r.injection={...t.injection||{},...n.injection||{}},(!Array.isArray(r.extraction.selectors)||r.extraction.selectors.length===0)&&Array.isArray(r.extractTags)&&r.extractTags.length>0&&(r.extraction.selectors=[...r.extractTags]),(!Array.isArray(r.extractTags)||r.extractTags.length===0)&&(r.extractTags=Array.isArray(r.extraction.selectors)?[...r.extraction.selectors]:[]),r}function ft(e,t){if(!e||!ge[e])return console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:",e),!1;let s=b.get(ue)||{},n=["promptTemplate","enabled","extractTags","trigger","output","bypass","extraction","injection","runtime"];return s[e]={},n.forEach(r=>{t[r]!==void 0&&(s[e][r]=t[r])}),b.set(ue,s),x.emit(h.TOOL_UPDATED,{toolId:e,config:s[e]}),console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u4FDD\u5B58: ${e}`),!0}function pi(e,t){let s=D(e);return s?ft(e,{...s,output:{...s.output,mode:t}}):!1}function ui(e,t){let s=D(e);return s?ft(e,{...s,output:{...s.output,apiPreset:t}}):!1}function gi(e,t){let s=D(e);return s?ft(e,{...s,bypass:{...s.bypass,...t}}):!1}function fi(e,t){let s=D(e);return s?ft(e,{...s,promptTemplate:t}):!1}function cn(e,t){let s=D(e);return s?ft(e,{...s,runtime:{...s.runtime,...t,lastRunAt:Date.now()}}):!1}function Ar(e){if(!e||!ge[e])return console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:",e),!1;let t=b.get(ue)||{};return delete t[e],b.set(ue,t),x.emit(h.TOOL_UPDATED,{toolId:e,config:null}),console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u91CD\u7F6E: ${e}`),!0}function es(){return{...ge}}function dn(){return Object.keys(ge).map(e=>D(e))}function kr(){return dn().filter(e=>e&&e.enabled)}function Rr(e,t){let s=b.get(on)||{};s[e]={...t,updatedAt:Date.now()},b.set(on,s)}function Ir(e){return(b.get(on)||{})[e]||null}var ue,Et,on,ge,ts,hr,gt,mi,fe=E(()=>{at();z();ue="tool_configs",Et="tool_api_bindings",on="tool_window_states",ge={summaryTool:{id:"summaryTool",name:"\u6458\u8981\u5DE5\u5177",icon:"fa-file-lines",description:"\u751F\u6210\u5267\u60C5\u6458\u8981\u5757",enabled:!0,order:3,trigger:{event:"GENERATION_ENDED",enabled:!0},bypass:{enabled:!1,presetId:""},output:{mode:"follow_ai",apiPreset:"",overwrite:!0,enabled:!0},extraction:{enabled:!0,maxMessages:5,selectors:["boo_FM"]},injection:{enabled:!0,target:"__character__",comment:"YouYouToolkit:summaryTool",position:"at_depth_as_system",depth:4,order:1e4},promptTemplate:`\u8BF7\u6839\u636E\u4EE5\u4E0BAI\u56DE\u590D\u751F\u6210\u6458\u8981\u5757\uFF1A
 
 \u8F93\u51FA\u683C\u5F0F\uFF1A
 <boo_FM>
@@ -5588,61 +1620,7 @@ var init_tool_registry = __esm({
 <defined>\u5DF2\u5B9A\u4E49\u5143\u7D20</defined>
 <status>\u72B6\u6001</status>
 <seeds>\u4F0F\u7B14</seeds>
-</boo_FM>`,
-        // 运行时状态
-        runtime: {
-          lastRunAt: 0,
-          lastStatus: "idle",
-          lastError: "",
-          lastDurationMs: 0,
-          successCount: 0,
-          errorCount: 0
-        },
-        // 兼容字段
-        apiPreset: "",
-        extractTags: ["boo_FM"]
-      },
-      statusBlock: {
-        id: "statusBlock",
-        name: "\u4E3B\u89D2\u72B6\u6001\u680F",
-        icon: "fa-user-check",
-        description: "\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u4EE3\u7801\u5757",
-        enabled: true,
-        order: 4,
-        // 触发配置
-        trigger: {
-          event: "GENERATION_ENDED",
-          enabled: true
-        },
-        // 破限词绑定
-        bypass: {
-          enabled: false,
-          presetId: ""
-        },
-        // 输出模式配置
-        output: {
-          mode: "follow_ai",
-          apiPreset: "",
-          overwrite: true,
-          enabled: true
-        },
-        // 提取配置
-        extraction: {
-          enabled: true,
-          maxMessages: 5,
-          selectors: ["status_block"]
-        },
-        // 注入配置
-        injection: {
-          enabled: true,
-          target: "__character__",
-          comment: "YouYouToolkit:statusBlock",
-          position: "at_depth_as_system",
-          depth: 4,
-          order: 10001
-        },
-        // 提示词模板（单文本）
-        promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0B\u5BF9\u8BDD\u5185\u5BB9\u751F\u6210\u89D2\u8272\u72B6\u6001\u5757\uFF1A
+</boo_FM>`,runtime:{lastRunAt:0,lastStatus:"idle",lastError:"",lastDurationMs:0,successCount:0,errorCount:0},apiPreset:"",extractTags:["boo_FM"]},statusBlock:{id:"statusBlock",name:"\u4E3B\u89D2\u72B6\u6001\u680F",icon:"fa-user-check",description:"\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u4EE3\u7801\u5757",enabled:!0,order:4,trigger:{event:"GENERATION_ENDED",enabled:!0},bypass:{enabled:!1,presetId:""},output:{mode:"follow_ai",apiPreset:"",overwrite:!0,enabled:!0},extraction:{enabled:!0,maxMessages:5,selectors:["status_block"]},injection:{enabled:!0,target:"__character__",comment:"YouYouToolkit:statusBlock",position:"at_depth_as_system",depth:4,order:10001},promptTemplate:`\u8BF7\u6839\u636E\u4EE5\u4E0B\u5BF9\u8BDD\u5185\u5BB9\u751F\u6210\u89D2\u8272\u72B6\u6001\u5757\uFF1A
 
 \u8F93\u51FA\u683C\u5F0F\uFF1A
 <status_block>
@@ -5651,4483 +1629,406 @@ var init_tool_registry = __esm({
 <condition>\u72B6\u6001</condition>
 <equipment>\u88C5\u5907</equipment>
 <skills>\u6280\u80FD</skills>
-</status_block>`,
-        // 运行时状态
-        runtime: {
-          lastRunAt: 0,
-          lastStatus: "idle",
-          lastError: "",
-          lastDurationMs: 0,
-          successCount: 0,
-          errorCount: 0
-        },
-        // 兼容字段
-        apiPreset: "",
-        extractTags: ["status_block"]
-      }
-    };
-    TOOL_REGISTRY = {
-      apiPresets: {
-        id: "apiPresets",
-        name: "API\u9884\u8BBE",
-        icon: "fa-database",
-        hasSubTabs: false,
-        description: "\u7BA1\u7406API\u914D\u7F6E\u548C\u9884\u8BBE",
-        component: "ApiPresetPanel",
-        order: 0
-      },
-      regexExtract: {
-        id: "regexExtract",
-        name: "\u6B63\u5219\u63D0\u53D6",
-        icon: "fa-filter",
-        hasSubTabs: false,
-        description: "\u4ECE\u6D88\u606F\u4E2D\u63D0\u53D6\u7279\u5B9A\u5185\u5BB9",
-        component: "RegexExtractPanel",
-        order: 2,
-        defaultConfig: {
-          trigger: { type: "manual", events: [] },
-          execution: { timeout: 3e4, retries: 1 },
-          api: { preset: "" },
-          extractRules: [],
-          excludeRules: []
-        }
-      },
-      tools: {
-        id: "tools",
-        name: "\u5DE5\u5177",
-        icon: "fa-tools",
-        hasSubTabs: true,
-        description: "\u5DE5\u5177\u96C6\u5408",
-        order: 3,
-        subTabs: [
-          { id: "summaryTool", name: "\u6458\u8981\u5DE5\u5177", icon: "fa-file-lines", component: "SummaryToolPanel" },
-          { id: "statusBlock", name: "\u4E3B\u89D2\u72B6\u6001\u680F", icon: "fa-user-check", component: "StatusBlockPanel" }
-        ]
-      },
-      // v0.5 新增页面
-      bypass: {
-        id: "bypass",
-        name: "\u7834\u9650\u8BCD",
-        icon: "fa-shield-halved",
-        hasSubTabs: false,
-        description: "\u7BA1\u7406\u7834\u9650\u8BCD\u9884\u8BBE",
-        component: "BypassPanel",
-        order: 4
-      },
-      settings: {
-        id: "settings",
-        name: "\u8BBE\u7F6E",
-        icon: "fa-cog",
-        hasSubTabs: false,
-        description: "\u5168\u5C40\u8BBE\u7F6E",
-        component: "SettingsPanel",
-        order: 5
-      }
-    };
-    TOOL_CATEGORIES = {
-      api: {
-        name: "API\u5DE5\u5177",
-        icon: "fa-plug",
-        order: 0
-      },
-      prompt: {
-        name: "\u63D0\u793A\u8BCD\u5DE5\u5177",
-        icon: "fa-file-alt",
-        order: 1
-      },
-      utility: {
-        name: "\u5B9E\u7528\u5DE5\u5177",
-        icon: "fa-wrench",
-        order: 2
-      }
-    };
-    registeredTools = { ...TOOL_REGISTRY };
-    tool_registry_default = {
-      TOOL_REGISTRY,
-      TOOL_CATEGORIES,
-      registerTool,
-      unregisterTool,
-      getToolList,
-      getToolConfig,
-      hasTool,
-      getToolSubTabs,
-      resetToolRegistry,
-      setToolApiPreset,
-      getToolApiPreset,
-      clearToolApiPreset,
-      getAllToolApiBindings,
-      onPresetDeleted,
-      saveToolWindowState,
-      getToolWindowState,
-      // 新增配置管理函数
-      getToolFullConfig,
-      saveToolConfig,
-      resetToolConfig,
-      getAllDefaultToolConfigs,
-      getAllToolFullConfigs,
-      getEnabledTools
-    };
-  }
-});
+</status_block>`,runtime:{lastRunAt:0,lastStatus:"idle",lastError:"",lastDurationMs:0,successCount:0,errorCount:0},apiPreset:"",extractTags:["status_block"]}},ts={apiPresets:{id:"apiPresets",name:"API\u9884\u8BBE",icon:"fa-database",hasSubTabs:!1,description:"\u7BA1\u7406API\u914D\u7F6E\u548C\u9884\u8BBE",component:"ApiPresetPanel",order:0},regexExtract:{id:"regexExtract",name:"\u6B63\u5219\u63D0\u53D6",icon:"fa-filter",hasSubTabs:!1,description:"\u4ECE\u6D88\u606F\u4E2D\u63D0\u53D6\u7279\u5B9A\u5185\u5BB9",component:"RegexExtractPanel",order:2,defaultConfig:{trigger:{type:"manual",events:[]},execution:{timeout:3e4,retries:1},api:{preset:""},extractRules:[],excludeRules:[]}},tools:{id:"tools",name:"\u5DE5\u5177",icon:"fa-tools",hasSubTabs:!0,description:"\u5DE5\u5177\u96C6\u5408",order:3,subTabs:[{id:"summaryTool",name:"\u6458\u8981\u5DE5\u5177",icon:"fa-file-lines",component:"SummaryToolPanel"},{id:"statusBlock",name:"\u4E3B\u89D2\u72B6\u6001\u680F",icon:"fa-user-check",component:"StatusBlockPanel"}]},bypass:{id:"bypass",name:"\u7834\u9650\u8BCD",icon:"fa-shield-halved",hasSubTabs:!1,description:"\u7BA1\u7406\u7834\u9650\u8BCD\u9884\u8BBE",component:"BypassPanel",order:4},settings:{id:"settings",name:"\u8BBE\u7F6E",icon:"fa-cog",hasSubTabs:!1,description:"\u5168\u5C40\u8BBE\u7F6E",component:"SettingsPanel",order:5}},hr={api:{name:"API\u5DE5\u5177",icon:"fa-plug",order:0},prompt:{name:"\u63D0\u793A\u8BCD\u5DE5\u5177",icon:"fa-file-alt",order:1},utility:{name:"\u5B9E\u7528\u5DE5\u5177",icon:"fa-wrench",order:2}},gt={...ts};mi={TOOL_REGISTRY:ts,TOOL_CATEGORIES:hr,registerTool:xr,unregisterTool:vr,getToolList:wr,getToolConfig:an,hasTool:ln,getToolSubTabs:Tr,resetToolRegistry:_r,setToolApiPreset:Er,getToolApiPreset:Sr,clearToolApiPreset:Cr,getAllToolApiBindings:Pr,onPresetDeleted:$r,saveToolWindowState:Rr,getToolWindowState:Ir,getToolFullConfig:D,saveToolConfig:ft,resetToolConfig:Ar,getAllDefaultToolConfigs:es,getAllToolFullConfigs:dn,getEnabledTools:kr}});var Dr={};N(Dr,{BypassManager:()=>ss,DEFAULT_BYPASS_PRESETS:()=>bt,addMessage:()=>Pi,buildBypassMessages:()=>Ii,bypassManager:()=>v,createPreset:()=>vi,default:()=>Mi,deleteMessage:()=>Ai,deletePreset:()=>Ti,duplicatePreset:()=>_i,exportPresets:()=>ki,getAllPresets:()=>hi,getDefaultPresetId:()=>Ei,getEnabledMessages:()=>Ci,getPreset:()=>xi,getPresetList:()=>pn,importPresets:()=>Ri,setDefaultPresetId:()=>Si,updateMessage:()=>$i,updatePreset:()=>wi});var mt,Kt,yn,bt,bi,ss,v,hi,pn,xi,vi,wi,Ti,_i,Ei,Si,Ci,Pi,$i,Ai,ki,Ri,Ii,Mi,me=E(()=>{at();z();mt="bypass_presets",Kt="default_bypass_preset",yn="current_bypass_preset",bt={},bi=new Set(["\u6807\u51C6\u7834\u9650\u8BCD","\u589E\u5F3A\u7834\u9650"]),ss=class{constructor(){this._cache=null,this._migrated=!1,this.debugMode=!1}getAllPresets(){if(this._migrateLegacyData(),this._cache)return this._cache;let t=b.get(mt,{});return this._cache={...bt,...t},this._cache}getPresetList(){let t=this.getAllPresets();return Object.values(t).sort((s,n)=>(n.updatedAt||0)-(s.updatedAt||0))}getPreset(t){return t&&this.getAllPresets()[t]||null}presetExists(t){return!!this.getPreset(t)}createPreset(t){let{id:s,name:n,description:r,messages:o}=t;if(!s||typeof s!="string"||!s.trim())return{success:!1,message:"\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A"};if(!n||typeof n!="string"||!n.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let i=s.trim();if(this.presetExists(i))return{success:!1,message:`\u9884\u8BBE "${i}" \u5DF2\u5B58\u5728`};let a={id:i,name:n.trim(),description:r||"",enabled:!0,messages:o||[],createdAt:Date.now(),updatedAt:Date.now()};return this._savePreset(i,a),x.emit(h.BYPASS_PRESET_CREATED,{presetId:i,preset:a}),this._log(`\u9884\u8BBE\u5DF2\u521B\u5EFA: ${i}`),{success:!0,message:`\u9884\u8BBE "${n}" \u521B\u5EFA\u6210\u529F`,preset:a}}updatePreset(t,s){if(!t)return{success:!1,message:"\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A"};let n=this.getPreset(t);if(!n)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};if(s.id&&s.id!==t)return{success:!1,message:"\u4E0D\u5141\u8BB8\u4FEE\u6539\u9884\u8BBEID"};let r={...n,...s,id:t,updatedAt:Date.now()};return this._savePreset(t,r),x.emit(h.BYPASS_PRESET_UPDATED,{presetId:t,preset:r}),this._log(`\u9884\u8BBE\u5DF2\u66F4\u65B0: ${t}`),{success:!0,message:`\u9884\u8BBE "${n.name}" \u66F4\u65B0\u6210\u529F`,preset:r}}deletePreset(t){if(!t)return{success:!1,message:"\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A"};if(bt[t])return{success:!1,message:"\u4E0D\u5141\u8BB8\u5220\u9664\u9ED8\u8BA4\u9884\u8BBE"};let s=this.getPreset(t);if(!s)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let n=b.get(mt,{});return delete n[t],b.set(mt,n),this._cache=null,this.getDefaultPresetId()===t&&this.setDefaultPresetId(null),x.emit(h.BYPASS_PRESET_DELETED,{presetId:t}),this._log(`\u9884\u8BBE\u5DF2\u5220\u9664: ${t}`),{success:!0,message:`\u9884\u8BBE "${s.name}" \u5DF2\u5220\u9664`}}duplicatePreset(t,s,n){let r=this.getPreset(t);if(!r)return{success:!1,message:`\u6E90\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};if((!s||!s.trim())&&(s=`${t}_copy_${Date.now()}`),this.presetExists(s))return{success:!1,message:`\u9884\u8BBE "${s}" \u5DF2\u5B58\u5728`};let o={...JSON.parse(JSON.stringify(r)),id:s.trim(),name:n||`${r.name} (\u526F\u672C)`,createdAt:Date.now(),updatedAt:Date.now()};return this._savePreset(s.trim(),o),x.emit(h.BYPASS_PRESET_CREATED,{presetId:s,preset:o}),{success:!0,message:`\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${o.name}"`,preset:o}}addMessage(t,s){let n=this.getPreset(t);if(!n)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let r={id:`msg_${Date.now()}`,role:s.role||"SYSTEM",content:s.content||"",enabled:s.enabled!==!1,deletable:s.deletable!==!1},o=[...n.messages||[],r];return this.updatePreset(t,{messages:o})}updateMessage(t,s,n){let r=this.getPreset(t);if(!r)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let o=r.messages||[],i=o.findIndex(c=>c.id===s);if(i===-1)return{success:!1,message:`\u6D88\u606F "${s}" \u4E0D\u5B58\u5728`};let a=[...o];return a[i]={...a[i],...n},this.updatePreset(t,{messages:a})}deleteMessage(t,s){let n=this.getPreset(t);if(!n)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let r=n.messages||[],o=r.find(a=>a.id===s);if(!o)return{success:!1,message:`\u6D88\u606F "${s}" \u4E0D\u5B58\u5728`};if(o.deletable===!1)return{success:!1,message:"\u8BE5\u6D88\u606F\u4E0D\u53EF\u5220\u9664"};let i=r.filter(a=>a.id!==s);return this.updatePreset(t,{messages:i})}getEnabledMessages(t){let s=this.getPreset(t);return!s||!s.enabled?[]:(s.messages||[]).filter(n=>n.enabled!==!1)}getDefaultPresetId(){this._migrateLegacyData();let t=b.get(Kt,null);return t==="undefined"||t==="null"||t===""?(b.remove(Kt),null):t}setDefaultPresetId(t){return t&&!this.presetExists(t)?!1:(b.set(Kt,t),x.emit(h.BYPASS_PRESET_ACTIVATED,{presetId:t}),this._log(`\u9ED8\u8BA4\u9884\u8BBE\u5DF2\u8BBE\u7F6E: ${t}`),!0)}getDefaultPreset(){let t=this.getDefaultPresetId();return t?this.getPreset(t):null}exportPresets(t=null){if(t){let n=this.getPreset(t);if(!n)throw new Error(`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`);return JSON.stringify(n,null,2)}let s=this.getAllPresets();return JSON.stringify({version:"1.0.0",exportedAt:new Date().toISOString(),presets:Object.values(s)},null,2)}importPresets(t,s={}){let{overwrite:n=!1}=s,r;try{r=JSON.parse(t)}catch{return{success:!1,message:"JSON\u89E3\u6790\u5931\u8D25",imported:0}}let o=Array.isArray(r)?r:r.presets?r.presets:[r];if(o.length===0)return{success:!1,message:"\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E",imported:0};let i=b.get(mt,{}),a=0;for(let c of o)!c.id||typeof c.id!="string"||c.name&&(bt[c.id]&&!n||!n&&i[c.id]||(i[c.id]={...c,updatedAt:Date.now()},a++));return a>0&&(b.set(mt,i),this._cache=null),{success:!0,message:`\u6210\u529F\u5BFC\u5165 ${a} \u4E2A\u9884\u8BBE`,imported:a}}getToolBypassPreset(t){if(!t?.bypass?.enabled)return null;let s=t?.bypass?.presetId;return s?this.getPreset(s):this.getDefaultPreset()}buildBypassMessages(t){let s=this.getToolBypassPreset(t);return s?this.getEnabledMessages(s.id):[]}_savePreset(t,s){let n=b.get(mt,{});n[t]=s,b.set(mt,n),this._cache=null}_migrateLegacyData(){if(this._migrated)return;let t=b.get(mt,{}),s={},n=!1,r=Array.isArray(t)?t.map((o,i)=>[o?.id||o?.name||`legacy_${i}`,o]):Object.entries(t||{});for(let[o,i]of r){let a=this._normalizePreset(o,i,s);if(!a){n=!0;continue}s[a.id]=a,(!t?.[a.id]||t?.[a.id]?.id!==a.id)&&(n=!0)}n&&b.set(mt,s),this._migrateDefaultPreset(s),this._cache=null,this._migrated=!0}_normalizePreset(t,s,n={}){if(!s||typeof s!="object")return null;let r=typeof s.name=="string"?s.name.trim():"",o=typeof s.id=="string"?s.id.trim():"",i=typeof t=="string"?t.trim():"";if(!r&&i&&i!=="undefined"&&i!=="null"&&(r=i),this._isLegacySamplePreset(r,o)||(!o&&i&&i!=="undefined"&&i!=="null"&&(o=i),!o&&r&&r!=="undefined"&&r!=="null"&&(o=this._generatePresetId(r,n)),!r||!o||o==="undefined"||r==="undefined"))return null;let c=Array.isArray(s.messages)?s.messages.filter(l=>l&&typeof l=="object").map((l,y)=>({id:typeof l.id=="string"&&l.id.trim()?l.id.trim():`${o}_msg_${y+1}`,role:l.role||"SYSTEM",content:typeof l.content=="string"?l.content:"",enabled:l.enabled!==!1,deletable:l.deletable!==!1})):[];return{...s,id:o,name:r,description:typeof s.description=="string"?s.description:"",enabled:s.enabled!==!1,messages:c,createdAt:s.createdAt||Date.now(),updatedAt:s.updatedAt||Date.now()}}_migrateDefaultPreset(t){let s=b.get(Kt,null),n=b.get(yn,null),r=s??n;(r==="undefined"||r==="null"||r==="")&&(r=null),r&&!t[r]&&(r=Object.values(t).find(i=>i.name===r)?.id||null),r?b.set(Kt,r):b.remove(Kt),b.has(yn)&&b.remove(yn)}_isLegacySamplePreset(t,s=""){return t?s==="standard"||s==="enhanced"||s==="jailbreak"||bi.has(t)?!0:/^增强破限（副本）(?:\s*\(\d+\))?$/.test(t):!1}_generatePresetId(t,s={}){let n=String(t).trim().toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g,"_").replace(/^_+|_+$/g,"")||`bypass_${Date.now()}`,r=n,o=1;for(;s[r];)r=`${n}_${o++}`;return r}_log(...t){this.debugMode&&console.log("[BypassManager]",...t)}},v=new ss,hi=()=>v.getAllPresets(),pn=()=>v.getPresetList(),xi=e=>v.getPreset(e),vi=e=>v.createPreset(e),wi=(e,t)=>v.updatePreset(e,t),Ti=e=>v.deletePreset(e),_i=(e,t,s)=>v.duplicatePreset(e,t,s),Ei=()=>v.getDefaultPresetId(),Si=e=>v.setDefaultPresetId(e),Ci=e=>v.getEnabledMessages(e),Pi=(e,t)=>v.addMessage(e,t),$i=(e,t,s)=>v.updateMessage(e,t,s),Ai=(e,t)=>v.deleteMessage(e,t),ki=e=>v.exportPresets(e),Ri=(e,t)=>v.importPresets(e,t),Ii=e=>v.buildBypassMessages(e),Mi=v});var jr={};N(jr,{abortAllTasks:()=>ji,abortTask:()=>Ni,buildToolMessages:()=>Nr,clearExecutionHistory:()=>Gi,createExecutionContext:()=>Qi,createResult:()=>ns,enhanceMessagesWithBypass:()=>qi,executeBatch:()=>Li,executeTool:()=>Lr,executeToolWithConfig:()=>rs,executeToolsBatch:()=>Ki,executorState:()=>M,extractFailed:()=>Wi,extractSuccessful:()=>Hi,generateTaskId:()=>jt,getExecutionHistory:()=>Yi,getExecutorStatus:()=>Bi,getScheduler:()=>Xt,getToolsForEvent:()=>gn,mergeResults:()=>Fi,pauseExecutor:()=>Ui,resumeExecutor:()=>zi,setMaxConcurrent:()=>Oi});function ns(e,t,s,n,r,o,i=0){return{success:s,taskId:e,toolId:t,data:n,error:r,duration:o,retries:i,timestamp:Date.now(),metadata:{}}}function jt(){return`task_${Date.now()}_${Math.random().toString(36).substr(2,9)}`}function Di(e,t={}){return{id:jt(),toolId:e,options:t,status:"pending",createdAt:Date.now(),startedAt:null,completedAt:null,retries:0,maxRetries:t.maxRetries||3}}function Xt(){return be||(be=new un(M.maxConcurrent)),be}function Oi(e){M.maxConcurrent=Math.max(1,Math.min(10,e)),be&&(be.maxConcurrent=M.maxConcurrent)}async function Lr(e,t={},s){let n=Xt(),r=Di(e,t);for(;M.isPaused;)await new Promise(o=>setTimeout(o,100));try{let o=await n.enqueue(async i=>{if(i.aborted)throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62","AbortError");if(typeof s=="function")return await s(i,t);throw new Error("\u6267\u884C\u5668\u5FC5\u987B\u662F\u4E00\u4E2A\u51FD\u6570")},r);return Or(o),o}catch(o){let i=ns(r.id,e,!1,null,o,Date.now()-r.createdAt,r.retries);return Or(i),i}}async function Li(e,t={}){let{failFast:s=!1,concurrency:n=M.maxConcurrent}=t,r=[],o=Xt(),i=o.maxConcurrent;o.maxConcurrent=n;try{let a=e.map(({toolId:c,options:l,executor:y})=>Lr(c,l,y));if(s)for(let c of a){let l=await c;if(r.push(l),!l.success){o.abortAll();break}}else{let c=await Promise.allSettled(a);for(let l of c)l.status==="fulfilled"?r.push(l.value):r.push(ns(jt(),"unknown",!1,null,l.reason,0,0))}}finally{o.maxConcurrent=i}return r}function Ni(e){return Xt().abort(e)}function ji(){Xt().abortAll(),M.executionQueue=[]}function Ui(){M.isPaused=!0}function zi(){M.isPaused=!1}function Bi(){return{...Xt().getStatus(),isPaused:M.isPaused,activeControllers:M.activeControllers.size,historyCount:M.executionHistory.length}}function Or(e){M.executionHistory.push(e),M.executionHistory.length>100&&M.executionHistory.shift()}function Yi(e={}){let t=[...M.executionHistory];return e.toolId&&(t=t.filter(s=>s.toolId===e.toolId)),e.success!==void 0&&(t=t.filter(s=>s.success===e.success)),e.limit&&(t=t.slice(-e.limit)),t}function Gi(){M.executionHistory=[]}function Fi(e){let t={success:!0,data:[],errors:[],totalDuration:0,successCount:0,failureCount:0};for(let s of e)t.totalDuration+=s.duration,s.success?(t.successCount++,s.data!==void 0&&s.data!==null&&t.data.push(s.data)):(t.success=!1,t.failureCount++,s.error&&t.errors.push({taskId:s.taskId,toolId:s.toolId,error:s.error.message||String(s.error)}));return t}function Hi(e){return e.filter(t=>t.success).map(t=>t.data)}function Wi(e){return e.filter(t=>!t.success).map(t=>({taskId:t.taskId,toolId:t.toolId,error:t.error}))}function Qi(e={}){return{taskId:jt(),startTime:Date.now(),signal:e.signal||null,apiConfig:e.apiConfig||null,bypassMessages:e.bypassMessages||[],context:e.context||{},metadata:e.metadata||{}}}function qi(e,t){return!t||t.length===0?e:[...t,...e]}function Ji(e){return e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function Nr(e,t){let s=[],n=e.promptTemplate||"",r={"{{userMessage}}":t.input?.userMessage||"","{{lastAiMessage}}":t.input?.lastAiMessage||"","{{extractedContent}}":t.input?.extractedContent||"","{{previousToolOutput}}":t.input?.previousToolOutput||"","{{context}}":JSON.stringify(t.input?.context||{}),"{{pg}}":t.input?.context?.pg||"1","{{time}}":t.input?.context?.time||"","{{scene}}":t.input?.context?.scene||"","{{plot}}":t.input?.context?.plot||"","{{mq}}":t.input?.context?.mq||"\u2160","{{mqStatus}}":t.input?.context?.mqStatus||"\u8FDB\u884C\u4E2D","{{sq}}":t.input?.context?.sq||"1","{{sqStatus}}":t.input?.context?.sqStatus||"\u8FDB\u884C\u4E2D","{{latestSq}}":t.input?.context?.latestSq||"1","{{completed}}":t.input?.context?.completed||"\u65E0","{{defined}}":t.input?.context?.defined||"","{{status}}":t.input?.context?.status||"","{{seeds}}":t.input?.context?.seeds||"","{{name}}":t.input?.context?.name||"","{{location}}":t.input?.context?.location||"","{{condition}}":t.input?.context?.condition||"","{{equipment}}":t.input?.context?.equipment||"","{{skills}}":t.input?.context?.skills||""};for(let[o,i]of Object.entries(r))n=n.replace(new RegExp(Ji(o),"g"),i);return s.push({role:"USER",content:n}),s}async function rs(e,t,s={}){let n=D(e);if(!n)return{success:!1,taskId:jt(),toolId:e,error:"\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728",duration:0};if(!n.enabled)return{success:!1,taskId:jt(),toolId:e,error:"\u5DE5\u5177\u672A\u542F\u7528",duration:0};let r=Date.now(),o=jt();try{x.emit(h.TOOL_EXECUTION_STARTED,{toolId:e,taskId:o,context:t});let i=Nr(n,t);if(typeof s.callApi=="function"){let a=n.apiPreset?{preset:n.apiPreset}:null,c=await s.callApi(i,a,s.signal),l=c;n.outputMode==="separate"&&n.extractTags?.length>0&&(l=Vi(c,n.extractTags));let y={success:!0,taskId:o,toolId:e,data:l,duration:Date.now()-r};return x.emit(h.TOOL_EXECUTED,{toolId:e,taskId:o,result:y}),y}else return{success:!0,taskId:o,toolId:e,data:{messages:i,config:{apiPreset:n.apiPreset,outputMode:n.outputMode,extractTags:n.extractTags}},duration:Date.now()-r,needsExecution:!0}}catch(i){let a={success:!1,taskId:o,toolId:e,error:i.message||String(i),duration:Date.now()-r};return x.emit(h.TOOL_EXECUTION_FAILED,{toolId:e,taskId:o,error:i}),a}}function Vi(e,t){let s={};for(let n of t){let r=new RegExp(`<${n}[^>]*>([\\s\\S]*?)<\\/${n}>`,"gi"),o=e.match(r);o&&(s[n]=o.map(i=>{let a=i.match(new RegExp(`<${n}[^>]*>([\\s\\S]*?)<\\/${n}>`,"i"));return a?a[1].trim():""}))}return s}async function Ki(e,t,s={}){let n=[];for(let r of e){let o=D(r);if(o&&o.enabled){let i=await rs(r,t,s);n.push(i)}}return n}function gn(e){let t=[],s=["summaryTool","statusBlock"];for(let n of s){let r=D(n),o=r?.trigger?.enabled&&r?.trigger?.event===e,i=Array.isArray(r?.triggerEvents)&&r.triggerEvents.includes(e);r&&r.enabled&&(o||i)&&t.push(r)}return t}var M,un,be,fn=E(()=>{fe();z();M={activeControllers:new Map,executionQueue:[],runningCount:0,maxConcurrent:3,executionHistory:[],isPaused:!1};un=class{constructor(t=3){this.maxConcurrent=t,this.queue=[],this.running=new Map,this.isProcessing=!1}enqueue(t,s){return new Promise((n,r)=>{this.queue.push({executor:t,task:s,resolve:n,reject:r}),this.process()})}async process(){if(!this.isProcessing){for(this.isProcessing=!0;this.queue.length>0&&this.running.size<this.maxConcurrent;){let t=this.queue.shift();if(!t)continue;let{executor:s,task:n,resolve:r,reject:o}=t,i=new AbortController;n.abortController=i,n.status="running",n.startedAt=Date.now(),this.running.set(n.id,n),M.activeControllers.set(n.id,i),this.executeTask(s,n,i.signal).then(a=>{n.status="completed",n.completedAt=Date.now(),r(a)}).catch(a=>{n.status=a.name==="AbortError"?"aborted":"failed",n.completedAt=Date.now(),o(a)}).finally(()=>{this.running.delete(n.id),M.activeControllers.delete(n.id),M.runningCount=this.running.size})}this.isProcessing=!1}}async executeTask(t,s,n){let r=Date.now(),o=null;for(let i=0;i<=s.maxRetries;i++){if(n.aborted)throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62","AbortError");try{let a=await t(n);return ns(s.id,s.toolId,!0,a,null,Date.now()-r,i)}catch(a){if(o=a,a.name==="AbortError")throw a;i<s.maxRetries&&(await this.delay(1e3*(i+1)),s.retries=i+1)}}throw o}delay(t){return new Promise(s=>setTimeout(s,t))}abort(t){let s=M.activeControllers.get(t);return s?(s.abort(),!0):!1}abortAll(){for(let t of M.activeControllers.values())t.abort();M.activeControllers.clear(),this.queue=[],this.running.clear()}getStatus(){return{pending:this.queue.length,running:this.running.size,maxConcurrent:this.maxConcurrent}}},be=null});var Ur={};N(Ur,{DEFAULT_SETTINGS:()=>bn,SettingsService:()=>os,default:()=>Xi,settingsService:()=>St});var bn,mn,os,St,Xi,is=E(()=>{at();z();bn={executor:{maxConcurrent:3,maxRetries:2,retryDelayMs:5e3,requestTimeoutMs:9e4,queueStrategy:"fifo"},listener:{listenGenerationEnded:!0,ignoreQuietGeneration:!0,ignoreAutoTrigger:!0,debounceMs:300},debug:{enableDebugLog:!1,saveExecutionHistory:!0,showRuntimeBadge:!0},ui:{compactMode:!1,animationEnabled:!0,theme:"dark-blue"}},mn="settings_v2",os=class{constructor(){this._cache=null}getSettings(){if(this._cache)return this._cache;let t=b.get(mn,{});return this._cache=this._mergeWithDefaults(t),this._cache}saveSettings(t){this._cache=this._mergeWithDefaults(t),b.set(mn,this._cache),x.emit(h.SETTINGS_UPDATED,{settings:this._cache})}updateSettings(t){let s=this.getSettings(),n=this._deepMerge(s,t);this.saveSettings(n)}getExecutorSettings(){return this.getSettings().executor}updateExecutorSettings(t){this.updateSettings({executor:t})}getListenerSettings(){return this.getSettings().listener}updateListenerSettings(t){this.updateSettings({listener:t})}getDebugSettings(){return this.getSettings().debug}updateDebugSettings(t){this.updateSettings({debug:t})}getUiSettings(){return this.getSettings().ui}updateUiSettings(t){this.updateSettings({ui:t})}resetSettings(){this._cache=JSON.parse(JSON.stringify(bn)),b.set(mn,this._cache),x.emit(h.SETTINGS_UPDATED,{settings:this._cache,reset:!0})}get(t,s=null){let n=this.getSettings(),r=t.split("."),o=n;for(let i of r)if(o&&typeof o=="object"&&i in o)o=o[i];else return s;return o}set(t,s){let n=JSON.parse(JSON.stringify(this.getSettings())),r=t.split("."),o=n;for(let i=0;i<r.length-1;i++){let a=r[i];a in o||(o[a]={}),o=o[a]}o[r[r.length-1]]=s,this.saveSettings(n)}_mergeWithDefaults(t){return this._deepMerge(JSON.parse(JSON.stringify(bn)),t)}_deepMerge(t,s){let n={...t};for(let r in s)s[r]&&typeof s[r]=="object"&&!Array.isArray(s[r])?n[r]=this._deepMerge(t[r]||{},s[r]):n[r]=s[r];return n}},St=new os,Xi=St});var Br={};N(Br,{ContextInjector:()=>as,DEFAULT_INJECTION_OPTIONS:()=>zr,contextInjector:()=>Ut,default:()=>Zi});var he,zr,as,Ut,Zi,ls=E(()=>{at();z();he="context_injection",zr={target:"context",scope:"chat",overwrite:!0,enabled:!0,worldbookTarget:"__character__",comment:"",position:"at_depth_as_system",depth:4,order:1e4},as=class{constructor(){this._cache=new Map,this.debugMode=!1}async inject(t,s,n={}){if(!t||s===void 0||s===null)return this._log("\u6CE8\u5165\u5931\u8D25: \u53C2\u6570\u65E0\u6548"),!1;let r={...zr,...n},o=n.chatId||this._getCurrentChatId();if(!o)return this._log("\u6CE8\u5165\u5931\u8D25: \u65E0\u6CD5\u83B7\u53D6\u804A\u5929ID"),!1;let i=this._getStorageKey(o),a=this._getChatContexts(o),c={toolId:t,content:String(s),updatedAt:Date.now(),sourceMessageId:n.sourceMessageId||null,options:r};return r.overwrite||!a[t]?a[t]=c:a[t]={...c,content:(a[t]?.content||"")+`
 
-// modules/bypass-manager.js
-var bypass_manager_exports = {};
-__export(bypass_manager_exports, {
-  BypassManager: () => BypassManager,
-  DEFAULT_BYPASS_PRESETS: () => DEFAULT_BYPASS_PRESETS,
-  addMessage: () => addMessage,
-  buildBypassMessages: () => buildBypassMessages,
-  bypassManager: () => bypassManager,
-  createPreset: () => createPreset2,
-  default: () => bypass_manager_default,
-  deleteMessage: () => deleteMessage,
-  deletePreset: () => deletePreset2,
-  duplicatePreset: () => duplicatePreset2,
-  exportPresets: () => exportPresets2,
-  getAllPresets: () => getAllPresets2,
-  getDefaultPresetId: () => getDefaultPresetId,
-  getEnabledMessages: () => getEnabledMessages,
-  getPreset: () => getPreset2,
-  getPresetList: () => getPresetList,
-  importPresets: () => importPresets2,
-  setDefaultPresetId: () => setDefaultPresetId,
-  updateMessage: () => updateMessage,
-  updatePreset: () => updatePreset2
-});
-var BYPASS_PRESETS_KEY, DEFAULT_BYPASS_KEY, LEGACY_DEFAULT_BYPASS_KEY, DEFAULT_BYPASS_PRESETS, LEGACY_SAMPLE_PRESET_NAMES, BypassManager, bypassManager, getAllPresets2, getPresetList, getPreset2, createPreset2, updatePreset2, deletePreset2, duplicatePreset2, getDefaultPresetId, setDefaultPresetId, getEnabledMessages, addMessage, updateMessage, deleteMessage, exportPresets2, importPresets2, buildBypassMessages, bypass_manager_default;
-var init_bypass_manager = __esm({
-  "modules/bypass-manager.js"() {
-    init_storage_service();
-    init_event_bus();
-    BYPASS_PRESETS_KEY = "bypass_presets";
-    DEFAULT_BYPASS_KEY = "default_bypass_preset";
-    LEGACY_DEFAULT_BYPASS_KEY = "current_bypass_preset";
-    DEFAULT_BYPASS_PRESETS = {};
-    LEGACY_SAMPLE_PRESET_NAMES = /* @__PURE__ */ new Set([
-      "\u6807\u51C6\u7834\u9650\u8BCD",
-      "\u589E\u5F3A\u7834\u9650"
-    ]);
-    BypassManager = class {
-      constructor() {
-        this._cache = null;
-        this._migrated = false;
-        this.debugMode = false;
-      }
-      // ============================================================
-      // 预设管理
-      // ============================================================
-      /**
-       * 获取所有破限词预设
-       * @returns {Object} 预设对象 { id: preset }
-       */
-      getAllPresets() {
-        this._migrateLegacyData();
-        if (this._cache) {
-          return this._cache;
-        }
-        const saved = storage.get(BYPASS_PRESETS_KEY, {});
-        this._cache = { ...DEFAULT_BYPASS_PRESETS, ...saved };
-        return this._cache;
-      }
-      /**
-       * 获取预设列表（数组形式）
-       * @returns {Array} 预设列表
-       */
-      getPresetList() {
-        const presets = this.getAllPresets();
-        return Object.values(presets).sort(
-          (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
-        );
-      }
-      /**
-       * 获取单个预设
-       * @param {string} presetId - 预设ID
-       * @returns {Object|null} 预设对象
-       */
-      getPreset(presetId) {
-        if (!presetId)
-          return null;
-        const presets = this.getAllPresets();
-        return presets[presetId] || null;
-      }
-      /**
-       * 检查预设是否存在
-       * @param {string} presetId - 预设ID
-       * @returns {boolean}
-       */
-      presetExists(presetId) {
-        return !!this.getPreset(presetId);
-      }
-      /**
-       * 创建新预设
-       * @param {Object} presetData - 预设数据
-       * @returns {Object} { success: boolean, message: string, preset?: Object }
-       */
-      createPreset(presetData) {
-        const { id, name, description, messages } = presetData;
-        if (!id || typeof id !== "string" || !id.trim()) {
-          return { success: false, message: "\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A" };
-        }
-        if (!name || typeof name !== "string" || !name.trim()) {
-          return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
-        }
-        const trimmedId = id.trim();
-        if (this.presetExists(trimmedId)) {
-          return { success: false, message: `\u9884\u8BBE "${trimmedId}" \u5DF2\u5B58\u5728` };
-        }
-        const preset = {
-          id: trimmedId,
-          name: name.trim(),
-          description: description || "",
-          enabled: true,
-          messages: messages || [],
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        this._savePreset(trimmedId, preset);
-        eventBus.emit(EVENTS.BYPASS_PRESET_CREATED, { presetId: trimmedId, preset });
-        this._log(`\u9884\u8BBE\u5DF2\u521B\u5EFA: ${trimmedId}`);
-        return { success: true, message: `\u9884\u8BBE "${name}" \u521B\u5EFA\u6210\u529F`, preset };
-      }
-      /**
-       * 更新预设
-       * @param {string} presetId - 预设ID
-       * @param {Object} updates - 更新内容
-       * @returns {Object} { success: boolean, message: string, preset?: Object }
-       */
-      updatePreset(presetId, updates) {
-        if (!presetId) {
-          return { success: false, message: "\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A" };
-        }
-        const preset = this.getPreset(presetId);
-        if (!preset) {
-          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
-        }
-        if (updates.id && updates.id !== presetId) {
-          return { success: false, message: "\u4E0D\u5141\u8BB8\u4FEE\u6539\u9884\u8BBEID" };
-        }
-        const updatedPreset = {
-          ...preset,
-          ...updates,
-          id: presetId,
-          // 保持原ID
-          updatedAt: Date.now()
-        };
-        this._savePreset(presetId, updatedPreset);
-        eventBus.emit(EVENTS.BYPASS_PRESET_UPDATED, { presetId, preset: updatedPreset });
-        this._log(`\u9884\u8BBE\u5DF2\u66F4\u65B0: ${presetId}`);
-        return { success: true, message: `\u9884\u8BBE "${preset.name}" \u66F4\u65B0\u6210\u529F`, preset: updatedPreset };
-      }
-      /**
-       * 删除预设
-       * @param {string} presetId - 预设ID
-       * @returns {Object} { success: boolean, message: string }
-       */
-      deletePreset(presetId) {
-        if (!presetId) {
-          return { success: false, message: "\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A" };
-        }
-        if (DEFAULT_BYPASS_PRESETS[presetId]) {
-          return { success: false, message: "\u4E0D\u5141\u8BB8\u5220\u9664\u9ED8\u8BA4\u9884\u8BBE" };
-        }
-        const preset = this.getPreset(presetId);
-        if (!preset) {
-          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
-        }
-        const saved = storage.get(BYPASS_PRESETS_KEY, {});
-        delete saved[presetId];
-        storage.set(BYPASS_PRESETS_KEY, saved);
-        this._cache = null;
-        if (this.getDefaultPresetId() === presetId) {
-          this.setDefaultPresetId(null);
-        }
-        eventBus.emit(EVENTS.BYPASS_PRESET_DELETED, { presetId });
-        this._log(`\u9884\u8BBE\u5DF2\u5220\u9664: ${presetId}`);
-        return { success: true, message: `\u9884\u8BBE "${preset.name}" \u5DF2\u5220\u9664` };
-      }
-      /**
-       * 复制预设
-       * @param {string} sourceId - 源预设ID
-       * @param {string} newId - 新预设ID
-       * @param {string} newName - 新预设名称
-       * @returns {Object} { success: boolean, message: string, preset?: Object }
-       */
-      duplicatePreset(sourceId, newId, newName) {
-        const source = this.getPreset(sourceId);
-        if (!source) {
-          return { success: false, message: `\u6E90\u9884\u8BBE "${sourceId}" \u4E0D\u5B58\u5728` };
-        }
-        if (!newId || !newId.trim()) {
-          newId = `${sourceId}_copy_${Date.now()}`;
-        }
-        if (this.presetExists(newId)) {
-          return { success: false, message: `\u9884\u8BBE "${newId}" \u5DF2\u5B58\u5728` };
-        }
-        const newPreset = {
-          ...JSON.parse(JSON.stringify(source)),
-          id: newId.trim(),
-          name: newName || `${source.name} (\u526F\u672C)`,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        this._savePreset(newId.trim(), newPreset);
-        eventBus.emit(EVENTS.BYPASS_PRESET_CREATED, { presetId: newId, preset: newPreset });
-        return { success: true, message: `\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${newPreset.name}"`, preset: newPreset };
-      }
-      // ============================================================
-      // 消息管理
-      // ============================================================
-      /**
-       * 添加消息到预设
-       * @param {string} presetId - 预设ID
-       * @param {Object} message - 消息对象 { role, content, enabled }
-       * @returns {Object} { success: boolean, message: string }
-       */
-      addMessage(presetId, message) {
-        const preset = this.getPreset(presetId);
-        if (!preset) {
-          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
-        }
-        const newMessage = {
-          id: `msg_${Date.now()}`,
-          role: message.role || "SYSTEM",
-          content: message.content || "",
-          enabled: message.enabled !== false,
-          deletable: message.deletable !== false
-        };
-        const updatedMessages = [...preset.messages || [], newMessage];
-        return this.updatePreset(presetId, { messages: updatedMessages });
-      }
-      /**
-       * 更新预设中的消息
-       * @param {string} presetId - 预设ID
-       * @param {string} messageId - 消息ID
-       * @param {Object} updates - 更新内容
-       * @returns {Object} { success: boolean, message: string }
-       */
-      updateMessage(presetId, messageId, updates) {
-        const preset = this.getPreset(presetId);
-        if (!preset) {
-          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
-        }
-        const messages = preset.messages || [];
-        const messageIndex = messages.findIndex((m) => m.id === messageId);
-        if (messageIndex === -1) {
-          return { success: false, message: `\u6D88\u606F "${messageId}" \u4E0D\u5B58\u5728` };
-        }
-        const updatedMessages = [...messages];
-        updatedMessages[messageIndex] = {
-          ...updatedMessages[messageIndex],
-          ...updates
-        };
-        return this.updatePreset(presetId, { messages: updatedMessages });
-      }
-      /**
-       * 删除预设中的消息
-       * @param {string} presetId - 预设ID
-       * @param {string} messageId - 消息ID
-       * @returns {Object} { success: boolean, message: string }
-       */
-      deleteMessage(presetId, messageId) {
-        const preset = this.getPreset(presetId);
-        if (!preset) {
-          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
-        }
-        const messages = preset.messages || [];
-        const message = messages.find((m) => m.id === messageId);
-        if (!message) {
-          return { success: false, message: `\u6D88\u606F "${messageId}" \u4E0D\u5B58\u5728` };
-        }
-        if (message.deletable === false) {
-          return { success: false, message: "\u8BE5\u6D88\u606F\u4E0D\u53EF\u5220\u9664" };
-        }
-        const updatedMessages = messages.filter((m) => m.id !== messageId);
-        return this.updatePreset(presetId, { messages: updatedMessages });
-      }
-      /**
-       * 获取预设的启用消息
-       * @param {string} presetId - 预设ID
-       * @returns {Array} 启用的消息数组
-       */
-      getEnabledMessages(presetId) {
-        const preset = this.getPreset(presetId);
-        if (!preset || !preset.enabled) {
-          return [];
-        }
-        return (preset.messages || []).filter((msg) => msg.enabled !== false);
-      }
-      // ============================================================
-      // 默认预设管理
-      // ============================================================
-      /**
-       * 获取默认预设ID
-       * @returns {string|null}
-       */
-      getDefaultPresetId() {
-        this._migrateLegacyData();
-        const presetId = storage.get(DEFAULT_BYPASS_KEY, null);
-        if (presetId === "undefined" || presetId === "null" || presetId === "") {
-          storage.remove(DEFAULT_BYPASS_KEY);
-          return null;
-        }
-        return presetId;
-      }
-      /**
-       * 设置默认预设
-       * @param {string|null} presetId - 预设ID，null表示清除默认
-       * @returns {boolean}
-       */
-      setDefaultPresetId(presetId) {
-        if (presetId && !this.presetExists(presetId)) {
-          return false;
-        }
-        storage.set(DEFAULT_BYPASS_KEY, presetId);
-        eventBus.emit(EVENTS.BYPASS_PRESET_ACTIVATED, { presetId });
-        this._log(`\u9ED8\u8BA4\u9884\u8BBE\u5DF2\u8BBE\u7F6E: ${presetId}`);
-        return true;
-      }
-      /**
-       * 获取默认预设
-       * @returns {Object|null}
-       */
-      getDefaultPreset() {
-        const presetId = this.getDefaultPresetId();
-        return presetId ? this.getPreset(presetId) : null;
-      }
-      // ============================================================
-      // 导入导出
-      // ============================================================
-      /**
-       * 导出预设
-       * @param {string} presetId - 预设ID，不提供则导出所有
-       * @returns {string} JSON字符串
-       */
-      exportPresets(presetId = null) {
-        if (presetId) {
-          const preset = this.getPreset(presetId);
-          if (!preset) {
-            throw new Error(`\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728`);
-          }
-          return JSON.stringify(preset, null, 2);
-        }
-        const presets = this.getAllPresets();
-        return JSON.stringify({
-          version: "1.0.0",
-          exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          presets: Object.values(presets)
-        }, null, 2);
-      }
-      /**
-       * 导入预设
-       * @param {string} jsonString - JSON字符串
-       * @param {Object} options - 导入选项
-       * @returns {Object} { success: boolean, message: string, imported: number }
-       */
-      importPresets(jsonString, options = {}) {
-        const { overwrite = false } = options;
-        let data;
-        try {
-          data = JSON.parse(jsonString);
-        } catch (e) {
-          return { success: false, message: "JSON\u89E3\u6790\u5931\u8D25", imported: 0 };
-        }
-        const presetsToImport = Array.isArray(data) ? data : data.presets ? data.presets : [data];
-        if (presetsToImport.length === 0) {
-          return { success: false, message: "\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E", imported: 0 };
-        }
-        const saved = storage.get(BYPASS_PRESETS_KEY, {});
-        let imported = 0;
-        for (const preset of presetsToImport) {
-          if (!preset.id || typeof preset.id !== "string")
-            continue;
-          if (!preset.name)
-            continue;
-          if (DEFAULT_BYPASS_PRESETS[preset.id] && !overwrite)
-            continue;
-          if (!overwrite && saved[preset.id])
-            continue;
-          saved[preset.id] = {
-            ...preset,
-            updatedAt: Date.now()
-          };
-          imported++;
-        }
-        if (imported > 0) {
-          storage.set(BYPASS_PRESETS_KEY, saved);
-          this._cache = null;
-        }
-        return {
-          success: true,
-          message: `\u6210\u529F\u5BFC\u5165 ${imported} \u4E2A\u9884\u8BBE`,
-          imported
-        };
-      }
-      // ============================================================
-      // 工具绑定辅助
-      // ============================================================
-      /**
-       * 获取工具绑定的破限词预设
-       * @param {Object} toolConfig - 工具配置
-       * @returns {Object|null} 预设对象或null
-       */
-      getToolBypassPreset(toolConfig) {
-        if (!toolConfig?.bypass?.enabled) {
-          return null;
-        }
-        const presetId = toolConfig?.bypass?.presetId;
-        if (!presetId) {
-          return this.getDefaultPreset();
-        }
-        return this.getPreset(presetId);
-      }
-      /**
-       * 构建工具的破限词消息
-       * @param {Object} toolConfig - 工具配置
-       * @returns {Array} 消息数组
-       */
-      buildBypassMessages(toolConfig) {
-        const preset = this.getToolBypassPreset(toolConfig);
-        if (!preset) {
-          return [];
-        }
-        return this.getEnabledMessages(preset.id);
-      }
-      // ============================================================
-      // 私有方法
-      // ============================================================
-      /**
-       * 保存预设
-       * @private
-       */
-      _savePreset(presetId, preset) {
-        const saved = storage.get(BYPASS_PRESETS_KEY, {});
-        saved[presetId] = preset;
-        storage.set(BYPASS_PRESETS_KEY, saved);
-        this._cache = null;
-      }
-      /**
-       * 迁移旧版破限词存储数据
-       * @private
-       */
-      _migrateLegacyData() {
-        if (this._migrated) {
-          return;
-        }
-        const rawSaved = storage.get(BYPASS_PRESETS_KEY, {});
-        const normalizedPresets = {};
-        let changed = false;
-        const entries = Array.isArray(rawSaved) ? rawSaved.map((preset, index) => [preset?.id || preset?.name || `legacy_${index}`, preset]) : Object.entries(rawSaved || {});
-        for (const [key, value] of entries) {
-          const normalized = this._normalizePreset(key, value, normalizedPresets);
-          if (!normalized) {
-            changed = true;
-            continue;
-          }
-          normalizedPresets[normalized.id] = normalized;
-          if (!rawSaved?.[normalized.id] || rawSaved?.[normalized.id]?.id !== normalized.id) {
-            changed = true;
-          }
-        }
-        if (changed) {
-          storage.set(BYPASS_PRESETS_KEY, normalizedPresets);
-        }
-        this._migrateDefaultPreset(normalizedPresets);
-        this._cache = null;
-        this._migrated = true;
-      }
-      /**
-       * 规范化旧预设
-       * @private
-       */
-      _normalizePreset(key, preset, existingPresets = {}) {
-        if (!preset || typeof preset !== "object") {
-          return null;
-        }
-        let name = typeof preset.name === "string" ? preset.name.trim() : "";
-        let id = typeof preset.id === "string" ? preset.id.trim() : "";
-        const normalizedKey = typeof key === "string" ? key.trim() : "";
-        if (!name && normalizedKey && normalizedKey !== "undefined" && normalizedKey !== "null") {
-          name = normalizedKey;
-        }
-        const shouldDropLegacySample = this._isLegacySamplePreset(name, id);
-        if (shouldDropLegacySample) {
-          return null;
-        }
-        if (!id && normalizedKey && normalizedKey !== "undefined" && normalizedKey !== "null") {
-          id = normalizedKey;
-        }
-        if (!id && name && name !== "undefined" && name !== "null") {
-          id = this._generatePresetId(name, existingPresets);
-        }
-        if (!name || !id || id === "undefined" || name === "undefined") {
-          return null;
-        }
-        const messages = Array.isArray(preset.messages) ? preset.messages.filter((msg) => msg && typeof msg === "object").map((msg, index) => ({
-          id: typeof msg.id === "string" && msg.id.trim() ? msg.id.trim() : `${id}_msg_${index + 1}`,
-          role: msg.role || "SYSTEM",
-          content: typeof msg.content === "string" ? msg.content : "",
-          enabled: msg.enabled !== false,
-          deletable: msg.deletable !== false
-        })) : [];
-        return {
-          ...preset,
-          id,
-          name,
-          description: typeof preset.description === "string" ? preset.description : "",
-          enabled: preset.enabled !== false,
-          messages,
-          createdAt: preset.createdAt || Date.now(),
-          updatedAt: preset.updatedAt || Date.now()
-        };
-      }
-      /**
-       * 迁移默认预设ID
-       * @private
-       */
-      _migrateDefaultPreset(presets) {
-        const defaultPresetId = storage.get(DEFAULT_BYPASS_KEY, null);
-        const legacyDefaultPresetId = storage.get(LEGACY_DEFAULT_BYPASS_KEY, null);
-        let effectiveId = defaultPresetId ?? legacyDefaultPresetId;
-        if (effectiveId === "undefined" || effectiveId === "null" || effectiveId === "") {
-          effectiveId = null;
-        }
-        if (effectiveId && !presets[effectiveId]) {
-          const matchedPreset = Object.values(presets).find((preset) => preset.name === effectiveId);
-          effectiveId = matchedPreset?.id || null;
-        }
-        if (effectiveId) {
-          storage.set(DEFAULT_BYPASS_KEY, effectiveId);
-        } else {
-          storage.remove(DEFAULT_BYPASS_KEY);
-        }
-        if (storage.has(LEGACY_DEFAULT_BYPASS_KEY)) {
-          storage.remove(LEGACY_DEFAULT_BYPASS_KEY);
-        }
-      }
-      /**
-       * 判断是否为旧版样例预设
-       * @private
-       */
-      _isLegacySamplePreset(name, id = "") {
-        if (!name) {
-          return false;
-        }
-        if (id === "standard" || id === "enhanced" || id === "jailbreak") {
-          return true;
-        }
-        if (LEGACY_SAMPLE_PRESET_NAMES.has(name)) {
-          return true;
-        }
-        return /^增强破限（副本）(?:\s*\(\d+\))?$/.test(name);
-      }
-      /**
-       * 生成预设ID
-       * @private
-       */
-      _generatePresetId(name, existingPresets = {}) {
-        const baseId = String(name).trim().toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || `bypass_${Date.now()}`;
-        let candidateId = baseId;
-        let counter = 1;
-        while (existingPresets[candidateId]) {
-          candidateId = `${baseId}_${counter++}`;
-        }
-        return candidateId;
-      }
-      /**
-       * 日志输出
-       * @private
-       */
-      _log(...args) {
-        if (this.debugMode) {
-          console.log("[BypassManager]", ...args);
-        }
-      }
-    };
-    bypassManager = new BypassManager();
-    getAllPresets2 = () => bypassManager.getAllPresets();
-    getPresetList = () => bypassManager.getPresetList();
-    getPreset2 = (presetId) => bypassManager.getPreset(presetId);
-    createPreset2 = (presetData) => bypassManager.createPreset(presetData);
-    updatePreset2 = (presetId, updates) => bypassManager.updatePreset(presetId, updates);
-    deletePreset2 = (presetId) => bypassManager.deletePreset(presetId);
-    duplicatePreset2 = (sourceId, newId, newName) => bypassManager.duplicatePreset(sourceId, newId, newName);
-    getDefaultPresetId = () => bypassManager.getDefaultPresetId();
-    setDefaultPresetId = (presetId) => bypassManager.setDefaultPresetId(presetId);
-    getEnabledMessages = (presetId) => bypassManager.getEnabledMessages(presetId);
-    addMessage = (presetId, message) => bypassManager.addMessage(presetId, message);
-    updateMessage = (presetId, messageId, updates) => bypassManager.updateMessage(presetId, messageId, updates);
-    deleteMessage = (presetId, messageId) => bypassManager.deleteMessage(presetId, messageId);
-    exportPresets2 = (presetId) => bypassManager.exportPresets(presetId);
-    importPresets2 = (jsonString, options) => bypassManager.importPresets(jsonString, options);
-    buildBypassMessages = (toolConfig) => bypassManager.buildBypassMessages(toolConfig);
-    bypass_manager_default = bypassManager;
-  }
-});
+`+s},this._saveChatContexts(o,a),x.emit(h.TOOL_CONTEXT_INJECTED,{toolId:t,chatId:o,content:c.content,options:r}),r.enabled!==!1&&r.target==="worldbook"&&!await this._syncWorldbookEntry(t,c.content,r)?(this._log(`\u4E16\u754C\u4E66\u6CE8\u5165\u5931\u8D25: ${t}`),!1):(this._log(`\u6CE8\u5165\u6210\u529F: ${t} -> ${o}`),!0)}async getAvailableLorebooks(){let t=this._getTavernHelper(),s=[],n=new Set;if(s.push({value:"__character__",label:"\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66",kind:"character",isPrimary:!0}),n.add("__character__"),!t)return s;try{let r="";typeof t.getCurrentCharPrimaryLorebook=="function"?r=await t.getCurrentCharPrimaryLorebook():typeof t.getCharLorebooks=="function"&&(r=(await t.getCharLorebooks({type:"all"}))?.primary||""),r&&!n.has(r)&&(s.push({value:r,label:`${r} [\u89D2\u8272\u4E3B\u4E16\u754C\u4E66]`,kind:"lorebook",isPrimary:!0}),n.add(r))}catch(r){this._log("\u83B7\u53D6\u89D2\u8272\u4E3B\u4E16\u754C\u4E66\u5931\u8D25",r)}try{if(typeof t.getLorebooks=="function"){let r=await Promise.resolve(t.getLorebooks());(Array.isArray(r)?r:[]).forEach(i=>{!i||n.has(i)||(s.push({value:i,label:i,kind:"lorebook"}),n.add(i))})}}catch(r){this._log("\u83B7\u53D6\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25",r)}return s}getAggregatedContext(t){let s=t||this._getCurrentChatId();if(!s)return"";let n=this._getChatContexts(s),r=Object.entries(n);if(r.length===0)return"";let o=["[\u5DE5\u5177\u4E0A\u4E0B\u6587\u6CE8\u5165]",""];for(let[i,a]of r)o.push(`[${i}]`),o.push(a.content||""),o.push("");return o.join(`
+`)}getToolContext(t,s){let n=t||this._getCurrentChatId();return!n||!s?null:this._getChatContexts(n)[s]||null}getAllToolContexts(t){let s=t||this._getCurrentChatId();return s?this._getChatContexts(s):{}}clearToolContext(t,s){let n=t||this._getCurrentChatId();if(!n||!s)return!1;let r=this._getChatContexts(n);return r[s]?(delete r[s],this._saveChatContexts(n,r),x.emit(h.TOOL_CONTEXT_CLEARED,{chatId:n,toolId:s}),this._log(`\u6E05\u9664\u5DE5\u5177\u4E0A\u4E0B\u6587: ${s}`),!0):!1}clearAllContext(t){let s=t||this._getCurrentChatId();if(!s)return!1;let n=this._getAllContexts();return delete n[s],b.set(he,n),this._cache.delete(s),x.emit(h.TOOL_CONTEXT_CLEARED,{chatId:s,allTools:!0}),this._log(`\u6E05\u9664\u804A\u5929\u6240\u6709\u4E0A\u4E0B\u6587: ${s}`),!0}clearAllChatsContexts(){b.remove(he),this._cache.clear(),this._log("\u6E05\u9664\u6240\u6709\u4E0A\u4E0B\u6587")}hasToolContext(t,s){let n=t||this._getCurrentChatId();return!n||!s?!1:!!this._getChatContexts(n)[s]}getContextSummary(t){let s=t||this._getCurrentChatId();if(!s)return{tools:[],totalCount:0};let n=this._getChatContexts(s),r=Object.entries(n).map(([o,i])=>({toolId:o,updatedAt:i.updatedAt,contentLength:i.content?.length||0}));return{chatId:s,tools:r,totalCount:r.length}}exportContext(t){let s=t||this._getCurrentChatId();return s?{chatId:s,contexts:this._getChatContexts(s),exportedAt:Date.now()}:{}}importContext(t,s={}){if(!t||!t.chatId||!t.contexts)return!1;let{overwrite:n=!1}=s;if(n)this._saveChatContexts(t.chatId,t.contexts);else{let o={...this._getChatContexts(t.chatId),...t.contexts};this._saveChatContexts(t.chatId,o)}return this._log(`\u5BFC\u5165\u4E0A\u4E0B\u6587: ${t.chatId}`),!0}_getStorageKey(t){return`${he}:${t}`}_getTavernHelper(){try{return(typeof window.parent<"u"&&window.parent!==window?window.parent:window).TavernHelper||null}catch{return null}}_normalizeWorldbookPosition(t){let s=String(t||"").trim().toLowerCase();return s==="before_char"||s==="after_char"||s==="at_depth_as_system"?s:"at_depth_as_system"}async _resolveWorldbookTarget(t){let s=this._getTavernHelper();return s?!t||t==="__character__"?typeof s.getCurrentCharPrimaryLorebook=="function"?await s.getCurrentCharPrimaryLorebook():typeof s.getCharLorebooks=="function"&&(await s.getCharLorebooks({type:"all"}))?.primary||"":t:""}async _syncWorldbookEntry(t,s,n){let r=this._getTavernHelper();if(!r||typeof r.getLorebookEntries!="function")return this._log("TavernHelper \u4E0D\u53EF\u7528\uFF0C\u65E0\u6CD5\u5199\u5165\u4E16\u754C\u4E66"),!1;let o=await this._resolveWorldbookTarget(n.worldbookTarget||n.targetName||n.target);if(!o)return this._log("\u672A\u627E\u5230\u53EF\u7528\u4E16\u754C\u4E66\uFF0C\u65E0\u6CD5\u5199\u5165"),!1;let i=n.comment||`YouYouToolkit:${t}`,a=this._normalizeWorldbookPosition(n.position),c=Number.isFinite(Number(n.depth))?Number(n.depth):4,l=Number.isFinite(Number(n.order))?Number(n.order):1e4;try{let y=await r.getLorebookEntries(o),g=(Array.isArray(y)?y:[]).find(G=>G?.comment===i||G?.key===i),f=String(s);g&&n.overwrite===!1&&(f=[g.content||"",s].filter(Boolean).join(`
 
-// modules/tool-executor.js
-var tool_executor_exports = {};
-__export(tool_executor_exports, {
-  abortAllTasks: () => abortAllTasks,
-  abortTask: () => abortTask,
-  buildToolMessages: () => buildToolMessages,
-  clearExecutionHistory: () => clearExecutionHistory,
-  createExecutionContext: () => createExecutionContext,
-  createResult: () => createResult,
-  enhanceMessagesWithBypass: () => enhanceMessagesWithBypass,
-  executeBatch: () => executeBatch,
-  executeTool: () => executeTool,
-  executeToolWithConfig: () => executeToolWithConfig,
-  executeToolsBatch: () => executeToolsBatch,
-  executorState: () => executorState,
-  extractFailed: () => extractFailed,
-  extractSuccessful: () => extractSuccessful,
-  generateTaskId: () => generateTaskId,
-  getExecutionHistory: () => getExecutionHistory,
-  getExecutorStatus: () => getExecutorStatus,
-  getScheduler: () => getScheduler,
-  getToolsForEvent: () => getToolsForEvent,
-  mergeResults: () => mergeResults,
-  pauseExecutor: () => pauseExecutor,
-  resumeExecutor: () => resumeExecutor,
-  setMaxConcurrent: () => setMaxConcurrent
-});
-function createResult(taskId, toolId, success, data, error, duration, retries = 0) {
-  return {
-    success,
-    taskId,
-    toolId,
-    data,
-    error,
-    duration,
-    retries,
-    timestamp: Date.now(),
-    metadata: {}
-  };
-}
-function generateTaskId() {
-  return `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-function createTask(toolId, options = {}) {
-  return {
-    id: generateTaskId(),
-    toolId,
-    options,
-    status: "pending",
-    // pending, running, completed, failed, aborted
-    createdAt: Date.now(),
-    startedAt: null,
-    completedAt: null,
-    retries: 0,
-    maxRetries: options.maxRetries || 3
-  };
-}
-function getScheduler() {
-  if (!schedulerInstance) {
-    schedulerInstance = new TaskScheduler(executorState.maxConcurrent);
-  }
-  return schedulerInstance;
-}
-function setMaxConcurrent(max) {
-  executorState.maxConcurrent = Math.max(1, Math.min(10, max));
-  if (schedulerInstance) {
-    schedulerInstance.maxConcurrent = executorState.maxConcurrent;
-  }
-}
-async function executeTool(toolId, options = {}, executor) {
-  const scheduler = getScheduler();
-  const task = createTask(toolId, options);
-  while (executorState.isPaused) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  try {
-    const result = await scheduler.enqueue(async (signal) => {
-      if (signal.aborted) {
-        throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62", "AbortError");
-      }
-      if (typeof executor === "function") {
-        return await executor(signal, options);
-      }
-      throw new Error("\u6267\u884C\u5668\u5FC5\u987B\u662F\u4E00\u4E2A\u51FD\u6570");
-    }, task);
-    addToHistory(result);
-    return result;
-  } catch (error) {
-    const result = createResult(
-      task.id,
-      toolId,
-      false,
-      null,
-      error,
-      Date.now() - task.createdAt,
-      task.retries
-    );
-    addToHistory(result);
-    return result;
-  }
-}
-async function executeBatch(tasks, batchOptions = {}) {
-  const { failFast = false, concurrency = executorState.maxConcurrent } = batchOptions;
-  const results = [];
-  const scheduler = getScheduler();
-  const originalMax = scheduler.maxConcurrent;
-  scheduler.maxConcurrent = concurrency;
-  try {
-    const promises = tasks.map(({ toolId, options, executor }) => {
-      return executeTool(toolId, options, executor);
-    });
-    if (failFast) {
-      for (const promise of promises) {
-        const result = await promise;
-        results.push(result);
-        if (!result.success) {
-          scheduler.abortAll();
-          break;
-        }
-      }
-    } else {
-      const settled = await Promise.allSettled(promises);
-      for (const item of settled) {
-        if (item.status === "fulfilled") {
-          results.push(item.value);
-        } else {
-          results.push(createResult(
-            generateTaskId(),
-            "unknown",
-            false,
-            null,
-            item.reason,
-            0,
-            0
-          ));
-        }
-      }
-    }
-  } finally {
-    scheduler.maxConcurrent = originalMax;
-  }
-  return results;
-}
-function abortTask(taskId) {
-  const scheduler = getScheduler();
-  return scheduler.abort(taskId);
-}
-function abortAllTasks() {
-  const scheduler = getScheduler();
-  scheduler.abortAll();
-  executorState.executionQueue = [];
-}
-function pauseExecutor() {
-  executorState.isPaused = true;
-}
-function resumeExecutor() {
-  executorState.isPaused = false;
-}
-function getExecutorStatus() {
-  const scheduler = getScheduler();
-  return {
-    ...scheduler.getStatus(),
-    isPaused: executorState.isPaused,
-    activeControllers: executorState.activeControllers.size,
-    historyCount: executorState.executionHistory.length
-  };
-}
-function addToHistory(result) {
-  executorState.executionHistory.push(result);
-  if (executorState.executionHistory.length > 100) {
-    executorState.executionHistory.shift();
-  }
-}
-function getExecutionHistory(filter = {}) {
-  let history = [...executorState.executionHistory];
-  if (filter.toolId) {
-    history = history.filter((r) => r.toolId === filter.toolId);
-  }
-  if (filter.success !== void 0) {
-    history = history.filter((r) => r.success === filter.success);
-  }
-  if (filter.limit) {
-    history = history.slice(-filter.limit);
-  }
-  return history;
-}
-function clearExecutionHistory() {
-  executorState.executionHistory = [];
-}
-function mergeResults(results) {
-  const merged = {
-    success: true,
-    data: [],
-    errors: [],
-    totalDuration: 0,
-    successCount: 0,
-    failureCount: 0
-  };
-  for (const result of results) {
-    merged.totalDuration += result.duration;
-    if (result.success) {
-      merged.successCount++;
-      if (result.data !== void 0 && result.data !== null) {
-        merged.data.push(result.data);
-      }
-    } else {
-      merged.success = false;
-      merged.failureCount++;
-      if (result.error) {
-        merged.errors.push({
-          taskId: result.taskId,
-          toolId: result.toolId,
-          error: result.error.message || String(result.error)
-        });
-      }
-    }
-  }
-  return merged;
-}
-function extractSuccessful(results) {
-  return results.filter((r) => r.success).map((r) => r.data);
-}
-function extractFailed(results) {
-  return results.filter((r) => !r.success).map((r) => ({
-    taskId: r.taskId,
-    toolId: r.toolId,
-    error: r.error
-  }));
-}
-function createExecutionContext(options = {}) {
-  return {
-    taskId: generateTaskId(),
-    startTime: Date.now(),
-    signal: options.signal || null,
-    apiConfig: options.apiConfig || null,
-    bypassMessages: options.bypassMessages || [],
-    context: options.context || {},
-    metadata: options.metadata || {}
-  };
-}
-function enhanceMessagesWithBypass(messages, bypassMessages) {
-  if (!bypassMessages || bypassMessages.length === 0) {
-    return messages;
-  }
-  return [...bypassMessages, ...messages];
-}
-function escapeRegex2(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function buildToolMessages(config, context) {
-  const messages = [];
-  let prompt2 = config.promptTemplate || "";
-  const variables = {
-    "{{userMessage}}": context.input?.userMessage || "",
-    "{{lastAiMessage}}": context.input?.lastAiMessage || "",
-    "{{extractedContent}}": context.input?.extractedContent || "",
-    "{{previousToolOutput}}": context.input?.previousToolOutput || "",
-    "{{context}}": JSON.stringify(context.input?.context || {}),
-    // 摘要工具特定变量
-    "{{pg}}": context.input?.context?.pg || "1",
-    "{{time}}": context.input?.context?.time || "",
-    "{{scene}}": context.input?.context?.scene || "",
-    "{{plot}}": context.input?.context?.plot || "",
-    "{{mq}}": context.input?.context?.mq || "\u2160",
-    "{{mqStatus}}": context.input?.context?.mqStatus || "\u8FDB\u884C\u4E2D",
-    "{{sq}}": context.input?.context?.sq || "1",
-    "{{sqStatus}}": context.input?.context?.sqStatus || "\u8FDB\u884C\u4E2D",
-    "{{latestSq}}": context.input?.context?.latestSq || "1",
-    "{{completed}}": context.input?.context?.completed || "\u65E0",
-    "{{defined}}": context.input?.context?.defined || "",
-    "{{status}}": context.input?.context?.status || "",
-    "{{seeds}}": context.input?.context?.seeds || "",
-    // 状态栏特定变量
-    "{{name}}": context.input?.context?.name || "",
-    "{{location}}": context.input?.context?.location || "",
-    "{{condition}}": context.input?.context?.condition || "",
-    "{{equipment}}": context.input?.context?.equipment || "",
-    "{{skills}}": context.input?.context?.skills || ""
-  };
-  for (const [key, value] of Object.entries(variables)) {
-    prompt2 = prompt2.replace(new RegExp(escapeRegex2(key), "g"), value);
-  }
-  messages.push({
-    role: "USER",
-    content: prompt2
-  });
-  return messages;
-}
-async function executeToolWithConfig(toolId, context, options = {}) {
-  const config = getToolFullConfig(toolId);
-  if (!config) {
-    return {
-      success: false,
-      taskId: generateTaskId(),
-      toolId,
-      error: "\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728",
-      duration: 0
-    };
-  }
-  if (!config.enabled) {
-    return {
-      success: false,
-      taskId: generateTaskId(),
-      toolId,
-      error: "\u5DE5\u5177\u672A\u542F\u7528",
-      duration: 0
-    };
-  }
-  const startTime = Date.now();
-  const taskId = generateTaskId();
-  try {
-    eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, { toolId, taskId, context });
-    const messages = buildToolMessages(config, context);
-    if (typeof options.callApi === "function") {
-      const apiConfig = config.apiPreset ? { preset: config.apiPreset } : null;
-      const response = await options.callApi(messages, apiConfig, options.signal);
-      let output = response;
-      if (config.outputMode === "separate" && config.extractTags?.length > 0) {
-        output = extractTagsFromResponse(response, config.extractTags);
-      }
-      const result = {
-        success: true,
-        taskId,
-        toolId,
-        data: output,
-        duration: Date.now() - startTime
-      };
-      eventBus.emit(EVENTS.TOOL_EXECUTED, { toolId, taskId, result });
-      return result;
-    } else {
-      return {
-        success: true,
-        taskId,
-        toolId,
-        data: {
-          messages,
-          config: {
-            apiPreset: config.apiPreset,
-            outputMode: config.outputMode,
-            extractTags: config.extractTags
-          }
-        },
-        duration: Date.now() - startTime,
-        needsExecution: true
-        // 标记需要外部执行
-      };
-    }
-  } catch (error) {
-    const result = {
-      success: false,
-      taskId,
-      toolId,
-      error: error.message || String(error),
-      duration: Date.now() - startTime
-    };
-    eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, { toolId, taskId, error });
-    return result;
-  }
-}
-function extractTagsFromResponse(response, tags) {
-  const result = {};
-  for (const tag of tags) {
-    const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
-    const match = response.match(regex);
-    if (match) {
-      result[tag] = match.map((m) => {
-        const contentMatch = m.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
-        return contentMatch ? contentMatch[1].trim() : "";
-      });
-    }
-  }
-  return result;
-}
-async function executeToolsBatch(toolIds, context, options = {}) {
-  const results = [];
-  for (const toolId of toolIds) {
-    const config = getToolFullConfig(toolId);
-    if (config && config.enabled) {
-      const result = await executeToolWithConfig(toolId, context, options);
-      results.push(result);
-    }
-  }
-  return results;
-}
-function getToolsForEvent(eventType) {
-  const allConfigs = [];
-  const toolIds = ["summaryTool", "statusBlock"];
-  for (const toolId of toolIds) {
-    const config = getToolFullConfig(toolId);
-    const matchesNewTrigger = config?.trigger?.enabled && config?.trigger?.event === eventType;
-    const matchesLegacyTrigger = Array.isArray(config?.triggerEvents) && config.triggerEvents.includes(eventType);
-    if (config && config.enabled && (matchesNewTrigger || matchesLegacyTrigger)) {
-      allConfigs.push(config);
-    }
-  }
-  return allConfigs;
-}
-var executorState, TaskScheduler, schedulerInstance;
-var init_tool_executor = __esm({
-  "modules/tool-executor.js"() {
-    init_tool_registry();
-    init_event_bus();
-    executorState = {
-      // 当前活跃的AbortController
-      activeControllers: /* @__PURE__ */ new Map(),
-      // taskId -> AbortController
-      // 执行队列
-      executionQueue: [],
-      // 正在执行的任务数
-      runningCount: 0,
-      // 最大并发数
-      maxConcurrent: 3,
-      // 执行历史（最近100条）
-      executionHistory: [],
-      // 是否暂停
-      isPaused: false
-    };
-    TaskScheduler = class {
-      constructor(maxConcurrent = 3) {
-        this.maxConcurrent = maxConcurrent;
-        this.queue = [];
-        this.running = /* @__PURE__ */ new Map();
-        this.isProcessing = false;
-      }
-      /**
-       * 添加任务到队列
-       * @param {Function} executor 执行函数
-       * @param {Object} task 任务对象
-       * @returns {Promise} 执行结果Promise
-       */
-      enqueue(executor, task) {
-        return new Promise((resolve, reject) => {
-          this.queue.push({ executor, task, resolve, reject });
-          this.process();
-        });
-      }
-      /**
-       * 处理队列
-       */
-      async process() {
-        if (this.isProcessing)
-          return;
-        this.isProcessing = true;
-        while (this.queue.length > 0 && this.running.size < this.maxConcurrent) {
-          const item = this.queue.shift();
-          if (!item)
-            continue;
-          const { executor, task, resolve, reject } = item;
-          const controller = new AbortController();
-          task.abortController = controller;
-          task.status = "running";
-          task.startedAt = Date.now();
-          this.running.set(task.id, task);
-          executorState.activeControllers.set(task.id, controller);
-          this.executeTask(executor, task, controller.signal).then((result) => {
-            task.status = "completed";
-            task.completedAt = Date.now();
-            resolve(result);
-          }).catch((error) => {
-            task.status = error.name === "AbortError" ? "aborted" : "failed";
-            task.completedAt = Date.now();
-            reject(error);
-          }).finally(() => {
-            this.running.delete(task.id);
-            executorState.activeControllers.delete(task.id);
-            executorState.runningCount = this.running.size;
-          });
-        }
-        this.isProcessing = false;
-      }
-      /**
-       * 执行单个任务
-       */
-      async executeTask(executor, task, signal) {
-        const startTime = Date.now();
-        let lastError = null;
-        for (let attempt = 0; attempt <= task.maxRetries; attempt++) {
-          if (signal.aborted) {
-            throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62", "AbortError");
-          }
-          try {
-            const result = await executor(signal);
-            return createResult(
-              task.id,
-              task.toolId,
-              true,
-              result,
-              null,
-              Date.now() - startTime,
-              attempt
-            );
-          } catch (error) {
-            lastError = error;
-            if (error.name === "AbortError") {
-              throw error;
-            }
-            if (attempt < task.maxRetries) {
-              await this.delay(1e3 * (attempt + 1));
-              task.retries = attempt + 1;
-            }
-          }
-        }
-        throw lastError;
-      }
-      /**
-       * 延迟函数
-       */
-      delay(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-      }
-      /**
-       * 中止任务
-       */
-      abort(taskId) {
-        const controller = executorState.activeControllers.get(taskId);
-        if (controller) {
-          controller.abort();
-          return true;
-        }
-        return false;
-      }
-      /**
-       * 中止所有任务
-       */
-      abortAll() {
-        for (const controller of executorState.activeControllers.values()) {
-          controller.abort();
-        }
-        executorState.activeControllers.clear();
-        this.queue = [];
-        this.running.clear();
-      }
-      /**
-       * 获取队列状态
-       */
-      getStatus() {
-        return {
-          pending: this.queue.length,
-          running: this.running.size,
-          maxConcurrent: this.maxConcurrent
-        };
-      }
-    };
-    schedulerInstance = null;
-  }
-});
-
-// modules/core/settings-service.js
-var settings_service_exports = {};
-__export(settings_service_exports, {
-  DEFAULT_SETTINGS: () => DEFAULT_SETTINGS2,
-  SettingsService: () => SettingsService,
-  default: () => settings_service_default,
-  settingsService: () => settingsService
-});
-var DEFAULT_SETTINGS2, SETTINGS_STORAGE_KEY, SettingsService, settingsService, settings_service_default;
-var init_settings_service = __esm({
-  "modules/core/settings-service.js"() {
-    init_storage_service();
-    init_event_bus();
-    DEFAULT_SETTINGS2 = {
-      executor: {
-        maxConcurrent: 3,
-        maxRetries: 2,
-        retryDelayMs: 5e3,
-        requestTimeoutMs: 9e4,
-        queueStrategy: "fifo"
-      },
-      listener: {
-        listenGenerationEnded: true,
-        ignoreQuietGeneration: true,
-        ignoreAutoTrigger: true,
-        debounceMs: 300
-      },
-      debug: {
-        enableDebugLog: false,
-        saveExecutionHistory: true,
-        showRuntimeBadge: true
-      },
-      ui: {
-        compactMode: false,
-        animationEnabled: true,
-        theme: "dark-blue"
-      }
-    };
-    SETTINGS_STORAGE_KEY = "settings_v2";
-    SettingsService = class {
-      constructor() {
-        this._cache = null;
-      }
-      /**
-       * 获取所有设置
-       * @returns {Object}
-       */
-      getSettings() {
-        if (this._cache) {
-          return this._cache;
-        }
-        const saved = storage.get(SETTINGS_STORAGE_KEY, {});
-        this._cache = this._mergeWithDefaults(saved);
-        return this._cache;
-      }
-      /**
-       * 保存设置
-       * @param {Object} settings - 完整设置对象
-       */
-      saveSettings(settings) {
-        this._cache = this._mergeWithDefaults(settings);
-        storage.set(SETTINGS_STORAGE_KEY, this._cache);
-        eventBus.emit(EVENTS.SETTINGS_UPDATED, { settings: this._cache });
-      }
-      /**
-       * 更新部分设置
-       * @param {Object} partial - 部分设置
-       */
-      updateSettings(partial) {
-        const current = this.getSettings();
-        const updated = this._deepMerge(current, partial);
-        this.saveSettings(updated);
-      }
-      /**
-       * 获取执行器设置
-       * @returns {Object}
-       */
-      getExecutorSettings() {
-        return this.getSettings().executor;
-      }
-      /**
-       * 更新执行器设置
-       * @param {Object} executorSettings
-       */
-      updateExecutorSettings(executorSettings) {
-        this.updateSettings({ executor: executorSettings });
-      }
-      /**
-       * 获取监听器设置
-       * @returns {Object}
-       */
-      getListenerSettings() {
-        return this.getSettings().listener;
-      }
-      /**
-       * 更新监听器设置
-       * @param {Object} listenerSettings
-       */
-      updateListenerSettings(listenerSettings) {
-        this.updateSettings({ listener: listenerSettings });
-      }
-      /**
-       * 获取调试设置
-       * @returns {Object}
-       */
-      getDebugSettings() {
-        return this.getSettings().debug;
-      }
-      /**
-       * 更新调试设置
-       * @param {Object} debugSettings
-       */
-      updateDebugSettings(debugSettings) {
-        this.updateSettings({ debug: debugSettings });
-      }
-      /**
-       * 获取UI设置
-       * @returns {Object}
-       */
-      getUiSettings() {
-        return this.getSettings().ui;
-      }
-      /**
-       * 更新UI设置
-       * @param {Object} uiSettings
-       */
-      updateUiSettings(uiSettings) {
-        this.updateSettings({ ui: uiSettings });
-      }
-      /**
-       * 重置为默认设置
-       */
-      resetSettings() {
-        this._cache = JSON.parse(JSON.stringify(DEFAULT_SETTINGS2));
-        storage.set(SETTINGS_STORAGE_KEY, this._cache);
-        eventBus.emit(EVENTS.SETTINGS_UPDATED, { settings: this._cache, reset: true });
-      }
-      /**
-       * 获取单个设置值
-       * @param {string} path - 点分隔的路径，如 'executor.maxConcurrent'
-       * @param {*} defaultValue
-       * @returns {*}
-       */
-      get(path, defaultValue = null) {
-        const settings = this.getSettings();
-        const keys = path.split(".");
-        let value = settings;
-        for (const key of keys) {
-          if (value && typeof value === "object" && key in value) {
-            value = value[key];
-          } else {
-            return defaultValue;
-          }
-        }
-        return value;
-      }
-      /**
-       * 设置单个值
-       * @param {string} path - 点分隔的路径
-       * @param {*} value
-       */
-      set(path, value) {
-        const settings = JSON.parse(JSON.stringify(this.getSettings()));
-        const keys = path.split(".");
-        let target = settings;
-        for (let i = 0; i < keys.length - 1; i++) {
-          const key = keys[i];
-          if (!(key in target)) {
-            target[key] = {};
-          }
-          target = target[key];
-        }
-        target[keys[keys.length - 1]] = value;
-        this.saveSettings(settings);
-      }
-      // ============================================================
-      // 私有方法
-      // ============================================================
-      /**
-       * 与默认值合并
-       * @private
-       */
-      _mergeWithDefaults(saved) {
-        return this._deepMerge(JSON.parse(JSON.stringify(DEFAULT_SETTINGS2)), saved);
-      }
-      /**
-       * 深度合并对象
-       * @private
-       */
-      _deepMerge(target, source) {
-        const result = { ...target };
-        for (const key in source) {
-          if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
-            result[key] = this._deepMerge(target[key] || {}, source[key]);
-          } else {
-            result[key] = source[key];
-          }
-        }
-        return result;
-      }
-    };
-    settingsService = new SettingsService();
-    settings_service_default = settingsService;
-  }
-});
-
-// modules/context-injector.js
-var context_injector_exports = {};
-__export(context_injector_exports, {
-  ContextInjector: () => ContextInjector,
-  DEFAULT_INJECTION_OPTIONS: () => DEFAULT_INJECTION_OPTIONS,
-  contextInjector: () => contextInjector,
-  default: () => context_injector_default
-});
-var CONTEXT_INJECTION_KEY, DEFAULT_INJECTION_OPTIONS, ContextInjector, contextInjector, context_injector_default;
-var init_context_injector = __esm({
-  "modules/context-injector.js"() {
-    init_storage_service();
-    init_event_bus();
-    CONTEXT_INJECTION_KEY = "context_injection";
-    DEFAULT_INJECTION_OPTIONS = {
-      target: "context",
-      // 注入目标：context, worldbook, message
-      scope: "chat",
-      // 作用域：chat, global, character
-      overwrite: true,
-      // 是否覆盖现有内容
-      enabled: true,
-      worldbookTarget: "__character__",
-      comment: "",
-      position: "at_depth_as_system",
-      depth: 4,
-      order: 1e4
-    };
-    ContextInjector = class {
-      constructor() {
-        this._cache = /* @__PURE__ */ new Map();
-        this.debugMode = false;
-      }
-      // ============================================================
-      // 核心注入方法
-      // ============================================================
-      /**
-       * 注入工具上下文
-       * @param {string} toolId - 工具ID
-       * @param {string} content - 要注入的内容
-       * @param {Object} options - 注入选项
-       * @returns {boolean} 是否成功
-       */
-      async inject(toolId, content, options = {}) {
-        if (!toolId || content === void 0 || content === null) {
-          this._log("\u6CE8\u5165\u5931\u8D25: \u53C2\u6570\u65E0\u6548");
-          return false;
-        }
-        const mergedOptions = { ...DEFAULT_INJECTION_OPTIONS, ...options };
-        const chatId = options.chatId || this._getCurrentChatId();
-        if (!chatId) {
-          this._log("\u6CE8\u5165\u5931\u8D25: \u65E0\u6CD5\u83B7\u53D6\u804A\u5929ID");
-          return false;
-        }
-        const storageKey = this._getStorageKey(chatId);
-        let chatContexts = this._getChatContexts(chatId);
-        const injectionEntry = {
-          toolId,
-          content: String(content),
-          updatedAt: Date.now(),
-          sourceMessageId: options.sourceMessageId || null,
-          options: mergedOptions
-        };
-        if (mergedOptions.overwrite || !chatContexts[toolId]) {
-          chatContexts[toolId] = injectionEntry;
-        } else {
-          chatContexts[toolId] = {
-            ...injectionEntry,
-            content: (chatContexts[toolId]?.content || "") + "\n\n" + content
-          };
-        }
-        this._saveChatContexts(chatId, chatContexts);
-        eventBus.emit(EVENTS.TOOL_CONTEXT_INJECTED, {
-          toolId,
-          chatId,
-          content: injectionEntry.content,
-          options: mergedOptions
-        });
-        if (mergedOptions.enabled !== false && mergedOptions.target === "worldbook") {
-          const synced = await this._syncWorldbookEntry(toolId, injectionEntry.content, mergedOptions);
-          if (!synced) {
-            this._log(`\u4E16\u754C\u4E66\u6CE8\u5165\u5931\u8D25: ${toolId}`);
-            return false;
-          }
-        }
-        this._log(`\u6CE8\u5165\u6210\u529F: ${toolId} -> ${chatId}`);
-        return true;
-      }
-      /**
-       * 获取可用世界书列表
-       * @returns {Promise<Array<{value: string, label: string, kind: string, isPrimary?: boolean}>>}
-       */
-      async getAvailableLorebooks() {
-        const helper = this._getTavernHelper();
-        const result = [];
-        const seen = /* @__PURE__ */ new Set();
-        result.push({
-          value: "__character__",
-          label: "\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66",
-          kind: "character",
-          isPrimary: true
-        });
-        seen.add("__character__");
-        if (!helper) {
-          return result;
-        }
-        try {
-          let primary = "";
-          if (typeof helper.getCurrentCharPrimaryLorebook === "function") {
-            primary = await helper.getCurrentCharPrimaryLorebook();
-          } else if (typeof helper.getCharLorebooks === "function") {
-            const lorebooks = await helper.getCharLorebooks({ type: "all" });
-            primary = lorebooks?.primary || "";
-          }
-          if (primary && !seen.has(primary)) {
-            result.push({
-              value: primary,
-              label: `${primary} [\u89D2\u8272\u4E3B\u4E16\u754C\u4E66]`,
-              kind: "lorebook",
-              isPrimary: true
-            });
-            seen.add(primary);
-          }
-        } catch (error) {
-          this._log("\u83B7\u53D6\u89D2\u8272\u4E3B\u4E16\u754C\u4E66\u5931\u8D25", error);
-        }
-        try {
-          if (typeof helper.getLorebooks === "function") {
-            const lorebooks = await Promise.resolve(helper.getLorebooks());
-            const names = Array.isArray(lorebooks) ? lorebooks : [];
-            names.forEach((name) => {
-              if (!name || seen.has(name))
-                return;
-              result.push({
-                value: name,
-                label: name,
-                kind: "lorebook"
-              });
-              seen.add(name);
-            });
-          }
-        } catch (error) {
-          this._log("\u83B7\u53D6\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25", error);
-        }
-        return result;
-      }
-      /**
-       * 获取聚合的注入上下文
-       * @param {string} chatId - 聊天ID（可选，默认当前聊天）
-       * @returns {string} 聚合后的上下文文本
-       */
-      getAggregatedContext(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return "";
-        const chatContexts = this._getChatContexts(actualChatId);
-        const entries = Object.entries(chatContexts);
-        if (entries.length === 0)
-          return "";
-        const lines = ["[\u5DE5\u5177\u4E0A\u4E0B\u6587\u6CE8\u5165]", ""];
-        for (const [toolId, entry] of entries) {
-          lines.push(`[${toolId}]`);
-          lines.push(entry.content || "");
-          lines.push("");
-        }
-        return lines.join("\n");
-      }
-      /**
-       * 获取单个工具的注入上下文
-       * @param {string} chatId - 聊天ID
-       * @param {string} toolId - 工具ID
-       * @returns {Object|null} 注入条目
-       */
-      getToolContext(chatId, toolId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId || !toolId)
-          return null;
-        const chatContexts = this._getChatContexts(actualChatId);
-        return chatContexts[toolId] || null;
-      }
-      /**
-       * 获取聊天下所有工具上下文
-       * @param {string} chatId - 聊天ID
-       * @returns {Object} 工具上下文对象
-       */
-      getAllToolContexts(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return {};
-        return this._getChatContexts(actualChatId);
-      }
-      // ============================================================
-      // 清除方法
-      // ============================================================
-      /**
-       * 清除单个工具的上下文
-       * @param {string} chatId - 聊天ID
-       * @param {string} toolId - 工具ID
-       * @returns {boolean} 是否成功
-       */
-      clearToolContext(chatId, toolId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId || !toolId)
-          return false;
-        const chatContexts = this._getChatContexts(actualChatId);
-        if (chatContexts[toolId]) {
-          delete chatContexts[toolId];
-          this._saveChatContexts(actualChatId, chatContexts);
-          eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, toolId });
-          this._log(`\u6E05\u9664\u5DE5\u5177\u4E0A\u4E0B\u6587: ${toolId}`);
-          return true;
-        }
-        return false;
-      }
-      /**
-       * 清除聊天的所有工具上下文
-       * @param {string} chatId - 聊天ID
-       * @returns {boolean} 是否成功
-       */
-      clearAllContext(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return false;
-        const allContexts = this._getAllContexts();
-        delete allContexts[actualChatId];
-        storage.set(CONTEXT_INJECTION_KEY, allContexts);
-        this._cache.delete(actualChatId);
-        eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, allTools: true });
-        this._log(`\u6E05\u9664\u804A\u5929\u6240\u6709\u4E0A\u4E0B\u6587: ${actualChatId}`);
-        return true;
-      }
-      /**
-       * 清除所有聊天的所有上下文
-       */
-      clearAllChatsContexts() {
-        storage.remove(CONTEXT_INJECTION_KEY);
-        this._cache.clear();
-        this._log("\u6E05\u9664\u6240\u6709\u4E0A\u4E0B\u6587");
-      }
-      // ============================================================
-      // 状态查询
-      // ============================================================
-      /**
-       * 检查工具是否有注入上下文
-       * @param {string} chatId - 聊天ID
-       * @param {string} toolId - 工具ID
-       * @returns {boolean}
-       */
-      hasToolContext(chatId, toolId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId || !toolId)
-          return false;
-        const chatContexts = this._getChatContexts(actualChatId);
-        return !!chatContexts[toolId];
-      }
-      /**
-       * 获取聊天的工具注入状态摘要
-       * @param {string} chatId - 聊天ID
-       * @returns {Object} 状态摘要
-       */
-      getContextSummary(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return { tools: [], totalCount: 0 };
-        const chatContexts = this._getChatContexts(actualChatId);
-        const tools = Object.entries(chatContexts).map(([toolId, entry]) => ({
-          toolId,
-          updatedAt: entry.updatedAt,
-          contentLength: entry.content?.length || 0
-        }));
-        return {
-          chatId: actualChatId,
-          tools,
-          totalCount: tools.length
-        };
-      }
-      // ============================================================
-      // 导入导出
-      // ============================================================
-      /**
-       * 导出聊天的上下文数据
-       * @param {string} chatId - 聊天ID
-       * @returns {Object} 上下文数据
-       */
-      exportContext(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return {};
-        return {
-          chatId: actualChatId,
-          contexts: this._getChatContexts(actualChatId),
-          exportedAt: Date.now()
-        };
-      }
-      /**
-       * 导入上下文数据
-       * @param {Object} data - 导出的数据
-       * @param {Object} options - 导入选项
-       * @returns {boolean} 是否成功
-       */
-      importContext(data, options = {}) {
-        if (!data || !data.chatId || !data.contexts) {
-          return false;
-        }
-        const { overwrite = false } = options;
-        if (overwrite) {
-          this._saveChatContexts(data.chatId, data.contexts);
-        } else {
-          const existing = this._getChatContexts(data.chatId);
-          const merged = { ...existing, ...data.contexts };
-          this._saveChatContexts(data.chatId, merged);
-        }
-        this._log(`\u5BFC\u5165\u4E0A\u4E0B\u6587: ${data.chatId}`);
-        return true;
-      }
-      // ============================================================
-      // 私有方法
-      // ============================================================
-      /**
-       * 获取存储键
-       * @private
-       */
-      _getStorageKey(chatId) {
-        return `${CONTEXT_INJECTION_KEY}:${chatId}`;
-      }
-      /**
-       * 获取 TavernHelper
-       * @private
-       */
-      _getTavernHelper() {
-        try {
-          const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
-          return topWindow.TavernHelper || null;
-        } catch (error) {
-          return null;
-        }
-      }
-      /**
-       * 规范化世界书位置
-       * @private
-       */
-      _normalizeWorldbookPosition(position) {
-        const normalized = String(position || "").trim().toLowerCase();
-        if (normalized === "before_char" || normalized === "after_char" || normalized === "at_depth_as_system") {
-          return normalized;
-        }
-        return "at_depth_as_system";
-      }
-      /**
-       * 解析注入目标世界书名称
-       * @private
-       */
-      async _resolveWorldbookTarget(target) {
-        const helper = this._getTavernHelper();
-        if (!helper)
-          return "";
-        if (!target || target === "__character__") {
-          if (typeof helper.getCurrentCharPrimaryLorebook === "function") {
-            return await helper.getCurrentCharPrimaryLorebook();
-          }
-          if (typeof helper.getCharLorebooks === "function") {
-            const lorebooks = await helper.getCharLorebooks({ type: "all" });
-            return lorebooks?.primary || "";
-          }
-          return "";
-        }
-        return target;
-      }
-      /**
-       * 将内容同步到世界书条目
-       * @private
-       */
-      async _syncWorldbookEntry(toolId, content, options) {
-        const helper = this._getTavernHelper();
-        if (!helper || typeof helper.getLorebookEntries !== "function") {
-          this._log("TavernHelper \u4E0D\u53EF\u7528\uFF0C\u65E0\u6CD5\u5199\u5165\u4E16\u754C\u4E66");
-          return false;
-        }
-        const targetName = await this._resolveWorldbookTarget(options.worldbookTarget || options.targetName || options.target);
-        if (!targetName) {
-          this._log("\u672A\u627E\u5230\u53EF\u7528\u4E16\u754C\u4E66\uFF0C\u65E0\u6CD5\u5199\u5165");
-          return false;
-        }
-        const comment = options.comment || `YouYouToolkit:${toolId}`;
-        const position = this._normalizeWorldbookPosition(options.position);
-        const depth = Number.isFinite(Number(options.depth)) ? Number(options.depth) : 4;
-        const order = Number.isFinite(Number(options.order)) ? Number(options.order) : 1e4;
-        try {
-          const existingEntries = await helper.getLorebookEntries(targetName);
-          const entries = Array.isArray(existingEntries) ? existingEntries : [];
-          const existingEntry = entries.find((entry) => entry?.comment === comment || entry?.key === comment);
-          let nextContent = String(content);
-          if (existingEntry && options.overwrite === false) {
-            nextContent = [existingEntry.content || "", content].filter(Boolean).join("\n\n");
-          }
-          const payload = {
-            key: comment,
-            comment,
-            content: nextContent,
-            type: "constant",
-            enabled: true,
-            disable: false,
-            prevent_recursion: true,
-            position,
-            order
-          };
-          if (position === "at_depth_as_system") {
-            payload.depth = depth;
-          }
-          if (existingEntry?.uid != null && typeof helper.setLorebookEntries === "function") {
-            await helper.setLorebookEntries(targetName, [{
-              ...payload,
-              uid: existingEntry.uid
-            }]);
-            return true;
-          }
-          if (typeof helper.createLorebookEntries === "function") {
-            await helper.createLorebookEntries(targetName, [payload]);
-            return true;
-          }
-        } catch (error) {
-          this._log("\u5199\u5165\u4E16\u754C\u4E66\u5931\u8D25", error);
-        }
-        return false;
-      }
-      /**
-       * 获取当前聊天ID
-       * @private
-       */
-      _getCurrentChatId() {
-        try {
-          const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
-          if (topWindow.SillyTavern?.getContext) {
-            const context = topWindow.SillyTavern.getContext();
-            return context.chatId || context.chat_filename || `chat_${Date.now()}`;
-          }
-          return `chat_${Date.now()}`;
-        } catch (e) {
-          return `chat_${Date.now()}`;
-        }
-      }
-      /**
-       * 获取所有上下文数据
-       * @private
-       */
-      _getAllContexts() {
-        return storage.get(CONTEXT_INJECTION_KEY, {});
-      }
-      /**
-       * 获取聊天的工具上下文
-       * @private
-       */
-      _getChatContexts(chatId) {
-        if (this._cache.has(chatId)) {
-          return this._cache.get(chatId);
-        }
-        const allContexts = this._getAllContexts();
-        const chatContexts = allContexts[chatId] || {};
-        this._cache.set(chatId, chatContexts);
-        return chatContexts;
-      }
-      /**
-       * 保存聊天的工具上下文
-       * @private
-       */
-      _saveChatContexts(chatId, contexts) {
-        const allContexts = this._getAllContexts();
-        allContexts[chatId] = contexts;
-        storage.set(CONTEXT_INJECTION_KEY, allContexts);
-        this._cache.set(chatId, contexts);
-      }
-      /**
-       * 日志输出
-       * @private
-       */
-      _log(...args) {
-        if (this.debugMode) {
-          console.log("[ContextInjector]", ...args);
-        }
-      }
-    };
-    contextInjector = new ContextInjector();
-    context_injector_default = contextInjector;
-  }
-});
-
-// modules/tool-prompt-service.js
-var tool_prompt_service_exports = {};
-__export(tool_prompt_service_exports, {
-  DEFAULT_PROMPT_TEMPLATE: () => DEFAULT_PROMPT_TEMPLATE,
-  ToolPromptService: () => ToolPromptService,
-  default: () => tool_prompt_service_default,
-  toolPromptService: () => toolPromptService
-});
-var DEFAULT_PROMPT_TEMPLATE, ToolPromptService, toolPromptService, tool_prompt_service_default;
-var init_tool_prompt_service = __esm({
-  "modules/tool-prompt-service.js"() {
-    init_event_bus();
-    init_bypass_manager();
-    DEFAULT_PROMPT_TEMPLATE = `\u8BF7\u5904\u7406\u4EE5\u4E0BAI\u56DE\u590D\u5185\u5BB9\uFF1A`;
-    ToolPromptService = class {
-      constructor() {
-        this.debugMode = false;
-      }
-      // ============================================================
-      // 核心方法
-      // ============================================================
-      /**
-       * 构建工具消息数组
-       * @param {Object} toolConfig - 工具配置对象
-       * @param {Object} context - 执行上下文，包含 lastAiMessage 等
-       * @returns {Array} OpenAI格式的消息数组
-       */
-      buildToolMessages(toolConfig, context) {
-        if (!toolConfig) {
-          this._log("\u6784\u5EFA\u5931\u8D25: \u5DE5\u5177\u914D\u7F6E\u4E3A\u7A7A");
-          return [];
-        }
-        const messages = [];
-        const bypassMessages = this._getBypassMessages(toolConfig);
-        if (bypassMessages && bypassMessages.length > 0) {
-          for (const msg of bypassMessages) {
-            if (msg.enabled !== false) {
-              messages.push({
-                role: this._normalizeRole(msg.role),
-                content: msg.content || ""
-              });
-            }
-          }
-        }
-        const promptTemplate = this._getPromptTemplate(toolConfig);
-        const userContent = this._buildUserContent(promptTemplate, context);
-        if (userContent.trim()) {
-          messages.push({
-            role: "user",
-            content: userContent
-          });
-        }
-        this._log(`\u6784\u5EFA\u6D88\u606F: ${messages.length} \u6761`);
-        return messages;
-      }
-      /**
-       * 构建提示词文本（用于显示或调试）
-       * @param {Object} toolConfig - 工具配置
-       * @param {Object} context - 执行上下文
-       * @returns {string} 提示词文本
-       */
-      buildPromptText(toolConfig, context) {
-        const promptTemplate = this._getPromptTemplate(toolConfig);
-        return this._buildUserContent(promptTemplate, context);
-      }
-      /**
-       * 获取工具的提示词模板
-       * @param {Object} toolConfig - 工具配置
-       * @returns {string} 提示词模板
-       */
-      getToolPromptTemplate(toolConfig) {
-        return this._getPromptTemplate(toolConfig);
-      }
-      // ============================================================
-      // 私有方法
-      // ============================================================
-      /**
-       * 获取工具的提示词模板
-       * @private
-       */
-      _getPromptTemplate(toolConfig) {
-        if (toolConfig.promptTemplate && typeof toolConfig.promptTemplate === "string") {
-          return toolConfig.promptTemplate;
-        }
-        return DEFAULT_PROMPT_TEMPLATE;
-      }
-      /**
-       * 获取破限词消息
-       * @private
-       */
-      _getBypassMessages(toolConfig) {
-        if (!toolConfig.bypass?.enabled) {
-          return [];
-        }
-        return bypassManager.buildBypassMessages(toolConfig);
-      }
-      /**
-       * 构建用户消息内容
-       * @private
-       */
-      _buildUserContent(promptTemplate, context) {
-        const parts = [];
-        const lastAiMessage = context?.lastAiMessage || context?.input?.lastAiMessage || "";
-        const extractedContent = context?.extractedContent || context?.input?.extractedContent || "";
-        const recentMessagesText = context?.recentMessagesText || "";
-        if (promptTemplate && promptTemplate.trim()) {
-          let resolvedTemplate = promptTemplate;
-          const replacements = {
-            "{{lastAiMessage}}": lastAiMessage,
-            "{{extractedContent}}": extractedContent,
-            "{{recentMessagesText}}": recentMessagesText
-          };
-          Object.entries(replacements).forEach(([placeholder, value]) => {
-            resolvedTemplate = resolvedTemplate.split(placeholder).join(value || "");
-          });
-          parts.push(resolvedTemplate.trim());
-        }
-        if (extractedContent) {
-          parts.push(`
+`));let T={key:i,comment:i,content:f,type:"constant",enabled:!0,disable:!1,prevent_recursion:!0,position:a,order:l};if(a==="at_depth_as_system"&&(T.depth=c),g?.uid!=null&&typeof r.setLorebookEntries=="function")return await r.setLorebookEntries(o,[{...T,uid:g.uid}]),!0;if(typeof r.createLorebookEntries=="function")return await r.createLorebookEntries(o,[T]),!0}catch(y){this._log("\u5199\u5165\u4E16\u754C\u4E66\u5931\u8D25",y)}return!1}_getCurrentChatId(){try{let t=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(t.SillyTavern?.getContext){let s=t.SillyTavern.getContext(),r=[s?.chatId,s?.chat_id,s?.chat_filename,s?.chatMetadata?.chatId,s?.chatMetadata?.chat_id,s?.chatMetadata?.file_name,s?.chatMetadata?.name,t.SillyTavern?.chatId,t.SillyTavern?.chat_id,t.SillyTavern?.chat_filename].find(i=>typeof i=="string"&&i.trim());if(r)return r;let o=t.SillyTavern?.this_chid;if(o!=null)return`chat_char_${o}`}return"chat_default"}catch{return"chat_default"}}_getAllContexts(){return b.get(he,{})}_getChatContexts(t){if(this._cache.has(t))return this._cache.get(t);let n=this._getAllContexts()[t]||{};return this._cache.set(t,n),n}_saveChatContexts(t,s){let n=this._getAllContexts();n[t]=s,b.set(he,n),this._cache.set(t,s)}_log(...t){this.debugMode&&console.log("[ContextInjector]",...t)}},Ut=new as,Zi=Ut});var Gr={};N(Gr,{DEFAULT_PROMPT_TEMPLATE:()=>Yr,ToolPromptService:()=>cs,default:()=>ta,toolPromptService:()=>ds});var Yr,cs,ds,ta,hn=E(()=>{z();me();Yr="\u8BF7\u5904\u7406\u4EE5\u4E0BAI\u56DE\u590D\u5185\u5BB9\uFF1A",cs=class{constructor(){this.debugMode=!1}buildToolMessages(t,s){if(!t)return this._log("\u6784\u5EFA\u5931\u8D25: \u5DE5\u5177\u914D\u7F6E\u4E3A\u7A7A"),[];let n=[],r=this._getBypassMessages(t);if(r&&r.length>0)for(let a of r)a.enabled!==!1&&n.push({role:this._normalizeRole(a.role),content:a.content||""});let o=this._getPromptTemplate(t),i=this._buildUserContent(o,s);return i.trim()&&n.push({role:"user",content:i}),this._log(`\u6784\u5EFA\u6D88\u606F: ${n.length} \u6761`),n}buildPromptText(t,s){let n=this._getPromptTemplate(t);return this._buildUserContent(n,s)}getToolPromptTemplate(t){return this._getPromptTemplate(t)}_getPromptTemplate(t){return t.promptTemplate&&typeof t.promptTemplate=="string"?t.promptTemplate:Yr}_getBypassMessages(t){return t.bypass?.enabled?v.buildBypassMessages(t):[]}_buildUserContent(t,s){let n=[],r=s?.lastAiMessage||s?.input?.lastAiMessage||"",o=s?.extractedContent||s?.input?.extractedContent||"",i=s?.recentMessagesText||"";if(t&&t.trim()){let a=t;Object.entries({"{{lastAiMessage}}":r,"{{extractedContent}}":o,"{{recentMessagesText}}":i}).forEach(([l,y])=>{a=a.split(l).join(y||"")}),n.push(a.trim())}return o&&n.push(`
 \u4EE5\u4E0B\u662F\u57FA\u4E8E\u63D0\u53D6\u89C4\u5219\u7B5B\u51FA\u7684\u5185\u5BB9\uFF1A
-${extractedContent}`);
-        }
-        if (lastAiMessage) {
-          parts.push(`
+${o}`),r&&n.push(`
 \u4EE5\u4E0B\u662F\u9700\u8981\u5904\u7406\u7684AI\u56DE\u590D\u5185\u5BB9\uFF1A
-${lastAiMessage}`);
-        }
-        return parts.join("\n");
-      }
-      /**
-       * 标准化角色名称
-       * @private
-       */
-      _normalizeRole(role) {
-        if (!role)
-          return "user";
-        const normalized = String(role).toLowerCase();
-        switch (normalized) {
-          case "system":
-            return "system";
-          case "assistant":
-            return "assistant";
-          case "user":
-          default:
-            return "user";
-        }
-      }
-      /**
-       * 日志输出
-       * @private
-       */
-      _log(...args) {
-        if (this.debugMode) {
-          console.log("[ToolPromptService]", ...args);
-        }
-      }
-      // ============================================================
-      // 调试方法
-      // ============================================================
-      /**
-       * 设置调试模式
-       * @param {boolean} enabled
-       */
-      setDebugMode(enabled) {
-        this.debugMode = enabled;
-      }
-    };
-    toolPromptService = new ToolPromptService();
-    tool_prompt_service_default = toolPromptService;
-  }
-});
+${r}`),n.join(`
+`)}_normalizeRole(t){if(!t)return"user";switch(String(t).toLowerCase()){case"system":return"system";case"assistant":return"assistant";case"user":default:return"user"}}_log(...t){this.debugMode&&console.log("[ToolPromptService]",...t)}setDebugMode(t){this.debugMode=t}},ds=new cs,ta=ds});var Fr={};N(Fr,{LEGACY_OUTPUT_MODES:()=>ea,OUTPUT_MODES:()=>zt,TOOL_RUNTIME_STATUS:()=>sa,ToolOutputService:()=>ys,default:()=>na,toolOutputService:()=>Bt});var zt,ea,sa,ys,Bt,na,xn=E(()=>{z();is();ls();hn();Ke();zt={FOLLOW_AI:"follow_ai",POST_RESPONSE_API:"post_response_api"},ea={inline:"follow_ai"},sa={IDLE:"idle",RUNNING:"running",SUCCESS:"success",ERROR:"error"},ys=class{constructor(){this.debugMode=!1,this._apiConnection=null}shouldRunPostResponse(t){return!t||!t.enabled||!t.trigger?.enabled||!t.output?.enabled?!1:t.output?.mode===zt.POST_RESPONSE_API}shouldRunFollowAi(t){if(!t||!t.enabled||!t.trigger?.enabled||!t.output?.enabled)return!1;let s=t.output?.mode;return s===zt.FOLLOW_AI||s==="inline"}shouldRunInline(t){return this.shouldRunFollowAi(t)}async runToolPostResponse(t,s){let n=Date.now(),r=t.id;this._log(`\u5F00\u59CB\u6267\u884C\u5DE5\u5177: ${r}`),x.emit(h.TOOL_EXECUTION_STARTED,{toolId:r,mode:zt.POST_RESPONSE_API});try{let o=await this._buildToolMessages(t,s);if(!o||o.length===0)throw new Error("\u65E0\u6CD5\u6784\u5EFA\u6709\u6548\u7684\u6D88\u606F");this._log(`\u6784\u5EFA\u4E86 ${o.length} \u6761\u6D88\u606F`);let i=t.output?.apiPreset,a=await this._getRequestTimeout(),c=await this._sendApiRequest(i,o,{timeoutMs:a,signal:s.signal}),l=this._extractOutputContent(c,t);if(l&&!await Ut.inject(r,l,{chatId:s.chatId,overwrite:t.output?.overwrite!==!1,sourceMessageId:s.messageId||"",target:t.injection?.enabled===!1?"context":"worldbook",worldbookTarget:t.injection?.target||"__character__",comment:t.injection?.comment||`YouYouToolkit:${r}`,position:t.injection?.position||"at_depth_as_system",depth:t.injection?.depth??4,order:t.injection?.order??1e4,enabled:t.injection?.enabled!==!1}))throw new Error("\u5DE5\u5177\u7ED3\u679C\u5DF2\u751F\u6210\uFF0C\u4F46\u5199\u5165\u4E0A\u4E0B\u6587/\u4E16\u754C\u4E66\u5931\u8D25");let y=Date.now()-n;return x.emit(h.TOOL_EXECUTED,{toolId:r,success:!0,duration:y,mode:zt.POST_RESPONSE_API}),this._log(`\u5DE5\u5177\u6267\u884C\u6210\u529F: ${r}, \u8017\u65F6 ${y}ms`),{success:!0,toolId:r,output:l,duration:y}}catch(o){let i=Date.now()-n;return this._log(`\u5DE5\u5177\u6267\u884C\u5931\u8D25: ${r}`,o),x.emit(h.TOOL_EXECUTION_FAILED,{toolId:r,error:o.message||String(o),duration:i}),{success:!1,toolId:r,error:o.message||String(o),duration:i}}}async runToolInline(t,s){let n=Date.now(),r=t.id;try{let o=await this._buildToolMessages(t,s);return{success:!0,toolId:r,messages:o,duration:Date.now()-n}}catch(o){return{success:!1,toolId:r,error:o.message||String(o),duration:Date.now()-n}}}async previewExtraction(t,s){let n=this._collectRecentAssistantMessages(t,s),r=this._applyGlobalContextRules(n),o=this._applyExtractionSelectors(r,t);return{success:!0,sourceText:n,filteredSourceText:r,extractedText:o,selectors:this._getExtractionSelectors(t),maxMessages:t?.extraction?.maxMessages||5}}async _buildToolMessages(t,s){let n=await Ut.getAggregatedContext(s.chatId),r=this._collectRecentAssistantMessages(t,s),o=this._applyGlobalContextRules(r),i=this._applyExtractionSelectors(o,t),a={...s,injectedContext:n,rawRecentMessagesText:r,recentMessagesText:o,extractedContent:i,toolName:t.name,toolId:t.id};return ds.buildToolMessages(t,a)}_normalizeRole(t){if(!t)return"user";let s=String(t).toLowerCase();return s==="system"?"system":s==="assistant"?"assistant":"user"}setApiConnection(t){this._apiConnection=t}async _sendApiRequest(t,s,n={}){if(!this._apiConnection)throw new Error("API\u8FDE\u63A5\u6A21\u5757\u672A\u914D\u7F6E");let{timeoutMs:r=9e4,signal:o}=n;if(t&&this._apiConnection.sendWithPreset)return await this._apiConnection.sendWithPreset(t,s,{timeoutMs:r},o);if(this._apiConnection.sendApiRequest)return await this._apiConnection.sendApiRequest(s,{timeoutMs:r},o);throw new Error("\u6CA1\u6709\u53EF\u7528\u7684API\u53D1\u9001\u65B9\u6CD5")}async _getRequestTimeout(){return St.getSettings().executor?.requestTimeoutMs||9e4}_extractOutputContent(t,s){if(!t)return"";if(typeof t=="string")return this._applyExtractionSelectors(t,s);if(typeof t=="object"){if(t.choices&&t.choices[0]?.message?.content)return this._applyExtractionSelectors(t.choices[0].message.content,s);if(t.content)return this._applyExtractionSelectors(t.content,s);if(t.text)return this._applyExtractionSelectors(t.text,s);if(t.message)return this._applyExtractionSelectors(t.message,s);try{return this._applyExtractionSelectors(JSON.stringify(t,null,2),s)}catch{return this._applyExtractionSelectors(String(t),s)}}return this._applyExtractionSelectors(String(t),s)}_getExtractionSelectors(t){let s=t?.extraction?.selectors;return Array.isArray(s)&&s.length>0?s.map(n=>String(n||"").trim()).filter(Boolean):Array.isArray(t?.extractTags)&&t.extractTags.length>0?t.extractTags.map(n=>String(n||"").trim()).filter(Boolean):[]}_applyExtractionSelectors(t,s){let n=typeof t=="string"?t:String(t||""),r=this._getExtractionSelectors(s);if(!r.length)return n.trim();let o=r.map((a,c)=>{let l=String(a||"").trim(),y=l.startsWith("regex:");return{id:`tool-extract-${c}`,type:y?"regex_include":"include",value:y?l.slice(6).trim():l,enabled:!0}}).filter(a=>a.value);return Lt(n,o,[])||n.trim()}_applyGlobalContextRules(t){let s=typeof t=="string"?t:String(t||"");if(!s.trim())return"";try{let n=yt()||[],r=Nt()||[];return!Array.isArray(n)||n.length===0?s.trim():Lt(s,n,r)||s.trim()}catch(n){return this._log("\u5E94\u7528\u5168\u5C40\u6B63\u6587\u63D0\u53D6\u89C4\u5219\u5931\u8D25\uFF0C\u56DE\u9000\u539F\u59CB\u6587\u672C",n),s.trim()}}_getMessageText(t){if(!t)return"";let s=[t.content,t.mes,t.message,t.text,t?.data?.content];for(let n of s)if(typeof n=="string"&&n.trim())return n.trim();return""}_collectRecentAssistantMessages(t,s){let n=Math.max(1,parseInt(t?.extraction?.maxMessages,10)||5),o=(Array.isArray(s?.chatMessages)?s.chatMessages:[]).filter(i=>{let a=String(i?.role||"").toLowerCase();return(a==="assistant"||!i?.is_user&&!i?.is_system&&!a)&&this._getMessageText(i)}).slice(-n).map(i=>this._getMessageText(i)).filter(Boolean);return o.length>0?o.join(`
 
-// modules/tool-output-service.js
-var tool_output_service_exports = {};
-__export(tool_output_service_exports, {
-  LEGACY_OUTPUT_MODES: () => LEGACY_OUTPUT_MODES,
-  OUTPUT_MODES: () => OUTPUT_MODES,
-  TOOL_RUNTIME_STATUS: () => TOOL_RUNTIME_STATUS,
-  ToolOutputService: () => ToolOutputService,
-  default: () => tool_output_service_default,
-  toolOutputService: () => toolOutputService
-});
-var OUTPUT_MODES, LEGACY_OUTPUT_MODES, TOOL_RUNTIME_STATUS, ToolOutputService, toolOutputService, tool_output_service_default;
-var init_tool_output_service = __esm({
-  "modules/tool-output-service.js"() {
-    init_event_bus();
-    init_settings_service();
-    init_context_injector();
-    init_tool_prompt_service();
-    init_regex_extractor();
-    OUTPUT_MODES = {
-      FOLLOW_AI: "follow_ai",
-      // 随AI输出（不执行额外解析链）
-      POST_RESPONSE_API: "post_response_api"
-      // 额外AI模型解析
-    };
-    LEGACY_OUTPUT_MODES = {
-      inline: "follow_ai"
-      // 旧 inline 映射到新 follow_ai
-    };
-    TOOL_RUNTIME_STATUS = {
-      IDLE: "idle",
-      RUNNING: "running",
-      SUCCESS: "success",
-      ERROR: "error"
-    };
-    ToolOutputService = class {
-      constructor() {
-        this.debugMode = false;
-        this._apiConnection = null;
-      }
-      // ============================================================
-      // 核心方法
-      // ============================================================
-      /**
-       * 检查工具是否应该运行 post_response_api 模式
-       * @param {Object} toolConfig - 工具配置
-       * @returns {boolean}
-       */
-      shouldRunPostResponse(toolConfig) {
-        if (!toolConfig)
-          return false;
-        if (!toolConfig.enabled)
-          return false;
-        if (!toolConfig.trigger?.enabled)
-          return false;
-        if (!toolConfig.output?.enabled)
-          return false;
-        return toolConfig.output?.mode === OUTPUT_MODES.POST_RESPONSE_API;
-      }
-      /**
-       * 检查工具是否应该运行 follow_ai 模式
-       * @param {Object} toolConfig - 工具配置
-       * @returns {boolean}
-       */
-      shouldRunFollowAi(toolConfig) {
-        if (!toolConfig)
-          return false;
-        if (!toolConfig.enabled)
-          return false;
-        if (!toolConfig.trigger?.enabled)
-          return false;
-        if (!toolConfig.output?.enabled)
-          return false;
-        const mode = toolConfig.output?.mode;
-        return mode === OUTPUT_MODES.FOLLOW_AI || mode === "inline";
-      }
-      /**
-       * 检查工具是否应该运行 inline 模式（兼容旧方法名）
-       * @deprecated 使用 shouldRunFollowAi 替代
-       * @param {Object} toolConfig - 工具配置
-       * @returns {boolean}
-       */
-      shouldRunInline(toolConfig) {
-        return this.shouldRunFollowAi(toolConfig);
-      }
-      /**
-       * 执行工具的 post_response_api 输出
-       * @param {Object} toolConfig - 工具配置
-       * @param {Object} rawContext - 原始上下文
-       * @returns {Promise<Object>} 执行结果
-       */
-      async runToolPostResponse(toolConfig, rawContext) {
-        const startTime = Date.now();
-        const toolId = toolConfig.id;
-        this._log(`\u5F00\u59CB\u6267\u884C\u5DE5\u5177: ${toolId}`);
-        eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, {
-          toolId,
-          mode: OUTPUT_MODES.POST_RESPONSE_API
-        });
-        try {
-          const messages = await this._buildToolMessages(toolConfig, rawContext);
-          if (!messages || messages.length === 0) {
-            throw new Error("\u65E0\u6CD5\u6784\u5EFA\u6709\u6548\u7684\u6D88\u606F");
-          }
-          this._log(`\u6784\u5EFA\u4E86 ${messages.length} \u6761\u6D88\u606F`);
-          const apiPreset = toolConfig.output?.apiPreset;
-          const timeoutMs = await this._getRequestTimeout();
-          const result = await this._sendApiRequest(apiPreset, messages, {
-            timeoutMs,
-            signal: rawContext.signal
-          });
-          const outputContent = this._extractOutputContent(result, toolConfig);
-          if (outputContent) {
-            const injected = await contextInjector.inject(toolId, outputContent, {
-              chatId: rawContext.chatId,
-              overwrite: toolConfig.output?.overwrite !== false,
-              sourceMessageId: rawContext.messageId || "",
-              target: toolConfig.injection?.enabled === false ? "context" : "worldbook",
-              worldbookTarget: toolConfig.injection?.target || "__character__",
-              comment: toolConfig.injection?.comment || `YouYouToolkit:${toolId}`,
-              position: toolConfig.injection?.position || "at_depth_as_system",
-              depth: toolConfig.injection?.depth ?? 4,
-              order: toolConfig.injection?.order ?? 1e4,
-              enabled: toolConfig.injection?.enabled !== false
-            });
-            if (!injected) {
-              throw new Error("\u5DE5\u5177\u7ED3\u679C\u5DF2\u751F\u6210\uFF0C\u4F46\u5199\u5165\u4E0A\u4E0B\u6587/\u4E16\u754C\u4E66\u5931\u8D25");
-            }
-          }
-          const duration = Date.now() - startTime;
-          eventBus.emit(EVENTS.TOOL_EXECUTED, {
-            toolId,
-            success: true,
-            duration,
-            mode: OUTPUT_MODES.POST_RESPONSE_API
-          });
-          this._log(`\u5DE5\u5177\u6267\u884C\u6210\u529F: ${toolId}, \u8017\u65F6 ${duration}ms`);
-          return {
-            success: true,
-            toolId,
-            output: outputContent,
-            duration
-          };
-        } catch (error) {
-          const duration = Date.now() - startTime;
-          this._log(`\u5DE5\u5177\u6267\u884C\u5931\u8D25: ${toolId}`, error);
-          eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, {
-            toolId,
-            error: error.message || String(error),
-            duration
-          });
-          return {
-            success: false,
-            toolId,
-            error: error.message || String(error),
-            duration
-          };
-        }
-      }
-      /**
-       * 执行工具的 inline 输出
-       * @param {Object} toolConfig - 工具配置
-       * @param {Object} rawContext - 原始上下文
-       * @returns {Promise<Object>}
-       */
-      async runToolInline(toolConfig, rawContext) {
-        const startTime = Date.now();
-        const toolId = toolConfig.id;
-        try {
-          const messages = await this._buildToolMessages(toolConfig, rawContext);
-          return {
-            success: true,
-            toolId,
-            messages,
-            duration: Date.now() - startTime
-          };
-        } catch (error) {
-          return {
-            success: false,
-            toolId,
-            error: error.message || String(error),
-            duration: Date.now() - startTime
-          };
-        }
-      }
-      /**
-       * 预览工具的提取结果
-       * @param {Object} toolConfig
-       * @param {Object} rawContext
-       * @returns {Promise<Object>}
-       */
-      async previewExtraction(toolConfig, rawContext) {
-        const sourceText = this._collectRecentAssistantMessages(toolConfig, rawContext);
-        const extracted = this._applyExtractionSelectors(sourceText, toolConfig);
-        return {
-          success: true,
-          sourceText,
-          extractedText: extracted,
-          selectors: this._getExtractionSelectors(toolConfig),
-          maxMessages: toolConfig?.extraction?.maxMessages || 5
-        };
-      }
-      // ============================================================
-      // 消息构建
-      // ============================================================
-      /**
-       * 构建工具消息
-       * @private
-       */
-      async _buildToolMessages(toolConfig, rawContext) {
-        const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
-        const recentMessagesText = this._collectRecentAssistantMessages(toolConfig, rawContext);
-        const extractedContent = this._applyExtractionSelectors(recentMessagesText, toolConfig);
-        const fullContext = {
-          ...rawContext,
-          injectedContext,
-          recentMessagesText,
-          extractedContent,
-          toolName: toolConfig.name,
-          toolId: toolConfig.id
-        };
-        return toolPromptService.buildToolMessages(toolConfig, fullContext);
-      }
-      /**
-       * 标准化角色名称
-       * @private
-       */
-      _normalizeRole(role) {
-        if (!role)
-          return "user";
-        const r = String(role).toLowerCase();
-        if (r === "system")
-          return "system";
-        if (r === "assistant")
-          return "assistant";
-        return "user";
-      }
-      // ============================================================
-      // API请求
-      // ============================================================
-      /**
-       * 设置API连接模块
-       * @param {Object} apiConnection
-       */
-      setApiConnection(apiConnection) {
-        this._apiConnection = apiConnection;
-      }
-      /**
-       * 发送API请求
-       * @private
-       */
-      async _sendApiRequest(presetName, messages, options = {}) {
-        if (!this._apiConnection) {
-          throw new Error("API\u8FDE\u63A5\u6A21\u5757\u672A\u914D\u7F6E");
-        }
-        const { timeoutMs = 9e4, signal } = options;
-        if (presetName && this._apiConnection.sendWithPreset) {
-          return await this._apiConnection.sendWithPreset(presetName, messages, {
-            timeoutMs
-          }, signal);
-        }
-        if (this._apiConnection.sendApiRequest) {
-          return await this._apiConnection.sendApiRequest(messages, {
-            timeoutMs
-          }, signal);
-        }
-        throw new Error("\u6CA1\u6709\u53EF\u7528\u7684API\u53D1\u9001\u65B9\u6CD5");
-      }
-      /**
-       * 获取请求超时时间
-       * @private
-       */
-      async _getRequestTimeout() {
-        const settings = settingsService.getSettings();
-        return settings.executor?.requestTimeoutMs || 9e4;
-      }
-      // ============================================================
-      // 输出处理
-      // ============================================================
-      /**
-       * 从API响应中提取输出内容
-       * @private
-       */
-      _extractOutputContent(response, toolConfig) {
-        if (!response)
-          return "";
-        if (typeof response === "string") {
-          return this._applyExtractionSelectors(response, toolConfig);
-        }
-        if (typeof response === "object") {
-          if (response.choices && response.choices[0]?.message?.content) {
-            return this._applyExtractionSelectors(response.choices[0].message.content, toolConfig);
-          }
-          if (response.content) {
-            return this._applyExtractionSelectors(response.content, toolConfig);
-          }
-          if (response.text) {
-            return this._applyExtractionSelectors(response.text, toolConfig);
-          }
-          if (response.message) {
-            return this._applyExtractionSelectors(response.message, toolConfig);
-          }
-          try {
-            return this._applyExtractionSelectors(JSON.stringify(response, null, 2), toolConfig);
-          } catch (e) {
-            return this._applyExtractionSelectors(String(response), toolConfig);
-          }
-        }
-        return this._applyExtractionSelectors(String(response), toolConfig);
-      }
-      /**
-       * 获取提取标签
-       * @private
-       */
-      _getExtractionSelectors(toolConfig) {
-        const selectors = toolConfig?.extraction?.selectors;
-        if (Array.isArray(selectors) && selectors.length > 0) {
-          return selectors.map((item) => String(item || "").trim()).filter(Boolean);
-        }
-        if (Array.isArray(toolConfig?.extractTags) && toolConfig.extractTags.length > 0) {
-          return toolConfig.extractTags.map((item) => String(item || "").trim()).filter(Boolean);
-        }
-        return [];
-      }
-      /**
-       * 应用提取规则
-       * @private
-       */
-      _applyExtractionSelectors(text, toolConfig) {
-        const sourceText = typeof text === "string" ? text : String(text || "");
-        const selectors = this._getExtractionSelectors(toolConfig);
-        if (!selectors.length) {
-          return sourceText.trim();
-        }
-        const rules = selectors.map((selector, index) => {
-          const value = String(selector || "").trim();
-          const isRegex = value.startsWith("regex:");
-          return {
-            id: `tool-extract-${index}`,
-            type: isRegex ? "regex_include" : "include",
-            value: isRegex ? value.slice(6).trim() : value,
-            enabled: true
-          };
-        }).filter((rule) => rule.value);
-        const extracted = extractTagContent(sourceText, rules, []);
-        return extracted || sourceText.trim();
-      }
-      /**
-       * 收集最近的角色消息
-       * @private
-       */
-      _collectRecentAssistantMessages(toolConfig, rawContext) {
-        const maxMessages = Math.max(1, parseInt(toolConfig?.extraction?.maxMessages, 10) || 5);
-        const chatMessages = Array.isArray(rawContext?.chatMessages) ? rawContext.chatMessages : [];
-        const assistantMessages = chatMessages.filter((message) => message?.role === "assistant" && message?.content).slice(-maxMessages).map((message) => message.content.trim()).filter(Boolean);
-        if (assistantMessages.length > 0) {
-          return assistantMessages.join("\n\n");
-        }
-        return rawContext?.lastAiMessage || rawContext?.input?.lastAiMessage || "";
-      }
-      // ============================================================
-      // 工具配置过滤
-      // ============================================================
-      /**
-       * 过滤出应该运行的 post_response_api 工具
-       * @param {Array} toolConfigs - 工具配置列表
-       * @returns {Array} 需要运行的工具
-       */
-      filterPostResponseTools(toolConfigs) {
-        if (!Array.isArray(toolConfigs))
-          return [];
-        return toolConfigs.filter((config) => this.shouldRunPostResponse(config));
-      }
-      /**
-       * 过滤出应该运行的 inline 工具
-       * @param {Array} toolConfigs - 工具配置列表
-       * @returns {Array} 需要运行的工具
-       */
-      filterInlineTools(toolConfigs) {
-        if (!Array.isArray(toolConfigs))
-          return [];
-        return toolConfigs.filter((config) => this.shouldRunInline(config));
-      }
-      // ============================================================
-      // 日志
-      // ============================================================
-      /**
-       * 设置调试模式
-       * @param {boolean} enabled
-       */
-      setDebugMode(enabled) {
-        this.debugMode = enabled;
-      }
-      /**
-       * 日志输出
-       * @private
-       */
-      _log(...args) {
-        if (this.debugMode) {
-          console.log("[ToolOutputService]", ...args);
-        }
-      }
-    };
-    toolOutputService = new ToolOutputService();
-    tool_output_service_default = toolOutputService;
-  }
-});
+`):s?.lastAiMessage||s?.input?.lastAiMessage||""}filterPostResponseTools(t){return Array.isArray(t)?t.filter(s=>this.shouldRunPostResponse(s)):[]}filterInlineTools(t){return Array.isArray(t)?t.filter(s=>this.shouldRunInline(s)):[]}setDebugMode(t){this.debugMode=t}_log(...t){this.debugMode&&console.log("[ToolOutputService]",...t)}},Bt=new ys,na=Bt});var Vr={};N(Vr,{EVENT_TYPES:()=>Zt,checkGate:()=>Tn,destroyToolTriggerManager:()=>ha,getChatContext:()=>fs,getCurrentCharacter:()=>_n,getFullContext:()=>pa,getToolTriggerManagerState:()=>xa,getWorldbookContent:()=>Wr,initToolTriggerManager:()=>Qr,initTriggerModule:()=>Jr,previewToolExtraction:()=>Cn,registerEventListener:()=>te,registerTriggerHandler:()=>ua,removeAllListeners:()=>la,removeAllTriggerHandlers:()=>fa,resetGateState:()=>ca,runToolManually:()=>Sn,setDebugMode:()=>va,setTriggerHandlerEnabled:()=>ga,triggerState:()=>A,unregisterEventListener:()=>gs,updateGateState:()=>xe});function Ct(){try{if(typeof window.parent<"u"&&window.parent&&window.parent!==window)return window.parent}catch{}return window}function Hr(e){if(!e)return"";let t=[e.mes,e.message,e.content,e.text,e?.data?.content];for(let s of t)if(typeof s=="string"&&s.trim())return s;return""}function ps(){xe({lastUserSendIntentAt:Date.now()})}function ra(){let e=Ct(),t=e?.document;if(!t?.body)return!1;if(e.__YYT_sendIntentHooksInstalled)return!0;let s=["#send_but","#option_send","#send_button",'button[title*="\u53D1\u9001"]','button[title*="Send"]'],n=["#send_textarea","#send_textarea textarea","textarea#send_textarea",'textarea[data-testid="send_textarea"]'],r=(o,i,a)=>{o.forEach(c=>{let l=t.querySelector(c);l&&l.addEventListener(i,a,!0)})};return r(s,"click",()=>ps()),r(s,"pointerup",()=>ps()),r(s,"touchend",()=>ps()),r(n,"keydown",o=>{let i=o?.key||"";(i==="Enter"||i==="NumpadEnter")&&!o.shiftKey&&ps()}),e.__YYT_sendIntentHooksInstalled=!0,w("\u5DF2\u5B89\u88C5\u53D1\u9001\u610F\u56FE\u6355\u83B7\u94A9\u5B50"),!0}function oa(e,t={},s=!1){return s?!0:String(e||t?.type||"").trim().toLowerCase().includes("quiet")||t?.quiet===!0||t?.isQuiet===!0||t?.quiet_prompt===!0}function ee(){return Ct().SillyTavern||null}function ia(){return Ct().TavernHelper||null}function vn(){let t=Ct().SillyTavern;return t&&t.eventSource?t.eventSource:null}function wn(){let t=Ct().SillyTavern;return t&&t.eventTypes?t.eventTypes:Zt}function w(...e){A.debugMode&&console.log("[YouYouToolkit:Trigger]",...e)}function aa(e,t,s){let r=[t?.chatId,t?.chat_id,t?.chat_filename,t?.chatMetadata?.chatId,t?.chatMetadata?.chat_id,t?.chatMetadata?.file_name,t?.chatMetadata?.name,e?.chatId,e?.chat_id,e?.chat_filename].find(o=>typeof o=="string"&&o.trim());return r||(s?.id!==void 0&&s?.id!==null?`chat_char_${s.id}`:e?.this_chid!==void 0&&e?.this_chid!==null?`chat_char_${e.this_chid}`:"chat_default")}function te(e,t,s={}){if(!e||typeof t!="function")return w("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u56DE\u8C03\u51FD\u6570"),()=>{};let{once:n=!1,priority:r=0}=s,o=vn(),a=wn()[e]||e,c=async(...l)=>{try{if(s.gateCheck&&!await Tn(s.gateCheck)){w(`\u95E8\u63A7\u68C0\u67E5\u5931\u8D25\uFF0C\u8DF3\u8FC7\u4E8B\u4EF6: ${e}`);return}await t(...l),n&&gs(e,c)}catch(y){console.error("[YouYouToolkit:Trigger] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF:",y)}};if(A.listeners.has(e)||A.listeners.set(e,new Set),A.listeners.get(e).add(c),o&&typeof o.on=="function")o.on(a,c),w(`\u5DF2\u6CE8\u518C\u4E8B\u4EF6\u76D1\u542C\u5668: ${e}`);else{let l=Ct();l.addEventListener&&(l.addEventListener(a,c),w(`\u5DF2\u6CE8\u518CDOM\u4E8B\u4EF6\u76D1\u542C\u5668: ${e}`))}return()=>gs(e,c)}function gs(e,t){let s=A.listeners.get(e);if(s&&s.has(t)){s.delete(t);let n=vn(),o=wn()[e]||e;if(n&&typeof n.off=="function")n.off(o,t),w(`\u5DF2\u53D6\u6D88\u4E8B\u4EF6\u76D1\u542C\u5668: ${e}`);else{let i=Ct();i.removeEventListener&&i.removeEventListener(o,t)}}}function la(){let e=vn(),t=wn();for(let[s,n]of A.listeners){let r=t[s]||s;for(let o of n)if(e&&typeof e.off=="function")e.off(r,o);else{let i=Ct();i.removeEventListener&&i.removeEventListener(r,o)}}A.listeners.clear(),w("\u5DF2\u79FB\u9664\u6240\u6709\u4E8B\u4EF6\u76D1\u542C\u5668")}async function Tn(e){if(!e)return!0;let t=Date.now(),s=A.gateState;if(e.minInterval&&s.lastGenerationAt&&t-s.lastGenerationAt<e.minInterval)return w("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u77ED"),!1;if(e.maxInterval&&s.lastUserMessageAt&&t-s.lastUserMessageAt>e.maxInterval)return w("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u957F"),!1;if(e.requireUserMessage&&!s.lastUserMessageId)return w("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u7F3A\u5C11\u7528\u6237\u6D88\u606F"),!1;if(e.excludeQuietGeneration&&s.lastGenerationType==="quiet")return w("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: quiet\u751F\u6210\u88AB\u6392\u9664"),!1;if(e.customCheck&&typeof e.customCheck=="function")try{if(!await e.customCheck(s))return w("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u81EA\u5B9A\u4E49\u68C0\u67E5\u8FD4\u56DEfalse"),!1}catch(n){return console.error("[YouYouToolkit:Trigger] \u81EA\u5B9A\u4E49\u95E8\u63A7\u68C0\u67E5\u9519\u8BEF:",n),!1}return!0}function xe(e){Object.assign(A.gateState,e)}function ca(){A.gateState={lastUserSendIntentAt:0,lastUserMessageId:null,lastUserMessageText:"",lastUserMessageAt:0,lastGenerationType:null,lastGenerationParams:null,lastGenerationDryRun:!1,lastGenerationAt:0,isGenerating:!1}}async function fs(e={}){let{depth:t=3,includeUser:s=!0,includeAssistant:n=!0,includeSystem:r=!1,format:o="messages"}=e;if(!ee())return w("\u65E0\u6CD5\u83B7\u53D6SillyTavern API"),null;try{let a=await ya(),c=[],l=Math.max(0,a.length-t);for(let y=l;y<a.length;y++){let u=a[y];if(!u)continue;let g=da(u);if(!(g==="user"&&!s)&&!(g==="system"&&!r)&&!(g==="assistant"&&!n))if(o==="messages"){let f=Hr(u);c.push({role:g,content:f,name:u.name||"",timestamp:u.send_date||u.timestamp,isSystem:!!u.is_system,isUser:!!u.is_user})}else c.push(Hr(u))}return{messages:c,totalMessages:a.length,startIndex:l,endIndex:a.length-1}}catch(a){return console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u804A\u5929\u4E0A\u4E0B\u6587\u5931\u8D25:",a),null}}function da(e){if(!e)return"assistant";if(e.is_user)return"user";if(e.is_system)return"system";let t=String(e.role||"").toLowerCase();return t==="user"||t==="assistant"||t==="system"?t:"assistant"}async function ya(){let e=ia(),t=ee();if(e?.getChatMessages)try{let s=-1;if(typeof e.getLastMessageId=="function"&&(s=e.getLastMessageId()),!Number.isFinite(s)||s<0){let n=t?.getContext?.()||null,r=Array.isArray(n?.chat)?n.chat:[],o=Array.isArray(t?.chat)?t.chat:[];s=(r.length?r:o).length-1}if(Number.isFinite(s)&&s>=0){let n=await e.getChatMessages(`0-${s}`,{include_swipes:!1,include_hidden:!0});if(Array.isArray(n)&&n.length>0)return n}}catch(s){console.warn("[YouYouToolkit:Trigger] \u901A\u8FC7 TavernHelper \u8BFB\u53D6\u804A\u5929\u6D88\u606F\u5931\u8D25\uFF0C\u56DE\u9000\u5230\u9ED8\u8BA4\u6765\u6E90:",s)}try{let s=t?.getContext?.()||null;if(Array.isArray(s?.chat)&&s.chat.length>0)return s.chat}catch(s){console.warn("[YouYouToolkit:Trigger] \u901A\u8FC7 getContext() \u8BFB\u53D6\u804A\u5929\u5931\u8D25:",s)}return Array.isArray(t?.chat)?t.chat:[]}async function _n(){let e=ee();if(!e)return null;try{let t=e.this_chid,s=e.characters||[];if(t>=0&&t<s.length){let n=s[t];return{id:t,name:n.name||"",description:n.description||"",personality:n.personality||"",scenario:n.scenario||"",firstMes:n.first_mes||"",mesExample:n.mes_example||""}}return null}catch(t){return console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u89D2\u8272\u4FE1\u606F\u5931\u8D25:",t),null}}async function Wr(e={}){let{enabledOnly:t=!0,maxLength:s=1e4}=e,n=ee();if(!n)return"";try{let o=(n.lorebook||[]).entries||[],i=[],a=0;for(let c of o){if(t&&!c.enabled)continue;let l=c.content||"";l&&a+l.length<=s&&(i.push(l),a+=l.length)}return i.join(`
 
-// modules/tool-trigger.js
-var tool_trigger_exports = {};
-__export(tool_trigger_exports, {
-  EVENT_TYPES: () => EVENT_TYPES,
-  checkGate: () => checkGate,
-  destroyToolTriggerManager: () => destroyToolTriggerManager,
-  getChatContext: () => getChatContext,
-  getCurrentCharacter: () => getCurrentCharacter,
-  getFullContext: () => getFullContext,
-  getToolTriggerManagerState: () => getToolTriggerManagerState,
-  getWorldbookContent: () => getWorldbookContent,
-  initToolTriggerManager: () => initToolTriggerManager,
-  initTriggerModule: () => initTriggerModule,
-  previewToolExtraction: () => previewToolExtraction,
-  registerEventListener: () => registerEventListener,
-  registerTriggerHandler: () => registerTriggerHandler,
-  removeAllListeners: () => removeAllListeners,
-  removeAllTriggerHandlers: () => removeAllTriggerHandlers,
-  resetGateState: () => resetGateState,
-  runToolManually: () => runToolManually,
-  setDebugMode: () => setDebugMode,
-  setTriggerHandlerEnabled: () => setTriggerHandlerEnabled,
-  triggerState: () => triggerState,
-  unregisterEventListener: () => unregisterEventListener,
-  updateGateState: () => updateGateState
-});
-function getTopWindow() {
-  return typeof window.parent !== "undefined" ? window.parent : window;
-}
-function getSillyTavernAPI() {
-  const topWindow = getTopWindow();
-  return topWindow.SillyTavern || null;
-}
-function getTavernHelperAPI() {
-  const topWindow = getTopWindow();
-  return topWindow.TavernHelper || null;
-}
-function getEventSource() {
-  const topWindow = getTopWindow();
-  const api = topWindow.SillyTavern;
-  if (api && api.eventSource) {
-    return api.eventSource;
-  }
-  return null;
-}
-function getEventTypes() {
-  const topWindow = getTopWindow();
-  const api = topWindow.SillyTavern;
-  if (api && api.eventTypes) {
-    return api.eventTypes;
-  }
-  return EVENT_TYPES;
-}
-function log(...args) {
-  if (triggerState.debugMode) {
-    console.log("[YouYouToolkit:Trigger]", ...args);
-  }
-}
-function registerEventListener(eventType, callback, options = {}) {
-  if (!eventType || typeof callback !== "function") {
-    log("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u56DE\u8C03\u51FD\u6570");
-    return () => {
-    };
-  }
-  const { once = false, priority = 0 } = options;
-  const eventSource = getEventSource();
-  const eventTypes = getEventTypes();
-  const stEventType = eventTypes[eventType] || eventType;
-  const wrappedCallback = async (...args) => {
-    try {
-      if (options.gateCheck && !await checkGate(options.gateCheck)) {
-        log(`\u95E8\u63A7\u68C0\u67E5\u5931\u8D25\uFF0C\u8DF3\u8FC7\u4E8B\u4EF6: ${eventType}`);
-        return;
-      }
-      await callback(...args);
-      if (once) {
-        unregisterEventListener(eventType, wrappedCallback);
-      }
-    } catch (error) {
-      console.error(`[YouYouToolkit:Trigger] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF:`, error);
-    }
-  };
-  if (!triggerState.listeners.has(eventType)) {
-    triggerState.listeners.set(eventType, /* @__PURE__ */ new Set());
-  }
-  triggerState.listeners.get(eventType).add(wrappedCallback);
-  if (eventSource && typeof eventSource.on === "function") {
-    eventSource.on(stEventType, wrappedCallback);
-    log(`\u5DF2\u6CE8\u518C\u4E8B\u4EF6\u76D1\u542C\u5668: ${eventType}`);
-  } else {
-    const topWindow = getTopWindow();
-    if (topWindow.addEventListener) {
-      topWindow.addEventListener(stEventType, wrappedCallback);
-      log(`\u5DF2\u6CE8\u518CDOM\u4E8B\u4EF6\u76D1\u542C\u5668: ${eventType}`);
-    }
-  }
-  return () => unregisterEventListener(eventType, wrappedCallback);
-}
-function unregisterEventListener(eventType, callback) {
-  const listeners = triggerState.listeners.get(eventType);
-  if (listeners && listeners.has(callback)) {
-    listeners.delete(callback);
-    const eventSource = getEventSource();
-    const eventTypes = getEventTypes();
-    const stEventType = eventTypes[eventType] || eventType;
-    if (eventSource && typeof eventSource.off === "function") {
-      eventSource.off(stEventType, callback);
-      log(`\u5DF2\u53D6\u6D88\u4E8B\u4EF6\u76D1\u542C\u5668: ${eventType}`);
-    } else {
-      const topWindow = getTopWindow();
-      if (topWindow.removeEventListener) {
-        topWindow.removeEventListener(stEventType, callback);
-      }
-    }
-  }
-}
-function removeAllListeners() {
-  const eventSource = getEventSource();
-  const eventTypes = getEventTypes();
-  for (const [eventType, listeners] of triggerState.listeners) {
-    const stEventType = eventTypes[eventType] || eventType;
-    for (const callback of listeners) {
-      if (eventSource && typeof eventSource.off === "function") {
-        eventSource.off(stEventType, callback);
-      } else {
-        const topWindow = getTopWindow();
-        if (topWindow.removeEventListener) {
-          topWindow.removeEventListener(stEventType, callback);
-        }
-      }
-    }
-  }
-  triggerState.listeners.clear();
-  log("\u5DF2\u79FB\u9664\u6240\u6709\u4E8B\u4EF6\u76D1\u542C\u5668");
-}
-async function checkGate(condition) {
-  if (!condition)
-    return true;
-  const now = Date.now();
-  const gate = triggerState.gateState;
-  if (condition.minInterval && gate.lastGenerationAt) {
-    if (now - gate.lastGenerationAt < condition.minInterval) {
-      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u77ED");
-      return false;
-    }
-  }
-  if (condition.maxInterval && gate.lastUserMessageAt) {
-    if (now - gate.lastUserMessageAt > condition.maxInterval) {
-      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u957F");
-      return false;
-    }
-  }
-  if (condition.requireUserMessage) {
-    if (!gate.lastUserMessageId) {
-      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u7F3A\u5C11\u7528\u6237\u6D88\u606F");
-      return false;
-    }
-  }
-  if (condition.excludeQuietGeneration) {
-    if (gate.lastGenerationType === "quiet") {
-      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: quiet\u751F\u6210\u88AB\u6392\u9664");
-      return false;
-    }
-  }
-  if (condition.customCheck && typeof condition.customCheck === "function") {
-    try {
-      const result = await condition.customCheck(gate);
-      if (!result) {
-        log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u81EA\u5B9A\u4E49\u68C0\u67E5\u8FD4\u56DEfalse");
-        return false;
-      }
-    } catch (error) {
-      console.error("[YouYouToolkit:Trigger] \u81EA\u5B9A\u4E49\u95E8\u63A7\u68C0\u67E5\u9519\u8BEF:", error);
-      return false;
-    }
-  }
-  return true;
-}
-function updateGateState(update) {
-  Object.assign(triggerState.gateState, update);
-}
-function resetGateState() {
-  triggerState.gateState = {
-    lastUserMessageId: null,
-    lastUserMessageText: "",
-    lastUserMessageAt: 0,
-    lastGenerationType: null,
-    lastGenerationAt: 0,
-    isGenerating: false
-  };
-}
-async function getChatContext(options = {}) {
-  const {
-    depth = 3,
-    includeUser = true,
-    includeAssistant = true,
-    includeSystem = false,
-    format = "messages"
-    // 'messages' | 'text'
-  } = options;
-  const api = getSillyTavernAPI();
-  if (!api) {
-    log("\u65E0\u6CD5\u83B7\u53D6SillyTavern API");
-    return null;
-  }
-  try {
-    const chat = await getRawChatMessages();
-    const messages = [];
-    const startIndex = Math.max(0, chat.length - depth);
-    for (let i = startIndex; i < chat.length; i++) {
-      const msg = chat[i];
-      if (!msg)
-        continue;
-      const role = normalizeMessageRole(msg);
-      if (role === "user" && !includeUser)
-        continue;
-      if (role === "system" && !includeSystem)
-        continue;
-      if (role === "assistant" && !includeAssistant)
-        continue;
-      if (format === "messages") {
-        messages.push({
-          role,
-          content: msg.mes || msg.content || "",
-          name: msg.name || "",
-          timestamp: msg.send_date || msg.timestamp,
-          isSystem: !!msg.is_system,
-          isUser: !!msg.is_user
-        });
-      } else {
-        messages.push(msg.mes || msg.content || "");
-      }
-    }
-    return {
-      messages,
-      totalMessages: chat.length,
-      startIndex,
-      endIndex: chat.length - 1
-    };
-  } catch (error) {
-    console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u804A\u5929\u4E0A\u4E0B\u6587\u5931\u8D25:", error);
-    return null;
-  }
-}
-function normalizeMessageRole(msg) {
-  if (!msg)
-    return "assistant";
-  if (msg.is_user)
-    return "user";
-  if (msg.is_system)
-    return "system";
-  const role = String(msg.role || "").toLowerCase();
-  if (role === "user" || role === "assistant" || role === "system") {
-    return role;
-  }
-  return "assistant";
-}
-async function getRawChatMessages() {
-  const helper = getTavernHelperAPI();
-  const api = getSillyTavernAPI();
-  if (helper?.getChatMessages) {
-    try {
-      let lastMessageId = -1;
-      if (typeof helper.getLastMessageId === "function") {
-        lastMessageId = helper.getLastMessageId();
-      }
-      if (!Number.isFinite(lastMessageId) || lastMessageId < 0) {
-        const context = api?.getContext?.() || null;
-        const contextChat = Array.isArray(context?.chat) ? context.chat : [];
-        const apiChat = Array.isArray(api?.chat) ? api.chat : [];
-        const fallbackChat = contextChat.length ? contextChat : apiChat;
-        lastMessageId = fallbackChat.length - 1;
-      }
-      if (Number.isFinite(lastMessageId) && lastMessageId >= 0) {
-        const messages = await helper.getChatMessages(`0-${lastMessageId}`, {
-          include_swipes: false,
-          include_hidden: true
-        });
-        if (Array.isArray(messages) && messages.length > 0) {
-          return messages;
-        }
-      }
-    } catch (error) {
-      console.warn("[YouYouToolkit:Trigger] \u901A\u8FC7 TavernHelper \u8BFB\u53D6\u804A\u5929\u6D88\u606F\u5931\u8D25\uFF0C\u56DE\u9000\u5230\u9ED8\u8BA4\u6765\u6E90:", error);
-    }
-  }
-  try {
-    const context = api?.getContext?.() || null;
-    if (Array.isArray(context?.chat) && context.chat.length > 0) {
-      return context.chat;
-    }
-  } catch (error) {
-    console.warn("[YouYouToolkit:Trigger] \u901A\u8FC7 getContext() \u8BFB\u53D6\u804A\u5929\u5931\u8D25:", error);
-  }
-  if (Array.isArray(api?.chat)) {
-    return api.chat;
-  }
-  return [];
-}
-async function getCurrentCharacter() {
-  const api = getSillyTavernAPI();
-  if (!api)
-    return null;
-  try {
-    const charId = api.this_chid;
-    const characters = api.characters || [];
-    if (charId >= 0 && charId < characters.length) {
-      const char = characters[charId];
-      return {
-        id: charId,
-        name: char.name || "",
-        description: char.description || "",
-        personality: char.personality || "",
-        scenario: char.scenario || "",
-        firstMes: char.first_mes || "",
-        mesExample: char.mes_example || ""
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u89D2\u8272\u4FE1\u606F\u5931\u8D25:", error);
-    return null;
-  }
-}
-async function getWorldbookContent(options = {}) {
-  const {
-    enabledOnly = true,
-    maxLength = 1e4
-  } = options;
-  const api = getSillyTavernAPI();
-  if (!api)
-    return "";
-  try {
-    const lorebook = api.lorebook || [];
-    const entries = lorebook.entries || [];
-    const contents = [];
-    let totalLength = 0;
-    for (const entry of entries) {
-      if (enabledOnly && !entry.enabled)
-        continue;
-      const content = entry.content || "";
-      if (content && totalLength + content.length <= maxLength) {
-        contents.push(content);
-        totalLength += content.length;
-      }
-    }
-    return contents.join("\n\n");
-  } catch (error) {
-    console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u4E16\u754C\u4E66\u5185\u5BB9\u5931\u8D25:", error);
-    return "";
-  }
-}
-async function getFullContext(options = {}) {
-  const [chatContext, character, worldbook] = await Promise.all([
-    getChatContext(options.chat || {}),
-    getCurrentCharacter(),
-    getWorldbookContent(options.worldbook || {})
-  ]);
-  return {
-    chat: chatContext,
-    character,
-    worldbook,
-    timestamp: Date.now()
-  };
-}
-function registerTriggerHandler(handlerId, config) {
-  if (!handlerId || !config) {
-    log("\u65E0\u6548\u7684\u5904\u7406\u5668ID\u6216\u914D\u7F6E");
-    return () => {
-    };
-  }
-  const {
-    eventType,
-    handler,
-    gateCondition,
-    priority = 0
-  } = config;
-  if (!eventType || typeof handler !== "function") {
-    log("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u5904\u7406\u5668\u51FD\u6570");
-    return () => {
-    };
-  }
-  triggerState.handlers.set(handlerId, {
-    eventType,
-    handler,
-    gateCondition,
-    priority,
-    enabled: true
-  });
-  const unregister = registerEventListener(eventType, async (...args) => {
-    const handlerConfig = triggerState.handlers.get(handlerId);
-    if (!handlerConfig || !handlerConfig.enabled)
-      return;
-    if (handlerConfig.gateCondition) {
-      const passed = await checkGate(handlerConfig.gateCondition);
-      if (!passed)
-        return;
-    }
-    await handlerConfig.handler(...args);
-  }, { priority });
-  log(`\u5DF2\u6CE8\u518C\u89E6\u53D1\u5904\u7406\u5668: ${handlerId}`);
-  return () => {
-    unregister();
-    triggerState.handlers.delete(handlerId);
-    log(`\u5DF2\u53D6\u6D88\u89E6\u53D1\u5904\u7406\u5668: ${handlerId}`);
-  };
-}
-function setTriggerHandlerEnabled(handlerId, enabled) {
-  const config = triggerState.handlers.get(handlerId);
-  if (config) {
-    config.enabled = enabled;
-    log(`\u89E6\u53D1\u5904\u7406\u5668 ${handlerId} \u5DF2${enabled ? "\u542F\u7528" : "\u7981\u7528"}`);
-  }
-}
-function removeAllTriggerHandlers() {
-  triggerState.handlers.clear();
-  log("\u5DF2\u79FB\u9664\u6240\u6709\u89E6\u53D1\u5904\u7406\u5668");
-}
-function initToolTriggerManager() {
-  if (toolTriggerManagerState.initialized) {
-    log("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316");
-    return;
-  }
-  registerGenerationEndedListener();
-  toolTriggerManagerState.initialized = true;
-  log("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316");
-  eventBus.emit(EVENTS.TOOL_TRIGGER_INITIALIZED);
-}
-function registerGenerationEndedListener() {
-  const eventType = EVENT_TYPES.GENERATION_ENDED;
-  const listener = registerEventListener(eventType, async (data) => {
-    log("GENERATION_ENDED\u89E6\u53D1:", data);
-    const context = await buildToolExecutionContext(data);
-    const toolsToExecute = getToolsToExecute(eventType);
-    if (toolsToExecute.length === 0) {
-      log("\u6CA1\u6709\u9700\u8981\u6267\u884C\u7684\u5DE5\u5177");
-      return;
-    }
-    log(`\u9700\u8981\u6267\u884C ${toolsToExecute.length} \u4E2A\u5DE5\u5177:`, toolsToExecute.map((t) => t.id));
-    showTopNotice("info", `\u68C0\u6D4B\u5230 AI \u56DE\u590D\uFF0C\u5F00\u59CB\u81EA\u52A8\u6267\u884C ${toolsToExecute.length} \u4E2A\u5DE5\u5177`, {
-      duration: 2400,
-      noticeId: "yyt-tool-batch-start"
-    });
-    for (const tool of toolsToExecute) {
-      try {
-        const result = await executeTriggeredTool(tool, context);
-        if (result.success) {
-          log(`\u5DE5\u5177 ${tool.id} \u6267\u884C\u6210\u529F`);
-          eventBus.emit(EVENTS.TOOL_EXECUTED, {
-            toolId: tool.id,
-            result: result.result || result.data || result
-          });
-        } else {
-          log(`\u5DE5\u5177 ${tool.id} \u6267\u884C\u5931\u8D25:`, result.error);
-        }
-      } catch (error) {
-        console.error(`[ToolTrigger] \u5DE5\u5177\u6267\u884C\u5931\u8D25: ${tool.id}`, error);
-      }
-    }
-    toolTriggerManagerState.lastExecutionContext = context;
-  });
-  toolTriggerManagerState.listeners.set(eventType, listener);
-}
-async function buildToolExecutionContext(eventData) {
-  const chat = await getChatContext({ depth: 50 });
-  const character = await getCurrentCharacter();
-  const api = getSillyTavernAPI();
-  const stContext = api?.getContext?.() || null;
-  const messages = chat?.messages || [];
-  const lastUserMessage = messages.filter((m) => m.role === "user").pop();
-  const lastAiMessage = messages.filter((m) => m.role === "assistant").pop();
-  return {
-    triggeredAt: Date.now(),
-    triggerEvent: eventData?.triggerEvent || "GENERATION_ENDED",
-    chatId: stContext?.chatId || stContext?.chat_id || stContext?.chat_filename || "",
-    messageId: eventData?.messageId || eventData?.id || "",
-    lastAiMessage: lastAiMessage?.content || "",
-    userMessage: lastUserMessage?.content || "",
-    chatMessages: messages,
-    input: {
-      userMessage: lastUserMessage?.content || "",
-      lastAiMessage: lastAiMessage?.content || "",
-      extractedContent: "",
-      previousToolOutput: "",
-      context: {
-        character: character?.name || "",
-        chatLength: chat?.totalMessages || 0
-      }
-    },
-    config: {},
-    status: "pending"
-  };
-}
-function getToolsToExecute(eventType) {
-  const tools = getToolsForEvent(eventType);
-  return tools.filter((tool) => toolOutputService.shouldRunPostResponse(tool));
-}
-function updateRuntime(toolId, runtimePartial) {
-  try {
-    updateToolRuntime(toolId, runtimePartial);
-  } catch (error) {
-    console.warn("[ToolTrigger] \u66F4\u65B0\u5DE5\u5177\u8FD0\u884C\u65F6\u72B6\u6001\u5931\u8D25:", toolId, error);
-  }
-}
-async function executeTriggeredTool(tool, context) {
-  const startedAt = Date.now();
-  const toolId = tool.id;
-  const isManual = context?.triggerEvent === "MANUAL";
-  const noticeId = `yyt-tool-run-${toolId}`;
-  updateRuntime(toolId, {
-    lastStatus: "running",
-    lastError: "",
-    lastDurationMs: 0
-  });
-  eventBus.emit(EVENTS.TOOL_EXECUTION_REQUESTED, {
-    toolId,
-    triggerEvent: context?.triggerEvent || "GENERATION_ENDED",
-    context
-  });
-  showTopNotice("info", `${isManual ? "\u6B63\u5728\u624B\u52A8\u6267\u884C" : "\u5DF2\u68C0\u6D4B\u5230 AI \u56DE\u590D\uFF0C\u6B63\u5728\u81EA\u52A8\u6267\u884C"} ${tool.name}`, {
-    sticky: true,
-    noticeId
-  });
-  try {
-    let result;
-    if (tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API) {
-      result = await toolOutputService.runToolPostResponse(tool, context);
-    } else {
-      result = await executeToolWithConfig(toolId, context);
-    }
-    const duration = Date.now() - startedAt;
-    if (result?.success) {
-      const config2 = getToolFullConfig(toolId);
-      updateRuntime(toolId, {
-        lastStatus: "success",
-        lastError: "",
-        lastDurationMs: duration,
-        successCount: (config2?.runtime?.successCount || 0) + 1
-      });
-      const message = isManual ? `${tool.name} \u624B\u52A8\u6267\u884C\u5B8C\u6210` : `\u5DF2\u76D1\u542C AI \u56DE\u590D\u5E76\u6267\u884C ${tool.name}`;
-      showToast("success", message);
-      showTopNotice("success", message, {
-        duration: 3200,
-        noticeId
-      });
-      return { success: true, duration, result };
-    }
-    const config = getToolFullConfig(toolId);
-    const errorMessage = result?.error || "\u5DE5\u5177\u6267\u884C\u5931\u8D25";
-    updateRuntime(toolId, {
-      lastStatus: "error",
-      lastError: errorMessage,
-      lastDurationMs: duration,
-      errorCount: (config?.runtime?.errorCount || 0) + 1
-    });
-    showToast("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`);
-    showTopNotice("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`, {
-      sticky: true,
-      noticeId
-    });
-    return { success: false, duration, error: errorMessage, result };
-  } catch (error) {
-    const duration = Date.now() - startedAt;
-    const config = getToolFullConfig(toolId);
-    const errorMessage = error?.message || String(error);
-    updateRuntime(toolId, {
-      lastStatus: "error",
-      lastError: errorMessage,
-      lastDurationMs: duration,
-      errorCount: (config?.runtime?.errorCount || 0) + 1
-    });
-    showToast("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`);
-    showTopNotice("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`, {
-      sticky: true,
-      noticeId
-    });
-    throw error;
-  }
-}
-async function runToolManually(toolId) {
-  if (!toolId) {
-    return { success: false, error: "\u7F3A\u5C11\u5DE5\u5177ID" };
-  }
-  const tool = getToolFullConfig(toolId);
-  if (!tool) {
-    return { success: false, error: "\u5DE5\u5177\u4E0D\u5B58\u5728" };
-  }
-  if (!tool.enabled) {
-    showTopNotice("warning", `${tool.name} \u672A\u542F\u7528\uFF0C\u65E0\u6CD5\u624B\u52A8\u6267\u884C`, {
-      duration: 2800,
-      noticeId: `yyt-tool-run-${toolId}`
-    });
-    return { success: false, error: "\u5DE5\u5177\u672A\u542F\u7528" };
-  }
-  if (!toolOutputService.shouldRunPostResponse(tool)) {
-    showTopNotice("warning", `${tool.name} \u5F53\u524D\u4E3A\u201C\u968F AI \u8F93\u51FA\u201D\uFF0C\u4E0D\u4F1A\u6267\u884C\u989D\u5916\u89E3\u6790`, {
-      duration: 3200,
-      noticeId: `yyt-tool-run-${toolId}`
-    });
-    return { success: false, error: "\u5F53\u524D\u8F93\u51FA\u6A21\u5F0F\u4E0D\u6267\u884C\u989D\u5916\u89E3\u6790" };
-  }
-  const context = await buildToolExecutionContext({ triggerEvent: "MANUAL" });
-  return executeTriggeredTool(tool, context);
-}
-async function previewToolExtraction(toolId) {
-  if (!toolId) {
-    return { success: false, error: "\u7F3A\u5C11\u5DE5\u5177ID" };
-  }
-  const tool = getToolFullConfig(toolId);
-  if (!tool) {
-    return { success: false, error: "\u5DE5\u5177\u4E0D\u5B58\u5728" };
-  }
-  const context = await buildToolExecutionContext({ triggerEvent: "MANUAL_PREVIEW" });
-  return toolOutputService.previewExtraction(tool, context);
-}
-function destroyToolTriggerManager() {
-  for (const [eventType, listener] of toolTriggerManagerState.listeners) {
-    unregisterEventListener(eventType, listener);
-  }
-  toolTriggerManagerState.listeners.clear();
-  toolTriggerManagerState.initialized = false;
-  toolTriggerManagerState.lastExecutionContext = null;
-  log("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u9500\u6BC1");
-}
-function getToolTriggerManagerState() {
-  return {
-    initialized: toolTriggerManagerState.initialized,
-    listenersCount: toolTriggerManagerState.listeners.size,
-    lastExecutionContext: toolTriggerManagerState.lastExecutionContext
-  };
-}
-async function initTriggerModule() {
-  if (triggerState.isInitialized) {
-    log("\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316");
-    return;
-  }
-  const api = getSillyTavernAPI();
-  if (!api) {
-    log("\u65E0\u6CD5\u83B7\u53D6SillyTavern API\uFF0C\u5EF6\u8FDF\u521D\u59CB\u5316");
-    setTimeout(initTriggerModule, 1e3);
-    return;
-  }
-  const eventTypes = getEventTypes();
-  if (eventTypes.MESSAGE_SENT) {
-    registerEventListener(eventTypes.MESSAGE_SENT, (messageId) => {
-      updateGateState({
-        lastUserMessageId: messageId,
-        lastUserMessageAt: Date.now()
-      });
-      log(`\u7528\u6237\u6D88\u606F\u5DF2\u53D1\u9001: ${messageId}`);
-    });
-  }
-  if (eventTypes.GENERATION_STARTED) {
-    registerEventListener(eventTypes.GENERATION_STARTED, (type, params) => {
-      updateGateState({
-        lastGenerationType: type,
-        isGenerating: true
-      });
-      log(`\u751F\u6210\u5F00\u59CB: ${type}`);
-    });
-  }
-  if (eventTypes.GENERATION_ENDED) {
-    registerEventListener(eventTypes.GENERATION_ENDED, () => {
-      updateGateState({
-        lastGenerationAt: Date.now(),
-        isGenerating: false
-      });
-      log("\u751F\u6210\u7ED3\u675F");
-    });
-  }
-  initToolTriggerManager();
-  triggerState.isInitialized = true;
-  log("\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210");
-}
-function setDebugMode(enabled) {
-  triggerState.debugMode = enabled;
-}
-var EVENT_TYPES, triggerState, toolTriggerManagerState;
-var init_tool_trigger = __esm({
-  "modules/tool-trigger.js"() {
-    init_event_bus();
-    init_tool_registry();
-    init_tool_executor();
-    init_tool_output_service();
-    init_utils();
-    EVENT_TYPES = {
-      // 消息相关
-      MESSAGE_RECEIVED: "MESSAGE_RECEIVED",
-      MESSAGE_SENT: "MESSAGE_SENT",
-      MESSAGE_UPDATED: "MESSAGE_UPDATED",
-      MESSAGE_DELETED: "MESSAGE_DELETED",
-      // 生成相关
-      GENERATION_STARTED: "GENERATION_STARTED",
-      GENERATION_ENDED: "GENERATION_ENDED",
-      GENERATION_AFTER_COMMANDS: "GENERATION_AFTER_COMMANDS",
-      // 角色相关
-      CHARACTER_LOADED: "CHARACTER_LOADED",
-      CHARACTER_DELETED: "CHARACTER_DELETED",
-      // 聊天相关
-      CHAT_CHANGED: "CHAT_CHANGED",
-      CHAT_CREATED: "CHAT_CREATED",
-      // 世界书相关
-      WORLDBOOK_UPDATED: "WORLDBOOK_UPDATED",
-      // 扩展相关
-      EXTENSIONS_LOADED: "EXTENSIONS_LOADED",
-      SETTINGS_LOADED: "SETTINGS_LOADED"
-    };
-    triggerState = {
-      // 已注册的监听器
-      listeners: /* @__PURE__ */ new Map(),
-      // eventType -> Set<listener>
-      // 事件处理器映射
-      handlers: /* @__PURE__ */ new Map(),
-      // handlerId -> handlerConfig
-      // 门控状态
-      gateState: {
-        lastUserMessageId: null,
-        lastUserMessageText: "",
-        lastUserMessageAt: 0,
-        lastGenerationType: null,
-        lastGenerationAt: 0,
-        isGenerating: false
-      },
-      // 是否已初始化
-      isInitialized: false,
-      // 调试模式
-      debugMode: false
-    };
-    toolTriggerManagerState = {
-      initialized: false,
-      listeners: /* @__PURE__ */ new Map(),
-      lastExecutionContext: null
-    };
-  }
-});
-
-// modules/ui/components/summary-tool-panel.js
-var SummaryToolPanel;
-var init_summary_tool_panel = __esm({
-  "modules/ui/components/summary-tool-panel.js"() {
-    init_event_bus();
-    init_utils();
-    init_tool_registry();
-    init_preset_manager();
-    init_bypass_manager();
-    init_tool_trigger();
-    init_context_injector();
-    SummaryToolPanel = {
-      id: "summaryToolPanel",
-      toolId: "summaryTool",
-      render() {
-        const config = getToolFullConfig(this.toolId);
-        if (!config) {
-          return `<div class="yyt-error">\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</div>`;
-        }
-        const apiPresets = this._getApiPresets();
-        const bypassPresets = this._getBypassPresets();
-        const outputMode = config.output?.mode || "follow_ai";
-        const bypassEnabled = config.bypass?.enabled || false;
-        const bypassPresetId = config.bypass?.presetId || "";
-        const runtimeStatus = config.runtime?.lastStatus || "idle";
-        const lastRunText = config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : "\u672A\u8FD0\u884C";
-        const lastError = config.runtime?.lastError || "";
-        const extraction = config.extraction || {};
-        const injection = config.injection || {};
-        const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join("\n") : "";
-        const modeText = outputMode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u8FDB\u884C\u6458\u8981\u89E3\u6790\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
-        return `
-      <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-            <span>\u8F93\u51FA\u6A21\u5F0F</span>
-          </div>
-          <div class="yyt-form-group">
-            <label>\u8F93\u51FA\u6A21\u5F0F</label>
-            <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
-              <option value="follow_ai" ${outputMode === "follow_ai" ? "selected" : ""}>\u968F AI \u8F93\u51FA\uFF08\u4E0D\u542F\u7528\uFF09</option>
-              <option value="post_response_api" ${outputMode === "post_response_api" ? "selected" : ""}>\u989D\u5916 AI \u6A21\u578B\u89E3\u6790</option>
-            </select>
-            <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}</div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-database"></i>
-            <span>API \u9884\u8BBE</span>
-          </div>
-          <div class="yyt-form-group">
-            <label>\u89E3\u6790\u4F7F\u7528\u7684 API \u9884\u8BBE</label>
-            <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
-              <option value="">\u4F7F\u7528\u5F53\u524DAPI\u914D\u7F6E</option>
-              ${apiPresets.map((preset) => `
-                <option value="${escapeHtml(preset.name)}" ${preset.name === config.output?.apiPreset ? "selected" : ""}>
-                  ${escapeHtml(preset.name)}
-                </option>
-              `).join("")}
-            </select>
-            <div class="yyt-tool-compact-hint">\u4EC5\u5728\u201C\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\u201D\u6A21\u5F0F\u4E0B\u751F\u6548\u3002</div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>\u7834\u9650\u9884\u8BBE</span>
-          </div>
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${SCRIPT_ID}-tool-bypass-enabled" ${bypassEnabled ? "checked" : ""}>
-              <span>\u542F\u7528\u7834\u9650\u8BCD</span>
-            </label>
-          </div>
-          <div class="yyt-form-group yyt-bypass-preset-select ${bypassEnabled ? "" : "yyt-hidden"}">
-            <label>\u7ED1\u5B9A\u7834\u9650\u8BCD\u9884\u8BBE</label>
-            <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
-              <option value="">\u9009\u62E9\u9884\u8BBE</option>
-              ${bypassPresets.map((preset) => `
-                <option value="${escapeHtml(preset.id)}" ${preset.id === bypassPresetId ? "selected" : ""}>
-                  ${escapeHtml(preset.name)}${preset.isDefault ? " [\u9ED8\u8BA4]" : ""}
-                </option>
-              `).join("")}
-            </select>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-filter"></i>
-            <span>\u63D0\u53D6\u914D\u7F6E</span>
-          </div>
-          <div class="yyt-form-row">
-            <div class="yyt-form-group yyt-flex-1">
-              <label>\u6700\u5927\u63D0\u53D6\u6D88\u606F\u6570</label>
-              <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-max-messages" min="1" max="50" value="${Number(extraction.maxMessages) || 5}">
+`)}catch(r){return console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u4E16\u754C\u4E66\u5185\u5BB9\u5931\u8D25:",r),""}}async function pa(e={}){let[t,s,n]=await Promise.all([fs(e.chat||{}),_n(),Wr(e.worldbook||{})]);return{chat:t,character:s,worldbook:n,timestamp:Date.now()}}function ua(e,t){if(!e||!t)return w("\u65E0\u6548\u7684\u5904\u7406\u5668ID\u6216\u914D\u7F6E"),()=>{};let{eventType:s,handler:n,gateCondition:r,priority:o=0}=t;if(!s||typeof n!="function")return w("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u5904\u7406\u5668\u51FD\u6570"),()=>{};A.handlers.set(e,{eventType:s,handler:n,gateCondition:r,priority:o,enabled:!0});let i=te(s,async(...a)=>{let c=A.handlers.get(e);!c||!c.enabled||c.gateCondition&&!await Tn(c.gateCondition)||await c.handler(...a)},{priority:o});return w(`\u5DF2\u6CE8\u518C\u89E6\u53D1\u5904\u7406\u5668: ${e}`),()=>{i(),A.handlers.delete(e),w(`\u5DF2\u53D6\u6D88\u89E6\u53D1\u5904\u7406\u5668: ${e}`)}}function ga(e,t){let s=A.handlers.get(e);s&&(s.enabled=t,w(`\u89E6\u53D1\u5904\u7406\u5668 ${e} \u5DF2${t?"\u542F\u7528":"\u7981\u7528"}`))}function fa(){A.handlers.clear(),w("\u5DF2\u79FB\u9664\u6240\u6709\u89E6\u53D1\u5904\u7406\u5668")}function Qr(){if(et.initialized){w("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316");return}ma(),et.initialized=!0,w("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316"),x.emit(h.TOOL_TRIGGER_INITIALIZED)}function ma(){let e=Zt.GENERATION_ENDED,t=te(e,async s=>{if(w("GENERATION_ENDED\u89E6\u53D1:",s),oa(A.gateState.lastGenerationType,A.gateState.lastGenerationParams,A.gateState.lastGenerationDryRun)){w("\u68C0\u6D4B\u5230 quiet / dryRun \u751F\u6210\uFF0C\u8DF3\u8FC7\u5DE5\u5177\u81EA\u52A8\u6267\u884C");return}let n=await En(s);if(!n?.lastAiMessage){w("\u751F\u6210\u7ED3\u675F\u540E\u672A\u8BFB\u53D6\u5230\u6700\u65B0 AI \u56DE\u590D\uFF0C\u8DF3\u8FC7\u5DE5\u5177\u6267\u884C");return}let r=ba(e);if(r.length===0){w("\u6CA1\u6709\u9700\u8981\u6267\u884C\u7684\u5DE5\u5177");return}w(`\u9700\u8981\u6267\u884C ${r.length} \u4E2A\u5DE5\u5177:`,r.map(o=>o.id)),nt("info",`\u68C0\u6D4B\u5230 AI \u56DE\u590D\uFF0C\u5F00\u59CB\u81EA\u52A8\u6267\u884C ${r.length} \u4E2A\u5DE5\u5177`,{duration:2400,noticeId:"yyt-tool-batch-start"});for(let o of r)try{let i=await qr(o,n);i.success?(w(`\u5DE5\u5177 ${o.id} \u6267\u884C\u6210\u529F`),x.emit(h.TOOL_EXECUTED,{toolId:o.id,result:i.result||i.data||i})):w(`\u5DE5\u5177 ${o.id} \u6267\u884C\u5931\u8D25:`,i.error)}catch(i){console.error(`[ToolTrigger] \u5DE5\u5177\u6267\u884C\u5931\u8D25: ${o.id}`,i)}et.lastExecutionContext=n});et.listeners.set(e,t)}async function En(e){let t=await fs({depth:50}),s=await _n(),n=ee(),r=n?.getContext?.()||null,o=typeof e=="string"||typeof e=="number"?e:e?.messageId||e?.id||"",i=t?.messages||[],a=i.filter(l=>l.role==="user").pop(),c=i.filter(l=>l.role==="assistant").pop();return{triggeredAt:Date.now(),triggerEvent:e?.triggerEvent||"GENERATION_ENDED",chatId:aa(n,r,s),messageId:o,lastAiMessage:c?.content||"",userMessage:a?.content||A.gateState.lastUserMessageText||"",chatMessages:i,input:{userMessage:a?.content||A.gateState.lastUserMessageText||"",lastAiMessage:c?.content||"",extractedContent:"",previousToolOutput:"",context:{character:s?.name||"",chatLength:t?.totalMessages||0}},config:{},status:"pending"}}function ba(e){return gn(e).filter(s=>Bt.shouldRunPostResponse(s))}function us(e,t){try{cn(e,t)}catch(s){console.warn("[ToolTrigger] \u66F4\u65B0\u5DE5\u5177\u8FD0\u884C\u65F6\u72B6\u6001\u5931\u8D25:",e,s)}}async function qr(e,t){let s=Date.now(),n=e.id,r=t?.triggerEvent==="MANUAL",o=`yyt-tool-run-${n}`;us(n,{lastStatus:"running",lastError:"",lastDurationMs:0}),x.emit(h.TOOL_EXECUTION_REQUESTED,{toolId:n,triggerEvent:t?.triggerEvent||"GENERATION_ENDED",context:t}),nt("info",`${r?"\u6B63\u5728\u624B\u52A8\u6267\u884C":"\u5DF2\u68C0\u6D4B\u5230 AI \u56DE\u590D\uFF0C\u6B63\u5728\u81EA\u52A8\u6267\u884C"} ${e.name}`,{sticky:!0,noticeId:o});try{let i;e.output?.mode===zt.POST_RESPONSE_API?i=await Bt.runToolPostResponse(e,t):i=await rs(n,t);let a=Date.now()-s;if(i?.success){let y=D(n);us(n,{lastStatus:"success",lastError:"",lastDurationMs:a,successCount:(y?.runtime?.successCount||0)+1});let u=r?`${e.name} \u624B\u52A8\u6267\u884C\u5B8C\u6210`:`\u5DF2\u76D1\u542C AI \u56DE\u590D\u5E76\u6267\u884C ${e.name}`;return p("success",u),nt("success",u,{duration:3200,noticeId:o}),{success:!0,duration:a,result:i}}let c=D(n),l=i?.error||"\u5DE5\u5177\u6267\u884C\u5931\u8D25";return us(n,{lastStatus:"error",lastError:l,lastDurationMs:a,errorCount:(c?.runtime?.errorCount||0)+1}),p("error",`${e.name} \u6267\u884C\u5931\u8D25\uFF1A${l}`),nt("error",`${e.name} \u6267\u884C\u5931\u8D25\uFF1A${l}`,{sticky:!0,noticeId:o}),{success:!1,duration:a,error:l,result:i}}catch(i){let a=Date.now()-s,c=D(n),l=i?.message||String(i);throw us(n,{lastStatus:"error",lastError:l,lastDurationMs:a,errorCount:(c?.runtime?.errorCount||0)+1}),p("error",`${e.name} \u6267\u884C\u5931\u8D25\uFF1A${l}`),nt("error",`${e.name} \u6267\u884C\u5931\u8D25\uFF1A${l}`,{sticky:!0,noticeId:o}),i}}async function Sn(e){if(!e)return{success:!1,error:"\u7F3A\u5C11\u5DE5\u5177ID"};let t=D(e);if(!t)return{success:!1,error:"\u5DE5\u5177\u4E0D\u5B58\u5728"};if(!t.enabled)return nt("warning",`${t.name} \u672A\u542F\u7528\uFF0C\u65E0\u6CD5\u624B\u52A8\u6267\u884C`,{duration:2800,noticeId:`yyt-tool-run-${e}`}),{success:!1,error:"\u5DE5\u5177\u672A\u542F\u7528"};if(!Bt.shouldRunPostResponse(t))return nt("warning",`${t.name} \u5F53\u524D\u4E3A\u201C\u968F AI \u8F93\u51FA\u201D\uFF0C\u4E0D\u4F1A\u6267\u884C\u989D\u5916\u89E3\u6790`,{duration:3200,noticeId:`yyt-tool-run-${e}`}),{success:!1,error:"\u5F53\u524D\u8F93\u51FA\u6A21\u5F0F\u4E0D\u6267\u884C\u989D\u5916\u89E3\u6790"};let s=await En({triggerEvent:"MANUAL"});return qr(t,s)}async function Cn(e){if(!e)return{success:!1,error:"\u7F3A\u5C11\u5DE5\u5177ID"};let t=D(e);if(!t)return{success:!1,error:"\u5DE5\u5177\u4E0D\u5B58\u5728"};let s=await En({triggerEvent:"MANUAL_PREVIEW"});return Bt.previewExtraction(t,s)}function ha(){for(let[e,t]of et.listeners)gs(e,t);et.listeners.clear(),et.initialized=!1,et.lastExecutionContext=null,w("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u9500\u6BC1")}function xa(){return{initialized:et.initialized,listenersCount:et.listeners.size,lastExecutionContext:et.lastExecutionContext}}async function Jr(){if(A.isInitialized){w("\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316");return}if(!ee()){w("\u65E0\u6CD5\u83B7\u53D6SillyTavern API\uFF0C\u5EF6\u8FDF\u521D\u59CB\u5316"),setTimeout(Jr,1e3);return}ra(),te(Zt.MESSAGE_SENT,async t=>{let n=(await fs({depth:10,includeAssistant:!1,includeSystem:!1}))?.messages?.filter(r=>r.role==="user").pop();xe({lastUserSendIntentAt:Date.now(),lastUserMessageId:t,lastUserMessageAt:Date.now(),lastUserMessageText:n?.content||A.gateState.lastUserMessageText||""}),w(`\u7528\u6237\u6D88\u606F\u5DF2\u53D1\u9001: ${t}`)}),te(Zt.GENERATION_STARTED,(t,s,n)=>{xe({lastGenerationType:t,lastGenerationParams:s||null,lastGenerationDryRun:!!n,isGenerating:!0}),w(`\u751F\u6210\u5F00\u59CB: ${t}`)}),te(Zt.GENERATION_ENDED,()=>{xe({lastGenerationAt:Date.now(),isGenerating:!1}),w("\u751F\u6210\u7ED3\u675F")}),Qr(),A.isInitialized=!0,w("\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210")}function va(e){A.debugMode=e}var Zt,A,et,Pn=E(()=>{z();fe();fn();xn();rt();Zt={MESSAGE_RECEIVED:"MESSAGE_RECEIVED",MESSAGE_SENT:"MESSAGE_SENT",MESSAGE_UPDATED:"MESSAGE_UPDATED",MESSAGE_DELETED:"MESSAGE_DELETED",GENERATION_STARTED:"GENERATION_STARTED",GENERATION_ENDED:"GENERATION_ENDED",GENERATION_AFTER_COMMANDS:"GENERATION_AFTER_COMMANDS",CHARACTER_LOADED:"CHARACTER_LOADED",CHARACTER_DELETED:"CHARACTER_DELETED",CHAT_CHANGED:"CHAT_CHANGED",CHAT_CREATED:"CHAT_CREATED",WORLDBOOK_UPDATED:"WORLDBOOK_UPDATED",EXTENSIONS_LOADED:"EXTENSIONS_LOADED",SETTINGS_LOADED:"SETTINGS_LOADED"},A={listeners:new Map,handlers:new Map,gateState:{lastUserSendIntentAt:0,lastUserMessageId:null,lastUserMessageText:"",lastUserMessageAt:0,lastGenerationType:null,lastGenerationParams:null,lastGenerationDryRun:!1,lastGenerationAt:0,isGenerating:!1},isInitialized:!1,debugMode:!1};et={initialized:!1,listeners:new Map,lastExecutionContext:null}});function ms(e){let{id:t,toolId:s,postResponseHint:n,extractionPlaceholder:r,previewDialogId:o,previewTitle:i="\u6D4B\u8BD5\u63D0\u53D6\u7ED3\u679C",defaultInjectionOrder:a=1e4,lorebookLogTag:c="ToolConfigPanel"}=e;return{id:t,toolId:s,render(){let l=D(this.toolId);if(!l)return'<div class="yyt-error">\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</div>';let y=this._getApiPresets(),u=this._getBypassPresets(),g=l.output?.mode||"follow_ai",f=l.bypass?.enabled||!1,T=l.bypass?.presetId||"",G=l.runtime?.lastStatus||"idle",J=l.runtime?.lastRunAt?new Date(l.runtime.lastRunAt).toLocaleString():"\u672A\u8FD0\u884C",st=l.runtime?.lastError||"",At=l.extraction||{},F=l.injection||{},ht=Array.isArray(At.selectors)?At.selectors.join(`
+`):"",Ae=g==="post_response_api"?n:"\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";return`
+        <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>\u8F93\u51FA\u6A21\u5F0F</span>
+            </div>
+            <div class="yyt-form-group">
+              <label>\u8F93\u51FA\u6A21\u5F0F</label>
+              <select class="yyt-select" id="${d}-tool-output-mode">
+                <option value="follow_ai" ${g==="follow_ai"?"selected":""}>\u968F AI \u8F93\u51FA\uFF08\u4E0D\u542F\u7528\uFF09</option>
+                <option value="post_response_api" ${g==="post_response_api"?"selected":""}>\u989D\u5916 AI \u6A21\u578B\u89E3\u6790</option>
+              </select>
+              <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${Ae}</div>
             </div>
           </div>
-          <div class="yyt-form-group">
-            <label>\u63D0\u53D6\u6807\u7B7E / \u6B63\u5219</label>
-            <textarea class="yyt-textarea yyt-code-textarea yyt-code-textarea-small"
-                      id="${SCRIPT_ID}-tool-extraction-selectors"
-                      rows="5"
-                      placeholder="\u6BCF\u884C\u4E00\u4E2A\u6807\u7B7E\uFF0C\u5982 boo_FM
-\u6216 regex:<boo_FM>([\\s\\S]*?)</boo_FM>">${escapeHtml(selectorText)}</textarea>
-            <div class="yyt-tool-compact-hint">\u6BCF\u884C\u4E00\u4E2A\u89C4\u5219\u3002\u666E\u901A\u6587\u672C\u6309\u6807\u7B7E\u63D0\u53D6\uFF1B\u4EE5 <code>regex:</code> \u5F00\u5934\u65F6\u6309\u6B63\u5219\u7B2C\u4E00\u6355\u83B7\u7EC4\u63D0\u53D6\u3002</div>
-          </div>
-        </div>
 
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-book"></i>
-            <span>\u4E16\u754C\u4E66\u6CE8\u5165</span>
-          </div>
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${SCRIPT_ID}-tool-injection-enabled" ${injection.enabled !== false ? "checked" : ""}>
-              <span>\u6267\u884C\u540E\u5199\u5165\u4E16\u754C\u4E66</span>
-            </label>
-          </div>
-          <div class="yyt-injection-fields ${injection.enabled === false ? "yyt-hidden" : ""}">
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
+              <i class="fa-solid fa-database"></i>
+              <span>API \u9884\u8BBE</span>
+            </div>
             <div class="yyt-form-group">
-              <label>\u76EE\u6807\u4E16\u754C\u4E66</label>
-              <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-target" data-current-value="${escapeHtml(injection.target || "__character__")}">
-                <option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>
+              <label>\u89E3\u6790\u4F7F\u7528\u7684 API \u9884\u8BBE</label>
+              <select class="yyt-select" id="${d}-tool-api-preset">
+                <option value="">\u4F7F\u7528\u5F53\u524DAPI\u914D\u7F6E</option>
+                ${y.map(tt=>`
+                  <option value="${m(tt.name)}" ${tt.name===l.output?.apiPreset?"selected":""}>
+                    ${m(tt.name)}
+                  </option>
+                `).join("")}
               </select>
+              <div class="yyt-tool-compact-hint">\u4EC5\u5728\u201C\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\u201D\u6A21\u5F0F\u4E0B\u751F\u6548\u3002</div>
+            </div>
+          </div>
+
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>\u7834\u9650\u9884\u8BBE</span>
+            </div>
+            <div class="yyt-form-group">
+              <label class="yyt-checkbox-label">
+                <input type="checkbox" id="${d}-tool-bypass-enabled" ${f?"checked":""}>
+                <span>\u542F\u7528\u7834\u9650\u8BCD</span>
+              </label>
+            </div>
+            <div class="yyt-form-group yyt-bypass-preset-select ${f?"":"yyt-hidden"}">
+              <label>\u7ED1\u5B9A\u7834\u9650\u8BCD\u9884\u8BBE</label>
+              <select class="yyt-select" id="${d}-tool-bypass-preset">
+                <option value="">\u9009\u62E9\u9884\u8BBE</option>
+                ${u.map(tt=>`
+                  <option value="${m(tt.id)}" ${tt.id===T?"selected":""}>
+                    ${m(tt.name)}${tt.isDefault?" [\u9ED8\u8BA4]":""}
+                  </option>
+                `).join("")}
+              </select>
+            </div>
+          </div>
+
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
+              <i class="fa-solid fa-filter"></i>
+              <span>\u63D0\u53D6\u914D\u7F6E</span>
             </div>
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
-                <label>\u6CE8\u5165\u4F4D\u7F6E</label>
-                <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-position">
-                  <option value="at_depth_as_system" ${injection.position === "at_depth_as_system" ? "selected" : ""}>\u7CFB\u7EDF\u6DF1\u5EA6</option>
-                  <option value="before_char" ${injection.position === "before_char" ? "selected" : ""}>\u89D2\u8272\u5361\u524D</option>
-                  <option value="after_char" ${injection.position === "after_char" ? "selected" : ""}>\u89D2\u8272\u5361\u540E</option>
-                </select>
-              </div>
-              <div class="yyt-form-group yyt-flex-1">
-                <label>Depth</label>
-                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-depth" value="${Number(injection.depth) || 4}">
-              </div>
-              <div class="yyt-form-group yyt-flex-1">
-                <label>Order</label>
-                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-order" value="${Number(injection.order) || 1e4}">
+                <label>\u6700\u5927\u63D0\u53D6\u6D88\u606F\u6570</label>
+                <input type="number" class="yyt-input" id="${d}-tool-max-messages" min="1" max="50" value="${Number(At.maxMessages)||5}">
               </div>
             </div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-file-code"></i>
-            <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
-            <div class="yyt-title-actions">
-              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset-template">
-                <i class="fa-solid fa-undo"></i> \u91CD\u7F6E\u6A21\u677F
-              </button>
-            </div>
-          </div>
-          <div class="yyt-form-group">
-            <textarea class="yyt-textarea yyt-code-textarea"
-                      id="${SCRIPT_ID}-tool-prompt-template"
-                      rows="12"
-                      placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u6A21\u677F...">${escapeHtml(config.promptTemplate || "")}</textarea>
-            <div class="yyt-tool-compact-hint">\u8FD9\u91CC\u76F4\u63A5\u586B\u5199\u53D1\u9001\u7ED9\u989D\u5916\u89E3\u6790\u6A21\u578B\u7684\u5B8C\u6574\u6A21\u677F\u3002</div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-hand-pointer"></i>
-            <span>\u624B\u52A8\u64CD\u4F5C\u533A</span>
-          </div>
-          <div class="yyt-tool-manual-area">
-            <div class="yyt-tool-runtime-card">
-              <div class="yyt-tool-runtime-line">
-                <span class="yyt-tool-runtime-label">\u5F53\u524D\u72B6\u6001</span>
-                <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtimeStatus)}</span>
-              </div>
-              <div class="yyt-tool-runtime-line">
-                <span class="yyt-tool-runtime-label">\u6700\u8FD1\u8FD0\u884C</span>
-                <span class="yyt-tool-runtime-value">${escapeHtml(lastRunText)}</span>
-              </div>
-              <div class="yyt-tool-runtime-line">
-                <span class="yyt-tool-runtime-label">\u6210\u529F / \u5931\u8D25</span>
-                <span class="yyt-tool-runtime-value">${config.runtime?.successCount || 0} / ${config.runtime?.errorCount || 0}</span>
-              </div>
-              ${lastError ? `
-                <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
-                  <span class="yyt-tool-runtime-label">\u6700\u8FD1\u9519\u8BEF</span>
-                  <span class="yyt-tool-runtime-value">${escapeHtml(lastError)}</span>
-                </div>
-              ` : ""}
-            </div>
-            <div class="yyt-tool-manual-actions">
-              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
-                <i class="fa-solid fa-play"></i> \u7ACB\u5373\u6267\u884C\u4E00\u6B21
-              </button>
-              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-preview-extraction">
-                <i class="fa-solid fa-vial"></i> \u6D4B\u8BD5\u63D0\u53D6
-              </button>
-              <div class="yyt-tool-compact-hint">\u7528\u4E8E\u624B\u52A8\u9A8C\u8BC1\u5F53\u524D\u6A21\u677F\u3001API\u9884\u8BBE\u548C\u7834\u9650\u9884\u8BBE\u662F\u5426\u80FD\u6B63\u5E38\u5DE5\u4F5C\u3002</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-footer yyt-panel-footer-end">
-          <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-save">
-              <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-      },
-      _getApiPresets() {
-        try {
-          return getAllPresets() || [];
-        } catch (error) {
-          return [];
-        }
-      },
-      _getBypassPresets() {
-        try {
-          return getPresetList() || [];
-        } catch (error) {
-          return [];
-        }
-      },
-      _getFormData($container2) {
-        const currentConfig = getToolFullConfig(this.toolId);
-        const outputMode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
-        const bypassEnabled = $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(":checked");
-        const postResponseEnabled = outputMode === "post_response_api";
-        const selectorLines = ($container2.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
-        const injectionEnabled = $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).is(":checked");
-        return {
-          enabled: true,
-          promptTemplate: $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || "",
-          extractTags: selectorLines,
-          trigger: {
-            event: "GENERATION_ENDED",
-            enabled: postResponseEnabled
-          },
-          output: {
-            mode: outputMode,
-            apiPreset: $container2.find(`#${SCRIPT_ID}-tool-api-preset`).val() || "",
-            overwrite: true,
-            enabled: postResponseEnabled
-          },
-          bypass: {
-            enabled: bypassEnabled,
-            presetId: bypassEnabled ? $container2.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || "" : ""
-          },
-          extraction: {
-            enabled: true,
-            maxMessages: Math.max(1, parseInt($container2.find(`#${SCRIPT_ID}-tool-max-messages`).val(), 10) || 5),
-            selectors: selectorLines
-          },
-          injection: {
-            enabled: injectionEnabled,
-            target: $container2.find(`#${SCRIPT_ID}-tool-injection-target`).val() || "__character__",
-            comment: currentConfig?.injection?.comment || `YouYouToolkit:${this.toolId}`,
-            position: $container2.find(`#${SCRIPT_ID}-tool-injection-position`).val() || "at_depth_as_system",
-            depth: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-depth`).val(), 10) || 4,
-            order: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-order`).val(), 10) || 1e4
-          }
-        };
-      },
-      async _populateLorebookOptions($container2) {
-        try {
-          const currentValue = $container2.find(`#${SCRIPT_ID}-tool-injection-target`).data("currentValue") || "__character__";
-          const lorebooks = await contextInjector.getAvailableLorebooks();
-          const optionsHtml = lorebooks.map((item) => `
-        <option value="${escapeHtml(item.value)}" ${item.value === currentValue ? "selected" : ""}>${escapeHtml(item.label)}</option>
-      `).join("");
-          $container2.find(`#${SCRIPT_ID}-tool-injection-target`).html(optionsHtml || '<option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>');
-          if (!lorebooks.some((item) => item.value === currentValue)) {
-            $container2.find(`#${SCRIPT_ID}-tool-injection-target`).append(`<option value="${escapeHtml(currentValue)}" selected>${escapeHtml(currentValue)}</option>`);
-          }
-        } catch (error) {
-          console.warn("[SummaryToolPanel] \u52A0\u8F7D\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25:", error);
-        }
-      },
-      _showExtractionPreview($container2, result) {
-        const $ = getJQuery();
-        if (!$)
-          return;
-        const dialogId = `${SCRIPT_ID}-summary-extraction-preview`;
-        $container2.append(createDialogHtml({
-          id: dialogId,
-          title: "\u6D4B\u8BD5\u63D0\u53D6\u7ED3\u679C",
-          width: "720px",
-          wide: true,
-          body: `
-        <div class="yyt-form-group">
-          <label>\u63D0\u53D6\u89C4\u5219</label>
-          <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join("\n") || "\u65E0")}</div>
-        </div>
-        <div class="yyt-form-group">
-          <label>\u539F\u59CB\u5185\u5BB9\uFF08\u6700\u8FD1 ${result.maxMessages} \u6761\u89D2\u8272\u6D88\u606F\uFF09</label>
-          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || "\u65E0\u53EF\u7528\u6D88\u606F")}</pre>
-        </div>
-        <div class="yyt-form-group">
-          <label>\u63D0\u53D6\u7ED3\u679C</label>
-          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.extractedText || "\u672A\u63D0\u53D6\u5230\u5185\u5BB9")}</pre>
-        </div>
-      `
-        }));
-        bindDialogEvents($container2, dialogId, {
-          onSave: (closeDialog) => closeDialog()
-        });
-        $container2.find(`#${dialogId}-save`).text("\u5173\u95ED");
-        $container2.find(`#${dialogId}-cancel`).remove();
-      },
-      bindEvents($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        this._populateLorebookOptions($container2);
-        $container2.find(`#${SCRIPT_ID}-tool-output-mode`).on("change", () => {
-          const mode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
-          const modeText = mode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u8FDB\u884C\u6458\u8981\u89E3\u6790\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
-          $container2.find(".yyt-tool-mode-hint").text(modeText);
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on("change", (event) => {
-          const enabled = $(event.currentTarget).is(":checked");
-          $container2.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden", !enabled);
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).on("change", (event) => {
-          const enabled = $(event.currentTarget).is(":checked");
-          $container2.find(".yyt-injection-fields").toggleClass("yyt-hidden", !enabled);
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-save`).on("click", () => {
-          this._saveConfig($container2, { silent: false });
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-reset-template`).on("click", () => {
-          const defaultConfigs = getAllDefaultToolConfigs();
-          const defaultConfig = defaultConfigs[this.toolId];
-          if (defaultConfig?.promptTemplate) {
-            $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val(defaultConfig.promptTemplate);
-            showToast("info", "\u6A21\u677F\u5DF2\u91CD\u7F6E");
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-run-manual`).on("click", async () => {
-          const saveSuccess = this._saveConfig($container2, { silent: true });
-          if (!saveSuccess) {
-            return;
-          }
-          try {
-            const result = await runToolManually(this.toolId);
-            if (!result?.success && result?.error) {
-              showTopNotice("warning", result.error, {
-                duration: 3200,
-                noticeId: `yyt-tool-run-${this.toolId}`
-              });
-            }
-          } catch (error) {
-            showToast("error", error?.message || "\u624B\u52A8\u6267\u884C\u5931\u8D25");
-          } finally {
-            this.renderTo($container2);
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-preview-extraction`).on("click", async () => {
-          const saveSuccess = this._saveConfig($container2, { silent: true });
-          if (!saveSuccess) {
-            return;
-          }
-          try {
-            const result = await previewToolExtraction(this.toolId);
-            if (!result?.success) {
-              showToast("error", result?.error || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
-              return;
-            }
-            this._showExtractionPreview($container2, result);
-          } catch (error) {
-            showToast("error", error?.message || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
-          }
-        });
-      },
-      _saveConfig($container2, options = {}) {
-        const config = this._getFormData($container2);
-        const { silent = false } = options;
-        const success = saveToolConfig(this.toolId, config);
-        if (success) {
-          if (!silent) {
-            showToast("success", "\u914D\u7F6E\u5DF2\u4FDD\u5B58");
-          }
-          eventBus.emit(EVENTS.TOOL_UPDATED, { toolId: this.toolId, config });
-        } else {
-          showToast("error", "\u4FDD\u5B58\u5931\u8D25");
-        }
-        return success;
-      },
-      destroy($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find("*").off();
-      },
-      getStyles() {
-        return `
-      .yyt-tool-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .yyt-tool-compact-hint {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        line-height: 1.6;
-      }
-
-      .yyt-hidden {
-        display: none !important;
-      }
-
-      .yyt-code-textarea {
-        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-        font-size: 13px;
-        line-height: 1.5;
-        tab-size: 2;
-        background: rgba(0, 0, 0, 0.2);
-        border-color: rgba(255, 255, 255, 0.1);
-        resize: vertical;
-        min-height: 220px;
-      }
-
-      .yyt-code-textarea-small {
-        min-height: 120px;
-      }
-
-      .yyt-code-textarea:focus {
-        border-color: var(--yyt-accent);
-        box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
-      }
-
-      .yyt-title-actions {
-        margin-left: auto;
-      }
-
-      .yyt-btn-small {
-        padding: 4px 10px;
-        font-size: 12px;
-      }
-
-      .yyt-checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        user-select: none;
-      }
-
-      .yyt-checkbox-label input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        cursor: pointer;
-      }
-
-      .yyt-tool-manual-area {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
-        align-items: start;
-      }
-
-      .yyt-tool-runtime-card {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 14px;
-        background: rgba(0, 0, 0, 0.18);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: var(--yyt-radius-sm);
-      }
-
-      .yyt-tool-runtime-line {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        font-size: 12px;
-      }
-
-      .yyt-tool-runtime-label {
-        color: var(--yyt-text-muted);
-        flex-shrink: 0;
-      }
-
-      .yyt-tool-runtime-value {
-        color: var(--yyt-text);
-        text-align: right;
-        word-break: break-word;
-      }
-
-      .yyt-tool-runtime-badge {
-        padding: 3px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-      }
-
-      .yyt-status-idle {
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.06);
-      }
-
-      .yyt-status-running {
-        color: var(--yyt-accent);
-        background: rgba(123, 183, 255, 0.12);
-      }
-
-      .yyt-status-success {
-        color: var(--yyt-success);
-        background: rgba(74, 222, 128, 0.12);
-      }
-
-      .yyt-status-error {
-        color: var(--yyt-danger);
-        background: rgba(255, 107, 107, 0.12);
-      }
-
-      .yyt-tool-runtime-error .yyt-tool-runtime-value {
-        color: var(--yyt-danger);
-      }
-
-      .yyt-tool-manual-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        min-width: 180px;
-      }
-
-      .yyt-preview-box {
-        padding: 10px 12px;
-        border-radius: var(--yyt-radius-sm);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(0, 0, 0, 0.2);
-        color: var(--yyt-text);
-        font-size: 12px;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-
-      .yyt-preview-pre {
-        max-height: 220px;
-        overflow: auto;
-        margin: 0;
-        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-      }
-
-      .yyt-error {
-        padding: 20px;
-        text-align: center;
-        color: var(--yyt-danger);
-        background: rgba(255, 107, 107, 0.1);
-        border: 1px solid rgba(255, 107, 107, 0.3);
-        border-radius: var(--yyt-radius-sm);
-      }
-
-      .yyt-panel-footer-end {
-        justify-content: flex-end;
-      }
-
-      @media screen and (max-width: 768px) {
-        .yyt-tool-manual-area {
-          grid-template-columns: 1fr;
-        }
-
-        .yyt-tool-manual-actions {
-          min-width: 0;
-        }
-      }
-    `;
-      },
-      renderTo($container2) {
-        $container2.html(this.render({}));
-        this.bindEvents($container2, {});
-      }
-    };
-  }
-});
-
-// modules/ui/components/status-block-panel.js
-var StatusBlockPanel;
-var init_status_block_panel = __esm({
-  "modules/ui/components/status-block-panel.js"() {
-    init_event_bus();
-    init_utils();
-    init_tool_registry();
-    init_preset_manager();
-    init_bypass_manager();
-    init_tool_trigger();
-    init_context_injector();
-    StatusBlockPanel = {
-      id: "statusBlockPanel",
-      toolId: "statusBlock",
-      render() {
-        const config = getToolFullConfig(this.toolId);
-        if (!config) {
-          return `<div class="yyt-error">\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</div>`;
-        }
-        const apiPresets = this._getApiPresets();
-        const bypassPresets = this._getBypassPresets();
-        const outputMode = config.output?.mode || "follow_ai";
-        const bypassEnabled = config.bypass?.enabled || false;
-        const bypassPresetId = config.bypass?.presetId || "";
-        const runtimeStatus = config.runtime?.lastStatus || "idle";
-        const lastRunText = config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : "\u672A\u8FD0\u884C";
-        const lastError = config.runtime?.lastError || "";
-        const extraction = config.extraction || {};
-        const injection = config.injection || {};
-        const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join("\n") : "";
-        const modeText = outputMode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u680F\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
-        return `
-      <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-            <span>\u8F93\u51FA\u6A21\u5F0F</span>
-          </div>
-          <div class="yyt-form-group">
-            <label>\u8F93\u51FA\u6A21\u5F0F</label>
-            <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
-              <option value="follow_ai" ${outputMode === "follow_ai" ? "selected" : ""}>\u968F AI \u8F93\u51FA\uFF08\u4E0D\u542F\u7528\uFF09</option>
-              <option value="post_response_api" ${outputMode === "post_response_api" ? "selected" : ""}>\u989D\u5916 AI \u6A21\u578B\u89E3\u6790</option>
-            </select>
-            <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}</div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-database"></i>
-            <span>API \u9884\u8BBE</span>
-          </div>
-          <div class="yyt-form-group">
-            <label>\u89E3\u6790\u4F7F\u7528\u7684 API \u9884\u8BBE</label>
-            <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
-              <option value="">\u4F7F\u7528\u5F53\u524DAPI\u914D\u7F6E</option>
-              ${apiPresets.map((preset) => `
-                <option value="${escapeHtml(preset.name)}" ${preset.name === config.output?.apiPreset ? "selected" : ""}>
-                  ${escapeHtml(preset.name)}
-                </option>
-              `).join("")}
-            </select>
-            <div class="yyt-tool-compact-hint">\u4EC5\u5728\u201C\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\u201D\u6A21\u5F0F\u4E0B\u751F\u6548\u3002</div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>\u7834\u9650\u9884\u8BBE</span>
-          </div>
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${SCRIPT_ID}-tool-bypass-enabled" ${bypassEnabled ? "checked" : ""}>
-              <span>\u542F\u7528\u7834\u9650\u8BCD</span>
-            </label>
-          </div>
-          <div class="yyt-form-group yyt-bypass-preset-select ${bypassEnabled ? "" : "yyt-hidden"}">
-            <label>\u7ED1\u5B9A\u7834\u9650\u8BCD\u9884\u8BBE</label>
-            <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
-              <option value="">\u9009\u62E9\u9884\u8BBE</option>
-              ${bypassPresets.map((preset) => `
-                <option value="${escapeHtml(preset.id)}" ${preset.id === bypassPresetId ? "selected" : ""}>
-                  ${escapeHtml(preset.name)}${preset.isDefault ? " [\u9ED8\u8BA4]" : ""}
-                </option>
-              `).join("")}
-            </select>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-filter"></i>
-            <span>\u63D0\u53D6\u914D\u7F6E</span>
-          </div>
-          <div class="yyt-form-row">
-            <div class="yyt-form-group yyt-flex-1">
-              <label>\u6700\u5927\u63D0\u53D6\u6D88\u606F\u6570</label>
-              <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-max-messages" min="1" max="50" value="${Number(extraction.maxMessages) || 5}">
-            </div>
-          </div>
-          <div class="yyt-form-group">
-            <label>\u63D0\u53D6\u6807\u7B7E / \u6B63\u5219</label>
-            <textarea class="yyt-textarea yyt-code-textarea yyt-code-textarea-small"
-                      id="${SCRIPT_ID}-tool-extraction-selectors"
-                      rows="5"
-                      placeholder="\u6BCF\u884C\u4E00\u4E2A\u6807\u7B7E\uFF0C\u5982 status_block
-\u6216 regex:<status_block>([\\s\\S]*?)</status_block>">${escapeHtml(selectorText)}</textarea>
-            <div class="yyt-tool-compact-hint">\u6BCF\u884C\u4E00\u4E2A\u89C4\u5219\u3002\u666E\u901A\u6587\u672C\u6309\u6807\u7B7E\u63D0\u53D6\uFF1B\u4EE5 <code>regex:</code> \u5F00\u5934\u65F6\u6309\u6B63\u5219\u7B2C\u4E00\u6355\u83B7\u7EC4\u63D0\u53D6\u3002</div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-book"></i>
-            <span>\u4E16\u754C\u4E66\u6CE8\u5165</span>
-          </div>
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${SCRIPT_ID}-tool-injection-enabled" ${injection.enabled !== false ? "checked" : ""}>
-              <span>\u6267\u884C\u540E\u5199\u5165\u4E16\u754C\u4E66</span>
-            </label>
-          </div>
-          <div class="yyt-injection-fields ${injection.enabled === false ? "yyt-hidden" : ""}">
             <div class="yyt-form-group">
-              <label>\u76EE\u6807\u4E16\u754C\u4E66</label>
-              <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-target" data-current-value="${escapeHtml(injection.target || "__character__")}">
-                <option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>
-              </select>
+              <label>\u63D0\u53D6\u6807\u7B7E / \u6B63\u5219</label>
+              <textarea class="yyt-textarea yyt-code-textarea yyt-code-textarea-small"
+                        id="${d}-tool-extraction-selectors"
+                        rows="5"
+                        placeholder="${m(r)}">${m(ht)}</textarea>
+              <div class="yyt-tool-compact-hint">\u6BCF\u884C\u4E00\u4E2A\u89C4\u5219\u3002\u666E\u901A\u6587\u672C\u6309\u6807\u7B7E\u63D0\u53D6\uFF1B\u4EE5 <code>regex:</code> \u5F00\u5934\u65F6\u6309\u6B63\u5219\u7B2C\u4E00\u6355\u83B7\u7EC4\u63D0\u53D6\u3002</div>
             </div>
-            <div class="yyt-form-row">
-              <div class="yyt-form-group yyt-flex-1">
-                <label>\u6CE8\u5165\u4F4D\u7F6E</label>
-                <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-position">
-                  <option value="at_depth_as_system" ${injection.position === "at_depth_as_system" ? "selected" : ""}>\u7CFB\u7EDF\u6DF1\u5EA6</option>
-                  <option value="before_char" ${injection.position === "before_char" ? "selected" : ""}>\u89D2\u8272\u5361\u524D</option>
-                  <option value="after_char" ${injection.position === "after_char" ? "selected" : ""}>\u89D2\u8272\u5361\u540E</option>
+          </div>
+
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
+              <i class="fa-solid fa-book"></i>
+              <span>\u4E16\u754C\u4E66\u6CE8\u5165</span>
+            </div>
+            <div class="yyt-form-group">
+              <label class="yyt-checkbox-label">
+                <input type="checkbox" id="${d}-tool-injection-enabled" ${F.enabled!==!1?"checked":""}>
+                <span>\u6267\u884C\u540E\u5199\u5165\u4E16\u754C\u4E66</span>
+              </label>
+            </div>
+            <div class="yyt-injection-fields ${F.enabled===!1?"yyt-hidden":""}">
+              <div class="yyt-form-group">
+                <label>\u76EE\u6807\u4E16\u754C\u4E66</label>
+                <select class="yyt-select" id="${d}-tool-injection-target" data-current-value="${m(F.target||"__character__")}">
+                  <option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>
                 </select>
               </div>
-              <div class="yyt-form-group yyt-flex-1">
-                <label>Depth</label>
-                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-depth" value="${Number(injection.depth) || 4}">
-              </div>
-              <div class="yyt-form-group yyt-flex-1">
-                <label>Order</label>
-                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-order" value="${Number(injection.order) || 10001}">
+              <div class="yyt-form-row">
+                <div class="yyt-form-group yyt-flex-1">
+                  <label>\u6CE8\u5165\u4F4D\u7F6E</label>
+                  <select class="yyt-select" id="${d}-tool-injection-position">
+                    <option value="at_depth_as_system" ${F.position==="at_depth_as_system"?"selected":""}>\u7CFB\u7EDF\u6DF1\u5EA6</option>
+                    <option value="before_char" ${F.position==="before_char"?"selected":""}>\u89D2\u8272\u5361\u524D</option>
+                    <option value="after_char" ${F.position==="after_char"?"selected":""}>\u89D2\u8272\u5361\u540E</option>
+                  </select>
+                </div>
+                <div class="yyt-form-group yyt-flex-1">
+                  <label>Depth</label>
+                  <input type="number" class="yyt-input" id="${d}-tool-injection-depth" value="${Number(F.depth)||4}">
+                </div>
+                <div class="yyt-form-group yyt-flex-1">
+                  <label>Order</label>
+                  <input type="number" class="yyt-input" id="${d}-tool-injection-order" value="${Number(F.order)||a}">
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-file-code"></i>
-            <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
-            <div class="yyt-title-actions">
-              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset-template">
-                <i class="fa-solid fa-undo"></i> \u91CD\u7F6E\u6A21\u677F
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
+              <i class="fa-solid fa-file-code"></i>
+              <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
+              <div class="yyt-title-actions">
+                <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${d}-tool-reset-template">
+                  <i class="fa-solid fa-undo"></i> \u91CD\u7F6E\u6A21\u677F
+                </button>
+              </div>
+            </div>
+            <div class="yyt-form-group">
+              <textarea class="yyt-textarea yyt-code-textarea"
+                        id="${d}-tool-prompt-template"
+                        rows="12"
+                        placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u6A21\u677F...">${m(l.promptTemplate||"")}</textarea>
+              <div class="yyt-tool-compact-hint">\u8FD9\u91CC\u76F4\u63A5\u586B\u5199\u53D1\u9001\u7ED9\u989D\u5916\u89E3\u6790\u6A21\u578B\u7684\u5B8C\u6574\u6A21\u677F\u3002</div>
+            </div>
+          </div>
+
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
+              <i class="fa-solid fa-hand-pointer"></i>
+              <span>\u624B\u52A8\u64CD\u4F5C\u533A</span>
+            </div>
+            <div class="yyt-tool-manual-area">
+              <div class="yyt-tool-runtime-card">
+                <div class="yyt-tool-runtime-line">
+                  <span class="yyt-tool-runtime-label">\u5F53\u524D\u72B6\u6001</span>
+                  <span class="yyt-tool-runtime-badge yyt-status-${m(G)}">${m(G)}</span>
+                </div>
+                <div class="yyt-tool-runtime-line">
+                  <span class="yyt-tool-runtime-label">\u6700\u8FD1\u8FD0\u884C</span>
+                  <span class="yyt-tool-runtime-value">${m(J)}</span>
+                </div>
+                <div class="yyt-tool-runtime-line">
+                  <span class="yyt-tool-runtime-label">\u6210\u529F / \u5931\u8D25</span>
+                  <span class="yyt-tool-runtime-value">${l.runtime?.successCount||0} / ${l.runtime?.errorCount||0}</span>
+                </div>
+                ${st?`
+                  <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
+                    <span class="yyt-tool-runtime-label">\u6700\u8FD1\u9519\u8BEF</span>
+                    <span class="yyt-tool-runtime-value">${m(st)}</span>
+                  </div>
+                `:""}
+              </div>
+              <div class="yyt-tool-manual-actions">
+                <button class="yyt-btn yyt-btn-primary" id="${d}-tool-run-manual">
+                  <i class="fa-solid fa-play"></i> \u7ACB\u5373\u6267\u884C\u4E00\u6B21
+                </button>
+                <button class="yyt-btn yyt-btn-secondary" id="${d}-tool-preview-extraction">
+                  <i class="fa-solid fa-vial"></i> \u6D4B\u8BD5\u63D0\u53D6
+                </button>
+                <div class="yyt-tool-compact-hint">\u7528\u4E8E\u624B\u52A8\u9A8C\u8BC1\u5F53\u524D\u6A21\u677F\u3001API\u9884\u8BBE\u548C\u7834\u9650\u9884\u8BBE\u662F\u5426\u80FD\u6B63\u5E38\u5DE5\u4F5C\u3002</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="yyt-panel-footer yyt-panel-footer-end">
+            <div class="yyt-footer-right">
+              <button class="yyt-btn yyt-btn-primary" id="${d}-tool-save">
+                <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
               </button>
             </div>
+          </div>
+        </div>
+      `},_getApiPresets(){try{return Wt()||[]}catch{return[]}},_getBypassPresets(){try{return pn()||[]}catch{return[]}},_getFormData(l){let y=D(this.toolId),u=l.find(`#${d}-tool-output-mode`).val()||"follow_ai",g=l.find(`#${d}-tool-bypass-enabled`).is(":checked"),f=u==="post_response_api",T=(l.find(`#${d}-tool-extraction-selectors`).val()||"").split(/\r?\n/).map(J=>J.trim()).filter(Boolean),G=l.find(`#${d}-tool-injection-enabled`).is(":checked");return{enabled:!0,promptTemplate:l.find(`#${d}-tool-prompt-template`).val()||"",extractTags:T,trigger:{event:"GENERATION_ENDED",enabled:f},output:{mode:u,apiPreset:l.find(`#${d}-tool-api-preset`).val()||"",overwrite:!0,enabled:f},bypass:{enabled:g,presetId:g&&l.find(`#${d}-tool-bypass-preset`).val()||""},extraction:{enabled:!0,maxMessages:Math.max(1,parseInt(l.find(`#${d}-tool-max-messages`).val(),10)||5),selectors:T},injection:{enabled:G,target:l.find(`#${d}-tool-injection-target`).val()||"__character__",comment:y?.injection?.comment||`YouYouToolkit:${this.toolId}`,position:l.find(`#${d}-tool-injection-position`).val()||"at_depth_as_system",depth:parseInt(l.find(`#${d}-tool-injection-depth`).val(),10)||4,order:parseInt(l.find(`#${d}-tool-injection-order`).val(),10)||a}}},async _populateLorebookOptions(l){try{let y=l.find(`#${d}-tool-injection-target`).data("currentValue")||"__character__",u=await Ut.getAvailableLorebooks(),g=u.map(f=>`
+          <option value="${m(f.value)}" ${f.value===y?"selected":""}>${m(f.label)}</option>
+        `).join("");l.find(`#${d}-tool-injection-target`).html(g||'<option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>'),u.some(f=>f.value===y)||l.find(`#${d}-tool-injection-target`).append(`<option value="${m(y)}" selected>${m(y)}</option>`)}catch(y){console.warn(`[${c}] \u52A0\u8F7D\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25:`,y)}},_showExtractionPreview(l,y){if(!S())return;let g=`${d}-${o}`;l.append(nr({id:g,title:i,width:"720px",wide:!0,body:`
+          <div class="yyt-form-group">
+            <label>\u63D0\u53D6\u89C4\u5219</label>
+            <div class="yyt-preview-box">${m((y.selectors||[]).join(`
+`)||"\u65E0")}</div>
           </div>
           <div class="yyt-form-group">
-            <textarea class="yyt-textarea yyt-code-textarea"
-                      id="${SCRIPT_ID}-tool-prompt-template"
-                      rows="12"
-                      placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u6A21\u677F...">${escapeHtml(config.promptTemplate || "")}</textarea>
-            <div class="yyt-tool-compact-hint">\u8FD9\u91CC\u76F4\u63A5\u586B\u5199\u53D1\u9001\u7ED9\u989D\u5916\u89E3\u6790\u6A21\u578B\u7684\u5B8C\u6574\u6A21\u677F\u3002</div>
+            <label>\u539F\u59CB\u5185\u5BB9\uFF08\u6700\u8FD1 ${y.maxMessages} \u6761\u89D2\u8272\u6D88\u606F\uFF09</label>
+            <pre class="yyt-preview-box yyt-preview-pre">${m(y.sourceText||"\u65E0\u53EF\u7528\u6D88\u606F")}</pre>
           </div>
-        </div>
-
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-hand-pointer"></i>
-            <span>\u624B\u52A8\u64CD\u4F5C\u533A</span>
-          </div>
-          <div class="yyt-tool-manual-area">
-            <div class="yyt-tool-runtime-card">
-              <div class="yyt-tool-runtime-line">
-                <span class="yyt-tool-runtime-label">\u5F53\u524D\u72B6\u6001</span>
-                <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtimeStatus)}</span>
-              </div>
-              <div class="yyt-tool-runtime-line">
-                <span class="yyt-tool-runtime-label">\u6700\u8FD1\u8FD0\u884C</span>
-                <span class="yyt-tool-runtime-value">${escapeHtml(lastRunText)}</span>
-              </div>
-              <div class="yyt-tool-runtime-line">
-                <span class="yyt-tool-runtime-label">\u6210\u529F / \u5931\u8D25</span>
-                <span class="yyt-tool-runtime-value">${config.runtime?.successCount || 0} / ${config.runtime?.errorCount || 0}</span>
-              </div>
-              ${lastError ? `
-                <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
-                  <span class="yyt-tool-runtime-label">\u6700\u8FD1\u9519\u8BEF</span>
-                  <span class="yyt-tool-runtime-value">${escapeHtml(lastError)}</span>
-                </div>
-              ` : ""}
-            </div>
-            <div class="yyt-tool-manual-actions">
-              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
-                <i class="fa-solid fa-play"></i> \u7ACB\u5373\u6267\u884C\u4E00\u6B21
-              </button>
-              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-preview-extraction">
-                <i class="fa-solid fa-vial"></i> \u6D4B\u8BD5\u63D0\u53D6
-              </button>
-              <div class="yyt-tool-compact-hint">\u7528\u4E8E\u624B\u52A8\u9A8C\u8BC1\u5F53\u524D\u6A21\u677F\u3001API\u9884\u8BBE\u548C\u7834\u9650\u9884\u8BBE\u662F\u5426\u80FD\u6B63\u5E38\u5DE5\u4F5C\u3002</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="yyt-panel-footer yyt-panel-footer-end">
-          <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-save">
-              <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-      },
-      _getApiPresets() {
-        try {
-          return getAllPresets() || [];
-        } catch (error) {
-          return [];
-        }
-      },
-      _getBypassPresets() {
-        try {
-          return getPresetList() || [];
-        } catch (error) {
-          return [];
-        }
-      },
-      _getFormData($container2) {
-        const currentConfig = getToolFullConfig(this.toolId);
-        const outputMode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
-        const bypassEnabled = $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(":checked");
-        const postResponseEnabled = outputMode === "post_response_api";
-        const selectorLines = ($container2.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
-        const injectionEnabled = $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).is(":checked");
-        return {
-          enabled: true,
-          promptTemplate: $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || "",
-          extractTags: selectorLines,
-          trigger: {
-            event: "GENERATION_ENDED",
-            enabled: postResponseEnabled
-          },
-          output: {
-            mode: outputMode,
-            apiPreset: $container2.find(`#${SCRIPT_ID}-tool-api-preset`).val() || "",
-            overwrite: true,
-            enabled: postResponseEnabled
-          },
-          bypass: {
-            enabled: bypassEnabled,
-            presetId: bypassEnabled ? $container2.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || "" : ""
-          },
-          extraction: {
-            enabled: true,
-            maxMessages: Math.max(1, parseInt($container2.find(`#${SCRIPT_ID}-tool-max-messages`).val(), 10) || 5),
-            selectors: selectorLines
-          },
-          injection: {
-            enabled: injectionEnabled,
-            target: $container2.find(`#${SCRIPT_ID}-tool-injection-target`).val() || "__character__",
-            comment: currentConfig?.injection?.comment || `YouYouToolkit:${this.toolId}`,
-            position: $container2.find(`#${SCRIPT_ID}-tool-injection-position`).val() || "at_depth_as_system",
-            depth: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-depth`).val(), 10) || 4,
-            order: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-order`).val(), 10) || 10001
-          }
-        };
-      },
-      async _populateLorebookOptions($container2) {
-        try {
-          const currentValue = $container2.find(`#${SCRIPT_ID}-tool-injection-target`).data("currentValue") || "__character__";
-          const lorebooks = await contextInjector.getAvailableLorebooks();
-          const optionsHtml = lorebooks.map((item) => `
-        <option value="${escapeHtml(item.value)}" ${item.value === currentValue ? "selected" : ""}>${escapeHtml(item.label)}</option>
-      `).join("");
-          $container2.find(`#${SCRIPT_ID}-tool-injection-target`).html(optionsHtml || '<option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>');
-          if (!lorebooks.some((item) => item.value === currentValue)) {
-            $container2.find(`#${SCRIPT_ID}-tool-injection-target`).append(`<option value="${escapeHtml(currentValue)}" selected>${escapeHtml(currentValue)}</option>`);
-          }
-        } catch (error) {
-          console.warn("[StatusBlockPanel] \u52A0\u8F7D\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25:", error);
-        }
-      },
-      _showExtractionPreview($container2, result) {
-        const $ = getJQuery();
-        if (!$)
-          return;
-        const dialogId = `${SCRIPT_ID}-status-extraction-preview`;
-        $container2.append(createDialogHtml({
-          id: dialogId,
-          title: "\u6D4B\u8BD5\u63D0\u53D6\u7ED3\u679C",
-          width: "720px",
-          wide: true,
-          body: `
         <div class="yyt-form-group">
-          <label>\u63D0\u53D6\u89C4\u5219</label>
-          <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join("\n") || "\u65E0")}</div>
+          <label>\u6B63\u6587\u89C4\u5219\u7B5B\u9009\u540E</label>
+          <pre class="yyt-preview-box yyt-preview-pre">${m(y.filteredSourceText||"\u6B63\u6587\u89C4\u5219\u672A\u547D\u4E2D\uFF0C\u56DE\u9000\u539F\u6587")}</pre>
         </div>
-        <div class="yyt-form-group">
-          <label>\u539F\u59CB\u5185\u5BB9\uFF08\u6700\u8FD1 ${result.maxMessages} \u6761\u89D2\u8272\u6D88\u606F\uFF09</label>
-          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || "\u65E0\u53EF\u7528\u6D88\u606F")}</pre>
-        </div>
-        <div class="yyt-form-group">
-          <label>\u63D0\u53D6\u7ED3\u679C</label>
-          <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.extractedText || "\u672A\u63D0\u53D6\u5230\u5185\u5BB9")}</pre>
-        </div>
-      `
-        }));
-        bindDialogEvents($container2, dialogId, {
-          onSave: (closeDialog) => closeDialog()
-        });
-        $container2.find(`#${dialogId}-save`).text("\u5173\u95ED");
-        $container2.find(`#${dialogId}-cancel`).remove();
-      },
-      bindEvents($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        this._populateLorebookOptions($container2);
-        $container2.find(`#${SCRIPT_ID}-tool-output-mode`).on("change", () => {
-          const mode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
-          const modeText = mode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u680F\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
-          $container2.find(".yyt-tool-mode-hint").text(modeText);
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on("change", (event) => {
-          const enabled = $(event.currentTarget).is(":checked");
-          $container2.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden", !enabled);
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).on("change", (event) => {
-          const enabled = $(event.currentTarget).is(":checked");
-          $container2.find(".yyt-injection-fields").toggleClass("yyt-hidden", !enabled);
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-save`).on("click", () => {
-          this._saveConfig($container2, { silent: false });
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-reset-template`).on("click", () => {
-          const defaultConfigs = getAllDefaultToolConfigs();
-          const defaultConfig = defaultConfigs[this.toolId];
-          if (defaultConfig?.promptTemplate) {
-            $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val(defaultConfig.promptTemplate);
-            showToast("info", "\u6A21\u677F\u5DF2\u91CD\u7F6E");
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-run-manual`).on("click", async () => {
-          const saveSuccess = this._saveConfig($container2, { silent: true });
-          if (!saveSuccess) {
-            return;
-          }
-          try {
-            const result = await runToolManually(this.toolId);
-            if (!result?.success && result?.error) {
-              showTopNotice("warning", result.error, {
-                duration: 3200,
-                noticeId: `yyt-tool-run-${this.toolId}`
-              });
-            }
-          } catch (error) {
-            showToast("error", error?.message || "\u624B\u52A8\u6267\u884C\u5931\u8D25");
-          } finally {
-            this.renderTo($container2);
-          }
-        });
-        $container2.find(`#${SCRIPT_ID}-tool-preview-extraction`).on("click", async () => {
-          const saveSuccess = this._saveConfig($container2, { silent: true });
-          if (!saveSuccess) {
-            return;
-          }
-          try {
-            const result = await previewToolExtraction(this.toolId);
-            if (!result?.success) {
-              showToast("error", result?.error || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
-              return;
-            }
-            this._showExtractionPreview($container2, result);
-          } catch (error) {
-            showToast("error", error?.message || "\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");
-          }
-        });
-      },
-      _saveConfig($container2, options = {}) {
-        const config = this._getFormData($container2);
-        const { silent = false } = options;
-        const success = saveToolConfig(this.toolId, config);
-        if (success) {
-          if (!silent) {
-            showToast("success", "\u914D\u7F6E\u5DF2\u4FDD\u5B58");
-          }
-          eventBus.emit(EVENTS.TOOL_UPDATED, { toolId: this.toolId, config });
-        } else {
-          showToast("error", "\u4FDD\u5B58\u5931\u8D25");
-        }
-        return success;
-      },
-      destroy($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find("*").off();
-      },
-      getStyles() {
-        return `
-      .yyt-tool-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .yyt-tool-compact-hint {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        line-height: 1.6;
-      }
-
-      .yyt-hidden {
-        display: none !important;
-      }
-
-      .yyt-code-textarea {
-        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-        font-size: 13px;
-        line-height: 1.5;
-        tab-size: 2;
-        background: rgba(0, 0, 0, 0.2);
-        border-color: rgba(255, 255, 255, 0.1);
-        resize: vertical;
-        min-height: 220px;
-      }
-
-      .yyt-code-textarea-small {
-        min-height: 120px;
-      }
-
-      .yyt-code-textarea:focus {
-        border-color: var(--yyt-accent);
-        box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
-      }
-
-      .yyt-title-actions {
-        margin-left: auto;
-      }
-
-      .yyt-btn-small {
-        padding: 4px 10px;
-        font-size: 12px;
-      }
-
-      .yyt-checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        user-select: none;
-      }
-
-      .yyt-checkbox-label input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        cursor: pointer;
-      }
-
-      .yyt-tool-manual-area {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
-        align-items: start;
-      }
-
-      .yyt-tool-runtime-card {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 14px;
-        background: rgba(0, 0, 0, 0.18);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: var(--yyt-radius-sm);
-      }
-
-      .yyt-tool-runtime-line {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        font-size: 12px;
-      }
-
-      .yyt-tool-runtime-label {
-        color: var(--yyt-text-muted);
-        flex-shrink: 0;
-      }
-
-      .yyt-tool-runtime-value {
-        color: var(--yyt-text);
-        text-align: right;
-        word-break: break-word;
-      }
-
-      .yyt-tool-runtime-badge {
-        padding: 3px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-      }
-
-      .yyt-status-idle {
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.06);
-      }
-
-      .yyt-status-running {
-        color: var(--yyt-accent);
-        background: rgba(123, 183, 255, 0.12);
-      }
-
-      .yyt-status-success {
-        color: var(--yyt-success);
-        background: rgba(74, 222, 128, 0.12);
-      }
-
-      .yyt-status-error {
-        color: var(--yyt-danger);
-        background: rgba(255, 107, 107, 0.12);
-      }
-
-      .yyt-tool-runtime-error .yyt-tool-runtime-value {
-        color: var(--yyt-danger);
-      }
-
-      .yyt-tool-manual-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        min-width: 180px;
-      }
-
-      .yyt-preview-box {
-        padding: 10px 12px;
-        border-radius: var(--yyt-radius-sm);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(0, 0, 0, 0.2);
-        color: var(--yyt-text);
-        font-size: 12px;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-
-      .yyt-preview-pre {
-        max-height: 220px;
-        overflow: auto;
-        margin: 0;
-        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-      }
-
-      .yyt-error {
-        padding: 20px;
-        text-align: center;
-        color: var(--yyt-danger);
-        background: rgba(255, 107, 107, 0.1);
-        border: 1px solid rgba(255, 107, 107, 0.3);
-        border-radius: var(--yyt-radius-sm);
-      }
-
-      .yyt-panel-footer-end {
-        justify-content: flex-end;
-      }
-
-      @media screen and (max-width: 768px) {
-        .yyt-tool-manual-area {
-          grid-template-columns: 1fr;
-        }
-
-        .yyt-tool-manual-actions {
-          min-width: 0;
-        }
-      }
-    `;
-      },
-      renderTo($container2) {
-        $container2.html(this.render({}));
-        this.bindEvents($container2, {});
-      }
-    };
+          <div class="yyt-form-group">
+            <label>\u63D0\u53D6\u7ED3\u679C</label>
+            <pre class="yyt-preview-box yyt-preview-pre">${m(y.extractedText||"\u672A\u63D0\u53D6\u5230\u5185\u5BB9")}</pre>
+          </div>
+        `})),rr(l,g,{onSave:f=>f()}),l.find(`#${g}-save`).text("\u5173\u95ED"),l.find(`#${g}-cancel`).remove()},bindEvents(l){let y=S();!y||!$(l)||(this._populateLorebookOptions(l),l.find(`#${d}-tool-output-mode`).on("change",()=>{let g=(l.find(`#${d}-tool-output-mode`).val()||"follow_ai")==="post_response_api"?n:"\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";l.find(".yyt-tool-mode-hint").text(g)}),l.find(`#${d}-tool-bypass-enabled`).on("change",u=>{let g=y(u.currentTarget).is(":checked");l.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden",!g)}),l.find(`#${d}-tool-injection-enabled`).on("change",u=>{let g=y(u.currentTarget).is(":checked");l.find(".yyt-injection-fields").toggleClass("yyt-hidden",!g)}),l.find(`#${d}-tool-save`).on("click",()=>{this._saveConfig(l,{silent:!1})}),l.find(`#${d}-tool-reset-template`).on("click",()=>{let g=es()[this.toolId];g?.promptTemplate&&(l.find(`#${d}-tool-prompt-template`).val(g.promptTemplate),p("info","\u6A21\u677F\u5DF2\u91CD\u7F6E"))}),l.find(`#${d}-tool-run-manual`).on("click",async()=>{if(this._saveConfig(l,{silent:!0}))try{let g=await Sn(this.toolId);!g?.success&&g?.error&&nt("warning",g.error,{duration:3200,noticeId:`yyt-tool-run-${this.toolId}`})}catch(g){p("error",g?.message||"\u624B\u52A8\u6267\u884C\u5931\u8D25")}finally{this.renderTo(l)}}),l.find(`#${d}-tool-preview-extraction`).on("click",async()=>{if(this._saveConfig(l,{silent:!0}))try{let g=await Cn(this.toolId);if(!g?.success){p("error",g?.error||"\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25");return}this._showExtractionPreview(l,g)}catch(g){p("error",g?.message||"\u6D4B\u8BD5\u63D0\u53D6\u5931\u8D25")}}))},_saveConfig(l,y={}){let u=this._getFormData(l),{silent:g=!1}=y,f=ft(this.toolId,u);return f?g||p("success","\u914D\u7F6E\u5DF2\u4FDD\u5B58"):p("error","\u4FDD\u5B58\u5931\u8D25"),f},destroy(l){!S()||!$(l)||l.find("*").off()},getStyles(){return wa},renderTo(l){l.html(this.render({})),this.bindEvents(l,{})}}}var wa,$n=E(()=>{rt();fe();ze();me();Pn();ls();wa=`
+  .yyt-tool-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
-});
 
-// modules/ui/components/bypass-panel.js
-var bypass_panel_exports = {};
-__export(bypass_panel_exports, {
-  BypassPanel: () => BypassPanel,
-  default: () => bypass_panel_default
-});
-var BypassPanel, bypass_panel_default;
-var init_bypass_panel = __esm({
-  "modules/ui/components/bypass-panel.js"() {
-    init_event_bus();
-    init_bypass_manager();
-    init_utils();
-    BypassPanel = {
-      id: "bypassPanel",
-      // ============================================================
-      // 渲染
-      // ============================================================
-      /**
-       * 渲染组件
-       * @param {Object} props
-       * @returns {string} HTML
-       */
-      render(props) {
-        const presets = bypassManager.getPresetList();
-        const defaultPresetId = bypassManager.getDefaultPresetId();
-        return `
+  .yyt-tool-compact-hint {
+    font-size: 12px;
+    color: var(--yyt-text-muted);
+    line-height: 1.6;
+  }
+
+  .yyt-hidden {
+    display: none !important;
+  }
+
+  .yyt-code-textarea {
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    tab-size: 2;
+    background: rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.1);
+    resize: vertical;
+    min-height: 220px;
+  }
+
+  .yyt-code-textarea-small {
+    min-height: 120px;
+  }
+
+  .yyt-code-textarea:focus {
+    border-color: var(--yyt-accent);
+    box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
+  }
+
+  .yyt-title-actions {
+    margin-left: auto;
+  }
+
+  .yyt-btn-small {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .yyt-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .yyt-checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  .yyt-tool-manual-area {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .yyt-tool-runtime-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--yyt-radius-sm);
+  }
+
+  .yyt-tool-runtime-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .yyt-tool-runtime-label {
+    color: var(--yyt-text-muted);
+    flex-shrink: 0;
+  }
+
+  .yyt-tool-runtime-value {
+    color: var(--yyt-text);
+    text-align: right;
+    word-break: break-word;
+  }
+
+  .yyt-tool-runtime-badge {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .yyt-status-idle {
+    color: var(--yyt-text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .yyt-status-running {
+    color: var(--yyt-accent);
+    background: rgba(123, 183, 255, 0.12);
+  }
+
+  .yyt-status-success {
+    color: var(--yyt-success);
+    background: rgba(74, 222, 128, 0.12);
+  }
+
+  .yyt-status-error {
+    color: var(--yyt-error);
+    background: rgba(255, 107, 107, 0.12);
+  }
+
+  .yyt-tool-runtime-error .yyt-tool-runtime-value {
+    color: var(--yyt-error);
+  }
+
+  .yyt-tool-manual-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 180px;
+  }
+
+  .yyt-preview-box {
+    padding: 10px 12px;
+    border-radius: var(--yyt-radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--yyt-text);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .yyt-preview-pre {
+    max-height: 220px;
+    overflow: auto;
+    margin: 0;
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  }
+
+  .yyt-error {
+    padding: 20px;
+    text-align: center;
+    color: var(--yyt-error);
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    border-radius: var(--yyt-radius-sm);
+  }
+
+  .yyt-panel-footer-end {
+    justify-content: flex-end;
+  }
+
+  @media screen and (max-width: 768px) {
+    .yyt-tool-manual-area {
+      grid-template-columns: 1fr;
+    }
+
+    .yyt-tool-manual-actions {
+      min-width: 0;
+    }
+  }
+`});var Pt,An=E(()=>{$n();Pt=ms({id:"summaryToolPanel",toolId:"summaryTool",postResponseHint:"\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u8FDB\u884C\u6458\u8981\u89E3\u6790\u3002",extractionPlaceholder:`\u6BCF\u884C\u4E00\u4E2A\u6807\u7B7E\uFF0C\u5982 boo_FM
+\u6216 regex:<boo_FM>([\\s\\S]*?)</boo_FM>`,previewDialogId:"summary-extraction-preview",defaultInjectionOrder:1e4,lorebookLogTag:"SummaryToolPanel"})});var Yt,kn=E(()=>{$n();Yt=ms({id:"statusBlockPanel",toolId:"statusBlock",postResponseHint:"\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u680F\u3002",extractionPlaceholder:`\u6BCF\u884C\u4E00\u4E2A\u6807\u7B7E\uFF0C\u5982 status_block
+\u6216 regex:<status_block>([\\s\\S]*?)</status_block>`,previewDialogId:"status-extraction-preview",defaultInjectionOrder:10001,lorebookLogTag:"StatusBlockPanel"})});var Kr={};N(Kr,{BypassPanel:()=>se,default:()=>Ta});var se,Ta,bs=E(()=>{z();me();rt();se={id:"bypassPanel",render(e){let t=v.getPresetList(),s=v.getDefaultPresetId();return`
       <div class="yyt-bypass-panel">
         <!-- \u5DE6\u4FA7\u9884\u8BBE\u5217\u8868 -->
         <div class="yyt-bypass-sidebar">
@@ -10138,7 +2039,7 @@ var init_bypass_panel = __esm({
             </button>
           </div>
           <div class="yyt-bypass-preset-list">
-            ${presets.map((preset) => this._renderPresetItem(preset, preset.id === defaultPresetId)).join("")}
+            ${t.map(n=>this._renderPresetItem(n,n.id===s)).join("")}
           </div>
           <div class="yyt-bypass-sidebar-footer">
             <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="yyt-bypass-import" title="\u5BFC\u5165">
@@ -10159,63 +2060,43 @@ var init_bypass_panel = __esm({
           </div>
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染预设列表项
-       * @private
-       */
-      _renderPresetItem(preset, isDefault) {
-        const isBuiltIn = DEFAULT_BYPASS_PRESETS && DEFAULT_BYPASS_PRESETS[preset.id];
-        return `
-      <div class="yyt-bypass-preset-item ${isDefault ? "yyt-default" : ""}" data-preset-id="${preset.id}">
+    `},_renderPresetItem(e,t){let s=bt&&bt[e.id];return`
+      <div class="yyt-bypass-preset-item ${t?"yyt-default":""}" data-preset-id="${e.id}">
         <div class="yyt-bypass-preset-info">
-          <span class="yyt-bypass-preset-name">${escapeHtml(preset.name)}</span>
-          <span class="yyt-bypass-preset-count">${preset.messages?.length || 0} \u6761\u6D88\u606F</span>
+          <span class="yyt-bypass-preset-name">${m(e.name)}</span>
+          <span class="yyt-bypass-preset-count">${e.messages?.length||0} \u6761\u6D88\u606F</span>
         </div>
         <div class="yyt-bypass-preset-actions">
-          ${isDefault ? '<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>' : ""}
-          ${!isBuiltIn ? `
-            <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-bypass-quick-delete" title="\u5220\u9664\u9884\u8BBE" data-preset-id="${preset.id}">
+          ${t?'<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>':""}
+          ${s?"":`
+            <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-bypass-quick-delete" title="\u5220\u9664\u9884\u8BBE" data-preset-id="${e.id}">
               <i class="fa-solid fa-trash"></i>
             </button>
-          ` : ""}
+          `}
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染编辑器
-       * @private
-       */
-      _renderEditor(preset) {
-        if (!preset) {
-          return `
+    `},_renderEditor(e){if(!e)return`
         <div class="yyt-bypass-empty">
           <i class="fa-solid fa-shield-halved"></i>
           <p>\u9009\u62E9\u6216\u521B\u5EFA\u7834\u9650\u8BCD\u9884\u8BBE</p>
         </div>
-      `;
-        }
-        const isDefaultPreset = bypassManager.getDefaultPresetId() === preset.id;
-        const isBuiltIn = DEFAULT_BYPASS_PRESETS && DEFAULT_BYPASS_PRESETS[preset.id];
-        return `
-      <div class="yyt-bypass-editor-content" data-preset-id="${preset.id}">
+      `;let t=v.getDefaultPresetId()===e.id,s=bt&&bt[e.id];return`
+      <div class="yyt-bypass-editor-content" data-preset-id="${e.id}">
         <div class="yyt-bypass-editor-header">
           <div class="yyt-bypass-editor-title">
             <input type="text" class="yyt-input yyt-bypass-name-input" 
-                   value="${escapeHtml(preset.name)}" placeholder="\u9884\u8BBE\u540D\u79F0">
+                   value="${m(e.name)}" placeholder="\u9884\u8BBE\u540D\u79F0">
           </div>
           <div class="yyt-bypass-editor-actions">
-            ${!isBuiltIn ? `
+            ${s?"":`
               <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="yyt-bypass-duplicate" title="\u590D\u5236">
                 <i class="fa-solid fa-copy"></i>
               </button>
               <button class="yyt-btn yyt-btn-small yyt-btn-danger" id="yyt-bypass-delete" title="\u5220\u9664">
                 <i class="fa-solid fa-trash"></i>
               </button>
-            ` : ""}
-            <button class="yyt-btn yyt-btn-small ${isDefaultPreset ? "yyt-btn-primary" : "yyt-btn-secondary"}" 
+            `}
+            <button class="yyt-btn yyt-btn-small ${t?"yyt-btn-primary":"yyt-btn-secondary"}" 
                     id="yyt-bypass-set-default" title="\u8BBE\u4E3A\u9ED8\u8BA4">
               <i class="fa-solid fa-star"></i>
             </button>
@@ -10224,7 +2105,7 @@ var init_bypass_panel = __esm({
         
         <div class="yyt-bypass-editor-desc">
           <input type="text" class="yyt-input" id="yyt-bypass-description" 
-                 value="${escapeHtml(preset.description || "")}" placeholder="\u9884\u8BBE\u63CF\u8FF0\uFF08\u53EF\u9009\uFF09">
+                 value="${m(e.description||"")}" placeholder="\u9884\u8BBE\u63CF\u8FF0\uFF08\u53EF\u9009\uFF09">
         </div>
         
         <div class="yyt-bypass-messages-header">
@@ -10235,7 +2116,7 @@ var init_bypass_panel = __esm({
         </div>
         
         <div class="yyt-bypass-messages" id="yyt-bypass-messages">
-          ${(preset.messages || []).map((msg) => this._renderMessageItem(msg)).join("")}
+          ${(e.messages||[]).map(n=>this._renderMessageItem(n)).join("")}
         </div>
         
         <div class="yyt-bypass-editor-footer">
@@ -10244,341 +2125,38 @@ var init_bypass_panel = __esm({
           </button>
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染消息项
-       * @private
-       */
-      _renderMessageItem(message) {
-        const roleIcons = {
-          "SYSTEM": "fa-server",
-          "USER": "fa-user",
-          "assistant": "fa-robot"
-        };
-        return `
-      <div class="yyt-bypass-message ${message.enabled === false ? "yyt-disabled" : ""}" data-message-id="${message.id}">
+    `},_renderMessageItem(e){let t={SYSTEM:"fa-server",USER:"fa-user",assistant:"fa-robot"};return`
+      <div class="yyt-bypass-message ${e.enabled===!1?"yyt-disabled":""}" data-message-id="${e.id}">
         <div class="yyt-bypass-message-header">
           <div class="yyt-bypass-message-role">
-            <i class="fa-solid ${roleIcons[message.role] || "fa-comment"}"></i>
+            <i class="fa-solid ${t[e.role]||"fa-comment"}"></i>
             <select class="yyt-select yyt-bypass-role-select">
-              <option value="SYSTEM" ${message.role === "SYSTEM" ? "selected" : ""}>SYSTEM</option>
-              <option value="USER" ${message.role === "USER" ? "selected" : ""}>USER</option>
-              <option value="assistant" ${message.role === "assistant" ? "selected" : ""}>assistant</option>
+              <option value="SYSTEM" ${e.role==="SYSTEM"?"selected":""}>SYSTEM</option>
+              <option value="USER" ${e.role==="USER"?"selected":""}>USER</option>
+              <option value="assistant" ${e.role==="assistant"?"selected":""}>assistant</option>
             </select>
           </div>
           <div class="yyt-bypass-message-controls">
             <label class="yyt-toggle yyt-small">
-              <input type="checkbox" class="yyt-bypass-message-enabled" ${message.enabled !== false ? "checked" : ""}>
+              <input type="checkbox" class="yyt-bypass-message-enabled" ${e.enabled!==!1?"checked":""}>
               <span class="yyt-toggle-slider"></span>
             </label>
-            ${message.deletable !== false ? `
+            ${e.deletable!==!1?`
               <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-bypass-delete-message" title="\u5220\u9664">
                 <i class="fa-solid fa-times"></i>
               </button>
-            ` : ""}
+            `:""}
           </div>
         </div>
         <textarea class="yyt-textarea yyt-bypass-message-content" rows="3" 
-                  placeholder="\u8F93\u5165\u6D88\u606F\u5185\u5BB9...">${escapeHtml(message.content || "")}</textarea>
+                  placeholder="\u8F93\u5165\u6D88\u606F\u5185\u5BB9...">${m(e.content||"")}</textarea>
       </div>
-    `;
-      },
-      // ============================================================
-      // 事件绑定
-      // ============================================================
-      /**
-       * 绑定事件
-       * @param {Object} $container
-       * @param {Object} dependencies
-       */
-      bindEvents($container2, dependencies) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        this._bindPresetListEvents($container2, $);
-        this._bindEditorEvents($container2, $);
-        this._bindFileEvents($container2, $);
-      },
-      /**
-       * 绑定预设列表事件
-       * @private
-       */
-      _bindPresetListEvents($container2, $) {
-        $container2.on("click", ".yyt-bypass-preset-item", (e) => {
-          if ($(e.target).closest(".yyt-bypass-quick-delete").length) {
-            return;
-          }
-          const presetId = $(e.currentTarget).data("presetId");
-          this._selectPreset($container2, $, presetId);
-        });
-        $container2.on("click", ".yyt-bypass-quick-delete", (e) => {
-          e.stopPropagation();
-          const presetId = $(e.currentTarget).data("presetId");
-          if (!presetId)
-            return;
-          if (!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))
-            return;
-          const result = bypassManager.deletePreset(presetId);
-          if (result.success) {
-            const $editor = $container2.find(".yyt-bypass-editor-content");
-            const currentPresetId = $editor.data("presetId");
-            if (currentPresetId === presetId) {
-              $container2.find("#yyt-bypass-editor").html(`
+    `},bindEvents(e,t){let s=S();!s||!$(e)||(this._bindPresetListEvents(e,s),this._bindEditorEvents(e,s),this._bindFileEvents(e,s))},_bindPresetListEvents(e,t){e.on("click",".yyt-bypass-preset-item",s=>{if(t(s.target).closest(".yyt-bypass-quick-delete").length)return;let n=t(s.currentTarget).data("presetId");this._selectPreset(e,t,n)}),e.on("click",".yyt-bypass-quick-delete",s=>{s.stopPropagation();let n=t(s.currentTarget).data("presetId");if(!n||!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))return;let r=v.deletePreset(n);r.success?(e.find(".yyt-bypass-editor-content").data("presetId")===n&&e.find("#yyt-bypass-editor").html(`
             <div class="yyt-bypass-empty">
               <i class="fa-solid fa-shield-halved"></i>
               <p>\u9009\u62E9\u6216\u521B\u5EFA\u7834\u9650\u8BCD\u9884\u8BBE</p>
             </div>
-          `);
-            }
-            this._refreshPresetList($container2, $);
-            showToast("success", "\u9884\u8BBE\u5DF2\u5220\u9664");
-          } else {
-            showToast("error", result?.message || "\u5220\u9664\u9884\u8BBE\u5931\u8D25");
-          }
-        });
-        $container2.find("#yyt-bypass-add").on("click", () => {
-          this._createNewPreset($container2, $);
-        });
-      },
-      /**
-       * 绑定编辑器事件
-       * @private
-       */
-      _bindEditorEvents($container2, $) {
-        $container2.on("click", "#yyt-bypass-save", () => {
-          this._saveCurrentPreset($container2, $);
-        });
-        $container2.on("click", "#yyt-bypass-delete", () => {
-          this._deleteCurrentPreset($container2, $);
-        });
-        $container2.on("click", "#yyt-bypass-duplicate", () => {
-          this._duplicateCurrentPreset($container2, $);
-        });
-        $container2.on("click", "#yyt-bypass-set-default", () => {
-          this._setAsDefault($container2, $);
-        });
-        $container2.on("click", "#yyt-bypass-add-message", () => {
-          this._addMessage($container2, $);
-        });
-        $container2.on("click", ".yyt-bypass-delete-message", (e) => {
-          const $message = $(e.currentTarget).closest(".yyt-bypass-message");
-          const messageId = $message.data("messageId");
-          $message.remove();
-        });
-        $container2.on("change", ".yyt-bypass-message-enabled", (e) => {
-          const $message = $(e.currentTarget).closest(".yyt-bypass-message");
-          $message.toggleClass("yyt-disabled", !$(e.currentTarget).is(":checked"));
-        });
-      },
-      /**
-       * 绑定文件事件
-       * @private
-       */
-      _bindFileEvents($container2, $) {
-        $container2.find("#yyt-bypass-import").on("click", () => {
-          $container2.find("#yyt-bypass-import-file").click();
-        });
-        $container2.find("#yyt-bypass-import-file").on("change", async (e) => {
-          const file = e.target.files[0];
-          if (!file)
-            return;
-          try {
-            const text = await readFileContent(file);
-            const result = bypassManager.importPresets(text);
-            showToast(result.success ? "success" : "error", result.message);
-            if (result.success)
-              this.renderTo($container2);
-          } catch (err) {
-            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${err.message}`);
-          }
-          $(e.target).val("");
-        });
-        $container2.find("#yyt-bypass-export").on("click", () => {
-          try {
-            const json = bypassManager.exportPresets();
-            downloadJson(json, `bypass_presets_${Date.now()}.json`);
-            showToast("success", "\u9884\u8BBE\u5DF2\u5BFC\u51FA");
-          } catch (err) {
-            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${err.message}`);
-          }
-        });
-      },
-      // ============================================================
-      // 私有操作方法
-      // ============================================================
-      /**
-       * 选择预设
-       * @private
-       */
-      _selectPreset($container2, $, presetId) {
-        const preset = bypassManager.getPreset(presetId);
-        if (!preset)
-          return;
-        $container2.find(".yyt-bypass-preset-item").removeClass("yyt-active");
-        $container2.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"]`).addClass("yyt-active");
-        $container2.find("#yyt-bypass-editor").html(this._renderEditor(preset));
-      },
-      /**
-       * 创建新预设
-       * @private
-       */
-      _createNewPreset($container2, $) {
-        const id = `bypass_${Date.now()}`;
-        const result = bypassManager.createPreset({
-          id,
-          name: "\u65B0\u7834\u9650\u8BCD\u9884\u8BBE",
-          description: "",
-          messages: []
-        });
-        if (result.success) {
-          this.renderTo($container2);
-          this._selectPreset($container2, $, id);
-          showToast("success", "\u9884\u8BBE\u5DF2\u521B\u5EFA");
-        } else {
-          showToast("error", result?.message || "\u521B\u5EFA\u9884\u8BBE\u5931\u8D25");
-        }
-      },
-      /**
-       * 保存当前预设
-       * @private
-       */
-      _saveCurrentPreset($container2, $) {
-        const $editor = $container2.find(".yyt-bypass-editor-content");
-        const presetId = $editor.data("presetId");
-        if (!presetId)
-          return;
-        const name = $editor.find(".yyt-bypass-name-input").val().trim();
-        const description = $editor.find("#yyt-bypass-description").val().trim();
-        if (!name) {
-          showToast("warning", "\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0");
-          return;
-        }
-        const messages = [];
-        $editor.find(".yyt-bypass-message").each(function() {
-          const $msg = $(this);
-          messages.push({
-            id: $msg.data("messageId"),
-            role: $msg.find(".yyt-bypass-role-select").val(),
-            content: $msg.find(".yyt-bypass-message-content").val(),
-            enabled: $msg.find(".yyt-bypass-message-enabled").is(":checked"),
-            deletable: true
-          });
-        });
-        const result = bypassManager.updatePreset(presetId, {
-          name,
-          description,
-          messages
-        });
-        if (result.success) {
-          showToast("success", "\u9884\u8BBE\u5DF2\u4FDD\u5B58");
-          this._refreshPresetList($container2, $);
-        } else {
-          showToast("error", result?.message || "\u4FDD\u5B58\u9884\u8BBE\u5931\u8D25");
-        }
-      },
-      /**
-       * 删除当前预设
-       * @private
-       */
-      _deleteCurrentPreset($container2, $) {
-        const $editor = $container2.find(".yyt-bypass-editor-content");
-        const presetId = $editor.data("presetId");
-        if (!presetId)
-          return;
-        if (!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))
-          return;
-        const result = bypassManager.deletePreset(presetId);
-        if (result.success) {
-          this.renderTo($container2);
-          showToast("success", "\u9884\u8BBE\u5DF2\u5220\u9664");
-        } else {
-          showToast("error", result?.message || "\u5220\u9664\u9884\u8BBE\u5931\u8D25");
-        }
-      },
-      /**
-       * 复制当前预设
-       * @private
-       */
-      _duplicateCurrentPreset($container2, $) {
-        const $editor = $container2.find(".yyt-bypass-editor-content");
-        const presetId = $editor.data("presetId");
-        if (!presetId)
-          return;
-        const newId = `bypass_${Date.now()}`;
-        const result = bypassManager.duplicatePreset(presetId, newId);
-        if (result.success) {
-          this.renderTo($container2);
-          this._selectPreset($container2, $, newId);
-          showToast("success", "\u9884\u8BBE\u5DF2\u590D\u5236");
-        } else {
-          showToast("error", result?.message || "\u590D\u5236\u9884\u8BBE\u5931\u8D25");
-        }
-      },
-      /**
-       * 设为默认预设
-       * @private
-       */
-      _setAsDefault($container2, $) {
-        const $editor = $container2.find(".yyt-bypass-editor-content");
-        const presetId = $editor.data("presetId");
-        if (!presetId)
-          return;
-        bypassManager.setDefaultPresetId(presetId);
-        $container2.find(".yyt-bypass-preset-item").removeClass("yyt-default");
-        $container2.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"]`).addClass("yyt-default");
-        $container2.find(".yyt-bypass-default-badge").remove();
-        $container2.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"] .yyt-bypass-preset-info`).append('<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>');
-        showToast("success", "\u5DF2\u8BBE\u4E3A\u9ED8\u8BA4\u9884\u8BBE");
-      },
-      /**
-       * 添加消息
-       * @private
-       */
-      _addMessage($container2, $) {
-        const $messages = $container2.find("#yyt-bypass-messages");
-        const newMessage = {
-          id: `msg_${Date.now()}`,
-          role: "SYSTEM",
-          content: "",
-          enabled: true,
-          deletable: true
-        };
-        $messages.append(this._renderMessageItem(newMessage));
-      },
-      /**
-       * 刷新预设列表
-       * @private
-       */
-      _refreshPresetList($container2, $) {
-        const presets = bypassManager.getPresetList();
-        const defaultPresetId = bypassManager.getDefaultPresetId();
-        $container2.find(".yyt-bypass-preset-list").html(
-          presets.map((preset) => this._renderPresetItem(preset, preset.id === defaultPresetId)).join("")
-        );
-      },
-      // ============================================================
-      // 销毁
-      // ============================================================
-      /**
-       * 销毁组件
-       * @param {Object} $container
-       */
-      destroy($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find("*").off();
-      },
-      // ============================================================
-      // 样式
-      // ============================================================
-      /**
-       * 获取样式
-       * @returns {string}
-       */
-      getStyles() {
-        return `
+          `),this._refreshPresetList(e,t),p("success","\u9884\u8BBE\u5DF2\u5220\u9664")):p("error",r?.message||"\u5220\u9664\u9884\u8BBE\u5931\u8D25")}),e.find("#yyt-bypass-add").on("click",()=>{this._createNewPreset(e,t)})},_bindEditorEvents(e,t){e.on("click","#yyt-bypass-save",()=>{this._saveCurrentPreset(e,t)}),e.on("click","#yyt-bypass-delete",()=>{this._deleteCurrentPreset(e,t)}),e.on("click","#yyt-bypass-duplicate",()=>{this._duplicateCurrentPreset(e,t)}),e.on("click","#yyt-bypass-set-default",()=>{this._setAsDefault(e,t)}),e.on("click","#yyt-bypass-add-message",()=>{this._addMessage(e,t)}),e.on("click",".yyt-bypass-delete-message",s=>{let n=t(s.currentTarget).closest(".yyt-bypass-message"),r=n.data("messageId");n.remove()}),e.on("change",".yyt-bypass-message-enabled",s=>{t(s.currentTarget).closest(".yyt-bypass-message").toggleClass("yyt-disabled",!t(s.currentTarget).is(":checked"))})},_bindFileEvents(e,t){e.find("#yyt-bypass-import").on("click",()=>{e.find("#yyt-bypass-import-file").click()}),e.find("#yyt-bypass-import-file").on("change",async s=>{let n=s.target.files[0];if(n){try{let r=await _t(n),o=v.importPresets(r);p(o.success?"success":"error",o.message),o.success&&this.renderTo(e)}catch(r){p("error",`\u5BFC\u5165\u5931\u8D25: ${r.message}`)}t(s.target).val("")}}),e.find("#yyt-bypass-export").on("click",()=>{try{let s=v.exportPresets();Tt(s,`bypass_presets_${Date.now()}.json`),p("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(s){p("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}})},_selectPreset(e,t,s){let n=v.getPreset(s);n&&(e.find(".yyt-bypass-preset-item").removeClass("yyt-active"),e.find(`.yyt-bypass-preset-item[data-preset-id="${s}"]`).addClass("yyt-active"),e.find("#yyt-bypass-editor").html(this._renderEditor(n)))},_createNewPreset(e,t){let s=`bypass_${Date.now()}`,n=v.createPreset({id:s,name:"\u65B0\u7834\u9650\u8BCD\u9884\u8BBE",description:"",messages:[]});n.success?(this.renderTo(e),this._selectPreset(e,t,s),p("success","\u9884\u8BBE\u5DF2\u521B\u5EFA")):p("error",n?.message||"\u521B\u5EFA\u9884\u8BBE\u5931\u8D25")},_saveCurrentPreset(e,t){let s=e.find(".yyt-bypass-editor-content"),n=s.data("presetId");if(!n)return;let r=s.find(".yyt-bypass-name-input").val().trim(),o=s.find("#yyt-bypass-description").val().trim();if(!r){p("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0");return}let i=[];s.find(".yyt-bypass-message").each(function(){let c=t(this);i.push({id:c.data("messageId"),role:c.find(".yyt-bypass-role-select").val(),content:c.find(".yyt-bypass-message-content").val(),enabled:c.find(".yyt-bypass-message-enabled").is(":checked"),deletable:!0})});let a=v.updatePreset(n,{name:r,description:o,messages:i});a.success?(p("success","\u9884\u8BBE\u5DF2\u4FDD\u5B58"),this._refreshPresetList(e,t)):p("error",a?.message||"\u4FDD\u5B58\u9884\u8BBE\u5931\u8D25")},_deleteCurrentPreset(e,t){let n=e.find(".yyt-bypass-editor-content").data("presetId");if(!n||!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))return;let r=v.deletePreset(n);r.success?(this.renderTo(e),p("success","\u9884\u8BBE\u5DF2\u5220\u9664")):p("error",r?.message||"\u5220\u9664\u9884\u8BBE\u5931\u8D25")},_duplicateCurrentPreset(e,t){let n=e.find(".yyt-bypass-editor-content").data("presetId");if(!n)return;let r=`bypass_${Date.now()}`,o=v.duplicatePreset(n,r);o.success?(this.renderTo(e),this._selectPreset(e,t,r),p("success","\u9884\u8BBE\u5DF2\u590D\u5236")):p("error",o?.message||"\u590D\u5236\u9884\u8BBE\u5931\u8D25")},_setAsDefault(e,t){let n=e.find(".yyt-bypass-editor-content").data("presetId");n&&(v.setDefaultPresetId(n),e.find(".yyt-bypass-preset-item").removeClass("yyt-default"),e.find(`.yyt-bypass-preset-item[data-preset-id="${n}"]`).addClass("yyt-default"),e.find(".yyt-bypass-default-badge").remove(),e.find(`.yyt-bypass-preset-item[data-preset-id="${n}"] .yyt-bypass-preset-info`).append('<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>'),p("success","\u5DF2\u8BBE\u4E3A\u9ED8\u8BA4\u9884\u8BBE"))},_addMessage(e,t){let s=e.find("#yyt-bypass-messages"),n={id:`msg_${Date.now()}`,role:"SYSTEM",content:"",enabled:!0,deletable:!0};s.append(this._renderMessageItem(n))},_refreshPresetList(e,t){let s=v.getPresetList(),n=v.getDefaultPresetId();e.find(".yyt-bypass-preset-list").html(s.map(r=>this._renderPresetItem(r,r.id===n)).join(""))},destroy(e){!S()||!$(e)||e.find("*").off()},getStyles(){return`
       /* \u7834\u9650\u8BCD\u9762\u677F\u6837\u5F0F */
       .yyt-bypass-panel {
         display: flex;
@@ -10836,224 +2414,8 @@ var init_bypass_panel = __esm({
       .yyt-toggle.yyt-small {
         transform: scale(0.8);
       }
-    `;
-      },
-      // ============================================================
-      // 便捷方法
-      // ============================================================
-      /**
-       * 渲染到容器
-       * @param {Object} $container
-       */
-      renderTo($container2) {
-        const html = this.render({});
-        $container2.html(html);
-        this.bindEvents($container2, {});
-      }
-    };
-    bypass_panel_default = BypassPanel;
-  }
-});
-
-// modules/ui/index.js
-function registerComponents() {
-  uiManager.register(ApiPresetPanel.id, ApiPresetPanel);
-  uiManager.register(RegexExtractPanel.id, RegexExtractPanel);
-  uiManager.register(ToolManagePanel.id, ToolManagePanel);
-  uiManager.register(SummaryToolPanel.id, SummaryToolPanel);
-  uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
-  uiManager.register(BypassPanel.id, BypassPanel);
-  console.log("[UI] \u7EC4\u4EF6\u6CE8\u518C\u5B8C\u6210");
-}
-function initUI(options = {}) {
-  uiManager.init(options);
-  registerComponents();
-  uiManager.injectStyles();
-  console.log("[UI] \u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210");
-}
-var init_ui = __esm({
-  "modules/ui/index.js"() {
-    init_ui_manager();
-    init_api_preset_panel();
-    init_regex_extract_panel();
-    init_tool_manage_panel();
-    init_summary_tool_panel();
-    init_status_block_panel();
-    init_bypass_panel();
-    init_utils();
-    init_ui_manager();
-    init_api_preset_panel();
-    init_regex_extract_panel();
-    init_tool_manage_panel();
-    init_summary_tool_panel();
-    init_status_block_panel();
-    init_bypass_panel();
-  }
-});
-
-// modules/ui-components.js
-var ui_components_exports = {};
-__export(ui_components_exports, {
-  ApiPresetPanel: () => ApiPresetPanel,
-  RegexExtractPanel: () => RegexExtractPanel,
-  SCRIPT_ID: () => SCRIPT_ID,
-  StatusBlockPanel: () => StatusBlockPanel,
-  SummaryToolPanel: () => SummaryToolPanel,
-  ToolManagePanel: () => ToolManagePanel,
-  default: () => ui_components_default,
-  escapeHtml: () => escapeHtml,
-  fillFormWithConfig: () => fillFormWithConfig,
-  getCurrentTab: () => getCurrentTab,
-  getFormApiConfig: () => getFormApiConfig,
-  getJQuery: () => getJQuery,
-  getRegexStyles: () => getRegexStyles,
-  getStyles: () => getStyles,
-  getToolStyles: () => getToolStyles,
-  initUI: () => initUI,
-  isContainerValid: () => isContainerValid,
-  registerComponents: () => registerComponents,
-  render: () => render,
-  renderRegex: () => renderRegex,
-  renderTool: () => renderTool,
-  setCurrentTab: () => setCurrentTab,
-  showToast: () => showToast,
-  uiManager: () => uiManager
-});
-function render(container) {
-  const $ = getJQuery();
-  if (!$) {
-    console.error("[YouYouToolkit] jQuery not available");
-    return;
-  }
-  if (container) {
-    if (typeof container === "string") {
-      $container = $(container);
-    } else if (container && container.jquery) {
-      $container = container;
-    } else if (container) {
-      $container = $(container);
-    }
-  }
-  if (!$container || !$container.length) {
-    console.error("[YouYouToolkit] Container not found or invalid");
-    return;
-  }
-  ApiPresetPanel.renderTo($container);
-}
-function renderRegex(container) {
-  const $ = getJQuery();
-  if (!$) {
-    console.error("[YouYouToolkit] jQuery not available");
-    return;
-  }
-  if (container) {
-    if (typeof container === "string") {
-      $regexContainer = $(container);
-    } else if (container && container.jquery) {
-      $regexContainer = container;
-    } else if (container) {
-      $regexContainer = $(container);
-    }
-  }
-  if (!$regexContainer || !$regexContainer.length) {
-    console.error("[YouYouToolkit] Regex container not found");
-    return;
-  }
-  RegexExtractPanel.renderTo($regexContainer);
-}
-function renderTool(container) {
-  const $ = getJQuery();
-  if (!$) {
-    console.error("[YouYouToolkit] jQuery not available");
-    return;
-  }
-  if (container) {
-    if (typeof container === "string") {
-      $toolContainer = $(container);
-    } else if (container && container.jquery) {
-      $toolContainer = container;
-    } else if (container) {
-      $toolContainer = $(container);
-    }
-  }
-  if (!$toolContainer || !$toolContainer.length) {
-    console.error("[YouYouToolkit] Tool container not found");
-    return;
-  }
-  ToolManagePanel.renderTo($toolContainer);
-}
-function getStyles() {
-  return ApiPresetPanel.getStyles();
-}
-function getRegexStyles() {
-  return RegexExtractPanel.getStyles();
-}
-function getToolStyles() {
-  return [
-    ToolManagePanel.getStyles(),
-    SummaryToolPanel.getStyles(),
-    StatusBlockPanel.getStyles()
-  ].join("\n");
-}
-function getCurrentTab() {
-  return uiManager.getCurrentTab();
-}
-function setCurrentTab(tab) {
-  uiManager.switchTab(tab);
-}
-var $container, $regexContainer, $toolContainer, ui_components_default;
-var init_ui_components = __esm({
-  "modules/ui-components.js"() {
-    init_ui();
-    $container = null;
-    $regexContainer = null;
-    $toolContainer = null;
-    ui_components_default = {
-      // 渲染函数
-      render,
-      renderRegex,
-      renderTool,
-      // 样式函数
-      getStyles,
-      getRegexStyles,
-      getToolStyles,
-      // 标签页管理
-      getCurrentTab,
-      setCurrentTab,
-      // 新模块API
-      uiManager,
-      ApiPresetPanel,
-      RegexExtractPanel,
-      ToolManagePanel,
-      SummaryToolPanel,
-      StatusBlockPanel,
-      registerComponents,
-      initUI,
-      // 工具函数
-      SCRIPT_ID,
-      escapeHtml,
-      showToast,
-      getJQuery,
-      isContainerValid,
-      getFormApiConfig,
-      fillFormWithConfig
-    };
-  }
-});
-
-// modules/window-manager.js
-var window_manager_exports = {};
-__export(window_manager_exports, {
-  WindowManager: () => WindowManager,
-  closeWindow: () => closeWindow,
-  createWindow: () => createWindow,
-  windowManager: () => windowManager
-});
-function injectWindowStyles() {
-  if (windowManager.stylesInjected)
-    return;
-  windowManager.stylesInjected = true;
-  const css = `
+    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}},Ta=se});function hs(){q.register(dt.id,dt),q.register(pt.id,pt),q.register(ut.id,ut),q.register(Pt.id,Pt),q.register(Yt.id,Yt),q.register(se.id,se),console.log("[UI] \u7EC4\u4EF6\u6CE8\u518C\u5B8C\u6210")}function Rn(e={}){q.init(e),hs(),q.injectStyles(),console.log("[UI] \u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210")}var Xr=E(()=>{Gs();Fs();Vs();rn();An();kn();bs();rt();Gs();Fs();Vs();rn();An();kn();bs()});var ao={};N(ao,{ApiPresetPanel:()=>dt,RegexExtractPanel:()=>pt,SCRIPT_ID:()=>d,StatusBlockPanel:()=>Yt,SummaryToolPanel:()=>Pt,ToolManagePanel:()=>ut,default:()=>_a,escapeHtml:()=>m,fillFormWithConfig:()=>qt,getCurrentTab:()=>oo,getFormApiConfig:()=>Dt,getJQuery:()=>S,getRegexStyles:()=>no,getStyles:()=>so,getToolStyles:()=>ro,initUI:()=>Rn,isContainerValid:()=>$,registerComponents:()=>hs,render:()=>Zr,renderRegex:()=>to,renderTool:()=>eo,setCurrentTab:()=>io,showToast:()=>p,uiManager:()=>q});function In(e,t){let s=S();return s?e?typeof e=="string"?s(e):e?.jquery?e:s(e):t:(console.error("[YouYouToolkit] jQuery not available"),null)}function Zr(e){if(ve=In(e,ve),!ve||!ve.length){console.error("[YouYouToolkit] Container not found or invalid");return}dt.renderTo(ve)}function to(e){if(we=In(e,we),!we||!we.length){console.error("[YouYouToolkit] Regex container not found");return}pt.renderTo(we)}function eo(e){if(Te=In(e,Te),!Te||!Te.length){console.error("[YouYouToolkit] Tool container not found");return}ut.renderTo(Te)}function so(){return dt.getStyles()}function no(){return pt.getStyles()}function ro(){return[ut.getStyles(),Pt.getStyles()].join(`
+`)}function oo(){return q.getCurrentTab()}function io(e){q.switchTab(e)}var ve,we,Te,_a,lo=E(()=>{Xr();ve=null,we=null,Te=null;_a={render:Zr,renderRegex:to,renderTool:eo,getStyles:so,getRegexStyles:no,getToolStyles:ro,getCurrentTab:oo,setCurrentTab:io,uiManager:q,ApiPresetPanel:dt,RegexExtractPanel:pt,ToolManagePanel:ut,SummaryToolPanel:Pt,StatusBlockPanel:Yt,registerComponents:hs,initUI:Rn,SCRIPT_ID:d,escapeHtml:m,showToast:p,getJQuery:S,isContainerValid:$,getFormApiConfig:Dt,fillFormWithConfig:qt}});var yo={};N(yo,{WindowManager:()=>xs,closeWindow:()=>Pa,createWindow:()=>Ca,windowManager:()=>X});function Sa(){if(X.stylesInjected)return;X.stylesInjected=!0;let e=`
     /* ============================================================
        YouYou Toolkit - \u72EC\u7ACB\u7A97\u53E3\u7CFB\u7EDF\u6837\u5F0F
        ============================================================ */
@@ -11354,73 +2716,20 @@ function injectWindowStyles() {
       height: 20px;
       cursor: sw-resize;
     }
-  `;
-  const style = document.createElement("style");
-  style.id = WINDOW_MANAGER_ID + "_styles";
-  style.textContent = css;
-  (document.head || document.documentElement).appendChild(style);
-}
-function createWindow(options) {
-  const {
-    id,
-    title = "\u7A97\u53E3",
-    content = "",
-    width = 900,
-    height = 700,
-    modal = false,
-    resizable = true,
-    maximizable = true,
-    startMaximized = false,
-    rememberState = true,
-    onClose,
-    onReady
-  } = options;
-  injectWindowStyles();
-  const $ = window.jQuery || window.parent?.jQuery;
-  if (!$) {
-    console.error("[WindowManager] jQuery not available");
-    return null;
-  }
-  if (windowManager.isOpen(id)) {
-    windowManager.bringToFront(id);
-    return windowManager.getWindow(id);
-  }
-  const viewW = window.innerWidth || 1200;
-  const viewH = window.innerHeight || 800;
-  const isNarrowScreen = viewW <= 1100;
-  let savedState = null;
-  let useSavedState = false;
-  if (rememberState) {
-    savedState = windowManager.getState(id);
-    if (savedState && !isNarrowScreen) {
-      useSavedState = true;
-    }
-  }
-  let initialW, initialH;
-  if (useSavedState && savedState.width && savedState.height) {
-    initialW = Math.max(400, Math.min(savedState.width, viewW - 40));
-    initialH = Math.max(300, Math.min(savedState.height, viewH - 40));
-  } else {
-    initialW = Math.max(400, Math.min(width, viewW - 40));
-    initialH = Math.max(300, Math.min(height, viewH - 40));
-  }
-  const initialX = Math.max(20, Math.min((viewW - initialW) / 2, viewW - initialW - 20));
-  const initialY = Math.max(20, Math.min((viewH - initialH) / 2, viewH - initialH - 20));
-  const showMaximizeBtn = maximizable && !isNarrowScreen;
-  const windowHtml = `
-    <div class="yyt-window" id="${id}" style="left:${initialX}px; top:${initialY}px; width:${initialW}px; height:${initialH}px;">
+  `,t=document.createElement("style");t.id=Ea+"_styles",t.textContent=e,(document.head||document.documentElement).appendChild(t)}function Ca(e){let{id:t,title:s="\u7A97\u53E3",content:n="",width:r=900,height:o=700,modal:i=!1,resizable:a=!0,maximizable:c=!0,startMaximized:l=!1,rememberState:y=!0,onClose:u,onReady:g}=e;Sa();let f=window.jQuery||window.parent?.jQuery;if(!f)return console.error("[WindowManager] jQuery not available"),null;if(X.isOpen(t))return X.bringToFront(t),X.getWindow(t);let T=window.innerWidth||1200,G=window.innerHeight||800,J=T<=1100,st=null,At=!1;y&&(st=X.getState(t),st&&!J&&(At=!0));let F,ht;At&&st.width&&st.height?(F=Math.max(400,Math.min(st.width,T-40)),ht=Math.max(300,Math.min(st.height,G-40))):(F=Math.max(400,Math.min(r,T-40)),ht=Math.max(300,Math.min(o,G-40)));let Ae=Math.max(20,Math.min((T-F)/2,T-F-20)),tt=Math.max(20,Math.min((G-ht)/2,G-ht-20)),Oo=c&&!J,Lo=`
+    <div class="yyt-window" id="${t}" style="left:${Ae}px; top:${tt}px; width:${F}px; height:${ht}px;">
       <div class="yyt-window-header">
         <div class="yyt-window-title">
           <i class="fa-solid fa-window-maximize"></i>
-          <span>${escapeHtml2(title)}</span>
+          <span>${$a(s)}</span>
         </div>
         <div class="yyt-window-controls">
-          ${showMaximizeBtn ? '<button class="yyt-window-btn maximize" title="\u6700\u5927\u5316/\u8FD8\u539F"><i class="fa-solid fa-expand"></i></button>' : ""}
+          ${Oo?'<button class="yyt-window-btn maximize" title="\u6700\u5927\u5316/\u8FD8\u539F"><i class="fa-solid fa-expand"></i></button>':""}
           <button class="yyt-window-btn close" title="\u5173\u95ED"><i class="fa-solid fa-times"></i></button>
         </div>
       </div>
-      <div class="yyt-window-body">${content}</div>
-      ${resizable ? `
+      <div class="yyt-window-body">${n}</div>
+      ${a?`
         <div class="yyt-window-resize-handle se"></div>
         <div class="yyt-window-resize-handle e"></div>
         <div class="yyt-window-resize-handle s"></div>
@@ -11429,325 +2738,9 @@ function createWindow(options) {
         <div class="yyt-window-resize-handle nw"></div>
         <div class="yyt-window-resize-handle ne"></div>
         <div class="yyt-window-resize-handle sw"></div>
-      ` : ""}
+      `:""}
     </div>
-  `;
-  let $overlay = null;
-  if (modal) {
-    $overlay = $(`<div class="yyt-window-overlay" data-for="${id}"></div>`);
-    $(document.body).append($overlay);
-  }
-  const $window = $(windowHtml);
-  $(document.body).append($window);
-  windowManager.register(id, $window);
-  $window.on("mousedown", () => windowManager.bringToFront(id));
-  let isMaximized = false;
-  let restoreState = { left: initialX, top: initialY, width: initialW, height: initialH };
-  const doMaximize = () => {
-    restoreState = {
-      left: parseInt($window.css("left")),
-      top: parseInt($window.css("top")),
-      width: $window.width(),
-      height: $window.height()
-    };
-    $window.addClass("maximized");
-    $window.find(".yyt-window-btn.maximize i").removeClass("fa-expand").addClass("fa-compress");
-    isMaximized = true;
-  };
-  const doRestore = () => {
-    $window.removeClass("maximized");
-    $window.css({
-      left: restoreState.left + "px",
-      top: restoreState.top + "px",
-      width: restoreState.width + "px",
-      height: restoreState.height + "px"
-    });
-    $window.find(".yyt-window-btn.maximize i").removeClass("fa-compress").addClass("fa-expand");
-    isMaximized = false;
-  };
-  $window.find(".yyt-window-btn.maximize").on("click", () => {
-    if (isMaximized) {
-      doRestore();
-    } else {
-      doMaximize();
-    }
-  });
-  if (isNarrowScreen && maximizable) {
-    doMaximize();
-  } else if (useSavedState && savedState.isMaximized && maximizable) {
-    doMaximize();
-  } else if (startMaximized && maximizable) {
-    doMaximize();
-  }
-  $window.find(".yyt-window-btn.close").on("click", () => {
-    if (rememberState && maximizable) {
-      const currentState = {
-        width: isMaximized ? restoreState.width : $window.width(),
-        height: isMaximized ? restoreState.height : $window.height(),
-        isMaximized
-      };
-      windowManager.saveState(id, currentState);
-    }
-    if (onClose)
-      onClose();
-    if ($overlay)
-      $overlay.remove();
-    $window.remove();
-    windowManager.unregister(id);
-    $(document).off(".yytWindowDrag" + id);
-    $(document).off(".yytWindowResize" + id);
-  });
-  if ($overlay) {
-    $overlay.on("click", (e) => {
-      if (e.target === $overlay[0]) {
-      }
-    });
-  }
-  let isDragging = false;
-  let dragStartX, dragStartY, windowStartX, windowStartY;
-  $window.find(".yyt-window-header").on("mousedown", (e) => {
-    if ($(e.target).closest(".yyt-window-controls").length)
-      return;
-    if (isMaximized)
-      return;
-    isDragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    windowStartX = parseInt($window.css("left"));
-    windowStartY = parseInt($window.css("top"));
-    $(document.body).css("user-select", "none");
-  });
-  $(document).on("mousemove.yytWindowDrag" + id, (e) => {
-    if (!isDragging)
-      return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    $window.css({
-      left: Math.max(0, windowStartX + dx) + "px",
-      top: Math.max(0, windowStartY + dy) + "px"
-    });
-  });
-  $(document).on("mouseup.yytWindowDrag" + id, () => {
-    if (isDragging) {
-      isDragging = false;
-      $(document.body).css("user-select", "");
-    }
-  });
-  if (resizable) {
-    let isResizing = false;
-    let resizeType = "";
-    let resizeStartX, resizeStartY, startWidth, startHeight, startLeft, startTop;
-    $window.find(".yyt-window-resize-handle").on("mousedown", function(e) {
-      if (isMaximized)
-        return;
-      isResizing = true;
-      resizeType = "";
-      if ($(this).hasClass("se"))
-        resizeType = "se";
-      else if ($(this).hasClass("e"))
-        resizeType = "e";
-      else if ($(this).hasClass("s"))
-        resizeType = "s";
-      else if ($(this).hasClass("w"))
-        resizeType = "w";
-      else if ($(this).hasClass("n"))
-        resizeType = "n";
-      else if ($(this).hasClass("nw"))
-        resizeType = "nw";
-      else if ($(this).hasClass("ne"))
-        resizeType = "ne";
-      else if ($(this).hasClass("sw"))
-        resizeType = "sw";
-      resizeStartX = e.clientX;
-      resizeStartY = e.clientY;
-      startWidth = $window.width();
-      startHeight = $window.height();
-      startLeft = parseInt($window.css("left"));
-      startTop = parseInt($window.css("top"));
-      $(document.body).css("user-select", "none");
-      e.stopPropagation();
-    });
-    $(document).on("mousemove.yytWindowResize" + id, (e) => {
-      if (!isResizing)
-        return;
-      const dx = e.clientX - resizeStartX;
-      const dy = e.clientY - resizeStartY;
-      const minW = 400, minH = 300;
-      let newW = startWidth, newH = startHeight, newL = startLeft, newT = startTop;
-      if (resizeType.includes("e"))
-        newW = Math.max(minW, startWidth + dx);
-      if (resizeType.includes("s"))
-        newH = Math.max(minH, startHeight + dy);
-      if (resizeType.includes("w")) {
-        const proposedW = startWidth - dx;
-        if (proposedW >= minW) {
-          newW = proposedW;
-          newL = startLeft + dx;
-        }
-      }
-      if (resizeType.includes("n")) {
-        const proposedH = startHeight - dy;
-        if (proposedH >= minH) {
-          newH = proposedH;
-          newT = startTop + dy;
-        }
-      }
-      $window.css({
-        width: newW + "px",
-        height: newH + "px",
-        left: newL + "px",
-        top: newT + "px"
-      });
-    });
-    $(document).on("mouseup.yytWindowResize" + id, () => {
-      if (isResizing) {
-        isResizing = false;
-        $(document.body).css("user-select", "");
-      }
-    });
-  }
-  $window.on("remove", () => {
-    $(document).off(".yytWindowDrag" + id);
-    $(document).off(".yytWindowResize" + id);
-  });
-  if (onReady) {
-    setTimeout(() => onReady($window), 50);
-  }
-  return $window;
-}
-function closeWindow(id) {
-  const $window = windowManager.getWindow(id);
-  if ($window) {
-    const $ = window.jQuery || window.parent?.jQuery;
-    if ($) {
-      $(`.yyt-window-overlay[data-for="${id}"]`).remove();
-      $(document).off(".yytWindowDrag" + id);
-      $(document).off(".yytWindowResize" + id);
-    }
-    $window.remove();
-    windowManager.unregister(id);
-  }
-}
-function escapeHtml2(unsafe) {
-  if (typeof unsafe !== "string")
-    return "";
-  return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
-}
-var WINDOW_MANAGER_ID, WINDOW_STATE_STORAGE_KEY, WindowManager, windowManager;
-var init_window_manager = __esm({
-  "modules/window-manager.js"() {
-    init_storage_service();
-    WINDOW_MANAGER_ID = "youyou_toolkit_window_manager";
-    WINDOW_STATE_STORAGE_KEY = "window_states";
-    WindowManager = class {
-      constructor() {
-        this.windows = /* @__PURE__ */ new Map();
-        this.baseZIndex = 1e4;
-        this.topZIndex = 1e4;
-        this.stylesInjected = false;
-      }
-      /**
-       * 注册窗口
-       * @param {string} id - 窗口ID
-       * @param {jQuery} $el - 窗口jQuery对象
-       */
-      register(id, $el) {
-        this.topZIndex++;
-        this.windows.set(id, { $el, zIndex: this.topZIndex });
-        $el.css("z-index", this.topZIndex);
-      }
-      /**
-       * 注销窗口
-       * @param {string} id - 窗口ID
-       */
-      unregister(id) {
-        this.windows.delete(id);
-      }
-      /**
-       * 将窗口置顶
-       * @param {string} id - 窗口ID
-       */
-      bringToFront(id) {
-        const win = this.windows.get(id);
-        if (!win)
-          return;
-        this.topZIndex++;
-        win.zIndex = this.topZIndex;
-        win.$el.css("z-index", this.topZIndex);
-      }
-      /**
-       * 获取窗口
-       * @param {string} id - 窗口ID
-       * @returns {jQuery|null}
-       */
-      getWindow(id) {
-        return this.windows.get(id)?.$el || null;
-      }
-      /**
-       * 检查窗口是否打开
-       * @param {string} id - 窗口ID
-       * @returns {boolean}
-       */
-      isOpen(id) {
-        return this.windows.has(id);
-      }
-      /**
-       * 关闭所有窗口
-       */
-      closeAll() {
-        this.windows.forEach((win, id) => {
-          if (win.$el)
-            win.$el.remove();
-        });
-        this.windows.clear();
-      }
-      /**
-       * 保存窗口状态
-       * @param {string} windowId - 窗口ID
-       * @param {object} state - 窗口状态
-       */
-      saveState(windowId, state) {
-        const states = this.loadStates();
-        states[windowId] = {
-          ...state,
-          updatedAt: Date.now()
-        };
-        windowStorage.set(WINDOW_STATE_STORAGE_KEY, states);
-      }
-      /**
-       * 加载所有窗口状态
-       * @returns {object}
-       */
-      loadStates() {
-        return windowStorage.get(WINDOW_STATE_STORAGE_KEY) || {};
-      }
-      /**
-       * 获取单个窗口状态
-       * @param {string} windowId - 窗口ID
-       * @returns {object|null}
-       */
-      getState(windowId) {
-        const states = this.loadStates();
-        return states[windowId] || null;
-      }
-    };
-    windowManager = new WindowManager();
-  }
-});
-
-// modules/prompt-editor.js
-var prompt_editor_exports = {};
-__export(prompt_editor_exports, {
-  DEFAULT_PROMPT_SEGMENTS: () => DEFAULT_PROMPT_SEGMENTS,
-  PromptEditor: () => PromptEditor,
-  default: () => prompt_editor_default,
-  getPromptEditorStyles: () => getPromptEditorStyles,
-  messagesToSegments: () => messagesToSegments,
-  segmentsToMessages: () => segmentsToMessages,
-  validatePromptSegments: () => validatePromptSegments
-});
-function getPromptEditorStyles() {
-  return `
+  `,kt=null;i&&(kt=f(`<div class="yyt-window-overlay" data-for="${t}"></div>`),f(document.body).append(kt));let _=f(Lo);f(document.body).append(_),X.register(t,_),_.on("mousedown",()=>X.bringToFront(t));let xt=!1,Rt={left:Ae,top:tt,width:F,height:ht},ke=()=>{Rt={left:parseInt(_.css("left")),top:parseInt(_.css("top")),width:_.width(),height:_.height()},_.addClass("maximized"),_.find(".yyt-window-btn.maximize i").removeClass("fa-expand").addClass("fa-compress"),xt=!0},No=()=>{_.removeClass("maximized"),_.css({left:Rt.left+"px",top:Rt.top+"px",width:Rt.width+"px",height:Rt.height+"px"}),_.find(".yyt-window-btn.maximize i").removeClass("fa-compress").addClass("fa-expand"),xt=!1};_.find(".yyt-window-btn.maximize").on("click",()=>{xt?No():ke()}),(J&&c||At&&st.isMaximized&&c||l&&c)&&ke(),_.find(".yyt-window-btn.close").on("click",()=>{if(y&&c){let H={width:xt?Rt.width:_.width(),height:xt?Rt.height:_.height(),isMaximized:xt};X.saveState(t,H)}u&&u(),kt&&kt.remove(),_.remove(),X.unregister(t),f(document).off(".yytWindowDrag"+t),f(document).off(".yytWindowResize"+t)}),kt&&kt.on("click",H=>{H.target,kt[0]});let Re=!1,Bn,Yn,Gn,Fn;if(_.find(".yyt-window-header").on("mousedown",H=>{f(H.target).closest(".yyt-window-controls").length||xt||(Re=!0,Bn=H.clientX,Yn=H.clientY,Gn=parseInt(_.css("left")),Fn=parseInt(_.css("top")),f(document.body).css("user-select","none"))}),f(document).on("mousemove.yytWindowDrag"+t,H=>{if(!Re)return;let W=H.clientX-Bn,Ie=H.clientY-Yn;_.css({left:Math.max(0,Gn+W)+"px",top:Math.max(0,Fn+Ie)+"px"})}),f(document).on("mouseup.yytWindowDrag"+t,()=>{Re&&(Re=!1,f(document.body).css("user-select",""))}),a){let H=!1,W="",Ie,Hn,Me,De,Ps,$s;_.find(".yyt-window-resize-handle").on("mousedown",function(Gt){xt||(H=!0,W="",f(this).hasClass("se")?W="se":f(this).hasClass("e")?W="e":f(this).hasClass("s")?W="s":f(this).hasClass("w")?W="w":f(this).hasClass("n")?W="n":f(this).hasClass("nw")?W="nw":f(this).hasClass("ne")?W="ne":f(this).hasClass("sw")&&(W="sw"),Ie=Gt.clientX,Hn=Gt.clientY,Me=_.width(),De=_.height(),Ps=parseInt(_.css("left")),$s=parseInt(_.css("top")),f(document.body).css("user-select","none"),Gt.stopPropagation())}),f(document).on("mousemove.yytWindowResize"+t,Gt=>{if(!H)return;let As=Gt.clientX-Ie,ks=Gt.clientY-Hn,Wn=400,Qn=300,Rs=Me,Is=De,qn=Ps,Jn=$s;if(W.includes("e")&&(Rs=Math.max(Wn,Me+As)),W.includes("s")&&(Is=Math.max(Qn,De+ks)),W.includes("w")){let oe=Me-As;oe>=Wn&&(Rs=oe,qn=Ps+As)}if(W.includes("n")){let oe=De-ks;oe>=Qn&&(Is=oe,Jn=$s+ks)}_.css({width:Rs+"px",height:Is+"px",left:qn+"px",top:Jn+"px"})}),f(document).on("mouseup.yytWindowResize"+t,()=>{H&&(H=!1,f(document.body).css("user-select",""))})}return _.on("remove",()=>{f(document).off(".yytWindowDrag"+t),f(document).off(".yytWindowResize"+t)}),g&&setTimeout(()=>g(_),50),_}function Pa(e){let t=X.getWindow(e);if(t){let s=window.jQuery||window.parent?.jQuery;s&&(s(`.yyt-window-overlay[data-for="${e}"]`).remove(),s(document).off(".yytWindowDrag"+e),s(document).off(".yytWindowResize"+e)),t.remove(),X.unregister(e)}}function $a(e){return typeof e!="string"?"":e.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}var Ea,co,xs,X,po=E(()=>{at();Ea="youyou_toolkit_window_manager",co="window_states",xs=class{constructor(){this.windows=new Map,this.baseZIndex=1e4,this.topZIndex=1e4,this.stylesInjected=!1}register(t,s){this.topZIndex++,this.windows.set(t,{$el:s,zIndex:this.topZIndex}),s.css("z-index",this.topZIndex)}unregister(t){this.windows.delete(t)}bringToFront(t){let s=this.windows.get(t);s&&(this.topZIndex++,s.zIndex=this.topZIndex,s.$el.css("z-index",this.topZIndex))}getWindow(t){return this.windows.get(t)?.$el||null}isOpen(t){return this.windows.has(t)}closeAll(){this.windows.forEach((t,s)=>{t.$el&&t.$el.remove()}),this.windows.clear()}saveState(t,s){let n=this.loadStates();n[t]={...s,updatedAt:Date.now()},ie.set(co,n)}loadStates(){return ie.get(co)||{}}getState(t){return this.loadStates()[t]||null}},X=new xs});var uo={};N(uo,{DEFAULT_PROMPT_SEGMENTS:()=>vs,PromptEditor:()=>ws,default:()=>La,getPromptEditorStyles:()=>Ia,messagesToSegments:()=>Oa,segmentsToMessages:()=>Da,validatePromptSegments:()=>Ma});function Ia(){return`
     /* ============================================================
        \u63D0\u793A\u8BCD\u7F16\u8F91\u5668\u6837\u5F0F
        ============================================================ */
@@ -11927,160 +2920,7 @@ function getPromptEditorStyles() {
     .yyt-prompt-textarea::placeholder {
       color: rgba(255, 255, 255, 0.3);
     }
-  `;
-}
-function validatePromptSegments(segments) {
-  const errors = [];
-  if (!Array.isArray(segments)) {
-    return { valid: false, errors: ["\u63D0\u793A\u8BCD\u6570\u636E\u5FC5\u987B\u662F\u6570\u7EC4"] };
-  }
-  segments.forEach((seg, index) => {
-    if (!seg.id) {
-      errors.push(`\u6BB5\u843D ${index + 1} \u7F3A\u5C11ID`);
-    }
-    if (!seg.role) {
-      errors.push(`\u6BB5\u843D ${index + 1} \u7F3A\u5C11role\u5B57\u6BB5`);
-    }
-    if (!["SYSTEM", "USER", "assistant"].includes(seg.role)) {
-      errors.push(`\u6BB5\u843D ${index + 1} \u7684role\u503C\u65E0\u6548: ${seg.role}`);
-    }
-  });
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-function segmentsToMessages(segments) {
-  return segments.filter((seg) => seg.content && seg.content.trim()).map((seg) => ({
-    role: seg.role,
-    content: seg.content,
-    deletable: seg.deletable,
-    mainSlot: seg.mainSlot
-  }));
-}
-function messagesToSegments(messages) {
-  if (!Array.isArray(messages))
-    return [...DEFAULT_PROMPT_SEGMENTS];
-  return messages.map((msg, index) => ({
-    id: `segment_${index}_${Date.now()}`,
-    type: msg.role === "SYSTEM" ? "system" : msg.role === "assistant" ? "ai" : "user",
-    role: msg.role,
-    mainSlot: msg.mainSlot || "",
-    content: msg.content || "",
-    deletable: msg.deletable !== false,
-    expanded: true,
-    isMain: msg.mainSlot === "A" || msg.isMain,
-    isMain2: msg.mainSlot === "B" || msg.isMain2
-  }));
-}
-var PROMPT_EDITOR_ID, PROMPT_TYPE_LABELS, PROMPT_TYPE_ICONS, DEFAULT_PROMPT_SEGMENTS, PromptEditor, prompt_editor_default;
-var init_prompt_editor = __esm({
-  "modules/prompt-editor.js"() {
-    PROMPT_EDITOR_ID = "youyou_toolkit_prompt_editor";
-    PROMPT_TYPE_LABELS = {
-      system: "System Prompt (\u7CFB\u7EDF\u63D0\u793A\u8BCD)",
-      ai: "AI Prompt (AI\u6307\u4EE4\u63D0\u793A\u8BCD)",
-      user: "User Prompt (\u7528\u6237\u63D0\u793A\u8BCD)"
-    };
-    PROMPT_TYPE_ICONS = {
-      system: "fa-server",
-      ai: "fa-robot",
-      user: "fa-user"
-    };
-    DEFAULT_PROMPT_SEGMENTS = [
-      {
-        id: "system_1",
-        type: "system",
-        role: "SYSTEM",
-        mainSlot: "",
-        content: "",
-        deletable: false,
-        expanded: true
-      },
-      {
-        id: "ai_1",
-        type: "ai",
-        role: "USER",
-        mainSlot: "A",
-        content: "",
-        deletable: false,
-        expanded: true,
-        isMain: true
-      },
-      {
-        id: "user_1",
-        type: "user",
-        role: "USER",
-        mainSlot: "B",
-        content: "",
-        deletable: false,
-        expanded: true,
-        isMain2: true
-      }
-    ];
-    PromptEditor = class {
-      constructor(options = {}) {
-        this.containerId = options.containerId || PROMPT_EDITOR_ID;
-        this.segments = options.segments || [...DEFAULT_PROMPT_SEGMENTS];
-        this.onChange = options.onChange || null;
-        this.editable = options.editable !== false;
-        this.showMainSlot = options.showMainSlot !== false;
-        this.$container = null;
-        this.$ = null;
-      }
-      /**
-       * 初始化编辑器
-       * @param {jQuery} $container - 容器jQuery对象
-       */
-      init($container2) {
-        this.$ = window.jQuery || window.parent?.jQuery;
-        if (!this.$) {
-          console.error("[PromptEditor] jQuery not available");
-          return;
-        }
-        this.$container = $container2;
-        this.render();
-        this.bindEvents();
-      }
-      /**
-       * 设置提示词数据
-       * @param {Array} segments - 提示词段落数组
-       */
-      setSegments(segments) {
-        this.segments = segments && Array.isArray(segments) ? [...segments] : [...DEFAULT_PROMPT_SEGMENTS];
-        if (this.$container) {
-          this.render();
-          this.bindEvents();
-        }
-      }
-      /**
-       * 获取提示词数据
-       * @returns {Array}
-       */
-      getSegments() {
-        return this.segments.map((seg) => ({
-          ...seg,
-          content: this.getSegmentContent(seg.id)
-        }));
-      }
-      /**
-       * 获取单个段落内容
-       * @param {string} segmentId - 段落ID
-       * @returns {string}
-       */
-      getSegmentContent(segmentId) {
-        if (!this.$container)
-          return "";
-        const $textarea = this.$container.find(`[data-segment-id="${segmentId}"] .yyt-prompt-textarea`);
-        return $textarea.val() || "";
-      }
-      /**
-       * 渲染编辑器
-       */
-      render() {
-        if (!this.$container)
-          return;
-        const html = `
+  `}function Ma(e){let t=[];return Array.isArray(e)?(e.forEach((s,n)=>{s.id||t.push(`\u6BB5\u843D ${n+1} \u7F3A\u5C11ID`),s.role||t.push(`\u6BB5\u843D ${n+1} \u7F3A\u5C11role\u5B57\u6BB5`),["SYSTEM","USER","assistant"].includes(s.role)||t.push(`\u6BB5\u843D ${n+1} \u7684role\u503C\u65E0\u6548: ${s.role}`)}),{valid:t.length===0,errors:t}):{valid:!1,errors:["\u63D0\u793A\u8BCD\u6570\u636E\u5FC5\u987B\u662F\u6570\u7EC4"]}}function Da(e){return e.filter(t=>t.content&&t.content.trim()).map(t=>({role:t.role,content:t.content,deletable:t.deletable,mainSlot:t.mainSlot}))}function Oa(e){return Array.isArray(e)?e.map((t,s)=>({id:`segment_${s}_${Date.now()}`,type:t.role==="SYSTEM"?"system":t.role==="assistant"?"ai":"user",role:t.role,mainSlot:t.mainSlot||"",content:t.content||"",deletable:t.deletable!==!1,expanded:!0,isMain:t.mainSlot==="A"||t.isMain,isMain2:t.mainSlot==="B"||t.isMain2})):[...vs]}var Aa,ka,Ra,vs,ws,La,go=E(()=>{Aa="youyou_toolkit_prompt_editor",ka={system:"System Prompt (\u7CFB\u7EDF\u63D0\u793A\u8BCD)",ai:"AI Prompt (AI\u6307\u4EE4\u63D0\u793A\u8BCD)",user:"User Prompt (\u7528\u6237\u63D0\u793A\u8BCD)"},Ra={system:"fa-server",ai:"fa-robot",user:"fa-user"},vs=[{id:"system_1",type:"system",role:"SYSTEM",mainSlot:"",content:"",deletable:!1,expanded:!0},{id:"ai_1",type:"ai",role:"USER",mainSlot:"A",content:"",deletable:!1,expanded:!0,isMain:!0},{id:"user_1",type:"user",role:"USER",mainSlot:"B",content:"",deletable:!1,expanded:!0,isMain2:!0}],ws=class{constructor(t={}){this.containerId=t.containerId||Aa,this.segments=t.segments||[...vs],this.onChange=t.onChange||null,this.editable=t.editable!==!1,this.showMainSlot=t.showMainSlot!==!1,this.$container=null,this.$=null}init(t){if(this.$=window.jQuery||window.parent?.jQuery,!this.$){console.error("[PromptEditor] jQuery not available");return}this.$container=t,this.render(),this.bindEvents()}setSegments(t){this.segments=t&&Array.isArray(t)?[...t]:[...vs],this.$container&&(this.render(),this.bindEvents())}getSegments(){return this.segments.map(t=>({...t,content:this.getSegmentContent(t.id)}))}getSegmentContent(t){return this.$container&&this.$container.find(`[data-segment-id="${t}"] .yyt-prompt-textarea`).val()||""}render(){if(!this.$container)return;let t=`
       <div class="yyt-prompt-editor" id="${this.containerId}">
         <div class="yyt-prompt-editor-header">
           <div class="yyt-prompt-editor-title">
@@ -12100,47 +2940,31 @@ var init_prompt_editor = __esm({
           </div>
         </div>
         <div class="yyt-prompt-segments">
-          ${this.segments.map((seg) => this.renderSegment(seg)).join("")}
+          ${this.segments.map(s=>this.renderSegment(s)).join("")}
         </div>
       </div>
-    `;
-        this.$container.html(html);
-      }
-      /**
-       * 渲染单个提示词段落
-       * @param {object} segment - 段落配置
-       * @returns {string}
-       */
-      renderSegment(segment) {
-        const typeLabel = PROMPT_TYPE_LABELS[segment.type] || segment.type;
-        const typeIcon = PROMPT_TYPE_ICONS[segment.type] || "fa-file";
-        const isMainA = segment.mainSlot === "A" || segment.isMain;
-        const isMainB = segment.mainSlot === "B" || segment.isMain2;
-        const borderColor = isMainA ? "var(--yyt-accent, #7bb7ff)" : isMainB ? "#ffb74d" : "";
-        const mainSlotBadge = this.showMainSlot && segment.mainSlot ? `<span class="yyt-prompt-slot-badge">mainSlot: ${segment.mainSlot}</span>` : "";
-        const roleBadge = `<span class="yyt-prompt-role-badge">role: ${segment.role || "USER"}</span>`;
-        return `
-      <div class="yyt-prompt-segment ${segment.expanded ? "yyt-expanded" : ""} ${isMainA ? "yyt-main-a" : ""} ${isMainB ? "yyt-main-b" : ""}" 
-           data-segment-id="${segment.id}" 
-           data-segment-type="${segment.type}"
-           style="${borderColor ? `border-left: 3px solid ${borderColor};` : ""}">
+    `;this.$container.html(t)}renderSegment(t){let s=ka[t.type]||t.type,n=Ra[t.type]||"fa-file",r=t.mainSlot==="A"||t.isMain,o=t.mainSlot==="B"||t.isMain2,i=r?"var(--yyt-accent, #7bb7ff)":o?"#ffb74d":"",a=this.showMainSlot&&t.mainSlot?`<span class="yyt-prompt-slot-badge">mainSlot: ${t.mainSlot}</span>`:"",c=`<span class="yyt-prompt-role-badge">role: ${t.role||"USER"}</span>`;return`
+      <div class="yyt-prompt-segment ${t.expanded?"yyt-expanded":""} ${r?"yyt-main-a":""} ${o?"yyt-main-b":""}" 
+           data-segment-id="${t.id}" 
+           data-segment-type="${t.type}"
+           style="${i?`border-left: 3px solid ${i};`:""}">
         <div class="yyt-prompt-segment-header">
           <div class="yyt-prompt-segment-info">
-            <i class="fa-solid ${typeIcon}"></i>
-            <span class="yyt-prompt-segment-title">${typeLabel}</span>
+            <i class="fa-solid ${n}"></i>
+            <span class="yyt-prompt-segment-title">${s}</span>
             <div class="yyt-prompt-segment-badges">
-              ${roleBadge}
-              ${mainSlotBadge}
+              ${c}
+              ${a}
             </div>
           </div>
           <div class="yyt-prompt-segment-controls">
-            ${segment.deletable !== false ? `
+            ${t.deletable!==!1?`
               <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger yyt-prompt-delete" title="\u5220\u9664\u6BB5\u843D">
                 <i class="fa-solid fa-trash"></i>
               </button>
-            ` : ""}
+            `:""}
             <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-prompt-toggle" title="\u5C55\u5F00/\u6298\u53E0">
-              <i class="fa-solid ${segment.expanded ? "fa-chevron-up" : "fa-chevron-down"}"></i>
+              <i class="fa-solid ${t.expanded?"fa-chevron-up":"fa-chevron-down"}"></i>
             </button>
           </div>
         </div>
@@ -12149,628 +2973,36 @@ var init_prompt_editor = __esm({
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>Role</label>
-                <select class="yyt-select yyt-prompt-role" ${!this.editable ? "disabled" : ""}>
-                  <option value="SYSTEM" ${segment.role === "SYSTEM" ? "selected" : ""}>SYSTEM</option>
-                  <option value="USER" ${segment.role === "USER" ? "selected" : ""}>USER</option>
-                  <option value="assistant" ${segment.role === "assistant" ? "selected" : ""}>assistant</option>
+                <select class="yyt-select yyt-prompt-role" ${this.editable?"":"disabled"}>
+                  <option value="SYSTEM" ${t.role==="SYSTEM"?"selected":""}>SYSTEM</option>
+                  <option value="USER" ${t.role==="USER"?"selected":""}>USER</option>
+                  <option value="assistant" ${t.role==="assistant"?"selected":""}>assistant</option>
                 </select>
               </div>
-              ${this.showMainSlot ? `
+              ${this.showMainSlot?`
               <div class="yyt-form-group yyt-flex-1">
                 <label>Main Slot</label>
-                <select class="yyt-select yyt-prompt-main-slot" ${!this.editable ? "disabled" : ""}>
-                  <option value="" ${!segment.mainSlot ? "selected" : ""}>\u666E\u901A</option>
-                  <option value="A" ${segment.mainSlot === "A" ? "selected" : ""}>A (\u5EFA\u8BAESystem)</option>
-                  <option value="B" ${segment.mainSlot === "B" ? "selected" : ""}>B (\u5EFA\u8BAEUser)</option>
+                <select class="yyt-select yyt-prompt-main-slot" ${this.editable?"":"disabled"}>
+                  <option value="" ${t.mainSlot?"":"selected"}>\u666E\u901A</option>
+                  <option value="A" ${t.mainSlot==="A"?"selected":""}>A (\u5EFA\u8BAESystem)</option>
+                  <option value="B" ${t.mainSlot==="B"?"selected":""}>B (\u5EFA\u8BAEUser)</option>
                 </select>
               </div>
-              ` : ""}
+              `:""}
             </div>
           </div>
           <textarea class="yyt-textarea yyt-prompt-textarea" 
                     rows="6" 
                     placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u5185\u5BB9..." 
-                    ${!this.editable ? "disabled" : ""}>${this.escapeHtml(segment.content || "")}</textarea>
+                    ${this.editable?"":"disabled"}>${this.escapeHtml(t.content||"")}</textarea>
         </div>
       </div>
-    `;
-      }
-      /**
-       * 绑定事件
-       */
-      bindEvents() {
-        if (!this.$container)
-          return;
-        this.$container.find(".yyt-prompt-toggle").on("click", (e) => {
-          const $segment = this.$(e.currentTarget).closest(".yyt-prompt-segment");
-          $segment.toggleClass("yyt-expanded");
-          const $icon = this.$(e.currentTarget).find("i");
-          $icon.toggleClass("fa-chevron-up fa-chevron-down");
-        });
-        this.$container.find(".yyt-prompt-delete").on("click", (e) => {
-          const segmentId = this.$(e.currentTarget).closest(".yyt-prompt-segment").data("segment-id");
-          this.deleteSegment(segmentId);
-        });
-        this.$container.find(".yyt-prompt-role").on("change", (e) => {
-          const segmentId = this.$(e.currentTarget).closest(".yyt-prompt-segment").data("segment-id");
-          const role = this.$(e.currentTarget).val();
-          this.updateSegmentMeta(segmentId, { role });
-        });
-        this.$container.find(".yyt-prompt-main-slot").on("change", (e) => {
-          const segmentId = this.$(e.currentTarget).closest(".yyt-prompt-segment").data("segment-id");
-          const mainSlot = this.$(e.currentTarget).val();
-          this.updateSegmentMeta(segmentId, { mainSlot });
-        });
-        this.$container.find(".yyt-prompt-textarea").on("input", (e) => {
-          if (this.onChange) {
-            this.onChange(this.getSegments());
-          }
-        });
-        this.$container.find(`#${this.containerId}-add-segment`).on("click", () => {
-          this.addSegment();
-        });
-        this.$container.find(`#${this.containerId}-import-prompt`).on("click", () => {
-          this.importPrompt();
-        });
-        this.$container.find(`#${this.containerId}-export-prompt`).on("click", () => {
-          this.exportPrompt();
-        });
-      }
-      /**
-       * 添加段落
-       * @param {object} segmentData - 段落数据（可选）
-       */
-      addSegment(segmentData = null) {
-        const newId = `segment_${Date.now()}`;
-        const newSegment = segmentData || {
-          id: newId,
-          type: "user",
-          role: "USER",
-          mainSlot: "",
-          content: "",
-          deletable: true,
-          expanded: true
-        };
-        if (!newSegment.id)
-          newSegment.id = newId;
-        this.segments.push(newSegment);
-        this.render();
-        this.bindEvents();
-        if (this.onChange) {
-          this.onChange(this.getSegments());
-        }
-      }
-      /**
-       * 删除段落
-       * @param {string} segmentId - 段落ID
-       */
-      deleteSegment(segmentId) {
-        const index = this.segments.findIndex((s) => s.id === segmentId);
-        if (index === -1)
-          return;
-        const segment = this.segments[index];
-        if (segment.deletable === false) {
-          console.warn("[PromptEditor] \u8BE5\u6BB5\u843D\u4E0D\u53EF\u5220\u9664");
-          return;
-        }
-        this.segments.splice(index, 1);
-        this.render();
-        this.bindEvents();
-        if (this.onChange) {
-          this.onChange(this.getSegments());
-        }
-      }
-      /**
-       * 更新段落元数据
-       * @param {string} segmentId - 段落ID
-       * @param {object} meta - 元数据
-       */
-      updateSegmentMeta(segmentId, meta) {
-        const segment = this.segments.find((s) => s.id === segmentId);
-        if (!segment)
-          return;
-        Object.assign(segment, meta);
-        if (this.onChange) {
-          this.onChange(this.getSegments());
-        }
-      }
-      /**
-       * 导入提示词
-       */
-      importPrompt() {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.accept = ".json";
-        input.onchange = (e) => {
-          const file = e.target.files[0];
-          if (!file)
-            return;
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            try {
-              const data = JSON.parse(event.target.result);
-              if (Array.isArray(data)) {
-                this.setSegments(data);
-                console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5BFC\u5165\u6210\u529F");
-              } else {
-                console.error("[PromptEditor] \u65E0\u6548\u7684\u63D0\u793A\u8BCD\u683C\u5F0F");
-              }
-            } catch (err) {
-              console.error("[PromptEditor] \u5BFC\u5165\u5931\u8D25:", err);
-            }
-          };
-          reader.readAsText(file);
-        };
-        input.click();
-      }
-      /**
-       * 导出提示词
-       */
-      exportPrompt() {
-        const data = this.getSegments();
-        const json = JSON.stringify(data, null, 2);
-        const blob = new Blob([json], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `prompt_group_${Date.now()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5DF2\u5BFC\u51FA");
-      }
-      /**
-       * HTML转义
-       * @param {string} unsafe - 原始字符串
-       * @returns {string}
-       */
-      escapeHtml(unsafe) {
-        if (typeof unsafe !== "string")
-          return "";
-        return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
-      }
-    };
-    prompt_editor_default = PromptEditor;
-  }
-});
+    `}bindEvents(){this.$container&&(this.$container.find(".yyt-prompt-toggle").on("click",t=>{this.$(t.currentTarget).closest(".yyt-prompt-segment").toggleClass("yyt-expanded"),this.$(t.currentTarget).find("i").toggleClass("fa-chevron-up fa-chevron-down")}),this.$container.find(".yyt-prompt-delete").on("click",t=>{let s=this.$(t.currentTarget).closest(".yyt-prompt-segment").data("segment-id");this.deleteSegment(s)}),this.$container.find(".yyt-prompt-role").on("change",t=>{let s=this.$(t.currentTarget).closest(".yyt-prompt-segment").data("segment-id"),n=this.$(t.currentTarget).val();this.updateSegmentMeta(s,{role:n})}),this.$container.find(".yyt-prompt-main-slot").on("change",t=>{let s=this.$(t.currentTarget).closest(".yyt-prompt-segment").data("segment-id"),n=this.$(t.currentTarget).val();this.updateSegmentMeta(s,{mainSlot:n})}),this.$container.find(".yyt-prompt-textarea").on("input",t=>{this.onChange&&this.onChange(this.getSegments())}),this.$container.find(`#${this.containerId}-add-segment`).on("click",()=>{this.addSegment()}),this.$container.find(`#${this.containerId}-import-prompt`).on("click",()=>{this.importPrompt()}),this.$container.find(`#${this.containerId}-export-prompt`).on("click",()=>{this.exportPrompt()}))}addSegment(t=null){let s=`segment_${Date.now()}`,n=t||{id:s,type:"user",role:"USER",mainSlot:"",content:"",deletable:!0,expanded:!0};n.id||(n.id=s),this.segments.push(n),this.render(),this.bindEvents(),this.onChange&&this.onChange(this.getSegments())}deleteSegment(t){let s=this.segments.findIndex(r=>r.id===t);if(s===-1)return;if(this.segments[s].deletable===!1){console.warn("[PromptEditor] \u8BE5\u6BB5\u843D\u4E0D\u53EF\u5220\u9664");return}this.segments.splice(s,1),this.render(),this.bindEvents(),this.onChange&&this.onChange(this.getSegments())}updateSegmentMeta(t,s){let n=this.segments.find(r=>r.id===t);n&&(Object.assign(n,s),this.onChange&&this.onChange(this.getSegments()))}importPrompt(){let t=document.createElement("input");t.type="file",t.accept=".json",t.onchange=s=>{let n=s.target.files[0];if(!n)return;let r=new FileReader;r.onload=o=>{try{let i=JSON.parse(o.target.result);Array.isArray(i)?(this.setSegments(i),console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5BFC\u5165\u6210\u529F")):console.error("[PromptEditor] \u65E0\u6548\u7684\u63D0\u793A\u8BCD\u683C\u5F0F")}catch(i){console.error("[PromptEditor] \u5BFC\u5165\u5931\u8D25:",i)}},r.readAsText(n)},t.click()}exportPrompt(){let t=this.getSegments(),s=JSON.stringify(t,null,2),n=new Blob([s],{type:"application/json"}),r=URL.createObjectURL(n),o=document.createElement("a");o.href=r,o.download=`prompt_group_${Date.now()}.json`,o.click(),URL.revokeObjectURL(r),console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5DF2\u5BFC\u51FA")}escapeHtml(t){return typeof t!="string"?"":t.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}};La=ws});var bo={};N(bo,{BUILTIN_VARIABLES:()=>fo,VariableResolver:()=>Ts,default:()=>Na,variableResolver:()=>mo});var fo,Ts,mo,Na,ho=E(()=>{z();fo={lastUserMessage:{name:"lastUserMessage",description:"\u6700\u65B0\u7528\u6237\u6D88\u606F",category:"chat"},lastAiMessage:{name:"lastAiMessage",description:"\u6700\u65B0AI\u56DE\u590D",category:"chat"},chatHistory:{name:"chatHistory",description:"\u6700\u8FD1\u804A\u5929\u8BB0\u5F55",category:"chat"},characterCard:{name:"characterCard",description:"\u5F53\u524D\u89D2\u8272\u5361\u5185\u5BB9",category:"character"},toolName:{name:"toolName",description:"\u5DE5\u5177\u540D\u79F0",category:"tool"},injectedContext:{name:"injectedContext",description:"\u5DF2\u6CE8\u5165\u7684\u5DE5\u5177\u4E0A\u4E0B\u6587",category:"context"}},Ts=class{constructor(){this.customVariables=new Map,this.variableHandlers=new Map,this.debugMode=!1,this._registerDefaultHandlers()}resolveTemplate(t,s){if(typeof t!="string")return t;let n=t;return n=this._resolveBuiltinVariables(n,s),n=this._resolveCustomVariables(n,s),n=this._resolveRegexVariables(n,s),n}resolveObject(t,s){if(!t||typeof t!="object")return t;if(Array.isArray(t))return t.map(r=>this.resolveObject(r,s));let n={};for(let[r,o]of Object.entries(t))typeof o=="string"?n[r]=this.resolveTemplate(o,s):typeof o=="object"&&o!==null?n[r]=this.resolveObject(o,s):n[r]=o;return n}buildToolContext(t){return{lastUserMessage:t.lastUserMessage||"",lastAiMessage:t.lastAiMessage||"",chatHistory:t.chatHistory||[],characterCard:t.characterCard||null,characterName:t.characterCard?.name||"",toolName:t.toolName||"",toolId:t.toolId||"",injectedContext:t.injectedContext||"",regexResults:t.regexResults||{},raw:t,timestamp:Date.now()}}registerVariable(t,s){t&&(this.customVariables.set(t,s),this._log(`\u6CE8\u518C\u81EA\u5B9A\u4E49\u53D8\u91CF: ${t}`))}unregisterVariable(t){this.customVariables.delete(t),this._log(`\u6CE8\u9500\u81EA\u5B9A\u4E49\u53D8\u91CF: ${t}`)}registerHandler(t,s){!t||typeof s!="function"||(this.variableHandlers.set(t,s),this._log(`\u6CE8\u518C\u53D8\u91CF\u5904\u7406\u5668: ${t}`))}getAvailableVariables(){let t=[];for(let[,s]of Object.entries(fo))t.push({name:`{{${s.name}}}`,description:s.description,category:s.category,type:"builtin"});for(let[s,n]of this.customVariables)t.push({name:`{{${s}}}`,description:typeof n=="function"?"\u81EA\u5B9A\u4E49\u51FD\u6570\u53D8\u91CF":"\u81EA\u5B9A\u4E49\u9759\u6001\u53D8\u91CF",category:"custom",type:"custom"});return t}getVariableHelp(){let t=["\u53EF\u7528\u53D8\u91CF\uFF1A",""],s={chat:"\u804A\u5929\u76F8\u5173",character:"\u89D2\u8272\u76F8\u5173",tool:"\u5DE5\u5177\u76F8\u5173",context:"\u4E0A\u4E0B\u6587\u76F8\u5173",custom:"\u81EA\u5B9A\u4E49\u53D8\u91CF"},n={};for(let r of this.getAvailableVariables())n[r.category]||(n[r.category]=[]),n[r.category].push(r);for(let[r,o]of Object.entries(s))if(n[r]&&n[r].length>0){t.push(`\u3010${o}\u3011`);for(let i of n[r])t.push(`  ${i.name} - ${i.description}`);t.push("")}return t.push("\u3010\u6B63\u5219\u63D0\u53D6\u3011"),t.push("  {{regex.xxx}} - \u4F7F\u7528\u6B63\u5219\u63D0\u53D6\u7ED3\u679C\uFF0Cxxx\u4E3A\u6355\u83B7\u7EC4\u540D"),t.join(`
+`)}_registerDefaultHandlers(){this.registerHandler("regex",(t,s)=>(s.regexResults||s.raw?.regexResults||{})[t]||"")}_resolveBuiltinVariables(t,s){let n=t;return n=n.replace(/\{\{lastUserMessage\}\}/gi,s.lastUserMessage||s.raw?.lastUserMessage||""),n=n.replace(/\{\{lastAiMessage\}\}/gi,s.lastAiMessage||s.raw?.lastAiMessage||""),n=n.replace(/\{\{chatHistory\}\}/gi,()=>{let r=s.chatHistory||s.raw?.chatHistory||[];return this._formatChatHistory(r)}),n=n.replace(/\{\{characterCard\}\}/gi,()=>{let r=s.characterCard||s.raw?.characterCard;return r?this._formatCharacterCard(r):""}),n=n.replace(/\{\{toolName\}\}/gi,s.toolName||s.raw?.toolName||""),n=n.replace(/\{\{injectedContext\}\}/gi,s.injectedContext||s.raw?.injectedContext||""),n}_resolveCustomVariables(t,s){let n=t;for(let[r,o]of this.customVariables){let i=new RegExp(`\\{\\{${this._escapeRegex(r)}\\}\\}`,"gi");typeof o=="function"?n=n.replace(i,()=>{try{return o(s)}catch(a){return this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${r}:`,a),""}}):n=n.replace(i,String(o))}return n}_resolveRegexVariables(t,s){let n=t;for(let[r,o]of this.variableHandlers){let i=new RegExp(`\\{\\{${r}\\.([^}]+)\\}\\}`,"gi");n=n.replace(i,(a,c)=>{try{return o(c,s)}catch(l){return this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${r}.${c}:`,l),""}})}return n}_formatChatHistory(t){return!Array.isArray(t)||t.length===0?"":t.map(s=>{let n=s.role||"unknown",r=s.content||s.mes||"";return`[${n}]: ${r}`}).join(`
 
-// modules/variable-resolver.js
-var variable_resolver_exports = {};
-__export(variable_resolver_exports, {
-  BUILTIN_VARIABLES: () => BUILTIN_VARIABLES,
-  VariableResolver: () => VariableResolver,
-  default: () => variable_resolver_default,
-  variableResolver: () => variableResolver
-});
-var BUILTIN_VARIABLES, VariableResolver, variableResolver, variable_resolver_default;
-var init_variable_resolver = __esm({
-  "modules/variable-resolver.js"() {
-    init_event_bus();
-    BUILTIN_VARIABLES = {
-      lastUserMessage: {
-        name: "lastUserMessage",
-        description: "\u6700\u65B0\u7528\u6237\u6D88\u606F",
-        category: "chat"
-      },
-      lastAiMessage: {
-        name: "lastAiMessage",
-        description: "\u6700\u65B0AI\u56DE\u590D",
-        category: "chat"
-      },
-      chatHistory: {
-        name: "chatHistory",
-        description: "\u6700\u8FD1\u804A\u5929\u8BB0\u5F55",
-        category: "chat"
-      },
-      characterCard: {
-        name: "characterCard",
-        description: "\u5F53\u524D\u89D2\u8272\u5361\u5185\u5BB9",
-        category: "character"
-      },
-      toolName: {
-        name: "toolName",
-        description: "\u5DE5\u5177\u540D\u79F0",
-        category: "tool"
-      },
-      injectedContext: {
-        name: "injectedContext",
-        description: "\u5DF2\u6CE8\u5165\u7684\u5DE5\u5177\u4E0A\u4E0B\u6587",
-        category: "context"
-      }
-    };
-    VariableResolver = class {
-      constructor() {
-        this.customVariables = /* @__PURE__ */ new Map();
-        this.variableHandlers = /* @__PURE__ */ new Map();
-        this.debugMode = false;
-        this._registerDefaultHandlers();
-      }
-      // ============================================================
-      // 核心方法
-      // ============================================================
-      /**
-       * 解析模板字符串
-       * @param {string} template - 模板字符串
-       * @param {Object} context - 上下文对象
-       * @returns {string} 解析后的字符串
-       */
-      resolveTemplate(template, context) {
-        if (typeof template !== "string") {
-          return template;
-        }
-        let result = template;
-        result = this._resolveBuiltinVariables(result, context);
-        result = this._resolveCustomVariables(result, context);
-        result = this._resolveRegexVariables(result, context);
-        return result;
-      }
-      /**
-       * 解析对象中的所有字符串值
-       * @param {Object} obj - 要解析的对象
-       * @param {Object} context - 上下文对象
-       * @returns {Object} 解析后的对象
-       */
-      resolveObject(obj, context) {
-        if (!obj || typeof obj !== "object") {
-          return obj;
-        }
-        if (Array.isArray(obj)) {
-          return obj.map((item) => this.resolveObject(item, context));
-        }
-        const result = {};
-        for (const [key, value] of Object.entries(obj)) {
-          if (typeof value === "string") {
-            result[key] = this.resolveTemplate(value, context);
-          } else if (typeof value === "object" && value !== null) {
-            result[key] = this.resolveObject(value, context);
-          } else {
-            result[key] = value;
-          }
-        }
-        return result;
-      }
-      /**
-       * 构建工具执行上下文
-       * @param {Object} rawContext - 原始上下文
-       * @returns {Object} 构建后的上下文
-       */
-      buildToolContext(rawContext) {
-        return {
-          // 聊天相关
-          lastUserMessage: rawContext.lastUserMessage || "",
-          lastAiMessage: rawContext.lastAiMessage || "",
-          chatHistory: rawContext.chatHistory || [],
-          // 角色相关
-          characterCard: rawContext.characterCard || null,
-          characterName: rawContext.characterCard?.name || "",
-          // 工具相关
-          toolName: rawContext.toolName || "",
-          toolId: rawContext.toolId || "",
-          // 注入上下文
-          injectedContext: rawContext.injectedContext || "",
-          // 正则提取结果
-          regexResults: rawContext.regexResults || {},
-          // 原始数据
-          raw: rawContext,
-          // 时间戳
-          timestamp: Date.now()
-        };
-      }
-      // ============================================================
-      // 变量注册
-      // ============================================================
-      /**
-       * 注册自定义变量
-       * @param {string} name - 变量名（不含{{}}）
-       * @param {Function|*} handler - 处理函数或静态值
-       */
-      registerVariable(name, handler) {
-        if (!name)
-          return;
-        this.customVariables.set(name, handler);
-        this._log(`\u6CE8\u518C\u81EA\u5B9A\u4E49\u53D8\u91CF: ${name}`);
-      }
-      /**
-       * 注销自定义变量
-       * @param {string} name - 变量名
-       */
-      unregisterVariable(name) {
-        this.customVariables.delete(name);
-        this._log(`\u6CE8\u9500\u81EA\u5B9A\u4E49\u53D8\u91CF: ${name}`);
-      }
-      /**
-       * 注册变量处理器
-       * @param {string} prefix - 变量前缀，如 'regex'
-       * @param {Function} handler - 处理函数 (variableName, context) => value
-       */
-      registerHandler(prefix, handler) {
-        if (!prefix || typeof handler !== "function")
-          return;
-        this.variableHandlers.set(prefix, handler);
-        this._log(`\u6CE8\u518C\u53D8\u91CF\u5904\u7406\u5668: ${prefix}`);
-      }
-      // ============================================================
-      // 变量获取
-      // ============================================================
-      /**
-       * 获取所有可用变量
-       * @returns {Array} 变量列表
-       */
-      getAvailableVariables() {
-        const variables = [];
-        for (const [, info] of Object.entries(BUILTIN_VARIABLES)) {
-          variables.push({
-            name: `{{${info.name}}}`,
-            description: info.description,
-            category: info.category,
-            type: "builtin"
-          });
-        }
-        for (const [name, handler] of this.customVariables) {
-          variables.push({
-            name: `{{${name}}}`,
-            description: typeof handler === "function" ? "\u81EA\u5B9A\u4E49\u51FD\u6570\u53D8\u91CF" : "\u81EA\u5B9A\u4E49\u9759\u6001\u53D8\u91CF",
-            category: "custom",
-            type: "custom"
-          });
-        }
-        return variables;
-      }
-      /**
-       * 获取变量帮助文本
-       * @returns {string}
-       */
-      getVariableHelp() {
-        const lines = ["\u53EF\u7528\u53D8\u91CF\uFF1A", ""];
-        const categories = {
-          chat: "\u804A\u5929\u76F8\u5173",
-          character: "\u89D2\u8272\u76F8\u5173",
-          tool: "\u5DE5\u5177\u76F8\u5173",
-          context: "\u4E0A\u4E0B\u6587\u76F8\u5173",
-          custom: "\u81EA\u5B9A\u4E49\u53D8\u91CF"
-        };
-        const grouped = {};
-        for (const v of this.getAvailableVariables()) {
-          if (!grouped[v.category]) {
-            grouped[v.category] = [];
-          }
-          grouped[v.category].push(v);
-        }
-        for (const [category, label] of Object.entries(categories)) {
-          if (grouped[category] && grouped[category].length > 0) {
-            lines.push(`\u3010${label}\u3011`);
-            for (const v of grouped[category]) {
-              lines.push(`  ${v.name} - ${v.description}`);
-            }
-            lines.push("");
-          }
-        }
-        lines.push("\u3010\u6B63\u5219\u63D0\u53D6\u3011");
-        lines.push("  {{regex.xxx}} - \u4F7F\u7528\u6B63\u5219\u63D0\u53D6\u7ED3\u679C\uFF0Cxxx\u4E3A\u6355\u83B7\u7EC4\u540D");
-        return lines.join("\n");
-      }
-      // ============================================================
-      // 私有方法
-      // ============================================================
-      /**
-       * 注册默认处理器
-       * @private
-       */
-      _registerDefaultHandlers() {
-        this.registerHandler("regex", (varName, context) => {
-          const regexResults = context.regexResults || context.raw?.regexResults || {};
-          return regexResults[varName] || "";
-        });
-      }
-      /**
-       * 解析内置变量
-       * @private
-       */
-      _resolveBuiltinVariables(template, context) {
-        let result = template;
-        result = result.replace(
-          /\{\{lastUserMessage\}\}/gi,
-          context.lastUserMessage || context.raw?.lastUserMessage || ""
-        );
-        result = result.replace(
-          /\{\{lastAiMessage\}\}/gi,
-          context.lastAiMessage || context.raw?.lastAiMessage || ""
-        );
-        result = result.replace(/\{\{chatHistory\}\}/gi, () => {
-          const history = context.chatHistory || context.raw?.chatHistory || [];
-          return this._formatChatHistory(history);
-        });
-        result = result.replace(/\{\{characterCard\}\}/gi, () => {
-          const card = context.characterCard || context.raw?.characterCard;
-          return card ? this._formatCharacterCard(card) : "";
-        });
-        result = result.replace(
-          /\{\{toolName\}\}/gi,
-          context.toolName || context.raw?.toolName || ""
-        );
-        result = result.replace(
-          /\{\{injectedContext\}\}/gi,
-          context.injectedContext || context.raw?.injectedContext || ""
-        );
-        return result;
-      }
-      /**
-       * 解析自定义变量
-       * @private
-       */
-      _resolveCustomVariables(template, context) {
-        let result = template;
-        for (const [name, handler] of this.customVariables) {
-          const pattern = new RegExp(`\\{\\{${this._escapeRegex(name)}\\}\\}`, "gi");
-          if (typeof handler === "function") {
-            result = result.replace(pattern, () => {
-              try {
-                return handler(context);
-              } catch (e) {
-                this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${name}:`, e);
-                return "";
-              }
-            });
-          } else {
-            result = result.replace(pattern, String(handler));
-          }
-        }
-        return result;
-      }
-      /**
-       * 解析带前缀的变量（如 regex.xxx）
-       * @private
-       */
-      _resolveRegexVariables(template, context) {
-        let result = template;
-        for (const [prefix, handler] of this.variableHandlers) {
-          const pattern = new RegExp(`\\{\\{${prefix}\\.([^}]+)\\}\\}`, "gi");
-          result = result.replace(pattern, (match, varName) => {
-            try {
-              return handler(varName, context);
-            } catch (e) {
-              this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${prefix}.${varName}:`, e);
-              return "";
-            }
-          });
-        }
-        return result;
-      }
-      /**
-       * 格式化聊天历史
-       * @private
-       */
-      _formatChatHistory(history) {
-        if (!Array.isArray(history) || history.length === 0) {
-          return "";
-        }
-        return history.map((msg) => {
-          const role = msg.role || "unknown";
-          const content = msg.content || msg.mes || "";
-          return `[${role}]: ${content}`;
-        }).join("\n\n");
-      }
-      /**
-       * 格式化角色卡
-       * @private
-       */
-      _formatCharacterCard(card) {
-        if (!card)
-          return "";
-        const parts = [];
-        if (card.name)
-          parts.push(`\u59D3\u540D: ${card.name}`);
-        if (card.description)
-          parts.push(`\u63CF\u8FF0: ${card.description}`);
-        if (card.personality)
-          parts.push(`\u6027\u683C: ${card.personality}`);
-        if (card.scenario)
-          parts.push(`\u573A\u666F: ${card.scenario}`);
-        return parts.join("\n\n");
-      }
-      /**
-       * 转义正则表达式特殊字符
-       * @private
-       */
-      _escapeRegex(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      }
-      /**
-       * 日志输出
-       * @private
-       */
-      _log(...args) {
-        if (this.debugMode) {
-          console.log("[VariableResolver]", ...args);
-        }
-      }
-    };
-    variableResolver = new VariableResolver();
-    variable_resolver_default = variableResolver;
-  }
-});
+`)}_formatCharacterCard(t){if(!t)return"";let s=[];return t.name&&s.push(`\u59D3\u540D: ${t.name}`),t.description&&s.push(`\u63CF\u8FF0: ${t.description}`),t.personality&&s.push(`\u6027\u683C: ${t.personality}`),t.scenario&&s.push(`\u573A\u666F: ${t.scenario}`),s.join(`
 
-// modules/ui/components/settings-panel.js
-var settings_panel_exports = {};
-__export(settings_panel_exports, {
-  SettingsPanel: () => SettingsPanel,
-  THEME_CONFIGS: () => THEME_CONFIGS,
-  applyTheme: () => applyTheme,
-  default: () => settings_panel_default
-});
-function applyTheme(themeName) {
-  const root = document.documentElement;
-  const theme = THEME_CONFIGS[themeName] || THEME_CONFIGS["dark-blue"];
-  Object.entries(theme).forEach(([property, value]) => {
-    root.style.setProperty(property, value);
-  });
-  root.setAttribute("data-yyt-theme", themeName);
-  if (themeName === "light") {
-    root.style.setProperty("--yyt-text", "rgba(15, 23, 42, 0.95)");
-  } else {
-    root.style.setProperty("--yyt-text", "rgba(255, 255, 255, 0.95)");
-  }
-}
-var THEME_CONFIGS, SettingsPanel, settings_panel_default;
-var init_settings_panel = __esm({
-  "modules/ui/components/settings-panel.js"() {
-    init_event_bus();
-    init_settings_service();
-    init_utils();
-    THEME_CONFIGS = {
-      "dark-blue": {
-        "--yyt-accent": "#7bb7ff",
-        "--yyt-accent-glow": "rgba(123, 183, 255, 0.4)",
-        "--yyt-accent-soft": "rgba(123, 183, 255, 0.15)",
-        "--yyt-bg-base": "#0b0f15",
-        "--yyt-bg-gradient-1": "rgba(123, 183, 255, 0.12)",
-        "--yyt-bg-gradient-2": "rgba(155, 123, 255, 0.10)"
-      },
-      "dark-purple": {
-        "--yyt-accent": "#a78bfa",
-        "--yyt-accent-glow": "rgba(167, 139, 250, 0.4)",
-        "--yyt-accent-soft": "rgba(167, 139, 250, 0.15)",
-        "--yyt-bg-base": "#0f0b15",
-        "--yyt-bg-gradient-1": "rgba(167, 139, 250, 0.12)",
-        "--yyt-bg-gradient-2": "rgba(123, 183, 255, 0.10)"
-      },
-      "dark-green": {
-        "--yyt-accent": "#4ade80",
-        "--yyt-accent-glow": "rgba(74, 222, 128, 0.4)",
-        "--yyt-accent-soft": "rgba(74, 222, 128, 0.15)",
-        "--yyt-bg-base": "#0b150f",
-        "--yyt-bg-gradient-1": "rgba(74, 222, 128, 0.12)",
-        "--yyt-bg-gradient-2": "rgba(123, 183, 255, 0.10)"
-      },
-      "light": {
-        "--yyt-accent": "#3b82f6",
-        "--yyt-accent-glow": "rgba(59, 130, 246, 0.3)",
-        "--yyt-accent-soft": "rgba(59, 130, 246, 0.1)",
-        "--yyt-bg-base": "#f8fafc",
-        "--yyt-bg-gradient-1": "rgba(59, 130, 246, 0.08)",
-        "--yyt-bg-gradient-2": "rgba(139, 92, 246, 0.06)",
-        "--yyt-text": "rgba(15, 23, 42, 0.95)",
-        "--yyt-text-secondary": "rgba(15, 23, 42, 0.7)",
-        "--yyt-text-muted": "rgba(15, 23, 42, 0.45)",
-        "--yyt-surface": "rgba(0, 0, 0, 0.03)",
-        "--yyt-surface-hover": "rgba(0, 0, 0, 0.06)",
-        "--yyt-surface-active": "rgba(0, 0, 0, 0.08)",
-        "--yyt-border": "rgba(0, 0, 0, 0.08)",
-        "--yyt-border-strong": "rgba(0, 0, 0, 0.15)"
-      }
-    };
-    SettingsPanel = {
-      id: "settingsPanel",
-      // ============================================================
-      // 渲染
-      // ============================================================
-      /**
-       * 渲染组件
-       * @param {Object} props
-       * @returns {string} HTML
-       */
-      render(props) {
-        const settings = settingsService.getSettings();
-        return `
+`)}_escapeRegex(t){return t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}_log(...t){this.debugMode&&console.log("[VariableResolver]",...t)}},mo=new Ts,Na=mo});var Dn={};N(Dn,{SettingsPanel:()=>vo,THEME_CONFIGS:()=>Mn,applyTheme:()=>xo,default:()=>ja});function xo(e){let t=document.documentElement,s=Mn[e]||Mn["dark-blue"];Object.entries(s).forEach(([n,r])=>{t.style.setProperty(n,r)}),t.setAttribute("data-yyt-theme",e),e==="light"?t.style.setProperty("--yyt-text","rgba(15, 23, 42, 0.95)"):t.style.setProperty("--yyt-text","rgba(255, 255, 255, 0.95)")}var Mn,vo,ja,On=E(()=>{z();is();rt();Mn={"dark-blue":{"--yyt-accent":"#7bb7ff","--yyt-accent-glow":"rgba(123, 183, 255, 0.4)","--yyt-accent-soft":"rgba(123, 183, 255, 0.15)","--yyt-bg-base":"#0b0f15","--yyt-bg-gradient-1":"rgba(123, 183, 255, 0.12)","--yyt-bg-gradient-2":"rgba(155, 123, 255, 0.10)"},"dark-purple":{"--yyt-accent":"#a78bfa","--yyt-accent-glow":"rgba(167, 139, 250, 0.4)","--yyt-accent-soft":"rgba(167, 139, 250, 0.15)","--yyt-bg-base":"#0f0b15","--yyt-bg-gradient-1":"rgba(167, 139, 250, 0.12)","--yyt-bg-gradient-2":"rgba(123, 183, 255, 0.10)"},"dark-green":{"--yyt-accent":"#4ade80","--yyt-accent-glow":"rgba(74, 222, 128, 0.4)","--yyt-accent-soft":"rgba(74, 222, 128, 0.15)","--yyt-bg-base":"#0b150f","--yyt-bg-gradient-1":"rgba(74, 222, 128, 0.12)","--yyt-bg-gradient-2":"rgba(123, 183, 255, 0.10)"},light:{"--yyt-accent":"#3b82f6","--yyt-accent-glow":"rgba(59, 130, 246, 0.3)","--yyt-accent-soft":"rgba(59, 130, 246, 0.1)","--yyt-bg-base":"#f8fafc","--yyt-bg-gradient-1":"rgba(59, 130, 246, 0.08)","--yyt-bg-gradient-2":"rgba(139, 92, 246, 0.06)","--yyt-text":"rgba(15, 23, 42, 0.95)","--yyt-text-secondary":"rgba(15, 23, 42, 0.7)","--yyt-text-muted":"rgba(15, 23, 42, 0.45)","--yyt-surface":"rgba(0, 0, 0, 0.03)","--yyt-surface-hover":"rgba(0, 0, 0, 0.06)","--yyt-surface-active":"rgba(0, 0, 0, 0.08)","--yyt-border":"rgba(0, 0, 0, 0.08)","--yyt-border-strong":"rgba(0, 0, 0, 0.15)"}};vo={id:"settingsPanel",render(e){let t=St.getSettings();return`
       <div class="yyt-settings-panel">
         <!-- \u6807\u7B7E\u9875\u5BFC\u822A -->
         <div class="yyt-settings-tabs">
@@ -12790,10 +3022,10 @@ var init_settings_panel = __esm({
         
         <!-- \u6807\u7B7E\u9875\u5185\u5BB9 -->
         <div class="yyt-settings-content">
-          ${this._renderExecutorTab(settings.executor)}
-          ${this._renderListenerTab(settings.listener)}
-          ${this._renderDebugTab(settings.debug)}
-          ${this._renderUiTab(settings.ui)}
+          ${this._renderExecutorTab(t.executor)}
+          ${this._renderListenerTab(t.listener)}
+          ${this._renderDebugTab(t.debug)}
+          ${this._renderUiTab(t.ui)}
         </div>
         
         <!-- \u5E95\u90E8\u64CD\u4F5C -->
@@ -12806,17 +3038,7 @@ var init_settings_panel = __esm({
           </button>
         </div>
       </div>
-    `;
-      },
-      // ============================================================
-      // 私有渲染方法
-      // ============================================================
-      /**
-       * 渲染执行器标签页
-       * @private
-       */
-      _renderExecutorTab(executor) {
-        return `
+    `},_renderExecutorTab(e){return`
       <div class="yyt-settings-tab-content yyt-active" data-tab="executor">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u5E76\u53D1\u63A7\u5236</div>
@@ -12824,7 +3046,7 @@ var init_settings_panel = __esm({
             <label>\u6700\u5927\u5E76\u53D1\u6570</label>
             <div class="yyt-form-hint">\u540C\u65F6\u6267\u884C\u7684\u5DE5\u5177\u6570\u91CF\u4E0A\u9650</div>
             <input type="number" class="yyt-input" id="yyt-setting-maxConcurrent" 
-                   value="${executor.maxConcurrent}" min="1" max="10">
+                   value="${e.maxConcurrent}" min="1" max="10">
           </div>
         </div>
         
@@ -12834,12 +3056,12 @@ var init_settings_panel = __esm({
             <div class="yyt-form-group yyt-flex-1">
               <label>\u6700\u5927\u91CD\u8BD5\u6B21\u6570</label>
               <input type="number" class="yyt-input" id="yyt-setting-maxRetries" 
-                     value="${executor.maxRetries}" min="0" max="10">
+                     value="${e.maxRetries}" min="0" max="10">
             </div>
             <div class="yyt-form-group yyt-flex-1">
               <label>\u91CD\u8BD5\u95F4\u9694 (ms)</label>
               <input type="number" class="yyt-input" id="yyt-setting-retryDelayMs" 
-                     value="${executor.retryDelayMs}" min="1000" max="60000" step="1000">
+                     value="${e.retryDelayMs}" min="1000" max="60000" step="1000">
             </div>
           </div>
         </div>
@@ -12850,7 +3072,7 @@ var init_settings_panel = __esm({
             <label>\u8BF7\u6C42\u8D85\u65F6\u65F6\u95F4 (ms)</label>
             <div class="yyt-form-hint">\u5355\u4E2A\u8BF7\u6C42\u7684\u8D85\u65F6\u65F6\u95F4\uFF0C\u8D85\u8FC7\u5C06\u81EA\u52A8\u4E2D\u65AD</div>
             <input type="number" class="yyt-input" id="yyt-setting-requestTimeoutMs" 
-                   value="${executor.requestTimeoutMs}" min="10000" max="300000" step="10000">
+                   value="${e.requestTimeoutMs}" min="10000" max="300000" step="10000">
           </div>
         </div>
         
@@ -12859,28 +3081,21 @@ var init_settings_panel = __esm({
           <div class="yyt-form-group">
             <label>\u961F\u5217\u5904\u7406\u65B9\u5F0F</label>
             <select class="yyt-select" id="yyt-setting-queueStrategy">
-              <option value="fifo" ${executor.queueStrategy === "fifo" ? "selected" : ""}>FIFO (\u5148\u8FDB\u5148\u51FA)</option>
-              <option value="lifo" ${executor.queueStrategy === "lifo" ? "selected" : ""}>LIFO (\u540E\u8FDB\u5148\u51FA)</option>
-              <option value="priority" ${executor.queueStrategy === "priority" ? "selected" : ""}>\u4F18\u5148\u7EA7\u6392\u5E8F</option>
+              <option value="fifo" ${e.queueStrategy==="fifo"?"selected":""}>FIFO (\u5148\u8FDB\u5148\u51FA)</option>
+              <option value="lifo" ${e.queueStrategy==="lifo"?"selected":""}>LIFO (\u540E\u8FDB\u5148\u51FA)</option>
+              <option value="priority" ${e.queueStrategy==="priority"?"selected":""}>\u4F18\u5148\u7EA7\u6392\u5E8F</option>
             </select>
           </div>
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染监听器标签页
-       * @private
-       */
-      _renderListenerTab(listener) {
-        return `
+    `},_renderListenerTab(e){return`
       <div class="yyt-settings-tab-content" data-tab="listener">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u4E8B\u4EF6\u76D1\u542C</div>
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-listenGenerationEnded" 
-                     ${listener.listenGenerationEnded ? "checked" : ""}>
+                     ${e.listenGenerationEnded?"checked":""}>
               <span>\u76D1\u542C AI \u56DE\u590D\u5B8C\u6210\u4E8B\u4EF6</span>
             </label>
             <div class="yyt-form-hint">\u542F\u7528\u540E\u5C06\u5728 AI \u56DE\u590D\u5B8C\u6210\u65F6\u81EA\u52A8\u89E6\u53D1\u5DE5\u5177</div>
@@ -12892,7 +3107,7 @@ var init_settings_panel = __esm({
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-ignoreQuietGeneration" 
-                     ${listener.ignoreQuietGeneration ? "checked" : ""}>
+                     ${e.ignoreQuietGeneration?"checked":""}>
               <span>\u5FFD\u7565\u9759\u9ED8\u751F\u6210</span>
             </label>
             <div class="yyt-form-hint">Quiet \u6A21\u5F0F\u7684\u751F\u6210\u4E0D\u4F1A\u89E6\u53D1\u5DE5\u5177</div>
@@ -12901,7 +3116,7 @@ var init_settings_panel = __esm({
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-ignoreAutoTrigger" 
-                     ${listener.ignoreAutoTrigger ? "checked" : ""}>
+                     ${e.ignoreAutoTrigger?"checked":""}>
               <span>\u5FFD\u7565\u81EA\u52A8\u89E6\u53D1</span>
             </label>
             <div class="yyt-form-hint">\u81EA\u52A8\u89E6\u53D1\u7684\u751F\u6210\u4E0D\u4F1A\u6267\u884C\u5DE5\u5177</div>
@@ -12914,25 +3129,18 @@ var init_settings_panel = __esm({
             <label>\u9632\u6296\u65F6\u95F4 (ms)</label>
             <div class="yyt-form-hint">\u8FDE\u7EED\u4E8B\u4EF6\u89E6\u53D1\u7684\u6700\u5C0F\u95F4\u9694</div>
             <input type="number" class="yyt-input" id="yyt-setting-debounceMs" 
-                   value="${listener.debounceMs}" min="0" max="5000" step="100">
+                   value="${e.debounceMs}" min="0" max="5000" step="100">
           </div>
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染调试标签页
-       * @private
-       */
-      _renderDebugTab(debug) {
-        return `
+    `},_renderDebugTab(e){return`
       <div class="yyt-settings-tab-content" data-tab="debug">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u65E5\u5FD7\u8BBE\u7F6E</div>
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-enableDebugLog" 
-                     ${debug.enableDebugLog ? "checked" : ""}>
+                     ${e.enableDebugLog?"checked":""}>
               <span>\u542F\u7528\u8C03\u8BD5\u65E5\u5FD7</span>
             </label>
             <div class="yyt-form-hint">\u5728\u63A7\u5236\u53F0\u8F93\u51FA\u8BE6\u7EC6\u7684\u8C03\u8BD5\u4FE1\u606F</div>
@@ -12941,7 +3149,7 @@ var init_settings_panel = __esm({
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-saveExecutionHistory" 
-                     ${debug.saveExecutionHistory ? "checked" : ""}>
+                     ${e.saveExecutionHistory?"checked":""}>
               <span>\u4FDD\u5B58\u6267\u884C\u5386\u53F2</span>
             </label>
             <div class="yyt-form-hint">\u8BB0\u5F55\u5DE5\u5177\u6267\u884C\u5386\u53F2\uFF0C\u4FBF\u4E8E\u95EE\u9898\u6392\u67E5</div>
@@ -12953,38 +3161,31 @@ var init_settings_panel = __esm({
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-showRuntimeBadge" 
-                     ${debug.showRuntimeBadge ? "checked" : ""}>
+                     ${e.showRuntimeBadge?"checked":""}>
               <span>\u663E\u793A\u8FD0\u884C\u72B6\u6001\u5FBD\u7AE0</span>
             </label>
             <div class="yyt-form-hint">\u5728\u5DE5\u5177\u5361\u7247\u4E0A\u663E\u793A\u8FD0\u884C\u72B6\u6001\u6307\u793A\u5668</div>
           </div>
         </div>
       </div>
-    `;
-      },
-      /**
-       * 渲染UI标签页
-       * @private
-       */
-      _renderUiTab(ui) {
-        return `
+    `},_renderUiTab(e){return`
       <div class="yyt-settings-tab-content" data-tab="ui">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u5916\u89C2\u8BBE\u7F6E</div>
           <div class="yyt-form-group">
             <label>\u4E3B\u9898</label>
             <select class="yyt-select" id="yyt-setting-theme">
-              <option value="dark-blue" ${ui.theme === "dark-blue" ? "selected" : ""}>\u6DF1\u84DD</option>
-              <option value="dark-purple" ${ui.theme === "dark-purple" ? "selected" : ""}>\u6DF1\u7D2B</option>
-              <option value="dark-green" ${ui.theme === "dark-green" ? "selected" : ""}>\u6DF1\u7EFF</option>
-              <option value="light" ${ui.theme === "light" ? "selected" : ""}>\u6D45\u8272</option>
+              <option value="dark-blue" ${e.theme==="dark-blue"?"selected":""}>\u6DF1\u84DD</option>
+              <option value="dark-purple" ${e.theme==="dark-purple"?"selected":""}>\u6DF1\u7D2B</option>
+              <option value="dark-green" ${e.theme==="dark-green"?"selected":""}>\u6DF1\u7EFF</option>
+              <option value="light" ${e.theme==="light"?"selected":""}>\u6D45\u8272</option>
             </select>
           </div>
           
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-compactMode" 
-                     ${ui.compactMode ? "checked" : ""}>
+                     ${e.compactMode?"checked":""}>
               <span>\u7D27\u51D1\u6A21\u5F0F</span>
             </label>
             <div class="yyt-form-hint">\u51CF\u5C11\u5361\u7247\u95F4\u8DDD\uFF0C\u663E\u793A\u66F4\u591A\u5185\u5BB9</div>
@@ -12993,103 +3194,14 @@ var init_settings_panel = __esm({
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-animationEnabled" 
-                     ${ui.animationEnabled ? "checked" : ""}>
+                     ${e.animationEnabled?"checked":""}>
               <span>\u542F\u7528\u52A8\u753B\u6548\u679C</span>
             </label>
             <div class="yyt-form-hint">\u754C\u9762\u8FC7\u6E21\u548C\u4EA4\u4E92\u52A8\u753B</div>
           </div>
         </div>
       </div>
-    `;
-      },
-      // ============================================================
-      // 事件绑定
-      // ============================================================
-      /**
-       * 绑定事件
-       * @param {Object} $container
-       * @param {Object} dependencies
-       */
-      bindEvents($container2, dependencies) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find(".yyt-settings-tab").on("click", (e) => {
-          const tabId = $(e.currentTarget).data("tab");
-          $container2.find(".yyt-settings-tab").removeClass("yyt-active");
-          $(e.currentTarget).addClass("yyt-active");
-          $container2.find(".yyt-settings-tab-content").removeClass("yyt-active");
-          $container2.find(`.yyt-settings-tab-content[data-tab="${tabId}"]`).addClass("yyt-active");
-        });
-        $container2.find("#yyt-settings-save").on("click", () => {
-          this._saveSettings($container2, $);
-        });
-        $container2.find("#yyt-settings-reset").on("click", () => {
-          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u8BBE\u7F6E\u4E3A\u9ED8\u8BA4\u503C\u5417\uFF1F")) {
-            settingsService.resetSettings();
-            this.renderTo($container2);
-            showToast("success", "\u8BBE\u7F6E\u5DF2\u91CD\u7F6E");
-          }
-        });
-      },
-      /**
-       * 保存设置
-       * @private
-       */
-      _saveSettings($container2, $) {
-        const settings = {
-          executor: {
-            maxConcurrent: parseInt($container2.find("#yyt-setting-maxConcurrent").val()) || 3,
-            maxRetries: parseInt($container2.find("#yyt-setting-maxRetries").val()) || 2,
-            retryDelayMs: parseInt($container2.find("#yyt-setting-retryDelayMs").val()) || 5e3,
-            requestTimeoutMs: parseInt($container2.find("#yyt-setting-requestTimeoutMs").val()) || 9e4,
-            queueStrategy: $container2.find("#yyt-setting-queueStrategy").val() || "fifo"
-          },
-          listener: {
-            listenGenerationEnded: $container2.find("#yyt-setting-listenGenerationEnded").is(":checked"),
-            ignoreQuietGeneration: $container2.find("#yyt-setting-ignoreQuietGeneration").is(":checked"),
-            ignoreAutoTrigger: $container2.find("#yyt-setting-ignoreAutoTrigger").is(":checked"),
-            debounceMs: parseInt($container2.find("#yyt-setting-debounceMs").val()) || 300
-          },
-          debug: {
-            enableDebugLog: $container2.find("#yyt-setting-enableDebugLog").is(":checked"),
-            saveExecutionHistory: $container2.find("#yyt-setting-saveExecutionHistory").is(":checked"),
-            showRuntimeBadge: $container2.find("#yyt-setting-showRuntimeBadge").is(":checked")
-          },
-          ui: {
-            theme: $container2.find("#yyt-setting-theme").val() || "dark-blue",
-            compactMode: $container2.find("#yyt-setting-compactMode").is(":checked"),
-            animationEnabled: $container2.find("#yyt-setting-animationEnabled").is(":checked")
-          }
-        };
-        settingsService.saveSettings(settings);
-        applyTheme(settings.ui.theme);
-        document.documentElement.classList.toggle("yyt-compact-mode", settings.ui.compactMode);
-        document.documentElement.classList.toggle("yyt-no-animation", !settings.ui.animationEnabled);
-        showToast("success", "\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
-      },
-      // ============================================================
-      // 销毁
-      // ============================================================
-      /**
-       * 销毁组件
-       * @param {Object} $container
-       */
-      destroy($container2) {
-        const $ = getJQuery();
-        if (!$ || !isContainerValid($container2))
-          return;
-        $container2.find("*").off();
-      },
-      // ============================================================
-      // 样式
-      // ============================================================
-      /**
-       * 获取样式
-       * @returns {string}
-       */
-      getStyles() {
-        return `
+    `},bindEvents(e,t){let s=S();!s||!$(e)||(e.find(".yyt-settings-tab").on("click",n=>{let r=s(n.currentTarget).data("tab");e.find(".yyt-settings-tab").removeClass("yyt-active"),s(n.currentTarget).addClass("yyt-active"),e.find(".yyt-settings-tab-content").removeClass("yyt-active"),e.find(`.yyt-settings-tab-content[data-tab="${r}"]`).addClass("yyt-active")}),e.find("#yyt-settings-save").on("click",()=>{this._saveSettings(e,s)}),e.find("#yyt-settings-reset").on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u8BBE\u7F6E\u4E3A\u9ED8\u8BA4\u503C\u5417\uFF1F")&&(St.resetSettings(),this.renderTo(e),p("success","\u8BBE\u7F6E\u5DF2\u91CD\u7F6E"))}))},_saveSettings(e,t){let s={executor:{maxConcurrent:parseInt(e.find("#yyt-setting-maxConcurrent").val())||3,maxRetries:parseInt(e.find("#yyt-setting-maxRetries").val())||2,retryDelayMs:parseInt(e.find("#yyt-setting-retryDelayMs").val())||5e3,requestTimeoutMs:parseInt(e.find("#yyt-setting-requestTimeoutMs").val())||9e4,queueStrategy:e.find("#yyt-setting-queueStrategy").val()||"fifo"},listener:{listenGenerationEnded:e.find("#yyt-setting-listenGenerationEnded").is(":checked"),ignoreQuietGeneration:e.find("#yyt-setting-ignoreQuietGeneration").is(":checked"),ignoreAutoTrigger:e.find("#yyt-setting-ignoreAutoTrigger").is(":checked"),debounceMs:parseInt(e.find("#yyt-setting-debounceMs").val())||300},debug:{enableDebugLog:e.find("#yyt-setting-enableDebugLog").is(":checked"),saveExecutionHistory:e.find("#yyt-setting-saveExecutionHistory").is(":checked"),showRuntimeBadge:e.find("#yyt-setting-showRuntimeBadge").is(":checked")},ui:{theme:e.find("#yyt-setting-theme").val()||"dark-blue",compactMode:e.find("#yyt-setting-compactMode").is(":checked"),animationEnabled:e.find("#yyt-setting-animationEnabled").is(":checked")}};St.saveSettings(s),xo(s.ui.theme),document.documentElement.classList.toggle("yyt-compact-mode",s.ui.compactMode),document.documentElement.classList.toggle("yyt-no-animation",!s.ui.animationEnabled),p("success","\u8BBE\u7F6E\u5DF2\u4FDD\u5B58")},destroy(e){!S()||!$(e)||e.find("*").off()},getStyles(){return`
       /* \u8BBE\u7F6E\u9762\u677F\u6837\u5F0F */
       .yyt-settings-panel {
         display: flex;
@@ -13202,113 +3314,7 @@ var init_settings_panel = __esm({
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         flex-shrink: 0;
       }
-    `;
-      },
-      // ============================================================
-      // 便捷方法
-      // ============================================================
-      /**
-       * 渲染到容器
-       * @param {Object} $container
-       */
-      renderTo($container2) {
-        const html = this.render({});
-        $container2.html(html);
-        this.bindEvents($container2, {});
-      }
-    };
-    settings_panel_default = SettingsPanel;
-  }
-});
-
-// index.js
-var SCRIPT_ID2 = "youyou_toolkit";
-var SCRIPT_VERSION = "0.6.2";
-var MENU_ITEM_ID = `${SCRIPT_ID2}-menu-item`;
-var MENU_CONTAINER_ID = `${SCRIPT_ID2}-menu-container`;
-var POPUP_ID = `${SCRIPT_ID2}-popup`;
-var topLevelWindow = typeof window.parent !== "undefined" ? window.parent : window;
-var storageModule = null;
-var apiConnectionModule = null;
-var presetManagerModule = null;
-var uiComponentsModule = null;
-var regexExtractorModule = null;
-var toolManagerModule = null;
-var toolExecutorModule = null;
-var toolTriggerModule = null;
-var windowManagerModule = null;
-var toolRegistryModule = null;
-var promptEditorModule = null;
-var settingsServiceModule = null;
-var bypassManagerModule = null;
-var variableResolverModule = null;
-var contextInjectorModule = null;
-var toolPromptServiceModule = null;
-var toolOutputServiceModule = null;
-async function loadModules() {
-  try {
-    storageModule = await Promise.resolve().then(() => (init_storage(), storage_exports));
-    apiConnectionModule = await Promise.resolve().then(() => (init_api_connection(), api_connection_exports));
-    presetManagerModule = await Promise.resolve().then(() => (init_preset_manager(), preset_manager_exports));
-    uiComponentsModule = await Promise.resolve().then(() => (init_ui_components(), ui_components_exports));
-    regexExtractorModule = await Promise.resolve().then(() => (init_regex_extractor(), regex_extractor_exports));
-    toolManagerModule = await Promise.resolve().then(() => (init_tool_manager(), tool_manager_exports));
-    toolExecutorModule = await Promise.resolve().then(() => (init_tool_executor(), tool_executor_exports));
-    toolTriggerModule = await Promise.resolve().then(() => (init_tool_trigger(), tool_trigger_exports));
-    windowManagerModule = await Promise.resolve().then(() => (init_window_manager(), window_manager_exports));
-    toolRegistryModule = await Promise.resolve().then(() => (init_tool_registry(), tool_registry_exports));
-    promptEditorModule = await Promise.resolve().then(() => (init_prompt_editor(), prompt_editor_exports));
-    settingsServiceModule = await Promise.resolve().then(() => (init_settings_service(), settings_service_exports));
-    bypassManagerModule = await Promise.resolve().then(() => (init_bypass_manager(), bypass_manager_exports));
-    variableResolverModule = await Promise.resolve().then(() => (init_variable_resolver(), variable_resolver_exports));
-    contextInjectorModule = await Promise.resolve().then(() => (init_context_injector(), context_injector_exports));
-    toolPromptServiceModule = await Promise.resolve().then(() => (init_tool_prompt_service(), tool_prompt_service_exports));
-    toolOutputServiceModule = await Promise.resolve().then(() => (init_tool_output_service(), tool_output_service_exports));
-    if (toolOutputServiceModule?.toolOutputService && apiConnectionModule) {
-      toolOutputServiceModule.toolOutputService.setApiConnection(apiConnectionModule);
-    }
-    return true;
-  } catch (error) {
-    console.warn(`[${SCRIPT_ID2}] \u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u5185\u7F6E\u529F\u80FD:`, error);
-    return false;
-  }
-}
-function log2(...args) {
-  console.log(`[${SCRIPT_ID2}]`, ...args);
-}
-function logError(...args) {
-  console.error(`[${SCRIPT_ID2}]`, ...args);
-}
-function escapeHtml3(unsafe) {
-  if (typeof unsafe !== "string")
-    return "";
-  return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
-}
-async function injectStyles() {
-  const styleId = `${SCRIPT_ID2}-styles`;
-  const targetDoc = topLevelWindow.document || document;
-  if (targetDoc.getElementById(styleId))
-    return;
-  let css = "";
-  try {
-    const response = await fetch("./styles/main.css");
-    if (response.ok) {
-      css = await response.text();
-    }
-  } catch (e) {
-    log2("\u65E0\u6CD5\u52A0\u8F7D\u5916\u90E8\u6837\u5F0F\u6587\u4EF6\uFF0C\u4F7F\u7528\u5185\u7F6E\u6837\u5F0F");
-  }
-  if (!css) {
-    css = getBaseStyles();
-  }
-  const style = targetDoc.createElement("style");
-  style.id = styleId;
-  style.textContent = css;
-  (targetDoc.head || targetDoc.documentElement).appendChild(style);
-  log2("\u6837\u5F0F\u5DF2\u6CE8\u5165");
-}
-function getBaseStyles() {
-  return `
+    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}},ja=vo});var L="youyou_toolkit",jn="0.6.2",_e=`${L}-menu-item`,Ln=`${L}-menu-container`,Ua=`${L}-popup`,O=typeof window.parent<"u"?window.parent:window,_s=null,it=null,Ee=null,Y=null,To=null,Cs=null,_o=null,Se=null,Ce=null,Z=null,K=null,Pe=null,Eo=null,So=null,Co=null,Po=null,Es=null;async function ne(){try{return _s=await Promise.resolve().then(()=>(le(),Zn)),it=await Promise.resolve().then(()=>(Os(),er)),Ee=await Promise.resolve().then(()=>(ze(),sr)),Y=await Promise.resolve().then(()=>(lo(),ao)),To=await Promise.resolve().then(()=>(Ke(),mr)),Cs=await Promise.resolve().then(()=>(nn(),br)),_o=await Promise.resolve().then(()=>(fn(),jr)),Se=await Promise.resolve().then(()=>(Pn(),Vr)),Ce=await Promise.resolve().then(()=>(po(),yo)),Z=await Promise.resolve().then(()=>(fe(),Mr)),K=await Promise.resolve().then(()=>(go(),uo)),Pe=await Promise.resolve().then(()=>(is(),Ur)),Eo=await Promise.resolve().then(()=>(me(),Dr)),So=await Promise.resolve().then(()=>(ho(),bo)),Co=await Promise.resolve().then(()=>(ls(),Br)),Po=await Promise.resolve().then(()=>(hn(),Gr)),Es=await Promise.resolve().then(()=>(xn(),Fr)),Es?.toolOutputService&&it&&Es.toolOutputService.setApiConnection(it),!0}catch(e){return console.warn(`[${L}] \u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u5185\u7F6E\u529F\u80FD:`,e),!1}}function j(...e){console.log(`[${L}]`,...e)}function $o(...e){console.error(`[${L}]`,...e)}function wo(e){return typeof e!="string"?"":e.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}async function za(){let e=`${L}-styles`,t=O.document||document;if(t.getElementById(e))return;let s="";try{let r=await fetch("./styles/main.css");r.ok&&(s=await r.text())}catch{j("\u65E0\u6CD5\u52A0\u8F7D\u5916\u90E8\u6837\u5F0F\u6587\u4EF6\uFF0C\u4F7F\u7528\u5185\u7F6E\u6837\u5F0F")}s||(s=Ba());let n=t.createElement("style");n.id=e,n.textContent=s,(t.head||t.documentElement).appendChild(n),j("\u6837\u5F0F\u5DF2\u6CE8\u5165")}function Ba(){return`
     /* CSS\u53D8\u91CF */
     :root {
       --yyt-accent: #7bb7ff;
@@ -13317,6 +3323,7 @@ function getBaseStyles() {
       --yyt-success: #4ade80;
       --yyt-success-glow: rgba(74, 222, 128, 0.3);
       --yyt-error: #f87171;
+      --yyt-danger: var(--yyt-error);
       --yyt-error-glow: rgba(248, 113, 113, 0.3);
       --yyt-warning: #fbbf24;
       --yyt-surface: rgba(255, 255, 255, 0.03);
@@ -13332,24 +3339,24 @@ function getBaseStyles() {
     }
     
     /* \u83DC\u5355\u9879 */
-    #${MENU_CONTAINER_ID} { display: flex; align-items: center; }
+    #${Ln} { display: flex; align-items: center; }
     
-    #${MENU_ITEM_ID} {
+    #${_e} {
       display: flex; align-items: center; gap: 8px;
       padding: 10px 14px; cursor: pointer;
       transition: all 0.2s ease; border-radius: 8px; margin: 2px;
     }
     
-    #${MENU_ITEM_ID}:hover {
+    #${_e}:hover {
       background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
     }
     
-    #${MENU_ITEM_ID} .fa-fw {
+    #${_e} .fa-fw {
       font-size: 16px; color: var(--yyt-accent);
       filter: drop-shadow(0 0 6px var(--yyt-accent-glow));
     }
     
-    #${MENU_ITEM_ID} span { font-weight: 500; letter-spacing: 0.3px; }
+    #${_e} span { font-weight: 500; letter-spacing: 0.3px; }
     
     /* \u4E3B\u5F39\u7A97\u906E\u7F69 */
     .yyt-popup-overlay {
@@ -13741,229 +3748,18 @@ function getBaseStyles() {
         border: none;
       }
     }
-  `;
-}
-var currentPopup = null;
-var currentOverlay = null;
-var currentMainTab = "apiPresets";
-var currentSubTab = {};
-function closePopup() {
-  if (currentPopup) {
-    currentPopup.remove();
-    currentPopup = null;
-  }
-  if (currentOverlay) {
-    currentOverlay.remove();
-    currentOverlay = null;
-  }
-  log2("\u5F39\u7A97\u5DF2\u5173\u95ED");
-}
-function switchMainTab(tabName) {
-  currentMainTab = tabName;
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$ || !currentPopup)
-    return;
-  $(currentPopup).find(".yyt-main-nav-item").removeClass("active");
-  $(currentPopup).find(`.yyt-main-nav-item[data-tab="${tabName}"]`).addClass("active");
-  const toolConfig = toolRegistryModule?.getToolConfig(tabName);
-  if (toolConfig?.hasSubTabs) {
-    $(currentPopup).find(".yyt-sub-nav").show();
-    renderSubNav(tabName, toolConfig.subTabs);
-  } else {
-    $(currentPopup).find(".yyt-sub-nav").hide();
-  }
-  $(currentPopup).find(".yyt-tab-content").removeClass("active");
-  $(currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`).addClass("active");
-  renderTabContent(tabName);
-}
-function switchSubTab(mainTab, subTab) {
-  currentSubTab[mainTab] = subTab;
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$ || !currentPopup)
-    return;
-  $(currentPopup).find(".yyt-sub-nav-item").removeClass("active");
-  $(currentPopup).find(`.yyt-sub-nav-item[data-subtab="${subTab}"]`).addClass("active");
-  renderSubTabContent(mainTab, subTab);
-}
-function renderSubNav(mainTab, subTabs) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$ || !currentPopup || !subTabs)
-    return;
-  const currentSub = currentSubTab[mainTab] || subTabs[0]?.id;
-  const subNavHtml = subTabs.map((tab) => `
-    <div class="yyt-sub-nav-item ${tab.id === currentSub ? "active" : ""}" data-subtab="${tab.id}">
-      <i class="fa-solid ${tab.icon || "fa-file"}"></i>
-      <span>${tab.name}</span>
+  `}var C=null,$t=null,re="apiPresets",Un={};function Ss(){C&&(C.remove(),C=null),$t&&($t.remove(),$t=null),j("\u5F39\u7A97\u5DF2\u5173\u95ED")}function Ao(e){re=e;let t=O.jQuery||window.jQuery;if(!t||!C)return;t(C).find(".yyt-main-nav-item").removeClass("active"),t(C).find(`.yyt-main-nav-item[data-tab="${e}"]`).addClass("active");let s=Z?.getToolConfig(e);s?.hasSubTabs?(t(C).find(".yyt-sub-nav").show(),Ro(e,s.subTabs)):t(C).find(".yyt-sub-nav").hide(),t(C).find(".yyt-tab-content").removeClass("active"),t(C).find(`.yyt-tab-content[data-tab="${e}"]`).addClass("active"),Io(e)}function ko(e,t){Un[e]=t;let s=O.jQuery||window.jQuery;!s||!C||(s(C).find(".yyt-sub-nav-item").removeClass("active"),s(C).find(`.yyt-sub-nav-item[data-subtab="${t}"]`).addClass("active"),zn(e,t))}function Ro(e,t){let s=O.jQuery||window.jQuery;if(!s||!C||!t)return;let n=Un[e]||t[0]?.id,r=t.map(o=>`
+    <div class="yyt-sub-nav-item ${o.id===n?"active":""}" data-subtab="${o.id}">
+      <i class="fa-solid ${o.icon||"fa-file"}"></i>
+      <span>${o.name}</span>
     </div>
-  `).join("");
-  $(currentPopup).find(".yyt-sub-nav").html(subNavHtml);
-  $(currentPopup).find(".yyt-sub-nav-item").on("click", function() {
-    const subTab = $(this).data("subtab");
-    switchSubTab(mainTab, subTab);
-  });
-}
-async function renderTabContent(tabName) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$ || !currentPopup)
-    return;
-  const $content = $(currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`);
-  if (!$content.length)
-    return;
-  const toolConfig = toolRegistryModule?.getToolConfig(tabName);
-  switch (tabName) {
-    case "apiPresets":
-      if (uiComponentsModule) {
-        uiComponentsModule.render($content);
-      }
-      break;
-    case "regexExtract":
-      if (uiComponentsModule) {
-        uiComponentsModule.renderRegex($content);
-      }
-      break;
-    case "tools":
-      if (toolConfig?.hasSubTabs && toolConfig.subTabs?.length > 0) {
-        const defaultSubTab = toolConfig.subTabs[0].id;
-        renderSubTabContent(tabName, defaultSubTab);
-      } else {
-        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</span></div>');
-      }
-      break;
-    case "bypass":
-      await renderBypassPanel($content);
-      break;
-    case "settings":
-      await renderSettingsPanel($content);
-      break;
-    default:
-      renderToolWindow(tabName, $content);
-      break;
-  }
-}
-async function renderBypassPanel($container2) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$)
-    return;
-  try {
-    const { BypassPanel: BypassPanel2 } = await Promise.resolve().then(() => (init_bypass_panel(), bypass_panel_exports));
-    const styleId = `${SCRIPT_ID2}-bypass-styles`;
-    const targetDoc = topLevelWindow.document || document;
-    if (!targetDoc.getElementById(styleId) && BypassPanel2.getStyles) {
-      const style = targetDoc.createElement("style");
-      style.id = styleId;
-      style.textContent = BypassPanel2.getStyles();
-      (targetDoc.head || targetDoc.documentElement).appendChild(style);
-    }
-    BypassPanel2.renderTo($container2);
-  } catch (error) {
-    console.error(`[${SCRIPT_ID2}] \u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`, error);
-    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>`);
-  }
-}
-async function renderSettingsPanel($container2) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$)
-    return;
-  try {
-    const { SettingsPanel: SettingsPanel2 } = await Promise.resolve().then(() => (init_settings_panel(), settings_panel_exports));
-    const styleId = `${SCRIPT_ID2}-settings-styles`;
-    const targetDoc = topLevelWindow.document || document;
-    if (!targetDoc.getElementById(styleId) && SettingsPanel2.getStyles) {
-      const style = targetDoc.createElement("style");
-      style.id = styleId;
-      style.textContent = SettingsPanel2.getStyles();
-      (targetDoc.head || targetDoc.documentElement).appendChild(style);
-    }
-    SettingsPanel2.renderTo($container2);
-  } catch (error) {
-    console.error(`[${SCRIPT_ID2}] \u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`, error);
-    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>`);
-  }
-}
-function renderSubTabContent(mainTab, subTab) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$ || !currentPopup)
-    return;
-  const $mainContent = $(currentPopup).find(`.yyt-tab-content[data-tab="${mainTab}"]`);
-  if (!$mainContent.length)
-    return;
-  const mainToolConfig = toolRegistryModule?.getToolConfig(mainTab);
-  if (mainToolConfig?.hasSubTabs) {
-    const subToolConfig = mainToolConfig.subTabs?.find((st) => st.id === subTab);
-    if (subToolConfig) {
-      let $subContent = $mainContent.find(".yyt-sub-content");
-      if (!$subContent.length) {
-        $mainContent.html(`<div class="yyt-sub-content"></div>`);
-        $subContent = $mainContent.find(".yyt-sub-content");
-      }
-      switch (subToolConfig.component) {
-        case "SummaryToolPanel":
-          if (uiComponentsModule?.SummaryToolPanel) {
-            uiComponentsModule.SummaryToolPanel.renderTo($subContent);
-          } else {
-            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u6458\u8981\u5DE5\u5177\u52A0\u8F7D\u5931\u8D25</span></div>');
-          }
-          break;
-        case "StatusBlockPanel":
-          if (uiComponentsModule?.StatusBlockPanel) {
-            uiComponentsModule.StatusBlockPanel.renderTo($subContent);
-          } else {
-            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u4E3B\u89D2\u72B6\u6001\u680F\u52A0\u8F7D\u5931\u8D25</span></div>');
-          }
-          break;
-        default:
-          $subContent.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>`);
-      }
-    }
-    return;
-  }
-  const $content = $mainContent.find(".yyt-sub-content");
-  if (!$content.length)
-    return;
-  switch (subTab) {
-    case "config":
-      renderToolConfig(mainTab, $content);
-      break;
-    case "prompts":
-      renderPromptEditor(mainTab, $content);
-      break;
-    case "presets":
-      renderToolPresets(mainTab, $content);
-      break;
-    default:
-      $content.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>`);
-  }
-}
-function renderToolWindow(toolId, $container2) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$)
-    return;
-  const toolConfig = toolRegistryModule?.getToolConfig(toolId);
-  if (!toolConfig) {
-    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728</span></div>`);
-    return;
-  }
-  const currentSub = currentSubTab[toolId] || toolConfig.subTabs?.[0]?.id || "config";
-  $container2.html(`
+  `).join("");s(C).find(".yyt-sub-nav").html(r),s(C).find(".yyt-sub-nav-item").on("click",function(){let o=s(this).data("subtab");ko(e,o)})}async function Io(e){let t=O.jQuery||window.jQuery;if(!t||!C)return;let s=t(C).find(`.yyt-tab-content[data-tab="${e}"]`);if(!s.length)return;let n=Z?.getToolConfig(e);switch(e){case"apiPresets":Y&&Y.render(s);break;case"regexExtract":Y&&Y.renderRegex(s);break;case"tools":if(n?.hasSubTabs&&n.subTabs?.length>0){let r=n.subTabs[0].id;zn(e,r)}else s.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</span></div>');break;case"bypass":await Ya(s);break;case"settings":await Ga(s);break;default:Fa(e,s);break}}async function Ya(e){if(O.jQuery||window.jQuery)try{let{BypassPanel:s}=await Promise.resolve().then(()=>(bs(),Kr)),n=`${L}-bypass-styles`,r=O.document||document;if(!r.getElementById(n)&&s.getStyles){let o=r.createElement("style");o.id=n,o.textContent=s.getStyles(),(r.head||r.documentElement).appendChild(o)}s.renderTo(e)}catch(s){console.error(`[${L}] \u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`,s),e.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>')}}async function Ga(e){if(O.jQuery||window.jQuery)try{let{SettingsPanel:s}=await Promise.resolve().then(()=>(On(),Dn)),n=`${L}-settings-styles`,r=O.document||document;if(!r.getElementById(n)&&s.getStyles){let o=r.createElement("style");o.id=n,o.textContent=s.getStyles(),(r.head||r.documentElement).appendChild(o)}s.renderTo(e)}catch(s){console.error(`[${L}] \u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`,s),e.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>')}}function zn(e,t){let s=O.jQuery||window.jQuery;if(!s||!C)return;let n=s(C).find(`.yyt-tab-content[data-tab="${e}"]`);if(!n.length)return;let r=Z?.getToolConfig(e);if(r?.hasSubTabs){let i=r.subTabs?.find(a=>a.id===t);if(i){let a=n.find(".yyt-sub-content");switch(a.length||(n.html('<div class="yyt-sub-content"></div>'),a=n.find(".yyt-sub-content")),i.component){case"SummaryToolPanel":Y?.SummaryToolPanel?Y.SummaryToolPanel.renderTo(a):a.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u6458\u8981\u5DE5\u5177\u52A0\u8F7D\u5931\u8D25</span></div>');break;case"StatusBlockPanel":Y?.StatusBlockPanel?Y.StatusBlockPanel.renderTo(a):a.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u4E3B\u89D2\u72B6\u6001\u680F\u52A0\u8F7D\u5931\u8D25</span></div>');break;default:a.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>')}}return}let o=n.find(".yyt-sub-content");if(o.length)switch(t){case"config":Ha(e,o);break;case"prompts":Wa(e,o);break;case"presets":Qa(e,o);break;default:o.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>')}}function Fa(e,t){if(!(O.jQuery||window.jQuery))return;let n=Z?.getToolConfig(e);if(!n){t.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728</span></div>');return}let r=Un[e]||n.subTabs?.[0]?.id||"config";t.html(`
     <div class="yyt-tool-window">
-      <div class="yyt-sub-content" data-subtab="${currentSub}">
+      <div class="yyt-sub-content" data-subtab="${r}">
         <!-- \u5B50\u5185\u5BB9\u5C06\u5728\u6B64\u6E32\u67D3 -->
       </div>
     </div>
-  `);
-  renderSubTabContent(toolId, currentSub);
-}
-function renderToolConfig(toolId, $container2) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$)
-    return;
-  const tool = toolManagerModule?.getTool(toolId);
-  const apiPresets = presetManagerModule?.getAllPresets() || [];
-  const boundPreset = toolRegistryModule?.getToolApiPreset(toolId) || "";
-  const presetOptions = apiPresets.map(
-    (p) => `<option value="${escapeHtml3(p.name)}" ${p.name === boundPreset ? "selected" : ""}>${escapeHtml3(p.name)}</option>`
-  ).join("");
-  $container2.html(`
+  `),zn(e,r)}function Ha(e,t){if(!(O.jQuery||window.jQuery))return;let n=Cs?.getTool(e),r=Ee?.getAllPresets()||[],o=Z?.getToolApiPreset(e)||"",i=r.map(a=>`<option value="${wo(a.name)}" ${a.name===o?"selected":""}>${wo(a.name)}</option>`).join("");t.html(`
     <div class="yyt-panel">
       <div class="yyt-panel-section">
         <div class="yyt-section-title">
@@ -13974,7 +3770,7 @@ function renderToolConfig(toolId, $container2) {
           <label>\u9009\u62E9API\u9884\u8BBE</label>
           <select class="yyt-select" id="yyt-tool-api-preset">
             <option value="">\u4F7F\u7528\u5F53\u524D\u914D\u7F6E</option>
-            ${presetOptions}
+            ${i}
           </select>
         </div>
         <button class="yyt-btn yyt-btn-primary" id="yyt-save-tool-preset">
@@ -13990,60 +3786,16 @@ function renderToolConfig(toolId, $container2) {
         <div class="yyt-form-row">
           <div class="yyt-form-group yyt-flex-1">
             <label>\u8D85\u65F6\u65F6\u95F4 (ms)</label>
-            <input type="number" class="yyt-input" id="yyt-tool-timeout" value="${tool?.config?.execution?.timeout || 6e4}">
+            <input type="number" class="yyt-input" id="yyt-tool-timeout" value="${n?.config?.execution?.timeout||6e4}">
           </div>
           <div class="yyt-form-group yyt-flex-1">
             <label>\u91CD\u8BD5\u6B21\u6570</label>
-            <input type="number" class="yyt-input" id="yyt-tool-retries" value="${tool?.config?.execution?.retries || 3}">
+            <input type="number" class="yyt-input" id="yyt-tool-retries" value="${n?.config?.execution?.retries||3}">
           </div>
         </div>
       </div>
     </div>
-  `);
-  $container2.find("#yyt-save-tool-preset").on("click", function() {
-    const presetName = $container2.find("#yyt-tool-api-preset").val();
-    toolRegistryModule?.setToolApiPreset(toolId, presetName);
-    const toastr = topLevelWindow.toastr;
-    if (toastr) {
-      toastr.success(`API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u4FDD\u5B58`, "YouYou \u5DE5\u5177\u7BB1");
-    }
-  });
-}
-function renderPromptEditor(toolId, $container2) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$ || !promptEditorModule) {
-    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u63D0\u793A\u8BCD\u7F16\u8F91\u5668\u6A21\u5757\u672A\u52A0\u8F7D</span></div>`);
-    return;
-  }
-  const tool = toolManagerModule?.getTool(toolId);
-  const messages = tool?.config?.messages || [];
-  const segments = promptEditorModule.messagesToSegments ? promptEditorModule.messagesToSegments(messages) : promptEditorModule.DEFAULT_PROMPT_SEGMENTS;
-  const editor = new promptEditorModule.PromptEditor({
-    containerId: `yyt-prompt-editor-${toolId}`,
-    segments,
-    onChange: (newSegments) => {
-      const newMessages = promptEditorModule.segmentsToMessages ? promptEditorModule.segmentsToMessages(newSegments) : [];
-      log2("\u63D0\u793A\u8BCD\u5DF2\u66F4\u65B0:", newMessages.length, "\u6761\u6D88\u606F");
-    }
-  });
-  $container2.html(`<div id="yyt-prompt-editor-${toolId}" class="yyt-prompt-editor-container"></div>`);
-  editor.init($container2.find(`#yyt-prompt-editor-${toolId}`));
-  const editorStyles = promptEditorModule.getPromptEditorStyles ? promptEditorModule.getPromptEditorStyles() : "";
-  if (editorStyles) {
-    const styleId = `yyt-prompt-editor-styles`;
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement("style");
-      style.id = styleId;
-      style.textContent = editorStyles;
-      document.head.appendChild(style);
-    }
-  }
-}
-function renderToolPresets(toolId, $container2) {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$)
-    return;
-  $container2.html(`
+  `),t.find("#yyt-save-tool-preset").on("click",function(){let a=t.find("#yyt-tool-api-preset").val();Z?.setToolApiPreset(e,a);let c=O.toastr;c&&c.success("API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u4FDD\u5B58","YouYou \u5DE5\u5177\u7BB1")})}function Wa(e,t){if(!(O.jQuery||window.jQuery)||!K){t.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u63D0\u793A\u8BCD\u7F16\u8F91\u5668\u6A21\u5757\u672A\u52A0\u8F7D</span></div>');return}let r=Cs?.getTool(e)?.config?.messages||[],o=K.messagesToSegments?K.messagesToSegments(r):K.DEFAULT_PROMPT_SEGMENTS,i=new K.PromptEditor({containerId:`yyt-prompt-editor-${e}`,segments:o,onChange:c=>{let l=K.segmentsToMessages?K.segmentsToMessages(c):[];j("\u63D0\u793A\u8BCD\u5DF2\u66F4\u65B0:",l.length,"\u6761\u6D88\u606F")}});t.html(`<div id="yyt-prompt-editor-${e}" class="yyt-prompt-editor-container"></div>`),i.init(t.find(`#yyt-prompt-editor-${e}`));let a=K.getPromptEditorStyles?K.getPromptEditorStyles():"";if(a){let c="yyt-prompt-editor-styles";if(!document.getElementById(c)){let l=document.createElement("style");l.id=c,l.textContent=a,document.head.appendChild(l)}}}function Qa(e,t){(O.jQuery||window.jQuery)&&t.html(`
     <div class="yyt-panel">
       <div class="yyt-panel-section">
         <div class="yyt-section-title">
@@ -14059,46 +3811,22 @@ function renderToolPresets(toolId, $container2) {
         </div>
       </div>
     </div>
-  `);
-}
-function openPopup() {
-  if (currentPopup) {
-    log2("\u5F39\u7A97\u5DF2\u5B58\u5728");
-    return;
-  }
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  const targetDoc = topLevelWindow.document || document;
-  if (!$) {
-    logError("jQuery \u672A\u627E\u5230\uFF0C\u65E0\u6CD5\u521B\u5EFA\u5F39\u7A97");
-    return;
-  }
-  const tools = toolRegistryModule?.getToolList() || [];
-  currentOverlay = targetDoc.createElement("div");
-  currentOverlay.className = "yyt-popup-overlay";
-  currentOverlay.addEventListener("click", (e) => {
-    if (e.target === currentOverlay) {
-      closePopup();
-    }
-  });
-  targetDoc.body.appendChild(currentOverlay);
-  const mainNavHtml = tools.map((tool) => `
-    <div class="yyt-main-nav-item ${tool.id === currentMainTab ? "active" : ""}" data-tab="${tool.id}">
-      <i class="fa-solid ${tool.icon}"></i>
-      <span>${tool.name}</span>
+  `)}function Mo(){if(C){j("\u5F39\u7A97\u5DF2\u5B58\u5728");return}let e=O.jQuery||window.jQuery,t=O.document||document;if(!e){$o("jQuery \u672A\u627E\u5230\uFF0C\u65E0\u6CD5\u521B\u5EFA\u5F39\u7A97");return}let s=Z?.getToolList()||[];$t=t.createElement("div"),$t.className="yyt-popup-overlay",$t.addEventListener("click",c=>{c.target===$t&&Ss()}),t.body.appendChild($t);let n=s.map(c=>`
+    <div class="yyt-main-nav-item ${c.id===re?"active":""}" data-tab="${c.id}">
+      <i class="fa-solid ${c.icon}"></i>
+      <span>${c.name}</span>
     </div>
-  `).join("");
-  const contentHtml = tools.map((tool) => `
-    <div class="yyt-tab-content ${tool.id === currentMainTab ? "active" : ""}" data-tab="${tool.id}">
+  `).join(""),r=s.map(c=>`
+    <div class="yyt-tab-content ${c.id===re?"active":""}" data-tab="${c.id}">
       <!-- \u5185\u5BB9\u5C06\u52A8\u6001\u6E32\u67D3 -->
     </div>
-  `).join("");
-  const popupHtml = `
-    <div class="yyt-popup" id="${POPUP_ID}">
+  `).join(""),o=`
+    <div class="yyt-popup" id="${Ua}">
       <div class="yyt-popup-header">
         <div class="yyt-popup-title">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
           <span>YouYou \u5DE5\u5177\u7BB1</span>
-          <span style="font-size: 12px; opacity: 0.6;">v${SCRIPT_VERSION}</span>
+          <span style="font-size: 12px; opacity: 0.6;">v${jn}</span>
         </div>
         <button class="yyt-popup-close" title="\u5173\u95ED">
           <i class="fa-solid fa-times"></i>
@@ -14107,7 +3835,7 @@ function openPopup() {
       
       <div class="yyt-popup-body">
         <div class="yyt-main-nav">
-          ${mainNavHtml}
+          ${n}
         </div>
         
         <div class="yyt-sub-nav" style="display: none;">
@@ -14115,251 +3843,17 @@ function openPopup() {
         </div>
         
         <div class="yyt-content">
-          ${contentHtml}
+          ${r}
         </div>
       </div>
       
       <div class="yyt-popup-footer">
-        <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID2}-close-btn">\u5173\u95ED</button>
+        <button class="yyt-btn yyt-btn-secondary" id="${L}-close-btn">\u5173\u95ED</button>
       </div>
     </div>
-  `;
-  const tempDiv = targetDoc.createElement("div");
-  tempDiv.innerHTML = popupHtml;
-  currentPopup = tempDiv.firstElementChild;
-  targetDoc.body.appendChild(currentPopup);
-  $(currentPopup).find(".yyt-popup-close").on("click", closePopup);
-  $(currentPopup).find(`#${SCRIPT_ID2}-close-btn`).on("click", closePopup);
-  $(currentPopup).find(".yyt-main-nav-item").on("click", function() {
-    const tab = $(this).data("tab");
-    if (tab) {
-      switchMainTab(tab);
-    }
-  });
-  renderTabContent(currentMainTab);
-  const currentToolConfig = toolRegistryModule?.getToolConfig(currentMainTab);
-  if (currentToolConfig?.hasSubTabs) {
-    $(currentPopup).find(".yyt-sub-nav").show();
-    renderSubNav(currentMainTab, currentToolConfig.subTabs);
-  }
-  log2("\u5F39\u7A97\u5DF2\u6253\u5F00");
-}
-function addMenuItem() {
-  const $ = topLevelWindow.jQuery || window.jQuery;
-  if (!$) {
-    logError("jQuery \u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5...");
-    setTimeout(addMenuItem, 1e3);
-    return;
-  }
-  const parentDoc = topLevelWindow.document || document;
-  const extensionsMenu = $("#extensionsMenu", parentDoc);
-  if (!extensionsMenu.length) {
-    log2("\u9B54\u68D2\u83DC\u5355\u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5...");
-    setTimeout(addMenuItem, 2e3);
-    return;
-  }
-  const existingItem = $(`#${MENU_CONTAINER_ID}`, extensionsMenu);
-  if (existingItem.length > 0) {
-    log2("\u83DC\u5355\u9879\u5DF2\u5B58\u5728");
-    return;
-  }
-  const $menuContainer = $(`<div class="extension_container interactable" id="${MENU_CONTAINER_ID}" tabindex="0"></div>`);
-  const menuItemHtml = `
-    <div class="list-group-item flex-container flexGap5 interactable" id="${MENU_ITEM_ID}" title="\u6253\u5F00 YouYou \u5DE5\u5177\u7BB1">
+  `,i=t.createElement("div");i.innerHTML=o,C=i.firstElementChild,t.body.appendChild(C),e(C).find(".yyt-popup-close").on("click",Ss),e(C).find(`#${L}-close-btn`).on("click",Ss),e(C).find(".yyt-main-nav-item").on("click",function(){let c=e(this).data("tab");c&&Ao(c)}),Io(re);let a=Z?.getToolConfig(re);a?.hasSubTabs&&(e(C).find(".yyt-sub-nav").show(),Ro(re,a.subTabs)),j("\u5F39\u7A97\u5DF2\u6253\u5F00")}function $e(){let e=O.jQuery||window.jQuery;if(!e){$o("jQuery \u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout($e,1e3);return}let t=O.document||document,s=e("#extensionsMenu",t);if(!s.length){j("\u9B54\u68D2\u83DC\u5355\u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout($e,2e3);return}if(e(`#${Ln}`,s).length>0){j("\u83DC\u5355\u9879\u5DF2\u5B58\u5728");return}let r=e(`<div class="extension_container interactable" id="${Ln}" tabindex="0"></div>`),o=`
+    <div class="list-group-item flex-container flexGap5 interactable" id="${_e}" title="\u6253\u5F00 YouYou \u5DE5\u5177\u7BB1">
       <div class="fa-fw fa-solid fa-wand-magic-sparkles extensionsMenuExtensionButton"></div>
       <span>YouYou \u5DE5\u5177\u7BB1</span>
     </div>
-  `;
-  const $menuItem = $(menuItemHtml);
-  $menuItem.on("click", async function(e) {
-    e.stopPropagation();
-    log2("\u83DC\u5355\u9879\u88AB\u70B9\u51FB");
-    const exMenuBtn = $("#extensionsMenuButton", parentDoc);
-    if (exMenuBtn.length && extensionsMenu.is(":visible")) {
-      exMenuBtn.trigger("click");
-    }
-    openPopup();
-  });
-  $menuContainer.append($menuItem);
-  extensionsMenu.append($menuContainer);
-  log2("\u83DC\u5355\u9879\u5DF2\u6DFB\u52A0\u5230\u9B54\u68D2\u533A");
-}
-var YouYouToolkit = {
-  version: SCRIPT_VERSION,
-  id: SCRIPT_ID2,
-  // 初始化
-  init: init2,
-  // 弹窗控制
-  openPopup,
-  closePopup,
-  // 标签切换
-  switchMainTab,
-  switchSubTab,
-  // 菜单管理
-  addMenuItem,
-  // 模块访问（异步）
-  getStorage: () => storageModule,
-  getApiConnection: () => apiConnectionModule,
-  getPresetManager: () => presetManagerModule,
-  getUiComponents: () => uiComponentsModule,
-  getRegexExtractor: () => regexExtractorModule,
-  getToolManager: () => toolManagerModule,
-  getToolExecutor: () => toolExecutorModule,
-  getToolTrigger: () => toolTriggerModule,
-  getWindowManager: () => windowManagerModule,
-  getToolRegistry: () => toolRegistryModule,
-  getPromptEditor: () => promptEditorModule,
-  // v0.5 新模块访问
-  getSettingsService: () => settingsServiceModule,
-  getBypassManager: () => bypassManagerModule,
-  getVariableResolver: () => variableResolverModule,
-  getContextInjector: () => contextInjectorModule,
-  getToolPromptService: () => toolPromptServiceModule,
-  getToolOutputService: () => toolOutputServiceModule,
-  // 便捷方法
-  async getApiConfig() {
-    await loadModules();
-    return storageModule ? storageModule.loadSettings().apiConfig : null;
-  },
-  async saveApiConfig(config) {
-    await loadModules();
-    if (apiConnectionModule) {
-      apiConnectionModule.updateApiConfig(config);
-      return true;
-    }
-    return false;
-  },
-  async getPresets() {
-    await loadModules();
-    return presetManagerModule ? presetManagerModule.getAllPresets() : [];
-  },
-  async sendApiRequest(messages, options) {
-    await loadModules();
-    if (apiConnectionModule) {
-      return apiConnectionModule.sendApiRequest(messages, options);
-    }
-    throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D");
-  },
-  async testApiConnection() {
-    await loadModules();
-    if (apiConnectionModule) {
-      return apiConnectionModule.testApiConnection();
-    }
-    return { success: false, message: "API\u6A21\u5757\u672A\u52A0\u8F7D" };
-  },
-  // 工具注册
-  registerTool(id, config) {
-    return toolRegistryModule?.registerTool(id, config) || false;
-  },
-  unregisterTool(id) {
-    return toolRegistryModule?.unregisterTool(id) || false;
-  },
-  getToolList() {
-    return toolRegistryModule?.getToolList() || [];
-  },
-  // 窗口管理
-  createWindow(options) {
-    return windowManagerModule?.createWindow(options) || null;
-  },
-  closeWindow(id) {
-    windowManagerModule?.closeWindow(id);
-  }
-};
-async function init2() {
-  log2(`\u521D\u59CB\u5316\u5F00\u59CB... \u7248\u672C: ${SCRIPT_VERSION}`);
-  await injectStyles();
-  const modulesLoaded = await loadModules();
-  if (modulesLoaded) {
-    log2("\u6240\u6709\u6A21\u5757\u52A0\u8F7D\u6210\u529F");
-    if (toolTriggerModule && toolTriggerModule.initTriggerModule) {
-      try {
-        toolTriggerModule.initTriggerModule();
-        log2("\u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316");
-      } catch (triggerError) {
-        console.error(`[${SCRIPT_ID2}] \u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5931\u8D25:`, triggerError);
-      }
-    }
-    const targetDoc2 = topLevelWindow.document || document;
-    if (uiComponentsModule) {
-      const uiStyleId = `${SCRIPT_ID2}-ui-styles`;
-      if (!targetDoc2.getElementById(uiStyleId)) {
-        const uiStyle = targetDoc2.createElement("style");
-        uiStyle.id = uiStyleId;
-        uiStyle.textContent = uiComponentsModule.getStyles();
-        (targetDoc2.head || targetDoc2.documentElement).appendChild(uiStyle);
-      }
-      const regexStyleId = `${SCRIPT_ID2}-regex-styles`;
-      if (!targetDoc2.getElementById(regexStyleId) && uiComponentsModule.getRegexStyles) {
-        const regexStyle = targetDoc2.createElement("style");
-        regexStyle.id = regexStyleId;
-        regexStyle.textContent = uiComponentsModule.getRegexStyles();
-        (targetDoc2.head || targetDoc2.documentElement).appendChild(regexStyle);
-      }
-      const toolStyleId = `${SCRIPT_ID2}-tool-styles`;
-      if (!targetDoc2.getElementById(toolStyleId) && uiComponentsModule.getToolStyles) {
-        const toolStyle = targetDoc2.createElement("style");
-        toolStyle.id = toolStyleId;
-        toolStyle.textContent = uiComponentsModule.getToolStyles();
-        (targetDoc2.head || targetDoc2.documentElement).appendChild(toolStyle);
-      }
-    }
-    if (windowManagerModule) {
-      const windowStyleId = `${SCRIPT_ID2}-window-styles`;
-      if (!targetDoc2.getElementById(windowStyleId)) {
-      }
-    }
-    if (promptEditorModule && promptEditorModule.getPromptEditorStyles) {
-      const promptStyleId = `${SCRIPT_ID2}-prompt-styles`;
-      if (!targetDoc2.getElementById(promptStyleId)) {
-        const promptStyle = targetDoc2.createElement("style");
-        promptStyle.id = promptStyleId;
-        promptStyle.textContent = promptEditorModule.getPromptEditorStyles();
-        (targetDoc2.head || targetDoc2.documentElement).appendChild(promptStyle);
-      }
-    }
-    try {
-      const { applyTheme: applyTheme2 } = await Promise.resolve().then(() => (init_settings_panel(), settings_panel_exports));
-      if (settingsServiceModule && settingsServiceModule.settingsService) {
-        const uiSettings = settingsServiceModule.settingsService.getUiSettings();
-        if (uiSettings && uiSettings.theme) {
-          applyTheme2(uiSettings.theme);
-          log2(`\u4E3B\u9898\u5DF2\u5E94\u7528: ${uiSettings.theme}`);
-          if (uiSettings.compactMode) {
-            document.documentElement.classList.add("yyt-compact-mode");
-          }
-          if (!uiSettings.animationEnabled) {
-            document.documentElement.classList.add("yyt-no-animation");
-          }
-        }
-      }
-    } catch (themeError) {
-      log2("\u4E3B\u9898\u52A0\u8F7D\u5931\u8D25:", themeError);
-    }
-  } else {
-    log2("\u90E8\u5206\u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u57FA\u7840\u529F\u80FD");
-  }
-  const targetDoc = topLevelWindow.document || document;
-  if (targetDoc.readyState === "loading") {
-    targetDoc.addEventListener("DOMContentLoaded", () => {
-      setTimeout(addMenuItem, 1e3);
-    });
-  } else {
-    setTimeout(addMenuItem, 1e3);
-  }
-  log2("\u521D\u59CB\u5316\u5B8C\u6210");
-}
-if (typeof window !== "undefined") {
-  window.YouYouToolkit = YouYouToolkit;
-  if (typeof window.parent !== "undefined" && window.parent !== window) {
-    try {
-      window.parent.YouYouToolkit = YouYouToolkit;
-    } catch (e) {
-    }
-  }
-}
-var youyou_Toolkit_default = YouYouToolkit;
-init2();
-log2("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210");
-export {
-  youyou_Toolkit_default as default
-};
+  `,i=e(o);i.on("click",async function(a){a.stopPropagation(),j("\u83DC\u5355\u9879\u88AB\u70B9\u51FB");let c=e("#extensionsMenuButton",t);c.length&&s.is(":visible")&&c.trigger("click"),Mo()}),r.append(i),s.append(r),j("\u83DC\u5355\u9879\u5DF2\u6DFB\u52A0\u5230\u9B54\u68D2\u533A")}var Nn={version:jn,id:L,init:Do,openPopup:Mo,closePopup:Ss,switchMainTab:Ao,switchSubTab:ko,addMenuItem:$e,getStorage:()=>_s,getApiConnection:()=>it,getPresetManager:()=>Ee,getUiComponents:()=>Y,getRegexExtractor:()=>To,getToolManager:()=>Cs,getToolExecutor:()=>_o,getToolTrigger:()=>Se,getWindowManager:()=>Ce,getToolRegistry:()=>Z,getPromptEditor:()=>K,getSettingsService:()=>Pe,getBypassManager:()=>Eo,getVariableResolver:()=>So,getContextInjector:()=>Co,getToolPromptService:()=>Po,getToolOutputService:()=>Es,async getApiConfig(){return await ne(),_s?_s.loadSettings().apiConfig:null},async saveApiConfig(e){return await ne(),it?(it.updateApiConfig(e),!0):!1},async getPresets(){return await ne(),Ee?Ee.getAllPresets():[]},async sendApiRequest(e,t){if(await ne(),it)return it.sendApiRequest(e,t);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await ne(),it?it.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(e,t){return Z?.registerTool(e,t)||!1},unregisterTool(e){return Z?.unregisterTool(e)||!1},getToolList(){return Z?.getToolList()||[]},createWindow(e){return Ce?.createWindow(e)||null},closeWindow(e){Ce?.closeWindow(e)}};async function Do(){if(j(`\u521D\u59CB\u5316\u5F00\u59CB... \u7248\u672C: ${jn}`),await za(),await ne()){if(j("\u6240\u6709\u6A21\u5757\u52A0\u8F7D\u6210\u529F"),Se&&Se.initTriggerModule)try{Se.initTriggerModule(),j("\u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316")}catch(n){console.error(`[${L}] \u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5931\u8D25:`,n)}let s=O.document||document;if(Y){let n=`${L}-ui-styles`;if(!s.getElementById(n)){let i=s.createElement("style");i.id=n,i.textContent=Y.getStyles(),(s.head||s.documentElement).appendChild(i)}let r=`${L}-regex-styles`;if(!s.getElementById(r)&&Y.getRegexStyles){let i=s.createElement("style");i.id=r,i.textContent=Y.getRegexStyles(),(s.head||s.documentElement).appendChild(i)}let o=`${L}-tool-styles`;if(!s.getElementById(o)&&Y.getToolStyles){let i=s.createElement("style");i.id=o,i.textContent=Y.getToolStyles(),(s.head||s.documentElement).appendChild(i)}}if(Ce){let n=`${L}-window-styles`;s.getElementById(n)}if(K&&K.getPromptEditorStyles){let n=`${L}-prompt-styles`;if(!s.getElementById(n)){let r=s.createElement("style");r.id=n,r.textContent=K.getPromptEditorStyles(),(s.head||s.documentElement).appendChild(r)}}try{let{applyTheme:n}=await Promise.resolve().then(()=>(On(),Dn));if(Pe&&Pe.settingsService){let r=Pe.settingsService.getUiSettings();r&&r.theme&&(n(r.theme),j(`\u4E3B\u9898\u5DF2\u5E94\u7528: ${r.theme}`),r.compactMode&&document.documentElement.classList.add("yyt-compact-mode"),r.animationEnabled||document.documentElement.classList.add("yyt-no-animation"))}}catch(n){j("\u4E3B\u9898\u52A0\u8F7D\u5931\u8D25:",n)}}else j("\u90E8\u5206\u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u57FA\u7840\u529F\u80FD");let t=O.document||document;t.readyState==="loading"?t.addEventListener("DOMContentLoaded",()=>{setTimeout($e,1e3)}):setTimeout($e,1e3),j("\u521D\u59CB\u5316\u5B8C\u6210")}if(typeof window<"u"&&(window.YouYouToolkit=Nn,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Nn}catch{}var jc=Nn;Do();j("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210");export{jc as default};
