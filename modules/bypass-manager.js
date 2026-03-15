@@ -13,12 +13,17 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 
 const BYPASS_PRESETS_KEY = 'bypass_presets';
 const DEFAULT_BYPASS_KEY = 'default_bypass_preset';
+const LEGACY_DEFAULT_BYPASS_KEY = 'current_bypass_preset';
 
 // ============================================================
 // 默认破限词预设
 // ============================================================
 
 const DEFAULT_BYPASS_PRESETS = {};
+const LEGACY_SAMPLE_PRESET_NAMES = new Set([
+  '标准破限词',
+  '增强破限'
+]);
 
 // ============================================================
 // 破限词管理器类
@@ -28,6 +33,9 @@ class BypassManager {
   constructor() {
     /** 缓存 */
     this._cache = null;
+
+    /** 是否已完成迁移 */
+    this._migrated = false;
     
     /** 调试模式 */
     this.debugMode = false;
@@ -42,6 +50,8 @@ class BypassManager {
    * @returns {Object} 预设对象 { id: preset }
    */
   getAllPresets() {
+    this._migrateLegacyData();
+
     if (this._cache) {
       return this._cache;
     }
@@ -350,7 +360,15 @@ class BypassManager {
    * @returns {string|null}
    */
   getDefaultPresetId() {
-    return storage.get(DEFAULT_BYPASS_KEY, null);
+    this._migrateLegacyData();
+
+    const presetId = storage.get(DEFAULT_BYPASS_KEY, null);
+    if (presetId === 'undefined' || presetId === 'null' || presetId === '') {
+      storage.remove(DEFAULT_BYPASS_KEY);
+      return null;
+    }
+
+    return presetId;
   }
 
   /**
@@ -512,6 +530,174 @@ class BypassManager {
     saved[presetId] = preset;
     storage.set(BYPASS_PRESETS_KEY, saved);
     this._cache = null; // 清除缓存
+  }
+
+  /**
+   * 迁移旧版破限词存储数据
+   * @private
+   */
+  _migrateLegacyData() {
+    if (this._migrated) {
+      return;
+    }
+
+    const rawSaved = storage.get(BYPASS_PRESETS_KEY, {});
+    const normalizedPresets = {};
+    let changed = false;
+
+    const entries = Array.isArray(rawSaved)
+      ? rawSaved.map((preset, index) => [preset?.id || preset?.name || `legacy_${index}`, preset])
+      : Object.entries(rawSaved || {});
+
+    for (const [key, value] of entries) {
+      const normalized = this._normalizePreset(key, value, normalizedPresets);
+      if (!normalized) {
+        changed = true;
+        continue;
+      }
+
+      normalizedPresets[normalized.id] = normalized;
+
+      if (!rawSaved?.[normalized.id] || rawSaved?.[normalized.id]?.id !== normalized.id) {
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      storage.set(BYPASS_PRESETS_KEY, normalizedPresets);
+    }
+
+    this._migrateDefaultPreset(normalizedPresets);
+    this._cache = null;
+    this._migrated = true;
+  }
+
+  /**
+   * 规范化旧预设
+   * @private
+   */
+  _normalizePreset(key, preset, existingPresets = {}) {
+    if (!preset || typeof preset !== 'object') {
+      return null;
+    }
+
+    let name = typeof preset.name === 'string' ? preset.name.trim() : '';
+    let id = typeof preset.id === 'string' ? preset.id.trim() : '';
+    const normalizedKey = typeof key === 'string' ? key.trim() : '';
+
+    if (!name && normalizedKey && normalizedKey !== 'undefined' && normalizedKey !== 'null') {
+      name = normalizedKey;
+    }
+
+    const shouldDropLegacySample = this._isLegacySamplePreset(name, id);
+    if (shouldDropLegacySample) {
+      return null;
+    }
+
+    if (!id && normalizedKey && normalizedKey !== 'undefined' && normalizedKey !== 'null') {
+      id = normalizedKey;
+    }
+
+    if (!id && name && name !== 'undefined' && name !== 'null') {
+      id = this._generatePresetId(name, existingPresets);
+    }
+
+    if (!name || !id || id === 'undefined' || name === 'undefined') {
+      return null;
+    }
+
+    const messages = Array.isArray(preset.messages)
+      ? preset.messages
+          .filter(msg => msg && typeof msg === 'object')
+          .map((msg, index) => ({
+            id: typeof msg.id === 'string' && msg.id.trim() ? msg.id.trim() : `${id}_msg_${index + 1}`,
+            role: msg.role || 'SYSTEM',
+            content: typeof msg.content === 'string' ? msg.content : '',
+            enabled: msg.enabled !== false,
+            deletable: msg.deletable !== false
+          }))
+      : [];
+
+    return {
+      ...preset,
+      id,
+      name,
+      description: typeof preset.description === 'string' ? preset.description : '',
+      enabled: preset.enabled !== false,
+      messages,
+      createdAt: preset.createdAt || Date.now(),
+      updatedAt: preset.updatedAt || Date.now()
+    };
+  }
+
+  /**
+   * 迁移默认预设ID
+   * @private
+   */
+  _migrateDefaultPreset(presets) {
+    const defaultPresetId = storage.get(DEFAULT_BYPASS_KEY, null);
+    const legacyDefaultPresetId = storage.get(LEGACY_DEFAULT_BYPASS_KEY, null);
+    let effectiveId = defaultPresetId ?? legacyDefaultPresetId;
+
+    if (effectiveId === 'undefined' || effectiveId === 'null' || effectiveId === '') {
+      effectiveId = null;
+    }
+
+    if (effectiveId && !presets[effectiveId]) {
+      const matchedPreset = Object.values(presets).find(preset => preset.name === effectiveId);
+      effectiveId = matchedPreset?.id || null;
+    }
+
+    if (effectiveId) {
+      storage.set(DEFAULT_BYPASS_KEY, effectiveId);
+    } else {
+      storage.remove(DEFAULT_BYPASS_KEY);
+    }
+
+    if (storage.has(LEGACY_DEFAULT_BYPASS_KEY)) {
+      storage.remove(LEGACY_DEFAULT_BYPASS_KEY);
+    }
+  }
+
+  /**
+   * 判断是否为旧版样例预设
+   * @private
+   */
+  _isLegacySamplePreset(name, id = '') {
+    if (!name) {
+      return false;
+    }
+
+    if (id === 'standard' || id === 'enhanced' || id === 'jailbreak') {
+      return true;
+    }
+
+    if (LEGACY_SAMPLE_PRESET_NAMES.has(name)) {
+      return true;
+    }
+
+    return /^增强破限（副本）(?:\s*\(\d+\))?$/.test(name);
+  }
+
+  /**
+   * 生成预设ID
+   * @private
+   */
+  _generatePresetId(name, existingPresets = {}) {
+    const baseId = String(name)
+      .trim()
+      .toLowerCase()
+      .replace(/[^\w\u4e00-\u9fa5]+/g, '_')
+      .replace(/^_+|_+$/g, '') || `bypass_${Date.now()}`;
+
+    let candidateId = baseId;
+    let counter = 1;
+
+    while (existingPresets[candidateId]) {
+      candidateId = `${baseId}_${counter++}`;
+    }
+
+    return candidateId;
   }
 
   /**

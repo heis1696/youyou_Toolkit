@@ -9,7 +9,7 @@
 // 常量定义
 // ============================================================
 const SCRIPT_ID = 'youyou_toolkit';
-const SCRIPT_VERSION = '0.6.0';
+const SCRIPT_VERSION = '0.6.2';
 const MENU_ITEM_ID = `${SCRIPT_ID}-menu-item`;
 const MENU_CONTAINER_ID = `${SCRIPT_ID}-menu-container`;
 const POPUP_ID = `${SCRIPT_ID}-popup`;

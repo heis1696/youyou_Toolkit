@@ -10,6 +10,7 @@ import { RegexExtractPanel } from './components/regex-extract-panel.js';
 import { ToolManagePanel } from './components/tool-manage-panel.js';
 import { SummaryToolPanel } from './components/summary-tool-panel.js';
 import { StatusBlockPanel } from './components/status-block-panel.js';
+import { BypassPanel } from './components/bypass-panel.js';
 
 // ============================================================
 // 工具导出
@@ -32,6 +33,7 @@ export { RegexExtractPanel } from './components/regex-extract-panel.js';
 export { ToolManagePanel } from './components/tool-manage-panel.js';
 export { SummaryToolPanel } from './components/summary-tool-panel.js';
 export { StatusBlockPanel } from './components/status-block-panel.js';
+export { BypassPanel } from './components/bypass-panel.js';
 
 // ============================================================
 // 组件注册
@@ -46,6 +48,7 @@ export function registerComponents() {
   uiManager.register(ToolManagePanel.id, ToolManagePanel);
   uiManager.register(SummaryToolPanel.id, SummaryToolPanel);
   uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
+  uiManager.register(BypassPanel.id, BypassPanel);
   
   console.log('[UI] 组件注册完成');
 }
