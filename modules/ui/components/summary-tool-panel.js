@@ -1,22 +1,22 @@
 /**
- * YouYou Toolkit - 通用工具面板组件
- * @description 支持提示词编辑、API预设绑定
- * @version 3.0.0 - 简化版，单提示词模板
+ * YouYou Toolkit - 摘要工具面板组件
+ * @description 精简版工具配置面板
+ * @version 4.0.0
  */
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
-import { 
-  SCRIPT_ID, 
-  escapeHtml, 
-  showToast, 
-  getJQuery, 
+import {
+  SCRIPT_ID,
+  escapeHtml,
+  showToast,
+  showTopNotice,
+  getJQuery,
   isContainerValid
 } from '../utils.js';
 
 import {
   getToolFullConfig,
   saveToolConfig,
-  resetToolConfig,
   getAllDefaultToolConfigs
 } from '../../tool-registry.js';
 
@@ -28,424 +28,296 @@ import {
   getPresetList as getBypassPresetList
 } from '../../bypass-manager.js';
 
-// ============================================================
-// 组件定义
-// ============================================================
+import {
+  runToolManually
+} from '../../tool-trigger.js';
 
 export const SummaryToolPanel = {
   id: 'summaryToolPanel',
   toolId: 'summaryTool',
-  
-  // ============================================================
-  // 渲染
-  // ============================================================
-  
-  /**
-   * 渲染组件
-   * @param {Object} props
-   * @returns {string} HTML
-   */
-  render(props) {
+
+  render() {
     const config = getToolFullConfig(this.toolId);
-    
+
     if (!config) {
       return `<div class="yyt-error">工具配置加载失败</div>`;
     }
-    
+
     const apiPresets = this._getApiPresets();
     const bypassPresets = this._getBypassPresets();
     const outputMode = config.output?.mode || 'follow_ai';
     const bypassEnabled = config.bypass?.enabled || false;
     const bypassPresetId = config.bypass?.presetId || '';
-    
+    const runtimeStatus = config.runtime?.lastStatus || 'idle';
+    const lastRunText = config.runtime?.lastRunAt
+      ? new Date(config.runtime.lastRunAt).toLocaleString()
+      : '未运行';
+    const lastError = config.runtime?.lastError || '';
+    const modeText = outputMode === 'post_response_api'
+      ? '监听 AI 回复结束后，调用额外模型进行摘要解析。'
+      : '随 AI 输出即不启用额外工具链，不会自动调用额外模型。';
+
     return `
       <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
-        <!-- 基础配置 -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
-            <i class="fa-solid fa-cog"></i>
-            <span>基础配置</span>
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>输出模式</span>
           </div>
-          
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${SCRIPT_ID}-tool-enabled" ${config.enabled ? 'checked' : ''}>
-              <span>启用工具</span>
-            </label>
-          </div>
-          
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${SCRIPT_ID}-tool-auto-trigger" ${config.trigger?.enabled ? 'checked' : ''}>
-              <span>自动触发（GENERATION_ENDED）</span>
-            </label>
-          </div>
-        </div>
-        
-        <!-- 输出配置 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-output"></i>
-            <span>输出配置</span>
-          </div>
-          
           <div class="yyt-form-group">
             <label>输出模式</label>
             <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
-              <option value="follow_ai" ${outputMode === 'follow_ai' ? 'selected' : ''}>
-                随 AI 输出
-              </option>
-              <option value="post_response_api" ${outputMode === 'post_response_api' ? 'selected' : ''}>
-                额外 AI 模型解析
-              </option>
+              <option value="follow_ai" ${outputMode === 'follow_ai' ? 'selected' : ''}>随 AI 输出（不启用）</option>
+              <option value="post_response_api" ${outputMode === 'post_response_api' ? 'selected' : ''}>额外 AI 模型解析</option>
             </select>
-            <div class="yyt-help-text yyt-inline-help">
-              <small>随 AI 输出：不执行额外解析链</small><br>
-              <small>额外 AI 模型解析：回复后调用额外模型处理</small>
-            </div>
-          </div>
-          
-          <div class="yyt-form-group yyt-output-extra ${outputMode === 'post_response_api' ? '' : 'yyt-hidden'}">
-            <label>API 预设</label>
-            <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
-              <option value="">使用当前API配置</option>
-              ${apiPresets.map(p => 
-                `<option value="${escapeHtml(p.name)}" ${p.name === config.output?.apiPreset ? 'selected' : ''}>
-                  ${escapeHtml(p.name)}
-                </option>`
-              ).join('')}
-            </select>
-          </div>
-          
-          <div class="yyt-form-group yyt-output-extra ${outputMode === 'post_response_api' ? '' : 'yyt-hidden'}">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${SCRIPT_ID}-tool-overwrite" ${config.output?.overwrite !== false ? 'checked' : ''}>
-              <span>覆盖旧注入结果</span>
-            </label>
+            <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}</div>
           </div>
         </div>
-        
-        <!-- 破限词绑定 -->
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-database"></i>
+            <span>API 预设</span>
+          </div>
+          <div class="yyt-form-group">
+            <label>解析使用的 API 预设</label>
+            <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
+              <option value="">使用当前API配置</option>
+              ${apiPresets.map((preset) => `
+                <option value="${escapeHtml(preset.name)}" ${preset.name === config.output?.apiPreset ? 'selected' : ''}>
+                  ${escapeHtml(preset.name)}
+                </option>
+              `).join('')}
+            </select>
+            <div class="yyt-tool-compact-hint">仅在“额外 AI 模型解析”模式下生效。</div>
+          </div>
+        </div>
+
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-shield-halved"></i>
-            <span>破限词绑定</span>
+            <span>破限预设</span>
           </div>
-          
           <div class="yyt-form-group">
             <label class="yyt-checkbox-label">
               <input type="checkbox" id="${SCRIPT_ID}-tool-bypass-enabled" ${bypassEnabled ? 'checked' : ''}>
               <span>启用破限词</span>
             </label>
           </div>
-          
           <div class="yyt-form-group yyt-bypass-preset-select ${bypassEnabled ? '' : 'yyt-hidden'}">
-            <label>破限词预设</label>
+            <label>绑定破限词预设</label>
             <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
               <option value="">选择预设</option>
-              ${bypassPresets.map(p => 
-                `<option value="${escapeHtml(p.id)}" ${p.id === bypassPresetId ? 'selected' : ''}>
-                  ${escapeHtml(p.name)}${p.isDefault ? ' [默认]' : ''}
-                </option>`
-              ).join('')}
+              ${bypassPresets.map((preset) => `
+                <option value="${escapeHtml(preset.id)}" ${preset.id === bypassPresetId ? 'selected' : ''}>
+                  ${escapeHtml(preset.name)}${preset.isDefault ? ' [默认]' : ''}
+                </option>
+              `).join('')}
             </select>
           </div>
         </div>
-        
-        <!-- 提示词模板编辑区 -->
+
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-file-code"></i>
-            <span>提示词模板</span>
+            <span>模板修改框</span>
             <div class="yyt-title-actions">
-              <button class="yyt-btn yyt-btn-small" id="${SCRIPT_ID}-tool-reset-template">
+              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset-template">
                 <i class="fa-solid fa-undo"></i> 重置模板
               </button>
             </div>
           </div>
-          
           <div class="yyt-form-group">
-            <textarea class="yyt-textarea yyt-code-textarea" 
-                      id="${SCRIPT_ID}-tool-prompt-template" 
-                      rows="12" 
+            <textarea class="yyt-textarea yyt-code-textarea"
+                      id="${SCRIPT_ID}-tool-prompt-template"
+                      rows="12"
                       placeholder="输入提示词模板...">${escapeHtml(config.promptTemplate || '')}</textarea>
+            <div class="yyt-tool-compact-hint">这里直接填写发送给额外解析模型的完整模板。</div>
           </div>
         </div>
-        
-        <!-- 调试信息（可折叠） -->
-        <div class="yyt-panel-section yyt-collapsible">
-          <div class="yyt-section-title yyt-collapsible-header">
-            <i class="fa-solid fa-bug"></i>
-            <span>调试信息</span>
-            <i class="fa-solid fa-chevron-down yyt-collapse-icon"></i>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <span>手动操作区</span>
           </div>
-          <div class="yyt-collapsible-content">
-            <div class="yyt-debug-info">
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">运行状态:</span>
-                <span class="yyt-debug-value" id="${SCRIPT_ID}-tool-runtime-status">${config.runtime?.lastStatus || 'idle'}</span>
+          <div class="yyt-tool-manual-area">
+            <div class="yyt-tool-runtime-card">
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">当前状态</span>
+                <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtimeStatus)}</span>
               </div>
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">最近运行:</span>
-                <span class="yyt-debug-value" id="${SCRIPT_ID}-tool-runtime-last">${config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : '未运行'}</span>
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">最近运行</span>
+                <span class="yyt-tool-runtime-value">${escapeHtml(lastRunText)}</span>
               </div>
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">成功/失败:</span>
-                <span class="yyt-debug-value" id="${SCRIPT_ID}-tool-runtime-counts">${config.runtime?.successCount || 0} / ${config.runtime?.errorCount || 0}</span>
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">成功 / 失败</span>
+                <span class="yyt-tool-runtime-value">${config.runtime?.successCount || 0} / ${config.runtime?.errorCount || 0}</span>
               </div>
-              ${config.runtime?.lastError ? `
-              <div class="yyt-debug-row yyt-debug-error">
-                <span class="yyt-debug-label">最近错误:</span>
-                <span class="yyt-debug-value">${escapeHtml(config.runtime.lastError)}</span>
-              </div>
+              ${lastError ? `
+                <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
+                  <span class="yyt-tool-runtime-label">最近错误</span>
+                  <span class="yyt-tool-runtime-value">${escapeHtml(lastError)}</span>
+                </div>
               ` : ''}
+            </div>
+            <div class="yyt-tool-manual-actions">
+              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
+                <i class="fa-solid fa-play"></i> 立即执行一次
+              </button>
+              <div class="yyt-tool-compact-hint">用于手动验证当前模板、API预设和破限预设是否能正常工作。</div>
             </div>
           </div>
         </div>
-        
-        <!-- 操作按钮 -->
-        <div class="yyt-panel-footer">
-          <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset">
-              <i class="fa-solid fa-undo"></i> 重置配置
-            </button>
-          </div>
+
+        <div class="yyt-panel-footer yyt-panel-footer-end">
           <div class="yyt-footer-right">
             <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-save">
               <i class="fa-solid fa-save"></i> 保存配置
-            </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-copy-template">
-              <i class="fa-solid fa-copy"></i> 复制模板
             </button>
           </div>
         </div>
       </div>
     `;
   },
-  
-  // ============================================================
-  // 私有方法
-  // ============================================================
-  
-  /**
-   * 获取API预设列表
-   * @private
-   */
+
   _getApiPresets() {
     try {
-      const presets = getAllPresets();
-      return presets || [];
-    } catch (e) {
+      return getAllPresets() || [];
+    } catch (error) {
       return [];
     }
   },
-  
-  /**
-   * 获取破限词预设列表
-   * @private
-   */
+
   _getBypassPresets() {
     try {
-      const presets = getBypassPresetList();
-      return presets || [];
-    } catch (e) {
+      return getBypassPresetList() || [];
+    } catch (error) {
       return [];
     }
   },
-  
-  /**
-   * 从表单获取配置数据（v0.6 简化版）
-   * @private
-   */
-  _getFormData($container, $) {
-    const autoTrigger = $container.find(`#${SCRIPT_ID}-tool-auto-trigger`).is(':checked');
+
+  _getFormData($container) {
+    const currentConfig = getToolFullConfig(this.toolId);
     const outputMode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
     const bypassEnabled = $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(':checked');
-    
+    const postResponseEnabled = outputMode === 'post_response_api';
+
     return {
-      enabled: $container.find(`#${SCRIPT_ID}-tool-enabled`).is(':checked'),
+      enabled: true,
       promptTemplate: $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || '',
-      
+      extractTags: currentConfig?.extractTags || [],
       trigger: {
         event: 'GENERATION_ENDED',
-        enabled: autoTrigger
+        enabled: postResponseEnabled
       },
-      
       output: {
         mode: outputMode,
         apiPreset: $container.find(`#${SCRIPT_ID}-tool-api-preset`).val() || '',
-        overwrite: $container.find(`#${SCRIPT_ID}-tool-overwrite`).is(':checked'),
-        enabled: true
+        overwrite: true,
+        enabled: postResponseEnabled
       },
-      
       bypass: {
         enabled: bypassEnabled,
-        presetId: bypassEnabled ? $container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || '' : ''
+        presetId: bypassEnabled ? ($container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || '') : ''
       }
     };
   },
-  
-  /**
-   * 刷新UI（v0.6 简化版）
-   * @private
-   */
-  _refreshUI($container, $) {
-    const config = getToolFullConfig(this.toolId);
-    if (!config) return;
-    
-    const outputMode = config.output?.mode || 'follow_ai';
-    const bypassEnabled = config.bypass?.enabled || false;
-    
-    // 基础配置
-    $container.find(`#${SCRIPT_ID}-tool-enabled`).prop('checked', config.enabled);
-    $container.find(`#${SCRIPT_ID}-tool-auto-trigger`).prop('checked', config.trigger?.enabled);
-    
-    // 输出配置
-    $container.find(`#${SCRIPT_ID}-tool-output-mode`).val(outputMode);
-    $container.find(`#${SCRIPT_ID}-tool-api-preset`).val(config.output?.apiPreset || '');
-    $container.find(`#${SCRIPT_ID}-tool-overwrite`).prop('checked', config.output?.overwrite !== false);
-    
-    // 根据输出模式显示/隐藏额外选项
-    $container.find('.yyt-output-extra').toggleClass('yyt-hidden', outputMode !== 'post_response_api');
-    
-    // 破限词配置
-    $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).prop('checked', bypassEnabled);
-    $container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val(config.bypass?.presetId || '');
-    $container.find('.yyt-bypass-preset-select').toggleClass('yyt-hidden', !bypassEnabled);
-    
-    // 提示词模板
-    $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(config.promptTemplate || '');
-  },
-  
-  // ============================================================
-  // 事件绑定
-  // ============================================================
-  
-  /**
-   * 绑定事件
-   * @param {Object} $container
-   * @param {Object} dependencies
-   */
-  bindEvents($container, dependencies) {
+
+  bindEvents($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
-    const self = this;
-    
-    // 输出模式切换 - 显示/隐藏额外选项
-    $container.find(`#${SCRIPT_ID}-tool-output-mode`).on('change', (e) => {
-      const mode = $(e.target).val();
-      $container.find('.yyt-output-extra').toggleClass('yyt-hidden', mode !== 'post_response_api');
+
+    $container.find(`#${SCRIPT_ID}-tool-output-mode`).on('change', () => {
+      const mode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
+      const modeText = mode === 'post_response_api'
+        ? '监听 AI 回复结束后，调用额外模型进行摘要解析。'
+        : '随 AI 输出即不启用额外工具链，不会自动调用额外模型。';
+      $container.find('.yyt-tool-mode-hint').text(modeText);
     });
-    
-    // 破限词启用切换 - 显示/隐藏预设选择
-    $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on('change', (e) => {
-      const enabled = $(e.target).is(':checked');
+
+    $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on('change', (event) => {
+      const enabled = $(event.currentTarget).is(':checked');
       $container.find('.yyt-bypass-preset-select').toggleClass('yyt-hidden', !enabled);
     });
-    
-    // 折叠面板
-    $container.find('.yyt-collapsible-header').on('click', (e) => {
-      const $section = $(e.currentTarget).closest('.yyt-collapsible');
-      $section.toggleClass('yyt-collapsed');
-    });
-    
-    // 保存配置
+
     $container.find(`#${SCRIPT_ID}-tool-save`).on('click', () => {
-      this._saveConfig($container, $);
+      this._saveConfig($container, { silent: false });
     });
-    
-    // 重置全部
-    $container.find(`#${SCRIPT_ID}-tool-reset`).on('click', () => {
-      if (confirm('确定要重置所有配置吗？')) {
-        resetToolConfig(this.toolId);
-        this.renderTo($container);
-        showToast('info', '已重置');
-      }
-    });
-    
-    // 重置模板
+
     $container.find(`#${SCRIPT_ID}-tool-reset-template`).on('click', () => {
       const defaultConfigs = getAllDefaultToolConfigs();
       const defaultConfig = defaultConfigs[this.toolId];
-      if (defaultConfig && defaultConfig.promptTemplate) {
+      if (defaultConfig?.promptTemplate) {
         $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(defaultConfig.promptTemplate);
         showToast('info', '模板已重置');
       }
     });
-    
-    // 复制模板
-    $container.find(`#${SCRIPT_ID}-tool-copy-template`).on('click', async () => {
-      const template = $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val();
-      if (!template) {
-        showToast('warning', '模板内容为空');
+
+    $container.find(`#${SCRIPT_ID}-tool-run-manual`).on('click', async () => {
+      const saveSuccess = this._saveConfig($container, { silent: true });
+      if (!saveSuccess) {
         return;
       }
-      
+
       try {
-        await navigator.clipboard.writeText(template);
-        showToast('success', '模板已复制到剪贴板');
-      } catch (e) {
-        showToast('error', '复制失败');
+        const result = await runToolManually(this.toolId);
+        if (!result?.success && result?.error) {
+          showTopNotice('warning', result.error, {
+            duration: 3200,
+            noticeId: `yyt-tool-run-${this.toolId}`
+          });
+        }
+      } catch (error) {
+        showToast('error', error?.message || '手动执行失败');
+      } finally {
+        this.renderTo($container);
       }
     });
   },
-  
-  /**
-   * 保存配置
-   * @private
-   */
-  _saveConfig($container, $) {
-    const config = this._getFormData($container, $);
-    
+
+  _saveConfig($container, options = {}) {
+    const config = this._getFormData($container);
+    const { silent = false } = options;
     const success = saveToolConfig(this.toolId, config);
-    
+
     if (success) {
-      showToast('success', '配置已保存');
+      if (!silent) {
+        showToast('success', '配置已保存');
+      }
       eventBus.emit(EVENTS.TOOL_UPDATED, { toolId: this.toolId, config });
     } else {
       showToast('error', '保存失败');
     }
+
+    return success;
   },
-  
-  // ============================================================
-  // 销毁
-  // ============================================================
-  
-  /**
-   * 销毁组件
-   * @param {Object} $container
-   */
+
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
     $container.find('*').off();
   },
-  
-  // ============================================================
-  // 样式
-  // ============================================================
-  
-  /**
-   * 获取样式
-   * @returns {string}
-   */
+
   getStyles() {
     return `
-      /* 工具面板样式 - v0.6 简化版 */
       .yyt-tool-panel {
         display: flex;
         flex-direction: column;
         gap: 16px;
       }
-      
-      /* 隐藏元素 */
+
+      .yyt-tool-compact-hint {
+        font-size: 12px;
+        color: var(--yyt-text-muted);
+        line-height: 1.6;
+      }
+
       .yyt-hidden {
         display: none !important;
       }
-      
-      /* 代码文本框 */
+
       .yyt-code-textarea {
         font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
         font-size: 13px;
@@ -454,63 +326,23 @@ export const SummaryToolPanel = {
         background: rgba(0, 0, 0, 0.2);
         border-color: rgba(255, 255, 255, 0.1);
         resize: vertical;
-        min-height: 200px;
+        min-height: 220px;
       }
-      
+
       .yyt-code-textarea:focus {
         border-color: var(--yyt-accent);
         box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
       }
-      
-      /* 内联帮助文本 */
-      .yyt-inline-help {
-        margin-top: 8px;
-        padding: 8px 12px;
-        font-size: 11px;
-        line-height: 1.6;
-      }
-      
-      .yyt-inline-help small {
-        color: var(--yyt-text-muted);
-      }
-      
-      /* 帮助文本 */
-      .yyt-help-text {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        line-height: 1.8;
-      }
-      
-      .yyt-help-text code {
-        background: rgba(123, 183, 255, 0.15);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 11px;
-        color: #7bb7ff;
-        margin: 0 2px;
-      }
-      
-      .yyt-help-text p {
-        margin: 0 0 8px 0;
-        font-weight: 500;
-        color: var(--yyt-text);
-      }
-      
-      /* 标题操作区 */
+
       .yyt-title-actions {
         margin-left: auto;
       }
-      
+
       .yyt-btn-small {
         padding: 4px 10px;
         font-size: 12px;
       }
-      
-      /* 复选框标签 */
+
       .yyt-checkbox-label {
         display: flex;
         align-items: center;
@@ -518,33 +350,89 @@ export const SummaryToolPanel = {
         cursor: pointer;
         user-select: none;
       }
-      
+
       .yyt-checkbox-label input[type="checkbox"] {
         width: 16px;
         height: 16px;
         cursor: pointer;
       }
-      
-      .yyt-checkbox-label:hover {
-        color: var(--yyt-text);
+
+      .yyt-tool-manual-area {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: start;
       }
-      
-      /* 面板底部 */
-      .yyt-panel-footer {
+
+      .yyt-tool-runtime-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: var(--yyt-radius-sm);
+      }
+
+      .yyt-tool-runtime-line {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding-top: 16px;
-        border-top: 1px solid var(--yyt-border);
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 12px;
       }
-      
-      .yyt-footer-left,
-      .yyt-footer-right {
+
+      .yyt-tool-runtime-label {
+        color: var(--yyt-text-muted);
+        flex-shrink: 0;
+      }
+
+      .yyt-tool-runtime-value {
+        color: var(--yyt-text);
+        text-align: right;
+        word-break: break-word;
+      }
+
+      .yyt-tool-runtime-badge {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+
+      .yyt-status-idle {
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .yyt-status-running {
+        color: var(--yyt-accent);
+        background: rgba(123, 183, 255, 0.12);
+      }
+
+      .yyt-status-success {
+        color: var(--yyt-success);
+        background: rgba(74, 222, 128, 0.12);
+      }
+
+      .yyt-status-error {
+        color: var(--yyt-danger);
+        background: rgba(255, 107, 107, 0.12);
+      }
+
+      .yyt-tool-runtime-error .yyt-tool-runtime-value {
+        color: var(--yyt-danger);
+      }
+
+      .yyt-tool-manual-actions {
         display: flex;
-        gap: 8px;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 180px;
       }
-      
-      /* 错误提示 */
+
       .yyt-error {
         padding: 20px;
         text-align: center;
@@ -553,79 +441,25 @@ export const SummaryToolPanel = {
         border: 1px solid rgba(255, 107, 107, 0.3);
         border-radius: var(--yyt-radius-sm);
       }
-      
-      /* 折叠面板 */
-      .yyt-collapsible .yyt-collapsible-content {
-        overflow: hidden;
-        max-height: 500px;
-        transition: max-height 0.3s ease, opacity 0.3s ease;
-        opacity: 1;
+
+      .yyt-panel-footer-end {
+        justify-content: flex-end;
       }
-      
-      .yyt-collapsible.yyt-collapsed .yyt-collapsible-content {
-        max-height: 0;
-        opacity: 0;
-      }
-      
-      .yyt-collapsible-header {
-        cursor: pointer;
-      }
-      
-      .yyt-collapsible-header .yyt-collapse-icon {
-        margin-left: auto;
-        transition: transform 0.3s ease;
-      }
-      
-      .yyt-collapsible.yyt-collapsed .yyt-collapse-icon {
-        transform: rotate(-90deg);
-      }
-      
-      /* 调试信息 */
-      .yyt-debug-info {
-        padding: 12px;
-        background: rgba(0, 0, 0, 0.15);
-        border-radius: var(--yyt-radius-sm);
-      }
-      
-      .yyt-debug-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      }
-      
-      .yyt-debug-row:last-child {
-        border-bottom: none;
-      }
-      
-      .yyt-debug-label {
-        color: var(--yyt-text-muted);
-        font-size: 12px;
-      }
-      
-      .yyt-debug-value {
-        color: var(--yyt-text);
-        font-size: 12px;
-        font-family: 'Fira Code', monospace;
-      }
-      
-      .yyt-debug-error .yyt-debug-value {
-        color: var(--yyt-danger);
+
+      @media screen and (max-width: 768px) {
+        .yyt-tool-manual-area {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-tool-manual-actions {
+          min-width: 0;
+        }
       }
     `;
   },
-  
-  // ============================================================
-  // 便捷方法
-  // ============================================================
-  
-  /**
-   * 渲染到容器
-   * @param {Object} $container
-   */
+
   renderTo($container) {
-    const html = this.render({});
-    $container.html(html);
+    $container.html(this.render({}));
     this.bindEvents($container, {});
   }
 };

@@ -7,7 +7,7 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 import { getToolFullConfig, updateToolRuntime } from './tool-registry.js';
 import { executeToolWithConfig, getToolsForEvent } from './tool-executor.js';
 import { toolOutputService, OUTPUT_MODES } from './tool-output-service.js';
-import { showToast } from './ui/utils.js';
+import { showToast, showTopNotice } from './ui/utils.js';
 
 // ============================================================
 // 事件类型定义
@@ -645,6 +645,10 @@ function registerGenerationEndedListener() {
     }
     
     log(`需要执行 ${toolsToExecute.length} 个工具:`, toolsToExecute.map(t => t.id));
+    showTopNotice('info', `检测到 AI 回复，开始自动执行 ${toolsToExecute.length} 个工具`, {
+      duration: 2400,
+      noticeId: 'yyt-tool-batch-start'
+    });
     
     // 执行工具
     for (const tool of toolsToExecute) {
@@ -689,7 +693,7 @@ async function buildToolExecutionContext(eventData) {
   
   return {
     triggeredAt: Date.now(),
-    triggerEvent: 'GENERATION_ENDED',
+    triggerEvent: eventData?.triggerEvent || 'GENERATION_ENDED',
     chatId: stContext?.chatId || stContext?.chat_id || stContext?.chat_filename || '',
     messageId: eventData?.messageId || eventData?.id || '',
     lastAiMessage: lastAiMessage?.content || '',
@@ -715,7 +719,8 @@ async function buildToolExecutionContext(eventData) {
  * @returns {Array} 需要执行的工具配置列表
  */
 function getToolsToExecute(eventType) {
-  return getToolsForEvent(eventType);
+  const tools = getToolsForEvent(eventType);
+  return tools.filter(tool => toolOutputService.shouldRunPostResponse(tool));
 }
 
 /**
@@ -740,11 +745,24 @@ function updateRuntime(toolId, runtimePartial) {
 async function executeTriggeredTool(tool, context) {
   const startedAt = Date.now();
   const toolId = tool.id;
+  const isManual = context?.triggerEvent === 'MANUAL';
+  const noticeId = `yyt-tool-run-${toolId}`;
 
   updateRuntime(toolId, {
     lastStatus: 'running',
     lastError: '',
     lastDurationMs: 0
+  });
+
+  eventBus.emit(EVENTS.TOOL_EXECUTION_REQUESTED, {
+    toolId,
+    triggerEvent: context?.triggerEvent || 'GENERATION_ENDED',
+    context
+  });
+
+  showTopNotice('info', `${isManual ? '正在手动执行' : '已检测到 AI 回复，正在自动执行'} ${tool.name}`, {
+    sticky: true,
+    noticeId
   });
 
   try {
@@ -767,11 +785,15 @@ async function executeTriggeredTool(tool, context) {
         successCount: (config?.runtime?.successCount || 0) + 1
       });
 
-      const message = tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API
-        ? `已监听 AI 回复并执行 ${tool.name}`
-        : `已监听 AI 回复：${tool.name} 已触发`;
+      const message = isManual
+        ? `${tool.name} 手动执行完成`
+        : `已监听 AI 回复并执行 ${tool.name}`;
 
       showToast('success', message);
+      showTopNotice('success', message, {
+        duration: 3200,
+        noticeId
+      });
       return { success: true, duration, result };
     }
 
@@ -786,6 +808,10 @@ async function executeTriggeredTool(tool, context) {
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
+    showTopNotice('error', `${tool.name} 执行失败：${errorMessage}`, {
+      sticky: true,
+      noticeId
+    });
     return { success: false, duration, error: errorMessage, result };
   } catch (error) {
     const duration = Date.now() - startedAt;
@@ -800,8 +826,47 @@ async function executeTriggeredTool(tool, context) {
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
+    showTopNotice('error', `${tool.name} 执行失败：${errorMessage}`, {
+      sticky: true,
+      noticeId
+    });
     throw error;
   }
+}
+
+/**
+ * 手动执行单个工具
+ * @param {string} toolId
+ * @returns {Promise<Object>}
+ */
+export async function runToolManually(toolId) {
+  if (!toolId) {
+    return { success: false, error: '缺少工具ID' };
+  }
+
+  const tool = getToolFullConfig(toolId);
+  if (!tool) {
+    return { success: false, error: '工具不存在' };
+  }
+
+  if (!tool.enabled) {
+    showTopNotice('warning', `${tool.name} 未启用，无法手动执行`, {
+      duration: 2800,
+      noticeId: `yyt-tool-run-${toolId}`
+    });
+    return { success: false, error: '工具未启用' };
+  }
+
+  if (!toolOutputService.shouldRunPostResponse(tool)) {
+    showTopNotice('warning', `${tool.name} 当前为“随 AI 输出”，不会执行额外解析`, {
+      duration: 3200,
+      noticeId: `yyt-tool-run-${toolId}`
+    });
+    return { success: false, error: '当前输出模式不执行额外解析' };
+  }
+
+  const context = await buildToolExecutionContext({ triggerEvent: 'MANUAL' });
+  return executeTriggeredTool(tool, context);
 }
 
 /**

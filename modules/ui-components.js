@@ -166,7 +166,11 @@ export function getRegexStyles() {
  * @returns {string}
  */
 export function getToolStyles() {
-  return ToolManagePanel.getStyles();
+  return [
+    ToolManagePanel.getStyles(),
+    SummaryToolPanel.getStyles(),
+    StatusBlockPanel.getStyles()
+  ].join('\n');
 }
 
 // ============================================================

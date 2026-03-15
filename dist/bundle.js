@@ -1,12 +1,1449 @@
-var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{for(var s in t)Cr(e,s,{get:t[s],enumerable:!0})};function Go(){let e=u;return e._getStorage(),e._storage}function $(){return u.get("settings",{apiConfig:{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9},currentPreset:"",uiSettings:{theme:"dark",lastTab:"api"}})}function H(e){u.set("settings",e)}var pt,u,C,Yo,se,et=E(()=>{pt=class e{constructor(t="youyou_toolkit"){this.namespace=t,this._storage=null,this._cache=new Map}_getStorage(){if(this._storage)return this._storage;try{let t=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(t.SillyTavern?.getContext){let s=t.SillyTavern.getContext();if(s?.extensionSettings)return s.extensionSettings[this.namespace]||(s.extensionSettings[this.namespace]={}),this._storage={_target:s.extensionSettings[this.namespace],getItem:o=>{let n=s.extensionSettings[this.namespace][o];return typeof n=="string"?n:n?JSON.stringify(n):null},setItem:(o,n)=>{s.extensionSettings[this.namespace][o]=n,this._saveSettings(s)},removeItem:o=>{delete s.extensionSettings[this.namespace][o],this._saveSettings(s)},_isTavern:!0},this._storage}}catch{console.warn(`[${this.namespace}] SillyTavern\u5B58\u50A8\u4E0D\u53EF\u7528\uFF0C\u4F7F\u7528localStorage`)}return this._storage={getItem:t=>{try{return localStorage.getItem(t)}catch{return null}},setItem:(t,s)=>{try{localStorage.setItem(t,s)}catch(o){console.error(`[${this.namespace}] localStorage\u5199\u5165\u5931\u8D25:`,o)}},removeItem:t=>{try{localStorage.removeItem(t)}catch{}},_isTavern:!1},this._storage}_saveSettings(t){if(typeof t.saveSettings=="function")try{t.saveSettings()}catch{}else if(typeof t.saveSettingsDebounced=="function")try{t.saveSettingsDebounced()}catch{}}get(t,s=null){let o=`${this.namespace}:${t}`;if(this._cache.has(o))return this._cache.get(o);let n=this._getStorage(),r=this._getFullKey(t),i=n.getItem(r);if(i===null)return s;try{let a=JSON.parse(i);return this._cache.set(o,a),a}catch{return i}}set(t,s){let o=this._getStorage(),n=this._getFullKey(t),r=`${this.namespace}:${t}`;this._cache.set(r,s);try{o.setItem(n,JSON.stringify(s))}catch(i){console.error(`[${this.namespace}] \u5B58\u50A8\u5931\u8D25:`,i)}}remove(t){let s=this._getStorage(),o=this._getFullKey(t),n=`${this.namespace}:${t}`;this._cache.delete(n),s.removeItem(o)}has(t){let s=this._getStorage(),o=this._getFullKey(t);return s.getItem(o)!==null}clear(){if(this._getStorage()._isTavern){let s=typeof window.parent<"u"?window.parent:window;if(s.SillyTavern?.getContext){let o=s.SillyTavern.getContext();o?.extensionSettings?.[this.namespace]&&(o.extensionSettings[this.namespace]={},this._saveSettings(o))}}else{let s=`${this.namespace}_`,o=[];for(let n=0;n<localStorage.length;n++){let r=localStorage.key(n);r&&r.startsWith(s)&&o.push(r)}o.forEach(n=>localStorage.removeItem(n))}this._cache.clear()}_getFullKey(t){return this._getStorage()._isTavern?t:`${this.namespace}_${t}`}namespace(t){return new e(`${this.namespace}:${t}`)}getMultiple(t){let s={};return t.forEach(o=>{s[o]=this.get(o)}),s}setMultiple(t){Object.entries(t).forEach(([s,o])=>{this.set(s,o)})}exportAll(){let t=this._getStorage(),s={};if(t._isTavern){let o=typeof window.parent<"u"?window.parent:window;if(o.SillyTavern?.getContext){let r=o.SillyTavern.getContext()?.extensionSettings?.[this.namespace]||{};Object.entries(r).forEach(([i,a])=>{s[i]=typeof a=="string"?JSON.parse(a):a})}}else{let o=`${this.namespace}_`;for(let n=0;n<localStorage.length;n++){let r=localStorage.key(n);if(r&&r.startsWith(o)){let i=r.slice(o.length);try{s[i]=JSON.parse(localStorage.getItem(r))}catch{s[i]=localStorage.getItem(r)}}}}return s}},u=new pt("youyou_toolkit"),C=new pt("youyou_toolkit:tools"),Yo=new pt("youyou_toolkit:presets"),se=new pt("youyou_toolkit:windows")});var Ho={};O(Ho,{DEFAULT_API_PRESETS:()=>$r,DEFAULT_SETTINGS:()=>Pr,STORAGE_KEYS:()=>oe,StorageService:()=>pt,deepMerge:()=>Fo,getCurrentPresetName:()=>Ot,getStorage:()=>Go,loadApiPresets:()=>U,loadSettings:()=>$,presetStorage:()=>Yo,saveApiPresets:()=>st,saveSettings:()=>H,setCurrentPresetName:()=>Lt,storage:()=>u,toolStorage:()=>C,windowStorage:()=>se});function U(){return u.get(oe.API_PRESETS)||[]}function st(e){u.set(oe.API_PRESETS,e)}function Ot(){return u.get(oe.CURRENT_PRESET)||""}function Lt(e){u.set(oe.CURRENT_PRESET,e||"")}function Fo(e,t){let s=n=>n&&typeof n=="object"&&!Array.isArray(n),o={...e};return s(e)&&s(t)&&Object.keys(t).forEach(n=>{s(t[n])?n in e?o[n]=Fo(e[n],t[n]):Object.assign(o,{[n]:t[n]}):Object.assign(o,{[n]:t[n]})}),o}var oe,Pr,$r,ne=E(()=>{et();et();oe={SETTINGS:"settings",API_PRESETS:"api_presets",CURRENT_PRESET:"current_preset",TOOLS:"tools",TOOL_PRESETS:"tool_presets",CURRENT_TOOL_PRESET:"current_tool_preset",BYPASS_PRESETS:"bypass_presets",CURRENT_BYPASS_PRESET:"current_bypass_preset",BYPASS_ENABLED:"bypass_enabled"},Pr={apiConfig:{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9},currentPreset:"",uiSettings:{theme:"dark",lastTab:"api"}},$r=[]});var Qo={};O(Qo,{API_STATUS:()=>Ar,fetchAvailableModels:()=>$s,getApiConfig:()=>St,getEffectiveApiConfig:()=>Wo,sendApiRequest:()=>Ps,sendWithPreset:()=>kr,testApiConnection:()=>Mr,updateApiConfig:()=>_t,validateApiConfig:()=>ke});function St(){return $().apiConfig||{}}function _t(e){let t=$();t.apiConfig={...t.apiConfig,...e},H(t)}function ke(e){let t=[];if(e.useMainApi)return{valid:!0,errors:[]};if(!e.url||!e.url.trim())t.push("API URL \u4E0D\u80FD\u4E3A\u7A7A");else try{new URL(e.url)}catch{t.push("API URL \u683C\u5F0F\u65E0\u6548")}return(!e.model||!e.model.trim())&&t.push("\u6A21\u578B\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),{valid:t.length===0,errors:t}}function Wo(e=""){let t=$();if(e){let o=(t.apiPresets||[]).find(n=>n.name===e);if(o&&o.apiConfig)return{...o.apiConfig,presetName:o.name}}return t.apiConfig||{}}async function kr(e,t,s={},o=null){let n=Wo(e);return await Ps(t,{...s,apiConfig:n},o)}function Rr(e,t={}){let s=t.apiConfig||St();return{messages:e,model:s.model||"gpt-3.5-turbo",max_tokens:s.max_tokens||4096,temperature:s.temperature??.7,top_p:s.top_p??.9,stream:!1,...t.extraParams}}async function Ps(e,t={},s=null){let o=t.apiConfig||St(),n=o.useMainApi,r=ke(o);if(!r.valid&&!n)throw new Error(`API\u914D\u7F6E\u65E0\u6548: ${r.errors.join(", ")}`);return n?await Ir(e,t,s):await Dr(e,o,t,s)}async function Ir(e,t,s){let o=typeof window.parent<"u"?window.parent:window;if(!o.TavernHelper?.generateRaw)throw new Error("TavernHelper.generateRaw \u4E0D\u53EF\u7528\u3002\u8BF7\u68C0\u67E5SillyTavern\u7248\u672C\u3002");try{let n=await o.TavernHelper.generateRaw({ordered_prompts:e,should_stream:!1,...t.extraParams});if(typeof n!="string")throw new Error("\u4E3BAPI\u8FD4\u56DE\u4E86\u975E\u9884\u671F\u7684\u54CD\u5E94\u7C7B\u578B");return n.trim()}catch(n){throw n.name==="AbortError"?n:new Error(`\u4E3BAPI\u8BF7\u6C42\u5931\u8D25: ${n.message}`)}}async function Dr(e,t,s,o){let n=Rr(e,{apiConfig:t,...s}),r={"Content-Type":"application/json"};t.apiKey&&(r.Authorization=`Bearer ${t.apiKey}`);let i=await fetch(t.url,{method:"POST",headers:r,body:JSON.stringify(n),signal:o});if(!i.ok){let y=await i.text().catch(()=>"Unknown error");throw new Error(`API\u8BF7\u6C42\u5931\u8D25 (${i.status}): ${y}`)}let a=await i.json(),c="";if(a.choices&&a.choices[0]?.message?.content)c=a.choices[0].message.content;else if(a.content)c=a.content;else if(a.text)c=a.text;else if(a.response)c=a.response;else throw new Error(`\u65E0\u6CD5\u89E3\u6790API\u54CD\u5E94\u683C\u5F0F: ${JSON.stringify(a).slice(0,200)}`);return c.trim()}async function Mr(e=null){let t=e||St(),s=Date.now();try{await Ps([{role:"user",content:'Hello, this is a connection test. Please respond with "OK".'}],{apiConfig:t});let n=Date.now()-s;return{success:!0,message:`\u8FDE\u63A5\u6210\u529F (\u5EF6\u8FDF: ${n}ms)`,latency:n}}catch(o){return{success:!1,message:`\u8FDE\u63A5\u5931\u8D25: ${o.message}`,latency:Date.now()-s}}}async function $s(e=null){let t=e||St();return t.useMainApi?await Or():await Lr(t)}async function Or(){let e=typeof window.parent<"u"?window.parent:window;try{if(e.SillyTavern?.getContext){let t=e.SillyTavern.getContext();if(t.settings?.api_server)return[t.settings.api_server]}return["gpt-4","gpt-4-turbo","gpt-3.5-turbo","claude-3-opus","claude-3-sonnet"]}catch{return["gpt-4","gpt-3.5-turbo"]}}async function Lr(e){if(!e.url||!e.apiKey)return[];try{let s=`${e.url.replace(/\/chat\/completions$/,"").replace(/\/completions$/,"")}/models`,o=await fetch(s,{method:"GET",headers:{Authorization:`Bearer ${e.apiKey}`}});if(!o.ok)return[];let n=await o.json();return n.data&&Array.isArray(n.data)?n.data.map(r=>r.id||r.name).filter(Boolean).sort():[]}catch{return[]}}var Ar,As=E(()=>{ne();Ar={IDLE:"idle",CONNECTING:"connecting",SUCCESS:"success",ERROR:"error"}});var qo={};O(qo,{createPreset:()=>Re,createPresetFromCurrentConfig:()=>Br,deletePreset:()=>De,duplicatePreset:()=>zr,exportPresets:()=>Ds,generateUniquePresetName:()=>Os,getActiveConfig:()=>Is,getActivePresetName:()=>Me,getAllPresets:()=>ut,getPreset:()=>gt,getPresetNames:()=>Nr,getStarredPresets:()=>Rs,importPresets:()=>Ms,presetExists:()=>re,renamePreset:()=>jr,switchToPreset:()=>Ur,togglePresetStar:()=>ks,updatePreset:()=>Ie,validatePreset:()=>Yr});function ut(){return U()}function Nr(){return U().map(t=>t.name)}function gt(e){return!e||typeof e!="string"?null:U().find(s=>s.name===e)||null}function re(e){return!e||typeof e!="string"?!1:U().some(s=>s.name===e)}function Re(e){let{name:t,description:s,apiConfig:o}=e;if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let n=t.trim();if(re(n))return{success:!1,message:`\u9884\u8BBE "${n}" \u5DF2\u5B58\u5728`};let r={name:n,description:s||"",apiConfig:{url:o?.url||"",apiKey:o?.apiKey||"",model:o?.model||"",useMainApi:o?.useMainApi??!0,max_tokens:o?.max_tokens||4096,temperature:o?.temperature??.7,top_p:o?.top_p??.9},createdAt:Date.now(),updatedAt:Date.now()},i=U();return i.push(r),st(i),{success:!0,message:`\u9884\u8BBE "${n}" \u521B\u5EFA\u6210\u529F`,preset:r}}function Ie(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=U(),o=s.findIndex(i=>i.name===e);if(o===-1)return{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(t.name&&t.name!==e)return{success:!1,message:"\u4E0D\u652F\u6301\u4FEE\u6539\u9884\u8BBE\u540D\u79F0\uFF0C\u8BF7\u521B\u5EFA\u65B0\u9884\u8BBE"};let n=s[o],r={...n,...t,name:n.name,updatedAt:Date.now()};return t.apiConfig&&(r.apiConfig={...n.apiConfig,...t.apiConfig}),s[o]=r,st(s),{success:!0,message:`\u9884\u8BBE "${e}" \u66F4\u65B0\u6210\u529F`,preset:r}}function De(e){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let t=U(),s=t.findIndex(o=>o.name===e);return s===-1?{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}:(t.splice(s,1),st(t),Ot()===e&&Lt(""),{success:!0,message:`\u9884\u8BBE "${e}" \u5DF2\u5220\u9664`})}function jr(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u539F\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u65B0\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=t.trim();if(!re(e))return{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(re(s))return{success:!1,message:`\u9884\u8BBE "${s}" \u5DF2\u5B58\u5728`};let o=U(),n=o.find(r=>r.name===e);return n&&(n.name=s,n.updatedAt=Date.now(),st(o),Ot()===e&&Lt(s)),{success:!0,message:`\u9884\u8BBE\u5DF2\u91CD\u547D\u540D\u4E3A "${s}"`}}function zr(e,t){if(!e||typeof e!="string")return{success:!1,message:"\u6E90\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};if(!t||typeof t!="string"||!t.trim())return{success:!1,message:"\u76EE\u6807\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=t.trim(),o=gt(e);if(!o)return{success:!1,message:`\u6E90\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`};if(re(s))return{success:!1,message:`\u9884\u8BBE "${s}" \u5DF2\u5B58\u5728`};let n={...JSON.parse(JSON.stringify(o)),name:s,createdAt:Date.now(),updatedAt:Date.now()},r=U();return r.push(n),st(r),{success:!0,message:`\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${s}"`,preset:n}}function ks(e){if(!e||typeof e!="string")return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let t=U(),s=t.find(o=>o.name===e);return s?(s.starred=!s.starred,s.updatedAt=Date.now(),st(t),{success:!0,message:s.starred?`\u5DF2\u5C06 "${e}" \u6DFB\u52A0\u5230\u9884\u89C8\u5217\u8868`:`\u5DF2\u5C06 "${e}" \u4ECE\u9884\u89C8\u5217\u8868\u79FB\u9664`,starred:s.starred}):{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}}function Rs(){return U().filter(t=>t.starred===!0)}function Ur(e){if(!e)return Lt(""),{success:!0,message:"\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E"};let t=gt(e);return t?(Lt(e),{success:!0,message:`\u5DF2\u5207\u6362\u5230\u9884\u8BBE "${e}"`,apiConfig:t.apiConfig}):{success:!1,message:`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`}}function Me(){return Ot()}function Is(){let e=Ot();if(e){let s=gt(e);if(s)return{presetName:e,apiConfig:s.apiConfig}}return{presetName:"",apiConfig:$().apiConfig||{}}}function Ds(e=null){if(e){let s=gt(e);if(!s)throw new Error(`\u9884\u8BBE "${e}" \u4E0D\u5B58\u5728`);return JSON.stringify(s,null,2)}let t=U();return JSON.stringify(t,null,2)}function Ms(e,t={overwrite:!1}){let s;try{s=JSON.parse(e)}catch{return{success:!1,message:"JSON\u89E3\u6790\u5931\u8D25",imported:0}}let o=Array.isArray(s)?s:[s];if(o.length===0)return{success:!1,message:"\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E",imported:0};let n=U(),r=0;for(let i of o){if(!i.name||typeof i.name!="string"||!i.apiConfig||typeof i.apiConfig!="object")continue;let a=n.findIndex(c=>c.name===i.name);a>=0?t.overwrite&&(i.updatedAt=Date.now(),n[a]=i,r++):(i.createdAt=i.createdAt||Date.now(),i.updatedAt=Date.now(),n.push(i),r++)}return r>0&&st(n),{success:!0,message:`\u6210\u529F\u5BFC\u5165 ${r} \u4E2A\u9884\u8BBE`,imported:r}}function Br(e,t=""){let s=$();return Re({name:e,description:t,apiConfig:s.apiConfig})}function Yr(e){let t=[];return(!e.name||typeof e.name!="string"||!e.name.trim())&&t.push("\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"),(!e.apiConfig||typeof e.apiConfig!="object")&&t.push("\u7F3A\u5C11API\u914D\u7F6E"),{valid:t.length===0,errors:t}}function Os(e){(!e||typeof e!="string")&&(e="\u65B0\u9884\u8BBE");let t=U(),s=new Set(t.map(n=>n.name));if(!s.has(e))return e;let o=1;for(;s.has(`${e} (${o})`);)o++;return`${e} (${o})`}var ie=E(()=>{ne()});var g,Ls,f,L=E(()=>{g={STORAGE_CHANGED:"storage:changed",STORAGE_CLEARED:"storage:cleared",PRESET_CREATED:"preset:created",PRESET_UPDATED:"preset:updated",PRESET_DELETED:"preset:deleted",PRESET_ACTIVATED:"preset:activated",PRESET_IMPORTED:"preset:imported",PRESET_EXPORTED:"preset:exported",API_CONFIG_UPDATED:"api:configUpdated",API_REQUEST_START:"api:requestStart",API_REQUEST_SUCCESS:"api:requestSuccess",API_REQUEST_ERROR:"api:requestError",API_CONNECTION_TESTED:"api:connectionTested",TOOL_REGISTERED:"tool:registered",TOOL_UNREGISTERED:"tool:unregistered",TOOL_UPDATED:"tool:updated",TOOL_ENABLED:"tool:enabled",TOOL_DISABLED:"tool:disabled",TOOL_EXECUTING:"tool:executing",TOOL_EXECUTED:"tool:executed",TOOL_ERROR:"tool:error",TOOL_EXECUTION_STARTED:"tool:executionStarted",TOOL_EXECUTION_FAILED:"tool:executionFailed",TOOL_TRIGGER_INITIALIZED:"tool:triggerInitialized",REGEX_RULE_ADDED:"regex:ruleAdded",REGEX_RULE_UPDATED:"regex:ruleUpdated",REGEX_RULE_DELETED:"regex:ruleDeleted",REGEX_RULES_CLEARED:"regex:rulesCleared",REGEX_PRESET_LOADED:"regex:presetLoaded",REGEX_EXTRACTED:"regex:extracted",UI_INITIALIZED:"ui:initialized",UI_RENDER_REQUESTED:"ui:renderRequested",UI_TAB_CHANGED:"ui:tabChanged",UI_SUBTAB_CHANGED:"ui:subTabChanged",UI_POPUP_OPENED:"ui:popupOpened",UI_POPUP_CLOSED:"ui:popupClosed",UI_WINDOW_CREATED:"ui:windowCreated",UI_WINDOW_CLOSED:"ui:windowClosed",TRIGGER_REGISTERED:"trigger:registered",TRIGGER_UNREGISTERED:"trigger:unregistered",TRIGGER_FIRED:"trigger:fired",APP_INITIALIZING:"app:initializing",APP_INITIALIZED:"app:initialized",APP_ERROR:"app:error",SETTINGS_UPDATED:"settings:updated",TOOL_CONTEXT_INJECTED:"tool:contextInjected",TOOL_CONTEXT_CLEARED:"tool:contextCleared",BYPASS_PRESET_CREATED:"bypass:presetCreated",BYPASS_PRESET_UPDATED:"bypass:presetUpdated",BYPASS_PRESET_DELETED:"bypass:presetDeleted",BYPASS_PRESET_ACTIVATED:"bypass:presetActivated",TOOL_EXECUTION_REQUESTED:"tool:executionRequested",TOOL_OUTPUT_MODE_CHANGED:"tool:outputModeChanged"},Ls=class{constructor(){this.listeners=new Map,this.onceCallbacks=new Map,this.history=[],this.maxHistorySize=100,this.debugMode=!1}on(t,s,o={}){if(!t||typeof s!="function")return console.warn("[EventBus] \u65E0\u6548\u7684\u4E8B\u4EF6\u6216\u56DE\u8C03"),()=>{};let{priority:n=0}=o;this.listeners.has(t)||this.listeners.set(t,new Set);let r={callback:s,priority:n};return this.listeners.get(t).add(r),this.debugMode&&console.log(`[EventBus] \u8BA2\u9605: ${t}`),()=>this.off(t,s)}off(t,s){let o=this.listeners.get(t);if(o){for(let n of o)if(n.callback===s){o.delete(n);break}this.debugMode&&console.log(`[EventBus] \u53D6\u6D88\u8BA2\u9605: ${t}`)}}emit(t,s){this.debugMode&&console.log(`[EventBus] \u53D1\u5E03: ${t}`,s),this._addToHistory(t,s);let o=this.listeners.get(t);if(!o||o.size===0)return;let n=Array.from(o).sort((r,i)=>i.priority-r.priority);for(let{callback:r}of n)try{r(s)}catch(i){console.error(`[EventBus] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF (${t}):`,i)}}once(t,s){let o=n=>{this.off(t,o),s(n)};return this.on(t,o)}wait(t,s=0){return new Promise((o,n)=>{let r=null,i=this.once(t,a=>{r&&clearTimeout(r),o(a)});s>0&&(r=setTimeout(()=>{i(),n(new Error(`\u7B49\u5F85\u4E8B\u4EF6\u8D85\u65F6: ${t}`))},s))})}hasListeners(t){let s=this.listeners.get(t);return s&&s.size>0}listenerCount(t){let s=this.listeners.get(t);return s?s.size:0}removeAllListeners(t){t?this.listeners.delete(t):this.listeners.clear()}setDebugMode(t){this.debugMode=t}_addToHistory(t,s){this.history.push({event:t,data:s,timestamp:Date.now()}),this.history.length>this.maxHistorySize&&this.history.shift()}getHistory(t){return t?this.history.filter(s=>s.event===t):[...this.history]}clearHistory(){this.history=[]}},f=new Ls});function m(e){return typeof e!="string"?"":e.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}function d(e,t,s=3e3){t||(t=e==="error"?"\u64CD\u4F5C\u5931\u8D25":"\u64CD\u4F5C\u5B8C\u6210");let o=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(o.toastr){o.toastr[e](t,"YouYou \u5DE5\u5177\u7BB1",{timeOut:s,progressBar:!0});return}Gr(e,t,s),console.log(`[YouYou \u5DE5\u5177\u7BB1] [${e.toUpperCase()}] ${t}`)}function Gr(e,t,s){let o=typeof window.parent<"u"&&window.parent!==window?window.parent.document:document;if(!o)return;let n=o.getElementById("yyt-fallback-toast");n&&n.remove();let r={success:{bg:"rgba(74, 222, 128, 0.9)",border:"#22c55e"},error:{bg:"rgba(248, 113, 113, 0.9)",border:"#ef4444"},warning:{bg:"rgba(251, 191, 36, 0.9)",border:"#f59e0b"},info:{bg:"rgba(123, 183, 255, 0.9)",border:"#7bb7ff"}},i=r[e]||r.info,a=o.createElement("div");if(a.id="yyt-fallback-toast",a.style.cssText=`
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// modules/core/storage-service.js
+function getStorage() {
+  const instance = storage;
+  instance._getStorage();
+  return instance._storage;
+}
+function loadSettings() {
+  return storage.get("settings", {
+    apiConfig: {
+      url: "",
+      apiKey: "",
+      model: "",
+      useMainApi: true,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    currentPreset: "",
+    uiSettings: {
+      theme: "dark",
+      lastTab: "api"
+    }
+  });
+}
+function saveSettings(settings) {
+  storage.set("settings", settings);
+}
+var StorageService, storage, toolStorage, presetStorage, windowStorage;
+var init_storage_service = __esm({
+  "modules/core/storage-service.js"() {
+    StorageService = class _StorageService {
+      /**
+       * @param {string} namespace - 存储命名空间
+       */
+      constructor(namespace = "youyou_toolkit") {
+        this.namespace = namespace;
+        this._storage = null;
+        this._cache = /* @__PURE__ */ new Map();
+      }
+      // ============================================================
+      // 存储后端获取
+      // ============================================================
+      /**
+       * 获取存储后端
+       * @private
+       * @returns {Object} 存储对象 { getItem, setItem, removeItem }
+       */
+      _getStorage() {
+        if (this._storage)
+          return this._storage;
+        try {
+          const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
+          if (topWindow.SillyTavern?.getContext) {
+            const context = topWindow.SillyTavern.getContext();
+            if (context?.extensionSettings) {
+              if (!context.extensionSettings[this.namespace]) {
+                context.extensionSettings[this.namespace] = {};
+              }
+              this._storage = {
+                _target: context.extensionSettings[this.namespace],
+                getItem: (key) => {
+                  const value = context.extensionSettings[this.namespace][key];
+                  return typeof value === "string" ? value : value ? JSON.stringify(value) : null;
+                },
+                setItem: (key, value) => {
+                  context.extensionSettings[this.namespace][key] = value;
+                  this._saveSettings(context);
+                },
+                removeItem: (key) => {
+                  delete context.extensionSettings[this.namespace][key];
+                  this._saveSettings(context);
+                },
+                _isTavern: true
+              };
+              return this._storage;
+            }
+          }
+        } catch (e) {
+          console.warn(`[${this.namespace}] SillyTavern\u5B58\u50A8\u4E0D\u53EF\u7528\uFF0C\u4F7F\u7528localStorage`);
+        }
+        this._storage = {
+          getItem: (key) => {
+            try {
+              return localStorage.getItem(key);
+            } catch (e) {
+              return null;
+            }
+          },
+          setItem: (key, value) => {
+            try {
+              localStorage.setItem(key, value);
+            } catch (e) {
+              console.error(`[${this.namespace}] localStorage\u5199\u5165\u5931\u8D25:`, e);
+            }
+          },
+          removeItem: (key) => {
+            try {
+              localStorage.removeItem(key);
+            } catch (e) {
+            }
+          },
+          _isTavern: false
+        };
+        return this._storage;
+      }
+      /**
+       * 触发SillyTavern设置保存
+       * @private
+       */
+      _saveSettings(context) {
+        if (typeof context.saveSettings === "function") {
+          try {
+            context.saveSettings();
+          } catch (e) {
+          }
+        } else if (typeof context.saveSettingsDebounced === "function") {
+          try {
+            context.saveSettingsDebounced();
+          } catch (e) {
+          }
+        }
+      }
+      // ============================================================
+      // 公共API
+      // ============================================================
+      /**
+       * 获取存储值
+       * @param {string} key - 键名
+       * @param {*} defaultValue - 默认值
+       * @returns {*}
+       */
+      get(key, defaultValue = null) {
+        const cacheKey = `${this.namespace}:${key}`;
+        if (this._cache.has(cacheKey)) {
+          return this._cache.get(cacheKey);
+        }
+        const storage2 = this._getStorage();
+        const fullKey = this._getFullKey(key);
+        const value = storage2.getItem(fullKey);
+        if (value === null)
+          return defaultValue;
+        try {
+          const parsed = JSON.parse(value);
+          this._cache.set(cacheKey, parsed);
+          return parsed;
+        } catch (e) {
+          return value;
+        }
+      }
+      /**
+       * 设置存储值
+       * @param {string} key - 键名
+       * @param {*} value - 值
+       */
+      set(key, value) {
+        const storage2 = this._getStorage();
+        const fullKey = this._getFullKey(key);
+        const cacheKey = `${this.namespace}:${key}`;
+        this._cache.set(cacheKey, value);
+        try {
+          storage2.setItem(fullKey, JSON.stringify(value));
+        } catch (e) {
+          console.error(`[${this.namespace}] \u5B58\u50A8\u5931\u8D25:`, e);
+        }
+      }
+      /**
+       * 删除存储值
+       * @param {string} key - 键名
+       */
+      remove(key) {
+        const storage2 = this._getStorage();
+        const fullKey = this._getFullKey(key);
+        const cacheKey = `${this.namespace}:${key}`;
+        this._cache.delete(cacheKey);
+        storage2.removeItem(fullKey);
+      }
+      /**
+       * 检查键是否存在
+       * @param {string} key - 键名
+       * @returns {boolean}
+       */
+      has(key) {
+        const storage2 = this._getStorage();
+        const fullKey = this._getFullKey(key);
+        return storage2.getItem(fullKey) !== null;
+      }
+      /**
+       * 清除命名空间下所有数据
+       */
+      clear() {
+        const storage2 = this._getStorage();
+        if (storage2._isTavern) {
+          const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
+          if (topWindow.SillyTavern?.getContext) {
+            const context = topWindow.SillyTavern.getContext();
+            if (context?.extensionSettings?.[this.namespace]) {
+              context.extensionSettings[this.namespace] = {};
+              this._saveSettings(context);
+            }
+          }
+        } else {
+          const prefix = `${this.namespace}_`;
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach((key) => localStorage.removeItem(key));
+        }
+        this._cache.clear();
+      }
+      /**
+       * 获取完整键名
+       * @private
+       */
+      _getFullKey(key) {
+        if (this._getStorage()._isTavern) {
+          return key;
+        }
+        return `${this.namespace}_${key}`;
+      }
+      /**
+       * 创建子命名空间存储
+       * @param {string} subNamespace - 子命名空间
+       * @returns {StorageService}
+       */
+      namespace(subNamespace) {
+        return new _StorageService(`${this.namespace}:${subNamespace}`);
+      }
+      // ============================================================
+      // 工具方法
+      // ============================================================
+      /**
+       * 批量获取
+       * @param {string[]} keys - 键名数组
+       * @returns {Object}
+       */
+      getMultiple(keys) {
+        const result = {};
+        keys.forEach((key) => {
+          result[key] = this.get(key);
+        });
+        return result;
+      }
+      /**
+       * 批量设置
+       * @param {Object} data - 键值对对象
+       */
+      setMultiple(data) {
+        Object.entries(data).forEach(([key, value]) => {
+          this.set(key, value);
+        });
+      }
+      /**
+       * 导出所有数据
+       * @returns {Object}
+       */
+      exportAll() {
+        const storage2 = this._getStorage();
+        const result = {};
+        if (storage2._isTavern) {
+          const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
+          if (topWindow.SillyTavern?.getContext) {
+            const context = topWindow.SillyTavern.getContext();
+            const data = context?.extensionSettings?.[this.namespace] || {};
+            Object.entries(data).forEach(([key, value]) => {
+              result[key] = typeof value === "string" ? JSON.parse(value) : value;
+            });
+          }
+        } else {
+          const prefix = `${this.namespace}_`;
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+              const shortKey = key.slice(prefix.length);
+              try {
+                result[shortKey] = JSON.parse(localStorage.getItem(key));
+              } catch (e) {
+                result[shortKey] = localStorage.getItem(key);
+              }
+            }
+          }
+        }
+        return result;
+      }
+    };
+    storage = new StorageService("youyou_toolkit");
+    toolStorage = new StorageService("youyou_toolkit:tools");
+    presetStorage = new StorageService("youyou_toolkit:presets");
+    windowStorage = new StorageService("youyou_toolkit:windows");
+  }
+});
+
+// modules/storage.js
+var storage_exports = {};
+__export(storage_exports, {
+  DEFAULT_API_PRESETS: () => DEFAULT_API_PRESETS,
+  DEFAULT_SETTINGS: () => DEFAULT_SETTINGS,
+  STORAGE_KEYS: () => STORAGE_KEYS,
+  StorageService: () => StorageService,
+  deepMerge: () => deepMerge,
+  getCurrentPresetName: () => getCurrentPresetName,
+  getStorage: () => getStorage,
+  loadApiPresets: () => loadApiPresets,
+  loadSettings: () => loadSettings,
+  presetStorage: () => presetStorage,
+  saveApiPresets: () => saveApiPresets,
+  saveSettings: () => saveSettings,
+  setCurrentPresetName: () => setCurrentPresetName,
+  storage: () => storage,
+  toolStorage: () => toolStorage,
+  windowStorage: () => windowStorage
+});
+function loadApiPresets() {
+  return storage.get(STORAGE_KEYS.API_PRESETS) || [];
+}
+function saveApiPresets(presets) {
+  storage.set(STORAGE_KEYS.API_PRESETS, presets);
+}
+function getCurrentPresetName() {
+  return storage.get(STORAGE_KEYS.CURRENT_PRESET) || "";
+}
+function setCurrentPresetName(name) {
+  storage.set(STORAGE_KEYS.CURRENT_PRESET, name || "");
+}
+function deepMerge(target, source) {
+  const isObject = (obj) => obj && typeof obj === "object" && !Array.isArray(obj);
+  let output = { ...target };
+  if (isObject(target) && isObject(source)) {
+    Object.keys(source).forEach((key) => {
+      if (isObject(source[key])) {
+        if (!(key in target)) {
+          Object.assign(output, { [key]: source[key] });
+        } else {
+          output[key] = deepMerge(target[key], source[key]);
+        }
+      } else {
+        Object.assign(output, { [key]: source[key] });
+      }
+    });
+  }
+  return output;
+}
+var STORAGE_KEYS, DEFAULT_SETTINGS, DEFAULT_API_PRESETS;
+var init_storage = __esm({
+  "modules/storage.js"() {
+    init_storage_service();
+    init_storage_service();
+    STORAGE_KEYS = {
+      SETTINGS: "settings",
+      API_PRESETS: "api_presets",
+      CURRENT_PRESET: "current_preset",
+      // 工具模块相关存储键
+      TOOLS: "tools",
+      TOOL_PRESETS: "tool_presets",
+      CURRENT_TOOL_PRESET: "current_tool_preset",
+      BYPASS_PRESETS: "bypass_presets",
+      CURRENT_BYPASS_PRESET: "current_bypass_preset",
+      BYPASS_ENABLED: "bypass_enabled"
+    };
+    DEFAULT_SETTINGS = {
+      // API配置
+      apiConfig: {
+        url: "",
+        apiKey: "",
+        model: "",
+        useMainApi: true,
+        max_tokens: 4096,
+        temperature: 0.7,
+        top_p: 0.9
+      },
+      // 当前使用的预设名称（空表示使用当前配置）
+      currentPreset: "",
+      // UI设置
+      uiSettings: {
+        theme: "dark",
+        lastTab: "api"
+      }
+    };
+    DEFAULT_API_PRESETS = [];
+  }
+});
+
+// modules/api-connection.js
+var api_connection_exports = {};
+__export(api_connection_exports, {
+  API_STATUS: () => API_STATUS,
+  fetchAvailableModels: () => fetchAvailableModels,
+  getApiConfig: () => getApiConfig,
+  getEffectiveApiConfig: () => getEffectiveApiConfig,
+  sendApiRequest: () => sendApiRequest,
+  sendWithPreset: () => sendWithPreset,
+  testApiConnection: () => testApiConnection,
+  updateApiConfig: () => updateApiConfig,
+  validateApiConfig: () => validateApiConfig
+});
+function getApiConfig() {
+  const settings = loadSettings();
+  return settings.apiConfig || {};
+}
+function updateApiConfig(config) {
+  const settings = loadSettings();
+  settings.apiConfig = {
+    ...settings.apiConfig,
+    ...config
+  };
+  saveSettings(settings);
+}
+function validateApiConfig(config) {
+  const errors = [];
+  if (config.useMainApi) {
+    return { valid: true, errors: [] };
+  }
+  if (!config.url || !config.url.trim()) {
+    errors.push("API URL \u4E0D\u80FD\u4E3A\u7A7A");
+  } else {
+    try {
+      new URL(config.url);
+    } catch (e) {
+      errors.push("API URL \u683C\u5F0F\u65E0\u6548");
+    }
+  }
+  if (!config.model || !config.model.trim()) {
+    errors.push("\u6A21\u578B\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A");
+  }
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+function getEffectiveApiConfig(presetName = "") {
+  const settings = loadSettings();
+  if (presetName) {
+    const presets = settings.apiPresets || [];
+    const preset = presets.find((p) => p.name === presetName);
+    if (preset && preset.apiConfig) {
+      return {
+        ...preset.apiConfig,
+        presetName: preset.name
+      };
+    }
+  }
+  return settings.apiConfig || {};
+}
+async function sendWithPreset(presetName, messages, options = {}, abortSignal = null) {
+  const apiConfig = getEffectiveApiConfig(presetName);
+  return await sendApiRequest(messages, {
+    ...options,
+    apiConfig
+  }, abortSignal);
+}
+function buildRequestBody(messages, options = {}) {
+  const config = options.apiConfig || getApiConfig();
+  return {
+    messages,
+    model: config.model || "gpt-3.5-turbo",
+    max_tokens: config.max_tokens || 4096,
+    temperature: config.temperature ?? 0.7,
+    top_p: config.top_p ?? 0.9,
+    stream: false,
+    ...options.extraParams
+  };
+}
+async function sendApiRequest(messages, options = {}, abortSignal = null) {
+  const config = options.apiConfig || getApiConfig();
+  const useMainApi = config.useMainApi;
+  const validation = validateApiConfig(config);
+  if (!validation.valid && !useMainApi) {
+    throw new Error(`API\u914D\u7F6E\u65E0\u6548: ${validation.errors.join(", ")}`);
+  }
+  if (useMainApi) {
+    return await sendViaMainApi(messages, options, abortSignal);
+  }
+  return await sendViaCustomApi(messages, config, options, abortSignal);
+}
+async function sendViaMainApi(messages, options, abortSignal) {
+  const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
+  if (!topWindow.TavernHelper?.generateRaw) {
+    throw new Error("TavernHelper.generateRaw \u4E0D\u53EF\u7528\u3002\u8BF7\u68C0\u67E5SillyTavern\u7248\u672C\u3002");
+  }
+  try {
+    const response = await topWindow.TavernHelper.generateRaw({
+      ordered_prompts: messages,
+      should_stream: false,
+      ...options.extraParams
+    });
+    if (typeof response !== "string") {
+      throw new Error("\u4E3BAPI\u8FD4\u56DE\u4E86\u975E\u9884\u671F\u7684\u54CD\u5E94\u7C7B\u578B");
+    }
+    return response.trim();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw error;
+    }
+    throw new Error(`\u4E3BAPI\u8BF7\u6C42\u5931\u8D25: ${error.message}`);
+  }
+}
+async function sendViaCustomApi(messages, config, options, abortSignal) {
+  const requestBody = buildRequestBody(messages, { apiConfig: config, ...options });
+  const headers = {
+    "Content-Type": "application/json"
+  };
+  if (config.apiKey) {
+    headers["Authorization"] = `Bearer ${config.apiKey}`;
+  }
+  const response = await fetch(config.url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestBody),
+    signal: abortSignal
+  });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`API\u8BF7\u6C42\u5931\u8D25 (${response.status}): ${errorText}`);
+  }
+  const data = await response.json();
+  let content = "";
+  if (data.choices && data.choices[0]?.message?.content) {
+    content = data.choices[0].message.content;
+  } else if (data.content) {
+    content = data.content;
+  } else if (data.text) {
+    content = data.text;
+  } else if (data.response) {
+    content = data.response;
+  } else {
+    throw new Error(`\u65E0\u6CD5\u89E3\u6790API\u54CD\u5E94\u683C\u5F0F: ${JSON.stringify(data).slice(0, 200)}`);
+  }
+  return content.trim();
+}
+async function testApiConnection(config = null) {
+  const apiConfig = config || getApiConfig();
+  const startTime = Date.now();
+  try {
+    const testMessages = [
+      { role: "user", content: 'Hello, this is a connection test. Please respond with "OK".' }
+    ];
+    await sendApiRequest(testMessages, { apiConfig });
+    const latency = Date.now() - startTime;
+    return {
+      success: true,
+      message: `\u8FDE\u63A5\u6210\u529F (\u5EF6\u8FDF: ${latency}ms)`,
+      latency
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `\u8FDE\u63A5\u5931\u8D25: ${error.message}`,
+      latency: Date.now() - startTime
+    };
+  }
+}
+async function fetchAvailableModels(config = null) {
+  const apiConfig = config || getApiConfig();
+  if (apiConfig.useMainApi) {
+    return await fetchMainApiModels();
+  }
+  return await fetchCustomApiModels(apiConfig);
+}
+async function fetchMainApiModels() {
+  const topWindow = typeof window.parent !== "undefined" ? window.parent : window;
+  try {
+    if (topWindow.SillyTavern?.getContext) {
+      const context = topWindow.SillyTavern.getContext();
+      if (context.settings?.api_server) {
+        return [context.settings.api_server];
+      }
+    }
+    return ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-opus", "claude-3-sonnet"];
+  } catch (e) {
+    return ["gpt-4", "gpt-3.5-turbo"];
+  }
+}
+async function fetchCustomApiModels(config) {
+  if (!config.url || !config.apiKey) {
+    return [];
+  }
+  try {
+    const baseUrl = config.url.replace(/\/chat\/completions$/, "").replace(/\/completions$/, "");
+    const modelsUrl = `${baseUrl}/models`;
+    const response = await fetch(modelsUrl, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${config.apiKey}`
+      }
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json();
+    if (data.data && Array.isArray(data.data)) {
+      return data.data.map((model) => model.id || model.name).filter(Boolean).sort();
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
+var API_STATUS;
+var init_api_connection = __esm({
+  "modules/api-connection.js"() {
+    init_storage();
+    API_STATUS = {
+      IDLE: "idle",
+      CONNECTING: "connecting",
+      SUCCESS: "success",
+      ERROR: "error"
+    };
+  }
+});
+
+// modules/preset-manager.js
+var preset_manager_exports = {};
+__export(preset_manager_exports, {
+  createPreset: () => createPreset,
+  createPresetFromCurrentConfig: () => createPresetFromCurrentConfig,
+  deletePreset: () => deletePreset,
+  duplicatePreset: () => duplicatePreset,
+  exportPresets: () => exportPresets,
+  generateUniquePresetName: () => generateUniquePresetName,
+  getActiveConfig: () => getActiveConfig,
+  getActivePresetName: () => getActivePresetName,
+  getAllPresets: () => getAllPresets,
+  getPreset: () => getPreset,
+  getPresetNames: () => getPresetNames,
+  getStarredPresets: () => getStarredPresets,
+  importPresets: () => importPresets,
+  presetExists: () => presetExists,
+  renamePreset: () => renamePreset,
+  switchToPreset: () => switchToPreset,
+  togglePresetStar: () => togglePresetStar,
+  updatePreset: () => updatePreset,
+  validatePreset: () => validatePreset
+});
+function getAllPresets() {
+  return loadApiPresets();
+}
+function getPresetNames() {
+  const presets = loadApiPresets();
+  return presets.map((p) => p.name);
+}
+function getPreset(name) {
+  if (!name || typeof name !== "string")
+    return null;
+  const presets = loadApiPresets();
+  return presets.find((p) => p.name === name) || null;
+}
+function presetExists(name) {
+  if (!name || typeof name !== "string")
+    return false;
+  const presets = loadApiPresets();
+  return presets.some((p) => p.name === name);
+}
+function createPreset(presetData) {
+  const { name, description, apiConfig } = presetData;
+  if (!name || typeof name !== "string" || !name.trim()) {
+    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  const trimmedName = name.trim();
+  if (presetExists(trimmedName)) {
+    return { success: false, message: `\u9884\u8BBE "${trimmedName}" \u5DF2\u5B58\u5728` };
+  }
+  const preset = {
+    name: trimmedName,
+    description: description || "",
+    apiConfig: {
+      url: apiConfig?.url || "",
+      apiKey: apiConfig?.apiKey || "",
+      model: apiConfig?.model || "",
+      useMainApi: apiConfig?.useMainApi ?? true,
+      max_tokens: apiConfig?.max_tokens || 4096,
+      temperature: apiConfig?.temperature ?? 0.7,
+      top_p: apiConfig?.top_p ?? 0.9
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  const presets = loadApiPresets();
+  presets.push(preset);
+  saveApiPresets(presets);
+  return { success: true, message: `\u9884\u8BBE "${trimmedName}" \u521B\u5EFA\u6210\u529F`, preset };
+}
+function updatePreset(name, updates) {
+  if (!name || typeof name !== "string") {
+    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  const presets = loadApiPresets();
+  const index = presets.findIndex((p) => p.name === name);
+  if (index === -1) {
+    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
+  }
+  if (updates.name && updates.name !== name) {
+    return { success: false, message: "\u4E0D\u652F\u6301\u4FEE\u6539\u9884\u8BBE\u540D\u79F0\uFF0C\u8BF7\u521B\u5EFA\u65B0\u9884\u8BBE" };
+  }
+  const existingPreset = presets[index];
+  const updatedPreset = {
+    ...existingPreset,
+    ...updates,
+    name: existingPreset.name,
+    // 保持原名称
+    updatedAt: Date.now()
+  };
+  if (updates.apiConfig) {
+    updatedPreset.apiConfig = {
+      ...existingPreset.apiConfig,
+      ...updates.apiConfig
+    };
+  }
+  presets[index] = updatedPreset;
+  saveApiPresets(presets);
+  return { success: true, message: `\u9884\u8BBE "${name}" \u66F4\u65B0\u6210\u529F`, preset: updatedPreset };
+}
+function deletePreset(name) {
+  if (!name || typeof name !== "string") {
+    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  const presets = loadApiPresets();
+  const index = presets.findIndex((p) => p.name === name);
+  if (index === -1) {
+    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
+  }
+  presets.splice(index, 1);
+  saveApiPresets(presets);
+  if (getCurrentPresetName() === name) {
+    setCurrentPresetName("");
+  }
+  return { success: true, message: `\u9884\u8BBE "${name}" \u5DF2\u5220\u9664` };
+}
+function renamePreset(oldName, newName) {
+  if (!oldName || typeof oldName !== "string") {
+    return { success: false, message: "\u539F\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  if (!newName || typeof newName !== "string" || !newName.trim()) {
+    return { success: false, message: "\u65B0\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  const trimmedNewName = newName.trim();
+  if (!presetExists(oldName)) {
+    return { success: false, message: `\u9884\u8BBE "${oldName}" \u4E0D\u5B58\u5728` };
+  }
+  if (presetExists(trimmedNewName)) {
+    return { success: false, message: `\u9884\u8BBE "${trimmedNewName}" \u5DF2\u5B58\u5728` };
+  }
+  const presets = loadApiPresets();
+  const preset = presets.find((p) => p.name === oldName);
+  if (preset) {
+    preset.name = trimmedNewName;
+    preset.updatedAt = Date.now();
+    saveApiPresets(presets);
+    if (getCurrentPresetName() === oldName) {
+      setCurrentPresetName(trimmedNewName);
+    }
+  }
+  return { success: true, message: `\u9884\u8BBE\u5DF2\u91CD\u547D\u540D\u4E3A "${trimmedNewName}"` };
+}
+function duplicatePreset(sourceName, targetName) {
+  if (!sourceName || typeof sourceName !== "string") {
+    return { success: false, message: "\u6E90\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  if (!targetName || typeof targetName !== "string" || !targetName.trim()) {
+    return { success: false, message: "\u76EE\u6807\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  const trimmedTargetName = targetName.trim();
+  const sourcePreset = getPreset(sourceName);
+  if (!sourcePreset) {
+    return { success: false, message: `\u6E90\u9884\u8BBE "${sourceName}" \u4E0D\u5B58\u5728` };
+  }
+  if (presetExists(trimmedTargetName)) {
+    return { success: false, message: `\u9884\u8BBE "${trimmedTargetName}" \u5DF2\u5B58\u5728` };
+  }
+  const newPreset = {
+    ...JSON.parse(JSON.stringify(sourcePreset)),
+    name: trimmedTargetName,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  const presets = loadApiPresets();
+  presets.push(newPreset);
+  saveApiPresets(presets);
+  return { success: true, message: `\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${trimmedTargetName}"`, preset: newPreset };
+}
+function togglePresetStar(name) {
+  if (!name || typeof name !== "string") {
+    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  const presets = loadApiPresets();
+  const preset = presets.find((p) => p.name === name);
+  if (!preset) {
+    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
+  }
+  preset.starred = !preset.starred;
+  preset.updatedAt = Date.now();
+  saveApiPresets(presets);
+  return {
+    success: true,
+    message: preset.starred ? `\u5DF2\u5C06 "${name}" \u6DFB\u52A0\u5230\u9884\u89C8\u5217\u8868` : `\u5DF2\u5C06 "${name}" \u4ECE\u9884\u89C8\u5217\u8868\u79FB\u9664`,
+    starred: preset.starred
+  };
+}
+function getStarredPresets() {
+  const presets = loadApiPresets();
+  return presets.filter((p) => p.starred === true);
+}
+function switchToPreset(name) {
+  if (!name) {
+    setCurrentPresetName("");
+    return { success: true, message: "\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E" };
+  }
+  const preset = getPreset(name);
+  if (!preset) {
+    return { success: false, message: `\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728` };
+  }
+  setCurrentPresetName(name);
+  return {
+    success: true,
+    message: `\u5DF2\u5207\u6362\u5230\u9884\u8BBE "${name}"`,
+    apiConfig: preset.apiConfig
+  };
+}
+function getActivePresetName() {
+  return getCurrentPresetName();
+}
+function getActiveConfig() {
+  const presetName = getCurrentPresetName();
+  if (presetName) {
+    const preset = getPreset(presetName);
+    if (preset) {
+      return {
+        presetName,
+        apiConfig: preset.apiConfig
+      };
+    }
+  }
+  const settings = loadSettings();
+  return {
+    presetName: "",
+    apiConfig: settings.apiConfig || {}
+  };
+}
+function exportPresets(name = null) {
+  if (name) {
+    const preset = getPreset(name);
+    if (!preset) {
+      throw new Error(`\u9884\u8BBE "${name}" \u4E0D\u5B58\u5728`);
+    }
+    return JSON.stringify(preset, null, 2);
+  }
+  const presets = loadApiPresets();
+  return JSON.stringify(presets, null, 2);
+}
+function importPresets(jsonString, options = { overwrite: false }) {
+  let data;
+  try {
+    data = JSON.parse(jsonString);
+  } catch (e) {
+    return { success: false, message: "JSON\u89E3\u6790\u5931\u8D25", imported: 0 };
+  }
+  const presetsToImport = Array.isArray(data) ? data : [data];
+  if (presetsToImport.length === 0) {
+    return { success: false, message: "\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E", imported: 0 };
+  }
+  const existingPresets = loadApiPresets();
+  let imported = 0;
+  for (const preset of presetsToImport) {
+    if (!preset.name || typeof preset.name !== "string") {
+      continue;
+    }
+    if (!preset.apiConfig || typeof preset.apiConfig !== "object") {
+      continue;
+    }
+    const existingIndex = existingPresets.findIndex((p) => p.name === preset.name);
+    if (existingIndex >= 0) {
+      if (options.overwrite) {
+        preset.updatedAt = Date.now();
+        existingPresets[existingIndex] = preset;
+        imported++;
+      }
+    } else {
+      preset.createdAt = preset.createdAt || Date.now();
+      preset.updatedAt = Date.now();
+      existingPresets.push(preset);
+      imported++;
+    }
+  }
+  if (imported > 0) {
+    saveApiPresets(existingPresets);
+  }
+  return {
+    success: true,
+    message: `\u6210\u529F\u5BFC\u5165 ${imported} \u4E2A\u9884\u8BBE`,
+    imported
+  };
+}
+function createPresetFromCurrentConfig(name, description = "") {
+  const settings = loadSettings();
+  return createPreset({
+    name,
+    description,
+    apiConfig: settings.apiConfig
+  });
+}
+function validatePreset(preset) {
+  const errors = [];
+  if (!preset.name || typeof preset.name !== "string" || !preset.name.trim()) {
+    errors.push("\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A");
+  }
+  if (!preset.apiConfig || typeof preset.apiConfig !== "object") {
+    errors.push("\u7F3A\u5C11API\u914D\u7F6E");
+  }
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+function generateUniquePresetName(baseName) {
+  if (!baseName || typeof baseName !== "string") {
+    baseName = "\u65B0\u9884\u8BBE";
+  }
+  const presets = loadApiPresets();
+  const existingNames = new Set(presets.map((p) => p.name));
+  if (!existingNames.has(baseName)) {
+    return baseName;
+  }
+  let counter = 1;
+  while (existingNames.has(`${baseName} (${counter})`)) {
+    counter++;
+  }
+  return `${baseName} (${counter})`;
+}
+var init_preset_manager = __esm({
+  "modules/preset-manager.js"() {
+    init_storage();
+  }
+});
+
+// modules/core/event-bus.js
+var EVENTS, EventBus, eventBus;
+var init_event_bus = __esm({
+  "modules/core/event-bus.js"() {
+    EVENTS = {
+      // ==================== 存储事件 ====================
+      STORAGE_CHANGED: "storage:changed",
+      STORAGE_CLEARED: "storage:cleared",
+      // ==================== 预设事件 ====================
+      PRESET_CREATED: "preset:created",
+      PRESET_UPDATED: "preset:updated",
+      PRESET_DELETED: "preset:deleted",
+      PRESET_ACTIVATED: "preset:activated",
+      PRESET_IMPORTED: "preset:imported",
+      PRESET_EXPORTED: "preset:exported",
+      // ==================== API事件 ====================
+      API_CONFIG_UPDATED: "api:configUpdated",
+      API_REQUEST_START: "api:requestStart",
+      API_REQUEST_SUCCESS: "api:requestSuccess",
+      API_REQUEST_ERROR: "api:requestError",
+      API_CONNECTION_TESTED: "api:connectionTested",
+      // ==================== 工具事件 ====================
+      TOOL_REGISTERED: "tool:registered",
+      TOOL_UNREGISTERED: "tool:unregistered",
+      TOOL_UPDATED: "tool:updated",
+      TOOL_ENABLED: "tool:enabled",
+      TOOL_DISABLED: "tool:disabled",
+      TOOL_EXECUTING: "tool:executing",
+      TOOL_EXECUTED: "tool:executed",
+      TOOL_ERROR: "tool:error",
+      TOOL_EXECUTION_STARTED: "tool:executionStarted",
+      TOOL_EXECUTION_FAILED: "tool:executionFailed",
+      TOOL_TRIGGER_INITIALIZED: "tool:triggerInitialized",
+      // ==================== 正则提取事件 ====================
+      REGEX_RULE_ADDED: "regex:ruleAdded",
+      REGEX_RULE_UPDATED: "regex:ruleUpdated",
+      REGEX_RULE_DELETED: "regex:ruleDeleted",
+      REGEX_RULES_CLEARED: "regex:rulesCleared",
+      REGEX_PRESET_LOADED: "regex:presetLoaded",
+      REGEX_EXTRACTED: "regex:extracted",
+      // ==================== UI事件 ====================
+      UI_INITIALIZED: "ui:initialized",
+      UI_RENDER_REQUESTED: "ui:renderRequested",
+      UI_TAB_CHANGED: "ui:tabChanged",
+      UI_SUBTAB_CHANGED: "ui:subTabChanged",
+      UI_POPUP_OPENED: "ui:popupOpened",
+      UI_POPUP_CLOSED: "ui:popupClosed",
+      UI_WINDOW_CREATED: "ui:windowCreated",
+      UI_WINDOW_CLOSED: "ui:windowClosed",
+      // ==================== 触发器事件 ====================
+      TRIGGER_REGISTERED: "trigger:registered",
+      TRIGGER_UNREGISTERED: "trigger:unregistered",
+      TRIGGER_FIRED: "trigger:fired",
+      // ==================== 应用事件 ====================
+      APP_INITIALIZING: "app:initializing",
+      APP_INITIALIZED: "app:initialized",
+      APP_ERROR: "app:error",
+      // ==================== v0.5 新增事件 ====================
+      // 设置事件
+      SETTINGS_UPDATED: "settings:updated",
+      // 工具上下文注入事件
+      TOOL_CONTEXT_INJECTED: "tool:contextInjected",
+      TOOL_CONTEXT_CLEARED: "tool:contextCleared",
+      // 破限词事件
+      BYPASS_PRESET_CREATED: "bypass:presetCreated",
+      BYPASS_PRESET_UPDATED: "bypass:presetUpdated",
+      BYPASS_PRESET_DELETED: "bypass:presetDeleted",
+      BYPASS_PRESET_ACTIVATED: "bypass:presetActivated",
+      // 工具执行事件（增强）
+      TOOL_EXECUTION_REQUESTED: "tool:executionRequested",
+      TOOL_OUTPUT_MODE_CHANGED: "tool:outputModeChanged"
+    };
+    EventBus = class {
+      constructor() {
+        this.listeners = /* @__PURE__ */ new Map();
+        this.onceCallbacks = /* @__PURE__ */ new Map();
+        this.history = [];
+        this.maxHistorySize = 100;
+        this.debugMode = false;
+      }
+      // ============================================================
+      // 核心方法
+      // ============================================================
+      /**
+       * 订阅事件
+       * @param {string} event - 事件名
+       * @param {Function} callback - 回调函数
+       * @param {Object} options - 选项
+       * @returns {Function} 取消订阅函数
+       */
+      on(event, callback, options = {}) {
+        if (!event || typeof callback !== "function") {
+          console.warn("[EventBus] \u65E0\u6548\u7684\u4E8B\u4EF6\u6216\u56DE\u8C03");
+          return () => {
+          };
+        }
+        const { priority = 0 } = options;
+        if (!this.listeners.has(event)) {
+          this.listeners.set(event, /* @__PURE__ */ new Set());
+        }
+        const listener = { callback, priority };
+        this.listeners.get(event).add(listener);
+        if (this.debugMode) {
+          console.log(`[EventBus] \u8BA2\u9605: ${event}`);
+        }
+        return () => this.off(event, callback);
+      }
+      /**
+       * 取消订阅
+       * @param {string} event - 事件名
+       * @param {Function} callback - 回调函数
+       */
+      off(event, callback) {
+        const listeners = this.listeners.get(event);
+        if (!listeners)
+          return;
+        for (const listener of listeners) {
+          if (listener.callback === callback) {
+            listeners.delete(listener);
+            break;
+          }
+        }
+        if (this.debugMode) {
+          console.log(`[EventBus] \u53D6\u6D88\u8BA2\u9605: ${event}`);
+        }
+      }
+      /**
+       * 发布事件
+       * @param {string} event - 事件名
+       * @param {*} data - 事件数据
+       */
+      emit(event, data) {
+        if (this.debugMode) {
+          console.log(`[EventBus] \u53D1\u5E03: ${event}`, data);
+        }
+        this._addToHistory(event, data);
+        const listeners = this.listeners.get(event);
+        if (!listeners || listeners.size === 0)
+          return;
+        const sortedListeners = Array.from(listeners).sort((a, b) => b.priority - a.priority);
+        for (const { callback } of sortedListeners) {
+          try {
+            callback(data);
+          } catch (error) {
+            console.error(`[EventBus] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF (${event}):`, error);
+          }
+        }
+      }
+      /**
+       * 一次性订阅
+       * @param {string} event - 事件名
+       * @param {Function} callback - 回调函数
+       * @returns {Function} 取消订阅函数
+       */
+      once(event, callback) {
+        const wrapper = (data) => {
+          this.off(event, wrapper);
+          callback(data);
+        };
+        return this.on(event, wrapper);
+      }
+      /**
+       * 等待事件
+       * @param {string} event - 事件名
+       * @param {number} timeout - 超时时间(ms)
+       * @returns {Promise<*>}
+       */
+      wait(event, timeout = 0) {
+        return new Promise((resolve, reject) => {
+          let timer = null;
+          const unsubscribe = this.once(event, (data) => {
+            if (timer)
+              clearTimeout(timer);
+            resolve(data);
+          });
+          if (timeout > 0) {
+            timer = setTimeout(() => {
+              unsubscribe();
+              reject(new Error(`\u7B49\u5F85\u4E8B\u4EF6\u8D85\u65F6: ${event}`));
+            }, timeout);
+          }
+        });
+      }
+      // ============================================================
+      // 工具方法
+      // ============================================================
+      /**
+       * 检查是否有监听器
+       * @param {string} event - 事件名
+       * @returns {boolean}
+       */
+      hasListeners(event) {
+        const listeners = this.listeners.get(event);
+        return listeners && listeners.size > 0;
+      }
+      /**
+       * 获取监听器数量
+       * @param {string} event - 事件名
+       * @returns {number}
+       */
+      listenerCount(event) {
+        const listeners = this.listeners.get(event);
+        return listeners ? listeners.size : 0;
+      }
+      /**
+       * 移除所有监听器
+       * @param {string} event - 事件名（可选，不传则清除所有）
+       */
+      removeAllListeners(event) {
+        if (event) {
+          this.listeners.delete(event);
+        } else {
+          this.listeners.clear();
+        }
+      }
+      /**
+       * 设置调试模式
+       * @param {boolean} enabled
+       */
+      setDebugMode(enabled) {
+        this.debugMode = enabled;
+      }
+      /**
+       * 添加到历史记录
+       * @private
+       */
+      _addToHistory(event, data) {
+        this.history.push({
+          event,
+          data,
+          timestamp: Date.now()
+        });
+        if (this.history.length > this.maxHistorySize) {
+          this.history.shift();
+        }
+      }
+      /**
+       * 获取事件历史
+       * @param {string} event - 事件名（可选）
+       * @returns {Array}
+       */
+      getHistory(event) {
+        if (event) {
+          return this.history.filter((h) => h.event === event);
+        }
+        return [...this.history];
+      }
+      /**
+       * 清除历史
+       */
+      clearHistory() {
+        this.history = [];
+      }
+    };
+    eventBus = new EventBus();
+  }
+});
+
+// modules/ui/utils.js
+function escapeHtml(unsafe) {
+  if (typeof unsafe !== "string")
+    return "";
+  return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
+}
+function showToast(type, message, duration = 3e3) {
+  if (!message) {
+    message = type === "error" ? "\u64CD\u4F5C\u5931\u8D25" : "\u64CD\u4F5C\u5B8C\u6210";
+  }
+  const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
+  if (topWindow.toastr) {
+    topWindow.toastr[type](message, "YouYou \u5DE5\u5177\u7BB1", {
+      timeOut: duration,
+      progressBar: true
+    });
+    return;
+  }
+  _showFallbackToast(type, message, duration);
+  console.log(`[YouYou \u5DE5\u5177\u7BB1] [${type.toUpperCase()}] ${message}`);
+}
+function showTopNotice(type, message, options = {}) {
+  if (!message) {
+    message = type === "error" ? "\u64CD\u4F5C\u5931\u8D25" : "\u64CD\u4F5C\u5B8C\u6210";
+  }
+  const {
+    duration = 3500,
+    sticky = false,
+    noticeId = ""
+  } = options;
+  const targetDoc = typeof window.parent !== "undefined" && window.parent !== window ? window.parent.document : document;
+  if (!targetDoc?.body) {
+    showToast(type, message, duration);
+    return;
+  }
+  const containerId = "yyt-top-notice-container";
+  const styleId = "yyt-top-notice-styles";
+  let container = targetDoc.getElementById(containerId);
+  if (!container) {
+    container = targetDoc.createElement("div");
+    container.id = containerId;
+    container.style.cssText = `
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: min(560px, calc(100vw - 24px));
+      z-index: 100000;
+      pointer-events: none;
+    `;
+    targetDoc.body.appendChild(container);
+  }
+  if (!targetDoc.getElementById(styleId)) {
+    const style = targetDoc.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      .yyt-top-notice {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.95);
+        background: rgba(11, 15, 21, 0.92);
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        pointer-events: auto;
+        animation: yyt-top-notice-in 0.18s ease-out;
+      }
+
+      .yyt-top-notice__icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .yyt-top-notice__content {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .yyt-top-notice__close {
+        border: none;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.72);
+        cursor: pointer;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+
+      .yyt-top-notice__close:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .yyt-top-notice--success {
+        border-color: rgba(74, 222, 128, 0.35);
+      }
+
+      .yyt-top-notice--success .yyt-top-notice__icon {
+        background: rgba(74, 222, 128, 0.18);
+        color: #4ade80;
+      }
+
+      .yyt-top-notice--error {
+        border-color: rgba(248, 113, 113, 0.38);
+      }
+
+      .yyt-top-notice--error .yyt-top-notice__icon {
+        background: rgba(248, 113, 113, 0.18);
+        color: #f87171;
+      }
+
+      .yyt-top-notice--warning {
+        border-color: rgba(251, 191, 36, 0.38);
+      }
+
+      .yyt-top-notice--warning .yyt-top-notice__icon {
+        background: rgba(251, 191, 36, 0.18);
+        color: #fbbf24;
+      }
+
+      .yyt-top-notice--info {
+        border-color: rgba(123, 183, 255, 0.38);
+      }
+
+      .yyt-top-notice--info .yyt-top-notice__icon {
+        background: rgba(123, 183, 255, 0.18);
+        color: #7bb7ff;
+      }
+
+      @keyframes yyt-top-notice-in {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes yyt-top-notice-out {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+      }
+    `;
+    targetDoc.head.appendChild(style);
+  }
+  if (noticeId) {
+    const existing = container.querySelector(`[data-notice-id="${noticeId}"]`);
+    if (existing) {
+      existing.remove();
+    }
+  }
+  const iconMap = {
+    success: "\u2713",
+    error: "!",
+    warning: "\u2022",
+    info: "i"
+  };
+  const notice = targetDoc.createElement("div");
+  notice.className = `yyt-top-notice yyt-top-notice--${type || "info"}`;
+  if (noticeId) {
+    notice.dataset.noticeId = noticeId;
+  }
+  const icon = targetDoc.createElement("span");
+  icon.className = "yyt-top-notice__icon";
+  icon.textContent = iconMap[type] || iconMap.info;
+  const content = targetDoc.createElement("div");
+  content.className = "yyt-top-notice__content";
+  content.textContent = message;
+  const closeBtn = targetDoc.createElement("button");
+  closeBtn.className = "yyt-top-notice__close";
+  closeBtn.type = "button";
+  closeBtn.setAttribute("aria-label", "\u5173\u95ED\u901A\u77E5");
+  closeBtn.textContent = "\xD7";
+  const removeNotice = () => {
+    notice.style.animation = "yyt-top-notice-out 0.18s ease forwards";
+    setTimeout(() => notice.remove(), 180);
+  };
+  closeBtn.addEventListener("click", removeNotice);
+  notice.appendChild(icon);
+  notice.appendChild(content);
+  notice.appendChild(closeBtn);
+  container.appendChild(notice);
+  if (!sticky) {
+    setTimeout(removeNotice, duration);
+  }
+}
+function _showFallbackToast(type, message, duration) {
+  const targetDoc = typeof window.parent !== "undefined" && window.parent !== window ? window.parent.document : document;
+  if (!targetDoc) {
+    return;
+  }
+  const existingToast = targetDoc.getElementById("yyt-fallback-toast");
+  if (existingToast) {
+    existingToast.remove();
+  }
+  const colors = {
+    success: { bg: "rgba(74, 222, 128, 0.9)", border: "#22c55e" },
+    error: { bg: "rgba(248, 113, 113, 0.9)", border: "#ef4444" },
+    warning: { bg: "rgba(251, 191, 36, 0.9)", border: "#f59e0b" },
+    info: { bg: "rgba(123, 183, 255, 0.9)", border: "#7bb7ff" }
+  };
+  const color = colors[type] || colors.info;
+  const toast = targetDoc.createElement("div");
+  toast.id = "yyt-fallback-toast";
+  toast.style.cssText = `
     position: fixed;
     top: 20px;
     right: 20px;
     padding: 12px 20px;
-    background: ${i.bg};
+    background: ${color.bg};
     color: #0b0f15;
     border-radius: 8px;
-    border: 2px solid ${i.border};
+    border: 2px solid ${color.border};
     font-size: 14px;
     font-weight: 500;
     z-index: 99999;
@@ -14,7 +1451,12 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     animation: yyt-toast-in 0.3s ease;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
-  `,a.textContent=t,!o.getElementById("yyt-toast-styles")){let c=o.createElement("style");c.id="yyt-toast-styles",c.textContent=`
+  `;
+  toast.textContent = message;
+  if (!targetDoc.getElementById("yyt-toast-styles")) {
+    const style = targetDoc.createElement("style");
+    style.id = "yyt-toast-styles";
+    style.textContent = `
       @keyframes yyt-toast-in {
         from { opacity: 0; transform: translateX(100px); }
         to { opacity: 1; transform: translateX(0); }
@@ -23,7 +1465,374 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
         from { opacity: 1; transform: translateX(0); }
         to { opacity: 0; transform: translateX(100px); }
       }
-    `,o.head.appendChild(c)}o.body.appendChild(a),setTimeout(()=>{a.style.animation="yyt-toast-out 0.3s ease forwards",setTimeout(()=>{a.remove()},300)},s)}function w(){if(Nt)return Nt;if(typeof window.parent<"u"&&window.parent!==window)try{if(window.parent.jQuery)return Nt=window.parent.jQuery,Nt}catch{}return window.jQuery&&(Nt=window.jQuery),Nt}function S(e){return e&&e.length>0}function Ct(e,t=l){if(!w()||!S(e))return{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9};let o=e.find(`#${t}-model`).val()?.trim()||"",n=e.find(`#${t}-model-select`);return n.is(":visible")&&(o=n.val()||o),{url:e.find(`#${t}-api-url`).val()?.trim()||"",apiKey:e.find(`#${t}-api-key`).val()||"",model:o,useMainApi:e.find(`#${t}-use-main-api`).is(":checked"),max_tokens:parseInt(e.find(`#${t}-max-tokens`).val())||4096,temperature:parseFloat(e.find(`#${t}-temperature`).val())??.7,top_p:parseFloat(e.find(`#${t}-top-p`).val())??.9}}function jt(e,t,s=l){if(!w()||!S(e)||!t)return;e.find(`#${s}-api-url`).val(t.url||""),e.find(`#${s}-api-key`).val(t.apiKey||""),e.find(`#${s}-model`).val(t.model||""),e.find(`#${s}-max-tokens`).val(t.max_tokens||4096),e.find(`#${s}-temperature`).val(t.temperature??.7),e.find(`#${s}-top-p`).val(t.top_p??.9);let n=t.useMainApi??!0;e.find(`#${s}-use-main-api`).prop("checked",n);let i=e.find(`#${s}-custom-api-fields`);n?i.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):i.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1),e.find(`#${s}-model`).show(),e.find(`#${s}-model-select`).hide()}function ft(e,t){let s=new Blob([e],{type:"application/json"}),o=URL.createObjectURL(s),n=document.createElement("a");n.href=o,n.download=t,n.click(),URL.revokeObjectURL(o)}function mt(e){return new Promise((t,s)=>{let o=new FileReader;o.onload=n=>t(n.target.result),o.onerror=n=>s(new Error("\u6587\u4EF6\u8BFB\u53D6\u5931\u8D25")),o.readAsText(e)})}var l,Nt,K=E(()=>{l="youyou_toolkit";Nt=null});var Oe,W,Ns=E(()=>{L();K();Oe=class{constructor(){this.components=new Map,this.activeInstances=new Map,this.dependencies={},this.currentTab="main",this.currentSubTab={},this.initialized=!1}init(t={}){this.initialized||(this.dependencies=t.services||{},this._subscribeEvents(),this.initialized=!0,f.emit(g.UI_INITIALIZED),console.log("[UIManager] \u521D\u59CB\u5316\u5B8C\u6210"))}register(t,s){return!t||!s?(console.warn("[UIManager] \u65E0\u6548\u7684\u7EC4\u4EF6\u6CE8\u518C"),!1):(this.components.set(t,{id:t,...s,render:s.render||(()=>""),bindEvents:s.bindEvents||(()=>{}),destroy:s.destroy||(()=>{}),getStyles:s.getStyles||(()=>"")}),!0)}unregister(t){this.destroyInstance(t),this.components.delete(t)}getComponent(t){return this.components.get(t)}render(t,s,o={}){let n=w();if(!n){console.error("[UIManager] jQuery\u4E0D\u53EF\u7528");return}let r=this.components.get(t);if(!r){console.warn(`[UIManager] \u7EC4\u4EF6\u4E0D\u5B58\u5728: ${t}`);return}let i;if(typeof s=="string"?i=n(s):s&&s.jquery?i=s:s&&(i=n(s)),!S(i)){console.warn("[UIManager] \u5BB9\u5668\u4E0D\u5B58\u5728");return}this.destroyInstance(t);let a=r.render({...o,dependencies:this.dependencies});i.html(a),r.bindEvents(i,this.dependencies),this.activeInstances.set(t,{container:i,component:r,props:o}),f.emit(g.UI_RENDER_REQUESTED,{componentId:t})}destroyInstance(t){let s=this.activeInstances.get(t);s&&(s.component.destroy(s.container),this.activeInstances.delete(t))}switchTab(t){let s=this.currentTab;this.currentTab=t,f.emit(g.UI_TAB_CHANGED,{tabId:t,oldTab:s})}getCurrentTab(){return this.currentTab}switchSubTab(t,s){this.currentSubTab[t]=s,f.emit(g.UI_SUBTAB_CHANGED,{mainTab:t,subTab:s})}getCurrentSubTab(t){return this.currentSubTab[t]||""}getAllStyles(){let t="";return this.components.forEach((s,o)=>{s.getStyles&&(t+=s.getStyles())}),t}injectStyles(){let t="yyt-component-styles";if(document.getElementById(t))return;let s=document.createElement("style");s.id=t,s.textContent=this.getAllStyles(),document.head.appendChild(s)}setDependency(t,s){this.dependencies[t]=s}getDependency(t){return this.dependencies[t]}_subscribeEvents(){f.on(g.PRESET_UPDATED,()=>{}),f.on(g.TOOL_UPDATED,()=>{})}},W=new Oe});var ot,nt,js=E(()=>{L();K();As();ie();ot="",nt={id:"apiPresetPanel",render(e){let t=St(),s=Is(),o=Me(),n=ut(),a=Rs().slice(0,8),c=a.length>0?a.map(h=>this._renderPresetItem(h)).join(""):"",y=ot||o||"",p=y||"-- \u5F53\u524D\u914D\u7F6E --";return`
+    `;
+    targetDoc.head.appendChild(style);
+  }
+  targetDoc.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = "yyt-toast-out 0.3s ease forwards";
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, duration);
+}
+function getJQuery() {
+  if (cachedJQuery)
+    return cachedJQuery;
+  if (typeof window.parent !== "undefined" && window.parent !== window) {
+    try {
+      if (window.parent.jQuery) {
+        cachedJQuery = window.parent.jQuery;
+        return cachedJQuery;
+      }
+    } catch (e) {
+    }
+  }
+  if (window.jQuery) {
+    cachedJQuery = window.jQuery;
+  }
+  return cachedJQuery;
+}
+function isContainerValid($container2) {
+  return $container2 && $container2.length > 0;
+}
+function getFormApiConfig($container2, scriptId = SCRIPT_ID) {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container2)) {
+    return {
+      url: "",
+      apiKey: "",
+      model: "",
+      useMainApi: true,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.9
+    };
+  }
+  let model = $container2.find(`#${scriptId}-model`).val()?.trim() || "";
+  const $modelSelect = $container2.find(`#${scriptId}-model-select`);
+  if ($modelSelect.is(":visible")) {
+    model = $modelSelect.val() || model;
+  }
+  return {
+    url: $container2.find(`#${scriptId}-api-url`).val()?.trim() || "",
+    apiKey: $container2.find(`#${scriptId}-api-key`).val() || "",
+    model,
+    useMainApi: $container2.find(`#${scriptId}-use-main-api`).is(":checked"),
+    max_tokens: parseInt($container2.find(`#${scriptId}-max-tokens`).val()) || 4096,
+    temperature: parseFloat($container2.find(`#${scriptId}-temperature`).val()) ?? 0.7,
+    top_p: parseFloat($container2.find(`#${scriptId}-top-p`).val()) ?? 0.9
+  };
+}
+function fillFormWithConfig($container2, config, scriptId = SCRIPT_ID) {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container2) || !config)
+    return;
+  $container2.find(`#${scriptId}-api-url`).val(config.url || "");
+  $container2.find(`#${scriptId}-api-key`).val(config.apiKey || "");
+  $container2.find(`#${scriptId}-model`).val(config.model || "");
+  $container2.find(`#${scriptId}-max-tokens`).val(config.max_tokens || 4096);
+  $container2.find(`#${scriptId}-temperature`).val(config.temperature ?? 0.7);
+  $container2.find(`#${scriptId}-top-p`).val(config.top_p ?? 0.9);
+  const useMainApi = config.useMainApi ?? true;
+  const $checkbox = $container2.find(`#${scriptId}-use-main-api`);
+  $checkbox.prop("checked", useMainApi);
+  const $customFields = $container2.find(`#${scriptId}-custom-api-fields`);
+  if (useMainApi) {
+    $customFields.addClass("yyt-disabled").find("input, button, select").prop("disabled", true);
+  } else {
+    $customFields.removeClass("yyt-disabled").find("input, button, select").prop("disabled", false);
+  }
+  $container2.find(`#${scriptId}-model`).show();
+  $container2.find(`#${scriptId}-model-select`).hide();
+}
+function downloadJson(json, filename) {
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function readFileContent(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(new Error("\u6587\u4EF6\u8BFB\u53D6\u5931\u8D25"));
+    reader.readAsText(file);
+  });
+}
+var SCRIPT_ID, cachedJQuery;
+var init_utils = __esm({
+  "modules/ui/utils.js"() {
+    SCRIPT_ID = "youyou_toolkit";
+    cachedJQuery = null;
+  }
+});
+
+// modules/ui/ui-manager.js
+var UIManager, uiManager;
+var init_ui_manager = __esm({
+  "modules/ui/ui-manager.js"() {
+    init_event_bus();
+    init_utils();
+    UIManager = class {
+      constructor() {
+        this.components = /* @__PURE__ */ new Map();
+        this.activeInstances = /* @__PURE__ */ new Map();
+        this.dependencies = {};
+        this.currentTab = "main";
+        this.currentSubTab = {};
+        this.initialized = false;
+      }
+      // ============================================================
+      // 初始化
+      // ============================================================
+      /**
+       * 初始化UI管理器
+       * @param {Object} options
+       */
+      init(options = {}) {
+        if (this.initialized)
+          return;
+        this.dependencies = options.services || {};
+        this._subscribeEvents();
+        this.initialized = true;
+        eventBus.emit(EVENTS.UI_INITIALIZED);
+        console.log("[UIManager] \u521D\u59CB\u5316\u5B8C\u6210");
+      }
+      // ============================================================
+      // 组件注册
+      // ============================================================
+      /**
+       * 注册组件
+       * @param {string} id - 组件ID
+       * @param {Object} component - 组件配置
+       * @returns {boolean}
+       */
+      register(id, component) {
+        if (!id || !component) {
+          console.warn("[UIManager] \u65E0\u6548\u7684\u7EC4\u4EF6\u6CE8\u518C");
+          return false;
+        }
+        this.components.set(id, {
+          id,
+          ...component,
+          render: component.render || (() => ""),
+          bindEvents: component.bindEvents || (() => {
+          }),
+          destroy: component.destroy || (() => {
+          }),
+          getStyles: component.getStyles || (() => "")
+        });
+        return true;
+      }
+      /**
+       * 注销组件
+       * @param {string} id
+       */
+      unregister(id) {
+        this.destroyInstance(id);
+        this.components.delete(id);
+      }
+      /**
+       * 获取组件
+       * @param {string} id
+       * @returns {Object|undefined}
+       */
+      getComponent(id) {
+        return this.components.get(id);
+      }
+      // ============================================================
+      // 渲染
+      // ============================================================
+      /**
+       * 渲染组件
+       * @param {string} id - 组件ID
+       * @param {HTMLElement|Object} container - 容器
+       * @param {Object} props - 属性
+       */
+      render(id, container, props = {}) {
+        const $ = getJQuery();
+        if (!$) {
+          console.error("[UIManager] jQuery\u4E0D\u53EF\u7528");
+          return;
+        }
+        const component = this.components.get(id);
+        if (!component) {
+          console.warn(`[UIManager] \u7EC4\u4EF6\u4E0D\u5B58\u5728: ${id}`);
+          return;
+        }
+        let $container2;
+        if (typeof container === "string") {
+          $container2 = $(container);
+        } else if (container && container.jquery) {
+          $container2 = container;
+        } else if (container) {
+          $container2 = $(container);
+        }
+        if (!isContainerValid($container2)) {
+          console.warn(`[UIManager] \u5BB9\u5668\u4E0D\u5B58\u5728`);
+          return;
+        }
+        this.destroyInstance(id);
+        const html = component.render({
+          ...props,
+          dependencies: this.dependencies
+        });
+        $container2.html(html);
+        component.bindEvents($container2, this.dependencies);
+        this.activeInstances.set(id, {
+          container: $container2,
+          component,
+          props
+        });
+        eventBus.emit(EVENTS.UI_RENDER_REQUESTED, { componentId: id });
+      }
+      /**
+       * 销毁组件实例
+       * @param {string} id
+       */
+      destroyInstance(id) {
+        const instance = this.activeInstances.get(id);
+        if (!instance)
+          return;
+        instance.component.destroy(instance.container);
+        this.activeInstances.delete(id);
+      }
+      // ============================================================
+      // 标签页管理
+      // ============================================================
+      /**
+       * 切换标签页
+       * @param {string} tabId
+       */
+      switchTab(tabId) {
+        const oldTab = this.currentTab;
+        this.currentTab = tabId;
+        eventBus.emit(EVENTS.UI_TAB_CHANGED, { tabId, oldTab });
+      }
+      /**
+       * 获取当前标签页
+       * @returns {string}
+       */
+      getCurrentTab() {
+        return this.currentTab;
+      }
+      /**
+       * 切换子标签页
+       * @param {string} mainTab
+       * @param {string} subTab
+       */
+      switchSubTab(mainTab, subTab) {
+        this.currentSubTab[mainTab] = subTab;
+        eventBus.emit(EVENTS.UI_SUBTAB_CHANGED, { mainTab, subTab });
+      }
+      /**
+       * 获取当前子标签页
+       * @param {string} mainTab
+       * @returns {string}
+       */
+      getCurrentSubTab(mainTab) {
+        return this.currentSubTab[mainTab] || "";
+      }
+      // ============================================================
+      // 样式管理
+      // ============================================================
+      /**
+       * 获取所有组件样式
+       * @returns {string}
+       */
+      getAllStyles() {
+        let styles = "";
+        this.components.forEach((component, id) => {
+          if (component.getStyles) {
+            styles += component.getStyles();
+          }
+        });
+        return styles;
+      }
+      /**
+       * 注入样式到页面
+       */
+      injectStyles() {
+        const styleId = "yyt-component-styles";
+        if (document.getElementById(styleId))
+          return;
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.textContent = this.getAllStyles();
+        document.head.appendChild(style);
+      }
+      // ============================================================
+      // 依赖注入
+      // ============================================================
+      /**
+       * 设置依赖
+       * @param {string} name
+       * @param {*} service
+       */
+      setDependency(name, service) {
+        this.dependencies[name] = service;
+      }
+      /**
+       * 获取依赖
+       * @param {string} name
+       * @returns {*}
+       */
+      getDependency(name) {
+        return this.dependencies[name];
+      }
+      // ============================================================
+      // 私有方法
+      // ============================================================
+      /**
+       * 订阅事件
+       * @private
+       */
+      _subscribeEvents() {
+        eventBus.on(EVENTS.PRESET_UPDATED, () => {
+        });
+        eventBus.on(EVENTS.TOOL_UPDATED, () => {
+        });
+      }
+    };
+    uiManager = new UIManager();
+  }
+});
+
+// modules/ui/components/api-preset-panel.js
+var currentLoadedPresetName, ApiPresetPanel;
+var init_api_preset_panel = __esm({
+  "modules/ui/components/api-preset-panel.js"() {
+    init_event_bus();
+    init_utils();
+    init_api_connection();
+    init_preset_manager();
+    currentLoadedPresetName = "";
+    ApiPresetPanel = {
+      id: "apiPresetPanel",
+      // ============================================================
+      // 渲染
+      // ============================================================
+      /**
+       * 渲染组件
+       * @param {Object} props
+       * @returns {string} HTML
+       */
+      render(props) {
+        const config = getApiConfig();
+        const activeConfig = getActiveConfig();
+        const activePresetName = getActivePresetName();
+        const presets = getAllPresets();
+        const starredPresets = getStarredPresets();
+        const maxPresetsToShow = 8;
+        const starredToShow = starredPresets.slice(0, maxPresetsToShow);
+        const presetListHtml = starredToShow.length > 0 ? starredToShow.map((preset) => this._renderPresetItem(preset)).join("") : "";
+        const initialSelectValue = currentLoadedPresetName || activePresetName || "";
+        const initialSelectText = initialSelectValue || "-- \u5F53\u524D\u914D\u7F6E --";
+        return `
       <div class="yyt-api-manager">
         <div class="yyt-panel">
           <!-- \u9884\u8BBE\u9009\u62E9\u533A -->
@@ -35,29 +1844,29 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
             
             <div class="yyt-preset-selector">
               <!-- \u81EA\u5B9A\u4E49\u4E0B\u62C9\u6846 -->
-              <div class="yyt-custom-select" id="${l}-preset-dropdown">
+              <div class="yyt-custom-select" id="${SCRIPT_ID}-preset-dropdown">
                 <div class="yyt-select-trigger">
-                  <span class="yyt-select-value" data-value="${m(y)}">${m(p)}</span>
+                  <span class="yyt-select-value" data-value="${escapeHtml(initialSelectValue)}">${escapeHtml(initialSelectText)}</span>
                   <i class="fa-solid fa-chevron-down yyt-select-arrow"></i>
                 </div>
                 <div class="yyt-select-dropdown">
-                  <div class="yyt-select-option ${y?"":"yyt-selected"}" data-value="">
+                  <div class="yyt-select-option ${!initialSelectValue ? "yyt-selected" : ""}" data-value="">
                     <span class="yyt-option-star yyt-placeholder"></span>
                     <span class="yyt-option-text">-- \u5F53\u524D\u914D\u7F6E --</span>
                   </div>
-                  ${n.length>0?n.map(h=>this._renderSelectOption(h,y)).join(""):""}
+                  ${presets.length > 0 ? presets.map((p) => this._renderSelectOption(p, initialSelectValue)).join("") : ""}
                 </div>
               </div>
-              <button class="yyt-btn yyt-btn-secondary" id="${l}-load-preset" title="\u52A0\u8F7D\u9009\u4E2D\u9884\u8BBE">
+              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-load-preset" title="\u52A0\u8F7D\u9009\u4E2D\u9884\u8BBE">
                 <i class="fa-solid fa-download"></i> \u52A0\u8F7D
               </button>
             </div>
             
-            ${c?`
+            ${presetListHtml ? `
             <div class="yyt-preset-list-compact">
-              ${c}
+              ${presetListHtml}
             </div>
-            `:""}
+            ` : ""}
           </div>
           
           <!-- API\u914D\u7F6E\u533A -->
@@ -65,42 +1874,52 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
             <div class="yyt-section-title">
               <i class="fa-solid fa-sliders"></i>
               <span>API\u914D\u7F6E</span>
-              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${l}-save-as-preset" style="margin-left: auto;">
+              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-save-as-preset" style="margin-left: auto;">
                 <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u4E3A\u9884\u8BBE
               </button>
             </div>
             
-            ${this._renderApiConfigForm(t)}
+            ${this._renderApiConfigForm(config)}
           </div>
           
           <!-- \u5E95\u90E8\u64CD\u4F5C\u533A -->
           <div class="yyt-panel-footer">
             <div class="yyt-footer-left">
-              <button class="yyt-btn yyt-btn-secondary" id="${l}-import-presets">
+              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-import-presets">
                 <i class="fa-solid fa-file-import"></i> \u5BFC\u5165
               </button>
-              <button class="yyt-btn yyt-btn-secondary" id="${l}-export-presets">
+              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-export-presets">
                 <i class="fa-solid fa-file-export"></i> \u5BFC\u51FA
               </button>
-              <input type="file" id="${l}-import-file" accept=".json" style="display:none">
+              <input type="file" id="${SCRIPT_ID}-import-file" accept=".json" style="display:none">
             </div>
             <div class="yyt-footer-right">
-              <button class="yyt-btn yyt-btn-secondary" id="${l}-reset-api-config">
+              <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-reset-api-config">
                 <i class="fa-solid fa-undo"></i> \u91CD\u7F6E
               </button>
-              <button class="yyt-btn yyt-btn-primary" id="${l}-save-api-config">
+              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-save-api-config">
                 <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
               </button>
             </div>
           </div>
         </div>
       </div>
-    `},_renderPresetItem(e){return`
-      <div class="yyt-preset-item" data-preset-name="${m(e.name)}">
+    `;
+      },
+      // ============================================================
+      // 私有渲染方法
+      // ============================================================
+      /**
+       * 渲染预设项
+       * @private
+       */
+      _renderPresetItem(preset) {
+        return `
+      <div class="yyt-preset-item" data-preset-name="${escapeHtml(preset.name)}">
         <div class="yyt-preset-info">
-          <div class="yyt-preset-name">${m(e.name)}</div>
+          <div class="yyt-preset-name">${escapeHtml(preset.name)}</div>
           <div class="yyt-preset-meta">
-            ${e.apiConfig.useMainApi?'<span class="yyt-badge yyt-badge-small">\u4E3BAPI</span>':`<span class="yyt-badge yyt-badge-small">${m(e.apiConfig.model||"\u672A\u8BBE\u7F6E")}</span>`}
+            ${preset.apiConfig.useMainApi ? '<span class="yyt-badge yyt-badge-small">\u4E3BAPI</span>' : `<span class="yyt-badge yyt-badge-small">${escapeHtml(preset.apiConfig.model || "\u672A\u8BBE\u7F6E")}</span>`}
           </div>
         </div>
         <div class="yyt-preset-actions">
@@ -112,12 +1931,30 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
           </button>
         </div>
       </div>
-    `},_renderSelectOption(e,t){let s=e.starred===!0,o=s?"yyt-option-star yyt-starred":"yyt-option-star",n=s?"\u2605":"\u2606";return`
-      <div class="yyt-select-option ${e.name===t?"yyt-selected":""}" data-value="${m(e.name)}">
-        <button class="${o}" data-preset="${m(e.name)}" title="${s?"\u70B9\u51FB\u53D6\u6D88\u661F\u6807":"\u70B9\u51FB\u6DFB\u52A0\u661F\u6807"}">${n}</button>
-        <span class="yyt-option-text">${m(e.name)}</span>
+    `;
+      },
+      /**
+       * 渲染下拉选项
+       * @private
+       */
+      _renderSelectOption(preset, selectedValue) {
+        const isStarred = preset.starred === true;
+        const starClass = isStarred ? "yyt-option-star yyt-starred" : "yyt-option-star";
+        const starIcon = isStarred ? "\u2605" : "\u2606";
+        const isSelected = preset.name === selectedValue;
+        return `
+      <div class="yyt-select-option ${isSelected ? "yyt-selected" : ""}" data-value="${escapeHtml(preset.name)}">
+        <button class="${starClass}" data-preset="${escapeHtml(preset.name)}" title="${isStarred ? "\u70B9\u51FB\u53D6\u6D88\u661F\u6807" : "\u70B9\u51FB\u6DFB\u52A0\u661F\u6807"}">${starIcon}</button>
+        <span class="yyt-option-text">${escapeHtml(preset.name)}</span>
       </div>
-    `},_renderApiConfigForm(e){return`
+    `;
+      },
+      /**
+       * 渲染API配置表单
+       * @private
+       */
+      _renderApiConfigForm(config) {
+        return `
       <div class="yyt-form-group">
         <div class="yyt-toggle-row">
           <div class="yyt-toggle-label">
@@ -125,18 +1962,18 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
             <span class="yyt-toggle-hint">\u542F\u7528\u540E\u5C06\u4F7F\u7528SillyTavern\u5185\u7F6E\u7684API\u914D\u7F6E</span>
           </div>
           <label class="yyt-toggle">
-            <input type="checkbox" id="${l}-use-main-api" ${e.useMainApi?"checked":""}>
+            <input type="checkbox" id="${SCRIPT_ID}-use-main-api" ${config.useMainApi ? "checked" : ""}>
             <span class="yyt-toggle-slider"></span>
           </label>
         </div>
       </div>
       
-      <div id="${l}-custom-api-fields" class="${e.useMainApi?"yyt-disabled":""}">
+      <div id="${SCRIPT_ID}-custom-api-fields" class="${config.useMainApi ? "yyt-disabled" : ""}">
         <div class="yyt-form-row">
           <div class="yyt-form-group yyt-flex-1">
             <label>API URL</label>
-            <input type="text" class="yyt-input" id="${l}-api-url" 
-                   value="${m(e.url||"")}" 
+            <input type="text" class="yyt-input" id="${SCRIPT_ID}-api-url" 
+                   value="${escapeHtml(config.url || "")}" 
                    placeholder="https://api.openai.com/v1/chat/completions">
           </div>
         </div>
@@ -145,10 +1982,10 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
           <div class="yyt-form-group yyt-flex-1">
             <label>API Key</label>
             <div class="yyt-input-group">
-              <input type="password" class="yyt-input" id="${l}-api-key" 
-                     value="${m(e.apiKey||"")}" 
+              <input type="password" class="yyt-input" id="${SCRIPT_ID}-api-key" 
+                     value="${escapeHtml(config.apiKey || "")}" 
                      placeholder="sk-...">
-              <button class="yyt-btn yyt-btn-icon" id="${l}-toggle-key-visibility" title="\u663E\u793A/\u9690\u85CF">
+              <button class="yyt-btn yyt-btn-icon" id="${SCRIPT_ID}-toggle-key-visibility" title="\u663E\u793A/\u9690\u85CF">
                 <i class="fa-solid fa-eye"></i>
               </button>
             </div>
@@ -159,12 +1996,12 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
           <div class="yyt-form-group yyt-flex-1">
             <label>\u6A21\u578B</label>
             <div class="yyt-model-row">
-              <input type="text" class="yyt-input yyt-model-input" id="${l}-model" 
-                     value="${m(e.model||"")}" 
+              <input type="text" class="yyt-input yyt-model-input" id="${SCRIPT_ID}-model" 
+                     value="${escapeHtml(config.model || "")}" 
                      placeholder="gpt-4">
-              <select class="yyt-select yyt-model-select" id="${l}-model-select" style="display: none;">
+              <select class="yyt-select yyt-model-select" id="${SCRIPT_ID}-model-select" style="display: none;">
               </select>
-              <button class="yyt-btn yyt-btn-secondary yyt-model-btn" id="${l}-load-models" title="\u83B7\u53D6\u6A21\u578B\u5217\u8868">
+              <button class="yyt-btn yyt-btn-secondary yyt-model-btn" id="${SCRIPT_ID}-load-models" title="\u83B7\u53D6\u6A21\u578B\u5217\u8868">
                 <i class="fa-solid fa-sync-alt"></i>
               </button>
             </div>
@@ -174,55 +2011,401 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
         <div class="yyt-form-row yyt-form-row-2col">
           <div class="yyt-form-group">
             <label>Max Tokens</label>
-            <input type="number" class="yyt-input" id="${l}-max-tokens" 
-                   value="${e.max_tokens||4096}" min="1" max="128000">
+            <input type="number" class="yyt-input" id="${SCRIPT_ID}-max-tokens" 
+                   value="${config.max_tokens || 4096}" min="1" max="128000">
           </div>
           
           <div class="yyt-form-group">
             <label>Temperature</label>
-            <input type="number" class="yyt-input" id="${l}-temperature" 
-                   value="${e.temperature??.7}" min="0" max="2" step="0.1">
+            <input type="number" class="yyt-input" id="${SCRIPT_ID}-temperature" 
+                   value="${config.temperature ?? 0.7}" min="0" max="2" step="0.1">
           </div>
         </div>
         
         <div class="yyt-form-row">
           <div class="yyt-form-group yyt-flex-1">
             <label>Top P</label>
-            <input type="number" class="yyt-input" id="${l}-top-p" 
-                   value="${e.top_p??.9}" min="0" max="1" step="0.1">
+            <input type="number" class="yyt-input" id="${SCRIPT_ID}-top-p" 
+                   value="${config.top_p ?? 0.9}" min="0" max="1" step="0.1">
           </div>
         </div>
       </div>
-    `},bindEvents(e,t){let s=w();!s||!S(e)||(this._bindDropdownEvents(e,s),this._bindPresetListEvents(e,s),this._bindApiConfigEvents(e,s),this._bindFileEvents(e,s))},_bindDropdownEvents(e,t){let s=e.find(`#${l}-preset-dropdown`),o=s.find(".yyt-select-trigger"),n=s.find(".yyt-select-value");o.on("click",function(r){r.stopPropagation(),s.toggleClass("yyt-open")}),s.find(".yyt-select-option").on("click",r=>{if(t(r.target).hasClass("yyt-option-star"))return;let i=t(r.currentTarget),a=i.data("value"),c=i.find(".yyt-option-text").text();if(n.text(c).data("value",a),s.find(".yyt-select-option").removeClass("yyt-selected"),i.addClass("yyt-selected"),s.removeClass("yyt-open"),a){let y=gt(a);y&&jt(e,y.apiConfig,l)}}),s.find(".yyt-option-star").on("click",r=>{r.preventDefault(),r.stopPropagation();let i=t(r.currentTarget).data("preset");if(!i)return;let a=ks(i);if(a.success){d("success",a.message);let c=e.closest(".yyt-api-manager").parent();c.length&&this.renderTo(c)}else d("error",a.message)}),t(document).on("click.yyt-dropdown",r=>{t(r.target).closest(s).length||s.removeClass("yyt-open")})},_bindPresetListEvents(e,t){e.find(".yyt-preset-item").on("click",s=>{let o=t(s.currentTarget),n=o.data("preset-name"),r=t(s.target).closest("[data-action]").data("action");if(r)switch(s.stopPropagation(),r){case"load":let i=gt(n);i&&(jt(e,i.apiConfig,l),ot=n,e.find(".yyt-preset-item").removeClass("yyt-loaded"),o.addClass("yyt-loaded"),d("info",`\u5DF2\u52A0\u8F7D\u9884\u8BBE "${n}"\uFF0C\u4FEE\u6539\u540E\u53EF\u70B9\u51FB"\u4FDD\u5B58\u914D\u7F6E"\u8986\u76D6\u6B64\u9884\u8BBE`));break;case"delete":if(confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${n}" \u5417\uFF1F`)){let a=De(n);if(d(a.success?"info":"error",a.message),a.success){ot===n&&(ot="");let c=e.closest(".yyt-api-manager").parent();c.length&&this.renderTo(c)}}break}})},_bindApiConfigEvents(e,t){e.find(`#${l}-use-main-api`).on("change",function(){let s=t(this).is(":checked"),o=e.find(`#${l}-custom-api-fields`);s?o.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):o.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1)}),e.find(`#${l}-toggle-key-visibility`).on("click",function(){let s=e.find(`#${l}-api-key`),o=s.attr("type");s.attr("type",o==="password"?"text":"password"),t(this).find("i").toggleClass("fa-eye fa-eye-slash")}),e.find(`#${l}-load-models`).on("click",async()=>{let s=e.find(`#${l}-load-models`),o=e.find(`#${l}-model`),n=e.find(`#${l}-model-select`);s.prop("disabled",!0).find("i").addClass("fa-spin");try{let r=Ct(e,l),i=await $s(r);if(i.length>0){n.empty(),i.forEach(c=>{n.append(`<option value="${m(c)}">${m(c)}</option>`)}),o.hide(),n.show();let a=o.val();a&&i.includes(a)&&n.val(a),n.off("change").on("change",function(){o.val(t(this).val())}),d("success",`\u5DF2\u52A0\u8F7D ${i.length} \u4E2A\u6A21\u578B`)}else d("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(r){d("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${r.message}`)}finally{s.prop("disabled",!1).find("i").removeClass("fa-spin")}}),e.find(`#${l}-model`).on("focus",function(){let s=e.find(`#${l}-model-select`);t(this).show(),s.hide()}),e.find(`#${l}-save-api-config`).on("click",()=>{let s=Ct(e,l),o=ke(s);if(!o.valid&&!s.useMainApi){d("error",o.errors.join(", "));return}if(ot){if(!confirm(`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE "${ot}" \u7684\u914D\u7F6E\uFF1F
+    `;
+      },
+      // ============================================================
+      // 事件绑定
+      // ============================================================
+      /**
+       * 绑定事件
+       * @param {Object} $container
+       * @param {Object} dependencies
+       */
+      bindEvents($container2, dependencies) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        this._bindDropdownEvents($container2, $);
+        this._bindPresetListEvents($container2, $);
+        this._bindApiConfigEvents($container2, $);
+        this._bindFileEvents($container2, $);
+      },
+      /**
+       * 绑定下拉框事件
+       * @private
+       */
+      _bindDropdownEvents($container2, $) {
+        const $dropdown = $container2.find(`#${SCRIPT_ID}-preset-dropdown`);
+        const $trigger = $dropdown.find(".yyt-select-trigger");
+        const $selectValue = $dropdown.find(".yyt-select-value");
+        $trigger.on("click", function(e) {
+          e.stopPropagation();
+          $dropdown.toggleClass("yyt-open");
+        });
+        $dropdown.find(".yyt-select-option").on("click", (e) => {
+          if ($(e.target).hasClass("yyt-option-star"))
+            return;
+          const $option = $(e.currentTarget);
+          const value = $option.data("value");
+          const text = $option.find(".yyt-option-text").text();
+          $selectValue.text(text).data("value", value);
+          $dropdown.find(".yyt-select-option").removeClass("yyt-selected");
+          $option.addClass("yyt-selected");
+          $dropdown.removeClass("yyt-open");
+          if (value) {
+            const preset = getPreset(value);
+            if (preset) {
+              fillFormWithConfig($container2, preset.apiConfig, SCRIPT_ID);
+            }
+          }
+        });
+        $dropdown.find(".yyt-option-star").on("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const presetName = $(e.currentTarget).data("preset");
+          if (!presetName)
+            return;
+          const result = togglePresetStar(presetName);
+          if (result.success) {
+            showToast("success", result.message);
+            const $panel = $container2.closest(".yyt-api-manager").parent();
+            if ($panel.length) {
+              this.renderTo($panel);
+            }
+          } else {
+            showToast("error", result.message);
+          }
+        });
+        $(document).on("click.yyt-dropdown", (e) => {
+          if (!$(e.target).closest($dropdown).length) {
+            $dropdown.removeClass("yyt-open");
+          }
+        });
+      },
+      /**
+       * 绑定预设列表事件
+       * @private
+       */
+      _bindPresetListEvents($container2, $) {
+        $container2.find(".yyt-preset-item").on("click", (e) => {
+          const $item = $(e.currentTarget);
+          const presetName = $item.data("preset-name");
+          const action = $(e.target).closest("[data-action]").data("action");
+          if (!action)
+            return;
+          e.stopPropagation();
+          switch (action) {
+            case "load":
+              const preset = getPreset(presetName);
+              if (preset) {
+                fillFormWithConfig($container2, preset.apiConfig, SCRIPT_ID);
+                currentLoadedPresetName = presetName;
+                $container2.find(".yyt-preset-item").removeClass("yyt-loaded");
+                $item.addClass("yyt-loaded");
+                showToast("info", `\u5DF2\u52A0\u8F7D\u9884\u8BBE "${presetName}"\uFF0C\u4FEE\u6539\u540E\u53EF\u70B9\u51FB"\u4FDD\u5B58\u914D\u7F6E"\u8986\u76D6\u6B64\u9884\u8BBE`);
+              }
+              break;
+            case "delete":
+              if (confirm(`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${presetName}" \u5417\uFF1F`)) {
+                const delResult = deletePreset(presetName);
+                showToast(delResult.success ? "info" : "error", delResult.message);
+                if (delResult.success) {
+                  if (currentLoadedPresetName === presetName) {
+                    currentLoadedPresetName = "";
+                  }
+                  const $panel = $container2.closest(".yyt-api-manager").parent();
+                  if ($panel.length) {
+                    this.renderTo($panel);
+                  }
+                }
+              }
+              break;
+          }
+        });
+      },
+      /**
+       * 绑定API配置事件
+       * @private
+       */
+      _bindApiConfigEvents($container2, $) {
+        $container2.find(`#${SCRIPT_ID}-use-main-api`).on("change", function() {
+          const useMainApi = $(this).is(":checked");
+          const $customFields = $container2.find(`#${SCRIPT_ID}-custom-api-fields`);
+          if (useMainApi) {
+            $customFields.addClass("yyt-disabled").find("input, button, select").prop("disabled", true);
+          } else {
+            $customFields.removeClass("yyt-disabled").find("input, button, select").prop("disabled", false);
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-toggle-key-visibility`).on("click", function() {
+          const $input = $container2.find(`#${SCRIPT_ID}-api-key`);
+          const type = $input.attr("type");
+          $input.attr("type", type === "password" ? "text" : "password");
+          $(this).find("i").toggleClass("fa-eye fa-eye-slash");
+        });
+        $container2.find(`#${SCRIPT_ID}-load-models`).on("click", async () => {
+          const $btn = $container2.find(`#${SCRIPT_ID}-load-models`);
+          const $modelInput = $container2.find(`#${SCRIPT_ID}-model`);
+          const $modelSelect = $container2.find(`#${SCRIPT_ID}-model-select`);
+          $btn.prop("disabled", true).find("i").addClass("fa-spin");
+          try {
+            const config = getFormApiConfig($container2, SCRIPT_ID);
+            const models = await fetchAvailableModels(config);
+            if (models.length > 0) {
+              $modelSelect.empty();
+              models.forEach((model) => {
+                $modelSelect.append(`<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`);
+              });
+              $modelInput.hide();
+              $modelSelect.show();
+              const currentModel = $modelInput.val();
+              if (currentModel && models.includes(currentModel)) {
+                $modelSelect.val(currentModel);
+              }
+              $modelSelect.off("change").on("change", function() {
+                $modelInput.val($(this).val());
+              });
+              showToast("success", `\u5DF2\u52A0\u8F7D ${models.length} \u4E2A\u6A21\u578B`);
+            } else {
+              showToast("warning", "\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165");
+            }
+          } catch (e) {
+            showToast("error", `\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${e.message}`);
+          } finally {
+            $btn.prop("disabled", false).find("i").removeClass("fa-spin");
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-model`).on("focus", function() {
+          const $modelSelect = $container2.find(`#${SCRIPT_ID}-model-select`);
+          $(this).show();
+          $modelSelect.hide();
+        });
+        $container2.find(`#${SCRIPT_ID}-save-api-config`).on("click", () => {
+          const config = getFormApiConfig($container2, SCRIPT_ID);
+          const validation = validateApiConfig(config);
+          if (!validation.valid && !config.useMainApi) {
+            showToast("error", validation.errors.join(", "));
+            return;
+          }
+          if (currentLoadedPresetName) {
+            if (!confirm(`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE "${currentLoadedPresetName}" \u7684\u914D\u7F6E\uFF1F
 
-\u70B9\u51FB"\u786E\u5B9A"\u8986\u76D6\u9884\u8BBE\uFF0C\u70B9\u51FB"\u53D6\u6D88"\u4EC5\u4FDD\u5B58\u5F53\u524D\u914D\u7F6E`)){_t(s),d("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58");return}_t(s);let r=Ie(ot,{apiConfig:s});if(r.success){d("success",`\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u8986\u76D6\u9884\u8BBE "${ot}"`),f.emit(g.PRESET_UPDATED,{name:ot});let i=e.closest(".yyt-api-manager").parent();i.length&&this.renderTo(i)}else d("error",r.message);return}let n=Me();if(n){_t(s),Ie(n,{apiConfig:s}),d("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58");return}_t(s),d("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58")}),e.find(`#${l}-reset-api-config`).on("click",()=>{if(confirm("\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F")){_t({url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9});let s=e.closest(".yyt-api-manager").parent();s.length&&this.renderTo(s),d("info","API\u914D\u7F6E\u5DF2\u91CD\u7F6E")}}),e.find(`#${l}-save-as-preset`).on("click",()=>{this._showSavePresetDialog(e,t)})},_bindFileEvents(e,t){e.find(`#${l}-export-presets`).on("click",()=>{try{let s=Ds();ft(s,`youyou_toolkit_presets_${Date.now()}.json`),d("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(s){d("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),e.find(`#${l}-import-presets`).on("click",()=>{e.find(`#${l}-import-file`).click()}),e.find(`#${l}-import-file`).on("change",async s=>{let o=s.target.files[0];if(o){try{let n=await mt(o),r=Ms(n,{overwrite:!0});if(d(r.success?"success":"error",r.message),r.imported>0){let i=e.closest(".yyt-api-manager").parent();i.length&&this.renderTo(i)}}catch(n){d("error",`\u5BFC\u5165\u5931\u8D25: ${n.message}`)}t(s.target).val("")}})},_showSavePresetDialog(e,t){let o=ut().map(p=>p.name),n=Os("\u65B0\u9884\u8BBE"),r=`
-      <div class="yyt-dialog-overlay" id="${l}-dialog-overlay">
+\u70B9\u51FB"\u786E\u5B9A"\u8986\u76D6\u9884\u8BBE\uFF0C\u70B9\u51FB"\u53D6\u6D88"\u4EC5\u4FDD\u5B58\u5F53\u524D\u914D\u7F6E`)) {
+              updateApiConfig(config);
+              showToast("success", "API\u914D\u7F6E\u5DF2\u4FDD\u5B58");
+              return;
+            }
+            updateApiConfig(config);
+            const result = updatePreset(currentLoadedPresetName, { apiConfig: config });
+            if (result.success) {
+              showToast("success", `\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u8986\u76D6\u9884\u8BBE "${currentLoadedPresetName}"`);
+              eventBus.emit(EVENTS.PRESET_UPDATED, { name: currentLoadedPresetName });
+              const $panel = $container2.closest(".yyt-api-manager").parent();
+              if ($panel.length) {
+                this.renderTo($panel);
+              }
+            } else {
+              showToast("error", result.message);
+            }
+            return;
+          }
+          const activePreset = getActivePresetName();
+          if (activePreset) {
+            updateApiConfig(config);
+            updatePreset(activePreset, { apiConfig: config });
+            showToast("success", "API\u914D\u7F6E\u5DF2\u4FDD\u5B58");
+            return;
+          }
+          updateApiConfig(config);
+          showToast("success", "API\u914D\u7F6E\u5DF2\u4FDD\u5B58");
+        });
+        $container2.find(`#${SCRIPT_ID}-reset-api-config`).on("click", () => {
+          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F")) {
+            updateApiConfig({
+              url: "",
+              apiKey: "",
+              model: "",
+              useMainApi: true,
+              max_tokens: 4096,
+              temperature: 0.7,
+              top_p: 0.9
+            });
+            const $panel = $container2.closest(".yyt-api-manager").parent();
+            if ($panel.length) {
+              this.renderTo($panel);
+            }
+            showToast("info", "API\u914D\u7F6E\u5DF2\u91CD\u7F6E");
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-save-as-preset`).on("click", () => {
+          this._showSavePresetDialog($container2, $);
+        });
+      },
+      /**
+       * 绑定文件事件
+       * @private
+       */
+      _bindFileEvents($container2, $) {
+        $container2.find(`#${SCRIPT_ID}-export-presets`).on("click", () => {
+          try {
+            const json = exportPresets();
+            downloadJson(json, `youyou_toolkit_presets_${Date.now()}.json`);
+            showToast("success", "\u9884\u8BBE\u5DF2\u5BFC\u51FA");
+          } catch (e) {
+            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${e.message}`);
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-import-presets`).on("click", () => {
+          $container2.find(`#${SCRIPT_ID}-import-file`).click();
+        });
+        $container2.find(`#${SCRIPT_ID}-import-file`).on("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file)
+            return;
+          try {
+            const text = await readFileContent(file);
+            const result = importPresets(text, { overwrite: true });
+            showToast(result.success ? "success" : "error", result.message);
+            if (result.imported > 0) {
+              const $panel = $container2.closest(".yyt-api-manager").parent();
+              if ($panel.length) {
+                this.renderTo($panel);
+              }
+            }
+          } catch (e2) {
+            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${e2.message}`);
+          }
+          $(e.target).val("");
+        });
+      },
+      /**
+       * 显示保存预设对话框
+       * @private
+       */
+      _showSavePresetDialog($container2, $) {
+        const presets = getAllPresets();
+        const existingNames = presets.map((p) => p.name);
+        const defaultName = generateUniquePresetName("\u65B0\u9884\u8BBE");
+        const dialogHtml = `
+      <div class="yyt-dialog-overlay" id="${SCRIPT_ID}-dialog-overlay">
         <div class="yyt-dialog">
           <div class="yyt-dialog-header">
             <span class="yyt-dialog-title">\u4FDD\u5B58\u4E3A\u65B0\u9884\u8BBE</span>
-            <button class="yyt-dialog-close" id="${l}-dialog-close">
+            <button class="yyt-dialog-close" id="${SCRIPT_ID}-dialog-close">
               <i class="fa-solid fa-times"></i>
             </button>
           </div>
           <div class="yyt-dialog-body">
             <div class="yyt-form-group">
               <label>\u9884\u8BBE\u540D\u79F0</label>
-              <input type="text" class="yyt-input" id="${l}-dialog-preset-name" 
-                     value="${m(n)}" placeholder="\u8F93\u5165\u9884\u8BBE\u540D\u79F0">
+              <input type="text" class="yyt-input" id="${SCRIPT_ID}-dialog-preset-name" 
+                     value="${escapeHtml(defaultName)}" placeholder="\u8F93\u5165\u9884\u8BBE\u540D\u79F0">
             </div>
             <div class="yyt-form-group">
               <label>\u63CF\u8FF0\uFF08\u53EF\u9009\uFF09</label>
-              <textarea class="yyt-textarea" id="${l}-dialog-preset-desc" rows="2" 
+              <textarea class="yyt-textarea" id="${SCRIPT_ID}-dialog-preset-desc" rows="2" 
                         placeholder="\u9884\u8BBE\u63CF\u8FF0..."></textarea>
             </div>
           </div>
           <div class="yyt-dialog-footer">
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-dialog-cancel">\u53D6\u6D88</button>
-            <button class="yyt-btn yyt-btn-primary" id="${l}-dialog-save">\u4FDD\u5B58</button>
+            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-dialog-cancel">\u53D6\u6D88</button>
+            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-dialog-save">\u4FDD\u5B58</button>
           </div>
         </div>
       </div>
-    `;t(`#${l}-dialog-overlay`).remove(),e.append(r);let i=t(`#${l}-dialog-overlay`),a=t(`#${l}-dialog-preset-name`),c=t(`#${l}-dialog-preset-desc`);a.focus().select();let y=()=>i.remove();i.find(`#${l}-dialog-close, #${l}-dialog-cancel`).on("click",y),i.on("click",function(p){p.target===this&&y()}),i.find(`#${l}-dialog-save`).on("click",()=>{let p=a.val().trim(),h=c.val().trim();if(!p){d("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0"),a.focus();return}if(o.includes(p)){if(!confirm(`\u9884\u8BBE "${p}" \u5DF2\u5B58\u5728\uFF0C\u662F\u5426\u8986\u76D6\uFF1F`))return;De(p)}let D=Ct(e,l),b=Re({name:p,description:h,apiConfig:D});if(b.success){d("success",b.message),y(),f.emit(g.PRESET_CREATED,{preset:b.preset});let z=e.closest(".yyt-api-manager").parent();z.length&&this.renderTo(z)}else d("error",b.message)}),a.on("keypress",function(p){p.which===13&&i.find(`#${l}-dialog-save`).click()})},destroy(e){let t=w();!t||!S(e)||(e.find("*").off(),t(document).off("click.yyt-dropdown"))},getStyles(){return`
+    `;
+        $(`#${SCRIPT_ID}-dialog-overlay`).remove();
+        $container2.append(dialogHtml);
+        const $overlay = $(`#${SCRIPT_ID}-dialog-overlay`);
+        const $nameInput = $(`#${SCRIPT_ID}-dialog-preset-name`);
+        const $descInput = $(`#${SCRIPT_ID}-dialog-preset-desc`);
+        $nameInput.focus().select();
+        const closeDialog = () => $overlay.remove();
+        $overlay.find(`#${SCRIPT_ID}-dialog-close, #${SCRIPT_ID}-dialog-cancel`).on("click", closeDialog);
+        $overlay.on("click", function(e) {
+          if (e.target === this)
+            closeDialog();
+        });
+        $overlay.find(`#${SCRIPT_ID}-dialog-save`).on("click", () => {
+          const name = $nameInput.val().trim();
+          const desc = $descInput.val().trim();
+          if (!name) {
+            showToast("warning", "\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0");
+            $nameInput.focus();
+            return;
+          }
+          if (existingNames.includes(name)) {
+            if (!confirm(`\u9884\u8BBE "${name}" \u5DF2\u5B58\u5728\uFF0C\u662F\u5426\u8986\u76D6\uFF1F`)) {
+              return;
+            }
+            deletePreset(name);
+          }
+          const currentConfig = getFormApiConfig($container2, SCRIPT_ID);
+          const result = createPreset({
+            name,
+            description: desc,
+            apiConfig: currentConfig
+          });
+          if (result.success) {
+            showToast("success", result.message);
+            closeDialog();
+            eventBus.emit(EVENTS.PRESET_CREATED, { preset: result.preset });
+            const $panel = $container2.closest(".yyt-api-manager").parent();
+            if ($panel.length) {
+              this.renderTo($panel);
+            }
+          } else {
+            showToast("error", result.message);
+          }
+        });
+        $nameInput.on("keypress", function(e) {
+          if (e.which === 13) {
+            $overlay.find(`#${SCRIPT_ID}-dialog-save`).click();
+          }
+        });
+      },
+      // ============================================================
+      // 销毁
+      // ============================================================
+      /**
+       * 销毁组件
+       * @param {Object} $container
+       */
+      destroy($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find("*").off();
+        $(document).off("click.yyt-dropdown");
+      },
+      // ============================================================
+      // 样式
+      // ============================================================
+      /**
+       * 获取样式
+       * @returns {string}
+       */
+      getStyles() {
+        return `
       /* CSS\u53D8\u91CF\u5B9A\u4E49 */
       .yyt-api-manager {
         --yyt-accent: #7bb7ff;
@@ -966,23 +3149,751 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
       .yyt-panel-section:nth-child(1) { animation-delay: 0s; }
       .yyt-panel-section:nth-child(2) { animation-delay: 0.05s; }
       .yyt-panel-section:nth-child(3) { animation-delay: 0.1s; }
-    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var an={};O(an,{MESSAGE_MACROS:()=>rn,addTagRule:()=>zt,createRuleTemplate:()=>tn,default:()=>Hr,deleteRulePreset:()=>on,deleteRuleTemplate:()=>sn,deleteTagRule:()=>ae,escapeRegex:()=>Pt,exportRulesConfig:()=>Fe,extractComplexTag:()=>Vo,extractCurlyBraceTag:()=>Ys,extractHtmlFormatTag:()=>Ko,extractSimpleTag:()=>Bs,extractTagContent:()=>Ne,generateTagSuggestions:()=>ze,getAllRulePresets:()=>Ye,getAllRuleTemplates:()=>Xo,getContentBlacklist:()=>le,getRuleTemplate:()=>Zo,getTagRules:()=>$t,importRulesConfig:()=>He,isValidTagName:()=>Us,loadRulePreset:()=>Ge,saveRulesAsPreset:()=>Be,scanTextForTags:()=>je,setContentBlacklist:()=>ce,setTagRules:()=>Ue,shouldSkipContent:()=>zs,testRegex:()=>nn,updateRuleTemplate:()=>en,updateTagRule:()=>Ut});function Le(){let e=$();return B=e.ruleTemplates||[...Jo],A=e.tagRules||[],Q=e.contentBlacklist||[],{ruleTemplates:B,tagRules:A,contentBlacklist:Q}}function Pt(e){return typeof e!="string"?"":e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function zs(e,t){if(!t||t.length===0||!e||typeof e!="string")return!1;let s=e.toLowerCase();return t.some(o=>{let n=o.trim().toLowerCase();return n&&s.includes(n)})}function Us(e){return!e||typeof e!="string"?!1:/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(e)&&!Fr.includes(e.toLowerCase())}function Bs(e,t){if(!e||!t)return[];let s=[],o=Pt(t),n=new RegExp(`<${o}>([\\s\\S]*?)<\\/${o}>`,"gi");[...e.matchAll(n)].forEach(c=>{c[1]&&s.push(c[1].trim())});let i=(e.match(new RegExp(`<${o}>`,"gi"))||[]).length,a=(e.match(new RegExp(`<\\/${o}>`,"gi"))||[]).length;return i>a&&console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${i-a} \u4E2A\u672A\u95ED\u5408\u7684 <${t}> \u6807\u7B7E`),s}function Ys(e,t){if(!e||!t)return[];let s=[],o=Pt(t),n=new RegExp(`\\{${o}\\|`,"gi"),r;for(;(r=n.exec(e))!==null;){let i=r.index,a=i+r[0].length,c=1,y=a;for(;y<e.length&&c>0;)e[y]==="{"?c++:e[y]==="}"&&c--,y++;if(c===0){let p=e.substring(a,y-1);p.trim()&&s.push(p.trim())}n.lastIndex=i+1}return s}function Vo(e,t){if(!e||!t)return[];let s=t.split(",");if(s.length!==2)return console.error(`[YouYouToolkit] \u590D\u6742\u6807\u7B7E\u914D\u7F6E\u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u8BE5\u5305\u542B\u4E00\u4E2A\u9017\u53F7: ${t}`),[];let o=s[0].trim(),n=s[1].trim(),r=n.match(/<\/(\w+)>/);if(!r)return console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790\u7ED3\u675F\u6807\u7B7E: ${n}`),[];let i=r[1],a=new RegExp(`${Pt(o)}([\\s\\S]*?)<\\/${i}>`,"gi"),c=[];return[...e.matchAll(a)].forEach(p=>{p[1]&&c.push(p[1].trim())}),c}function Ko(e,t){if(!e||!t)return[];let s=t.match(/<(\w+)(?:\s[^>]*)?>/);if(!s)return console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790HTML\u683C\u5F0F\u6807\u7B7E: ${t}`),[];let o=s[1],n=[],r=new RegExp(`<${o}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${o}>`,"gi");[...e.matchAll(r)].forEach(y=>{y[1]&&n.push(y[1].trim())});let a=(e.match(new RegExp(`<${o}(?:\\s[^>]*)?>`,"gi"))||[]).length,c=(e.match(new RegExp(`<\\/${o}>`,"gi"))||[]).length;return a>c&&console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${a-c} \u4E2A\u672A\u95ED\u5408\u7684 <${o}> \u6807\u7B7E`),n}function Ne(e,t,s=[]){if(!e)return"";if(!t||t.length===0)return e;let o=t.filter(p=>p.type==="exclude"&&p.enabled),n=t.filter(p=>(p.type==="include"||p.type==="regex_include")&&p.enabled),r=t.filter(p=>p.type==="regex_exclude"&&p.enabled),i=e;for(let p of o)try{let h=new RegExp(`<${Pt(p.value)}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${Pt(p.value)}>`,"gi");i=i.replace(h,"")}catch(h){console.error("[YouYouToolkit] Error applying block exclusion rule:",{rule:p,error:h})}let a=[];if(n.length>0)for(let p of n){let h=[];try{if(p.type==="include")h.push(...Bs(i,p.value)),h.push(...Ys(i,p.value));else if(p.type==="regex_include"){let D=new RegExp(p.value,"gi");[...i.matchAll(D)].forEach(z=>{z[1]&&h.push(z[1])})}}catch(D){console.error("[YouYouToolkit] Error applying inclusion rule:",{rule:p,error:D})}h.forEach(D=>a.push(D.trim()))}else a.push(i);let c=[];for(let p of a){for(let h of r)try{let D=new RegExp(h.value,"gi");p=p.replace(D,"")}catch(D){console.error("[YouYouToolkit] Error applying cleanup rule:",{rule:h,error:D})}zs(p,s)||c.push(p)}return c.join(`
+    `;
+      },
+      // ============================================================
+      // 便捷方法
+      // ============================================================
+      /**
+       * 渲染到容器
+       * @param {Object} $container
+       */
+      renderTo($container2) {
+        const html = this.render({});
+        $container2.html(html);
+        this.bindEvents($container2, {});
+      }
+    };
+  }
+});
 
-`).replace(/\n\s*\n\s*\n/g,`
+// modules/regex-extractor.js
+var regex_extractor_exports = {};
+__export(regex_extractor_exports, {
+  MESSAGE_MACROS: () => MESSAGE_MACROS,
+  addTagRule: () => addTagRule,
+  createRuleTemplate: () => createRuleTemplate,
+  default: () => regex_extractor_default,
+  deleteRulePreset: () => deleteRulePreset,
+  deleteRuleTemplate: () => deleteRuleTemplate,
+  deleteTagRule: () => deleteTagRule,
+  escapeRegex: () => escapeRegex,
+  exportRulesConfig: () => exportRulesConfig,
+  extractComplexTag: () => extractComplexTag,
+  extractCurlyBraceTag: () => extractCurlyBraceTag,
+  extractHtmlFormatTag: () => extractHtmlFormatTag,
+  extractSimpleTag: () => extractSimpleTag,
+  extractTagContent: () => extractTagContent,
+  generateTagSuggestions: () => generateTagSuggestions,
+  getAllRulePresets: () => getAllRulePresets,
+  getAllRuleTemplates: () => getAllRuleTemplates,
+  getContentBlacklist: () => getContentBlacklist,
+  getRuleTemplate: () => getRuleTemplate,
+  getTagRules: () => getTagRules,
+  importRulesConfig: () => importRulesConfig,
+  isValidTagName: () => isValidTagName,
+  loadRulePreset: () => loadRulePreset,
+  saveRulesAsPreset: () => saveRulesAsPreset,
+  scanTextForTags: () => scanTextForTags,
+  setContentBlacklist: () => setContentBlacklist,
+  setTagRules: () => setTagRules,
+  shouldSkipContent: () => shouldSkipContent,
+  testRegex: () => testRegex,
+  updateRuleTemplate: () => updateRuleTemplate,
+  updateTagRule: () => updateTagRule
+});
+function init() {
+  const settings = loadSettings();
+  ruleTemplates = settings.ruleTemplates || [...DEFAULT_RULE_TEMPLATES];
+  tagRules = settings.tagRules || [];
+  contentBlacklist = settings.contentBlacklist || [];
+  return { ruleTemplates, tagRules, contentBlacklist };
+}
+function escapeRegex(str) {
+  if (typeof str !== "string")
+    return "";
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function shouldSkipContent(text, blacklist) {
+  if (!blacklist || blacklist.length === 0)
+    return false;
+  if (!text || typeof text !== "string")
+    return false;
+  const lowerText = text.toLowerCase();
+  return blacklist.some((keyword) => {
+    const lowerKeyword = keyword.trim().toLowerCase();
+    return lowerKeyword && lowerText.includes(lowerKeyword);
+  });
+}
+function isValidTagName(tagName) {
+  if (!tagName || typeof tagName !== "string")
+    return false;
+  const validPattern = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+  return validPattern.test(tagName) && !EXCLUDED_HTML_TAGS.includes(tagName.toLowerCase());
+}
+function extractSimpleTag(text, tag) {
+  if (!text || !tag)
+    return [];
+  const extractedContent = [];
+  const escapedTag = escapeRegex(tag);
+  const regex = new RegExp(`<${escapedTag}>([\\s\\S]*?)<\\/${escapedTag}>`, "gi");
+  const matches = [...text.matchAll(regex)];
+  matches.forEach((match) => {
+    if (match[1]) {
+      extractedContent.push(match[1].trim());
+    }
+  });
+  const openTags = (text.match(new RegExp(`<${escapedTag}>`, "gi")) || []).length;
+  const closeTags = (text.match(new RegExp(`<\\/${escapedTag}>`, "gi")) || []).length;
+  if (openTags > closeTags) {
+    console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${openTags - closeTags} \u4E2A\u672A\u95ED\u5408\u7684 <${tag}> \u6807\u7B7E`);
+  }
+  return extractedContent;
+}
+function extractCurlyBraceTag(text, tag) {
+  if (!text || !tag)
+    return [];
+  const extractedContent = [];
+  const escapedTag = escapeRegex(tag);
+  const startPattern = new RegExp(`\\{${escapedTag}\\|`, "gi");
+  let match;
+  while ((match = startPattern.exec(text)) !== null) {
+    const startPos = match.index;
+    const contentStart = startPos + match[0].length;
+    let braceCount = 1;
+    let pos = contentStart;
+    while (pos < text.length && braceCount > 0) {
+      if (text[pos] === "{") {
+        braceCount++;
+      } else if (text[pos] === "}") {
+        braceCount--;
+      }
+      pos++;
+    }
+    if (braceCount === 0) {
+      const content = text.substring(contentStart, pos - 1);
+      if (content.trim()) {
+        extractedContent.push(content.trim());
+      }
+    }
+    startPattern.lastIndex = startPos + 1;
+  }
+  return extractedContent;
+}
+function extractComplexTag(text, tag) {
+  if (!text || !tag)
+    return [];
+  const parts = tag.split(",");
+  if (parts.length !== 2) {
+    console.error(`[YouYouToolkit] \u590D\u6742\u6807\u7B7E\u914D\u7F6E\u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u8BE5\u5305\u542B\u4E00\u4E2A\u9017\u53F7: ${tag}`);
+    return [];
+  }
+  const startPattern = parts[0].trim();
+  const endPattern = parts[1].trim();
+  const endTagMatch = endPattern.match(/<\/(\w+)>/);
+  if (!endTagMatch) {
+    console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790\u7ED3\u675F\u6807\u7B7E: ${endPattern}`);
+    return [];
+  }
+  const endTagName = endTagMatch[1];
+  const regex = new RegExp(`${escapeRegex(startPattern)}([\\s\\S]*?)<\\/${endTagName}>`, "gi");
+  const extractedContent = [];
+  const matches = [...text.matchAll(regex)];
+  matches.forEach((match) => {
+    if (match[1]) {
+      extractedContent.push(match[1].trim());
+    }
+  });
+  return extractedContent;
+}
+function extractHtmlFormatTag(text, tag) {
+  if (!text || !tag)
+    return [];
+  const tagMatch = tag.match(/<(\w+)(?:\s[^>]*)?>/);
+  if (!tagMatch) {
+    console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790HTML\u683C\u5F0F\u6807\u7B7E: ${tag}`);
+    return [];
+  }
+  const tagName = tagMatch[1];
+  const extractedContent = [];
+  const regex = new RegExp(`<${tagName}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tagName}>`, "gi");
+  const matches = [...text.matchAll(regex)];
+  matches.forEach((match) => {
+    if (match[1]) {
+      extractedContent.push(match[1].trim());
+    }
+  });
+  const openTags = (text.match(new RegExp(`<${tagName}(?:\\s[^>]*)?>`, "gi")) || []).length;
+  const closeTags = (text.match(new RegExp(`<\\/${tagName}>`, "gi")) || []).length;
+  if (openTags > closeTags) {
+    console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${openTags - closeTags} \u4E2A\u672A\u95ED\u5408\u7684 <${tagName}> \u6807\u7B7E`);
+  }
+  return extractedContent;
+}
+function extractTagContent(text, rules, blacklist = []) {
+  if (!text)
+    return "";
+  if (!rules || rules.length === 0) {
+    return text;
+  }
+  const blockExcludeRules = rules.filter((rule) => rule.type === "exclude" && rule.enabled);
+  const includeRules = rules.filter((rule) => (rule.type === "include" || rule.type === "regex_include") && rule.enabled);
+  const cleanupRules = rules.filter((rule) => rule.type === "regex_exclude" && rule.enabled);
+  let workingText = text;
+  for (const rule of blockExcludeRules) {
+    try {
+      const tagRegex = new RegExp(
+        `<${escapeRegex(rule.value)}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${escapeRegex(rule.value)}>`,
+        "gi"
+      );
+      workingText = workingText.replace(tagRegex, "");
+    } catch (error) {
+      console.error(`[YouYouToolkit] Error applying block exclusion rule:`, { rule, error });
+    }
+  }
+  let extractedContents = [];
+  if (includeRules.length > 0) {
+    for (const rule of includeRules) {
+      let results = [];
+      try {
+        if (rule.type === "include") {
+          results.push(...extractSimpleTag(workingText, rule.value));
+          results.push(...extractCurlyBraceTag(workingText, rule.value));
+        } else if (rule.type === "regex_include") {
+          const regex = new RegExp(rule.value, "gi");
+          const matches = [...workingText.matchAll(regex)];
+          matches.forEach((match) => {
+            if (match[1])
+              results.push(match[1]);
+          });
+        }
+      } catch (error) {
+        console.error(`[YouYouToolkit] Error applying inclusion rule:`, { rule, error });
+      }
+      results.forEach((content) => extractedContents.push(content.trim()));
+    }
+  } else {
+    extractedContents.push(workingText);
+  }
+  let finalContents = [];
+  for (let contentBlock of extractedContents) {
+    for (const rule of cleanupRules) {
+      try {
+        const regex = new RegExp(rule.value, "gi");
+        contentBlock = contentBlock.replace(regex, "");
+      } catch (error) {
+        console.error(`[YouYouToolkit] Error applying cleanup rule:`, { rule, error });
+      }
+    }
+    if (!shouldSkipContent(contentBlock, blacklist)) {
+      finalContents.push(contentBlock);
+    }
+  }
+  const joinedContent = finalContents.join("\n\n");
+  return joinedContent.replace(/\n\s*\n\s*\n/g, "\n\n").replace(/^\s+|\s+$/g, "").trim();
+}
+async function scanTextForTags(text, options = {}) {
+  const startTime = performance.now();
+  const {
+    chunkSize = 5e4,
+    maxTags = 100,
+    timeoutMs = 5e3
+  } = options;
+  const foundTags = /* @__PURE__ */ new Set();
+  const tagRegex = /<(?:\/|)([a-zA-Z0-9_-]+)(?:[^>]*)>|\{([a-zA-Z0-9_-]+)(?:\||})/g;
+  let processedChars = 0;
+  let chunkCount = 0;
+  for (let i = 0; i < text.length; i += chunkSize) {
+    const chunk = text.slice(i, Math.min(i + chunkSize, text.length));
+    chunkCount++;
+    processedChars += chunk.length;
+    if (performance.now() - startTime > timeoutMs) {
+      console.warn(`[YouYouToolkit] Tag scanning timed out after ${timeoutMs}ms`);
+      break;
+    }
+    let match;
+    while ((match = tagRegex.exec(chunk)) !== null && foundTags.size < maxTags) {
+      const tagName = (match[1] || match[2]).toLowerCase();
+      if (isValidTagName(tagName)) {
+        foundTags.add(tagName);
+      }
+    }
+    if (foundTags.size >= maxTags)
+      break;
+    if (chunkCount % 5 === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+  const endTime = performance.now();
+  return {
+    tags: Array.from(foundTags).sort(),
+    stats: {
+      processingTimeMs: Math.round(endTime - startTime),
+      processedChars,
+      totalChars: text.length,
+      chunkCount,
+      tagsFound: foundTags.size
+    }
+  };
+}
+function generateTagSuggestions(scanResult, limit = 25) {
+  const suggestions = scanResult.tags.slice(0, limit);
+  return {
+    suggestions,
+    stats: {
+      totalFound: scanResult.stats.tagsFound,
+      finalCount: suggestions.length
+    }
+  };
+}
+function getAllRuleTemplates() {
+  if (ruleTemplates.length === 0) {
+    init();
+  }
+  return ruleTemplates;
+}
+function getRuleTemplate(id) {
+  return ruleTemplates.find((t) => t.id === id);
+}
+function createRuleTemplate(template) {
+  const newTemplate = {
+    id: `rule-${Date.now()}`,
+    name: template.name || "\u65B0\u89C4\u5219",
+    description: template.description || "",
+    type: template.type || "include",
+    value: template.value || "",
+    enabled: template.enabled !== false,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  ruleTemplates.push(newTemplate);
+  saveRuleTemplates();
+  return { success: true, template: newTemplate, message: "\u89C4\u5219\u6A21\u677F\u521B\u5EFA\u6210\u529F" };
+}
+function updateRuleTemplate(id, updates) {
+  const index = ruleTemplates.findIndex((t) => t.id === id);
+  if (index === -1) {
+    return { success: false, message: "\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728" };
+  }
+  ruleTemplates[index] = {
+    ...ruleTemplates[index],
+    ...updates,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  saveRuleTemplates();
+  return { success: true, template: ruleTemplates[index], message: "\u89C4\u5219\u6A21\u677F\u66F4\u65B0\u6210\u529F" };
+}
+function deleteRuleTemplate(id) {
+  const index = ruleTemplates.findIndex((t) => t.id === id);
+  if (index === -1) {
+    return { success: false, message: "\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728" };
+  }
+  ruleTemplates.splice(index, 1);
+  saveRuleTemplates();
+  return { success: true, message: "\u89C4\u5219\u6A21\u677F\u5DF2\u5220\u9664" };
+}
+function saveRuleTemplates() {
+  const settings = loadSettings();
+  settings.ruleTemplates = ruleTemplates;
+  saveSettings(settings);
+}
+function getTagRules() {
+  if (!tagRules) {
+    init();
+  }
+  return tagRules;
+}
+function setTagRules(rules) {
+  tagRules = rules || [];
+  const settings = loadSettings();
+  settings.tagRules = tagRules;
+  saveSettings(settings);
+}
+function addTagRule(rule) {
+  const newRule = {
+    id: `tag-${Date.now()}`,
+    type: rule.type || "include",
+    value: rule.value || "",
+    enabled: rule.enabled !== false
+  };
+  tagRules.push(newRule);
+  const settings = loadSettings();
+  settings.tagRules = tagRules;
+  saveSettings(settings);
+  return { success: true, rule: newRule, message: "\u89C4\u5219\u6DFB\u52A0\u6210\u529F" };
+}
+function updateTagRule(index, updates) {
+  if (index < 0 || index >= tagRules.length) {
+    return { success: false, message: "\u89C4\u5219\u7D22\u5F15\u65E0\u6548" };
+  }
+  tagRules[index] = {
+    ...tagRules[index],
+    ...updates
+  };
+  const settings = loadSettings();
+  settings.tagRules = tagRules;
+  saveSettings(settings);
+  return { success: true, rule: tagRules[index], message: "\u89C4\u5219\u66F4\u65B0\u6210\u529F" };
+}
+function deleteTagRule(index) {
+  if (index < 0 || index >= tagRules.length) {
+    return { success: false, message: "\u89C4\u5219\u7D22\u5F15\u65E0\u6548" };
+  }
+  tagRules.splice(index, 1);
+  const settings = loadSettings();
+  settings.tagRules = tagRules;
+  saveSettings(settings);
+  return { success: true, message: "\u89C4\u5219\u5DF2\u5220\u9664" };
+}
+function getContentBlacklist() {
+  if (!contentBlacklist) {
+    init();
+  }
+  return contentBlacklist;
+}
+function setContentBlacklist(blacklist) {
+  contentBlacklist = blacklist || [];
+  const settings = loadSettings();
+  settings.contentBlacklist = contentBlacklist;
+  saveSettings(settings);
+}
+function saveRulesAsPreset(name, description = "") {
+  if (!name || !name.trim()) {
+    return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+  }
+  const settings = loadSettings();
+  if (!settings.tagRulePresets) {
+    settings.tagRulePresets = {};
+  }
+  const presetId = `preset-${Date.now()}`;
+  settings.tagRulePresets[presetId] = {
+    id: presetId,
+    name: name.trim(),
+    description: description.trim(),
+    rules: JSON.parse(JSON.stringify(tagRules)),
+    blacklist: JSON.parse(JSON.stringify(contentBlacklist)),
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  saveSettings(settings);
+  return { success: true, preset: settings.tagRulePresets[presetId], message: "\u9884\u8BBE\u4FDD\u5B58\u6210\u529F" };
+}
+function getAllRulePresets() {
+  const settings = loadSettings();
+  const presets = settings.tagRulePresets || {};
+  return Object.values(presets);
+}
+function loadRulePreset(presetId) {
+  const settings = loadSettings();
+  const presets = settings.tagRulePresets || {};
+  const preset = presets[presetId];
+  if (!preset) {
+    return { success: false, message: "\u9884\u8BBE\u4E0D\u5B58\u5728" };
+  }
+  tagRules = JSON.parse(JSON.stringify(preset.rules || []));
+  contentBlacklist = JSON.parse(JSON.stringify(preset.blacklist || []));
+  settings.tagRules = tagRules;
+  settings.contentBlacklist = contentBlacklist;
+  saveSettings(settings);
+  return { success: true, preset, message: "\u9884\u8BBE\u52A0\u8F7D\u6210\u529F" };
+}
+function deleteRulePreset(presetId) {
+  const settings = loadSettings();
+  const presets = settings.tagRulePresets || {};
+  if (!presets[presetId]) {
+    return { success: false, message: "\u9884\u8BBE\u4E0D\u5B58\u5728" };
+  }
+  delete presets[presetId];
+  settings.tagRulePresets = presets;
+  saveSettings(settings);
+  return { success: true, message: "\u9884\u8BBE\u5DF2\u5220\u9664" };
+}
+function exportRulesConfig() {
+  return JSON.stringify({
+    tagRules,
+    contentBlacklist,
+    ruleTemplates,
+    tagRulePresets: loadSettings().tagRulePresets || {}
+  }, null, 2);
+}
+function importRulesConfig(json, options = { overwrite: true }) {
+  try {
+    const imported = JSON.parse(json);
+    if (options.overwrite) {
+      tagRules = imported.tagRules || [];
+      contentBlacklist = imported.contentBlacklist || [];
+      ruleTemplates = imported.ruleTemplates || DEFAULT_RULE_TEMPLATES;
+    } else {
+      if (imported.tagRules) {
+        tagRules.push(...imported.tagRules);
+      }
+      if (imported.contentBlacklist) {
+        const existingBlacklist = new Set(contentBlacklist.map((k) => k.toLowerCase()));
+        imported.contentBlacklist.forEach((k) => {
+          if (!existingBlacklist.has(k.toLowerCase())) {
+            contentBlacklist.push(k);
+          }
+        });
+      }
+    }
+    const settings = loadSettings();
+    settings.tagRules = tagRules;
+    settings.contentBlacklist = contentBlacklist;
+    settings.ruleTemplates = ruleTemplates;
+    if (imported.tagRulePresets) {
+      settings.tagRulePresets = {
+        ...settings.tagRulePresets || {},
+        ...imported.tagRulePresets
+      };
+    }
+    saveSettings(settings);
+    return { success: true, message: "\u914D\u7F6E\u5BFC\u5165\u6210\u529F" };
+  } catch (e) {
+    return { success: false, message: `\u5BFC\u5165\u5931\u8D25: ${e.message}` };
+  }
+}
+function testRegex(pattern, text, flags = "g", groupIndex = 0) {
+  try {
+    if (!pattern || typeof pattern !== "string") {
+      return { success: false, error: "\u6B63\u5219\u8868\u8FBE\u5F0F\u4E0D\u80FD\u4E3A\u7A7A", matches: [] };
+    }
+    const regex = new RegExp(pattern, flags);
+    const matches = [];
+    if (flags.includes("g")) {
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        if (match.length > 1) {
+          matches.push({
+            fullMatch: match[0],
+            groups: match.slice(1),
+            index: match.index,
+            extracted: match[groupIndex] || match[1] || match[0]
+          });
+        } else {
+          matches.push({
+            fullMatch: match[0],
+            groups: [],
+            index: match.index,
+            extracted: match[0]
+          });
+        }
+      }
+    } else {
+      const match = regex.exec(text);
+      if (match) {
+        matches.push({
+          fullMatch: match[0],
+          groups: match.length > 1 ? match.slice(1) : [],
+          index: match.index,
+          extracted: match.length > 1 ? match[groupIndex] || match[1] : match[0]
+        });
+      }
+    }
+    return {
+      success: true,
+      matches,
+      count: matches.length,
+      extracted: matches.map((m) => m.extracted)
+    };
+  } catch (e) {
+    return { success: false, error: e.message, matches: [] };
+  }
+}
+var EXCLUDED_HTML_TAGS, DEFAULT_RULE_TEMPLATES, ruleTemplates, tagRules, contentBlacklist, MESSAGE_MACROS, regex_extractor_default;
+var init_regex_extractor = __esm({
+  "modules/regex-extractor.js"() {
+    init_storage();
+    EXCLUDED_HTML_TAGS = [
+      "font",
+      "span",
+      "div",
+      "p",
+      "br",
+      "hr",
+      "img",
+      "a",
+      "b",
+      "i",
+      "u",
+      "s",
+      "em",
+      "strong",
+      "small",
+      "big",
+      "sub",
+      "sup",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "table",
+      "tr",
+      "td",
+      "th",
+      "tbody",
+      "thead",
+      "tfoot",
+      "ul",
+      "ol",
+      "li",
+      "form",
+      "input",
+      "button",
+      "select",
+      "option",
+      "textarea",
+      "label",
+      "script",
+      "style",
+      "meta",
+      "link",
+      "title",
+      "head",
+      "body",
+      "html"
+    ];
+    DEFAULT_RULE_TEMPLATES = [
+      {
+        id: "exclude-thinking",
+        name: "\u6392\u9664\u601D\u8003\u6807\u7B7E",
+        description: "\u79FB\u9664<thinking>\u6807\u7B7E\u5757",
+        type: "exclude",
+        value: "thinking",
+        enabled: true
+      },
+      {
+        id: "include-content",
+        name: "\u63D0\u53D6\u5185\u5BB9\u6807\u7B7E",
+        description: "\u63D0\u53D6<content>\u6807\u7B7E\u5185\u5BB9",
+        type: "include",
+        value: "content",
+        enabled: true
+      },
+      {
+        id: "regex-exclude-cot",
+        name: "\u6392\u9664\u5C0FCoT",
+        description: "\u79FB\u9664HTML\u6CE8\u91CA",
+        type: "regex_exclude",
+        value: "<!--[\\s\\S]*?-->",
+        enabled: false
+      },
+      {
+        id: "regex-include-details",
+        name: "\u63D0\u53D6details\u6807\u7B7E",
+        description: "\u63D0\u53D6<details>\u6807\u7B7E\u5185\u5BB9",
+        type: "regex_include",
+        value: "<details[^>]*>([\\s\\S]*?)</details>",
+        enabled: false
+      }
+    ];
+    ruleTemplates = [];
+    tagRules = [];
+    contentBlacklist = [];
+    MESSAGE_MACROS = {
+      lastMessage: {
+        macro: "{{lastMessage}}",
+        description: "\u6700\u540E\u4E00\u6761\u6D88\u606F"
+      },
+      lastCharMessage: {
+        macro: "{{lastCharMessage}}",
+        description: "\u6700\u540E\u4E00\u6761\u89D2\u8272\u6D88\u606F"
+      },
+      lastUserMessage: {
+        macro: "{{lastUserMessage}}",
+        description: "\u6700\u540E\u4E00\u6761\u7528\u6237\u6D88\u606F"
+      },
+      char: {
+        macro: "{{char}}",
+        description: "\u89D2\u8272\u540D\u79F0"
+      },
+      user: {
+        macro: "{{user}}",
+        description: "\u7528\u6237\u540D\u79F0"
+      },
+      input: {
+        macro: "{{input}}",
+        description: "\u5F53\u524D\u8F93\u5165\u6846\u5185\u5BB9"
+      }
+    };
+    init();
+    regex_extractor_default = {
+      // 核心提取函数
+      extractTagContent,
+      extractSimpleTag,
+      extractCurlyBraceTag,
+      extractComplexTag,
+      extractHtmlFormatTag,
+      // 工具函数
+      escapeRegex,
+      shouldSkipContent,
+      isValidTagName,
+      // 标签扫描
+      scanTextForTags,
+      generateTagSuggestions,
+      // 规则管理
+      getAllRuleTemplates,
+      getRuleTemplate,
+      createRuleTemplate,
+      updateRuleTemplate,
+      deleteRuleTemplate,
+      getTagRules,
+      setTagRules,
+      addTagRule,
+      updateTagRule,
+      deleteTagRule,
+      // 黑名单管理
+      getContentBlacklist,
+      setContentBlacklist,
+      // 预设管理
+      saveRulesAsPreset,
+      getAllRulePresets,
+      loadRulePreset,
+      deleteRulePreset,
+      // 导入导出
+      exportRulesConfig,
+      importRulesConfig,
+      // 正则测试
+      testRegex,
+      // 消息宏
+      MESSAGE_MACROS
+    };
+  }
+});
 
-`).replace(/^\s+|\s+$/g,"").trim()}async function je(e,t={}){let s=performance.now(),{chunkSize:o=5e4,maxTags:n=100,timeoutMs:r=5e3}=t,i=new Set,a=/<(?:\/|)([a-zA-Z0-9_-]+)(?:[^>]*)>|\{([a-zA-Z0-9_-]+)(?:\||})/g,c=0,y=0;for(let h=0;h<e.length;h+=o){let D=e.slice(h,Math.min(h+o,e.length));if(y++,c+=D.length,performance.now()-s>r){console.warn(`[YouYouToolkit] Tag scanning timed out after ${r}ms`);break}let b;for(;(b=a.exec(D))!==null&&i.size<n;){let z=(b[1]||b[2]).toLowerCase();Us(z)&&i.add(z)}if(i.size>=n)break;y%5===0&&await new Promise(z=>setTimeout(z,0))}let p=performance.now();return{tags:Array.from(i).sort(),stats:{processingTimeMs:Math.round(p-s),processedChars:c,totalChars:e.length,chunkCount:y,tagsFound:i.size}}}function ze(e,t=25){let s=e.tags.slice(0,t);return{suggestions:s,stats:{totalFound:e.stats.tagsFound,finalCount:s.length}}}function Xo(){return B.length===0&&Le(),B}function Zo(e){return B.find(t=>t.id===e)}function tn(e){let t={id:`rule-${Date.now()}`,name:e.name||"\u65B0\u89C4\u5219",description:e.description||"",type:e.type||"include",value:e.value||"",enabled:e.enabled!==!1,createdAt:new Date().toISOString()};return B.push(t),Gs(),{success:!0,template:t,message:"\u89C4\u5219\u6A21\u677F\u521B\u5EFA\u6210\u529F"}}function en(e,t){let s=B.findIndex(o=>o.id===e);return s===-1?{success:!1,message:"\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728"}:(B[s]={...B[s],...t,updatedAt:new Date().toISOString()},Gs(),{success:!0,template:B[s],message:"\u89C4\u5219\u6A21\u677F\u66F4\u65B0\u6210\u529F"})}function sn(e){let t=B.findIndex(s=>s.id===e);return t===-1?{success:!1,message:"\u89C4\u5219\u6A21\u677F\u4E0D\u5B58\u5728"}:(B.splice(t,1),Gs(),{success:!0,message:"\u89C4\u5219\u6A21\u677F\u5DF2\u5220\u9664"})}function Gs(){let e=$();e.ruleTemplates=B,H(e)}function $t(){return A||Le(),A}function Ue(e){A=e||[];let t=$();t.tagRules=A,H(t)}function zt(e){let t={id:`tag-${Date.now()}`,type:e.type||"include",value:e.value||"",enabled:e.enabled!==!1};A.push(t);let s=$();return s.tagRules=A,H(s),{success:!0,rule:t,message:"\u89C4\u5219\u6DFB\u52A0\u6210\u529F"}}function Ut(e,t){if(e<0||e>=A.length)return{success:!1,message:"\u89C4\u5219\u7D22\u5F15\u65E0\u6548"};A[e]={...A[e],...t};let s=$();return s.tagRules=A,H(s),{success:!0,rule:A[e],message:"\u89C4\u5219\u66F4\u65B0\u6210\u529F"}}function ae(e){if(e<0||e>=A.length)return{success:!1,message:"\u89C4\u5219\u7D22\u5F15\u65E0\u6548"};A.splice(e,1);let t=$();return t.tagRules=A,H(t),{success:!0,message:"\u89C4\u5219\u5DF2\u5220\u9664"}}function le(){return Q||Le(),Q}function ce(e){Q=e||[];let t=$();t.contentBlacklist=Q,H(t)}function Be(e,t=""){if(!e||!e.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let s=$();s.tagRulePresets||(s.tagRulePresets={});let o=`preset-${Date.now()}`;return s.tagRulePresets[o]={id:o,name:e.trim(),description:t.trim(),rules:JSON.parse(JSON.stringify(A)),blacklist:JSON.parse(JSON.stringify(Q)),createdAt:new Date().toISOString()},H(s),{success:!0,preset:s.tagRulePresets[o],message:"\u9884\u8BBE\u4FDD\u5B58\u6210\u529F"}}function Ye(){let t=$().tagRulePresets||{};return Object.values(t)}function Ge(e){let t=$(),o=(t.tagRulePresets||{})[e];return o?(A=JSON.parse(JSON.stringify(o.rules||[])),Q=JSON.parse(JSON.stringify(o.blacklist||[])),t.tagRules=A,t.contentBlacklist=Q,H(t),{success:!0,preset:o,message:"\u9884\u8BBE\u52A0\u8F7D\u6210\u529F"}):{success:!1,message:"\u9884\u8BBE\u4E0D\u5B58\u5728"}}function on(e){let t=$(),s=t.tagRulePresets||{};return s[e]?(delete s[e],t.tagRulePresets=s,H(t),{success:!0,message:"\u9884\u8BBE\u5DF2\u5220\u9664"}):{success:!1,message:"\u9884\u8BBE\u4E0D\u5B58\u5728"}}function Fe(){return JSON.stringify({tagRules:A,contentBlacklist:Q,ruleTemplates:B,tagRulePresets:$().tagRulePresets||{}},null,2)}function He(e,t={overwrite:!0}){try{let s=JSON.parse(e);if(t.overwrite)A=s.tagRules||[],Q=s.contentBlacklist||[],B=s.ruleTemplates||Jo;else if(s.tagRules&&A.push(...s.tagRules),s.contentBlacklist){let n=new Set(Q.map(r=>r.toLowerCase()));s.contentBlacklist.forEach(r=>{n.has(r.toLowerCase())||Q.push(r)})}let o=$();return o.tagRules=A,o.contentBlacklist=Q,o.ruleTemplates=B,s.tagRulePresets&&(o.tagRulePresets={...o.tagRulePresets||{},...s.tagRulePresets}),H(o),{success:!0,message:"\u914D\u7F6E\u5BFC\u5165\u6210\u529F"}}catch(s){return{success:!1,message:`\u5BFC\u5165\u5931\u8D25: ${s.message}`}}}function nn(e,t,s="g",o=0){try{if(!e||typeof e!="string")return{success:!1,error:"\u6B63\u5219\u8868\u8FBE\u5F0F\u4E0D\u80FD\u4E3A\u7A7A",matches:[]};let n=new RegExp(e,s),r=[];if(s.includes("g")){let i;for(;(i=n.exec(t))!==null;)i.length>1?r.push({fullMatch:i[0],groups:i.slice(1),index:i.index,extracted:i[o]||i[1]||i[0]}):r.push({fullMatch:i[0],groups:[],index:i.index,extracted:i[0]})}else{let i=n.exec(t);i&&r.push({fullMatch:i[0],groups:i.length>1?i.slice(1):[],index:i.index,extracted:i.length>1?i[o]||i[1]:i[0]})}return{success:!0,matches:r,count:r.length,extracted:r.map(i=>i.extracted)}}catch(n){return{success:!1,error:n.message,matches:[]}}}var Fr,Jo,B,A,Q,rn,Hr,Fs=E(()=>{ne();Fr=["font","span","div","p","br","hr","img","a","b","i","u","s","em","strong","small","big","sub","sup","h1","h2","h3","h4","h5","h6","table","tr","td","th","tbody","thead","tfoot","ul","ol","li","form","input","button","select","option","textarea","label","script","style","meta","link","title","head","body","html"],Jo=[{id:"exclude-thinking",name:"\u6392\u9664\u601D\u8003\u6807\u7B7E",description:"\u79FB\u9664<thinking>\u6807\u7B7E\u5757",type:"exclude",value:"thinking",enabled:!0},{id:"include-content",name:"\u63D0\u53D6\u5185\u5BB9\u6807\u7B7E",description:"\u63D0\u53D6<content>\u6807\u7B7E\u5185\u5BB9",type:"include",value:"content",enabled:!0},{id:"regex-exclude-cot",name:"\u6392\u9664\u5C0FCoT",description:"\u79FB\u9664HTML\u6CE8\u91CA",type:"regex_exclude",value:"<!--[\\s\\S]*?-->",enabled:!1},{id:"regex-include-details",name:"\u63D0\u53D6details\u6807\u7B7E",description:"\u63D0\u53D6<details>\u6807\u7B7E\u5185\u5BB9",type:"regex_include",value:"<details[^>]*>([\\s\\S]*?)</details>",enabled:!1}],B=[],A=[],Q=[];rn={lastMessage:{macro:"{{lastMessage}}",description:"\u6700\u540E\u4E00\u6761\u6D88\u606F"},lastCharMessage:{macro:"{{lastCharMessage}}",description:"\u6700\u540E\u4E00\u6761\u89D2\u8272\u6D88\u606F"},lastUserMessage:{macro:"{{lastUserMessage}}",description:"\u6700\u540E\u4E00\u6761\u7528\u6237\u6D88\u606F"},char:{macro:"{{char}}",description:"\u89D2\u8272\u540D\u79F0"},user:{macro:"{{user}}",description:"\u7528\u6237\u540D\u79F0"},input:{macro:"{{input}}",description:"\u5F53\u524D\u8F93\u5165\u6846\u5185\u5BB9"}};Le();Hr={extractTagContent:Ne,extractSimpleTag:Bs,extractCurlyBraceTag:Ys,extractComplexTag:Vo,extractHtmlFormatTag:Ko,escapeRegex:Pt,shouldSkipContent:zs,isValidTagName:Us,scanTextForTags:je,generateTagSuggestions:ze,getAllRuleTemplates:Xo,getRuleTemplate:Zo,createRuleTemplate:tn,updateRuleTemplate:en,deleteRuleTemplate:sn,getTagRules:$t,setTagRules:Ue,addTagRule:zt,updateTagRule:Ut,deleteTagRule:ae,getContentBlacklist:le,setContentBlacklist:ce,saveRulesAsPreset:Be,getAllRulePresets:Ye,loadRulePreset:Ge,deleteRulePreset:on,exportRulesConfig:Fe,importRulesConfig:He,testRegex:nn,MESSAGE_MACROS:rn}});var rt,Hs=E(()=>{L();K();Fs();rt={id:"regexExtractPanel",render(e){let t=$t(),s=le(),o=Ye();return`
+// modules/ui/components/regex-extract-panel.js
+var RegexExtractPanel;
+var init_regex_extract_panel = __esm({
+  "modules/ui/components/regex-extract-panel.js"() {
+    init_event_bus();
+    init_utils();
+    init_regex_extractor();
+    RegexExtractPanel = {
+      id: "regexExtractPanel",
+      // ============================================================
+      // 渲染
+      // ============================================================
+      /**
+       * 渲染组件
+       * @param {Object} props
+       * @returns {string} HTML
+       */
+      render(props) {
+        const rules = getTagRules();
+        const blacklist = getContentBlacklist();
+        const presets = getAllRulePresets();
+        return `
       <div class="yyt-regex-panel">
         <!-- \u89C4\u5219\u7F16\u8F91\u533A -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-filter"></i>
             <span>\u6807\u7B7E\u63D0\u53D6\u89C4\u5219</span>
-            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${l}-show-examples" style="margin-left: auto;">
+            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-show-examples" style="margin-left: auto;">
               <i class="fa-solid fa-lightbulb"></i> \u67E5\u770B\u793A\u4F8B
             </button>
           </div>
           
-          ${this._renderRulesEditor(t,s,o)}
+          ${this._renderRulesEditor(rules, blacklist, presets)}
         </div>
         
         <!-- \u6D4B\u8BD5\u533A -->
@@ -998,67 +3909,79 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
         <!-- \u5E95\u90E8\u64CD\u4F5C\u533A -->
         <div class="yyt-panel-footer">
           <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-import-rules">
+            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-import-rules">
               <i class="fa-solid fa-file-import"></i> \u5BFC\u5165
             </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-export-rules">
+            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-export-rules">
               <i class="fa-solid fa-file-export"></i> \u5BFC\u51FA
             </button>
-            <input type="file" id="${l}-import-rules-file" accept=".json" style="display:none">
+            <input type="file" id="${SCRIPT_ID}-import-rules-file" accept=".json" style="display:none">
           </div>
           <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-reset-rules">
+            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-reset-rules">
               <i class="fa-solid fa-undo"></i> \u91CD\u7F6E
             </button>
           </div>
         </div>
         
         <!-- \u6807\u7B7E\u626B\u63CF\u7ED3\u679C\u5BB9\u5668 -->
-        <div id="${l}-tag-suggestions-container" style="display: none;">
+        <div id="${SCRIPT_ID}-tag-suggestions-container" style="display: none;">
           <div class="yyt-tag-suggestions">
             <div class="yyt-tag-suggestions-header">
               <span>\u53D1\u73B0\u7684\u6807\u7B7E:</span>
-              <span id="${l}-tag-scan-stats"></span>
+              <span id="${SCRIPT_ID}-tag-scan-stats"></span>
             </div>
-            <div class="yyt-tag-list" id="${l}-tag-list"></div>
+            <div class="yyt-tag-list" id="${SCRIPT_ID}-tag-list"></div>
           </div>
         </div>
       </div>
-    `},_renderRulesEditor(e,t,s){let o=e.length>0?e.map((r,i)=>this._renderRuleItem(r,i)).join(""):'<div class="yyt-empty-state-small"><i class="fa-solid fa-filter"></i><span>\u6CA1\u6709\u5B9A\u4E49\u4EFB\u4F55\u63D0\u53D6\u89C4\u5219</span></div>',n=s.length>0?s.map(r=>`<option value="${r.id}">${m(r.name)}</option>`).join(""):"";return`
+    `;
+      },
+      // ============================================================
+      // 私有渲染方法
+      // ============================================================
+      /**
+       * 渲染规则编辑器
+       * @private
+       */
+      _renderRulesEditor(rules, blacklist, presets) {
+        const rulesList = rules.length > 0 ? rules.map((rule, index) => this._renderRuleItem(rule, index)).join("") : '<div class="yyt-empty-state-small"><i class="fa-solid fa-filter"></i><span>\u6CA1\u6709\u5B9A\u4E49\u4EFB\u4F55\u63D0\u53D6\u89C4\u5219</span></div>';
+        const presetOptions = presets.length > 0 ? presets.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("") : "";
+        return `
       <div class="yyt-tag-rules-editor">
-        ${n?`
+        ${presetOptions ? `
         <div class="yyt-form-row">
-          <select class="yyt-select yyt-flex-1" id="${l}-rule-preset-select">
+          <select class="yyt-select yyt-flex-1" id="${SCRIPT_ID}-rule-preset-select">
             <option value="">-- \u9009\u62E9\u9884\u8BBE --</option>
-            ${n}
+            ${presetOptions}
           </select>
-          <button class="yyt-btn yyt-btn-secondary" id="${l}-load-rule-preset">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-load-rule-preset">
             <i class="fa-solid fa-download"></i> \u52A0\u8F7D
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${l}-save-rule-preset">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-save-rule-preset">
             <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u9884\u8BBE
           </button>
         </div>
-        `:`
+        ` : `
         <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-secondary" id="${l}-save-rule-preset">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-save-rule-preset">
             <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u4E3A\u9884\u8BBE
           </button>
         </div>
         `}
         
         <div class="yyt-rules-list">
-          ${o}
+          ${rulesList}
         </div>
         
         <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-primary" id="${l}-add-rule">
+          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-add-rule">
             <i class="fa-solid fa-plus"></i> \u6DFB\u52A0\u89C4\u5219
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${l}-scan-tags">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-scan-tags">
             <i class="fa-solid fa-search"></i> \u626B\u63CF\u6807\u7B7E
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${l}-add-exclude-cot">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-add-exclude-cot">
             <i class="fa-solid fa-ban"></i> \u6392\u9664\u5C0FCoT
           </button>
         </div>
@@ -1066,53 +3989,208 @@ var Cr=Object.defineProperty;var E=(e,t)=>()=>(e&&(t=e(e=0)),t);var O=(e,t)=>{fo
         <!-- \u9ED1\u540D\u5355\u8BBE\u7F6E -->
         <div class="yyt-form-group">
           <label>\u5185\u5BB9\u9ED1\u540D\u5355\uFF08\u5305\u542B\u8FD9\u4E9B\u5173\u952E\u8BCD\u7684\u5185\u5BB9\u5C06\u88AB\u8FC7\u6EE4\uFF0C\u7528\u9017\u53F7\u5206\u9694\uFF09</label>
-          <input type="text" class="yyt-input" id="${l}-content-blacklist" 
-                 value="${m(t.join(", "))}" 
+          <input type="text" class="yyt-input" id="${SCRIPT_ID}-content-blacklist" 
+                 value="${escapeHtml(blacklist.join(", "))}" 
                  placeholder="\u5173\u952E\u8BCD1, \u5173\u952E\u8BCD2, ...">
         </div>
       </div>
-    `},_renderRuleItem(e,t){return`
-      <div class="yyt-rule-item" data-rule-index="${t}">
+    `;
+      },
+      /**
+       * 渲染单个规则项
+       * @private
+       */
+      _renderRuleItem(rule, index) {
+        return `
+      <div class="yyt-rule-item" data-rule-index="${index}">
         <select class="yyt-select yyt-rule-type" style="flex: 2; min-width: 100px;">
-          <option value="include" ${e.type==="include"?"selected":""}>\u5305\u542B</option>
-          <option value="regex_include" ${e.type==="regex_include"?"selected":""}>\u6B63\u5219\u5305\u542B</option>
-          <option value="exclude" ${e.type==="exclude"?"selected":""}>\u6392\u9664</option>
-          <option value="regex_exclude" ${e.type==="regex_exclude"?"selected":""}>\u6B63\u5219\u6392\u9664</option>
+          <option value="include" ${rule.type === "include" ? "selected" : ""}>\u5305\u542B</option>
+          <option value="regex_include" ${rule.type === "regex_include" ? "selected" : ""}>\u6B63\u5219\u5305\u542B</option>
+          <option value="exclude" ${rule.type === "exclude" ? "selected" : ""}>\u6392\u9664</option>
+          <option value="regex_exclude" ${rule.type === "regex_exclude" ? "selected" : ""}>\u6B63\u5219\u6392\u9664</option>
         </select>
         <input type="text" class="yyt-input yyt-rule-value" style="flex: 5;" 
                placeholder="\u6807\u7B7E\u540D\u6216\u6B63\u5219\u8868\u8FBE\u5F0F" 
-               value="${m(e.value||"")}">
+               value="${escapeHtml(rule.value || "")}">
         <label class="yyt-checkbox-label yyt-rule-enabled-label">
-          <input type="checkbox" class="yyt-rule-enabled" ${e.enabled?"checked":""}>
+          <input type="checkbox" class="yyt-rule-enabled" ${rule.enabled ? "checked" : ""}>
           <span>\u542F\u7528</span>
         </label>
         <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger yyt-rule-delete" title="\u5220\u9664\u89C4\u5219">
           <i class="fa-solid fa-trash"></i>
         </button>
       </div>
-    `},_renderTestSection(){return`
+    `;
+      },
+      /**
+       * 渲染测试区
+       * @private
+       */
+      _renderTestSection() {
+        return `
       <div class="yyt-test-section">
         <div class="yyt-form-group">
           <label>\u6D4B\u8BD5\u6587\u672C</label>
-          <textarea class="yyt-textarea" id="${l}-test-input" rows="6" 
+          <textarea class="yyt-textarea" id="${SCRIPT_ID}-test-input" rows="6" 
                     placeholder="\u8F93\u5165\u8981\u6D4B\u8BD5\u63D0\u53D6\u7684\u6587\u672C\u5185\u5BB9..."></textarea>
         </div>
         
         <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-primary" id="${l}-test-extract">
+          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-test-extract">
             <i class="fa-solid fa-play"></i> \u6D4B\u8BD5\u63D0\u53D6
           </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${l}-test-clear">
+          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-test-clear">
             <i class="fa-solid fa-eraser"></i> \u6E05\u7A7A
           </button>
         </div>
         
-        <div class="yyt-form-group" id="${l}-test-result-container" style="display: none;">
+        <div class="yyt-form-group" id="${SCRIPT_ID}-test-result-container" style="display: none;">
           <label>\u63D0\u53D6\u7ED3\u679C</label>
-          <div class="yyt-test-result" id="${l}-test-result"></div>
+          <div class="yyt-test-result" id="${SCRIPT_ID}-test-result"></div>
         </div>
       </div>
-    `},bindEvents(e,t){let s=w();!s||!S(e)||(this._bindRuleEditorEvents(e,s),this._bindPresetEvents(e,s),this._bindTestEvents(e,s),this._bindFileEvents(e,s))},_bindRuleEditorEvents(e,t){e.find(".yyt-rule-type").on("change",function(){let o=t(this).closest(".yyt-rule-item").data("rule-index"),n=t(this).val();Ut(o,{type:n}),d("info","\u89C4\u5219\u7C7B\u578B\u5DF2\u66F4\u65B0")}),e.find(".yyt-rule-value").on("change",function(){let o=t(this).closest(".yyt-rule-item").data("rule-index"),n=t(this).val().trim();Ut(o,{value:n})}),e.find(".yyt-rule-enabled").on("change",function(){let o=t(this).closest(".yyt-rule-item").data("rule-index"),n=t(this).is(":checked");Ut(o,{enabled:n}),d("info",n?"\u89C4\u5219\u5DF2\u542F\u7528":"\u89C4\u5219\u5DF2\u7981\u7528")}),e.find(".yyt-rule-delete").on("click",()=>{let o=e.find(".yyt-rule-delete").closest(".yyt-rule-item").data("rule-index");confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")&&(ae(o),this.renderTo(e),d("info","\u89C4\u5219\u5DF2\u5220\u9664"))}),e.on("click",".yyt-rule-delete",s=>{let n=t(s.currentTarget).closest(".yyt-rule-item").data("rule-index");confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")&&(ae(n),this.renderTo(e),d("info","\u89C4\u5219\u5DF2\u5220\u9664"))}),e.find(`#${l}-add-rule`).on("click",()=>{zt({type:"include",value:"",enabled:!0}),this.renderTo(e),d("success","\u5DF2\u6DFB\u52A0\u65B0\u89C4\u5219")}),e.find(`#${l}-scan-tags`).on("click",async()=>{let s=e.find(`#${l}-scan-tags`),o=e.find(`#${l}-test-input`).val();if(!o||!o.trim()){d("warning","\u8BF7\u5148\u8F93\u5165\u8981\u626B\u63CF\u7684\u6587\u672C");return}s.prop("disabled",!0).find("i").addClass("fa-spin");try{let n=await je(o,{maxTags:50,timeoutMs:3e3}),{suggestions:r,stats:i}=ze(n,25);if(r.length===0){d("info","\u672A\u53D1\u73B0\u53EF\u7528\u7684\u6807\u7B7E"),e.find(`#${l}-tag-suggestions-container`).hide();return}let a=e.find(`#${l}-tag-list`);e.find(`#${l}-tag-scan-stats`).text(`${i.finalCount}/${i.totalFound} \u4E2A\u6807\u7B7E, ${n.stats.processingTimeMs}ms`),a.empty(),r.forEach(y=>{let p=t(`<button class="yyt-btn yyt-btn-small yyt-btn-secondary" title="\u70B9\u51FB\u6DFB\u52A0\u4E3A\u5305\u542B\u89C4\u5219">${m(y)}</button>`);p.on("click",()=>{if($t().some(b=>b.type==="include"&&b.value===y)){d("warning",`\u89C4\u5219 "\u5305\u542B: ${y}" \u5DF2\u5B58\u5728`);return}zt({type:"include",value:y,enabled:!0}),this.renderTo(e),d("success",`\u5DF2\u6DFB\u52A0\u89C4\u5219: \u5305\u542B "${y}"`)}),a.append(p)}),e.find(`#${l}-tag-suggestions-container`).show(),d("success",`\u53D1\u73B0 ${r.length} \u4E2A\u6807\u7B7E`)}catch(n){d("error",`\u626B\u63CF\u5931\u8D25: ${n.message}`)}finally{s.prop("disabled",!1).find("i").removeClass("fa-spin")}}),e.find(`#${l}-add-exclude-cot`).on("click",()=>{let s=$t(),o="<!--[\\s\\S]*?-->";if(s.some(r=>r.type==="regex_exclude"&&r.value===o)){d("warning","\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219\u5DF2\u5B58\u5728");return}zt({type:"regex_exclude",value:o,enabled:!0}),this.renderTo(e),d("success","\u5DF2\u6DFB\u52A0\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219")}),e.find(`#${l}-content-blacklist`).on("change",function(){let o=t(this).val().split(",").map(n=>n.trim()).filter(n=>n);ce(o),d("info",`\u9ED1\u540D\u5355\u5DF2\u66F4\u65B0\uFF0C\u5171 ${o.length} \u4E2A\u5173\u952E\u8BCD`)}),e.find(`#${l}-show-examples`).on("click",()=>{alert(`
+    `;
+      },
+      // ============================================================
+      // 事件绑定
+      // ============================================================
+      /**
+       * 绑定事件
+       * @param {Object} $container
+       * @param {Object} dependencies
+       */
+      bindEvents($container2, dependencies) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        this._bindRuleEditorEvents($container2, $);
+        this._bindPresetEvents($container2, $);
+        this._bindTestEvents($container2, $);
+        this._bindFileEvents($container2, $);
+      },
+      /**
+       * 绑定规则编辑器事件
+       * @private
+       */
+      _bindRuleEditorEvents($container2, $) {
+        $container2.find(".yyt-rule-type").on("change", function() {
+          const $item = $(this).closest(".yyt-rule-item");
+          const index = $item.data("rule-index");
+          const type = $(this).val();
+          updateTagRule(index, { type });
+          showToast("info", "\u89C4\u5219\u7C7B\u578B\u5DF2\u66F4\u65B0");
+        });
+        $container2.find(".yyt-rule-value").on("change", function() {
+          const $item = $(this).closest(".yyt-rule-item");
+          const index = $item.data("rule-index");
+          const value = $(this).val().trim();
+          updateTagRule(index, { value });
+        });
+        $container2.find(".yyt-rule-enabled").on("change", function() {
+          const $item = $(this).closest(".yyt-rule-item");
+          const index = $item.data("rule-index");
+          const enabled = $(this).is(":checked");
+          updateTagRule(index, { enabled });
+          showToast("info", enabled ? "\u89C4\u5219\u5DF2\u542F\u7528" : "\u89C4\u5219\u5DF2\u7981\u7528");
+        });
+        $container2.find(".yyt-rule-delete").on("click", () => {
+          const $item = $container2.find(".yyt-rule-delete").closest(".yyt-rule-item");
+          const index = $item.data("rule-index");
+          if (confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")) {
+            deleteTagRule(index);
+            this.renderTo($container2);
+            showToast("info", "\u89C4\u5219\u5DF2\u5220\u9664");
+          }
+        });
+        $container2.on("click", ".yyt-rule-delete", (e) => {
+          const $item = $(e.currentTarget).closest(".yyt-rule-item");
+          const index = $item.data("rule-index");
+          if (confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u6761\u89C4\u5219\u5417\uFF1F")) {
+            deleteTagRule(index);
+            this.renderTo($container2);
+            showToast("info", "\u89C4\u5219\u5DF2\u5220\u9664");
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-add-rule`).on("click", () => {
+          addTagRule({
+            type: "include",
+            value: "",
+            enabled: true
+          });
+          this.renderTo($container2);
+          showToast("success", "\u5DF2\u6DFB\u52A0\u65B0\u89C4\u5219");
+        });
+        $container2.find(`#${SCRIPT_ID}-scan-tags`).on("click", async () => {
+          const $btn = $container2.find(`#${SCRIPT_ID}-scan-tags`);
+          const testText = $container2.find(`#${SCRIPT_ID}-test-input`).val();
+          if (!testText || !testText.trim()) {
+            showToast("warning", "\u8BF7\u5148\u8F93\u5165\u8981\u626B\u63CF\u7684\u6587\u672C");
+            return;
+          }
+          $btn.prop("disabled", true).find("i").addClass("fa-spin");
+          try {
+            const scanResult = await scanTextForTags(testText, { maxTags: 50, timeoutMs: 3e3 });
+            const { suggestions, stats } = generateTagSuggestions(scanResult, 25);
+            if (suggestions.length === 0) {
+              showToast("info", "\u672A\u53D1\u73B0\u53EF\u7528\u7684\u6807\u7B7E");
+              $container2.find(`#${SCRIPT_ID}-tag-suggestions-container`).hide();
+              return;
+            }
+            const $tagList = $container2.find(`#${SCRIPT_ID}-tag-list`);
+            const $stats = $container2.find(`#${SCRIPT_ID}-tag-scan-stats`);
+            $stats.text(`${stats.finalCount}/${stats.totalFound} \u4E2A\u6807\u7B7E, ${scanResult.stats.processingTimeMs}ms`);
+            $tagList.empty();
+            suggestions.forEach((tag) => {
+              const $tagBtn = $(`<button class="yyt-btn yyt-btn-small yyt-btn-secondary" title="\u70B9\u51FB\u6DFB\u52A0\u4E3A\u5305\u542B\u89C4\u5219">${escapeHtml(tag)}</button>`);
+              $tagBtn.on("click", () => {
+                const rules = getTagRules();
+                const exists = rules.some((r) => r.type === "include" && r.value === tag);
+                if (exists) {
+                  showToast("warning", `\u89C4\u5219 "\u5305\u542B: ${tag}" \u5DF2\u5B58\u5728`);
+                  return;
+                }
+                addTagRule({
+                  type: "include",
+                  value: tag,
+                  enabled: true
+                });
+                this.renderTo($container2);
+                showToast("success", `\u5DF2\u6DFB\u52A0\u89C4\u5219: \u5305\u542B "${tag}"`);
+              });
+              $tagList.append($tagBtn);
+            });
+            $container2.find(`#${SCRIPT_ID}-tag-suggestions-container`).show();
+            showToast("success", `\u53D1\u73B0 ${suggestions.length} \u4E2A\u6807\u7B7E`);
+          } catch (e) {
+            showToast("error", `\u626B\u63CF\u5931\u8D25: ${e.message}`);
+          } finally {
+            $btn.prop("disabled", false).find("i").removeClass("fa-spin");
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-add-exclude-cot`).on("click", () => {
+          const rules = getTagRules();
+          const cotPattern = "<!--[\\s\\S]*?-->";
+          const exists = rules.some((r) => r.type === "regex_exclude" && r.value === cotPattern);
+          if (exists) {
+            showToast("warning", "\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219\u5DF2\u5B58\u5728");
+            return;
+          }
+          addTagRule({
+            type: "regex_exclude",
+            value: cotPattern,
+            enabled: true
+          });
+          this.renderTo($container2);
+          showToast("success", "\u5DF2\u6DFB\u52A0\u6392\u9664HTML\u6CE8\u91CA\u89C4\u5219");
+        });
+        $container2.find(`#${SCRIPT_ID}-content-blacklist`).on("change", function() {
+          const value = $(this).val();
+          const blacklist = value.split(",").map((k) => k.trim()).filter((k) => k);
+          setContentBlacklist(blacklist);
+          showToast("info", `\u9ED1\u540D\u5355\u5DF2\u66F4\u65B0\uFF0C\u5171 ${blacklist.length} \u4E2A\u5173\u952E\u8BCD`);
+        });
+        $container2.find(`#${SCRIPT_ID}-show-examples`).on("click", () => {
+          const examples = `
 \u89C4\u5219\u7C7B\u578B\u8BF4\u660E:
 
 1. \u3010\u5305\u542B\u3011include
@@ -1147,7 +4225,140 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
 \u2022 \u63D0\u53D6\u5185\u5BB9\u6807\u7B7E: \u7C7B\u578B=\u5305\u542B, \u503C=content
 \u2022 \u6392\u9664HTML\u6CE8\u91CA: \u7C7B\u578B=\u6B63\u5219\u6392\u9664, \u503C=<!--[\\s\\S]*?-->
 \u2022 \u63D0\u53D6\u82B1\u62EC\u53F7\u5185\u5BB9: \u7C7B\u578B=\u5305\u542B, \u503C=story
-      `)})},_bindPresetEvents(e,t){e.find(`#${l}-load-rule-preset`).on("click",()=>{let s=e.find(`#${l}-rule-preset-select`).val();if(!s){d("warning","\u8BF7\u9009\u62E9\u4E00\u4E2A\u9884\u8BBE");return}let o=Ge(s);o.success?(this.renderTo(e),d("success",`\u5DF2\u52A0\u8F7D\u9884\u8BBE: ${o.preset.name}`),f.emit(g.REGEX_PRESET_LOADED,{preset:o.preset})):d("error",o.message)}),e.find(`#${l}-save-rule-preset`).on("click",()=>{let s=prompt("\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0:");if(!s||!s.trim())return;let o=Be(s.trim());o.success?(this.renderTo(e),d("success",`\u9884\u8BBE "${s.trim()}" \u5DF2\u4FDD\u5B58`)):d("error",o.message)})},_bindTestEvents(e,t){e.find(`#${l}-test-extract`).on("click",()=>{let s=e.find(`#${l}-test-input`).val();if(!s||!s.trim()){d("warning","\u8BF7\u8F93\u5165\u6D4B\u8BD5\u6587\u672C");return}let o=$t(),n=le(),r=Ne(s,o,n),i=e.find(`#${l}-test-result-container`),a=e.find(`#${l}-test-result`);i.show(),!r||!r.trim()?(a.html('<div class="yyt-result-empty">\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A</div>'),d("warning","\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A\uFF0C\u8BF7\u68C0\u67E5\u89C4\u5219\u914D\u7F6E")):(a.html(`<pre class="yyt-code-block">${m(r)}</pre>`),d("success","\u63D0\u53D6\u5B8C\u6210"),f.emit(g.REGEX_EXTRACTED,{result:r}))}),e.find(`#${l}-test-clear`).on("click",()=>{e.find(`#${l}-test-input`).val(""),e.find(`#${l}-test-result-container`).hide()})},_bindFileEvents(e,t){e.find(`#${l}-import-rules`).on("click",()=>{e.find(`#${l}-import-rules-file`).click()}),e.find(`#${l}-import-rules-file`).on("change",async s=>{let o=s.target.files[0];if(o){try{let n=await mt(o),r=He(n,{overwrite:!0});r.success?(this.renderTo(e),d("success","\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u5165")):d("error",r.message)}catch(n){d("error",`\u5BFC\u5165\u5931\u8D25: ${n.message}`)}t(s.target).val("")}}),e.find(`#${l}-export-rules`).on("click",()=>{try{let s=Fe();ft(s,`youyou_toolkit_rules_${Date.now()}.json`),d("success","\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u51FA")}catch(s){d("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),e.find(`#${l}-reset-rules`).on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u89C4\u5219\u5417\uFF1F\u8FD9\u5C06\u6E05\u7A7A\u5F53\u524D\u7684\u89C4\u5219\u914D\u7F6E\u3002")&&(Ue([]),ce([]),this.renderTo(e),d("info","\u89C4\u5219\u5DF2\u91CD\u7F6E"))})},destroy(e){!w()||!S(e)||e.find("*").off()},getStyles(){return`
+      `;
+          alert(examples);
+        });
+      },
+      /**
+       * 绑定预设事件
+       * @private
+       */
+      _bindPresetEvents($container2, $) {
+        $container2.find(`#${SCRIPT_ID}-load-rule-preset`).on("click", () => {
+          const presetId = $container2.find(`#${SCRIPT_ID}-rule-preset-select`).val();
+          if (!presetId) {
+            showToast("warning", "\u8BF7\u9009\u62E9\u4E00\u4E2A\u9884\u8BBE");
+            return;
+          }
+          const result = loadRulePreset(presetId);
+          if (result.success) {
+            this.renderTo($container2);
+            showToast("success", `\u5DF2\u52A0\u8F7D\u9884\u8BBE: ${result.preset.name}`);
+            eventBus.emit(EVENTS.REGEX_PRESET_LOADED, { preset: result.preset });
+          } else {
+            showToast("error", result.message);
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-save-rule-preset`).on("click", () => {
+          const name = prompt("\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0:");
+          if (!name || !name.trim())
+            return;
+          const result = saveRulesAsPreset(name.trim());
+          if (result.success) {
+            this.renderTo($container2);
+            showToast("success", `\u9884\u8BBE "${name.trim()}" \u5DF2\u4FDD\u5B58`);
+          } else {
+            showToast("error", result.message);
+          }
+        });
+      },
+      /**
+       * 绑定测试事件
+       * @private
+       */
+      _bindTestEvents($container2, $) {
+        $container2.find(`#${SCRIPT_ID}-test-extract`).on("click", () => {
+          const text = $container2.find(`#${SCRIPT_ID}-test-input`).val();
+          if (!text || !text.trim()) {
+            showToast("warning", "\u8BF7\u8F93\u5165\u6D4B\u8BD5\u6587\u672C");
+            return;
+          }
+          const rules = getTagRules();
+          const blacklist = getContentBlacklist();
+          const result = extractTagContent(text, rules, blacklist);
+          const $resultContainer = $container2.find(`#${SCRIPT_ID}-test-result-container`);
+          const $result = $container2.find(`#${SCRIPT_ID}-test-result`);
+          $resultContainer.show();
+          if (!result || !result.trim()) {
+            $result.html('<div class="yyt-result-empty">\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A</div>');
+            showToast("warning", "\u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A\uFF0C\u8BF7\u68C0\u67E5\u89C4\u5219\u914D\u7F6E");
+          } else {
+            $result.html(`<pre class="yyt-code-block">${escapeHtml(result)}</pre>`);
+            showToast("success", "\u63D0\u53D6\u5B8C\u6210");
+            eventBus.emit(EVENTS.REGEX_EXTRACTED, { result });
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-test-clear`).on("click", () => {
+          $container2.find(`#${SCRIPT_ID}-test-input`).val("");
+          $container2.find(`#${SCRIPT_ID}-test-result-container`).hide();
+        });
+      },
+      /**
+       * 绑定文件事件
+       * @private
+       */
+      _bindFileEvents($container2, $) {
+        $container2.find(`#${SCRIPT_ID}-import-rules`).on("click", () => {
+          $container2.find(`#${SCRIPT_ID}-import-rules-file`).click();
+        });
+        $container2.find(`#${SCRIPT_ID}-import-rules-file`).on("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file)
+            return;
+          try {
+            const text = await readFileContent(file);
+            const result = importRulesConfig(text, { overwrite: true });
+            if (result.success) {
+              this.renderTo($container2);
+              showToast("success", "\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u5165");
+            } else {
+              showToast("error", result.message);
+            }
+          } catch (e2) {
+            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${e2.message}`);
+          }
+          $(e.target).val("");
+        });
+        $container2.find(`#${SCRIPT_ID}-export-rules`).on("click", () => {
+          try {
+            const json = exportRulesConfig();
+            downloadJson(json, `youyou_toolkit_rules_${Date.now()}.json`);
+            showToast("success", "\u89C4\u5219\u914D\u7F6E\u5DF2\u5BFC\u51FA");
+          } catch (e) {
+            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${e.message}`);
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-reset-rules`).on("click", () => {
+          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u89C4\u5219\u5417\uFF1F\u8FD9\u5C06\u6E05\u7A7A\u5F53\u524D\u7684\u89C4\u5219\u914D\u7F6E\u3002")) {
+            setTagRules([]);
+            setContentBlacklist([]);
+            this.renderTo($container2);
+            showToast("info", "\u89C4\u5219\u5DF2\u91CD\u7F6E");
+          }
+        });
+      },
+      // ============================================================
+      // 销毁
+      // ============================================================
+      /**
+       * 销毁组件
+       * @param {Object} $container
+       */
+      destroy($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find("*").off();
+      },
+      // ============================================================
+      // 样式
+      // ============================================================
+      /**
+       * 获取样式
+       * @returns {string}
+       */
+      getStyles() {
+        return `
       /* \u6B63\u5219\u63D0\u53D6\u9762\u677F\u6837\u5F0F */
       .yyt-regex-panel {
         display: flex;
@@ -1300,7 +4511,328 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
       .yyt-empty-state-small span {
         font-size: 12px;
       }
-    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var ln={};O(ln,{DEFAULT_TOOL_PRESETS:()=>it,DEFAULT_TOOL_STRUCTURE:()=>Ws,TOOL_STORAGE_KEYS:()=>P,cloneTool:()=>Qr,deleteTool:()=>Wr,deleteToolPreset:()=>Vr,exportTools:()=>Js,getAllToolPresets:()=>qs,getAllTools:()=>We,getCurrentToolPresetId:()=>Kr,getTool:()=>de,getToolPreset:()=>qr,importTools:()=>Vs,resetTools:()=>Ks,saveTool:()=>Qe,saveToolPreset:()=>Jr,setCurrentToolPreset:()=>Xr,setToolEnabled:()=>Qs,validateTool:()=>Zr});function We(){let e=C.get(P.TOOLS);return e&&typeof e=="object"?{...it,...e}:{...it}}function de(e){return We()[e]||null}function Qe(e,t){if(!e||!t)return!1;let s=C.get(P.TOOLS)||{},o={...Ws,...t,id:e,metadata:{...Ws.metadata,...t.metadata,updatedAt:new Date().toISOString()}};return s[e]||(o.metadata.createdAt=new Date().toISOString()),s[e]=o,C.set(P.TOOLS,s),f.emit(g.TOOL_UPDATED,{toolId:e,tool:o}),!0}function Wr(e){if(it[e])return!1;let t=C.get(P.TOOLS)||{};return t[e]?(delete t[e],C.set(P.TOOLS,t),f.emit(g.TOOL_UNREGISTERED,{toolId:e}),!0):!1}function Qs(e,t){let s=de(e);if(!s)return!1;let o=C.get(P.TOOLS)||{};return o[e]||(o[e]={...s}),o[e].enabled=t,o[e].metadata={...o[e].metadata,updatedAt:new Date().toISOString()},C.set(P.TOOLS,o),f.emit(t?g.TOOL_ENABLED:g.TOOL_DISABLED,{toolId:e}),!0}function Qr(e,t,s){let o=de(e);if(!o)return!1;let n=JSON.parse(JSON.stringify(o));return n.name=s||`${o.name} (\u526F\u672C)`,n.metadata={...n.metadata,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},Qe(t,n)}function qs(){let e=C.get(P.PRESETS);return e&&typeof e=="object"?{...it,...e}:{...it}}function qr(e){return qs()[e]||null}function Jr(e,t){if(!e||!t)return!1;let s=C.get(P.PRESETS)||{};return s[e]={...t,metadata:{...t.metadata,updatedAt:new Date().toISOString()}},C.set(P.PRESETS,s),!0}function Vr(e){if(it[e])return!1;let t=C.get(P.PRESETS)||{};return t[e]?(delete t[e],C.set(P.PRESETS,t),!0):!1}function Kr(){return C.get(P.CURRENT_PRESET)||null}function Xr(e){return qs()[e]?(C.set(P.CURRENT_PRESET,e),!0):!1}function Js(){let e=C.get(P.TOOLS)||{},t=C.get(P.PRESETS)||{};return JSON.stringify({version:"1.0.0",exportedAt:new Date().toISOString(),tools:e,presets:t},null,2)}function Vs(e,t=!1){try{let s=JSON.parse(e);if(!s||typeof s!="object")return{success:!1,toolsImported:0,presetsImported:0,message:"\u65E0\u6548\u7684JSON\u683C\u5F0F"};let o=t?{}:C.get(P.TOOLS)||{},n=t?{}:C.get(P.PRESETS)||{},r=0,i=0;if(s.tools&&typeof s.tools=="object"){for(let[a,c]of Object.entries(s.tools))it[a]&&!t||c&&typeof c=="object"&&(o[a]=c,r++);C.set(P.TOOLS,o)}if(s.presets&&typeof s.presets=="object"){for(let[a,c]of Object.entries(s.presets))it[a]&&!t||c&&typeof c=="object"&&(n[a]=c,i++);C.set(P.PRESETS,n)}return{success:!0,toolsImported:r,presetsImported:i,message:`\u6210\u529F\u5BFC\u5165 ${r} \u4E2A\u5DE5\u5177\u548C ${i} \u4E2A\u9884\u8BBE`}}catch(s){return{success:!1,toolsImported:0,presetsImported:0,message:`\u5BFC\u5165\u5931\u8D25: ${s.message}`}}}function Ks(){C.remove(P.TOOLS),C.remove(P.PRESETS),C.remove(P.CURRENT_PRESET)}function Zr(e){let t=[];if(!e)return{valid:!1,errors:["\u5DE5\u5177\u5B9A\u4E49\u4E3A\u7A7A"]};if((!e.name||typeof e.name!="string")&&t.push("\u5DE5\u5177\u540D\u79F0\u65E0\u6548"),(!e.category||typeof e.category!="string")&&t.push("\u5DE5\u5177\u5206\u7C7B\u65E0\u6548"),e.config){let{trigger:s,execution:o,api:n,context:r}=e.config;s&&!["manual","event","scheduled"].includes(s.type)&&t.push("\u89E6\u53D1\u7C7B\u578B\u65E0\u6548"),o&&((typeof o.timeout!="number"||o.timeout<0)&&t.push("\u8D85\u65F6\u65F6\u95F4\u5FC5\u987B\u4E3A\u6B63\u6570"),(typeof o.retries!="number"||o.retries<0)&&t.push("\u91CD\u8BD5\u6B21\u6570\u5FC5\u987B\u4E3A\u6B63\u6570")),r&&typeof r.depth!="number"&&t.push("\u4E0A\u4E0B\u6587\u6DF1\u5EA6\u5FC5\u987B\u4E3A\u6570\u5B57")}return{valid:t.length===0,errors:t}}var Ws,it,P,Xs=E(()=>{et();L();Ws={id:"",name:"",description:"",category:"utility",config:{trigger:{type:"manual",events:[]},execution:{timeout:6e4,retries:3},api:{preset:"",useBypass:!0,bypassPreset:"standard"},messages:[],context:{depth:3,includeTags:[],excludeTags:[]}},enabled:!0,metadata:{createdAt:null,updatedAt:null,author:"",version:"1.0.0"}},it={},P={TOOLS:"tools",PRESETS:"tool_presets",CURRENT_PRESET:"current_tool_preset"}});var at,Zs=E(()=>{L();K();Xs();at={id:"toolManagePanel",render(e){let t=We();return`
+    `;
+      },
+      // ============================================================
+      // 便捷方法
+      // ============================================================
+      /**
+       * 渲染到容器
+       * @param {Object} $container
+       */
+      renderTo($container2) {
+        const html = this.render({});
+        $container2.html(html);
+        this.bindEvents($container2, {});
+      }
+    };
+  }
+});
+
+// modules/tool-manager.js
+var tool_manager_exports = {};
+__export(tool_manager_exports, {
+  DEFAULT_TOOL_PRESETS: () => DEFAULT_TOOL_PRESETS,
+  DEFAULT_TOOL_STRUCTURE: () => DEFAULT_TOOL_STRUCTURE,
+  TOOL_STORAGE_KEYS: () => TOOL_STORAGE_KEYS,
+  cloneTool: () => cloneTool,
+  deleteTool: () => deleteTool,
+  deleteToolPreset: () => deleteToolPreset,
+  exportTools: () => exportTools,
+  getAllToolPresets: () => getAllToolPresets,
+  getAllTools: () => getAllTools,
+  getCurrentToolPresetId: () => getCurrentToolPresetId,
+  getTool: () => getTool,
+  getToolPreset: () => getToolPreset,
+  importTools: () => importTools,
+  resetTools: () => resetTools,
+  saveTool: () => saveTool,
+  saveToolPreset: () => saveToolPreset,
+  setCurrentToolPreset: () => setCurrentToolPreset,
+  setToolEnabled: () => setToolEnabled,
+  validateTool: () => validateTool
+});
+function getAllTools() {
+  const saved = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS);
+  if (saved && typeof saved === "object") {
+    return { ...DEFAULT_TOOL_PRESETS, ...saved };
+  }
+  return { ...DEFAULT_TOOL_PRESETS };
+}
+function getTool(toolId) {
+  const tools = getAllTools();
+  return tools[toolId] || null;
+}
+function saveTool(toolId, toolDef) {
+  if (!toolId || !toolDef) {
+    return false;
+  }
+  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
+  const validatedTool = {
+    ...DEFAULT_TOOL_STRUCTURE,
+    ...toolDef,
+    id: toolId,
+    metadata: {
+      ...DEFAULT_TOOL_STRUCTURE.metadata,
+      ...toolDef.metadata,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    }
+  };
+  if (!customTools[toolId]) {
+    validatedTool.metadata.createdAt = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  customTools[toolId] = validatedTool;
+  toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
+  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, tool: validatedTool });
+  return true;
+}
+function deleteTool(toolId) {
+  if (DEFAULT_TOOL_PRESETS[toolId]) {
+    return false;
+  }
+  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
+  if (customTools[toolId]) {
+    delete customTools[toolId];
+    toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
+    eventBus.emit(EVENTS.TOOL_UNREGISTERED, { toolId });
+    return true;
+  }
+  return false;
+}
+function setToolEnabled(toolId, enabled) {
+  const tool = getTool(toolId);
+  if (!tool)
+    return false;
+  const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
+  if (!customTools[toolId]) {
+    customTools[toolId] = { ...tool };
+  }
+  customTools[toolId].enabled = enabled;
+  customTools[toolId].metadata = {
+    ...customTools[toolId].metadata,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
+  eventBus.emit(enabled ? EVENTS.TOOL_ENABLED : EVENTS.TOOL_DISABLED, { toolId });
+  return true;
+}
+function cloneTool(toolId, newId, newName) {
+  const tool = getTool(toolId);
+  if (!tool)
+    return false;
+  const clonedTool = JSON.parse(JSON.stringify(tool));
+  clonedTool.name = newName || `${tool.name} (\u526F\u672C)`;
+  clonedTool.metadata = {
+    ...clonedTool.metadata,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  return saveTool(newId, clonedTool);
+}
+function getAllToolPresets() {
+  const saved = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS);
+  if (saved && typeof saved === "object") {
+    return { ...DEFAULT_TOOL_PRESETS, ...saved };
+  }
+  return { ...DEFAULT_TOOL_PRESETS };
+}
+function getToolPreset(presetId) {
+  const presets = getAllToolPresets();
+  return presets[presetId] || null;
+}
+function saveToolPreset(presetId, preset) {
+  if (!presetId || !preset)
+    return false;
+  const customPresets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
+  customPresets[presetId] = {
+    ...preset,
+    metadata: {
+      ...preset.metadata,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    }
+  };
+  toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, customPresets);
+  return true;
+}
+function deleteToolPreset(presetId) {
+  if (DEFAULT_TOOL_PRESETS[presetId])
+    return false;
+  const customPresets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
+  if (customPresets[presetId]) {
+    delete customPresets[presetId];
+    toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, customPresets);
+    return true;
+  }
+  return false;
+}
+function getCurrentToolPresetId() {
+  return toolStorage.get(TOOL_STORAGE_KEYS.CURRENT_PRESET) || null;
+}
+function setCurrentToolPreset(presetId) {
+  const presets = getAllToolPresets();
+  if (!presets[presetId])
+    return false;
+  toolStorage.set(TOOL_STORAGE_KEYS.CURRENT_PRESET, presetId);
+  return true;
+}
+function exportTools() {
+  const tools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
+  const presets = toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
+  return JSON.stringify({
+    version: "1.0.0",
+    exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    tools,
+    presets
+  }, null, 2);
+}
+function importTools(jsonString, overwrite = false) {
+  try {
+    const imported = JSON.parse(jsonString);
+    if (!imported || typeof imported !== "object") {
+      return { success: false, toolsImported: 0, presetsImported: 0, message: "\u65E0\u6548\u7684JSON\u683C\u5F0F" };
+    }
+    const existingTools = overwrite ? {} : toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
+    const existingPresets = overwrite ? {} : toolStorage.get(TOOL_STORAGE_KEYS.PRESETS) || {};
+    let toolsCount = 0;
+    let presetsCount = 0;
+    if (imported.tools && typeof imported.tools === "object") {
+      for (const [id, tool] of Object.entries(imported.tools)) {
+        if (DEFAULT_TOOL_PRESETS[id] && !overwrite)
+          continue;
+        if (tool && typeof tool === "object") {
+          existingTools[id] = tool;
+          toolsCount++;
+        }
+      }
+      toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, existingTools);
+    }
+    if (imported.presets && typeof imported.presets === "object") {
+      for (const [id, preset] of Object.entries(imported.presets)) {
+        if (DEFAULT_TOOL_PRESETS[id] && !overwrite)
+          continue;
+        if (preset && typeof preset === "object") {
+          existingPresets[id] = preset;
+          presetsCount++;
+        }
+      }
+      toolStorage.set(TOOL_STORAGE_KEYS.PRESETS, existingPresets);
+    }
+    return {
+      success: true,
+      toolsImported: toolsCount,
+      presetsImported: presetsCount,
+      message: `\u6210\u529F\u5BFC\u5165 ${toolsCount} \u4E2A\u5DE5\u5177\u548C ${presetsCount} \u4E2A\u9884\u8BBE`
+    };
+  } catch (e) {
+    return { success: false, toolsImported: 0, presetsImported: 0, message: `\u5BFC\u5165\u5931\u8D25: ${e.message}` };
+  }
+}
+function resetTools() {
+  toolStorage.remove(TOOL_STORAGE_KEYS.TOOLS);
+  toolStorage.remove(TOOL_STORAGE_KEYS.PRESETS);
+  toolStorage.remove(TOOL_STORAGE_KEYS.CURRENT_PRESET);
+}
+function validateTool(toolDef) {
+  const errors = [];
+  if (!toolDef) {
+    return { valid: false, errors: ["\u5DE5\u5177\u5B9A\u4E49\u4E3A\u7A7A"] };
+  }
+  if (!toolDef.name || typeof toolDef.name !== "string") {
+    errors.push("\u5DE5\u5177\u540D\u79F0\u65E0\u6548");
+  }
+  if (!toolDef.category || typeof toolDef.category !== "string") {
+    errors.push("\u5DE5\u5177\u5206\u7C7B\u65E0\u6548");
+  }
+  if (toolDef.config) {
+    const { trigger, execution, api, context } = toolDef.config;
+    if (trigger && !["manual", "event", "scheduled"].includes(trigger.type)) {
+      errors.push("\u89E6\u53D1\u7C7B\u578B\u65E0\u6548");
+    }
+    if (execution) {
+      if (typeof execution.timeout !== "number" || execution.timeout < 0) {
+        errors.push("\u8D85\u65F6\u65F6\u95F4\u5FC5\u987B\u4E3A\u6B63\u6570");
+      }
+      if (typeof execution.retries !== "number" || execution.retries < 0) {
+        errors.push("\u91CD\u8BD5\u6B21\u6570\u5FC5\u987B\u4E3A\u6B63\u6570");
+      }
+    }
+    if (context && typeof context.depth !== "number") {
+      errors.push("\u4E0A\u4E0B\u6587\u6DF1\u5EA6\u5FC5\u987B\u4E3A\u6570\u5B57");
+    }
+  }
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+var DEFAULT_TOOL_STRUCTURE, DEFAULT_TOOL_PRESETS, TOOL_STORAGE_KEYS;
+var init_tool_manager = __esm({
+  "modules/tool-manager.js"() {
+    init_storage_service();
+    init_event_bus();
+    DEFAULT_TOOL_STRUCTURE = {
+      id: "",
+      name: "",
+      description: "",
+      category: "utility",
+      config: {
+        trigger: {
+          type: "manual",
+          events: []
+        },
+        execution: {
+          timeout: 6e4,
+          retries: 3
+        },
+        api: {
+          preset: "",
+          useBypass: true,
+          bypassPreset: "standard"
+        },
+        messages: [],
+        context: {
+          depth: 3,
+          includeTags: [],
+          excludeTags: []
+        }
+      },
+      enabled: true,
+      metadata: {
+        createdAt: null,
+        updatedAt: null,
+        author: "",
+        version: "1.0.0"
+      }
+    };
+    DEFAULT_TOOL_PRESETS = {};
+    TOOL_STORAGE_KEYS = {
+      TOOLS: "tools",
+      PRESETS: "tool_presets",
+      CURRENT_PRESET: "current_tool_preset"
+    };
+  }
+});
+
+// modules/ui/components/tool-manage-panel.js
+var ToolManagePanel;
+var init_tool_manage_panel = __esm({
+  "modules/ui/components/tool-manage-panel.js"() {
+    init_event_bus();
+    init_utils();
+    init_tool_manager();
+    ToolManagePanel = {
+      id: "toolManagePanel",
+      // ============================================================
+      // 渲染
+      // ============================================================
+      /**
+       * 渲染组件
+       * @param {Object} props
+       * @returns {string} HTML
+       */
+      render(props) {
+        const tools = getAllTools();
+        return `
       <div class="yyt-tool-manager">
         <!-- \u5DE5\u5177\u5217\u8868 -->
         <div class="yyt-panel-section">
@@ -1312,7 +4844,7 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
             </button>
           </div>
           <div class="yyt-tool-list">
-            ${this._renderToolList(t)}
+            ${this._renderToolList(tools)}
           </div>
         </div>
         
@@ -1334,27 +4866,122 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
           </div>
         </div>
       </div>
-    `},_renderToolList(e){return Object.entries(e).map(([t,s])=>`
-      <div class="yyt-tool-item ${s.enabled?"yyt-enabled":"yyt-disabled"}" data-tool-id="${t}">
+    `;
+      },
+      // ============================================================
+      // 私有渲染方法
+      // ============================================================
+      /**
+       * 渲染工具列表
+       * @private
+       */
+      _renderToolList(tools) {
+        return Object.entries(tools).map(([id, tool]) => `
+      <div class="yyt-tool-item ${tool.enabled ? "yyt-enabled" : "yyt-disabled"}" data-tool-id="${id}">
         <div class="yyt-tool-header">
           <div class="yyt-tool-info">
-            <span class="yyt-tool-name">${m(s.name)}</span>
-            <span class="yyt-tool-category">${m(s.category)}</span>
+            <span class="yyt-tool-name">${escapeHtml(tool.name)}</span>
+            <span class="yyt-tool-category">${escapeHtml(tool.category)}</span>
           </div>
           <div class="yyt-tool-controls">
             <label class="yyt-toggle yyt-tool-toggle">
-              <input type="checkbox" ${s.enabled?"checked":""}>
+              <input type="checkbox" ${tool.enabled ? "checked" : ""}>
               <span class="yyt-toggle-slider"></span>
             </label>
           </div>
         </div>
-        <div class="yyt-tool-desc">${m(s.description)}</div>
+        <div class="yyt-tool-desc">${escapeHtml(tool.description)}</div>
       </div>
-    `).join("")},bindEvents(e,t){let s=w();!s||!S(e)||(this._bindToolEvents(e,s),this._bindFileEvents(e,s))},_bindToolEvents(e,t){e.find(".yyt-tool-toggle input").on("change",s=>{let o=t(s.currentTarget).closest(".yyt-tool-item"),n=o.data("tool-id"),r=t(s.currentTarget).is(":checked");Qs(n,r),o.toggleClass("yyt-enabled",r).toggleClass("yyt-disabled",!r),d("info",r?"\u5DE5\u5177\u5DF2\u542F\u7528":"\u5DE5\u5177\u5DF2\u7981\u7528"),f.emit(r?g.TOOL_ENABLED:g.TOOL_DISABLED,{toolId:n})}),e.find("#yyt-add-tool").on("click",()=>{this._showToolEditDialog(e,t,null)})},_bindFileEvents(e,t){e.find("#yyt-import-tools").on("click",()=>{e.find("#yyt-import-tools-file").click()}),e.find("#yyt-import-tools-file").on("change",async s=>{let o=s.target.files[0];if(o){try{let n=await mt(o),r=Vs(n,{overwrite:!1});d(r.success?"success":"error",r.message),r.success&&this.renderTo(e)}catch(n){d("error",`\u5BFC\u5165\u5931\u8D25: ${n.message}`)}t(s.target).val("")}}),e.find("#yyt-export-tools").on("click",()=>{try{let s=Js();ft(s,`youyou_toolkit_tools_${Date.now()}.json`),d("success","\u5DE5\u5177\u5DF2\u5BFC\u51FA")}catch(s){d("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),e.find("#yyt-reset-tools").on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u5DE5\u5177\u5417\uFF1F")&&(Ks(),this.renderTo(e),d("info","\u5DE5\u5177\u5DF2\u91CD\u7F6E"))})},_showToolEditDialog(e,t,s){let o=s?de(s):null,n=!!o,r=`
+    `).join("");
+      },
+      // ============================================================
+      // 事件绑定
+      // ============================================================
+      /**
+       * 绑定事件
+       * @param {Object} $container
+       * @param {Object} dependencies
+       */
+      bindEvents($container2, dependencies) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        this._bindToolEvents($container2, $);
+        this._bindFileEvents($container2, $);
+      },
+      /**
+       * 绑定工具事件
+       * @private
+       */
+      _bindToolEvents($container2, $) {
+        $container2.find(".yyt-tool-toggle input").on("change", (e) => {
+          const $item = $(e.currentTarget).closest(".yyt-tool-item");
+          const toolId = $item.data("tool-id");
+          const enabled = $(e.currentTarget).is(":checked");
+          setToolEnabled(toolId, enabled);
+          $item.toggleClass("yyt-enabled", enabled).toggleClass("yyt-disabled", !enabled);
+          showToast("info", enabled ? "\u5DE5\u5177\u5DF2\u542F\u7528" : "\u5DE5\u5177\u5DF2\u7981\u7528");
+          eventBus.emit(enabled ? EVENTS.TOOL_ENABLED : EVENTS.TOOL_DISABLED, { toolId });
+        });
+        $container2.find("#yyt-add-tool").on("click", () => {
+          this._showToolEditDialog($container2, $, null);
+        });
+      },
+      /**
+       * 绑定文件事件
+       * @private
+       */
+      _bindFileEvents($container2, $) {
+        $container2.find("#yyt-import-tools").on("click", () => {
+          $container2.find("#yyt-import-tools-file").click();
+        });
+        $container2.find("#yyt-import-tools-file").on("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file)
+            return;
+          try {
+            const text = await readFileContent(file);
+            const result = importTools(text, { overwrite: false });
+            showToast(result.success ? "success" : "error", result.message);
+            if (result.success)
+              this.renderTo($container2);
+          } catch (e2) {
+            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${e2.message}`);
+          }
+          $(e.target).val("");
+        });
+        $container2.find("#yyt-export-tools").on("click", () => {
+          try {
+            const json = exportTools();
+            downloadJson(json, `youyou_toolkit_tools_${Date.now()}.json`);
+            showToast("success", "\u5DE5\u5177\u5DF2\u5BFC\u51FA");
+          } catch (e) {
+            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${e.message}`);
+          }
+        });
+        $container2.find("#yyt-reset-tools").on("click", () => {
+          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u5DE5\u5177\u5417\uFF1F")) {
+            resetTools();
+            this.renderTo($container2);
+            showToast("info", "\u5DE5\u5177\u5DF2\u91CD\u7F6E");
+          }
+        });
+      },
+      // ============================================================
+      // 对话框
+      // ============================================================
+      /**
+       * 显示工具编辑对话框
+       * @private
+       */
+      _showToolEditDialog($container2, $, toolId) {
+        const tool = toolId ? getTool(toolId) : null;
+        const isEdit = !!tool;
+        const dialogHtml = `
       <div class="yyt-dialog-overlay" id="yyt-tool-dialog-overlay">
         <div class="yyt-dialog yyt-dialog-wide">
           <div class="yyt-dialog-header">
-            <span class="yyt-dialog-title">${n?"\u7F16\u8F91\u5DE5\u5177":"\u65B0\u5EFA\u5DE5\u5177"}</span>
+            <span class="yyt-dialog-title">${isEdit ? "\u7F16\u8F91\u5DE5\u5177" : "\u65B0\u5EFA\u5DE5\u5177"}</span>
             <button class="yyt-dialog-close" id="yyt-tool-dialog-close">
               <i class="fa-solid fa-times"></i>
             </button>
@@ -1364,32 +4991,32 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u5DE5\u5177\u540D\u79F0</label>
                 <input type="text" class="yyt-input" id="yyt-tool-name" 
-                       value="${o?m(o.name):""}" placeholder="\u5DE5\u5177\u540D\u79F0">
+                       value="${tool ? escapeHtml(tool.name) : ""}" placeholder="\u5DE5\u5177\u540D\u79F0">
               </div>
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u5206\u7C7B</label>
                 <select class="yyt-select" id="yyt-tool-category">
-                  <option value="api" ${o?.category==="api"?"selected":""}>API</option>
-                  <option value="prompt" ${o?.category==="prompt"?"selected":""}>Prompt</option>
-                  <option value="utility" ${o?.category==="utility"?"selected":""}>Utility</option>
+                  <option value="api" ${tool?.category === "api" ? "selected" : ""}>API</option>
+                  <option value="prompt" ${tool?.category === "prompt" ? "selected" : ""}>Prompt</option>
+                  <option value="utility" ${tool?.category === "utility" ? "selected" : ""}>Utility</option>
                 </select>
               </div>
             </div>
             <div class="yyt-form-group">
               <label>\u63CF\u8FF0</label>
               <input type="text" class="yyt-input" id="yyt-tool-desc" 
-                     value="${o?m(o.description||""):""}" placeholder="\u5DE5\u5177\u63CF\u8FF0">
+                     value="${tool ? escapeHtml(tool.description || "") : ""}" placeholder="\u5DE5\u5177\u63CF\u8FF0">
             </div>
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u8D85\u65F6\u65F6\u95F4(ms)</label>
                 <input type="number" class="yyt-input" id="yyt-tool-timeout" 
-                       value="${o?.config?.execution?.timeout||6e4}">
+                       value="${tool?.config?.execution?.timeout || 6e4}">
               </div>
               <div class="yyt-form-group yyt-flex-1">
                 <label>\u91CD\u8BD5\u6B21\u6570</label>
                 <input type="number" class="yyt-input" id="yyt-tool-retries" 
-                       value="${o?.config?.execution?.retries||3}">
+                       value="${tool?.config?.execution?.retries || 3}">
               </div>
             </div>
           </div>
@@ -1399,7 +5026,68 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
           </div>
         </div>
       </div>
-    `;t("#yyt-tool-dialog-overlay").remove(),e.append(r);let i=t("#yyt-tool-dialog-overlay"),a=()=>i.remove();i.find("#yyt-tool-dialog-close, #yyt-tool-dialog-cancel").on("click",a),i.on("click",function(c){c.target===this&&a()}),i.find("#yyt-tool-dialog-save").on("click",()=>{let c=t("#yyt-tool-name").val().trim(),y=t("#yyt-tool-category").val(),p=t("#yyt-tool-desc").val().trim(),h=parseInt(t("#yyt-tool-timeout").val())||6e4,D=parseInt(t("#yyt-tool-retries").val())||3;if(!c){d("warning","\u8BF7\u8F93\u5165\u5DE5\u5177\u540D\u79F0");return}let b=s||`tool_${Date.now()}`;Qe(b,{name:c,category:y,description:p,config:{trigger:{type:"manual",events:[]},execution:{timeout:h,retries:D},api:{preset:""},messages:[],context:{depth:3,includeTags:[],excludeTags:[]}},enabled:!0}),a(),this.renderTo(e),d("success",n?"\u5DE5\u5177\u5DF2\u66F4\u65B0":"\u5DE5\u5177\u5DF2\u521B\u5EFA"),f.emit(n?g.TOOL_UPDATED:g.TOOL_REGISTERED,{toolId:b})})},destroy(e){!w()||!S(e)||e.find("*").off()},getStyles(){return`
+    `;
+        $("#yyt-tool-dialog-overlay").remove();
+        $container2.append(dialogHtml);
+        const $overlay = $("#yyt-tool-dialog-overlay");
+        const closeDialog = () => $overlay.remove();
+        $overlay.find("#yyt-tool-dialog-close, #yyt-tool-dialog-cancel").on("click", closeDialog);
+        $overlay.on("click", function(e) {
+          if (e.target === this)
+            closeDialog();
+        });
+        $overlay.find("#yyt-tool-dialog-save").on("click", () => {
+          const name = $("#yyt-tool-name").val().trim();
+          const category = $("#yyt-tool-category").val();
+          const desc = $("#yyt-tool-desc").val().trim();
+          const timeout = parseInt($("#yyt-tool-timeout").val()) || 6e4;
+          const retries = parseInt($("#yyt-tool-retries").val()) || 3;
+          if (!name) {
+            showToast("warning", "\u8BF7\u8F93\u5165\u5DE5\u5177\u540D\u79F0");
+            return;
+          }
+          const id = toolId || `tool_${Date.now()}`;
+          saveTool(id, {
+            name,
+            category,
+            description: desc,
+            config: {
+              trigger: { type: "manual", events: [] },
+              execution: { timeout, retries },
+              api: { preset: "" },
+              messages: [],
+              context: { depth: 3, includeTags: [], excludeTags: [] }
+            },
+            enabled: true
+          });
+          closeDialog();
+          this.renderTo($container2);
+          showToast("success", isEdit ? "\u5DE5\u5177\u5DF2\u66F4\u65B0" : "\u5DE5\u5177\u5DF2\u521B\u5EFA");
+          eventBus.emit(isEdit ? EVENTS.TOOL_UPDATED : EVENTS.TOOL_REGISTERED, { toolId: id });
+        });
+      },
+      // ============================================================
+      // 销毁
+      // ============================================================
+      /**
+       * 销毁组件
+       * @param {Object} $container
+       */
+      destroy($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find("*").off();
+      },
+      // ============================================================
+      // 样式
+      // ============================================================
+      /**
+       * 获取样式
+       * @returns {string}
+       */
+      getStyles() {
+        return `
       /* \u5DE5\u5177\u7BA1\u7406\u9762\u677F\u6837\u5F0F */
       .yyt-tool-manager {
         display: flex;
@@ -1466,7 +5154,327 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
       .yyt-dialog-wide {
         width: 480px;
       }
-    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var En={};O(En,{TOOL_CATEGORIES:()=>cn,TOOL_REGISTRY:()=>qe,clearToolApiPreset:()=>bn,default:()=>ni,getAllDefaultToolConfigs:()=>Yt,getAllToolApiBindings:()=>hn,getAllToolFullConfigs:()=>no,getEnabledTools:()=>vn,getToolApiPreset:()=>mn,getToolConfig:()=>eo,getToolFullConfig:()=>R,getToolList:()=>pn,getToolSubTabs:()=>un,getToolWindowState:()=>Tn,hasTool:()=>so,onPresetDeleted:()=>xn,registerTool:()=>dn,resetToolConfig:()=>Bt,resetToolRegistry:()=>gn,saveToolConfig:()=>X,saveToolWindowState:()=>wn,setToolApiPreset:()=>fn,setToolApiPresetConfig:()=>ei,setToolBypassConfig:()=>si,setToolOutputMode:()=>ti,setToolPromptTemplate:()=>oi,unregisterTool:()=>yn,updateToolRuntime:()=>oo});function dn(e,t){if(!e||typeof e!="string")return console.error("[ToolRegistry] \u5DE5\u5177ID\u65E0\u6548"),!1;if(!t||typeof t!="object")return console.error("[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u65E0\u6548"),!1;let s=["name","icon","component"];for(let o of s)if(!t[o])return console.error(`[ToolRegistry] \u5DE5\u5177\u7F3A\u5C11\u5FC5\u9700\u5B57\u6BB5: ${o}`),!1;return lt[e]={id:e,...t,order:t.order??Object.keys(lt).length},console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u518C: ${e}`),!0}function yn(e){return lt[e]?(delete lt[e],console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u9500: ${e}`),!0):(console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${e}`),!1)}function pn(e=!0){let t=Object.values(lt);return e?t.sort((s,o)=>(s.order??0)-(o.order??0)):t}function eo(e){return lt[e]||null}function so(e){return!!lt[e]}function un(e){let t=lt[e];return!t||!t.hasSubTabs?[]:t.subTabs||[]}function gn(){lt={...qe},console.log("[ToolRegistry] \u5DE5\u5177\u6CE8\u518C\u8868\u5DF2\u91CD\u7F6E")}function fn(e,t){if(!so(e))return console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${e}`),!1;let s=u.get(bt)||{};return s[e]=t||"",u.set(bt,s),console.log(`[ToolRegistry] \u5DE5\u5177 "${e}" \u7ED1\u5B9A\u5230\u9884\u8BBE "${t||"\u5F53\u524D\u914D\u7F6E"}"`),!0}function mn(e){return(u.get(bt)||{})[e]||""}function bn(e){let t=u.get(bt)||{};delete t[e],u.set(bt,t),console.log(`[ToolRegistry] \u5DE5\u5177 "${e}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664`)}function hn(){return u.get(bt)||{}}function xn(e){let t=u.get(bt)||{},s=!1;for(let o in t)t[o]===e&&(t[o]="",s=!0,console.log(`[ToolRegistry] \u5DE5\u5177 "${o}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664\uFF08\u9884\u8BBE\u88AB\u5220\u9664\uFF09`));s&&u.set(bt,t)}function R(e){let t=pe[e];if(!t)return eo(e);let o=(u.get(ye)||{})[e]||{};return{...t,...o,id:e}}function X(e,t){if(!e||!pe[e])return console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:",e),!1;let s=u.get(ye)||{},o=["promptTemplate","enabled","extractTags","trigger","output","bypass","runtime"];return s[e]={},o.forEach(n=>{t[n]!==void 0&&(s[e][n]=t[n])}),u.set(ye,s),f.emit(g.TOOL_UPDATED,{toolId:e,config:s[e]}),console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u4FDD\u5B58: ${e}`),!0}function ti(e,t){let s=R(e);return s?X(e,{...s,output:{...s.output,mode:t}}):!1}function ei(e,t){let s=R(e);return s?X(e,{...s,output:{...s.output,apiPreset:t}}):!1}function si(e,t){let s=R(e);return s?X(e,{...s,bypass:{...s.bypass,...t}}):!1}function oi(e,t){let s=R(e);return s?X(e,{...s,promptTemplate:t}):!1}function oo(e,t){let s=R(e);return s?X(e,{...s,runtime:{...s.runtime,...t,lastRunAt:Date.now()}}):!1}function Bt(e){if(!e||!pe[e])return console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:",e),!1;let t=u.get(ye)||{};return delete t[e],u.set(ye,t),f.emit(g.TOOL_UPDATED,{toolId:e,config:null}),console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u91CD\u7F6E: ${e}`),!0}function Yt(){return{...pe}}function no(){return Object.keys(pe).map(e=>R(e))}function vn(){return no().filter(e=>e&&e.enabled)}function wn(e,t){let s=u.get(to)||{};s[e]={...t,updatedAt:Date.now()},u.set(to,s)}function Tn(e){return(u.get(to)||{})[e]||null}var ye,bt,to,pe,qe,cn,lt,ni,Gt=E(()=>{et();L();ye="tool_configs",bt="tool_api_bindings",to="tool_window_states",pe={summaryTool:{id:"summaryTool",name:"\u6458\u8981\u5DE5\u5177",icon:"fa-file-lines",description:"\u751F\u6210\u5267\u60C5\u6458\u8981\u5757",enabled:!0,order:3,trigger:{event:"GENERATION_ENDED",enabled:!0},bypass:{enabled:!1,presetId:""},output:{mode:"follow_ai",apiPreset:"",overwrite:!0,enabled:!0},promptTemplate:`\u8BF7\u6839\u636E\u4EE5\u4E0BAI\u56DE\u590D\u751F\u6210\u6458\u8981\u5757\uFF1A
+    `;
+      },
+      // ============================================================
+      // 便捷方法
+      // ============================================================
+      /**
+       * 渲染到容器
+       * @param {Object} $container
+       */
+      renderTo($container2) {
+        const html = this.render({});
+        $container2.html(html);
+        this.bindEvents($container2, {});
+      }
+    };
+  }
+});
+
+// modules/tool-registry.js
+var tool_registry_exports = {};
+__export(tool_registry_exports, {
+  TOOL_CATEGORIES: () => TOOL_CATEGORIES,
+  TOOL_REGISTRY: () => TOOL_REGISTRY,
+  clearToolApiPreset: () => clearToolApiPreset,
+  default: () => tool_registry_default,
+  getAllDefaultToolConfigs: () => getAllDefaultToolConfigs,
+  getAllToolApiBindings: () => getAllToolApiBindings,
+  getAllToolFullConfigs: () => getAllToolFullConfigs,
+  getEnabledTools: () => getEnabledTools,
+  getToolApiPreset: () => getToolApiPreset,
+  getToolConfig: () => getToolConfig,
+  getToolFullConfig: () => getToolFullConfig,
+  getToolList: () => getToolList,
+  getToolSubTabs: () => getToolSubTabs,
+  getToolWindowState: () => getToolWindowState,
+  hasTool: () => hasTool,
+  onPresetDeleted: () => onPresetDeleted,
+  registerTool: () => registerTool,
+  resetToolConfig: () => resetToolConfig,
+  resetToolRegistry: () => resetToolRegistry,
+  saveToolConfig: () => saveToolConfig,
+  saveToolWindowState: () => saveToolWindowState,
+  setToolApiPreset: () => setToolApiPreset,
+  setToolApiPresetConfig: () => setToolApiPresetConfig,
+  setToolBypassConfig: () => setToolBypassConfig,
+  setToolOutputMode: () => setToolOutputMode,
+  setToolPromptTemplate: () => setToolPromptTemplate,
+  unregisterTool: () => unregisterTool,
+  updateToolRuntime: () => updateToolRuntime
+});
+function registerTool(id, toolConfig) {
+  if (!id || typeof id !== "string") {
+    console.error("[ToolRegistry] \u5DE5\u5177ID\u65E0\u6548");
+    return false;
+  }
+  if (!toolConfig || typeof toolConfig !== "object") {
+    console.error("[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u65E0\u6548");
+    return false;
+  }
+  const requiredFields = ["name", "icon", "component"];
+  for (const field of requiredFields) {
+    if (!toolConfig[field]) {
+      console.error(`[ToolRegistry] \u5DE5\u5177\u7F3A\u5C11\u5FC5\u9700\u5B57\u6BB5: ${field}`);
+      return false;
+    }
+  }
+  registeredTools[id] = {
+    id,
+    ...toolConfig,
+    order: toolConfig.order ?? Object.keys(registeredTools).length
+  };
+  console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u518C: ${id}`);
+  return true;
+}
+function unregisterTool(id) {
+  if (!registeredTools[id]) {
+    console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${id}`);
+    return false;
+  }
+  delete registeredTools[id];
+  console.log(`[ToolRegistry] \u5DE5\u5177\u5DF2\u6CE8\u9500: ${id}`);
+  return true;
+}
+function getToolList(sorted = true) {
+  const tools = Object.values(registeredTools);
+  if (sorted) {
+    return tools.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+  return tools;
+}
+function getToolConfig(id) {
+  return registeredTools[id] || null;
+}
+function hasTool(id) {
+  return !!registeredTools[id];
+}
+function getToolSubTabs(toolId) {
+  const tool = registeredTools[toolId];
+  if (!tool || !tool.hasSubTabs) {
+    return [];
+  }
+  return tool.subTabs || [];
+}
+function resetToolRegistry() {
+  registeredTools = { ...TOOL_REGISTRY };
+  console.log("[ToolRegistry] \u5DE5\u5177\u6CE8\u518C\u8868\u5DF2\u91CD\u7F6E");
+}
+function setToolApiPreset(toolId, presetName) {
+  if (!hasTool(toolId)) {
+    console.warn(`[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728: ${toolId}`);
+    return false;
+  }
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
+  bindings[toolId] = presetName || "";
+  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
+  console.log(`[ToolRegistry] \u5DE5\u5177 "${toolId}" \u7ED1\u5B9A\u5230\u9884\u8BBE "${presetName || "\u5F53\u524D\u914D\u7F6E"}"`);
+  return true;
+}
+function getToolApiPreset(toolId) {
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
+  return bindings[toolId] || "";
+}
+function clearToolApiPreset(toolId) {
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
+  delete bindings[toolId];
+  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
+  console.log(`[ToolRegistry] \u5DE5\u5177 "${toolId}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664`);
+}
+function getAllToolApiBindings() {
+  return storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
+}
+function onPresetDeleted(presetName) {
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
+  let changed = false;
+  for (const toolId in bindings) {
+    if (bindings[toolId] === presetName) {
+      bindings[toolId] = "";
+      changed = true;
+      console.log(`[ToolRegistry] \u5DE5\u5177 "${toolId}" \u7684API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u6E05\u9664\uFF08\u9884\u8BBE\u88AB\u5220\u9664\uFF09`);
+    }
+  }
+  if (changed) {
+    storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
+  }
+}
+function getToolFullConfig(toolId) {
+  const defaultConfig = DEFAULT_TOOL_CONFIGS[toolId];
+  if (!defaultConfig) {
+    const basicConfig = getToolConfig(toolId);
+    return basicConfig;
+  }
+  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  const userConfig = userConfigs[toolId] || {};
+  return {
+    ...defaultConfig,
+    ...userConfig,
+    id: toolId
+    // ID不可覆盖
+  };
+}
+function saveToolConfig(toolId, config) {
+  if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
+    console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:", toolId);
+    return false;
+  }
+  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  const saveableFields = [
+    "promptTemplate",
+    // 单提示词模板
+    "enabled",
+    // 启用状态
+    "extractTags",
+    // 提取标签（兼容）
+    // 新结构
+    "trigger",
+    // 触发配置
+    "output",
+    // 输出配置（包含 mode, apiPreset, overwrite）
+    "bypass",
+    // 破限词配置
+    "runtime"
+    // 运行时状态
+  ];
+  userConfigs[toolId] = {};
+  saveableFields.forEach((field) => {
+    if (config[field] !== void 0) {
+      userConfigs[toolId][field] = config[field];
+    }
+  });
+  storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
+  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });
+  console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u4FDD\u5B58: ${toolId}`);
+  return true;
+}
+function setToolOutputMode(toolId, mode) {
+  const config = getToolFullConfig(toolId);
+  if (!config)
+    return false;
+  return saveToolConfig(toolId, {
+    ...config,
+    output: {
+      ...config.output,
+      mode
+    }
+  });
+}
+function setToolApiPresetConfig(toolId, presetName) {
+  const config = getToolFullConfig(toolId);
+  if (!config)
+    return false;
+  return saveToolConfig(toolId, {
+    ...config,
+    output: {
+      ...config.output,
+      apiPreset: presetName
+    }
+  });
+}
+function setToolBypassConfig(toolId, bypassConfig) {
+  const config = getToolFullConfig(toolId);
+  if (!config)
+    return false;
+  return saveToolConfig(toolId, {
+    ...config,
+    bypass: {
+      ...config.bypass,
+      ...bypassConfig
+    }
+  });
+}
+function setToolPromptTemplate(toolId, template) {
+  const config = getToolFullConfig(toolId);
+  if (!config)
+    return false;
+  return saveToolConfig(toolId, {
+    ...config,
+    promptTemplate: template
+  });
+}
+function updateToolRuntime(toolId, runtimePartial) {
+  const config = getToolFullConfig(toolId);
+  if (!config)
+    return false;
+  return saveToolConfig(toolId, {
+    ...config,
+    runtime: {
+      ...config.runtime,
+      ...runtimePartial,
+      lastRunAt: Date.now()
+    }
+  });
+}
+function resetToolConfig(toolId) {
+  if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
+    console.warn("[ToolRegistry] \u5DE5\u5177\u4E0D\u5B58\u5728:", toolId);
+    return false;
+  }
+  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  delete userConfigs[toolId];
+  storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
+  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: null });
+  console.log(`[ToolRegistry] \u5DE5\u5177\u914D\u7F6E\u5DF2\u91CD\u7F6E: ${toolId}`);
+  return true;
+}
+function getAllDefaultToolConfigs() {
+  return { ...DEFAULT_TOOL_CONFIGS };
+}
+function getAllToolFullConfigs() {
+  return Object.keys(DEFAULT_TOOL_CONFIGS).map((toolId) => getToolFullConfig(toolId));
+}
+function getEnabledTools() {
+  return getAllToolFullConfigs().filter((config) => config && config.enabled);
+}
+function saveToolWindowState(toolId, state) {
+  const states = storage.get(TOOL_WINDOW_STATE_KEY) || {};
+  states[toolId] = {
+    ...state,
+    updatedAt: Date.now()
+  };
+  storage.set(TOOL_WINDOW_STATE_KEY, states);
+}
+function getToolWindowState(toolId) {
+  const states = storage.get(TOOL_WINDOW_STATE_KEY) || {};
+  return states[toolId] || null;
+}
+var TOOL_CONFIG_STORAGE_KEY, TOOL_API_PRESET_BINDING_KEY, TOOL_WINDOW_STATE_KEY, DEFAULT_TOOL_CONFIGS, TOOL_REGISTRY, TOOL_CATEGORIES, registeredTools, tool_registry_default;
+var init_tool_registry = __esm({
+  "modules/tool-registry.js"() {
+    init_storage_service();
+    init_event_bus();
+    TOOL_CONFIG_STORAGE_KEY = "tool_configs";
+    TOOL_API_PRESET_BINDING_KEY = "tool_api_bindings";
+    TOOL_WINDOW_STATE_KEY = "tool_window_states";
+    DEFAULT_TOOL_CONFIGS = {
+      summaryTool: {
+        id: "summaryTool",
+        name: "\u6458\u8981\u5DE5\u5177",
+        icon: "fa-file-lines",
+        description: "\u751F\u6210\u5267\u60C5\u6458\u8981\u5757",
+        enabled: true,
+        order: 3,
+        // 触发配置
+        trigger: {
+          event: "GENERATION_ENDED",
+          enabled: true
+        },
+        // 破限词绑定
+        bypass: {
+          enabled: false,
+          presetId: ""
+        },
+        // 输出模式配置
+        output: {
+          mode: "follow_ai",
+          // follow_ai | post_response_api
+          apiPreset: "",
+          overwrite: true,
+          enabled: true
+        },
+        // 提示词模板（单文本）
+        promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0BAI\u56DE\u590D\u751F\u6210\u6458\u8981\u5757\uFF1A
 
 \u8F93\u51FA\u683C\u5F0F\uFF1A
 <boo_FM>
@@ -1478,7 +5486,46 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
 <defined>\u5DF2\u5B9A\u4E49\u5143\u7D20</defined>
 <status>\u72B6\u6001</status>
 <seeds>\u4F0F\u7B14</seeds>
-</boo_FM>`,runtime:{lastRunAt:0,lastStatus:"idle",lastError:"",lastDurationMs:0,successCount:0,errorCount:0},apiPreset:"",extractTags:["boo_FM"]},statusBlock:{id:"statusBlock",name:"\u4E3B\u89D2\u72B6\u6001\u680F",icon:"fa-user-check",description:"\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u4EE3\u7801\u5757",enabled:!0,order:4,trigger:{event:"GENERATION_ENDED",enabled:!0},bypass:{enabled:!1,presetId:""},output:{mode:"follow_ai",apiPreset:"",overwrite:!0,enabled:!0},promptTemplate:`\u8BF7\u6839\u636E\u4EE5\u4E0B\u5BF9\u8BDD\u5185\u5BB9\u751F\u6210\u89D2\u8272\u72B6\u6001\u5757\uFF1A
+</boo_FM>`,
+        // 运行时状态
+        runtime: {
+          lastRunAt: 0,
+          lastStatus: "idle",
+          lastError: "",
+          lastDurationMs: 0,
+          successCount: 0,
+          errorCount: 0
+        },
+        // 兼容字段
+        apiPreset: "",
+        extractTags: ["boo_FM"]
+      },
+      statusBlock: {
+        id: "statusBlock",
+        name: "\u4E3B\u89D2\u72B6\u6001\u680F",
+        icon: "fa-user-check",
+        description: "\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u4EE3\u7801\u5757",
+        enabled: true,
+        order: 4,
+        // 触发配置
+        trigger: {
+          event: "GENERATION_ENDED",
+          enabled: true
+        },
+        // 破限词绑定
+        bypass: {
+          enabled: false,
+          presetId: ""
+        },
+        // 输出模式配置
+        output: {
+          mode: "follow_ai",
+          apiPreset: "",
+          overwrite: true,
+          enabled: true
+        },
+        // 提示词模板（单文本）
+        promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0B\u5BF9\u8BDD\u5185\u5BB9\u751F\u6210\u89D2\u8272\u72B6\u6001\u5757\uFF1A
 
 \u8F93\u51FA\u683C\u5F0F\uFF1A
 <status_block>
@@ -1487,178 +5534,3202 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
 <condition>\u72B6\u6001</condition>
 <equipment>\u88C5\u5907</equipment>
 <skills>\u6280\u80FD</skills>
-</status_block>`,runtime:{lastRunAt:0,lastStatus:"idle",lastError:"",lastDurationMs:0,successCount:0,errorCount:0},apiPreset:"",extractTags:["status_block"]}},qe={apiPresets:{id:"apiPresets",name:"API\u9884\u8BBE",icon:"fa-database",hasSubTabs:!1,description:"\u7BA1\u7406API\u914D\u7F6E\u548C\u9884\u8BBE",component:"ApiPresetPanel",order:0},regexExtract:{id:"regexExtract",name:"\u6B63\u5219\u63D0\u53D6",icon:"fa-filter",hasSubTabs:!1,description:"\u4ECE\u6D88\u606F\u4E2D\u63D0\u53D6\u7279\u5B9A\u5185\u5BB9",component:"RegexExtractPanel",order:2,defaultConfig:{trigger:{type:"manual",events:[]},execution:{timeout:3e4,retries:1},api:{preset:""},extractRules:[],excludeRules:[]}},tools:{id:"tools",name:"\u5DE5\u5177",icon:"fa-tools",hasSubTabs:!0,description:"\u5DE5\u5177\u96C6\u5408",order:3,subTabs:[{id:"summaryTool",name:"\u6458\u8981\u5DE5\u5177",icon:"fa-file-lines",component:"SummaryToolPanel"},{id:"statusBlock",name:"\u4E3B\u89D2\u72B6\u6001\u680F",icon:"fa-user-check",component:"StatusBlockPanel"}]},bypass:{id:"bypass",name:"\u7834\u9650\u8BCD",icon:"fa-shield-halved",hasSubTabs:!1,description:"\u7BA1\u7406\u7834\u9650\u8BCD\u9884\u8BBE",component:"BypassPanel",order:4},settings:{id:"settings",name:"\u8BBE\u7F6E",icon:"fa-cog",hasSubTabs:!1,description:"\u5168\u5C40\u8BBE\u7F6E",component:"SettingsPanel",order:5}},cn={api:{name:"API\u5DE5\u5177",icon:"fa-plug",order:0},prompt:{name:"\u63D0\u793A\u8BCD\u5DE5\u5177",icon:"fa-file-alt",order:1},utility:{name:"\u5B9E\u7528\u5DE5\u5177",icon:"fa-wrench",order:2}},lt={...qe};ni={TOOL_REGISTRY:qe,TOOL_CATEGORIES:cn,registerTool:dn,unregisterTool:yn,getToolList:pn,getToolConfig:eo,hasTool:so,getToolSubTabs:un,resetToolRegistry:gn,setToolApiPreset:fn,getToolApiPreset:mn,clearToolApiPreset:bn,getAllToolApiBindings:hn,onPresetDeleted:xn,saveToolWindowState:wn,getToolWindowState:Tn,getToolFullConfig:R,saveToolConfig:X,resetToolConfig:Bt,getAllDefaultToolConfigs:Yt,getAllToolFullConfigs:no,getEnabledTools:vn}});var Sn={};O(Sn,{BypassManager:()=>Je,DEFAULT_BYPASS_PRESETS:()=>dt,addMessage:()=>fi,buildBypassMessages:()=>vi,bypassManager:()=>x,createPreset:()=>li,default:()=>wi,deleteMessage:()=>bi,deletePreset:()=>di,duplicatePreset:()=>yi,exportPresets:()=>hi,getAllPresets:()=>ii,getDefaultPresetId:()=>pi,getEnabledMessages:()=>gi,getPreset:()=>ai,getPresetList:()=>ue,importPresets:()=>xi,setDefaultPresetId:()=>ui,updateMessage:()=>mi,updatePreset:()=>ci});var ct,Ft,ro,dt,ri,Je,x,ii,ue,ai,li,ci,di,yi,pi,ui,gi,fi,mi,bi,hi,xi,vi,wi,Ht=E(()=>{et();L();ct="bypass_presets",Ft="default_bypass_preset",ro="current_bypass_preset",dt={},ri=new Set(["\u6807\u51C6\u7834\u9650\u8BCD","\u589E\u5F3A\u7834\u9650"]),Je=class{constructor(){this._cache=null,this._migrated=!1,this.debugMode=!1}getAllPresets(){if(this._migrateLegacyData(),this._cache)return this._cache;let t=u.get(ct,{});return this._cache={...dt,...t},this._cache}getPresetList(){let t=this.getAllPresets();return Object.values(t).sort((s,o)=>(o.updatedAt||0)-(s.updatedAt||0))}getPreset(t){return t&&this.getAllPresets()[t]||null}presetExists(t){return!!this.getPreset(t)}createPreset(t){let{id:s,name:o,description:n,messages:r}=t;if(!s||typeof s!="string"||!s.trim())return{success:!1,message:"\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A"};if(!o||typeof o!="string"||!o.trim())return{success:!1,message:"\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A"};let i=s.trim();if(this.presetExists(i))return{success:!1,message:`\u9884\u8BBE "${i}" \u5DF2\u5B58\u5728`};let a={id:i,name:o.trim(),description:n||"",enabled:!0,messages:r||[],createdAt:Date.now(),updatedAt:Date.now()};return this._savePreset(i,a),f.emit(g.BYPASS_PRESET_CREATED,{presetId:i,preset:a}),this._log(`\u9884\u8BBE\u5DF2\u521B\u5EFA: ${i}`),{success:!0,message:`\u9884\u8BBE "${o}" \u521B\u5EFA\u6210\u529F`,preset:a}}updatePreset(t,s){if(!t)return{success:!1,message:"\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A"};let o=this.getPreset(t);if(!o)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};if(s.id&&s.id!==t)return{success:!1,message:"\u4E0D\u5141\u8BB8\u4FEE\u6539\u9884\u8BBEID"};let n={...o,...s,id:t,updatedAt:Date.now()};return this._savePreset(t,n),f.emit(g.BYPASS_PRESET_UPDATED,{presetId:t,preset:n}),this._log(`\u9884\u8BBE\u5DF2\u66F4\u65B0: ${t}`),{success:!0,message:`\u9884\u8BBE "${o.name}" \u66F4\u65B0\u6210\u529F`,preset:n}}deletePreset(t){if(!t)return{success:!1,message:"\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A"};if(dt[t])return{success:!1,message:"\u4E0D\u5141\u8BB8\u5220\u9664\u9ED8\u8BA4\u9884\u8BBE"};let s=this.getPreset(t);if(!s)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let o=u.get(ct,{});return delete o[t],u.set(ct,o),this._cache=null,this.getDefaultPresetId()===t&&this.setDefaultPresetId(null),f.emit(g.BYPASS_PRESET_DELETED,{presetId:t}),this._log(`\u9884\u8BBE\u5DF2\u5220\u9664: ${t}`),{success:!0,message:`\u9884\u8BBE "${s.name}" \u5DF2\u5220\u9664`}}duplicatePreset(t,s,o){let n=this.getPreset(t);if(!n)return{success:!1,message:`\u6E90\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};if((!s||!s.trim())&&(s=`${t}_copy_${Date.now()}`),this.presetExists(s))return{success:!1,message:`\u9884\u8BBE "${s}" \u5DF2\u5B58\u5728`};let r={...JSON.parse(JSON.stringify(n)),id:s.trim(),name:o||`${n.name} (\u526F\u672C)`,createdAt:Date.now(),updatedAt:Date.now()};return this._savePreset(s.trim(),r),f.emit(g.BYPASS_PRESET_CREATED,{presetId:s,preset:r}),{success:!0,message:`\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${r.name}"`,preset:r}}addMessage(t,s){let o=this.getPreset(t);if(!o)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let n={id:`msg_${Date.now()}`,role:s.role||"SYSTEM",content:s.content||"",enabled:s.enabled!==!1,deletable:s.deletable!==!1},r=[...o.messages||[],n];return this.updatePreset(t,{messages:r})}updateMessage(t,s,o){let n=this.getPreset(t);if(!n)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let r=n.messages||[],i=r.findIndex(c=>c.id===s);if(i===-1)return{success:!1,message:`\u6D88\u606F "${s}" \u4E0D\u5B58\u5728`};let a=[...r];return a[i]={...a[i],...o},this.updatePreset(t,{messages:a})}deleteMessage(t,s){let o=this.getPreset(t);if(!o)return{success:!1,message:`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`};let n=o.messages||[],r=n.find(a=>a.id===s);if(!r)return{success:!1,message:`\u6D88\u606F "${s}" \u4E0D\u5B58\u5728`};if(r.deletable===!1)return{success:!1,message:"\u8BE5\u6D88\u606F\u4E0D\u53EF\u5220\u9664"};let i=n.filter(a=>a.id!==s);return this.updatePreset(t,{messages:i})}getEnabledMessages(t){let s=this.getPreset(t);return!s||!s.enabled?[]:(s.messages||[]).filter(o=>o.enabled!==!1)}getDefaultPresetId(){this._migrateLegacyData();let t=u.get(Ft,null);return t==="undefined"||t==="null"||t===""?(u.remove(Ft),null):t}setDefaultPresetId(t){return t&&!this.presetExists(t)?!1:(u.set(Ft,t),f.emit(g.BYPASS_PRESET_ACTIVATED,{presetId:t}),this._log(`\u9ED8\u8BA4\u9884\u8BBE\u5DF2\u8BBE\u7F6E: ${t}`),!0)}getDefaultPreset(){let t=this.getDefaultPresetId();return t?this.getPreset(t):null}exportPresets(t=null){if(t){let o=this.getPreset(t);if(!o)throw new Error(`\u9884\u8BBE "${t}" \u4E0D\u5B58\u5728`);return JSON.stringify(o,null,2)}let s=this.getAllPresets();return JSON.stringify({version:"1.0.0",exportedAt:new Date().toISOString(),presets:Object.values(s)},null,2)}importPresets(t,s={}){let{overwrite:o=!1}=s,n;try{n=JSON.parse(t)}catch{return{success:!1,message:"JSON\u89E3\u6790\u5931\u8D25",imported:0}}let r=Array.isArray(n)?n:n.presets?n.presets:[n];if(r.length===0)return{success:!1,message:"\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E",imported:0};let i=u.get(ct,{}),a=0;for(let c of r)!c.id||typeof c.id!="string"||c.name&&(dt[c.id]&&!o||!o&&i[c.id]||(i[c.id]={...c,updatedAt:Date.now()},a++));return a>0&&(u.set(ct,i),this._cache=null),{success:!0,message:`\u6210\u529F\u5BFC\u5165 ${a} \u4E2A\u9884\u8BBE`,imported:a}}getToolBypassPreset(t){if(!t?.bypass?.enabled)return null;let s=t?.bypass?.presetId;return s?this.getPreset(s):this.getDefaultPreset()}buildBypassMessages(t){let s=this.getToolBypassPreset(t);return s?this.getEnabledMessages(s.id):[]}_savePreset(t,s){let o=u.get(ct,{});o[t]=s,u.set(ct,o),this._cache=null}_migrateLegacyData(){if(this._migrated)return;let t=u.get(ct,{}),s={},o=!1,n=Array.isArray(t)?t.map((r,i)=>[r?.id||r?.name||`legacy_${i}`,r]):Object.entries(t||{});for(let[r,i]of n){let a=this._normalizePreset(r,i,s);if(!a){o=!0;continue}s[a.id]=a,(!t?.[a.id]||t?.[a.id]?.id!==a.id)&&(o=!0)}o&&u.set(ct,s),this._migrateDefaultPreset(s),this._cache=null,this._migrated=!0}_normalizePreset(t,s,o={}){if(!s||typeof s!="object")return null;let n=typeof s.name=="string"?s.name.trim():"",r=typeof s.id=="string"?s.id.trim():"",i=typeof t=="string"?t.trim():"";if(!n&&i&&i!=="undefined"&&i!=="null"&&(n=i),this._isLegacySamplePreset(n,r)||(!r&&i&&i!=="undefined"&&i!=="null"&&(r=i),!r&&n&&n!=="undefined"&&n!=="null"&&(r=this._generatePresetId(n,o)),!n||!r||r==="undefined"||n==="undefined"))return null;let c=Array.isArray(s.messages)?s.messages.filter(y=>y&&typeof y=="object").map((y,p)=>({id:typeof y.id=="string"&&y.id.trim()?y.id.trim():`${r}_msg_${p+1}`,role:y.role||"SYSTEM",content:typeof y.content=="string"?y.content:"",enabled:y.enabled!==!1,deletable:y.deletable!==!1})):[];return{...s,id:r,name:n,description:typeof s.description=="string"?s.description:"",enabled:s.enabled!==!1,messages:c,createdAt:s.createdAt||Date.now(),updatedAt:s.updatedAt||Date.now()}}_migrateDefaultPreset(t){let s=u.get(Ft,null),o=u.get(ro,null),n=s??o;(n==="undefined"||n==="null"||n==="")&&(n=null),n&&!t[n]&&(n=Object.values(t).find(i=>i.name===n)?.id||null),n?u.set(Ft,n):u.remove(Ft),u.has(ro)&&u.remove(ro)}_isLegacySamplePreset(t,s=""){return t?s==="standard"||s==="enhanced"||s==="jailbreak"||ri.has(t)?!0:/^增强破限（副本）(?:\s*\(\d+\))?$/.test(t):!1}_generatePresetId(t,s={}){let o=String(t).trim().toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g,"_").replace(/^_+|_+$/g,"")||`bypass_${Date.now()}`,n=o,r=1;for(;s[n];)n=`${o}_${r++}`;return n}_log(...t){this.debugMode&&console.log("[BypassManager]",...t)}},x=new Je,ii=()=>x.getAllPresets(),ue=()=>x.getPresetList(),ai=e=>x.getPreset(e),li=e=>x.createPreset(e),ci=(e,t)=>x.updatePreset(e,t),di=e=>x.deletePreset(e),yi=(e,t,s)=>x.duplicatePreset(e,t,s),pi=()=>x.getDefaultPresetId(),ui=e=>x.setDefaultPresetId(e),gi=e=>x.getEnabledMessages(e),fi=(e,t)=>x.addMessage(e,t),mi=(e,t,s)=>x.updateMessage(e,t,s),bi=(e,t)=>x.deleteMessage(e,t),hi=e=>x.exportPresets(e),xi=(e,t)=>x.importPresets(e,t),vi=e=>x.buildBypassMessages(e),wi=x});var At,io=E(()=>{L();K();Gt();ie();Ht();At={id:"summaryToolPanel",toolId:"summaryTool",render(e){let t=R(this.toolId);if(!t)return'<div class="yyt-error">\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</div>';let s=this._getApiPresets(),o=this._getBypassPresets(),n=t.output?.mode||"follow_ai",r=t.bypass?.enabled||!1,i=t.bypass?.presetId||"";return`
+</status_block>`,
+        // 运行时状态
+        runtime: {
+          lastRunAt: 0,
+          lastStatus: "idle",
+          lastError: "",
+          lastDurationMs: 0,
+          successCount: 0,
+          errorCount: 0
+        },
+        // 兼容字段
+        apiPreset: "",
+        extractTags: ["status_block"]
+      }
+    };
+    TOOL_REGISTRY = {
+      apiPresets: {
+        id: "apiPresets",
+        name: "API\u9884\u8BBE",
+        icon: "fa-database",
+        hasSubTabs: false,
+        description: "\u7BA1\u7406API\u914D\u7F6E\u548C\u9884\u8BBE",
+        component: "ApiPresetPanel",
+        order: 0
+      },
+      regexExtract: {
+        id: "regexExtract",
+        name: "\u6B63\u5219\u63D0\u53D6",
+        icon: "fa-filter",
+        hasSubTabs: false,
+        description: "\u4ECE\u6D88\u606F\u4E2D\u63D0\u53D6\u7279\u5B9A\u5185\u5BB9",
+        component: "RegexExtractPanel",
+        order: 2,
+        defaultConfig: {
+          trigger: { type: "manual", events: [] },
+          execution: { timeout: 3e4, retries: 1 },
+          api: { preset: "" },
+          extractRules: [],
+          excludeRules: []
+        }
+      },
+      tools: {
+        id: "tools",
+        name: "\u5DE5\u5177",
+        icon: "fa-tools",
+        hasSubTabs: true,
+        description: "\u5DE5\u5177\u96C6\u5408",
+        order: 3,
+        subTabs: [
+          { id: "summaryTool", name: "\u6458\u8981\u5DE5\u5177", icon: "fa-file-lines", component: "SummaryToolPanel" },
+          { id: "statusBlock", name: "\u4E3B\u89D2\u72B6\u6001\u680F", icon: "fa-user-check", component: "StatusBlockPanel" }
+        ]
+      },
+      // v0.5 新增页面
+      bypass: {
+        id: "bypass",
+        name: "\u7834\u9650\u8BCD",
+        icon: "fa-shield-halved",
+        hasSubTabs: false,
+        description: "\u7BA1\u7406\u7834\u9650\u8BCD\u9884\u8BBE",
+        component: "BypassPanel",
+        order: 4
+      },
+      settings: {
+        id: "settings",
+        name: "\u8BBE\u7F6E",
+        icon: "fa-cog",
+        hasSubTabs: false,
+        description: "\u5168\u5C40\u8BBE\u7F6E",
+        component: "SettingsPanel",
+        order: 5
+      }
+    };
+    TOOL_CATEGORIES = {
+      api: {
+        name: "API\u5DE5\u5177",
+        icon: "fa-plug",
+        order: 0
+      },
+      prompt: {
+        name: "\u63D0\u793A\u8BCD\u5DE5\u5177",
+        icon: "fa-file-alt",
+        order: 1
+      },
+      utility: {
+        name: "\u5B9E\u7528\u5DE5\u5177",
+        icon: "fa-wrench",
+        order: 2
+      }
+    };
+    registeredTools = { ...TOOL_REGISTRY };
+    tool_registry_default = {
+      TOOL_REGISTRY,
+      TOOL_CATEGORIES,
+      registerTool,
+      unregisterTool,
+      getToolList,
+      getToolConfig,
+      hasTool,
+      getToolSubTabs,
+      resetToolRegistry,
+      setToolApiPreset,
+      getToolApiPreset,
+      clearToolApiPreset,
+      getAllToolApiBindings,
+      onPresetDeleted,
+      saveToolWindowState,
+      getToolWindowState,
+      // 新增配置管理函数
+      getToolFullConfig,
+      saveToolConfig,
+      resetToolConfig,
+      getAllDefaultToolConfigs,
+      getAllToolFullConfigs,
+      getEnabledTools
+    };
+  }
+});
+
+// modules/bypass-manager.js
+var bypass_manager_exports = {};
+__export(bypass_manager_exports, {
+  BypassManager: () => BypassManager,
+  DEFAULT_BYPASS_PRESETS: () => DEFAULT_BYPASS_PRESETS,
+  addMessage: () => addMessage,
+  buildBypassMessages: () => buildBypassMessages,
+  bypassManager: () => bypassManager,
+  createPreset: () => createPreset2,
+  default: () => bypass_manager_default,
+  deleteMessage: () => deleteMessage,
+  deletePreset: () => deletePreset2,
+  duplicatePreset: () => duplicatePreset2,
+  exportPresets: () => exportPresets2,
+  getAllPresets: () => getAllPresets2,
+  getDefaultPresetId: () => getDefaultPresetId,
+  getEnabledMessages: () => getEnabledMessages,
+  getPreset: () => getPreset2,
+  getPresetList: () => getPresetList,
+  importPresets: () => importPresets2,
+  setDefaultPresetId: () => setDefaultPresetId,
+  updateMessage: () => updateMessage,
+  updatePreset: () => updatePreset2
+});
+var BYPASS_PRESETS_KEY, DEFAULT_BYPASS_KEY, LEGACY_DEFAULT_BYPASS_KEY, DEFAULT_BYPASS_PRESETS, LEGACY_SAMPLE_PRESET_NAMES, BypassManager, bypassManager, getAllPresets2, getPresetList, getPreset2, createPreset2, updatePreset2, deletePreset2, duplicatePreset2, getDefaultPresetId, setDefaultPresetId, getEnabledMessages, addMessage, updateMessage, deleteMessage, exportPresets2, importPresets2, buildBypassMessages, bypass_manager_default;
+var init_bypass_manager = __esm({
+  "modules/bypass-manager.js"() {
+    init_storage_service();
+    init_event_bus();
+    BYPASS_PRESETS_KEY = "bypass_presets";
+    DEFAULT_BYPASS_KEY = "default_bypass_preset";
+    LEGACY_DEFAULT_BYPASS_KEY = "current_bypass_preset";
+    DEFAULT_BYPASS_PRESETS = {};
+    LEGACY_SAMPLE_PRESET_NAMES = /* @__PURE__ */ new Set([
+      "\u6807\u51C6\u7834\u9650\u8BCD",
+      "\u589E\u5F3A\u7834\u9650"
+    ]);
+    BypassManager = class {
+      constructor() {
+        this._cache = null;
+        this._migrated = false;
+        this.debugMode = false;
+      }
+      // ============================================================
+      // 预设管理
+      // ============================================================
+      /**
+       * 获取所有破限词预设
+       * @returns {Object} 预设对象 { id: preset }
+       */
+      getAllPresets() {
+        this._migrateLegacyData();
+        if (this._cache) {
+          return this._cache;
+        }
+        const saved = storage.get(BYPASS_PRESETS_KEY, {});
+        this._cache = { ...DEFAULT_BYPASS_PRESETS, ...saved };
+        return this._cache;
+      }
+      /**
+       * 获取预设列表（数组形式）
+       * @returns {Array} 预设列表
+       */
+      getPresetList() {
+        const presets = this.getAllPresets();
+        return Object.values(presets).sort(
+          (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
+        );
+      }
+      /**
+       * 获取单个预设
+       * @param {string} presetId - 预设ID
+       * @returns {Object|null} 预设对象
+       */
+      getPreset(presetId) {
+        if (!presetId)
+          return null;
+        const presets = this.getAllPresets();
+        return presets[presetId] || null;
+      }
+      /**
+       * 检查预设是否存在
+       * @param {string} presetId - 预设ID
+       * @returns {boolean}
+       */
+      presetExists(presetId) {
+        return !!this.getPreset(presetId);
+      }
+      /**
+       * 创建新预设
+       * @param {Object} presetData - 预设数据
+       * @returns {Object} { success: boolean, message: string, preset?: Object }
+       */
+      createPreset(presetData) {
+        const { id, name, description, messages } = presetData;
+        if (!id || typeof id !== "string" || !id.trim()) {
+          return { success: false, message: "\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A" };
+        }
+        if (!name || typeof name !== "string" || !name.trim()) {
+          return { success: false, message: "\u9884\u8BBE\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A" };
+        }
+        const trimmedId = id.trim();
+        if (this.presetExists(trimmedId)) {
+          return { success: false, message: `\u9884\u8BBE "${trimmedId}" \u5DF2\u5B58\u5728` };
+        }
+        const preset = {
+          id: trimmedId,
+          name: name.trim(),
+          description: description || "",
+          enabled: true,
+          messages: messages || [],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        this._savePreset(trimmedId, preset);
+        eventBus.emit(EVENTS.BYPASS_PRESET_CREATED, { presetId: trimmedId, preset });
+        this._log(`\u9884\u8BBE\u5DF2\u521B\u5EFA: ${trimmedId}`);
+        return { success: true, message: `\u9884\u8BBE "${name}" \u521B\u5EFA\u6210\u529F`, preset };
+      }
+      /**
+       * 更新预设
+       * @param {string} presetId - 预设ID
+       * @param {Object} updates - 更新内容
+       * @returns {Object} { success: boolean, message: string, preset?: Object }
+       */
+      updatePreset(presetId, updates) {
+        if (!presetId) {
+          return { success: false, message: "\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A" };
+        }
+        const preset = this.getPreset(presetId);
+        if (!preset) {
+          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
+        }
+        if (updates.id && updates.id !== presetId) {
+          return { success: false, message: "\u4E0D\u5141\u8BB8\u4FEE\u6539\u9884\u8BBEID" };
+        }
+        const updatedPreset = {
+          ...preset,
+          ...updates,
+          id: presetId,
+          // 保持原ID
+          updatedAt: Date.now()
+        };
+        this._savePreset(presetId, updatedPreset);
+        eventBus.emit(EVENTS.BYPASS_PRESET_UPDATED, { presetId, preset: updatedPreset });
+        this._log(`\u9884\u8BBE\u5DF2\u66F4\u65B0: ${presetId}`);
+        return { success: true, message: `\u9884\u8BBE "${preset.name}" \u66F4\u65B0\u6210\u529F`, preset: updatedPreset };
+      }
+      /**
+       * 删除预设
+       * @param {string} presetId - 预设ID
+       * @returns {Object} { success: boolean, message: string }
+       */
+      deletePreset(presetId) {
+        if (!presetId) {
+          return { success: false, message: "\u9884\u8BBEID\u4E0D\u80FD\u4E3A\u7A7A" };
+        }
+        if (DEFAULT_BYPASS_PRESETS[presetId]) {
+          return { success: false, message: "\u4E0D\u5141\u8BB8\u5220\u9664\u9ED8\u8BA4\u9884\u8BBE" };
+        }
+        const preset = this.getPreset(presetId);
+        if (!preset) {
+          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
+        }
+        const saved = storage.get(BYPASS_PRESETS_KEY, {});
+        delete saved[presetId];
+        storage.set(BYPASS_PRESETS_KEY, saved);
+        this._cache = null;
+        if (this.getDefaultPresetId() === presetId) {
+          this.setDefaultPresetId(null);
+        }
+        eventBus.emit(EVENTS.BYPASS_PRESET_DELETED, { presetId });
+        this._log(`\u9884\u8BBE\u5DF2\u5220\u9664: ${presetId}`);
+        return { success: true, message: `\u9884\u8BBE "${preset.name}" \u5DF2\u5220\u9664` };
+      }
+      /**
+       * 复制预设
+       * @param {string} sourceId - 源预设ID
+       * @param {string} newId - 新预设ID
+       * @param {string} newName - 新预设名称
+       * @returns {Object} { success: boolean, message: string, preset?: Object }
+       */
+      duplicatePreset(sourceId, newId, newName) {
+        const source = this.getPreset(sourceId);
+        if (!source) {
+          return { success: false, message: `\u6E90\u9884\u8BBE "${sourceId}" \u4E0D\u5B58\u5728` };
+        }
+        if (!newId || !newId.trim()) {
+          newId = `${sourceId}_copy_${Date.now()}`;
+        }
+        if (this.presetExists(newId)) {
+          return { success: false, message: `\u9884\u8BBE "${newId}" \u5DF2\u5B58\u5728` };
+        }
+        const newPreset = {
+          ...JSON.parse(JSON.stringify(source)),
+          id: newId.trim(),
+          name: newName || `${source.name} (\u526F\u672C)`,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        this._savePreset(newId.trim(), newPreset);
+        eventBus.emit(EVENTS.BYPASS_PRESET_CREATED, { presetId: newId, preset: newPreset });
+        return { success: true, message: `\u9884\u8BBE\u5DF2\u590D\u5236\u4E3A "${newPreset.name}"`, preset: newPreset };
+      }
+      // ============================================================
+      // 消息管理
+      // ============================================================
+      /**
+       * 添加消息到预设
+       * @param {string} presetId - 预设ID
+       * @param {Object} message - 消息对象 { role, content, enabled }
+       * @returns {Object} { success: boolean, message: string }
+       */
+      addMessage(presetId, message) {
+        const preset = this.getPreset(presetId);
+        if (!preset) {
+          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
+        }
+        const newMessage = {
+          id: `msg_${Date.now()}`,
+          role: message.role || "SYSTEM",
+          content: message.content || "",
+          enabled: message.enabled !== false,
+          deletable: message.deletable !== false
+        };
+        const updatedMessages = [...preset.messages || [], newMessage];
+        return this.updatePreset(presetId, { messages: updatedMessages });
+      }
+      /**
+       * 更新预设中的消息
+       * @param {string} presetId - 预设ID
+       * @param {string} messageId - 消息ID
+       * @param {Object} updates - 更新内容
+       * @returns {Object} { success: boolean, message: string }
+       */
+      updateMessage(presetId, messageId, updates) {
+        const preset = this.getPreset(presetId);
+        if (!preset) {
+          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
+        }
+        const messages = preset.messages || [];
+        const messageIndex = messages.findIndex((m) => m.id === messageId);
+        if (messageIndex === -1) {
+          return { success: false, message: `\u6D88\u606F "${messageId}" \u4E0D\u5B58\u5728` };
+        }
+        const updatedMessages = [...messages];
+        updatedMessages[messageIndex] = {
+          ...updatedMessages[messageIndex],
+          ...updates
+        };
+        return this.updatePreset(presetId, { messages: updatedMessages });
+      }
+      /**
+       * 删除预设中的消息
+       * @param {string} presetId - 预设ID
+       * @param {string} messageId - 消息ID
+       * @returns {Object} { success: boolean, message: string }
+       */
+      deleteMessage(presetId, messageId) {
+        const preset = this.getPreset(presetId);
+        if (!preset) {
+          return { success: false, message: `\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728` };
+        }
+        const messages = preset.messages || [];
+        const message = messages.find((m) => m.id === messageId);
+        if (!message) {
+          return { success: false, message: `\u6D88\u606F "${messageId}" \u4E0D\u5B58\u5728` };
+        }
+        if (message.deletable === false) {
+          return { success: false, message: "\u8BE5\u6D88\u606F\u4E0D\u53EF\u5220\u9664" };
+        }
+        const updatedMessages = messages.filter((m) => m.id !== messageId);
+        return this.updatePreset(presetId, { messages: updatedMessages });
+      }
+      /**
+       * 获取预设的启用消息
+       * @param {string} presetId - 预设ID
+       * @returns {Array} 启用的消息数组
+       */
+      getEnabledMessages(presetId) {
+        const preset = this.getPreset(presetId);
+        if (!preset || !preset.enabled) {
+          return [];
+        }
+        return (preset.messages || []).filter((msg) => msg.enabled !== false);
+      }
+      // ============================================================
+      // 默认预设管理
+      // ============================================================
+      /**
+       * 获取默认预设ID
+       * @returns {string|null}
+       */
+      getDefaultPresetId() {
+        this._migrateLegacyData();
+        const presetId = storage.get(DEFAULT_BYPASS_KEY, null);
+        if (presetId === "undefined" || presetId === "null" || presetId === "") {
+          storage.remove(DEFAULT_BYPASS_KEY);
+          return null;
+        }
+        return presetId;
+      }
+      /**
+       * 设置默认预设
+       * @param {string|null} presetId - 预设ID，null表示清除默认
+       * @returns {boolean}
+       */
+      setDefaultPresetId(presetId) {
+        if (presetId && !this.presetExists(presetId)) {
+          return false;
+        }
+        storage.set(DEFAULT_BYPASS_KEY, presetId);
+        eventBus.emit(EVENTS.BYPASS_PRESET_ACTIVATED, { presetId });
+        this._log(`\u9ED8\u8BA4\u9884\u8BBE\u5DF2\u8BBE\u7F6E: ${presetId}`);
+        return true;
+      }
+      /**
+       * 获取默认预设
+       * @returns {Object|null}
+       */
+      getDefaultPreset() {
+        const presetId = this.getDefaultPresetId();
+        return presetId ? this.getPreset(presetId) : null;
+      }
+      // ============================================================
+      // 导入导出
+      // ============================================================
+      /**
+       * 导出预设
+       * @param {string} presetId - 预设ID，不提供则导出所有
+       * @returns {string} JSON字符串
+       */
+      exportPresets(presetId = null) {
+        if (presetId) {
+          const preset = this.getPreset(presetId);
+          if (!preset) {
+            throw new Error(`\u9884\u8BBE "${presetId}" \u4E0D\u5B58\u5728`);
+          }
+          return JSON.stringify(preset, null, 2);
+        }
+        const presets = this.getAllPresets();
+        return JSON.stringify({
+          version: "1.0.0",
+          exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          presets: Object.values(presets)
+        }, null, 2);
+      }
+      /**
+       * 导入预设
+       * @param {string} jsonString - JSON字符串
+       * @param {Object} options - 导入选项
+       * @returns {Object} { success: boolean, message: string, imported: number }
+       */
+      importPresets(jsonString, options = {}) {
+        const { overwrite = false } = options;
+        let data;
+        try {
+          data = JSON.parse(jsonString);
+        } catch (e) {
+          return { success: false, message: "JSON\u89E3\u6790\u5931\u8D25", imported: 0 };
+        }
+        const presetsToImport = Array.isArray(data) ? data : data.presets ? data.presets : [data];
+        if (presetsToImport.length === 0) {
+          return { success: false, message: "\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u9884\u8BBE\u6570\u636E", imported: 0 };
+        }
+        const saved = storage.get(BYPASS_PRESETS_KEY, {});
+        let imported = 0;
+        for (const preset of presetsToImport) {
+          if (!preset.id || typeof preset.id !== "string")
+            continue;
+          if (!preset.name)
+            continue;
+          if (DEFAULT_BYPASS_PRESETS[preset.id] && !overwrite)
+            continue;
+          if (!overwrite && saved[preset.id])
+            continue;
+          saved[preset.id] = {
+            ...preset,
+            updatedAt: Date.now()
+          };
+          imported++;
+        }
+        if (imported > 0) {
+          storage.set(BYPASS_PRESETS_KEY, saved);
+          this._cache = null;
+        }
+        return {
+          success: true,
+          message: `\u6210\u529F\u5BFC\u5165 ${imported} \u4E2A\u9884\u8BBE`,
+          imported
+        };
+      }
+      // ============================================================
+      // 工具绑定辅助
+      // ============================================================
+      /**
+       * 获取工具绑定的破限词预设
+       * @param {Object} toolConfig - 工具配置
+       * @returns {Object|null} 预设对象或null
+       */
+      getToolBypassPreset(toolConfig) {
+        if (!toolConfig?.bypass?.enabled) {
+          return null;
+        }
+        const presetId = toolConfig?.bypass?.presetId;
+        if (!presetId) {
+          return this.getDefaultPreset();
+        }
+        return this.getPreset(presetId);
+      }
+      /**
+       * 构建工具的破限词消息
+       * @param {Object} toolConfig - 工具配置
+       * @returns {Array} 消息数组
+       */
+      buildBypassMessages(toolConfig) {
+        const preset = this.getToolBypassPreset(toolConfig);
+        if (!preset) {
+          return [];
+        }
+        return this.getEnabledMessages(preset.id);
+      }
+      // ============================================================
+      // 私有方法
+      // ============================================================
+      /**
+       * 保存预设
+       * @private
+       */
+      _savePreset(presetId, preset) {
+        const saved = storage.get(BYPASS_PRESETS_KEY, {});
+        saved[presetId] = preset;
+        storage.set(BYPASS_PRESETS_KEY, saved);
+        this._cache = null;
+      }
+      /**
+       * 迁移旧版破限词存储数据
+       * @private
+       */
+      _migrateLegacyData() {
+        if (this._migrated) {
+          return;
+        }
+        const rawSaved = storage.get(BYPASS_PRESETS_KEY, {});
+        const normalizedPresets = {};
+        let changed = false;
+        const entries = Array.isArray(rawSaved) ? rawSaved.map((preset, index) => [preset?.id || preset?.name || `legacy_${index}`, preset]) : Object.entries(rawSaved || {});
+        for (const [key, value] of entries) {
+          const normalized = this._normalizePreset(key, value, normalizedPresets);
+          if (!normalized) {
+            changed = true;
+            continue;
+          }
+          normalizedPresets[normalized.id] = normalized;
+          if (!rawSaved?.[normalized.id] || rawSaved?.[normalized.id]?.id !== normalized.id) {
+            changed = true;
+          }
+        }
+        if (changed) {
+          storage.set(BYPASS_PRESETS_KEY, normalizedPresets);
+        }
+        this._migrateDefaultPreset(normalizedPresets);
+        this._cache = null;
+        this._migrated = true;
+      }
+      /**
+       * 规范化旧预设
+       * @private
+       */
+      _normalizePreset(key, preset, existingPresets = {}) {
+        if (!preset || typeof preset !== "object") {
+          return null;
+        }
+        let name = typeof preset.name === "string" ? preset.name.trim() : "";
+        let id = typeof preset.id === "string" ? preset.id.trim() : "";
+        const normalizedKey = typeof key === "string" ? key.trim() : "";
+        if (!name && normalizedKey && normalizedKey !== "undefined" && normalizedKey !== "null") {
+          name = normalizedKey;
+        }
+        const shouldDropLegacySample = this._isLegacySamplePreset(name, id);
+        if (shouldDropLegacySample) {
+          return null;
+        }
+        if (!id && normalizedKey && normalizedKey !== "undefined" && normalizedKey !== "null") {
+          id = normalizedKey;
+        }
+        if (!id && name && name !== "undefined" && name !== "null") {
+          id = this._generatePresetId(name, existingPresets);
+        }
+        if (!name || !id || id === "undefined" || name === "undefined") {
+          return null;
+        }
+        const messages = Array.isArray(preset.messages) ? preset.messages.filter((msg) => msg && typeof msg === "object").map((msg, index) => ({
+          id: typeof msg.id === "string" && msg.id.trim() ? msg.id.trim() : `${id}_msg_${index + 1}`,
+          role: msg.role || "SYSTEM",
+          content: typeof msg.content === "string" ? msg.content : "",
+          enabled: msg.enabled !== false,
+          deletable: msg.deletable !== false
+        })) : [];
+        return {
+          ...preset,
+          id,
+          name,
+          description: typeof preset.description === "string" ? preset.description : "",
+          enabled: preset.enabled !== false,
+          messages,
+          createdAt: preset.createdAt || Date.now(),
+          updatedAt: preset.updatedAt || Date.now()
+        };
+      }
+      /**
+       * 迁移默认预设ID
+       * @private
+       */
+      _migrateDefaultPreset(presets) {
+        const defaultPresetId = storage.get(DEFAULT_BYPASS_KEY, null);
+        const legacyDefaultPresetId = storage.get(LEGACY_DEFAULT_BYPASS_KEY, null);
+        let effectiveId = defaultPresetId ?? legacyDefaultPresetId;
+        if (effectiveId === "undefined" || effectiveId === "null" || effectiveId === "") {
+          effectiveId = null;
+        }
+        if (effectiveId && !presets[effectiveId]) {
+          const matchedPreset = Object.values(presets).find((preset) => preset.name === effectiveId);
+          effectiveId = matchedPreset?.id || null;
+        }
+        if (effectiveId) {
+          storage.set(DEFAULT_BYPASS_KEY, effectiveId);
+        } else {
+          storage.remove(DEFAULT_BYPASS_KEY);
+        }
+        if (storage.has(LEGACY_DEFAULT_BYPASS_KEY)) {
+          storage.remove(LEGACY_DEFAULT_BYPASS_KEY);
+        }
+      }
+      /**
+       * 判断是否为旧版样例预设
+       * @private
+       */
+      _isLegacySamplePreset(name, id = "") {
+        if (!name) {
+          return false;
+        }
+        if (id === "standard" || id === "enhanced" || id === "jailbreak") {
+          return true;
+        }
+        if (LEGACY_SAMPLE_PRESET_NAMES.has(name)) {
+          return true;
+        }
+        return /^增强破限（副本）(?:\s*\(\d+\))?$/.test(name);
+      }
+      /**
+       * 生成预设ID
+       * @private
+       */
+      _generatePresetId(name, existingPresets = {}) {
+        const baseId = String(name).trim().toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || `bypass_${Date.now()}`;
+        let candidateId = baseId;
+        let counter = 1;
+        while (existingPresets[candidateId]) {
+          candidateId = `${baseId}_${counter++}`;
+        }
+        return candidateId;
+      }
+      /**
+       * 日志输出
+       * @private
+       */
+      _log(...args) {
+        if (this.debugMode) {
+          console.log("[BypassManager]", ...args);
+        }
+      }
+    };
+    bypassManager = new BypassManager();
+    getAllPresets2 = () => bypassManager.getAllPresets();
+    getPresetList = () => bypassManager.getPresetList();
+    getPreset2 = (presetId) => bypassManager.getPreset(presetId);
+    createPreset2 = (presetData) => bypassManager.createPreset(presetData);
+    updatePreset2 = (presetId, updates) => bypassManager.updatePreset(presetId, updates);
+    deletePreset2 = (presetId) => bypassManager.deletePreset(presetId);
+    duplicatePreset2 = (sourceId, newId, newName) => bypassManager.duplicatePreset(sourceId, newId, newName);
+    getDefaultPresetId = () => bypassManager.getDefaultPresetId();
+    setDefaultPresetId = (presetId) => bypassManager.setDefaultPresetId(presetId);
+    getEnabledMessages = (presetId) => bypassManager.getEnabledMessages(presetId);
+    addMessage = (presetId, message) => bypassManager.addMessage(presetId, message);
+    updateMessage = (presetId, messageId, updates) => bypassManager.updateMessage(presetId, messageId, updates);
+    deleteMessage = (presetId, messageId) => bypassManager.deleteMessage(presetId, messageId);
+    exportPresets2 = (presetId) => bypassManager.exportPresets(presetId);
+    importPresets2 = (jsonString, options) => bypassManager.importPresets(jsonString, options);
+    buildBypassMessages = (toolConfig) => bypassManager.buildBypassMessages(toolConfig);
+    bypass_manager_default = bypassManager;
+  }
+});
+
+// modules/tool-executor.js
+var tool_executor_exports = {};
+__export(tool_executor_exports, {
+  abortAllTasks: () => abortAllTasks,
+  abortTask: () => abortTask,
+  buildToolMessages: () => buildToolMessages,
+  clearExecutionHistory: () => clearExecutionHistory,
+  createExecutionContext: () => createExecutionContext,
+  createResult: () => createResult,
+  enhanceMessagesWithBypass: () => enhanceMessagesWithBypass,
+  executeBatch: () => executeBatch,
+  executeTool: () => executeTool,
+  executeToolWithConfig: () => executeToolWithConfig,
+  executeToolsBatch: () => executeToolsBatch,
+  executorState: () => executorState,
+  extractFailed: () => extractFailed,
+  extractSuccessful: () => extractSuccessful,
+  generateTaskId: () => generateTaskId,
+  getExecutionHistory: () => getExecutionHistory,
+  getExecutorStatus: () => getExecutorStatus,
+  getScheduler: () => getScheduler,
+  getToolsForEvent: () => getToolsForEvent,
+  mergeResults: () => mergeResults,
+  pauseExecutor: () => pauseExecutor,
+  resumeExecutor: () => resumeExecutor,
+  setMaxConcurrent: () => setMaxConcurrent
+});
+function createResult(taskId, toolId, success, data, error, duration, retries = 0) {
+  return {
+    success,
+    taskId,
+    toolId,
+    data,
+    error,
+    duration,
+    retries,
+    timestamp: Date.now(),
+    metadata: {}
+  };
+}
+function generateTaskId() {
+  return `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+function createTask(toolId, options = {}) {
+  return {
+    id: generateTaskId(),
+    toolId,
+    options,
+    status: "pending",
+    // pending, running, completed, failed, aborted
+    createdAt: Date.now(),
+    startedAt: null,
+    completedAt: null,
+    retries: 0,
+    maxRetries: options.maxRetries || 3
+  };
+}
+function getScheduler() {
+  if (!schedulerInstance) {
+    schedulerInstance = new TaskScheduler(executorState.maxConcurrent);
+  }
+  return schedulerInstance;
+}
+function setMaxConcurrent(max) {
+  executorState.maxConcurrent = Math.max(1, Math.min(10, max));
+  if (schedulerInstance) {
+    schedulerInstance.maxConcurrent = executorState.maxConcurrent;
+  }
+}
+async function executeTool(toolId, options = {}, executor) {
+  const scheduler = getScheduler();
+  const task = createTask(toolId, options);
+  while (executorState.isPaused) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  try {
+    const result = await scheduler.enqueue(async (signal) => {
+      if (signal.aborted) {
+        throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62", "AbortError");
+      }
+      if (typeof executor === "function") {
+        return await executor(signal, options);
+      }
+      throw new Error("\u6267\u884C\u5668\u5FC5\u987B\u662F\u4E00\u4E2A\u51FD\u6570");
+    }, task);
+    addToHistory(result);
+    return result;
+  } catch (error) {
+    const result = createResult(
+      task.id,
+      toolId,
+      false,
+      null,
+      error,
+      Date.now() - task.createdAt,
+      task.retries
+    );
+    addToHistory(result);
+    return result;
+  }
+}
+async function executeBatch(tasks, batchOptions = {}) {
+  const { failFast = false, concurrency = executorState.maxConcurrent } = batchOptions;
+  const results = [];
+  const scheduler = getScheduler();
+  const originalMax = scheduler.maxConcurrent;
+  scheduler.maxConcurrent = concurrency;
+  try {
+    const promises = tasks.map(({ toolId, options, executor }) => {
+      return executeTool(toolId, options, executor);
+    });
+    if (failFast) {
+      for (const promise of promises) {
+        const result = await promise;
+        results.push(result);
+        if (!result.success) {
+          scheduler.abortAll();
+          break;
+        }
+      }
+    } else {
+      const settled = await Promise.allSettled(promises);
+      for (const item of settled) {
+        if (item.status === "fulfilled") {
+          results.push(item.value);
+        } else {
+          results.push(createResult(
+            generateTaskId(),
+            "unknown",
+            false,
+            null,
+            item.reason,
+            0,
+            0
+          ));
+        }
+      }
+    }
+  } finally {
+    scheduler.maxConcurrent = originalMax;
+  }
+  return results;
+}
+function abortTask(taskId) {
+  const scheduler = getScheduler();
+  return scheduler.abort(taskId);
+}
+function abortAllTasks() {
+  const scheduler = getScheduler();
+  scheduler.abortAll();
+  executorState.executionQueue = [];
+}
+function pauseExecutor() {
+  executorState.isPaused = true;
+}
+function resumeExecutor() {
+  executorState.isPaused = false;
+}
+function getExecutorStatus() {
+  const scheduler = getScheduler();
+  return {
+    ...scheduler.getStatus(),
+    isPaused: executorState.isPaused,
+    activeControllers: executorState.activeControllers.size,
+    historyCount: executorState.executionHistory.length
+  };
+}
+function addToHistory(result) {
+  executorState.executionHistory.push(result);
+  if (executorState.executionHistory.length > 100) {
+    executorState.executionHistory.shift();
+  }
+}
+function getExecutionHistory(filter = {}) {
+  let history = [...executorState.executionHistory];
+  if (filter.toolId) {
+    history = history.filter((r) => r.toolId === filter.toolId);
+  }
+  if (filter.success !== void 0) {
+    history = history.filter((r) => r.success === filter.success);
+  }
+  if (filter.limit) {
+    history = history.slice(-filter.limit);
+  }
+  return history;
+}
+function clearExecutionHistory() {
+  executorState.executionHistory = [];
+}
+function mergeResults(results) {
+  const merged = {
+    success: true,
+    data: [],
+    errors: [],
+    totalDuration: 0,
+    successCount: 0,
+    failureCount: 0
+  };
+  for (const result of results) {
+    merged.totalDuration += result.duration;
+    if (result.success) {
+      merged.successCount++;
+      if (result.data !== void 0 && result.data !== null) {
+        merged.data.push(result.data);
+      }
+    } else {
+      merged.success = false;
+      merged.failureCount++;
+      if (result.error) {
+        merged.errors.push({
+          taskId: result.taskId,
+          toolId: result.toolId,
+          error: result.error.message || String(result.error)
+        });
+      }
+    }
+  }
+  return merged;
+}
+function extractSuccessful(results) {
+  return results.filter((r) => r.success).map((r) => r.data);
+}
+function extractFailed(results) {
+  return results.filter((r) => !r.success).map((r) => ({
+    taskId: r.taskId,
+    toolId: r.toolId,
+    error: r.error
+  }));
+}
+function createExecutionContext(options = {}) {
+  return {
+    taskId: generateTaskId(),
+    startTime: Date.now(),
+    signal: options.signal || null,
+    apiConfig: options.apiConfig || null,
+    bypassMessages: options.bypassMessages || [],
+    context: options.context || {},
+    metadata: options.metadata || {}
+  };
+}
+function enhanceMessagesWithBypass(messages, bypassMessages) {
+  if (!bypassMessages || bypassMessages.length === 0) {
+    return messages;
+  }
+  return [...bypassMessages, ...messages];
+}
+function escapeRegex2(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function buildToolMessages(config, context) {
+  const messages = [];
+  let prompt2 = config.promptTemplate || "";
+  const variables = {
+    "{{userMessage}}": context.input?.userMessage || "",
+    "{{lastAiMessage}}": context.input?.lastAiMessage || "",
+    "{{extractedContent}}": context.input?.extractedContent || "",
+    "{{previousToolOutput}}": context.input?.previousToolOutput || "",
+    "{{context}}": JSON.stringify(context.input?.context || {}),
+    // 摘要工具特定变量
+    "{{pg}}": context.input?.context?.pg || "1",
+    "{{time}}": context.input?.context?.time || "",
+    "{{scene}}": context.input?.context?.scene || "",
+    "{{plot}}": context.input?.context?.plot || "",
+    "{{mq}}": context.input?.context?.mq || "\u2160",
+    "{{mqStatus}}": context.input?.context?.mqStatus || "\u8FDB\u884C\u4E2D",
+    "{{sq}}": context.input?.context?.sq || "1",
+    "{{sqStatus}}": context.input?.context?.sqStatus || "\u8FDB\u884C\u4E2D",
+    "{{latestSq}}": context.input?.context?.latestSq || "1",
+    "{{completed}}": context.input?.context?.completed || "\u65E0",
+    "{{defined}}": context.input?.context?.defined || "",
+    "{{status}}": context.input?.context?.status || "",
+    "{{seeds}}": context.input?.context?.seeds || "",
+    // 状态栏特定变量
+    "{{name}}": context.input?.context?.name || "",
+    "{{location}}": context.input?.context?.location || "",
+    "{{condition}}": context.input?.context?.condition || "",
+    "{{equipment}}": context.input?.context?.equipment || "",
+    "{{skills}}": context.input?.context?.skills || ""
+  };
+  for (const [key, value] of Object.entries(variables)) {
+    prompt2 = prompt2.replace(new RegExp(escapeRegex2(key), "g"), value);
+  }
+  messages.push({
+    role: "USER",
+    content: prompt2
+  });
+  return messages;
+}
+async function executeToolWithConfig(toolId, context, options = {}) {
+  const config = getToolFullConfig(toolId);
+  if (!config) {
+    return {
+      success: false,
+      taskId: generateTaskId(),
+      toolId,
+      error: "\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728",
+      duration: 0
+    };
+  }
+  if (!config.enabled) {
+    return {
+      success: false,
+      taskId: generateTaskId(),
+      toolId,
+      error: "\u5DE5\u5177\u672A\u542F\u7528",
+      duration: 0
+    };
+  }
+  const startTime = Date.now();
+  const taskId = generateTaskId();
+  try {
+    eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, { toolId, taskId, context });
+    const messages = buildToolMessages(config, context);
+    if (typeof options.callApi === "function") {
+      const apiConfig = config.apiPreset ? { preset: config.apiPreset } : null;
+      const response = await options.callApi(messages, apiConfig, options.signal);
+      let output = response;
+      if (config.outputMode === "separate" && config.extractTags?.length > 0) {
+        output = extractTagsFromResponse(response, config.extractTags);
+      }
+      const result = {
+        success: true,
+        taskId,
+        toolId,
+        data: output,
+        duration: Date.now() - startTime
+      };
+      eventBus.emit(EVENTS.TOOL_EXECUTED, { toolId, taskId, result });
+      return result;
+    } else {
+      return {
+        success: true,
+        taskId,
+        toolId,
+        data: {
+          messages,
+          config: {
+            apiPreset: config.apiPreset,
+            outputMode: config.outputMode,
+            extractTags: config.extractTags
+          }
+        },
+        duration: Date.now() - startTime,
+        needsExecution: true
+        // 标记需要外部执行
+      };
+    }
+  } catch (error) {
+    const result = {
+      success: false,
+      taskId,
+      toolId,
+      error: error.message || String(error),
+      duration: Date.now() - startTime
+    };
+    eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, { toolId, taskId, error });
+    return result;
+  }
+}
+function extractTagsFromResponse(response, tags) {
+  const result = {};
+  for (const tag of tags) {
+    const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
+    const match = response.match(regex);
+    if (match) {
+      result[tag] = match.map((m) => {
+        const contentMatch = m.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+        return contentMatch ? contentMatch[1].trim() : "";
+      });
+    }
+  }
+  return result;
+}
+async function executeToolsBatch(toolIds, context, options = {}) {
+  const results = [];
+  for (const toolId of toolIds) {
+    const config = getToolFullConfig(toolId);
+    if (config && config.enabled) {
+      const result = await executeToolWithConfig(toolId, context, options);
+      results.push(result);
+    }
+  }
+  return results;
+}
+function getToolsForEvent(eventType) {
+  const allConfigs = [];
+  const toolIds = ["summaryTool", "statusBlock"];
+  for (const toolId of toolIds) {
+    const config = getToolFullConfig(toolId);
+    const matchesNewTrigger = config?.trigger?.enabled && config?.trigger?.event === eventType;
+    const matchesLegacyTrigger = Array.isArray(config?.triggerEvents) && config.triggerEvents.includes(eventType);
+    if (config && config.enabled && (matchesNewTrigger || matchesLegacyTrigger)) {
+      allConfigs.push(config);
+    }
+  }
+  return allConfigs;
+}
+var executorState, TaskScheduler, schedulerInstance;
+var init_tool_executor = __esm({
+  "modules/tool-executor.js"() {
+    init_tool_registry();
+    init_event_bus();
+    executorState = {
+      // 当前活跃的AbortController
+      activeControllers: /* @__PURE__ */ new Map(),
+      // taskId -> AbortController
+      // 执行队列
+      executionQueue: [],
+      // 正在执行的任务数
+      runningCount: 0,
+      // 最大并发数
+      maxConcurrent: 3,
+      // 执行历史（最近100条）
+      executionHistory: [],
+      // 是否暂停
+      isPaused: false
+    };
+    TaskScheduler = class {
+      constructor(maxConcurrent = 3) {
+        this.maxConcurrent = maxConcurrent;
+        this.queue = [];
+        this.running = /* @__PURE__ */ new Map();
+        this.isProcessing = false;
+      }
+      /**
+       * 添加任务到队列
+       * @param {Function} executor 执行函数
+       * @param {Object} task 任务对象
+       * @returns {Promise} 执行结果Promise
+       */
+      enqueue(executor, task) {
+        return new Promise((resolve, reject) => {
+          this.queue.push({ executor, task, resolve, reject });
+          this.process();
+        });
+      }
+      /**
+       * 处理队列
+       */
+      async process() {
+        if (this.isProcessing)
+          return;
+        this.isProcessing = true;
+        while (this.queue.length > 0 && this.running.size < this.maxConcurrent) {
+          const item = this.queue.shift();
+          if (!item)
+            continue;
+          const { executor, task, resolve, reject } = item;
+          const controller = new AbortController();
+          task.abortController = controller;
+          task.status = "running";
+          task.startedAt = Date.now();
+          this.running.set(task.id, task);
+          executorState.activeControllers.set(task.id, controller);
+          this.executeTask(executor, task, controller.signal).then((result) => {
+            task.status = "completed";
+            task.completedAt = Date.now();
+            resolve(result);
+          }).catch((error) => {
+            task.status = error.name === "AbortError" ? "aborted" : "failed";
+            task.completedAt = Date.now();
+            reject(error);
+          }).finally(() => {
+            this.running.delete(task.id);
+            executorState.activeControllers.delete(task.id);
+            executorState.runningCount = this.running.size;
+          });
+        }
+        this.isProcessing = false;
+      }
+      /**
+       * 执行单个任务
+       */
+      async executeTask(executor, task, signal) {
+        const startTime = Date.now();
+        let lastError = null;
+        for (let attempt = 0; attempt <= task.maxRetries; attempt++) {
+          if (signal.aborted) {
+            throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62", "AbortError");
+          }
+          try {
+            const result = await executor(signal);
+            return createResult(
+              task.id,
+              task.toolId,
+              true,
+              result,
+              null,
+              Date.now() - startTime,
+              attempt
+            );
+          } catch (error) {
+            lastError = error;
+            if (error.name === "AbortError") {
+              throw error;
+            }
+            if (attempt < task.maxRetries) {
+              await this.delay(1e3 * (attempt + 1));
+              task.retries = attempt + 1;
+            }
+          }
+        }
+        throw lastError;
+      }
+      /**
+       * 延迟函数
+       */
+      delay(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+      /**
+       * 中止任务
+       */
+      abort(taskId) {
+        const controller = executorState.activeControllers.get(taskId);
+        if (controller) {
+          controller.abort();
+          return true;
+        }
+        return false;
+      }
+      /**
+       * 中止所有任务
+       */
+      abortAll() {
+        for (const controller of executorState.activeControllers.values()) {
+          controller.abort();
+        }
+        executorState.activeControllers.clear();
+        this.queue = [];
+        this.running.clear();
+      }
+      /**
+       * 获取队列状态
+       */
+      getStatus() {
+        return {
+          pending: this.queue.length,
+          running: this.running.size,
+          maxConcurrent: this.maxConcurrent
+        };
+      }
+    };
+    schedulerInstance = null;
+  }
+});
+
+// modules/core/settings-service.js
+var settings_service_exports = {};
+__export(settings_service_exports, {
+  DEFAULT_SETTINGS: () => DEFAULT_SETTINGS2,
+  SettingsService: () => SettingsService,
+  default: () => settings_service_default,
+  settingsService: () => settingsService
+});
+var DEFAULT_SETTINGS2, SETTINGS_STORAGE_KEY, SettingsService, settingsService, settings_service_default;
+var init_settings_service = __esm({
+  "modules/core/settings-service.js"() {
+    init_storage_service();
+    init_event_bus();
+    DEFAULT_SETTINGS2 = {
+      executor: {
+        maxConcurrent: 3,
+        maxRetries: 2,
+        retryDelayMs: 5e3,
+        requestTimeoutMs: 9e4,
+        queueStrategy: "fifo"
+      },
+      listener: {
+        listenGenerationEnded: true,
+        ignoreQuietGeneration: true,
+        ignoreAutoTrigger: true,
+        debounceMs: 300
+      },
+      debug: {
+        enableDebugLog: false,
+        saveExecutionHistory: true,
+        showRuntimeBadge: true
+      },
+      ui: {
+        compactMode: false,
+        animationEnabled: true,
+        theme: "dark-blue"
+      }
+    };
+    SETTINGS_STORAGE_KEY = "settings_v2";
+    SettingsService = class {
+      constructor() {
+        this._cache = null;
+      }
+      /**
+       * 获取所有设置
+       * @returns {Object}
+       */
+      getSettings() {
+        if (this._cache) {
+          return this._cache;
+        }
+        const saved = storage.get(SETTINGS_STORAGE_KEY, {});
+        this._cache = this._mergeWithDefaults(saved);
+        return this._cache;
+      }
+      /**
+       * 保存设置
+       * @param {Object} settings - 完整设置对象
+       */
+      saveSettings(settings) {
+        this._cache = this._mergeWithDefaults(settings);
+        storage.set(SETTINGS_STORAGE_KEY, this._cache);
+        eventBus.emit(EVENTS.SETTINGS_UPDATED, { settings: this._cache });
+      }
+      /**
+       * 更新部分设置
+       * @param {Object} partial - 部分设置
+       */
+      updateSettings(partial) {
+        const current = this.getSettings();
+        const updated = this._deepMerge(current, partial);
+        this.saveSettings(updated);
+      }
+      /**
+       * 获取执行器设置
+       * @returns {Object}
+       */
+      getExecutorSettings() {
+        return this.getSettings().executor;
+      }
+      /**
+       * 更新执行器设置
+       * @param {Object} executorSettings
+       */
+      updateExecutorSettings(executorSettings) {
+        this.updateSettings({ executor: executorSettings });
+      }
+      /**
+       * 获取监听器设置
+       * @returns {Object}
+       */
+      getListenerSettings() {
+        return this.getSettings().listener;
+      }
+      /**
+       * 更新监听器设置
+       * @param {Object} listenerSettings
+       */
+      updateListenerSettings(listenerSettings) {
+        this.updateSettings({ listener: listenerSettings });
+      }
+      /**
+       * 获取调试设置
+       * @returns {Object}
+       */
+      getDebugSettings() {
+        return this.getSettings().debug;
+      }
+      /**
+       * 更新调试设置
+       * @param {Object} debugSettings
+       */
+      updateDebugSettings(debugSettings) {
+        this.updateSettings({ debug: debugSettings });
+      }
+      /**
+       * 获取UI设置
+       * @returns {Object}
+       */
+      getUiSettings() {
+        return this.getSettings().ui;
+      }
+      /**
+       * 更新UI设置
+       * @param {Object} uiSettings
+       */
+      updateUiSettings(uiSettings) {
+        this.updateSettings({ ui: uiSettings });
+      }
+      /**
+       * 重置为默认设置
+       */
+      resetSettings() {
+        this._cache = JSON.parse(JSON.stringify(DEFAULT_SETTINGS2));
+        storage.set(SETTINGS_STORAGE_KEY, this._cache);
+        eventBus.emit(EVENTS.SETTINGS_UPDATED, { settings: this._cache, reset: true });
+      }
+      /**
+       * 获取单个设置值
+       * @param {string} path - 点分隔的路径，如 'executor.maxConcurrent'
+       * @param {*} defaultValue
+       * @returns {*}
+       */
+      get(path, defaultValue = null) {
+        const settings = this.getSettings();
+        const keys = path.split(".");
+        let value = settings;
+        for (const key of keys) {
+          if (value && typeof value === "object" && key in value) {
+            value = value[key];
+          } else {
+            return defaultValue;
+          }
+        }
+        return value;
+      }
+      /**
+       * 设置单个值
+       * @param {string} path - 点分隔的路径
+       * @param {*} value
+       */
+      set(path, value) {
+        const settings = JSON.parse(JSON.stringify(this.getSettings()));
+        const keys = path.split(".");
+        let target = settings;
+        for (let i = 0; i < keys.length - 1; i++) {
+          const key = keys[i];
+          if (!(key in target)) {
+            target[key] = {};
+          }
+          target = target[key];
+        }
+        target[keys[keys.length - 1]] = value;
+        this.saveSettings(settings);
+      }
+      // ============================================================
+      // 私有方法
+      // ============================================================
+      /**
+       * 与默认值合并
+       * @private
+       */
+      _mergeWithDefaults(saved) {
+        return this._deepMerge(JSON.parse(JSON.stringify(DEFAULT_SETTINGS2)), saved);
+      }
+      /**
+       * 深度合并对象
+       * @private
+       */
+      _deepMerge(target, source) {
+        const result = { ...target };
+        for (const key in source) {
+          if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+            result[key] = this._deepMerge(target[key] || {}, source[key]);
+          } else {
+            result[key] = source[key];
+          }
+        }
+        return result;
+      }
+    };
+    settingsService = new SettingsService();
+    settings_service_default = settingsService;
+  }
+});
+
+// modules/context-injector.js
+var context_injector_exports = {};
+__export(context_injector_exports, {
+  ContextInjector: () => ContextInjector,
+  DEFAULT_INJECTION_OPTIONS: () => DEFAULT_INJECTION_OPTIONS,
+  contextInjector: () => contextInjector,
+  default: () => context_injector_default
+});
+var CONTEXT_INJECTION_KEY, DEFAULT_INJECTION_OPTIONS, ContextInjector, contextInjector, context_injector_default;
+var init_context_injector = __esm({
+  "modules/context-injector.js"() {
+    init_storage_service();
+    init_event_bus();
+    CONTEXT_INJECTION_KEY = "context_injection";
+    DEFAULT_INJECTION_OPTIONS = {
+      target: "context",
+      // 注入目标：context, worldbook, message
+      scope: "chat",
+      // 作用域：chat, global, character
+      overwrite: true,
+      // 是否覆盖现有内容
+      enabled: true
+    };
+    ContextInjector = class {
+      constructor() {
+        this._cache = /* @__PURE__ */ new Map();
+        this.debugMode = false;
+      }
+      // ============================================================
+      // 核心注入方法
+      // ============================================================
+      /**
+       * 注入工具上下文
+       * @param {string} toolId - 工具ID
+       * @param {string} content - 要注入的内容
+       * @param {Object} options - 注入选项
+       * @returns {boolean} 是否成功
+       */
+      inject(toolId, content, options = {}) {
+        if (!toolId || content === void 0 || content === null) {
+          this._log("\u6CE8\u5165\u5931\u8D25: \u53C2\u6570\u65E0\u6548");
+          return false;
+        }
+        const mergedOptions = { ...DEFAULT_INJECTION_OPTIONS, ...options };
+        const chatId = options.chatId || this._getCurrentChatId();
+        if (!chatId) {
+          this._log("\u6CE8\u5165\u5931\u8D25: \u65E0\u6CD5\u83B7\u53D6\u804A\u5929ID");
+          return false;
+        }
+        const storageKey = this._getStorageKey(chatId);
+        let chatContexts = this._getChatContexts(chatId);
+        const injectionEntry = {
+          toolId,
+          content: String(content),
+          updatedAt: Date.now(),
+          sourceMessageId: options.sourceMessageId || null,
+          options: mergedOptions
+        };
+        if (mergedOptions.overwrite || !chatContexts[toolId]) {
+          chatContexts[toolId] = injectionEntry;
+        } else {
+          chatContexts[toolId] = {
+            ...injectionEntry,
+            content: (chatContexts[toolId]?.content || "") + "\n\n" + content
+          };
+        }
+        this._saveChatContexts(chatId, chatContexts);
+        eventBus.emit(EVENTS.TOOL_CONTEXT_INJECTED, {
+          toolId,
+          chatId,
+          content: injectionEntry.content,
+          options: mergedOptions
+        });
+        this._log(`\u6CE8\u5165\u6210\u529F: ${toolId} -> ${chatId}`);
+        return true;
+      }
+      /**
+       * 获取聚合的注入上下文
+       * @param {string} chatId - 聊天ID（可选，默认当前聊天）
+       * @returns {string} 聚合后的上下文文本
+       */
+      getAggregatedContext(chatId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId)
+          return "";
+        const chatContexts = this._getChatContexts(actualChatId);
+        const entries = Object.entries(chatContexts);
+        if (entries.length === 0)
+          return "";
+        const lines = ["[\u5DE5\u5177\u4E0A\u4E0B\u6587\u6CE8\u5165]", ""];
+        for (const [toolId, entry] of entries) {
+          lines.push(`[${toolId}]`);
+          lines.push(entry.content || "");
+          lines.push("");
+        }
+        return lines.join("\n");
+      }
+      /**
+       * 获取单个工具的注入上下文
+       * @param {string} chatId - 聊天ID
+       * @param {string} toolId - 工具ID
+       * @returns {Object|null} 注入条目
+       */
+      getToolContext(chatId, toolId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId || !toolId)
+          return null;
+        const chatContexts = this._getChatContexts(actualChatId);
+        return chatContexts[toolId] || null;
+      }
+      /**
+       * 获取聊天下所有工具上下文
+       * @param {string} chatId - 聊天ID
+       * @returns {Object} 工具上下文对象
+       */
+      getAllToolContexts(chatId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId)
+          return {};
+        return this._getChatContexts(actualChatId);
+      }
+      // ============================================================
+      // 清除方法
+      // ============================================================
+      /**
+       * 清除单个工具的上下文
+       * @param {string} chatId - 聊天ID
+       * @param {string} toolId - 工具ID
+       * @returns {boolean} 是否成功
+       */
+      clearToolContext(chatId, toolId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId || !toolId)
+          return false;
+        const chatContexts = this._getChatContexts(actualChatId);
+        if (chatContexts[toolId]) {
+          delete chatContexts[toolId];
+          this._saveChatContexts(actualChatId, chatContexts);
+          eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, toolId });
+          this._log(`\u6E05\u9664\u5DE5\u5177\u4E0A\u4E0B\u6587: ${toolId}`);
+          return true;
+        }
+        return false;
+      }
+      /**
+       * 清除聊天的所有工具上下文
+       * @param {string} chatId - 聊天ID
+       * @returns {boolean} 是否成功
+       */
+      clearAllContext(chatId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId)
+          return false;
+        const allContexts = this._getAllContexts();
+        delete allContexts[actualChatId];
+        storage.set(CONTEXT_INJECTION_KEY, allContexts);
+        this._cache.delete(actualChatId);
+        eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, allTools: true });
+        this._log(`\u6E05\u9664\u804A\u5929\u6240\u6709\u4E0A\u4E0B\u6587: ${actualChatId}`);
+        return true;
+      }
+      /**
+       * 清除所有聊天的所有上下文
+       */
+      clearAllChatsContexts() {
+        storage.remove(CONTEXT_INJECTION_KEY);
+        this._cache.clear();
+        this._log("\u6E05\u9664\u6240\u6709\u4E0A\u4E0B\u6587");
+      }
+      // ============================================================
+      // 状态查询
+      // ============================================================
+      /**
+       * 检查工具是否有注入上下文
+       * @param {string} chatId - 聊天ID
+       * @param {string} toolId - 工具ID
+       * @returns {boolean}
+       */
+      hasToolContext(chatId, toolId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId || !toolId)
+          return false;
+        const chatContexts = this._getChatContexts(actualChatId);
+        return !!chatContexts[toolId];
+      }
+      /**
+       * 获取聊天的工具注入状态摘要
+       * @param {string} chatId - 聊天ID
+       * @returns {Object} 状态摘要
+       */
+      getContextSummary(chatId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId)
+          return { tools: [], totalCount: 0 };
+        const chatContexts = this._getChatContexts(actualChatId);
+        const tools = Object.entries(chatContexts).map(([toolId, entry]) => ({
+          toolId,
+          updatedAt: entry.updatedAt,
+          contentLength: entry.content?.length || 0
+        }));
+        return {
+          chatId: actualChatId,
+          tools,
+          totalCount: tools.length
+        };
+      }
+      // ============================================================
+      // 导入导出
+      // ============================================================
+      /**
+       * 导出聊天的上下文数据
+       * @param {string} chatId - 聊天ID
+       * @returns {Object} 上下文数据
+       */
+      exportContext(chatId) {
+        const actualChatId = chatId || this._getCurrentChatId();
+        if (!actualChatId)
+          return {};
+        return {
+          chatId: actualChatId,
+          contexts: this._getChatContexts(actualChatId),
+          exportedAt: Date.now()
+        };
+      }
+      /**
+       * 导入上下文数据
+       * @param {Object} data - 导出的数据
+       * @param {Object} options - 导入选项
+       * @returns {boolean} 是否成功
+       */
+      importContext(data, options = {}) {
+        if (!data || !data.chatId || !data.contexts) {
+          return false;
+        }
+        const { overwrite = false } = options;
+        if (overwrite) {
+          this._saveChatContexts(data.chatId, data.contexts);
+        } else {
+          const existing = this._getChatContexts(data.chatId);
+          const merged = { ...existing, ...data.contexts };
+          this._saveChatContexts(data.chatId, merged);
+        }
+        this._log(`\u5BFC\u5165\u4E0A\u4E0B\u6587: ${data.chatId}`);
+        return true;
+      }
+      // ============================================================
+      // 私有方法
+      // ============================================================
+      /**
+       * 获取存储键
+       * @private
+       */
+      _getStorageKey(chatId) {
+        return `${CONTEXT_INJECTION_KEY}:${chatId}`;
+      }
+      /**
+       * 获取当前聊天ID
+       * @private
+       */
+      _getCurrentChatId() {
+        try {
+          const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
+          if (topWindow.SillyTavern?.getContext) {
+            const context = topWindow.SillyTavern.getContext();
+            return context.chatId || context.chat_filename || `chat_${Date.now()}`;
+          }
+          return `chat_${Date.now()}`;
+        } catch (e) {
+          return `chat_${Date.now()}`;
+        }
+      }
+      /**
+       * 获取所有上下文数据
+       * @private
+       */
+      _getAllContexts() {
+        return storage.get(CONTEXT_INJECTION_KEY, {});
+      }
+      /**
+       * 获取聊天的工具上下文
+       * @private
+       */
+      _getChatContexts(chatId) {
+        if (this._cache.has(chatId)) {
+          return this._cache.get(chatId);
+        }
+        const allContexts = this._getAllContexts();
+        const chatContexts = allContexts[chatId] || {};
+        this._cache.set(chatId, chatContexts);
+        return chatContexts;
+      }
+      /**
+       * 保存聊天的工具上下文
+       * @private
+       */
+      _saveChatContexts(chatId, contexts) {
+        const allContexts = this._getAllContexts();
+        allContexts[chatId] = contexts;
+        storage.set(CONTEXT_INJECTION_KEY, allContexts);
+        this._cache.set(chatId, contexts);
+      }
+      /**
+       * 日志输出
+       * @private
+       */
+      _log(...args) {
+        if (this.debugMode) {
+          console.log("[ContextInjector]", ...args);
+        }
+      }
+    };
+    contextInjector = new ContextInjector();
+    context_injector_default = contextInjector;
+  }
+});
+
+// modules/tool-prompt-service.js
+var tool_prompt_service_exports = {};
+__export(tool_prompt_service_exports, {
+  DEFAULT_PROMPT_TEMPLATE: () => DEFAULT_PROMPT_TEMPLATE,
+  ToolPromptService: () => ToolPromptService,
+  default: () => tool_prompt_service_default,
+  toolPromptService: () => toolPromptService
+});
+var DEFAULT_PROMPT_TEMPLATE, ToolPromptService, toolPromptService, tool_prompt_service_default;
+var init_tool_prompt_service = __esm({
+  "modules/tool-prompt-service.js"() {
+    init_event_bus();
+    init_bypass_manager();
+    DEFAULT_PROMPT_TEMPLATE = `\u8BF7\u5904\u7406\u4EE5\u4E0BAI\u56DE\u590D\u5185\u5BB9\uFF1A`;
+    ToolPromptService = class {
+      constructor() {
+        this.debugMode = false;
+      }
+      // ============================================================
+      // 核心方法
+      // ============================================================
+      /**
+       * 构建工具消息数组
+       * @param {Object} toolConfig - 工具配置对象
+       * @param {Object} context - 执行上下文，包含 lastAiMessage 等
+       * @returns {Array} OpenAI格式的消息数组
+       */
+      buildToolMessages(toolConfig, context) {
+        if (!toolConfig) {
+          this._log("\u6784\u5EFA\u5931\u8D25: \u5DE5\u5177\u914D\u7F6E\u4E3A\u7A7A");
+          return [];
+        }
+        const messages = [];
+        const bypassMessages = this._getBypassMessages(toolConfig);
+        if (bypassMessages && bypassMessages.length > 0) {
+          for (const msg of bypassMessages) {
+            if (msg.enabled !== false) {
+              messages.push({
+                role: this._normalizeRole(msg.role),
+                content: msg.content || ""
+              });
+            }
+          }
+        }
+        const promptTemplate = this._getPromptTemplate(toolConfig);
+        const userContent = this._buildUserContent(promptTemplate, context);
+        if (userContent.trim()) {
+          messages.push({
+            role: "user",
+            content: userContent
+          });
+        }
+        this._log(`\u6784\u5EFA\u6D88\u606F: ${messages.length} \u6761`);
+        return messages;
+      }
+      /**
+       * 构建提示词文本（用于显示或调试）
+       * @param {Object} toolConfig - 工具配置
+       * @param {Object} context - 执行上下文
+       * @returns {string} 提示词文本
+       */
+      buildPromptText(toolConfig, context) {
+        const promptTemplate = this._getPromptTemplate(toolConfig);
+        return this._buildUserContent(promptTemplate, context);
+      }
+      /**
+       * 获取工具的提示词模板
+       * @param {Object} toolConfig - 工具配置
+       * @returns {string} 提示词模板
+       */
+      getToolPromptTemplate(toolConfig) {
+        return this._getPromptTemplate(toolConfig);
+      }
+      // ============================================================
+      // 私有方法
+      // ============================================================
+      /**
+       * 获取工具的提示词模板
+       * @private
+       */
+      _getPromptTemplate(toolConfig) {
+        if (toolConfig.promptTemplate && typeof toolConfig.promptTemplate === "string") {
+          return toolConfig.promptTemplate;
+        }
+        return DEFAULT_PROMPT_TEMPLATE;
+      }
+      /**
+       * 获取破限词消息
+       * @private
+       */
+      _getBypassMessages(toolConfig) {
+        if (!toolConfig.bypass?.enabled) {
+          return [];
+        }
+        return bypassManager.buildBypassMessages(toolConfig);
+      }
+      /**
+       * 构建用户消息内容
+       * @private
+       */
+      _buildUserContent(promptTemplate, context) {
+        const parts = [];
+        const lastAiMessage = context?.lastAiMessage || context?.input?.lastAiMessage || "";
+        if (promptTemplate && promptTemplate.trim()) {
+          parts.push(promptTemplate.trim());
+        }
+        if (lastAiMessage) {
+          parts.push(`
+\u4EE5\u4E0B\u662F\u9700\u8981\u5904\u7406\u7684AI\u56DE\u590D\u5185\u5BB9\uFF1A
+${lastAiMessage}`);
+        }
+        return parts.join("\n");
+      }
+      /**
+       * 标准化角色名称
+       * @private
+       */
+      _normalizeRole(role) {
+        if (!role)
+          return "user";
+        const normalized = String(role).toLowerCase();
+        switch (normalized) {
+          case "system":
+            return "system";
+          case "assistant":
+            return "assistant";
+          case "user":
+          default:
+            return "user";
+        }
+      }
+      /**
+       * 日志输出
+       * @private
+       */
+      _log(...args) {
+        if (this.debugMode) {
+          console.log("[ToolPromptService]", ...args);
+        }
+      }
+      // ============================================================
+      // 调试方法
+      // ============================================================
+      /**
+       * 设置调试模式
+       * @param {boolean} enabled
+       */
+      setDebugMode(enabled) {
+        this.debugMode = enabled;
+      }
+    };
+    toolPromptService = new ToolPromptService();
+    tool_prompt_service_default = toolPromptService;
+  }
+});
+
+// modules/tool-output-service.js
+var tool_output_service_exports = {};
+__export(tool_output_service_exports, {
+  LEGACY_OUTPUT_MODES: () => LEGACY_OUTPUT_MODES,
+  OUTPUT_MODES: () => OUTPUT_MODES,
+  TOOL_RUNTIME_STATUS: () => TOOL_RUNTIME_STATUS,
+  ToolOutputService: () => ToolOutputService,
+  default: () => tool_output_service_default,
+  toolOutputService: () => toolOutputService
+});
+var OUTPUT_MODES, LEGACY_OUTPUT_MODES, TOOL_RUNTIME_STATUS, ToolOutputService, toolOutputService, tool_output_service_default;
+var init_tool_output_service = __esm({
+  "modules/tool-output-service.js"() {
+    init_event_bus();
+    init_settings_service();
+    init_context_injector();
+    init_tool_prompt_service();
+    OUTPUT_MODES = {
+      FOLLOW_AI: "follow_ai",
+      // 随AI输出（不执行额外解析链）
+      POST_RESPONSE_API: "post_response_api"
+      // 额外AI模型解析
+    };
+    LEGACY_OUTPUT_MODES = {
+      inline: "follow_ai"
+      // 旧 inline 映射到新 follow_ai
+    };
+    TOOL_RUNTIME_STATUS = {
+      IDLE: "idle",
+      RUNNING: "running",
+      SUCCESS: "success",
+      ERROR: "error"
+    };
+    ToolOutputService = class {
+      constructor() {
+        this.debugMode = false;
+        this._apiConnection = null;
+      }
+      // ============================================================
+      // 核心方法
+      // ============================================================
+      /**
+       * 检查工具是否应该运行 post_response_api 模式
+       * @param {Object} toolConfig - 工具配置
+       * @returns {boolean}
+       */
+      shouldRunPostResponse(toolConfig) {
+        if (!toolConfig)
+          return false;
+        if (!toolConfig.enabled)
+          return false;
+        if (!toolConfig.trigger?.enabled)
+          return false;
+        if (!toolConfig.output?.enabled)
+          return false;
+        return toolConfig.output?.mode === OUTPUT_MODES.POST_RESPONSE_API;
+      }
+      /**
+       * 检查工具是否应该运行 follow_ai 模式
+       * @param {Object} toolConfig - 工具配置
+       * @returns {boolean}
+       */
+      shouldRunFollowAi(toolConfig) {
+        if (!toolConfig)
+          return false;
+        if (!toolConfig.enabled)
+          return false;
+        if (!toolConfig.trigger?.enabled)
+          return false;
+        if (!toolConfig.output?.enabled)
+          return false;
+        const mode = toolConfig.output?.mode;
+        return mode === OUTPUT_MODES.FOLLOW_AI || mode === "inline";
+      }
+      /**
+       * 检查工具是否应该运行 inline 模式（兼容旧方法名）
+       * @deprecated 使用 shouldRunFollowAi 替代
+       * @param {Object} toolConfig - 工具配置
+       * @returns {boolean}
+       */
+      shouldRunInline(toolConfig) {
+        return this.shouldRunFollowAi(toolConfig);
+      }
+      /**
+       * 执行工具的 post_response_api 输出
+       * @param {Object} toolConfig - 工具配置
+       * @param {Object} rawContext - 原始上下文
+       * @returns {Promise<Object>} 执行结果
+       */
+      async runToolPostResponse(toolConfig, rawContext) {
+        const startTime = Date.now();
+        const toolId = toolConfig.id;
+        this._log(`\u5F00\u59CB\u6267\u884C\u5DE5\u5177: ${toolId}`);
+        eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, {
+          toolId,
+          mode: OUTPUT_MODES.POST_RESPONSE_API
+        });
+        try {
+          const messages = await this._buildToolMessages(toolConfig, rawContext);
+          if (!messages || messages.length === 0) {
+            throw new Error("\u65E0\u6CD5\u6784\u5EFA\u6709\u6548\u7684\u6D88\u606F");
+          }
+          this._log(`\u6784\u5EFA\u4E86 ${messages.length} \u6761\u6D88\u606F`);
+          const apiPreset = toolConfig.output?.apiPreset;
+          const timeoutMs = await this._getRequestTimeout();
+          const result = await this._sendApiRequest(apiPreset, messages, {
+            timeoutMs,
+            signal: rawContext.signal
+          });
+          const outputContent = this._extractOutputContent(result, toolConfig);
+          if (outputContent) {
+            await contextInjector.inject(toolId, outputContent, {
+              chatId: rawContext.chatId,
+              overwrite: toolConfig.output?.overwrite !== false,
+              sourceMessageId: rawContext.messageId || ""
+            });
+          }
+          const duration = Date.now() - startTime;
+          eventBus.emit(EVENTS.TOOL_EXECUTED, {
+            toolId,
+            success: true,
+            duration,
+            mode: OUTPUT_MODES.POST_RESPONSE_API
+          });
+          this._log(`\u5DE5\u5177\u6267\u884C\u6210\u529F: ${toolId}, \u8017\u65F6 ${duration}ms`);
+          return {
+            success: true,
+            toolId,
+            output: outputContent,
+            duration
+          };
+        } catch (error) {
+          const duration = Date.now() - startTime;
+          this._log(`\u5DE5\u5177\u6267\u884C\u5931\u8D25: ${toolId}`, error);
+          eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, {
+            toolId,
+            error: error.message || String(error),
+            duration
+          });
+          return {
+            success: false,
+            toolId,
+            error: error.message || String(error),
+            duration
+          };
+        }
+      }
+      /**
+       * 执行工具的 inline 输出
+       * @param {Object} toolConfig - 工具配置
+       * @param {Object} rawContext - 原始上下文
+       * @returns {Promise<Object>}
+       */
+      async runToolInline(toolConfig, rawContext) {
+        const startTime = Date.now();
+        const toolId = toolConfig.id;
+        try {
+          const messages = await this._buildToolMessages(toolConfig, rawContext);
+          return {
+            success: true,
+            toolId,
+            messages,
+            duration: Date.now() - startTime
+          };
+        } catch (error) {
+          return {
+            success: false,
+            toolId,
+            error: error.message || String(error),
+            duration: Date.now() - startTime
+          };
+        }
+      }
+      // ============================================================
+      // 消息构建
+      // ============================================================
+      /**
+       * 构建工具消息
+       * @private
+       */
+      async _buildToolMessages(toolConfig, rawContext) {
+        const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
+        const fullContext = {
+          ...rawContext,
+          injectedContext,
+          toolName: toolConfig.name,
+          toolId: toolConfig.id
+        };
+        return toolPromptService.buildToolMessages(toolConfig, fullContext);
+      }
+      /**
+       * 标准化角色名称
+       * @private
+       */
+      _normalizeRole(role) {
+        if (!role)
+          return "user";
+        const r = String(role).toLowerCase();
+        if (r === "system")
+          return "system";
+        if (r === "assistant")
+          return "assistant";
+        return "user";
+      }
+      // ============================================================
+      // API请求
+      // ============================================================
+      /**
+       * 设置API连接模块
+       * @param {Object} apiConnection
+       */
+      setApiConnection(apiConnection) {
+        this._apiConnection = apiConnection;
+      }
+      /**
+       * 发送API请求
+       * @private
+       */
+      async _sendApiRequest(presetName, messages, options = {}) {
+        if (!this._apiConnection) {
+          throw new Error("API\u8FDE\u63A5\u6A21\u5757\u672A\u914D\u7F6E");
+        }
+        const { timeoutMs = 9e4, signal } = options;
+        if (presetName && this._apiConnection.sendWithPreset) {
+          return await this._apiConnection.sendWithPreset(presetName, messages, {
+            timeoutMs
+          }, signal);
+        }
+        if (this._apiConnection.sendApiRequest) {
+          return await this._apiConnection.sendApiRequest(messages, {
+            timeoutMs
+          }, signal);
+        }
+        throw new Error("\u6CA1\u6709\u53EF\u7528\u7684API\u53D1\u9001\u65B9\u6CD5");
+      }
+      /**
+       * 获取请求超时时间
+       * @private
+       */
+      async _getRequestTimeout() {
+        const settings = settingsService.getSettings();
+        return settings.executor?.requestTimeoutMs || 9e4;
+      }
+      // ============================================================
+      // 输出处理
+      // ============================================================
+      /**
+       * 从API响应中提取输出内容
+       * @private
+       */
+      _extractOutputContent(response, toolConfig) {
+        if (!response)
+          return "";
+        if (typeof response === "string") {
+          return response;
+        }
+        if (typeof response === "object") {
+          if (response.choices && response.choices[0]?.message?.content) {
+            return response.choices[0].message.content;
+          }
+          if (response.content) {
+            return response.content;
+          }
+          if (response.text) {
+            return response.text;
+          }
+          if (response.message) {
+            return response.message;
+          }
+          try {
+            return JSON.stringify(response, null, 2);
+          } catch (e) {
+            return String(response);
+          }
+        }
+        return String(response);
+      }
+      // ============================================================
+      // 工具配置过滤
+      // ============================================================
+      /**
+       * 过滤出应该运行的 post_response_api 工具
+       * @param {Array} toolConfigs - 工具配置列表
+       * @returns {Array} 需要运行的工具
+       */
+      filterPostResponseTools(toolConfigs) {
+        if (!Array.isArray(toolConfigs))
+          return [];
+        return toolConfigs.filter((config) => this.shouldRunPostResponse(config));
+      }
+      /**
+       * 过滤出应该运行的 inline 工具
+       * @param {Array} toolConfigs - 工具配置列表
+       * @returns {Array} 需要运行的工具
+       */
+      filterInlineTools(toolConfigs) {
+        if (!Array.isArray(toolConfigs))
+          return [];
+        return toolConfigs.filter((config) => this.shouldRunInline(config));
+      }
+      // ============================================================
+      // 日志
+      // ============================================================
+      /**
+       * 设置调试模式
+       * @param {boolean} enabled
+       */
+      setDebugMode(enabled) {
+        this.debugMode = enabled;
+      }
+      /**
+       * 日志输出
+       * @private
+       */
+      _log(...args) {
+        if (this.debugMode) {
+          console.log("[ToolOutputService]", ...args);
+        }
+      }
+    };
+    toolOutputService = new ToolOutputService();
+    tool_output_service_default = toolOutputService;
+  }
+});
+
+// modules/tool-trigger.js
+var tool_trigger_exports = {};
+__export(tool_trigger_exports, {
+  EVENT_TYPES: () => EVENT_TYPES,
+  checkGate: () => checkGate,
+  destroyToolTriggerManager: () => destroyToolTriggerManager,
+  getChatContext: () => getChatContext,
+  getCurrentCharacter: () => getCurrentCharacter,
+  getFullContext: () => getFullContext,
+  getToolTriggerManagerState: () => getToolTriggerManagerState,
+  getWorldbookContent: () => getWorldbookContent,
+  initToolTriggerManager: () => initToolTriggerManager,
+  initTriggerModule: () => initTriggerModule,
+  registerEventListener: () => registerEventListener,
+  registerTriggerHandler: () => registerTriggerHandler,
+  removeAllListeners: () => removeAllListeners,
+  removeAllTriggerHandlers: () => removeAllTriggerHandlers,
+  resetGateState: () => resetGateState,
+  runToolManually: () => runToolManually,
+  setDebugMode: () => setDebugMode,
+  setTriggerHandlerEnabled: () => setTriggerHandlerEnabled,
+  triggerState: () => triggerState,
+  unregisterEventListener: () => unregisterEventListener,
+  updateGateState: () => updateGateState
+});
+function getTopWindow() {
+  return typeof window.parent !== "undefined" ? window.parent : window;
+}
+function getSillyTavernAPI() {
+  const topWindow = getTopWindow();
+  return topWindow.SillyTavern || null;
+}
+function getEventSource() {
+  const topWindow = getTopWindow();
+  const api = topWindow.SillyTavern;
+  if (api && api.eventSource) {
+    return api.eventSource;
+  }
+  return null;
+}
+function getEventTypes() {
+  const topWindow = getTopWindow();
+  const api = topWindow.SillyTavern;
+  if (api && api.eventTypes) {
+    return api.eventTypes;
+  }
+  return EVENT_TYPES;
+}
+function log(...args) {
+  if (triggerState.debugMode) {
+    console.log("[YouYouToolkit:Trigger]", ...args);
+  }
+}
+function registerEventListener(eventType, callback, options = {}) {
+  if (!eventType || typeof callback !== "function") {
+    log("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u56DE\u8C03\u51FD\u6570");
+    return () => {
+    };
+  }
+  const { once = false, priority = 0 } = options;
+  const eventSource = getEventSource();
+  const eventTypes = getEventTypes();
+  const stEventType = eventTypes[eventType] || eventType;
+  const wrappedCallback = async (...args) => {
+    try {
+      if (options.gateCheck && !await checkGate(options.gateCheck)) {
+        log(`\u95E8\u63A7\u68C0\u67E5\u5931\u8D25\uFF0C\u8DF3\u8FC7\u4E8B\u4EF6: ${eventType}`);
+        return;
+      }
+      await callback(...args);
+      if (once) {
+        unregisterEventListener(eventType, wrappedCallback);
+      }
+    } catch (error) {
+      console.error(`[YouYouToolkit:Trigger] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF:`, error);
+    }
+  };
+  if (!triggerState.listeners.has(eventType)) {
+    triggerState.listeners.set(eventType, /* @__PURE__ */ new Set());
+  }
+  triggerState.listeners.get(eventType).add(wrappedCallback);
+  if (eventSource && typeof eventSource.on === "function") {
+    eventSource.on(stEventType, wrappedCallback);
+    log(`\u5DF2\u6CE8\u518C\u4E8B\u4EF6\u76D1\u542C\u5668: ${eventType}`);
+  } else {
+    const topWindow = getTopWindow();
+    if (topWindow.addEventListener) {
+      topWindow.addEventListener(stEventType, wrappedCallback);
+      log(`\u5DF2\u6CE8\u518CDOM\u4E8B\u4EF6\u76D1\u542C\u5668: ${eventType}`);
+    }
+  }
+  return () => unregisterEventListener(eventType, wrappedCallback);
+}
+function unregisterEventListener(eventType, callback) {
+  const listeners = triggerState.listeners.get(eventType);
+  if (listeners && listeners.has(callback)) {
+    listeners.delete(callback);
+    const eventSource = getEventSource();
+    const eventTypes = getEventTypes();
+    const stEventType = eventTypes[eventType] || eventType;
+    if (eventSource && typeof eventSource.off === "function") {
+      eventSource.off(stEventType, callback);
+      log(`\u5DF2\u53D6\u6D88\u4E8B\u4EF6\u76D1\u542C\u5668: ${eventType}`);
+    } else {
+      const topWindow = getTopWindow();
+      if (topWindow.removeEventListener) {
+        topWindow.removeEventListener(stEventType, callback);
+      }
+    }
+  }
+}
+function removeAllListeners() {
+  const eventSource = getEventSource();
+  const eventTypes = getEventTypes();
+  for (const [eventType, listeners] of triggerState.listeners) {
+    const stEventType = eventTypes[eventType] || eventType;
+    for (const callback of listeners) {
+      if (eventSource && typeof eventSource.off === "function") {
+        eventSource.off(stEventType, callback);
+      } else {
+        const topWindow = getTopWindow();
+        if (topWindow.removeEventListener) {
+          topWindow.removeEventListener(stEventType, callback);
+        }
+      }
+    }
+  }
+  triggerState.listeners.clear();
+  log("\u5DF2\u79FB\u9664\u6240\u6709\u4E8B\u4EF6\u76D1\u542C\u5668");
+}
+async function checkGate(condition) {
+  if (!condition)
+    return true;
+  const now = Date.now();
+  const gate = triggerState.gateState;
+  if (condition.minInterval && gate.lastGenerationAt) {
+    if (now - gate.lastGenerationAt < condition.minInterval) {
+      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u77ED");
+      return false;
+    }
+  }
+  if (condition.maxInterval && gate.lastUserMessageAt) {
+    if (now - gate.lastUserMessageAt > condition.maxInterval) {
+      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u957F");
+      return false;
+    }
+  }
+  if (condition.requireUserMessage) {
+    if (!gate.lastUserMessageId) {
+      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u7F3A\u5C11\u7528\u6237\u6D88\u606F");
+      return false;
+    }
+  }
+  if (condition.excludeQuietGeneration) {
+    if (gate.lastGenerationType === "quiet") {
+      log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: quiet\u751F\u6210\u88AB\u6392\u9664");
+      return false;
+    }
+  }
+  if (condition.customCheck && typeof condition.customCheck === "function") {
+    try {
+      const result = await condition.customCheck(gate);
+      if (!result) {
+        log("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u81EA\u5B9A\u4E49\u68C0\u67E5\u8FD4\u56DEfalse");
+        return false;
+      }
+    } catch (error) {
+      console.error("[YouYouToolkit:Trigger] \u81EA\u5B9A\u4E49\u95E8\u63A7\u68C0\u67E5\u9519\u8BEF:", error);
+      return false;
+    }
+  }
+  return true;
+}
+function updateGateState(update) {
+  Object.assign(triggerState.gateState, update);
+}
+function resetGateState() {
+  triggerState.gateState = {
+    lastUserMessageId: null,
+    lastUserMessageText: "",
+    lastUserMessageAt: 0,
+    lastGenerationType: null,
+    lastGenerationAt: 0,
+    isGenerating: false
+  };
+}
+async function getChatContext(options = {}) {
+  const {
+    depth = 3,
+    includeUser = true,
+    includeAssistant = true,
+    includeSystem = false,
+    format = "messages"
+    // 'messages' | 'text'
+  } = options;
+  const api = getSillyTavernAPI();
+  if (!api) {
+    log("\u65E0\u6CD5\u83B7\u53D6SillyTavern API");
+    return null;
+  }
+  try {
+    const chat = api.chat || [];
+    const messages = [];
+    const startIndex = Math.max(0, chat.length - depth);
+    for (let i = startIndex; i < chat.length; i++) {
+      const msg = chat[i];
+      if (!msg)
+        continue;
+      if (msg.is_user && !includeUser)
+        continue;
+      if (!msg.is_user && msg.is_system && !includeSystem)
+        continue;
+      if (!msg.is_user && !msg.is_system && !includeAssistant)
+        continue;
+      if (format === "messages") {
+        messages.push({
+          role: msg.is_user ? "user" : msg.is_system ? "system" : "assistant",
+          content: msg.mes || "",
+          name: msg.name || "",
+          timestamp: msg.send_date
+        });
+      } else {
+        messages.push(msg.mes || "");
+      }
+    }
+    return {
+      messages,
+      totalMessages: chat.length,
+      startIndex,
+      endIndex: chat.length - 1
+    };
+  } catch (error) {
+    console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u804A\u5929\u4E0A\u4E0B\u6587\u5931\u8D25:", error);
+    return null;
+  }
+}
+async function getCurrentCharacter() {
+  const api = getSillyTavernAPI();
+  if (!api)
+    return null;
+  try {
+    const charId = api.this_chid;
+    const characters = api.characters || [];
+    if (charId >= 0 && charId < characters.length) {
+      const char = characters[charId];
+      return {
+        id: charId,
+        name: char.name || "",
+        description: char.description || "",
+        personality: char.personality || "",
+        scenario: char.scenario || "",
+        firstMes: char.first_mes || "",
+        mesExample: char.mes_example || ""
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u89D2\u8272\u4FE1\u606F\u5931\u8D25:", error);
+    return null;
+  }
+}
+async function getWorldbookContent(options = {}) {
+  const {
+    enabledOnly = true,
+    maxLength = 1e4
+  } = options;
+  const api = getSillyTavernAPI();
+  if (!api)
+    return "";
+  try {
+    const lorebook = api.lorebook || [];
+    const entries = lorebook.entries || [];
+    const contents = [];
+    let totalLength = 0;
+    for (const entry of entries) {
+      if (enabledOnly && !entry.enabled)
+        continue;
+      const content = entry.content || "";
+      if (content && totalLength + content.length <= maxLength) {
+        contents.push(content);
+        totalLength += content.length;
+      }
+    }
+    return contents.join("\n\n");
+  } catch (error) {
+    console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u4E16\u754C\u4E66\u5185\u5BB9\u5931\u8D25:", error);
+    return "";
+  }
+}
+async function getFullContext(options = {}) {
+  const [chatContext, character, worldbook] = await Promise.all([
+    getChatContext(options.chat || {}),
+    getCurrentCharacter(),
+    getWorldbookContent(options.worldbook || {})
+  ]);
+  return {
+    chat: chatContext,
+    character,
+    worldbook,
+    timestamp: Date.now()
+  };
+}
+function registerTriggerHandler(handlerId, config) {
+  if (!handlerId || !config) {
+    log("\u65E0\u6548\u7684\u5904\u7406\u5668ID\u6216\u914D\u7F6E");
+    return () => {
+    };
+  }
+  const {
+    eventType,
+    handler,
+    gateCondition,
+    priority = 0
+  } = config;
+  if (!eventType || typeof handler !== "function") {
+    log("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u5904\u7406\u5668\u51FD\u6570");
+    return () => {
+    };
+  }
+  triggerState.handlers.set(handlerId, {
+    eventType,
+    handler,
+    gateCondition,
+    priority,
+    enabled: true
+  });
+  const unregister = registerEventListener(eventType, async (...args) => {
+    const handlerConfig = triggerState.handlers.get(handlerId);
+    if (!handlerConfig || !handlerConfig.enabled)
+      return;
+    if (handlerConfig.gateCondition) {
+      const passed = await checkGate(handlerConfig.gateCondition);
+      if (!passed)
+        return;
+    }
+    await handlerConfig.handler(...args);
+  }, { priority });
+  log(`\u5DF2\u6CE8\u518C\u89E6\u53D1\u5904\u7406\u5668: ${handlerId}`);
+  return () => {
+    unregister();
+    triggerState.handlers.delete(handlerId);
+    log(`\u5DF2\u53D6\u6D88\u89E6\u53D1\u5904\u7406\u5668: ${handlerId}`);
+  };
+}
+function setTriggerHandlerEnabled(handlerId, enabled) {
+  const config = triggerState.handlers.get(handlerId);
+  if (config) {
+    config.enabled = enabled;
+    log(`\u89E6\u53D1\u5904\u7406\u5668 ${handlerId} \u5DF2${enabled ? "\u542F\u7528" : "\u7981\u7528"}`);
+  }
+}
+function removeAllTriggerHandlers() {
+  triggerState.handlers.clear();
+  log("\u5DF2\u79FB\u9664\u6240\u6709\u89E6\u53D1\u5904\u7406\u5668");
+}
+function initToolTriggerManager() {
+  if (toolTriggerManagerState.initialized) {
+    log("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316");
+    return;
+  }
+  registerGenerationEndedListener();
+  toolTriggerManagerState.initialized = true;
+  log("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316");
+  eventBus.emit(EVENTS.TOOL_TRIGGER_INITIALIZED);
+}
+function registerGenerationEndedListener() {
+  const eventType = EVENT_TYPES.GENERATION_ENDED;
+  const listener = registerEventListener(eventType, async (data) => {
+    log("GENERATION_ENDED\u89E6\u53D1:", data);
+    const context = await buildToolExecutionContext(data);
+    const toolsToExecute = getToolsToExecute(eventType);
+    if (toolsToExecute.length === 0) {
+      log("\u6CA1\u6709\u9700\u8981\u6267\u884C\u7684\u5DE5\u5177");
+      return;
+    }
+    log(`\u9700\u8981\u6267\u884C ${toolsToExecute.length} \u4E2A\u5DE5\u5177:`, toolsToExecute.map((t) => t.id));
+    showTopNotice("info", `\u68C0\u6D4B\u5230 AI \u56DE\u590D\uFF0C\u5F00\u59CB\u81EA\u52A8\u6267\u884C ${toolsToExecute.length} \u4E2A\u5DE5\u5177`, {
+      duration: 2400,
+      noticeId: "yyt-tool-batch-start"
+    });
+    for (const tool of toolsToExecute) {
+      try {
+        const result = await executeTriggeredTool(tool, context);
+        if (result.success) {
+          log(`\u5DE5\u5177 ${tool.id} \u6267\u884C\u6210\u529F`);
+          eventBus.emit(EVENTS.TOOL_EXECUTED, {
+            toolId: tool.id,
+            result: result.result || result.data || result
+          });
+        } else {
+          log(`\u5DE5\u5177 ${tool.id} \u6267\u884C\u5931\u8D25:`, result.error);
+        }
+      } catch (error) {
+        console.error(`[ToolTrigger] \u5DE5\u5177\u6267\u884C\u5931\u8D25: ${tool.id}`, error);
+      }
+    }
+    toolTriggerManagerState.lastExecutionContext = context;
+  });
+  toolTriggerManagerState.listeners.set(eventType, listener);
+}
+async function buildToolExecutionContext(eventData) {
+  const chat = await getChatContext({ depth: 5 });
+  const character = await getCurrentCharacter();
+  const api = getSillyTavernAPI();
+  const stContext = api?.getContext?.() || null;
+  const messages = chat?.messages || [];
+  const lastUserMessage = messages.filter((m) => m.role === "user").pop();
+  const lastAiMessage = messages.filter((m) => m.role === "assistant").pop();
+  return {
+    triggeredAt: Date.now(),
+    triggerEvent: eventData?.triggerEvent || "GENERATION_ENDED",
+    chatId: stContext?.chatId || stContext?.chat_id || stContext?.chat_filename || "",
+    messageId: eventData?.messageId || eventData?.id || "",
+    lastAiMessage: lastAiMessage?.content || "",
+    userMessage: lastUserMessage?.content || "",
+    input: {
+      userMessage: lastUserMessage?.content || "",
+      lastAiMessage: lastAiMessage?.content || "",
+      extractedContent: "",
+      previousToolOutput: "",
+      context: {
+        character: character?.name || "",
+        chatLength: chat?.totalMessages || 0
+      }
+    },
+    config: {},
+    status: "pending"
+  };
+}
+function getToolsToExecute(eventType) {
+  const tools = getToolsForEvent(eventType);
+  return tools.filter((tool) => toolOutputService.shouldRunPostResponse(tool));
+}
+function updateRuntime(toolId, runtimePartial) {
+  try {
+    updateToolRuntime(toolId, runtimePartial);
+  } catch (error) {
+    console.warn("[ToolTrigger] \u66F4\u65B0\u5DE5\u5177\u8FD0\u884C\u65F6\u72B6\u6001\u5931\u8D25:", toolId, error);
+  }
+}
+async function executeTriggeredTool(tool, context) {
+  const startedAt = Date.now();
+  const toolId = tool.id;
+  const isManual = context?.triggerEvent === "MANUAL";
+  const noticeId = `yyt-tool-run-${toolId}`;
+  updateRuntime(toolId, {
+    lastStatus: "running",
+    lastError: "",
+    lastDurationMs: 0
+  });
+  eventBus.emit(EVENTS.TOOL_EXECUTION_REQUESTED, {
+    toolId,
+    triggerEvent: context?.triggerEvent || "GENERATION_ENDED",
+    context
+  });
+  showTopNotice("info", `${isManual ? "\u6B63\u5728\u624B\u52A8\u6267\u884C" : "\u5DF2\u68C0\u6D4B\u5230 AI \u56DE\u590D\uFF0C\u6B63\u5728\u81EA\u52A8\u6267\u884C"} ${tool.name}`, {
+    sticky: true,
+    noticeId
+  });
+  try {
+    let result;
+    if (tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API) {
+      result = await toolOutputService.runToolPostResponse(tool, context);
+    } else {
+      result = await executeToolWithConfig(toolId, context);
+    }
+    const duration = Date.now() - startedAt;
+    if (result?.success) {
+      const config2 = getToolFullConfig(toolId);
+      updateRuntime(toolId, {
+        lastStatus: "success",
+        lastError: "",
+        lastDurationMs: duration,
+        successCount: (config2?.runtime?.successCount || 0) + 1
+      });
+      const message = isManual ? `${tool.name} \u624B\u52A8\u6267\u884C\u5B8C\u6210` : `\u5DF2\u76D1\u542C AI \u56DE\u590D\u5E76\u6267\u884C ${tool.name}`;
+      showToast("success", message);
+      showTopNotice("success", message, {
+        duration: 3200,
+        noticeId
+      });
+      return { success: true, duration, result };
+    }
+    const config = getToolFullConfig(toolId);
+    const errorMessage = result?.error || "\u5DE5\u5177\u6267\u884C\u5931\u8D25";
+    updateRuntime(toolId, {
+      lastStatus: "error",
+      lastError: errorMessage,
+      lastDurationMs: duration,
+      errorCount: (config?.runtime?.errorCount || 0) + 1
+    });
+    showToast("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`);
+    showTopNotice("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`, {
+      sticky: true,
+      noticeId
+    });
+    return { success: false, duration, error: errorMessage, result };
+  } catch (error) {
+    const duration = Date.now() - startedAt;
+    const config = getToolFullConfig(toolId);
+    const errorMessage = error?.message || String(error);
+    updateRuntime(toolId, {
+      lastStatus: "error",
+      lastError: errorMessage,
+      lastDurationMs: duration,
+      errorCount: (config?.runtime?.errorCount || 0) + 1
+    });
+    showToast("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`);
+    showTopNotice("error", `${tool.name} \u6267\u884C\u5931\u8D25\uFF1A${errorMessage}`, {
+      sticky: true,
+      noticeId
+    });
+    throw error;
+  }
+}
+async function runToolManually(toolId) {
+  if (!toolId) {
+    return { success: false, error: "\u7F3A\u5C11\u5DE5\u5177ID" };
+  }
+  const tool = getToolFullConfig(toolId);
+  if (!tool) {
+    return { success: false, error: "\u5DE5\u5177\u4E0D\u5B58\u5728" };
+  }
+  if (!tool.enabled) {
+    showTopNotice("warning", `${tool.name} \u672A\u542F\u7528\uFF0C\u65E0\u6CD5\u624B\u52A8\u6267\u884C`, {
+      duration: 2800,
+      noticeId: `yyt-tool-run-${toolId}`
+    });
+    return { success: false, error: "\u5DE5\u5177\u672A\u542F\u7528" };
+  }
+  if (!toolOutputService.shouldRunPostResponse(tool)) {
+    showTopNotice("warning", `${tool.name} \u5F53\u524D\u4E3A\u201C\u968F AI \u8F93\u51FA\u201D\uFF0C\u4E0D\u4F1A\u6267\u884C\u989D\u5916\u89E3\u6790`, {
+      duration: 3200,
+      noticeId: `yyt-tool-run-${toolId}`
+    });
+    return { success: false, error: "\u5F53\u524D\u8F93\u51FA\u6A21\u5F0F\u4E0D\u6267\u884C\u989D\u5916\u89E3\u6790" };
+  }
+  const context = await buildToolExecutionContext({ triggerEvent: "MANUAL" });
+  return executeTriggeredTool(tool, context);
+}
+function destroyToolTriggerManager() {
+  for (const [eventType, listener] of toolTriggerManagerState.listeners) {
+    unregisterEventListener(eventType, listener);
+  }
+  toolTriggerManagerState.listeners.clear();
+  toolTriggerManagerState.initialized = false;
+  toolTriggerManagerState.lastExecutionContext = null;
+  log("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u9500\u6BC1");
+}
+function getToolTriggerManagerState() {
+  return {
+    initialized: toolTriggerManagerState.initialized,
+    listenersCount: toolTriggerManagerState.listeners.size,
+    lastExecutionContext: toolTriggerManagerState.lastExecutionContext
+  };
+}
+async function initTriggerModule() {
+  if (triggerState.isInitialized) {
+    log("\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316");
+    return;
+  }
+  const api = getSillyTavernAPI();
+  if (!api) {
+    log("\u65E0\u6CD5\u83B7\u53D6SillyTavern API\uFF0C\u5EF6\u8FDF\u521D\u59CB\u5316");
+    setTimeout(initTriggerModule, 1e3);
+    return;
+  }
+  const eventTypes = getEventTypes();
+  if (eventTypes.MESSAGE_SENT) {
+    registerEventListener(eventTypes.MESSAGE_SENT, (messageId) => {
+      updateGateState({
+        lastUserMessageId: messageId,
+        lastUserMessageAt: Date.now()
+      });
+      log(`\u7528\u6237\u6D88\u606F\u5DF2\u53D1\u9001: ${messageId}`);
+    });
+  }
+  if (eventTypes.GENERATION_STARTED) {
+    registerEventListener(eventTypes.GENERATION_STARTED, (type, params) => {
+      updateGateState({
+        lastGenerationType: type,
+        isGenerating: true
+      });
+      log(`\u751F\u6210\u5F00\u59CB: ${type}`);
+    });
+  }
+  if (eventTypes.GENERATION_ENDED) {
+    registerEventListener(eventTypes.GENERATION_ENDED, () => {
+      updateGateState({
+        lastGenerationAt: Date.now(),
+        isGenerating: false
+      });
+      log("\u751F\u6210\u7ED3\u675F");
+    });
+  }
+  initToolTriggerManager();
+  triggerState.isInitialized = true;
+  log("\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210");
+}
+function setDebugMode(enabled) {
+  triggerState.debugMode = enabled;
+}
+var EVENT_TYPES, triggerState, toolTriggerManagerState;
+var init_tool_trigger = __esm({
+  "modules/tool-trigger.js"() {
+    init_event_bus();
+    init_tool_registry();
+    init_tool_executor();
+    init_tool_output_service();
+    init_utils();
+    EVENT_TYPES = {
+      // 消息相关
+      MESSAGE_RECEIVED: "MESSAGE_RECEIVED",
+      MESSAGE_SENT: "MESSAGE_SENT",
+      MESSAGE_UPDATED: "MESSAGE_UPDATED",
+      MESSAGE_DELETED: "MESSAGE_DELETED",
+      // 生成相关
+      GENERATION_STARTED: "GENERATION_STARTED",
+      GENERATION_ENDED: "GENERATION_ENDED",
+      GENERATION_AFTER_COMMANDS: "GENERATION_AFTER_COMMANDS",
+      // 角色相关
+      CHARACTER_LOADED: "CHARACTER_LOADED",
+      CHARACTER_DELETED: "CHARACTER_DELETED",
+      // 聊天相关
+      CHAT_CHANGED: "CHAT_CHANGED",
+      CHAT_CREATED: "CHAT_CREATED",
+      // 世界书相关
+      WORLDBOOK_UPDATED: "WORLDBOOK_UPDATED",
+      // 扩展相关
+      EXTENSIONS_LOADED: "EXTENSIONS_LOADED",
+      SETTINGS_LOADED: "SETTINGS_LOADED"
+    };
+    triggerState = {
+      // 已注册的监听器
+      listeners: /* @__PURE__ */ new Map(),
+      // eventType -> Set<listener>
+      // 事件处理器映射
+      handlers: /* @__PURE__ */ new Map(),
+      // handlerId -> handlerConfig
+      // 门控状态
+      gateState: {
+        lastUserMessageId: null,
+        lastUserMessageText: "",
+        lastUserMessageAt: 0,
+        lastGenerationType: null,
+        lastGenerationAt: 0,
+        isGenerating: false
+      },
+      // 是否已初始化
+      isInitialized: false,
+      // 调试模式
+      debugMode: false
+    };
+    toolTriggerManagerState = {
+      initialized: false,
+      listeners: /* @__PURE__ */ new Map(),
+      lastExecutionContext: null
+    };
+  }
+});
+
+// modules/ui/components/summary-tool-panel.js
+var SummaryToolPanel;
+var init_summary_tool_panel = __esm({
+  "modules/ui/components/summary-tool-panel.js"() {
+    init_event_bus();
+    init_utils();
+    init_tool_registry();
+    init_preset_manager();
+    init_bypass_manager();
+    init_tool_trigger();
+    SummaryToolPanel = {
+      id: "summaryToolPanel",
+      toolId: "summaryTool",
+      render() {
+        const config = getToolFullConfig(this.toolId);
+        if (!config) {
+          return `<div class="yyt-error">\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</div>`;
+        }
+        const apiPresets = this._getApiPresets();
+        const bypassPresets = this._getBypassPresets();
+        const outputMode = config.output?.mode || "follow_ai";
+        const bypassEnabled = config.bypass?.enabled || false;
+        const bypassPresetId = config.bypass?.presetId || "";
+        const runtimeStatus = config.runtime?.lastStatus || "idle";
+        const lastRunText = config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : "\u672A\u8FD0\u884C";
+        const lastError = config.runtime?.lastError || "";
+        const modeText = outputMode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u8FDB\u884C\u6458\u8981\u89E3\u6790\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
+        return `
       <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
-        <!-- \u57FA\u7840\u914D\u7F6E -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
-            <i class="fa-solid fa-cog"></i>
-            <span>\u57FA\u7840\u914D\u7F6E</span>
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>\u8F93\u51FA\u6A21\u5F0F</span>
           </div>
-          
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-enabled" ${t.enabled?"checked":""}>
-              <span>\u542F\u7528\u5DE5\u5177</span>
-            </label>
-          </div>
-          
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-auto-trigger" ${t.trigger?.enabled?"checked":""}>
-              <span>\u81EA\u52A8\u89E6\u53D1\uFF08GENERATION_ENDED\uFF09</span>
-            </label>
-          </div>
-        </div>
-        
-        <!-- \u8F93\u51FA\u914D\u7F6E -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-output"></i>
-            <span>\u8F93\u51FA\u914D\u7F6E</span>
-          </div>
-          
           <div class="yyt-form-group">
             <label>\u8F93\u51FA\u6A21\u5F0F</label>
-            <select class="yyt-select" id="${l}-tool-output-mode">
-              <option value="follow_ai" ${n==="follow_ai"?"selected":""}>
-                \u968F AI \u8F93\u51FA
-              </option>
-              <option value="post_response_api" ${n==="post_response_api"?"selected":""}>
-                \u989D\u5916 AI \u6A21\u578B\u89E3\u6790
-              </option>
+            <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
+              <option value="follow_ai" ${outputMode === "follow_ai" ? "selected" : ""}>\u968F AI \u8F93\u51FA\uFF08\u4E0D\u542F\u7528\uFF09</option>
+              <option value="post_response_api" ${outputMode === "post_response_api" ? "selected" : ""}>\u989D\u5916 AI \u6A21\u578B\u89E3\u6790</option>
             </select>
-            <div class="yyt-help-text yyt-inline-help">
-              <small>\u968F AI \u8F93\u51FA\uFF1A\u4E0D\u6267\u884C\u989D\u5916\u89E3\u6790\u94FE</small><br>
-              <small>\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\uFF1A\u56DE\u590D\u540E\u8C03\u7528\u989D\u5916\u6A21\u578B\u5904\u7406</small>
-            </div>
-          </div>
-          
-          <div class="yyt-form-group yyt-output-extra ${n==="post_response_api"?"":"yyt-hidden"}">
-            <label>API \u9884\u8BBE</label>
-            <select class="yyt-select" id="${l}-tool-api-preset">
-              <option value="">\u4F7F\u7528\u5F53\u524DAPI\u914D\u7F6E</option>
-              ${s.map(a=>`<option value="${m(a.name)}" ${a.name===t.output?.apiPreset?"selected":""}>
-                  ${m(a.name)}
-                </option>`).join("")}
-            </select>
-          </div>
-          
-          <div class="yyt-form-group yyt-output-extra ${n==="post_response_api"?"":"yyt-hidden"}">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-overwrite" ${t.output?.overwrite!==!1?"checked":""}>
-              <span>\u8986\u76D6\u65E7\u6CE8\u5165\u7ED3\u679C</span>
-            </label>
+            <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}</div>
           </div>
         </div>
-        
-        <!-- \u7834\u9650\u8BCD\u7ED1\u5B9A -->
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-database"></i>
+            <span>API \u9884\u8BBE</span>
+          </div>
+          <div class="yyt-form-group">
+            <label>\u89E3\u6790\u4F7F\u7528\u7684 API \u9884\u8BBE</label>
+            <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
+              <option value="">\u4F7F\u7528\u5F53\u524DAPI\u914D\u7F6E</option>
+              ${apiPresets.map((preset) => `
+                <option value="${escapeHtml(preset.name)}" ${preset.name === config.output?.apiPreset ? "selected" : ""}>
+                  ${escapeHtml(preset.name)}
+                </option>
+              `).join("")}
+            </select>
+            <div class="yyt-tool-compact-hint">\u4EC5\u5728\u201C\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\u201D\u6A21\u5F0F\u4E0B\u751F\u6548\u3002</div>
+          </div>
+        </div>
+
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-shield-halved"></i>
-            <span>\u7834\u9650\u8BCD\u7ED1\u5B9A</span>
+            <span>\u7834\u9650\u9884\u8BBE</span>
           </div>
-          
           <div class="yyt-form-group">
             <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-bypass-enabled" ${r?"checked":""}>
+              <input type="checkbox" id="${SCRIPT_ID}-tool-bypass-enabled" ${bypassEnabled ? "checked" : ""}>
               <span>\u542F\u7528\u7834\u9650\u8BCD</span>
             </label>
           </div>
-          
-          <div class="yyt-form-group yyt-bypass-preset-select ${r?"":"yyt-hidden"}">
-            <label>\u7834\u9650\u8BCD\u9884\u8BBE</label>
-            <select class="yyt-select" id="${l}-tool-bypass-preset">
+          <div class="yyt-form-group yyt-bypass-preset-select ${bypassEnabled ? "" : "yyt-hidden"}">
+            <label>\u7ED1\u5B9A\u7834\u9650\u8BCD\u9884\u8BBE</label>
+            <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
               <option value="">\u9009\u62E9\u9884\u8BBE</option>
-              ${o.map(a=>`<option value="${m(a.id)}" ${a.id===i?"selected":""}>
-                  ${m(a.name)}${a.isDefault?" [\u9ED8\u8BA4]":""}
-                </option>`).join("")}
+              ${bypassPresets.map((preset) => `
+                <option value="${escapeHtml(preset.id)}" ${preset.id === bypassPresetId ? "selected" : ""}>
+                  ${escapeHtml(preset.name)}${preset.isDefault ? " [\u9ED8\u8BA4]" : ""}
+                </option>
+              `).join("")}
             </select>
           </div>
         </div>
-        
-        <!-- \u63D0\u793A\u8BCD\u6A21\u677F\u7F16\u8F91\u533A -->
+
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-file-code"></i>
-            <span>\u63D0\u793A\u8BCD\u6A21\u677F</span>
+            <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
             <div class="yyt-title-actions">
-              <button class="yyt-btn yyt-btn-small" id="${l}-tool-reset-template">
+              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset-template">
                 <i class="fa-solid fa-undo"></i> \u91CD\u7F6E\u6A21\u677F
               </button>
             </div>
           </div>
-          
           <div class="yyt-form-group">
-            <textarea class="yyt-textarea yyt-code-textarea" 
-                      id="${l}-tool-prompt-template" 
-                      rows="12" 
-                      placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u6A21\u677F...">${m(t.promptTemplate||"")}</textarea>
+            <textarea class="yyt-textarea yyt-code-textarea"
+                      id="${SCRIPT_ID}-tool-prompt-template"
+                      rows="12"
+                      placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u6A21\u677F...">${escapeHtml(config.promptTemplate || "")}</textarea>
+            <div class="yyt-tool-compact-hint">\u8FD9\u91CC\u76F4\u63A5\u586B\u5199\u53D1\u9001\u7ED9\u989D\u5916\u89E3\u6790\u6A21\u578B\u7684\u5B8C\u6574\u6A21\u677F\u3002</div>
           </div>
         </div>
-        
-        <!-- \u8C03\u8BD5\u4FE1\u606F\uFF08\u53EF\u6298\u53E0\uFF09 -->
-        <div class="yyt-panel-section yyt-collapsible">
-          <div class="yyt-section-title yyt-collapsible-header">
-            <i class="fa-solid fa-bug"></i>
-            <span>\u8C03\u8BD5\u4FE1\u606F</span>
-            <i class="fa-solid fa-chevron-down yyt-collapse-icon"></i>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <span>\u624B\u52A8\u64CD\u4F5C\u533A</span>
           </div>
-          <div class="yyt-collapsible-content">
-            <div class="yyt-debug-info">
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">\u8FD0\u884C\u72B6\u6001:</span>
-                <span class="yyt-debug-value" id="${l}-tool-runtime-status">${t.runtime?.lastStatus||"idle"}</span>
+          <div class="yyt-tool-manual-area">
+            <div class="yyt-tool-runtime-card">
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">\u5F53\u524D\u72B6\u6001</span>
+                <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtimeStatus)}</span>
               </div>
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">\u6700\u8FD1\u8FD0\u884C:</span>
-                <span class="yyt-debug-value" id="${l}-tool-runtime-last">${t.runtime?.lastRunAt?new Date(t.runtime.lastRunAt).toLocaleString():"\u672A\u8FD0\u884C"}</span>
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">\u6700\u8FD1\u8FD0\u884C</span>
+                <span class="yyt-tool-runtime-value">${escapeHtml(lastRunText)}</span>
               </div>
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">\u6210\u529F/\u5931\u8D25:</span>
-                <span class="yyt-debug-value" id="${l}-tool-runtime-counts">${t.runtime?.successCount||0} / ${t.runtime?.errorCount||0}</span>
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">\u6210\u529F / \u5931\u8D25</span>
+                <span class="yyt-tool-runtime-value">${config.runtime?.successCount || 0} / ${config.runtime?.errorCount || 0}</span>
               </div>
-              ${t.runtime?.lastError?`
-              <div class="yyt-debug-row yyt-debug-error">
-                <span class="yyt-debug-label">\u6700\u8FD1\u9519\u8BEF:</span>
-                <span class="yyt-debug-value">${m(t.runtime.lastError)}</span>
-              </div>
-              `:""}
+              ${lastError ? `
+                <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
+                  <span class="yyt-tool-runtime-label">\u6700\u8FD1\u9519\u8BEF</span>
+                  <span class="yyt-tool-runtime-value">${escapeHtml(lastError)}</span>
+                </div>
+              ` : ""}
+            </div>
+            <div class="yyt-tool-manual-actions">
+              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
+                <i class="fa-solid fa-play"></i> \u7ACB\u5373\u6267\u884C\u4E00\u6B21
+              </button>
+              <div class="yyt-tool-compact-hint">\u7528\u4E8E\u624B\u52A8\u9A8C\u8BC1\u5F53\u524D\u6A21\u677F\u3001API\u9884\u8BBE\u548C\u7834\u9650\u9884\u8BBE\u662F\u5426\u80FD\u6B63\u5E38\u5DE5\u4F5C\u3002</div>
             </div>
           </div>
         </div>
-        
-        <!-- \u64CD\u4F5C\u6309\u94AE -->
-        <div class="yyt-panel-footer">
-          <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-tool-reset">
-              <i class="fa-solid fa-undo"></i> \u91CD\u7F6E\u914D\u7F6E
-            </button>
-          </div>
+
+        <div class="yyt-panel-footer yyt-panel-footer-end">
           <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-primary" id="${l}-tool-save">
+            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-save">
               <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
-            </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-tool-copy-template">
-              <i class="fa-solid fa-copy"></i> \u590D\u5236\u6A21\u677F
             </button>
           </div>
         </div>
       </div>
-    `},_getApiPresets(){try{return ut()||[]}catch{return[]}},_getBypassPresets(){try{return ue()||[]}catch{return[]}},_getFormData(e,t){let s=e.find(`#${l}-tool-auto-trigger`).is(":checked"),o=e.find(`#${l}-tool-output-mode`).val()||"follow_ai",n=e.find(`#${l}-tool-bypass-enabled`).is(":checked");return{enabled:e.find(`#${l}-tool-enabled`).is(":checked"),promptTemplate:e.find(`#${l}-tool-prompt-template`).val()||"",trigger:{event:"GENERATION_ENDED",enabled:s},output:{mode:o,apiPreset:e.find(`#${l}-tool-api-preset`).val()||"",overwrite:e.find(`#${l}-tool-overwrite`).is(":checked"),enabled:!0},bypass:{enabled:n,presetId:n&&e.find(`#${l}-tool-bypass-preset`).val()||""}}},_refreshUI(e,t){let s=R(this.toolId);if(!s)return;let o=s.output?.mode||"follow_ai",n=s.bypass?.enabled||!1;e.find(`#${l}-tool-enabled`).prop("checked",s.enabled),e.find(`#${l}-tool-auto-trigger`).prop("checked",s.trigger?.enabled),e.find(`#${l}-tool-output-mode`).val(o),e.find(`#${l}-tool-api-preset`).val(s.output?.apiPreset||""),e.find(`#${l}-tool-overwrite`).prop("checked",s.output?.overwrite!==!1),e.find(".yyt-output-extra").toggleClass("yyt-hidden",o!=="post_response_api"),e.find(`#${l}-tool-bypass-enabled`).prop("checked",n),e.find(`#${l}-tool-bypass-preset`).val(s.bypass?.presetId||""),e.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden",!n),e.find(`#${l}-tool-prompt-template`).val(s.promptTemplate||"")},bindEvents(e,t){let s=w();if(!s||!S(e))return;let o=this;e.find(`#${l}-tool-output-mode`).on("change",n=>{let r=s(n.target).val();e.find(".yyt-output-extra").toggleClass("yyt-hidden",r!=="post_response_api")}),e.find(`#${l}-tool-bypass-enabled`).on("change",n=>{let r=s(n.target).is(":checked");e.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden",!r)}),e.find(".yyt-collapsible-header").on("click",n=>{s(n.currentTarget).closest(".yyt-collapsible").toggleClass("yyt-collapsed")}),e.find(`#${l}-tool-save`).on("click",()=>{this._saveConfig(e,s)}),e.find(`#${l}-tool-reset`).on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u914D\u7F6E\u5417\uFF1F")&&(Bt(this.toolId),this.renderTo(e),d("info","\u5DF2\u91CD\u7F6E"))}),e.find(`#${l}-tool-reset-template`).on("click",()=>{let r=Yt()[this.toolId];r&&r.promptTemplate&&(e.find(`#${l}-tool-prompt-template`).val(r.promptTemplate),d("info","\u6A21\u677F\u5DF2\u91CD\u7F6E"))}),e.find(`#${l}-tool-copy-template`).on("click",async()=>{let n=e.find(`#${l}-tool-prompt-template`).val();if(!n){d("warning","\u6A21\u677F\u5185\u5BB9\u4E3A\u7A7A");return}try{await navigator.clipboard.writeText(n),d("success","\u6A21\u677F\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F")}catch{d("error","\u590D\u5236\u5931\u8D25")}})},_saveConfig(e,t){let s=this._getFormData(e,t);X(this.toolId,s)?(d("success","\u914D\u7F6E\u5DF2\u4FDD\u5B58"),f.emit(g.TOOL_UPDATED,{toolId:this.toolId,config:s})):d("error","\u4FDD\u5B58\u5931\u8D25")},destroy(e){!w()||!S(e)||e.find("*").off()},getStyles(){return`
-      /* \u5DE5\u5177\u9762\u677F\u6837\u5F0F - v0.6 \u7B80\u5316\u7248 */
+    `;
+      },
+      _getApiPresets() {
+        try {
+          return getAllPresets() || [];
+        } catch (error) {
+          return [];
+        }
+      },
+      _getBypassPresets() {
+        try {
+          return getPresetList() || [];
+        } catch (error) {
+          return [];
+        }
+      },
+      _getFormData($container2) {
+        const currentConfig = getToolFullConfig(this.toolId);
+        const outputMode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
+        const bypassEnabled = $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(":checked");
+        const postResponseEnabled = outputMode === "post_response_api";
+        return {
+          enabled: true,
+          promptTemplate: $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || "",
+          extractTags: currentConfig?.extractTags || [],
+          trigger: {
+            event: "GENERATION_ENDED",
+            enabled: postResponseEnabled
+          },
+          output: {
+            mode: outputMode,
+            apiPreset: $container2.find(`#${SCRIPT_ID}-tool-api-preset`).val() || "",
+            overwrite: true,
+            enabled: postResponseEnabled
+          },
+          bypass: {
+            enabled: bypassEnabled,
+            presetId: bypassEnabled ? $container2.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || "" : ""
+          }
+        };
+      },
+      bindEvents($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find(`#${SCRIPT_ID}-tool-output-mode`).on("change", () => {
+          const mode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
+          const modeText = mode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u8FDB\u884C\u6458\u8981\u89E3\u6790\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
+          $container2.find(".yyt-tool-mode-hint").text(modeText);
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on("change", (event) => {
+          const enabled = $(event.currentTarget).is(":checked");
+          $container2.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden", !enabled);
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-save`).on("click", () => {
+          this._saveConfig($container2, { silent: false });
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-reset-template`).on("click", () => {
+          const defaultConfigs = getAllDefaultToolConfigs();
+          const defaultConfig = defaultConfigs[this.toolId];
+          if (defaultConfig?.promptTemplate) {
+            $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val(defaultConfig.promptTemplate);
+            showToast("info", "\u6A21\u677F\u5DF2\u91CD\u7F6E");
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-run-manual`).on("click", async () => {
+          const saveSuccess = this._saveConfig($container2, { silent: true });
+          if (!saveSuccess) {
+            return;
+          }
+          try {
+            const result = await runToolManually(this.toolId);
+            if (!result?.success && result?.error) {
+              showTopNotice("warning", result.error, {
+                duration: 3200,
+                noticeId: `yyt-tool-run-${this.toolId}`
+              });
+            }
+          } catch (error) {
+            showToast("error", error?.message || "\u624B\u52A8\u6267\u884C\u5931\u8D25");
+          } finally {
+            this.renderTo($container2);
+          }
+        });
+      },
+      _saveConfig($container2, options = {}) {
+        const config = this._getFormData($container2);
+        const { silent = false } = options;
+        const success = saveToolConfig(this.toolId, config);
+        if (success) {
+          if (!silent) {
+            showToast("success", "\u914D\u7F6E\u5DF2\u4FDD\u5B58");
+          }
+          eventBus.emit(EVENTS.TOOL_UPDATED, { toolId: this.toolId, config });
+        } else {
+          showToast("error", "\u4FDD\u5B58\u5931\u8D25");
+        }
+        return success;
+      },
+      destroy($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find("*").off();
+      },
+      getStyles() {
+        return `
       .yyt-tool-panel {
         display: flex;
         flex-direction: column;
         gap: 16px;
       }
-      
-      /* \u9690\u85CF\u5143\u7D20 */
+
+      .yyt-tool-compact-hint {
+        font-size: 12px;
+        color: var(--yyt-text-muted);
+        line-height: 1.6;
+      }
+
       .yyt-hidden {
         display: none !important;
       }
-      
-      /* \u4EE3\u7801\u6587\u672C\u6846 */
+
       .yyt-code-textarea {
         font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
         font-size: 13px;
@@ -1667,63 +8738,23 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         background: rgba(0, 0, 0, 0.2);
         border-color: rgba(255, 255, 255, 0.1);
         resize: vertical;
-        min-height: 200px;
+        min-height: 220px;
       }
-      
+
       .yyt-code-textarea:focus {
         border-color: var(--yyt-accent);
         box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
       }
-      
-      /* \u5185\u8054\u5E2E\u52A9\u6587\u672C */
-      .yyt-inline-help {
-        margin-top: 8px;
-        padding: 8px 12px;
-        font-size: 11px;
-        line-height: 1.6;
-      }
-      
-      .yyt-inline-help small {
-        color: var(--yyt-text-muted);
-      }
-      
-      /* \u5E2E\u52A9\u6587\u672C */
-      .yyt-help-text {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        line-height: 1.8;
-      }
-      
-      .yyt-help-text code {
-        background: rgba(123, 183, 255, 0.15);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 11px;
-        color: #7bb7ff;
-        margin: 0 2px;
-      }
-      
-      .yyt-help-text p {
-        margin: 0 0 8px 0;
-        font-weight: 500;
-        color: var(--yyt-text);
-      }
-      
-      /* \u6807\u9898\u64CD\u4F5C\u533A */
+
       .yyt-title-actions {
         margin-left: auto;
       }
-      
+
       .yyt-btn-small {
         padding: 4px 10px;
         font-size: 12px;
       }
-      
-      /* \u590D\u9009\u6846\u6807\u7B7E */
+
       .yyt-checkbox-label {
         display: flex;
         align-items: center;
@@ -1731,33 +8762,89 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         cursor: pointer;
         user-select: none;
       }
-      
+
       .yyt-checkbox-label input[type="checkbox"] {
         width: 16px;
         height: 16px;
         cursor: pointer;
       }
-      
-      .yyt-checkbox-label:hover {
-        color: var(--yyt-text);
+
+      .yyt-tool-manual-area {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: start;
       }
-      
-      /* \u9762\u677F\u5E95\u90E8 */
-      .yyt-panel-footer {
+
+      .yyt-tool-runtime-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: var(--yyt-radius-sm);
+      }
+
+      .yyt-tool-runtime-line {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding-top: 16px;
-        border-top: 1px solid var(--yyt-border);
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 12px;
       }
-      
-      .yyt-footer-left,
-      .yyt-footer-right {
+
+      .yyt-tool-runtime-label {
+        color: var(--yyt-text-muted);
+        flex-shrink: 0;
+      }
+
+      .yyt-tool-runtime-value {
+        color: var(--yyt-text);
+        text-align: right;
+        word-break: break-word;
+      }
+
+      .yyt-tool-runtime-badge {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+
+      .yyt-status-idle {
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .yyt-status-running {
+        color: var(--yyt-accent);
+        background: rgba(123, 183, 255, 0.12);
+      }
+
+      .yyt-status-success {
+        color: var(--yyt-success);
+        background: rgba(74, 222, 128, 0.12);
+      }
+
+      .yyt-status-error {
+        color: var(--yyt-danger);
+        background: rgba(255, 107, 107, 0.12);
+      }
+
+      .yyt-tool-runtime-error .yyt-tool-runtime-value {
+        color: var(--yyt-danger);
+      }
+
+      .yyt-tool-manual-actions {
         display: flex;
-        gap: 8px;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 180px;
       }
-      
-      /* \u9519\u8BEF\u63D0\u793A */
+
       .yyt-error {
         padding: 20px;
         text-align: center;
@@ -1766,244 +8853,302 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         border: 1px solid rgba(255, 107, 107, 0.3);
         border-radius: var(--yyt-radius-sm);
       }
-      
-      /* \u6298\u53E0\u9762\u677F */
-      .yyt-collapsible .yyt-collapsible-content {
-        overflow: hidden;
-        max-height: 500px;
-        transition: max-height 0.3s ease, opacity 0.3s ease;
-        opacity: 1;
+
+      .yyt-panel-footer-end {
+        justify-content: flex-end;
       }
-      
-      .yyt-collapsible.yyt-collapsed .yyt-collapsible-content {
-        max-height: 0;
-        opacity: 0;
+
+      @media screen and (max-width: 768px) {
+        .yyt-tool-manual-area {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-tool-manual-actions {
+          min-width: 0;
+        }
       }
-      
-      .yyt-collapsible-header {
-        cursor: pointer;
+    `;
+      },
+      renderTo($container2) {
+        $container2.html(this.render({}));
+        this.bindEvents($container2, {});
       }
-      
-      .yyt-collapsible-header .yyt-collapse-icon {
-        margin-left: auto;
-        transition: transform 0.3s ease;
-      }
-      
-      .yyt-collapsible.yyt-collapsed .yyt-collapse-icon {
-        transform: rotate(-90deg);
-      }
-      
-      /* \u8C03\u8BD5\u4FE1\u606F */
-      .yyt-debug-info {
-        padding: 12px;
-        background: rgba(0, 0, 0, 0.15);
-        border-radius: var(--yyt-radius-sm);
-      }
-      
-      .yyt-debug-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      }
-      
-      .yyt-debug-row:last-child {
-        border-bottom: none;
-      }
-      
-      .yyt-debug-label {
-        color: var(--yyt-text-muted);
-        font-size: 12px;
-      }
-      
-      .yyt-debug-value {
-        color: var(--yyt-text);
-        font-size: 12px;
-        font-family: 'Fira Code', monospace;
-      }
-      
-      .yyt-debug-error .yyt-debug-value {
-        color: var(--yyt-danger);
-      }
-    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var kt,ao=E(()=>{L();K();Gt();ie();Ht();kt={id:"statusBlockPanel",toolId:"statusBlock",render(e){let t=R(this.toolId);if(!t)return'<div class="yyt-error">\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</div>';let s=this._getApiPresets(),o=this._getBypassPresets(),n=t.output?.mode||"follow_ai",r=t.bypass?.enabled||!1,i=t.bypass?.presetId||"";return`
+    };
+  }
+});
+
+// modules/ui/components/status-block-panel.js
+var StatusBlockPanel;
+var init_status_block_panel = __esm({
+  "modules/ui/components/status-block-panel.js"() {
+    init_event_bus();
+    init_utils();
+    init_tool_registry();
+    init_preset_manager();
+    init_bypass_manager();
+    init_tool_trigger();
+    StatusBlockPanel = {
+      id: "statusBlockPanel",
+      toolId: "statusBlock",
+      render() {
+        const config = getToolFullConfig(this.toolId);
+        if (!config) {
+          return `<div class="yyt-error">\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</div>`;
+        }
+        const apiPresets = this._getApiPresets();
+        const bypassPresets = this._getBypassPresets();
+        const outputMode = config.output?.mode || "follow_ai";
+        const bypassEnabled = config.bypass?.enabled || false;
+        const bypassPresetId = config.bypass?.presetId || "";
+        const runtimeStatus = config.runtime?.lastStatus || "idle";
+        const lastRunText = config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : "\u672A\u8FD0\u884C";
+        const lastError = config.runtime?.lastError || "";
+        const modeText = outputMode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u680F\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
+        return `
       <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
-        <!-- \u57FA\u7840\u914D\u7F6E -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
-            <i class="fa-solid fa-cog"></i>
-            <span>\u57FA\u7840\u914D\u7F6E</span>
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>\u8F93\u51FA\u6A21\u5F0F</span>
           </div>
-          
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-enabled" ${t.enabled?"checked":""}>
-              <span>\u542F\u7528\u5DE5\u5177</span>
-            </label>
-          </div>
-          
-          <div class="yyt-form-group">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-auto-trigger" ${t.trigger?.enabled?"checked":""}>
-              <span>\u81EA\u52A8\u89E6\u53D1\uFF08GENERATION_ENDED\uFF09</span>
-            </label>
-          </div>
-          
-          <div class="yyt-form-group">
-            <label>\u63D0\u53D6\u6807\u7B7E\uFF08\u9017\u53F7\u5206\u9694\uFF09</label>
-            <input type="text" class="yyt-input" id="${l}-tool-extract-tags" 
-                   value="${m((t.extractTags||[]).join(", "))}" 
-                   placeholder="status_block">
-          </div>
-        </div>
-        
-        <!-- \u8F93\u51FA\u914D\u7F6E -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-output"></i>
-            <span>\u8F93\u51FA\u914D\u7F6E</span>
-          </div>
-          
           <div class="yyt-form-group">
             <label>\u8F93\u51FA\u6A21\u5F0F</label>
-            <select class="yyt-select" id="${l}-tool-output-mode">
-              <option value="follow_ai" ${n==="follow_ai"?"selected":""}>
-                \u968F AI \u8F93\u51FA
-              </option>
-              <option value="post_response_api" ${n==="post_response_api"?"selected":""}>
-                \u989D\u5916 AI \u6A21\u578B\u89E3\u6790
-              </option>
+            <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
+              <option value="follow_ai" ${outputMode === "follow_ai" ? "selected" : ""}>\u968F AI \u8F93\u51FA\uFF08\u4E0D\u542F\u7528\uFF09</option>
+              <option value="post_response_api" ${outputMode === "post_response_api" ? "selected" : ""}>\u989D\u5916 AI \u6A21\u578B\u89E3\u6790</option>
             </select>
-            <div class="yyt-help-text yyt-inline-help">
-              <small>\u968F AI \u8F93\u51FA\uFF1A\u4E0D\u6267\u884C\u989D\u5916\u89E3\u6790\u94FE</small><br>
-              <small>\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\uFF1A\u56DE\u590D\u540E\u8C03\u7528\u989D\u5916\u6A21\u578B\u5904\u7406</small>
-            </div>
-          </div>
-          
-          <div class="yyt-form-group yyt-output-extra ${n==="post_response_api"?"":"yyt-hidden"}">
-            <label>API \u9884\u8BBE</label>
-            <select class="yyt-select" id="${l}-tool-api-preset">
-              <option value="">\u4F7F\u7528\u5F53\u524DAPI\u914D\u7F6E</option>
-              ${s.map(a=>`<option value="${m(a.name)}" ${a.name===t.output?.apiPreset?"selected":""}>
-                  ${m(a.name)}
-                </option>`).join("")}
-            </select>
-          </div>
-          
-          <div class="yyt-form-group yyt-output-extra ${n==="post_response_api"?"":"yyt-hidden"}">
-            <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-overwrite" ${t.output?.overwrite!==!1?"checked":""}>
-              <span>\u8986\u76D6\u65E7\u6CE8\u5165\u7ED3\u679C</span>
-            </label>
+            <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}</div>
           </div>
         </div>
-        
-        <!-- \u7834\u9650\u8BCD\u7ED1\u5B9A -->
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-database"></i>
+            <span>API \u9884\u8BBE</span>
+          </div>
+          <div class="yyt-form-group">
+            <label>\u89E3\u6790\u4F7F\u7528\u7684 API \u9884\u8BBE</label>
+            <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
+              <option value="">\u4F7F\u7528\u5F53\u524DAPI\u914D\u7F6E</option>
+              ${apiPresets.map((preset) => `
+                <option value="${escapeHtml(preset.name)}" ${preset.name === config.output?.apiPreset ? "selected" : ""}>
+                  ${escapeHtml(preset.name)}
+                </option>
+              `).join("")}
+            </select>
+            <div class="yyt-tool-compact-hint">\u4EC5\u5728\u201C\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\u201D\u6A21\u5F0F\u4E0B\u751F\u6548\u3002</div>
+          </div>
+        </div>
+
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-shield-halved"></i>
-            <span>\u7834\u9650\u8BCD\u7ED1\u5B9A</span>
+            <span>\u7834\u9650\u9884\u8BBE</span>
           </div>
-          
           <div class="yyt-form-group">
             <label class="yyt-checkbox-label">
-              <input type="checkbox" id="${l}-tool-bypass-enabled" ${r?"checked":""}>
+              <input type="checkbox" id="${SCRIPT_ID}-tool-bypass-enabled" ${bypassEnabled ? "checked" : ""}>
               <span>\u542F\u7528\u7834\u9650\u8BCD</span>
             </label>
           </div>
-          
-          <div class="yyt-form-group yyt-bypass-preset-select ${r?"":"yyt-hidden"}">
-            <label>\u7834\u9650\u8BCD\u9884\u8BBE</label>
-            <select class="yyt-select" id="${l}-tool-bypass-preset">
+          <div class="yyt-form-group yyt-bypass-preset-select ${bypassEnabled ? "" : "yyt-hidden"}">
+            <label>\u7ED1\u5B9A\u7834\u9650\u8BCD\u9884\u8BBE</label>
+            <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
               <option value="">\u9009\u62E9\u9884\u8BBE</option>
-              ${o.map(a=>`<option value="${m(a.id)}" ${a.id===i?"selected":""}>
-                  ${m(a.name)}${a.isDefault?" [\u9ED8\u8BA4]":""}
-                </option>`).join("")}
+              ${bypassPresets.map((preset) => `
+                <option value="${escapeHtml(preset.id)}" ${preset.id === bypassPresetId ? "selected" : ""}>
+                  ${escapeHtml(preset.name)}${preset.isDefault ? " [\u9ED8\u8BA4]" : ""}
+                </option>
+              `).join("")}
             </select>
           </div>
         </div>
-        
-        <!-- \u63D0\u793A\u8BCD\u6A21\u677F\u7F16\u8F91\u533A -->
+
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-file-code"></i>
-            <span>\u63D0\u793A\u8BCD\u6A21\u677F</span>
+            <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
             <div class="yyt-title-actions">
-              <button class="yyt-btn yyt-btn-small" id="${l}-tool-reset-template">
+              <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset-template">
                 <i class="fa-solid fa-undo"></i> \u91CD\u7F6E\u6A21\u677F
               </button>
             </div>
           </div>
-          
           <div class="yyt-form-group">
-            <textarea class="yyt-textarea yyt-code-textarea" 
-                      id="${l}-tool-prompt-template" 
-                      rows="12" 
-                      placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u6A21\u677F...">${m(t.promptTemplate||"")}</textarea>
+            <textarea class="yyt-textarea yyt-code-textarea"
+                      id="${SCRIPT_ID}-tool-prompt-template"
+                      rows="12"
+                      placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u6A21\u677F...">${escapeHtml(config.promptTemplate || "")}</textarea>
+            <div class="yyt-tool-compact-hint">\u8FD9\u91CC\u76F4\u63A5\u586B\u5199\u53D1\u9001\u7ED9\u989D\u5916\u89E3\u6790\u6A21\u578B\u7684\u5B8C\u6574\u6A21\u677F\u3002</div>
           </div>
         </div>
-        
-        <!-- \u8C03\u8BD5\u4FE1\u606F\uFF08\u53EF\u6298\u53E0\uFF09 -->
-        <div class="yyt-panel-section yyt-collapsible">
-          <div class="yyt-section-title yyt-collapsible-header">
-            <i class="fa-solid fa-bug"></i>
-            <span>\u8C03\u8BD5\u4FE1\u606F</span>
-            <i class="fa-solid fa-chevron-down yyt-collapse-icon"></i>
+
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <span>\u624B\u52A8\u64CD\u4F5C\u533A</span>
           </div>
-          <div class="yyt-collapsible-content">
-            <div class="yyt-debug-info">
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">\u8FD0\u884C\u72B6\u6001:</span>
-                <span class="yyt-debug-value" id="${l}-tool-runtime-status">${t.runtime?.lastStatus||"idle"}</span>
+          <div class="yyt-tool-manual-area">
+            <div class="yyt-tool-runtime-card">
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">\u5F53\u524D\u72B6\u6001</span>
+                <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtimeStatus)}</span>
               </div>
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">\u6700\u8FD1\u8FD0\u884C:</span>
-                <span class="yyt-debug-value" id="${l}-tool-runtime-last">${t.runtime?.lastRunAt?new Date(t.runtime.lastRunAt).toLocaleString():"\u672A\u8FD0\u884C"}</span>
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">\u6700\u8FD1\u8FD0\u884C</span>
+                <span class="yyt-tool-runtime-value">${escapeHtml(lastRunText)}</span>
               </div>
-              <div class="yyt-debug-row">
-                <span class="yyt-debug-label">\u6210\u529F/\u5931\u8D25:</span>
-                <span class="yyt-debug-value" id="${l}-tool-runtime-counts">${t.runtime?.successCount||0} / ${t.runtime?.errorCount||0}</span>
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">\u6210\u529F / \u5931\u8D25</span>
+                <span class="yyt-tool-runtime-value">${config.runtime?.successCount || 0} / ${config.runtime?.errorCount || 0}</span>
               </div>
-              ${t.runtime?.lastError?`
-              <div class="yyt-debug-row yyt-debug-error">
-                <span class="yyt-debug-label">\u6700\u8FD1\u9519\u8BEF:</span>
-                <span class="yyt-debug-value">${m(t.runtime.lastError)}</span>
-              </div>
-              `:""}
+              ${lastError ? `
+                <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
+                  <span class="yyt-tool-runtime-label">\u6700\u8FD1\u9519\u8BEF</span>
+                  <span class="yyt-tool-runtime-value">${escapeHtml(lastError)}</span>
+                </div>
+              ` : ""}
+            </div>
+            <div class="yyt-tool-manual-actions">
+              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-run-manual">
+                <i class="fa-solid fa-play"></i> \u7ACB\u5373\u6267\u884C\u4E00\u6B21
+              </button>
+              <div class="yyt-tool-compact-hint">\u7528\u4E8E\u624B\u52A8\u9A8C\u8BC1\u5F53\u524D\u6A21\u677F\u3001API\u9884\u8BBE\u548C\u7834\u9650\u9884\u8BBE\u662F\u5426\u80FD\u6B63\u5E38\u5DE5\u4F5C\u3002</div>
             </div>
           </div>
         </div>
-        
-        <!-- \u64CD\u4F5C\u6309\u94AE -->
-        <div class="yyt-panel-footer">
-          <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-tool-reset">
-              <i class="fa-solid fa-undo"></i> \u91CD\u7F6E\u914D\u7F6E
-            </button>
-          </div>
+
+        <div class="yyt-panel-footer yyt-panel-footer-end">
           <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-primary" id="${l}-tool-save">
+            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-save">
               <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u914D\u7F6E
-            </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${l}-tool-copy-template">
-              <i class="fa-solid fa-copy"></i> \u590D\u5236\u6A21\u677F
             </button>
           </div>
         </div>
       </div>
-    `},_getApiPresets(){try{return ut()||[]}catch{return[]}},_getBypassPresets(){try{return ue()||[]}catch{return[]}},_getFormData(e,t){let s=e.find(`#${l}-tool-auto-trigger`).is(":checked"),o=e.find(`#${l}-tool-output-mode`).val()||"follow_ai",n=e.find(`#${l}-tool-bypass-enabled`).is(":checked");return{enabled:e.find(`#${l}-tool-enabled`).is(":checked"),promptTemplate:e.find(`#${l}-tool-prompt-template`).val()||"",extractTags:(e.find(`#${l}-tool-extract-tags`).val()||"").split(",").map(r=>r.trim()).filter(Boolean),trigger:{event:"GENERATION_ENDED",enabled:s},output:{mode:o,apiPreset:e.find(`#${l}-tool-api-preset`).val()||"",overwrite:e.find(`#${l}-tool-overwrite`).is(":checked"),enabled:!0},bypass:{enabled:n,presetId:n&&e.find(`#${l}-tool-bypass-preset`).val()||""}}},_refreshUI(e,t){let s=R(this.toolId);if(!s)return;let o=s.output?.mode||"follow_ai",n=s.bypass?.enabled||!1;e.find(`#${l}-tool-enabled`).prop("checked",s.enabled),e.find(`#${l}-tool-auto-trigger`).prop("checked",s.trigger?.enabled),e.find(`#${l}-tool-extract-tags`).val((s.extractTags||[]).join(", ")),e.find(`#${l}-tool-output-mode`).val(o),e.find(`#${l}-tool-api-preset`).val(s.output?.apiPreset||""),e.find(`#${l}-tool-overwrite`).prop("checked",s.output?.overwrite!==!1),e.find(".yyt-output-extra").toggleClass("yyt-hidden",o!=="post_response_api"),e.find(`#${l}-tool-bypass-enabled`).prop("checked",n),e.find(`#${l}-tool-bypass-preset`).val(s.bypass?.presetId||""),e.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden",!n),e.find(`#${l}-tool-prompt-template`).val(s.promptTemplate||"")},bindEvents(e,t){let s=w();if(!s||!S(e))return;let o=this;e.find(`#${l}-tool-output-mode`).on("change",n=>{let r=s(n.target).val();e.find(".yyt-output-extra").toggleClass("yyt-hidden",r!=="post_response_api")}),e.find(`#${l}-tool-bypass-enabled`).on("change",n=>{let r=s(n.target).is(":checked");e.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden",!r)}),e.find(".yyt-collapsible-header").on("click",n=>{s(n.currentTarget).closest(".yyt-collapsible").toggleClass("yyt-collapsed")}),e.find(`#${l}-tool-save`).on("click",()=>{this._saveConfig(e,s)}),e.find(`#${l}-tool-reset`).on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u914D\u7F6E\u5417\uFF1F")&&(Bt(this.toolId),this.renderTo(e),d("info","\u5DF2\u91CD\u7F6E"))}),e.find(`#${l}-tool-reset-template`).on("click",()=>{let r=Yt()[this.toolId];r&&r.promptTemplate&&(e.find(`#${l}-tool-prompt-template`).val(r.promptTemplate),d("info","\u6A21\u677F\u5DF2\u91CD\u7F6E"))}),e.find(`#${l}-tool-copy-template`).on("click",async()=>{let n=e.find(`#${l}-tool-prompt-template`).val();if(!n){d("warning","\u6A21\u677F\u5185\u5BB9\u4E3A\u7A7A");return}try{await navigator.clipboard.writeText(n),d("success","\u6A21\u677F\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F")}catch{d("error","\u590D\u5236\u5931\u8D25")}})},_saveConfig(e,t){let s=this._getFormData(e,t);X(this.toolId,s)?(d("success","\u914D\u7F6E\u5DF2\u4FDD\u5B58"),f.emit(g.TOOL_UPDATED,{toolId:this.toolId,config:s})):d("error","\u4FDD\u5B58\u5931\u8D25")},destroy(e){!w()||!S(e)||e.find("*").off()},getStyles(){return`
-      /* \u5DE5\u5177\u9762\u677F\u6837\u5F0F - v0.6 \u7B80\u5316\u7248 */
+    `;
+      },
+      _getApiPresets() {
+        try {
+          return getAllPresets() || [];
+        } catch (error) {
+          return [];
+        }
+      },
+      _getBypassPresets() {
+        try {
+          return getPresetList() || [];
+        } catch (error) {
+          return [];
+        }
+      },
+      _getFormData($container2) {
+        const currentConfig = getToolFullConfig(this.toolId);
+        const outputMode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
+        const bypassEnabled = $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(":checked");
+        const postResponseEnabled = outputMode === "post_response_api";
+        return {
+          enabled: true,
+          promptTemplate: $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || "",
+          extractTags: currentConfig?.extractTags || [],
+          trigger: {
+            event: "GENERATION_ENDED",
+            enabled: postResponseEnabled
+          },
+          output: {
+            mode: outputMode,
+            apiPreset: $container2.find(`#${SCRIPT_ID}-tool-api-preset`).val() || "",
+            overwrite: true,
+            enabled: postResponseEnabled
+          },
+          bypass: {
+            enabled: bypassEnabled,
+            presetId: bypassEnabled ? $container2.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || "" : ""
+          }
+        };
+      },
+      bindEvents($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find(`#${SCRIPT_ID}-tool-output-mode`).on("change", () => {
+          const mode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
+          const modeText = mode === "post_response_api" ? "\u76D1\u542C AI \u56DE\u590D\u7ED3\u675F\u540E\uFF0C\u8C03\u7528\u989D\u5916\u6A21\u578B\u751F\u6210\u4E3B\u89D2\u72B6\u6001\u680F\u3002" : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
+          $container2.find(".yyt-tool-mode-hint").text(modeText);
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on("change", (event) => {
+          const enabled = $(event.currentTarget).is(":checked");
+          $container2.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden", !enabled);
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-save`).on("click", () => {
+          this._saveConfig($container2, { silent: false });
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-reset-template`).on("click", () => {
+          const defaultConfigs = getAllDefaultToolConfigs();
+          const defaultConfig = defaultConfigs[this.toolId];
+          if (defaultConfig?.promptTemplate) {
+            $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val(defaultConfig.promptTemplate);
+            showToast("info", "\u6A21\u677F\u5DF2\u91CD\u7F6E");
+          }
+        });
+        $container2.find(`#${SCRIPT_ID}-tool-run-manual`).on("click", async () => {
+          const saveSuccess = this._saveConfig($container2, { silent: true });
+          if (!saveSuccess) {
+            return;
+          }
+          try {
+            const result = await runToolManually(this.toolId);
+            if (!result?.success && result?.error) {
+              showTopNotice("warning", result.error, {
+                duration: 3200,
+                noticeId: `yyt-tool-run-${this.toolId}`
+              });
+            }
+          } catch (error) {
+            showToast("error", error?.message || "\u624B\u52A8\u6267\u884C\u5931\u8D25");
+          } finally {
+            this.renderTo($container2);
+          }
+        });
+      },
+      _saveConfig($container2, options = {}) {
+        const config = this._getFormData($container2);
+        const { silent = false } = options;
+        const success = saveToolConfig(this.toolId, config);
+        if (success) {
+          if (!silent) {
+            showToast("success", "\u914D\u7F6E\u5DF2\u4FDD\u5B58");
+          }
+          eventBus.emit(EVENTS.TOOL_UPDATED, { toolId: this.toolId, config });
+        } else {
+          showToast("error", "\u4FDD\u5B58\u5931\u8D25");
+        }
+        return success;
+      },
+      destroy($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find("*").off();
+      },
+      getStyles() {
+        return `
       .yyt-tool-panel {
         display: flex;
         flex-direction: column;
         gap: 16px;
       }
-      
-      /* \u9690\u85CF\u5143\u7D20 */
+
+      .yyt-tool-compact-hint {
+        font-size: 12px;
+        color: var(--yyt-text-muted);
+        line-height: 1.6;
+      }
+
       .yyt-hidden {
         display: none !important;
       }
-      
-      /* \u4EE3\u7801\u6587\u672C\u6846 */
+
       .yyt-code-textarea {
         font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
         font-size: 13px;
@@ -2012,63 +9157,23 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         background: rgba(0, 0, 0, 0.2);
         border-color: rgba(255, 255, 255, 0.1);
         resize: vertical;
-        min-height: 200px;
+        min-height: 220px;
       }
-      
+
       .yyt-code-textarea:focus {
         border-color: var(--yyt-accent);
         box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
       }
-      
-      /* \u5185\u8054\u5E2E\u52A9\u6587\u672C */
-      .yyt-inline-help {
-        margin-top: 8px;
-        padding: 8px 12px;
-        font-size: 11px;
-        line-height: 1.6;
-      }
-      
-      .yyt-inline-help small {
-        color: var(--yyt-text-muted);
-      }
-      
-      /* \u5E2E\u52A9\u6587\u672C */
-      .yyt-help-text {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        line-height: 1.8;
-      }
-      
-      .yyt-help-text code {
-        background: rgba(123, 183, 255, 0.15);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 11px;
-        color: #7bb7ff;
-        margin: 0 2px;
-      }
-      
-      .yyt-help-text p {
-        margin: 0 0 8px 0;
-        font-weight: 500;
-        color: var(--yyt-text);
-      }
-      
-      /* \u6807\u9898\u64CD\u4F5C\u533A */
+
       .yyt-title-actions {
         margin-left: auto;
       }
-      
+
       .yyt-btn-small {
         padding: 4px 10px;
         font-size: 12px;
       }
-      
-      /* \u590D\u9009\u6846\u6807\u7B7E */
+
       .yyt-checkbox-label {
         display: flex;
         align-items: center;
@@ -2076,33 +9181,89 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         cursor: pointer;
         user-select: none;
       }
-      
+
       .yyt-checkbox-label input[type="checkbox"] {
         width: 16px;
         height: 16px;
         cursor: pointer;
       }
-      
-      .yyt-checkbox-label:hover {
-        color: var(--yyt-text);
+
+      .yyt-tool-manual-area {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: start;
       }
-      
-      /* \u9762\u677F\u5E95\u90E8 */
-      .yyt-panel-footer {
+
+      .yyt-tool-runtime-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: var(--yyt-radius-sm);
+      }
+
+      .yyt-tool-runtime-line {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding-top: 16px;
-        border-top: 1px solid var(--yyt-border);
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 12px;
       }
-      
-      .yyt-footer-left,
-      .yyt-footer-right {
+
+      .yyt-tool-runtime-label {
+        color: var(--yyt-text-muted);
+        flex-shrink: 0;
+      }
+
+      .yyt-tool-runtime-value {
+        color: var(--yyt-text);
+        text-align: right;
+        word-break: break-word;
+      }
+
+      .yyt-tool-runtime-badge {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+
+      .yyt-status-idle {
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .yyt-status-running {
+        color: var(--yyt-accent);
+        background: rgba(123, 183, 255, 0.12);
+      }
+
+      .yyt-status-success {
+        color: var(--yyt-success);
+        background: rgba(74, 222, 128, 0.12);
+      }
+
+      .yyt-status-error {
+        color: var(--yyt-danger);
+        background: rgba(255, 107, 107, 0.12);
+      }
+
+      .yyt-tool-runtime-error .yyt-tool-runtime-value {
+        color: var(--yyt-danger);
+      }
+
+      .yyt-tool-manual-actions {
         display: flex;
-        gap: 8px;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 180px;
       }
-      
-      /* \u9519\u8BEF\u63D0\u793A */
+
       .yyt-error {
         padding: 20px;
         text-align: center;
@@ -2111,66 +9272,56 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         border: 1px solid rgba(255, 107, 107, 0.3);
         border-radius: var(--yyt-radius-sm);
       }
-      
-      /* \u6298\u53E0\u9762\u677F */
-      .yyt-collapsible .yyt-collapsible-content {
-        overflow: hidden;
-        max-height: 500px;
-        transition: max-height 0.3s ease, opacity 0.3s ease;
-        opacity: 1;
+
+      .yyt-panel-footer-end {
+        justify-content: flex-end;
       }
-      
-      .yyt-collapsible.yyt-collapsed .yyt-collapsible-content {
-        max-height: 0;
-        opacity: 0;
+
+      @media screen and (max-width: 768px) {
+        .yyt-tool-manual-area {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-tool-manual-actions {
+          min-width: 0;
+        }
       }
-      
-      .yyt-collapsible-header {
-        cursor: pointer;
+    `;
+      },
+      renderTo($container2) {
+        $container2.html(this.render({}));
+        this.bindEvents($container2, {});
       }
-      
-      .yyt-collapsible-header .yyt-collapse-icon {
-        margin-left: auto;
-        transition: transform 0.3s ease;
-      }
-      
-      .yyt-collapsible.yyt-collapsed .yyt-collapse-icon {
-        transform: rotate(-90deg);
-      }
-      
-      /* \u8C03\u8BD5\u4FE1\u606F */
-      .yyt-debug-info {
-        padding: 12px;
-        background: rgba(0, 0, 0, 0.15);
-        border-radius: var(--yyt-radius-sm);
-      }
-      
-      .yyt-debug-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      }
-      
-      .yyt-debug-row:last-child {
-        border-bottom: none;
-      }
-      
-      .yyt-debug-label {
-        color: var(--yyt-text-muted);
-        font-size: 12px;
-      }
-      
-      .yyt-debug-value {
-        color: var(--yyt-text);
-        font-size: 12px;
-        font-family: 'Fira Code', monospace;
-      }
-      
-      .yyt-debug-error .yyt-debug-value {
-        color: var(--yyt-danger);
-      }
-    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}}});var _n={};O(_n,{BypassPanel:()=>Wt,default:()=>Ti});var Wt,Ti,Ve=E(()=>{L();Ht();K();Wt={id:"bypassPanel",render(e){let t=x.getPresetList(),s=x.getDefaultPresetId();return`
+    };
+  }
+});
+
+// modules/ui/components/bypass-panel.js
+var bypass_panel_exports = {};
+__export(bypass_panel_exports, {
+  BypassPanel: () => BypassPanel,
+  default: () => bypass_panel_default
+});
+var BypassPanel, bypass_panel_default;
+var init_bypass_panel = __esm({
+  "modules/ui/components/bypass-panel.js"() {
+    init_event_bus();
+    init_bypass_manager();
+    init_utils();
+    BypassPanel = {
+      id: "bypassPanel",
+      // ============================================================
+      // 渲染
+      // ============================================================
+      /**
+       * 渲染组件
+       * @param {Object} props
+       * @returns {string} HTML
+       */
+      render(props) {
+        const presets = bypassManager.getPresetList();
+        const defaultPresetId = bypassManager.getDefaultPresetId();
+        return `
       <div class="yyt-bypass-panel">
         <!-- \u5DE6\u4FA7\u9884\u8BBE\u5217\u8868 -->
         <div class="yyt-bypass-sidebar">
@@ -2181,7 +9332,7 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
             </button>
           </div>
           <div class="yyt-bypass-preset-list">
-            ${t.map(o=>this._renderPresetItem(o,o.id===s)).join("")}
+            ${presets.map((preset) => this._renderPresetItem(preset, preset.id === defaultPresetId)).join("")}
           </div>
           <div class="yyt-bypass-sidebar-footer">
             <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="yyt-bypass-import" title="\u5BFC\u5165">
@@ -2202,43 +9353,63 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
           </div>
         </div>
       </div>
-    `},_renderPresetItem(e,t){let s=dt&&dt[e.id];return`
-      <div class="yyt-bypass-preset-item ${t?"yyt-default":""}" data-preset-id="${e.id}">
+    `;
+      },
+      /**
+       * 渲染预设列表项
+       * @private
+       */
+      _renderPresetItem(preset, isDefault) {
+        const isBuiltIn = DEFAULT_BYPASS_PRESETS && DEFAULT_BYPASS_PRESETS[preset.id];
+        return `
+      <div class="yyt-bypass-preset-item ${isDefault ? "yyt-default" : ""}" data-preset-id="${preset.id}">
         <div class="yyt-bypass-preset-info">
-          <span class="yyt-bypass-preset-name">${m(e.name)}</span>
-          <span class="yyt-bypass-preset-count">${e.messages?.length||0} \u6761\u6D88\u606F</span>
+          <span class="yyt-bypass-preset-name">${escapeHtml(preset.name)}</span>
+          <span class="yyt-bypass-preset-count">${preset.messages?.length || 0} \u6761\u6D88\u606F</span>
         </div>
         <div class="yyt-bypass-preset-actions">
-          ${t?'<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>':""}
-          ${s?"":`
-            <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-bypass-quick-delete" title="\u5220\u9664\u9884\u8BBE" data-preset-id="${e.id}">
+          ${isDefault ? '<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>' : ""}
+          ${!isBuiltIn ? `
+            <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-bypass-quick-delete" title="\u5220\u9664\u9884\u8BBE" data-preset-id="${preset.id}">
               <i class="fa-solid fa-trash"></i>
             </button>
-          `}
+          ` : ""}
         </div>
       </div>
-    `},_renderEditor(e){if(!e)return`
+    `;
+      },
+      /**
+       * 渲染编辑器
+       * @private
+       */
+      _renderEditor(preset) {
+        if (!preset) {
+          return `
         <div class="yyt-bypass-empty">
           <i class="fa-solid fa-shield-halved"></i>
           <p>\u9009\u62E9\u6216\u521B\u5EFA\u7834\u9650\u8BCD\u9884\u8BBE</p>
         </div>
-      `;let t=x.getDefaultPresetId()===e.id,s=dt&&dt[e.id];return`
-      <div class="yyt-bypass-editor-content" data-preset-id="${e.id}">
+      `;
+        }
+        const isDefaultPreset = bypassManager.getDefaultPresetId() === preset.id;
+        const isBuiltIn = DEFAULT_BYPASS_PRESETS && DEFAULT_BYPASS_PRESETS[preset.id];
+        return `
+      <div class="yyt-bypass-editor-content" data-preset-id="${preset.id}">
         <div class="yyt-bypass-editor-header">
           <div class="yyt-bypass-editor-title">
             <input type="text" class="yyt-input yyt-bypass-name-input" 
-                   value="${m(e.name)}" placeholder="\u9884\u8BBE\u540D\u79F0">
+                   value="${escapeHtml(preset.name)}" placeholder="\u9884\u8BBE\u540D\u79F0">
           </div>
           <div class="yyt-bypass-editor-actions">
-            ${s?"":`
+            ${!isBuiltIn ? `
               <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="yyt-bypass-duplicate" title="\u590D\u5236">
                 <i class="fa-solid fa-copy"></i>
               </button>
               <button class="yyt-btn yyt-btn-small yyt-btn-danger" id="yyt-bypass-delete" title="\u5220\u9664">
                 <i class="fa-solid fa-trash"></i>
               </button>
-            `}
-            <button class="yyt-btn yyt-btn-small ${t?"yyt-btn-primary":"yyt-btn-secondary"}" 
+            ` : ""}
+            <button class="yyt-btn yyt-btn-small ${isDefaultPreset ? "yyt-btn-primary" : "yyt-btn-secondary"}" 
                     id="yyt-bypass-set-default" title="\u8BBE\u4E3A\u9ED8\u8BA4">
               <i class="fa-solid fa-star"></i>
             </button>
@@ -2247,7 +9418,7 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         
         <div class="yyt-bypass-editor-desc">
           <input type="text" class="yyt-input" id="yyt-bypass-description" 
-                 value="${m(e.description||"")}" placeholder="\u9884\u8BBE\u63CF\u8FF0\uFF08\u53EF\u9009\uFF09">
+                 value="${escapeHtml(preset.description || "")}" placeholder="\u9884\u8BBE\u63CF\u8FF0\uFF08\u53EF\u9009\uFF09">
         </div>
         
         <div class="yyt-bypass-messages-header">
@@ -2258,7 +9429,7 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         </div>
         
         <div class="yyt-bypass-messages" id="yyt-bypass-messages">
-          ${(e.messages||[]).map(o=>this._renderMessageItem(o)).join("")}
+          ${(preset.messages || []).map((msg) => this._renderMessageItem(msg)).join("")}
         </div>
         
         <div class="yyt-bypass-editor-footer">
@@ -2267,38 +9438,341 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
           </button>
         </div>
       </div>
-    `},_renderMessageItem(e){let t={SYSTEM:"fa-server",USER:"fa-user",assistant:"fa-robot"};return`
-      <div class="yyt-bypass-message ${e.enabled===!1?"yyt-disabled":""}" data-message-id="${e.id}">
+    `;
+      },
+      /**
+       * 渲染消息项
+       * @private
+       */
+      _renderMessageItem(message) {
+        const roleIcons = {
+          "SYSTEM": "fa-server",
+          "USER": "fa-user",
+          "assistant": "fa-robot"
+        };
+        return `
+      <div class="yyt-bypass-message ${message.enabled === false ? "yyt-disabled" : ""}" data-message-id="${message.id}">
         <div class="yyt-bypass-message-header">
           <div class="yyt-bypass-message-role">
-            <i class="fa-solid ${t[e.role]||"fa-comment"}"></i>
+            <i class="fa-solid ${roleIcons[message.role] || "fa-comment"}"></i>
             <select class="yyt-select yyt-bypass-role-select">
-              <option value="SYSTEM" ${e.role==="SYSTEM"?"selected":""}>SYSTEM</option>
-              <option value="USER" ${e.role==="USER"?"selected":""}>USER</option>
-              <option value="assistant" ${e.role==="assistant"?"selected":""}>assistant</option>
+              <option value="SYSTEM" ${message.role === "SYSTEM" ? "selected" : ""}>SYSTEM</option>
+              <option value="USER" ${message.role === "USER" ? "selected" : ""}>USER</option>
+              <option value="assistant" ${message.role === "assistant" ? "selected" : ""}>assistant</option>
             </select>
           </div>
           <div class="yyt-bypass-message-controls">
             <label class="yyt-toggle yyt-small">
-              <input type="checkbox" class="yyt-bypass-message-enabled" ${e.enabled!==!1?"checked":""}>
+              <input type="checkbox" class="yyt-bypass-message-enabled" ${message.enabled !== false ? "checked" : ""}>
               <span class="yyt-toggle-slider"></span>
             </label>
-            ${e.deletable!==!1?`
+            ${message.deletable !== false ? `
               <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-bypass-delete-message" title="\u5220\u9664">
                 <i class="fa-solid fa-times"></i>
               </button>
-            `:""}
+            ` : ""}
           </div>
         </div>
         <textarea class="yyt-textarea yyt-bypass-message-content" rows="3" 
-                  placeholder="\u8F93\u5165\u6D88\u606F\u5185\u5BB9...">${m(e.content||"")}</textarea>
+                  placeholder="\u8F93\u5165\u6D88\u606F\u5185\u5BB9...">${escapeHtml(message.content || "")}</textarea>
       </div>
-    `},bindEvents(e,t){let s=w();!s||!S(e)||(this._bindPresetListEvents(e,s),this._bindEditorEvents(e,s),this._bindFileEvents(e,s))},_bindPresetListEvents(e,t){e.on("click",".yyt-bypass-preset-item",s=>{if(t(s.target).closest(".yyt-bypass-quick-delete").length)return;let o=t(s.currentTarget).data("presetId");this._selectPreset(e,t,o)}),e.on("click",".yyt-bypass-quick-delete",s=>{s.stopPropagation();let o=t(s.currentTarget).data("presetId");if(!o||!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))return;let n=x.deletePreset(o);n.success?(e.find(".yyt-bypass-editor-content").data("presetId")===o&&e.find("#yyt-bypass-editor").html(`
+    `;
+      },
+      // ============================================================
+      // 事件绑定
+      // ============================================================
+      /**
+       * 绑定事件
+       * @param {Object} $container
+       * @param {Object} dependencies
+       */
+      bindEvents($container2, dependencies) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        this._bindPresetListEvents($container2, $);
+        this._bindEditorEvents($container2, $);
+        this._bindFileEvents($container2, $);
+      },
+      /**
+       * 绑定预设列表事件
+       * @private
+       */
+      _bindPresetListEvents($container2, $) {
+        $container2.on("click", ".yyt-bypass-preset-item", (e) => {
+          if ($(e.target).closest(".yyt-bypass-quick-delete").length) {
+            return;
+          }
+          const presetId = $(e.currentTarget).data("presetId");
+          this._selectPreset($container2, $, presetId);
+        });
+        $container2.on("click", ".yyt-bypass-quick-delete", (e) => {
+          e.stopPropagation();
+          const presetId = $(e.currentTarget).data("presetId");
+          if (!presetId)
+            return;
+          if (!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))
+            return;
+          const result = bypassManager.deletePreset(presetId);
+          if (result.success) {
+            const $editor = $container2.find(".yyt-bypass-editor-content");
+            const currentPresetId = $editor.data("presetId");
+            if (currentPresetId === presetId) {
+              $container2.find("#yyt-bypass-editor").html(`
             <div class="yyt-bypass-empty">
               <i class="fa-solid fa-shield-halved"></i>
               <p>\u9009\u62E9\u6216\u521B\u5EFA\u7834\u9650\u8BCD\u9884\u8BBE</p>
             </div>
-          `),this._refreshPresetList(e,t),d("success","\u9884\u8BBE\u5DF2\u5220\u9664")):d("error",n?.message||"\u5220\u9664\u9884\u8BBE\u5931\u8D25")}),e.find("#yyt-bypass-add").on("click",()=>{this._createNewPreset(e,t)})},_bindEditorEvents(e,t){e.on("click","#yyt-bypass-save",()=>{this._saveCurrentPreset(e,t)}),e.on("click","#yyt-bypass-delete",()=>{this._deleteCurrentPreset(e,t)}),e.on("click","#yyt-bypass-duplicate",()=>{this._duplicateCurrentPreset(e,t)}),e.on("click","#yyt-bypass-set-default",()=>{this._setAsDefault(e,t)}),e.on("click","#yyt-bypass-add-message",()=>{this._addMessage(e,t)}),e.on("click",".yyt-bypass-delete-message",s=>{let o=t(s.currentTarget).closest(".yyt-bypass-message"),n=o.data("messageId");o.remove()}),e.on("change",".yyt-bypass-message-enabled",s=>{t(s.currentTarget).closest(".yyt-bypass-message").toggleClass("yyt-disabled",!t(s.currentTarget).is(":checked"))})},_bindFileEvents(e,t){e.find("#yyt-bypass-import").on("click",()=>{e.find("#yyt-bypass-import-file").click()}),e.find("#yyt-bypass-import-file").on("change",async s=>{let o=s.target.files[0];if(o){try{let n=await mt(o),r=x.importPresets(n);d(r.success?"success":"error",r.message),r.success&&this.renderTo(e)}catch(n){d("error",`\u5BFC\u5165\u5931\u8D25: ${n.message}`)}t(s.target).val("")}}),e.find("#yyt-bypass-export").on("click",()=>{try{let s=x.exportPresets();ft(s,`bypass_presets_${Date.now()}.json`),d("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(s){d("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}})},_selectPreset(e,t,s){let o=x.getPreset(s);o&&(e.find(".yyt-bypass-preset-item").removeClass("yyt-active"),e.find(`.yyt-bypass-preset-item[data-preset-id="${s}"]`).addClass("yyt-active"),e.find("#yyt-bypass-editor").html(this._renderEditor(o)))},_createNewPreset(e,t){let s=`bypass_${Date.now()}`,o=x.createPreset({id:s,name:"\u65B0\u7834\u9650\u8BCD\u9884\u8BBE",description:"",messages:[]});o.success?(this.renderTo(e),this._selectPreset(e,t,s),d("success","\u9884\u8BBE\u5DF2\u521B\u5EFA")):d("error",o?.message||"\u521B\u5EFA\u9884\u8BBE\u5931\u8D25")},_saveCurrentPreset(e,t){let s=e.find(".yyt-bypass-editor-content"),o=s.data("presetId");if(!o)return;let n=s.find(".yyt-bypass-name-input").val().trim(),r=s.find("#yyt-bypass-description").val().trim();if(!n){d("warning","\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0");return}let i=[];s.find(".yyt-bypass-message").each(function(){let c=t(this);i.push({id:c.data("messageId"),role:c.find(".yyt-bypass-role-select").val(),content:c.find(".yyt-bypass-message-content").val(),enabled:c.find(".yyt-bypass-message-enabled").is(":checked"),deletable:!0})});let a=x.updatePreset(o,{name:n,description:r,messages:i});a.success?(d("success","\u9884\u8BBE\u5DF2\u4FDD\u5B58"),this._refreshPresetList(e,t)):d("error",a?.message||"\u4FDD\u5B58\u9884\u8BBE\u5931\u8D25")},_deleteCurrentPreset(e,t){let o=e.find(".yyt-bypass-editor-content").data("presetId");if(!o||!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))return;let n=x.deletePreset(o);n.success?(this.renderTo(e),d("success","\u9884\u8BBE\u5DF2\u5220\u9664")):d("error",n?.message||"\u5220\u9664\u9884\u8BBE\u5931\u8D25")},_duplicateCurrentPreset(e,t){let o=e.find(".yyt-bypass-editor-content").data("presetId");if(!o)return;let n=`bypass_${Date.now()}`,r=x.duplicatePreset(o,n);r.success?(this.renderTo(e),this._selectPreset(e,t,n),d("success","\u9884\u8BBE\u5DF2\u590D\u5236")):d("error",r?.message||"\u590D\u5236\u9884\u8BBE\u5931\u8D25")},_setAsDefault(e,t){let o=e.find(".yyt-bypass-editor-content").data("presetId");o&&(x.setDefaultPresetId(o),e.find(".yyt-bypass-preset-item").removeClass("yyt-default"),e.find(`.yyt-bypass-preset-item[data-preset-id="${o}"]`).addClass("yyt-default"),e.find(".yyt-bypass-default-badge").remove(),e.find(`.yyt-bypass-preset-item[data-preset-id="${o}"] .yyt-bypass-preset-info`).append('<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>'),d("success","\u5DF2\u8BBE\u4E3A\u9ED8\u8BA4\u9884\u8BBE"))},_addMessage(e,t){let s=e.find("#yyt-bypass-messages"),o={id:`msg_${Date.now()}`,role:"SYSTEM",content:"",enabled:!0,deletable:!0};s.append(this._renderMessageItem(o))},_refreshPresetList(e,t){let s=x.getPresetList(),o=x.getDefaultPresetId();e.find(".yyt-bypass-preset-list").html(s.map(n=>this._renderPresetItem(n,n.id===o)).join(""))},destroy(e){!w()||!S(e)||e.find("*").off()},getStyles(){return`
+          `);
+            }
+            this._refreshPresetList($container2, $);
+            showToast("success", "\u9884\u8BBE\u5DF2\u5220\u9664");
+          } else {
+            showToast("error", result?.message || "\u5220\u9664\u9884\u8BBE\u5931\u8D25");
+          }
+        });
+        $container2.find("#yyt-bypass-add").on("click", () => {
+          this._createNewPreset($container2, $);
+        });
+      },
+      /**
+       * 绑定编辑器事件
+       * @private
+       */
+      _bindEditorEvents($container2, $) {
+        $container2.on("click", "#yyt-bypass-save", () => {
+          this._saveCurrentPreset($container2, $);
+        });
+        $container2.on("click", "#yyt-bypass-delete", () => {
+          this._deleteCurrentPreset($container2, $);
+        });
+        $container2.on("click", "#yyt-bypass-duplicate", () => {
+          this._duplicateCurrentPreset($container2, $);
+        });
+        $container2.on("click", "#yyt-bypass-set-default", () => {
+          this._setAsDefault($container2, $);
+        });
+        $container2.on("click", "#yyt-bypass-add-message", () => {
+          this._addMessage($container2, $);
+        });
+        $container2.on("click", ".yyt-bypass-delete-message", (e) => {
+          const $message = $(e.currentTarget).closest(".yyt-bypass-message");
+          const messageId = $message.data("messageId");
+          $message.remove();
+        });
+        $container2.on("change", ".yyt-bypass-message-enabled", (e) => {
+          const $message = $(e.currentTarget).closest(".yyt-bypass-message");
+          $message.toggleClass("yyt-disabled", !$(e.currentTarget).is(":checked"));
+        });
+      },
+      /**
+       * 绑定文件事件
+       * @private
+       */
+      _bindFileEvents($container2, $) {
+        $container2.find("#yyt-bypass-import").on("click", () => {
+          $container2.find("#yyt-bypass-import-file").click();
+        });
+        $container2.find("#yyt-bypass-import-file").on("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file)
+            return;
+          try {
+            const text = await readFileContent(file);
+            const result = bypassManager.importPresets(text);
+            showToast(result.success ? "success" : "error", result.message);
+            if (result.success)
+              this.renderTo($container2);
+          } catch (err) {
+            showToast("error", `\u5BFC\u5165\u5931\u8D25: ${err.message}`);
+          }
+          $(e.target).val("");
+        });
+        $container2.find("#yyt-bypass-export").on("click", () => {
+          try {
+            const json = bypassManager.exportPresets();
+            downloadJson(json, `bypass_presets_${Date.now()}.json`);
+            showToast("success", "\u9884\u8BBE\u5DF2\u5BFC\u51FA");
+          } catch (err) {
+            showToast("error", `\u5BFC\u51FA\u5931\u8D25: ${err.message}`);
+          }
+        });
+      },
+      // ============================================================
+      // 私有操作方法
+      // ============================================================
+      /**
+       * 选择预设
+       * @private
+       */
+      _selectPreset($container2, $, presetId) {
+        const preset = bypassManager.getPreset(presetId);
+        if (!preset)
+          return;
+        $container2.find(".yyt-bypass-preset-item").removeClass("yyt-active");
+        $container2.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"]`).addClass("yyt-active");
+        $container2.find("#yyt-bypass-editor").html(this._renderEditor(preset));
+      },
+      /**
+       * 创建新预设
+       * @private
+       */
+      _createNewPreset($container2, $) {
+        const id = `bypass_${Date.now()}`;
+        const result = bypassManager.createPreset({
+          id,
+          name: "\u65B0\u7834\u9650\u8BCD\u9884\u8BBE",
+          description: "",
+          messages: []
+        });
+        if (result.success) {
+          this.renderTo($container2);
+          this._selectPreset($container2, $, id);
+          showToast("success", "\u9884\u8BBE\u5DF2\u521B\u5EFA");
+        } else {
+          showToast("error", result?.message || "\u521B\u5EFA\u9884\u8BBE\u5931\u8D25");
+        }
+      },
+      /**
+       * 保存当前预设
+       * @private
+       */
+      _saveCurrentPreset($container2, $) {
+        const $editor = $container2.find(".yyt-bypass-editor-content");
+        const presetId = $editor.data("presetId");
+        if (!presetId)
+          return;
+        const name = $editor.find(".yyt-bypass-name-input").val().trim();
+        const description = $editor.find("#yyt-bypass-description").val().trim();
+        if (!name) {
+          showToast("warning", "\u8BF7\u8F93\u5165\u9884\u8BBE\u540D\u79F0");
+          return;
+        }
+        const messages = [];
+        $editor.find(".yyt-bypass-message").each(function() {
+          const $msg = $(this);
+          messages.push({
+            id: $msg.data("messageId"),
+            role: $msg.find(".yyt-bypass-role-select").val(),
+            content: $msg.find(".yyt-bypass-message-content").val(),
+            enabled: $msg.find(".yyt-bypass-message-enabled").is(":checked"),
+            deletable: true
+          });
+        });
+        const result = bypassManager.updatePreset(presetId, {
+          name,
+          description,
+          messages
+        });
+        if (result.success) {
+          showToast("success", "\u9884\u8BBE\u5DF2\u4FDD\u5B58");
+          this._refreshPresetList($container2, $);
+        } else {
+          showToast("error", result?.message || "\u4FDD\u5B58\u9884\u8BBE\u5931\u8D25");
+        }
+      },
+      /**
+       * 删除当前预设
+       * @private
+       */
+      _deleteCurrentPreset($container2, $) {
+        const $editor = $container2.find(".yyt-bypass-editor-content");
+        const presetId = $editor.data("presetId");
+        if (!presetId)
+          return;
+        if (!confirm("\u786E\u5B9A\u8981\u5220\u9664\u8FD9\u4E2A\u9884\u8BBE\u5417\uFF1F"))
+          return;
+        const result = bypassManager.deletePreset(presetId);
+        if (result.success) {
+          this.renderTo($container2);
+          showToast("success", "\u9884\u8BBE\u5DF2\u5220\u9664");
+        } else {
+          showToast("error", result?.message || "\u5220\u9664\u9884\u8BBE\u5931\u8D25");
+        }
+      },
+      /**
+       * 复制当前预设
+       * @private
+       */
+      _duplicateCurrentPreset($container2, $) {
+        const $editor = $container2.find(".yyt-bypass-editor-content");
+        const presetId = $editor.data("presetId");
+        if (!presetId)
+          return;
+        const newId = `bypass_${Date.now()}`;
+        const result = bypassManager.duplicatePreset(presetId, newId);
+        if (result.success) {
+          this.renderTo($container2);
+          this._selectPreset($container2, $, newId);
+          showToast("success", "\u9884\u8BBE\u5DF2\u590D\u5236");
+        } else {
+          showToast("error", result?.message || "\u590D\u5236\u9884\u8BBE\u5931\u8D25");
+        }
+      },
+      /**
+       * 设为默认预设
+       * @private
+       */
+      _setAsDefault($container2, $) {
+        const $editor = $container2.find(".yyt-bypass-editor-content");
+        const presetId = $editor.data("presetId");
+        if (!presetId)
+          return;
+        bypassManager.setDefaultPresetId(presetId);
+        $container2.find(".yyt-bypass-preset-item").removeClass("yyt-default");
+        $container2.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"]`).addClass("yyt-default");
+        $container2.find(".yyt-bypass-default-badge").remove();
+        $container2.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"] .yyt-bypass-preset-info`).append('<span class="yyt-bypass-default-badge">\u9ED8\u8BA4</span>');
+        showToast("success", "\u5DF2\u8BBE\u4E3A\u9ED8\u8BA4\u9884\u8BBE");
+      },
+      /**
+       * 添加消息
+       * @private
+       */
+      _addMessage($container2, $) {
+        const $messages = $container2.find("#yyt-bypass-messages");
+        const newMessage = {
+          id: `msg_${Date.now()}`,
+          role: "SYSTEM",
+          content: "",
+          enabled: true,
+          deletable: true
+        };
+        $messages.append(this._renderMessageItem(newMessage));
+      },
+      /**
+       * 刷新预设列表
+       * @private
+       */
+      _refreshPresetList($container2, $) {
+        const presets = bypassManager.getPresetList();
+        const defaultPresetId = bypassManager.getDefaultPresetId();
+        $container2.find(".yyt-bypass-preset-list").html(
+          presets.map((preset) => this._renderPresetItem(preset, preset.id === defaultPresetId)).join("")
+        );
+      },
+      // ============================================================
+      // 销毁
+      // ============================================================
+      /**
+       * 销毁组件
+       * @param {Object} $container
+       */
+      destroy($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find("*").off();
+      },
+      // ============================================================
+      // 样式
+      // ============================================================
+      /**
+       * 获取样式
+       * @returns {string}
+       */
+      getStyles() {
+        return `
       /* \u7834\u9650\u8BCD\u9762\u677F\u6837\u5F0F */
       .yyt-bypass-panel {
         display: flex;
@@ -2556,15 +10030,224 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
       .yyt-toggle.yyt-small {
         transform: scale(0.8);
       }
-    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}},Ti=Wt});function Ke(){W.register(nt.id,nt),W.register(rt.id,rt),W.register(at.id,at),W.register(At.id,At),W.register(kt.id,kt),W.register(Wt.id,Wt),console.log("[UI] \u7EC4\u4EF6\u6CE8\u518C\u5B8C\u6210")}function lo(e={}){W.init(e),Ke(),W.injectStyles(),console.log("[UI] \u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210")}var Cn=E(()=>{Ns();js();Hs();Zs();io();ao();Ve();K();Ns();js();Hs();Zs();io();ao();Ve()});var On={};O(On,{ApiPresetPanel:()=>nt,RegexExtractPanel:()=>rt,SCRIPT_ID:()=>l,StatusBlockPanel:()=>kt,SummaryToolPanel:()=>At,ToolManagePanel:()=>at,default:()=>Ei,escapeHtml:()=>m,fillFormWithConfig:()=>jt,getCurrentTab:()=>Dn,getFormApiConfig:()=>Ct,getJQuery:()=>w,getRegexStyles:()=>Rn,getStyles:()=>kn,getToolStyles:()=>In,initUI:()=>lo,isContainerValid:()=>S,registerComponents:()=>Ke,render:()=>Pn,renderRegex:()=>$n,renderTool:()=>An,setCurrentTab:()=>Mn,showToast:()=>d,uiManager:()=>W});function Pn(e){let t=w();if(!t){console.error("[YouYouToolkit] jQuery not available");return}if(e&&(typeof e=="string"?Qt=t(e):e&&e.jquery?Qt=e:e&&(Qt=t(e))),!Qt||!Qt.length){console.error("[YouYouToolkit] Container not found or invalid");return}nt.renderTo(Qt)}function $n(e){let t=w();if(!t){console.error("[YouYouToolkit] jQuery not available");return}if(e&&(typeof e=="string"?qt=t(e):e&&e.jquery?qt=e:e&&(qt=t(e))),!qt||!qt.length){console.error("[YouYouToolkit] Regex container not found");return}rt.renderTo(qt)}function An(e){let t=w();if(!t){console.error("[YouYouToolkit] jQuery not available");return}if(e&&(typeof e=="string"?Jt=t(e):e&&e.jquery?Jt=e:e&&(Jt=t(e))),!Jt||!Jt.length){console.error("[YouYouToolkit] Tool container not found");return}at.renderTo(Jt)}function kn(){return nt.getStyles()}function Rn(){return rt.getStyles()}function In(){return at.getStyles()}function Dn(){return W.getCurrentTab()}function Mn(e){W.switchTab(e)}var Qt,qt,Jt,Ei,Ln=E(()=>{Cn();Qt=null,qt=null,Jt=null;Ei={render:Pn,renderRegex:$n,renderTool:An,getStyles:kn,getRegexStyles:Rn,getToolStyles:In,getCurrentTab:Dn,setCurrentTab:Mn,uiManager:W,ApiPresetPanel:nt,RegexExtractPanel:rt,ToolManagePanel:at,SummaryToolPanel:At,StatusBlockPanel:kt,registerComponents:Ke,initUI:lo,SCRIPT_ID:l,escapeHtml:m,showToast:d,getJQuery:w,isContainerValid:S,getFormApiConfig:Ct,fillFormWithConfig:jt}});var Un={};O(Un,{abortAllTasks:()=>$i,abortTask:()=>Pi,buildToolMessages:()=>zn,clearExecutionHistory:()=>Di,createExecutionContext:()=>Ni,createResult:()=>Xe,enhanceMessagesWithBypass:()=>ji,executeBatch:()=>Ci,executeTool:()=>jn,executeToolWithConfig:()=>Ze,executeToolsBatch:()=>Bi,executorState:()=>k,extractFailed:()=>Li,extractSuccessful:()=>Oi,generateTaskId:()=>Rt,getExecutionHistory:()=>Ii,getExecutorStatus:()=>Ri,getScheduler:()=>Vt,getToolsForEvent:()=>yo,mergeResults:()=>Mi,pauseExecutor:()=>Ai,resumeExecutor:()=>ki,setMaxConcurrent:()=>_i});function Xe(e,t,s,o,n,r,i=0){return{success:s,taskId:e,toolId:t,data:o,error:n,duration:r,retries:i,timestamp:Date.now(),metadata:{}}}function Rt(){return`task_${Date.now()}_${Math.random().toString(36).substr(2,9)}`}function Si(e,t={}){return{id:Rt(),toolId:e,options:t,status:"pending",createdAt:Date.now(),startedAt:null,completedAt:null,retries:0,maxRetries:t.maxRetries||3}}function Vt(){return ge||(ge=new co(k.maxConcurrent)),ge}function _i(e){k.maxConcurrent=Math.max(1,Math.min(10,e)),ge&&(ge.maxConcurrent=k.maxConcurrent)}async function jn(e,t={},s){let o=Vt(),n=Si(e,t);for(;k.isPaused;)await new Promise(r=>setTimeout(r,100));try{let r=await o.enqueue(async i=>{if(i.aborted)throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62","AbortError");if(typeof s=="function")return await s(i,t);throw new Error("\u6267\u884C\u5668\u5FC5\u987B\u662F\u4E00\u4E2A\u51FD\u6570")},n);return Nn(r),r}catch(r){let i=Xe(n.id,e,!1,null,r,Date.now()-n.createdAt,n.retries);return Nn(i),i}}async function Ci(e,t={}){let{failFast:s=!1,concurrency:o=k.maxConcurrent}=t,n=[],r=Vt(),i=r.maxConcurrent;r.maxConcurrent=o;try{let a=e.map(({toolId:c,options:y,executor:p})=>jn(c,y,p));if(s)for(let c of a){let y=await c;if(n.push(y),!y.success){r.abortAll();break}}else{let c=await Promise.allSettled(a);for(let y of c)y.status==="fulfilled"?n.push(y.value):n.push(Xe(Rt(),"unknown",!1,null,y.reason,0,0))}}finally{r.maxConcurrent=i}return n}function Pi(e){return Vt().abort(e)}function $i(){Vt().abortAll(),k.executionQueue=[]}function Ai(){k.isPaused=!0}function ki(){k.isPaused=!1}function Ri(){return{...Vt().getStatus(),isPaused:k.isPaused,activeControllers:k.activeControllers.size,historyCount:k.executionHistory.length}}function Nn(e){k.executionHistory.push(e),k.executionHistory.length>100&&k.executionHistory.shift()}function Ii(e={}){let t=[...k.executionHistory];return e.toolId&&(t=t.filter(s=>s.toolId===e.toolId)),e.success!==void 0&&(t=t.filter(s=>s.success===e.success)),e.limit&&(t=t.slice(-e.limit)),t}function Di(){k.executionHistory=[]}function Mi(e){let t={success:!0,data:[],errors:[],totalDuration:0,successCount:0,failureCount:0};for(let s of e)t.totalDuration+=s.duration,s.success?(t.successCount++,s.data!==void 0&&s.data!==null&&t.data.push(s.data)):(t.success=!1,t.failureCount++,s.error&&t.errors.push({taskId:s.taskId,toolId:s.toolId,error:s.error.message||String(s.error)}));return t}function Oi(e){return e.filter(t=>t.success).map(t=>t.data)}function Li(e){return e.filter(t=>!t.success).map(t=>({taskId:t.taskId,toolId:t.toolId,error:t.error}))}function Ni(e={}){return{taskId:Rt(),startTime:Date.now(),signal:e.signal||null,apiConfig:e.apiConfig||null,bypassMessages:e.bypassMessages||[],context:e.context||{},metadata:e.metadata||{}}}function ji(e,t){return!t||t.length===0?e:[...t,...e]}function zi(e){return e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function zn(e,t){let s=[],o=e.promptTemplate||"",n={"{{userMessage}}":t.input?.userMessage||"","{{lastAiMessage}}":t.input?.lastAiMessage||"","{{extractedContent}}":t.input?.extractedContent||"","{{previousToolOutput}}":t.input?.previousToolOutput||"","{{context}}":JSON.stringify(t.input?.context||{}),"{{pg}}":t.input?.context?.pg||"1","{{time}}":t.input?.context?.time||"","{{scene}}":t.input?.context?.scene||"","{{plot}}":t.input?.context?.plot||"","{{mq}}":t.input?.context?.mq||"\u2160","{{mqStatus}}":t.input?.context?.mqStatus||"\u8FDB\u884C\u4E2D","{{sq}}":t.input?.context?.sq||"1","{{sqStatus}}":t.input?.context?.sqStatus||"\u8FDB\u884C\u4E2D","{{latestSq}}":t.input?.context?.latestSq||"1","{{completed}}":t.input?.context?.completed||"\u65E0","{{defined}}":t.input?.context?.defined||"","{{status}}":t.input?.context?.status||"","{{seeds}}":t.input?.context?.seeds||"","{{name}}":t.input?.context?.name||"","{{location}}":t.input?.context?.location||"","{{condition}}":t.input?.context?.condition||"","{{equipment}}":t.input?.context?.equipment||"","{{skills}}":t.input?.context?.skills||""};for(let[r,i]of Object.entries(n))o=o.replace(new RegExp(zi(r),"g"),i);return s.push({role:"USER",content:o}),s}async function Ze(e,t,s={}){let o=R(e);if(!o)return{success:!1,taskId:Rt(),toolId:e,error:"\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728",duration:0};if(!o.enabled)return{success:!1,taskId:Rt(),toolId:e,error:"\u5DE5\u5177\u672A\u542F\u7528",duration:0};let n=Date.now(),r=Rt();try{f.emit(g.TOOL_EXECUTION_STARTED,{toolId:e,taskId:r,context:t});let i=zn(o,t);if(typeof s.callApi=="function"){let a=o.apiPreset?{preset:o.apiPreset}:null,c=await s.callApi(i,a,s.signal),y=c;o.outputMode==="separate"&&o.extractTags?.length>0&&(y=Ui(c,o.extractTags));let p={success:!0,taskId:r,toolId:e,data:y,duration:Date.now()-n};return f.emit(g.TOOL_EXECUTED,{toolId:e,taskId:r,result:p}),p}else return{success:!0,taskId:r,toolId:e,data:{messages:i,config:{apiPreset:o.apiPreset,outputMode:o.outputMode,extractTags:o.extractTags}},duration:Date.now()-n,needsExecution:!0}}catch(i){let a={success:!1,taskId:r,toolId:e,error:i.message||String(i),duration:Date.now()-n};return f.emit(g.TOOL_EXECUTION_FAILED,{toolId:e,taskId:r,error:i}),a}}function Ui(e,t){let s={};for(let o of t){let n=new RegExp(`<${o}[^>]*>([\\s\\S]*?)<\\/${o}>`,"gi"),r=e.match(n);r&&(s[o]=r.map(i=>{let a=i.match(new RegExp(`<${o}[^>]*>([\\s\\S]*?)<\\/${o}>`,"i"));return a?a[1].trim():""}))}return s}async function Bi(e,t,s={}){let o=[];for(let n of e){let r=R(n);if(r&&r.enabled){let i=await Ze(n,t,s);o.push(i)}}return o}function yo(e){let t=[],s=["summaryTool","statusBlock"];for(let o of s){let n=R(o),r=n?.trigger?.enabled&&n?.trigger?.event===e,i=Array.isArray(n?.triggerEvents)&&n.triggerEvents.includes(e);n&&n.enabled&&(r||i)&&t.push(n)}return t}var k,co,ge,po=E(()=>{Gt();L();k={activeControllers:new Map,executionQueue:[],runningCount:0,maxConcurrent:3,executionHistory:[],isPaused:!1};co=class{constructor(t=3){this.maxConcurrent=t,this.queue=[],this.running=new Map,this.isProcessing=!1}enqueue(t,s){return new Promise((o,n)=>{this.queue.push({executor:t,task:s,resolve:o,reject:n}),this.process()})}async process(){if(!this.isProcessing){for(this.isProcessing=!0;this.queue.length>0&&this.running.size<this.maxConcurrent;){let t=this.queue.shift();if(!t)continue;let{executor:s,task:o,resolve:n,reject:r}=t,i=new AbortController;o.abortController=i,o.status="running",o.startedAt=Date.now(),this.running.set(o.id,o),k.activeControllers.set(o.id,i),this.executeTask(s,o,i.signal).then(a=>{o.status="completed",o.completedAt=Date.now(),n(a)}).catch(a=>{o.status=a.name==="AbortError"?"aborted":"failed",o.completedAt=Date.now(),r(a)}).finally(()=>{this.running.delete(o.id),k.activeControllers.delete(o.id),k.runningCount=this.running.size})}this.isProcessing=!1}}async executeTask(t,s,o){let n=Date.now(),r=null;for(let i=0;i<=s.maxRetries;i++){if(o.aborted)throw new DOMException("\u4EFB\u52A1\u5DF2\u4E2D\u6B62","AbortError");try{let a=await t(o);return Xe(s.id,s.toolId,!0,a,null,Date.now()-n,i)}catch(a){if(r=a,a.name==="AbortError")throw a;i<s.maxRetries&&(await this.delay(1e3*(i+1)),s.retries=i+1)}}throw r}delay(t){return new Promise(s=>setTimeout(s,t))}abort(t){let s=k.activeControllers.get(t);return s?(s.abort(),!0):!1}abortAll(){for(let t of k.activeControllers.values())t.abort();k.activeControllers.clear(),this.queue=[],this.running.clear()}getStatus(){return{pending:this.queue.length,running:this.running.size,maxConcurrent:this.maxConcurrent}}},ge=null});var Bn={};O(Bn,{DEFAULT_SETTINGS:()=>go,SettingsService:()=>ts,default:()=>Yi,settingsService:()=>ht});var go,uo,ts,ht,Yi,es=E(()=>{et();L();go={executor:{maxConcurrent:3,maxRetries:2,retryDelayMs:5e3,requestTimeoutMs:9e4,queueStrategy:"fifo"},listener:{listenGenerationEnded:!0,ignoreQuietGeneration:!0,ignoreAutoTrigger:!0,debounceMs:300},debug:{enableDebugLog:!1,saveExecutionHistory:!0,showRuntimeBadge:!0},ui:{compactMode:!1,animationEnabled:!0,theme:"dark-blue"}},uo="settings_v2",ts=class{constructor(){this._cache=null}getSettings(){if(this._cache)return this._cache;let t=u.get(uo,{});return this._cache=this._mergeWithDefaults(t),this._cache}saveSettings(t){this._cache=this._mergeWithDefaults(t),u.set(uo,this._cache),f.emit(g.SETTINGS_UPDATED,{settings:this._cache})}updateSettings(t){let s=this.getSettings(),o=this._deepMerge(s,t);this.saveSettings(o)}getExecutorSettings(){return this.getSettings().executor}updateExecutorSettings(t){this.updateSettings({executor:t})}getListenerSettings(){return this.getSettings().listener}updateListenerSettings(t){this.updateSettings({listener:t})}getDebugSettings(){return this.getSettings().debug}updateDebugSettings(t){this.updateSettings({debug:t})}getUiSettings(){return this.getSettings().ui}updateUiSettings(t){this.updateSettings({ui:t})}resetSettings(){this._cache=JSON.parse(JSON.stringify(go)),u.set(uo,this._cache),f.emit(g.SETTINGS_UPDATED,{settings:this._cache,reset:!0})}get(t,s=null){let o=this.getSettings(),n=t.split("."),r=o;for(let i of n)if(r&&typeof r=="object"&&i in r)r=r[i];else return s;return r}set(t,s){let o=JSON.parse(JSON.stringify(this.getSettings())),n=t.split("."),r=o;for(let i=0;i<n.length-1;i++){let a=n[i];a in r||(r[a]={}),r=r[a]}r[n[n.length-1]]=s,this.saveSettings(o)}_mergeWithDefaults(t){return this._deepMerge(JSON.parse(JSON.stringify(go)),t)}_deepMerge(t,s){let o={...t};for(let n in s)s[n]&&typeof s[n]=="object"&&!Array.isArray(s[n])?o[n]=this._deepMerge(t[n]||{},s[n]):o[n]=s[n];return o}},ht=new ts,Yi=ht});var Gn={};O(Gn,{ContextInjector:()=>ss,DEFAULT_INJECTION_OPTIONS:()=>Yn,contextInjector:()=>me,default:()=>Gi});var fe,Yn,ss,me,Gi,fo=E(()=>{et();L();fe="context_injection",Yn={target:"context",scope:"chat",overwrite:!0,enabled:!0},ss=class{constructor(){this._cache=new Map,this.debugMode=!1}inject(t,s,o={}){if(!t||s===void 0||s===null)return this._log("\u6CE8\u5165\u5931\u8D25: \u53C2\u6570\u65E0\u6548"),!1;let n={...Yn,...o},r=o.chatId||this._getCurrentChatId();if(!r)return this._log("\u6CE8\u5165\u5931\u8D25: \u65E0\u6CD5\u83B7\u53D6\u804A\u5929ID"),!1;let i=this._getStorageKey(r),a=this._getChatContexts(r),c={toolId:t,content:String(s),updatedAt:Date.now(),sourceMessageId:o.sourceMessageId||null,options:n};return n.overwrite||!a[t]?a[t]=c:a[t]={...c,content:(a[t]?.content||"")+`
+    `;
+      },
+      // ============================================================
+      // 便捷方法
+      // ============================================================
+      /**
+       * 渲染到容器
+       * @param {Object} $container
+       */
+      renderTo($container2) {
+        const html = this.render({});
+        $container2.html(html);
+        this.bindEvents($container2, {});
+      }
+    };
+    bypass_panel_default = BypassPanel;
+  }
+});
 
-`+s},this._saveChatContexts(r,a),f.emit(g.TOOL_CONTEXT_INJECTED,{toolId:t,chatId:r,content:c.content,options:n}),this._log(`\u6CE8\u5165\u6210\u529F: ${t} -> ${r}`),!0}getAggregatedContext(t){let s=t||this._getCurrentChatId();if(!s)return"";let o=this._getChatContexts(s),n=Object.entries(o);if(n.length===0)return"";let r=["[\u5DE5\u5177\u4E0A\u4E0B\u6587\u6CE8\u5165]",""];for(let[i,a]of n)r.push(`[${i}]`),r.push(a.content||""),r.push("");return r.join(`
-`)}getToolContext(t,s){let o=t||this._getCurrentChatId();return!o||!s?null:this._getChatContexts(o)[s]||null}getAllToolContexts(t){let s=t||this._getCurrentChatId();return s?this._getChatContexts(s):{}}clearToolContext(t,s){let o=t||this._getCurrentChatId();if(!o||!s)return!1;let n=this._getChatContexts(o);return n[s]?(delete n[s],this._saveChatContexts(o,n),f.emit(g.TOOL_CONTEXT_CLEARED,{chatId:o,toolId:s}),this._log(`\u6E05\u9664\u5DE5\u5177\u4E0A\u4E0B\u6587: ${s}`),!0):!1}clearAllContext(t){let s=t||this._getCurrentChatId();if(!s)return!1;let o=this._getAllContexts();return delete o[s],u.set(fe,o),this._cache.delete(s),f.emit(g.TOOL_CONTEXT_CLEARED,{chatId:s,allTools:!0}),this._log(`\u6E05\u9664\u804A\u5929\u6240\u6709\u4E0A\u4E0B\u6587: ${s}`),!0}clearAllChatsContexts(){u.remove(fe),this._cache.clear(),this._log("\u6E05\u9664\u6240\u6709\u4E0A\u4E0B\u6587")}hasToolContext(t,s){let o=t||this._getCurrentChatId();return!o||!s?!1:!!this._getChatContexts(o)[s]}getContextSummary(t){let s=t||this._getCurrentChatId();if(!s)return{tools:[],totalCount:0};let o=this._getChatContexts(s),n=Object.entries(o).map(([r,i])=>({toolId:r,updatedAt:i.updatedAt,contentLength:i.content?.length||0}));return{chatId:s,tools:n,totalCount:n.length}}exportContext(t){let s=t||this._getCurrentChatId();return s?{chatId:s,contexts:this._getChatContexts(s),exportedAt:Date.now()}:{}}importContext(t,s={}){if(!t||!t.chatId||!t.contexts)return!1;let{overwrite:o=!1}=s;if(o)this._saveChatContexts(t.chatId,t.contexts);else{let r={...this._getChatContexts(t.chatId),...t.contexts};this._saveChatContexts(t.chatId,r)}return this._log(`\u5BFC\u5165\u4E0A\u4E0B\u6587: ${t.chatId}`),!0}_getStorageKey(t){return`${fe}:${t}`}_getCurrentChatId(){try{let t=typeof window.parent<"u"&&window.parent!==window?window.parent:window;if(t.SillyTavern?.getContext){let s=t.SillyTavern.getContext();return s.chatId||s.chat_filename||`chat_${Date.now()}`}return`chat_${Date.now()}`}catch{return`chat_${Date.now()}`}}_getAllContexts(){return u.get(fe,{})}_getChatContexts(t){if(this._cache.has(t))return this._cache.get(t);let o=this._getAllContexts()[t]||{};return this._cache.set(t,o),o}_saveChatContexts(t,s){let o=this._getAllContexts();o[t]=s,u.set(fe,o),this._cache.set(t,s)}_log(...t){this.debugMode&&console.log("[ContextInjector]",...t)}},me=new ss,Gi=me});var Hn={};O(Hn,{DEFAULT_PROMPT_TEMPLATE:()=>Fn,ToolPromptService:()=>os,default:()=>Fi,toolPromptService:()=>ns});var Fn,os,ns,Fi,mo=E(()=>{L();Ht();Fn="\u8BF7\u5904\u7406\u4EE5\u4E0BAI\u56DE\u590D\u5185\u5BB9\uFF1A",os=class{constructor(){this.debugMode=!1}buildToolMessages(t,s){if(!t)return this._log("\u6784\u5EFA\u5931\u8D25: \u5DE5\u5177\u914D\u7F6E\u4E3A\u7A7A"),[];let o=[],n=this._getBypassMessages(t);if(n&&n.length>0)for(let a of n)a.enabled!==!1&&o.push({role:this._normalizeRole(a.role),content:a.content||""});let r=this._getPromptTemplate(t),i=this._buildUserContent(r,s);return i.trim()&&o.push({role:"user",content:i}),this._log(`\u6784\u5EFA\u6D88\u606F: ${o.length} \u6761`),o}buildPromptText(t,s){let o=this._getPromptTemplate(t);return this._buildUserContent(o,s)}getToolPromptTemplate(t){return this._getPromptTemplate(t)}_getPromptTemplate(t){return t.promptTemplate&&typeof t.promptTemplate=="string"?t.promptTemplate:Fn}_getBypassMessages(t){return t.bypass?.enabled?x.buildBypassMessages(t):[]}_buildUserContent(t,s){let o=[],n=s?.lastAiMessage||s?.input?.lastAiMessage||"";return t&&t.trim()&&o.push(t.trim()),n&&o.push(`
-\u4EE5\u4E0B\u662F\u9700\u8981\u5904\u7406\u7684AI\u56DE\u590D\u5185\u5BB9\uFF1A
-${n}`),o.join(`
-`)}_normalizeRole(t){if(!t)return"user";switch(String(t).toLowerCase()){case"system":return"system";case"assistant":return"assistant";case"user":default:return"user"}}_log(...t){this.debugMode&&console.log("[ToolPromptService]",...t)}setDebugMode(t){this.debugMode=t}},ns=new os,Fi=ns});var Wn={};O(Wn,{LEGACY_OUTPUT_MODES:()=>Hi,OUTPUT_MODES:()=>xt,TOOL_RUNTIME_STATUS:()=>Wi,ToolOutputService:()=>rs,default:()=>Qi,toolOutputService:()=>is});var xt,Hi,Wi,rs,is,Qi,bo=E(()=>{L();es();fo();mo();xt={FOLLOW_AI:"follow_ai",POST_RESPONSE_API:"post_response_api"},Hi={inline:"follow_ai"},Wi={IDLE:"idle",RUNNING:"running",SUCCESS:"success",ERROR:"error"},rs=class{constructor(){this.debugMode=!1,this._apiConnection=null}shouldRunPostResponse(t){return!t||!t.enabled||!t.trigger?.enabled||!t.output?.enabled?!1:t.output?.mode===xt.POST_RESPONSE_API}shouldRunFollowAi(t){if(!t||!t.enabled||!t.trigger?.enabled||!t.output?.enabled)return!1;let s=t.output?.mode;return s===xt.FOLLOW_AI||s==="inline"}shouldRunInline(t){return this.shouldRunFollowAi(t)}async runToolPostResponse(t,s){let o=Date.now(),n=t.id;this._log(`\u5F00\u59CB\u6267\u884C\u5DE5\u5177: ${n}`),f.emit(g.TOOL_EXECUTION_STARTED,{toolId:n,mode:xt.POST_RESPONSE_API});try{let r=await this._buildToolMessages(t,s);if(!r||r.length===0)throw new Error("\u65E0\u6CD5\u6784\u5EFA\u6709\u6548\u7684\u6D88\u606F");this._log(`\u6784\u5EFA\u4E86 ${r.length} \u6761\u6D88\u606F`);let i=t.output?.apiPreset,a=await this._getRequestTimeout(),c=await this._sendApiRequest(i,r,{timeoutMs:a,signal:s.signal}),y=this._extractOutputContent(c,t);y&&await me.inject(n,y,{chatId:s.chatId,overwrite:t.output?.overwrite!==!1,sourceMessageId:s.messageId||""});let p=Date.now()-o;return f.emit(g.TOOL_EXECUTED,{toolId:n,success:!0,duration:p,mode:xt.POST_RESPONSE_API}),this._log(`\u5DE5\u5177\u6267\u884C\u6210\u529F: ${n}, \u8017\u65F6 ${p}ms`),{success:!0,toolId:n,output:y,duration:p}}catch(r){let i=Date.now()-o;return this._log(`\u5DE5\u5177\u6267\u884C\u5931\u8D25: ${n}`,r),f.emit(g.TOOL_EXECUTION_FAILED,{toolId:n,error:r.message||String(r),duration:i}),{success:!1,toolId:n,error:r.message||String(r),duration:i}}}async runToolInline(t,s){let o=Date.now(),n=t.id;try{let r=await this._buildToolMessages(t,s);return{success:!0,toolId:n,messages:r,duration:Date.now()-o}}catch(r){return{success:!1,toolId:n,error:r.message||String(r),duration:Date.now()-o}}}async _buildToolMessages(t,s){let o=await me.getAggregatedContext(s.chatId),n={...s,injectedContext:o,toolName:t.name,toolId:t.id};return ns.buildToolMessages(t,n)}_normalizeRole(t){if(!t)return"user";let s=String(t).toLowerCase();return s==="system"?"system":s==="assistant"?"assistant":"user"}setApiConnection(t){this._apiConnection=t}async _sendApiRequest(t,s,o={}){if(!this._apiConnection)throw new Error("API\u8FDE\u63A5\u6A21\u5757\u672A\u914D\u7F6E");let{timeoutMs:n=9e4,signal:r}=o;if(t&&this._apiConnection.sendWithPreset)return await this._apiConnection.sendWithPreset(t,s,{timeoutMs:n},r);if(this._apiConnection.sendApiRequest)return await this._apiConnection.sendApiRequest(s,{timeoutMs:n},r);throw new Error("\u6CA1\u6709\u53EF\u7528\u7684API\u53D1\u9001\u65B9\u6CD5")}async _getRequestTimeout(){return ht.getSettings().executor?.requestTimeoutMs||9e4}_extractOutputContent(t,s){if(!t)return"";if(typeof t=="string")return t;if(typeof t=="object"){if(t.choices&&t.choices[0]?.message?.content)return t.choices[0].message.content;if(t.content)return t.content;if(t.text)return t.text;if(t.message)return t.message;try{return JSON.stringify(t,null,2)}catch{return String(t)}}return String(t)}filterPostResponseTools(t){return Array.isArray(t)?t.filter(s=>this.shouldRunPostResponse(s)):[]}filterInlineTools(t){return Array.isArray(t)?t.filter(s=>this.shouldRunInline(s)):[]}setDebugMode(t){this.debugMode=t}_log(...t){this.debugMode&&console.log("[ToolOutputService]",...t)}},is=new rs,Qi=is});var Vn={};O(Vn,{EVENT_TYPES:()=>ho,checkGate:()=>vo,destroyToolTriggerManager:()=>na,getChatContext:()=>wo,getCurrentCharacter:()=>To,getFullContext:()=>Vi,getToolTriggerManagerState:()=>ra,getWorldbookContent:()=>Qn,initToolTriggerManager:()=>qn,initTriggerModule:()=>Jn,registerEventListener:()=>Kt,registerTriggerHandler:()=>Ki,removeAllListeners:()=>qi,removeAllTriggerHandlers:()=>Zi,resetGateState:()=>Ji,setDebugMode:()=>ia,setTriggerHandlerEnabled:()=>Xi,triggerState:()=>N,unregisterEventListener:()=>cs,updateGateState:()=>ls});function Xt(){return typeof window.parent<"u"?window.parent:window}function be(){return Xt().SillyTavern||null}function xo(){let t=Xt().SillyTavern;return t&&t.eventSource?t.eventSource:null}function ds(){let t=Xt().SillyTavern;return t&&t.eventTypes?t.eventTypes:ho}function v(...e){N.debugMode&&console.log("[YouYouToolkit:Trigger]",...e)}function Kt(e,t,s={}){if(!e||typeof t!="function")return v("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u56DE\u8C03\u51FD\u6570"),()=>{};let{once:o=!1,priority:n=0}=s,r=xo(),a=ds()[e]||e,c=async(...y)=>{try{if(s.gateCheck&&!await vo(s.gateCheck)){v(`\u95E8\u63A7\u68C0\u67E5\u5931\u8D25\uFF0C\u8DF3\u8FC7\u4E8B\u4EF6: ${e}`);return}await t(...y),o&&cs(e,c)}catch(p){console.error("[YouYouToolkit:Trigger] \u4E8B\u4EF6\u5904\u7406\u9519\u8BEF:",p)}};if(N.listeners.has(e)||N.listeners.set(e,new Set),N.listeners.get(e).add(c),r&&typeof r.on=="function")r.on(a,c),v(`\u5DF2\u6CE8\u518C\u4E8B\u4EF6\u76D1\u542C\u5668: ${e}`);else{let y=Xt();y.addEventListener&&(y.addEventListener(a,c),v(`\u5DF2\u6CE8\u518CDOM\u4E8B\u4EF6\u76D1\u542C\u5668: ${e}`))}return()=>cs(e,c)}function cs(e,t){let s=N.listeners.get(e);if(s&&s.has(t)){s.delete(t);let o=xo(),r=ds()[e]||e;if(o&&typeof o.off=="function")o.off(r,t),v(`\u5DF2\u53D6\u6D88\u4E8B\u4EF6\u76D1\u542C\u5668: ${e}`);else{let i=Xt();i.removeEventListener&&i.removeEventListener(r,t)}}}function qi(){let e=xo(),t=ds();for(let[s,o]of N.listeners){let n=t[s]||s;for(let r of o)if(e&&typeof e.off=="function")e.off(n,r);else{let i=Xt();i.removeEventListener&&i.removeEventListener(n,r)}}N.listeners.clear(),v("\u5DF2\u79FB\u9664\u6240\u6709\u4E8B\u4EF6\u76D1\u542C\u5668")}async function vo(e){if(!e)return!0;let t=Date.now(),s=N.gateState;if(e.minInterval&&s.lastGenerationAt&&t-s.lastGenerationAt<e.minInterval)return v("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u77ED"),!1;if(e.maxInterval&&s.lastUserMessageAt&&t-s.lastUserMessageAt>e.maxInterval)return v("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u95F4\u9694\u65F6\u95F4\u8FC7\u957F"),!1;if(e.requireUserMessage&&!s.lastUserMessageId)return v("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u7F3A\u5C11\u7528\u6237\u6D88\u606F"),!1;if(e.excludeQuietGeneration&&s.lastGenerationType==="quiet")return v("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: quiet\u751F\u6210\u88AB\u6392\u9664"),!1;if(e.customCheck&&typeof e.customCheck=="function")try{if(!await e.customCheck(s))return v("\u95E8\u63A7\u68C0\u67E5\u5931\u8D25: \u81EA\u5B9A\u4E49\u68C0\u67E5\u8FD4\u56DEfalse"),!1}catch(o){return console.error("[YouYouToolkit:Trigger] \u81EA\u5B9A\u4E49\u95E8\u63A7\u68C0\u67E5\u9519\u8BEF:",o),!1}return!0}function ls(e){Object.assign(N.gateState,e)}function Ji(){N.gateState={lastUserMessageId:null,lastUserMessageText:"",lastUserMessageAt:0,lastGenerationType:null,lastGenerationAt:0,isGenerating:!1}}async function wo(e={}){let{depth:t=3,includeUser:s=!0,includeAssistant:o=!0,includeSystem:n=!1,format:r="messages"}=e,i=be();if(!i)return v("\u65E0\u6CD5\u83B7\u53D6SillyTavern API"),null;try{let a=i.chat||[],c=[],y=Math.max(0,a.length-t);for(let p=y;p<a.length;p++){let h=a[p];h&&(h.is_user&&!s||!h.is_user&&h.is_system&&!n||!h.is_user&&!h.is_system&&!o||(r==="messages"?c.push({role:h.is_user?"user":h.is_system?"system":"assistant",content:h.mes||"",name:h.name||"",timestamp:h.send_date}):c.push(h.mes||"")))}return{messages:c,totalMessages:a.length,startIndex:y,endIndex:a.length-1}}catch(a){return console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u804A\u5929\u4E0A\u4E0B\u6587\u5931\u8D25:",a),null}}async function To(){let e=be();if(!e)return null;try{let t=e.this_chid,s=e.characters||[];if(t>=0&&t<s.length){let o=s[t];return{id:t,name:o.name||"",description:o.description||"",personality:o.personality||"",scenario:o.scenario||"",firstMes:o.first_mes||"",mesExample:o.mes_example||""}}return null}catch(t){return console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u89D2\u8272\u4FE1\u606F\u5931\u8D25:",t),null}}async function Qn(e={}){let{enabledOnly:t=!0,maxLength:s=1e4}=e,o=be();if(!o)return"";try{let r=(o.lorebook||[]).entries||[],i=[],a=0;for(let c of r){if(t&&!c.enabled)continue;let y=c.content||"";y&&a+y.length<=s&&(i.push(y),a+=y.length)}return i.join(`
+// modules/ui/index.js
+function registerComponents() {
+  uiManager.register(ApiPresetPanel.id, ApiPresetPanel);
+  uiManager.register(RegexExtractPanel.id, RegexExtractPanel);
+  uiManager.register(ToolManagePanel.id, ToolManagePanel);
+  uiManager.register(SummaryToolPanel.id, SummaryToolPanel);
+  uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
+  uiManager.register(BypassPanel.id, BypassPanel);
+  console.log("[UI] \u7EC4\u4EF6\u6CE8\u518C\u5B8C\u6210");
+}
+function initUI(options = {}) {
+  uiManager.init(options);
+  registerComponents();
+  uiManager.injectStyles();
+  console.log("[UI] \u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210");
+}
+var init_ui = __esm({
+  "modules/ui/index.js"() {
+    init_ui_manager();
+    init_api_preset_panel();
+    init_regex_extract_panel();
+    init_tool_manage_panel();
+    init_summary_tool_panel();
+    init_status_block_panel();
+    init_bypass_panel();
+    init_utils();
+    init_ui_manager();
+    init_api_preset_panel();
+    init_regex_extract_panel();
+    init_tool_manage_panel();
+    init_summary_tool_panel();
+    init_status_block_panel();
+    init_bypass_panel();
+  }
+});
 
-`)}catch(n){return console.error("[YouYouToolkit:Trigger] \u83B7\u53D6\u4E16\u754C\u4E66\u5185\u5BB9\u5931\u8D25:",n),""}}async function Vi(e={}){let[t,s,o]=await Promise.all([wo(e.chat||{}),To(),Qn(e.worldbook||{})]);return{chat:t,character:s,worldbook:o,timestamp:Date.now()}}function Ki(e,t){if(!e||!t)return v("\u65E0\u6548\u7684\u5904\u7406\u5668ID\u6216\u914D\u7F6E"),()=>{};let{eventType:s,handler:o,gateCondition:n,priority:r=0}=t;if(!s||typeof o!="function")return v("\u65E0\u6548\u7684\u4E8B\u4EF6\u7C7B\u578B\u6216\u5904\u7406\u5668\u51FD\u6570"),()=>{};N.handlers.set(e,{eventType:s,handler:o,gateCondition:n,priority:r,enabled:!0});let i=Kt(s,async(...a)=>{let c=N.handlers.get(e);!c||!c.enabled||c.gateCondition&&!await vo(c.gateCondition)||await c.handler(...a)},{priority:r});return v(`\u5DF2\u6CE8\u518C\u89E6\u53D1\u5904\u7406\u5668: ${e}`),()=>{i(),N.handlers.delete(e),v(`\u5DF2\u53D6\u6D88\u89E6\u53D1\u5904\u7406\u5668: ${e}`)}}function Xi(e,t){let s=N.handlers.get(e);s&&(s.enabled=t,v(`\u89E6\u53D1\u5904\u7406\u5668 ${e} \u5DF2${t?"\u542F\u7528":"\u7981\u7528"}`))}function Zi(){N.handlers.clear(),v("\u5DF2\u79FB\u9664\u6240\u6709\u89E6\u53D1\u5904\u7406\u5668")}function qn(){if(Z.initialized){v("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316");return}ta(),Z.initialized=!0,v("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u521D\u59CB\u5316"),f.emit(g.TOOL_TRIGGER_INITIALIZED)}function ta(){let e=ho.GENERATION_ENDED,t=Kt(e,async s=>{v("GENERATION_ENDED\u89E6\u53D1:",s);let o=await ea(s),n=sa(e);if(n.length===0){v("\u6CA1\u6709\u9700\u8981\u6267\u884C\u7684\u5DE5\u5177");return}v(`\u9700\u8981\u6267\u884C ${n.length} \u4E2A\u5DE5\u5177:`,n.map(r=>r.id));for(let r of n)try{let i=await oa(r,o);i.success?(v(`\u5DE5\u5177 ${r.id} \u6267\u884C\u6210\u529F`),f.emit(g.TOOL_EXECUTED,{toolId:r.id,result:i.result||i.data||i})):v(`\u5DE5\u5177 ${r.id} \u6267\u884C\u5931\u8D25:`,i.error)}catch(i){console.error(`[ToolTrigger] \u5DE5\u5177\u6267\u884C\u5931\u8D25: ${r.id}`,i)}Z.lastExecutionContext=o});Z.listeners.set(e,t)}async function ea(e){let t=await wo({depth:5}),s=await To(),n=be()?.getContext?.()||null,r=t?.messages||[],i=r.filter(c=>c.role==="user").pop(),a=r.filter(c=>c.role==="assistant").pop();return{triggeredAt:Date.now(),triggerEvent:"GENERATION_ENDED",chatId:n?.chatId||n?.chat_id||n?.chat_filename||"",messageId:e?.messageId||e?.id||"",lastAiMessage:a?.content||"",userMessage:i?.content||"",input:{userMessage:i?.content||"",lastAiMessage:a?.content||"",extractedContent:"",previousToolOutput:"",context:{character:s?.name||"",chatLength:t?.totalMessages||0}},config:{},status:"pending"}}function sa(e){return yo(e)}function as(e,t){try{oo(e,t)}catch(s){console.warn("[ToolTrigger] \u66F4\u65B0\u5DE5\u5177\u8FD0\u884C\u65F6\u72B6\u6001\u5931\u8D25:",e,s)}}async function oa(e,t){let s=Date.now(),o=e.id;as(o,{lastStatus:"running",lastError:"",lastDurationMs:0});try{let n;e.output?.mode===xt.POST_RESPONSE_API?n=await is.runToolPostResponse(e,t):n=await Ze(o,t);let r=Date.now()-s;if(n?.success){let c=R(o);as(o,{lastStatus:"success",lastError:"",lastDurationMs:r,successCount:(c?.runtime?.successCount||0)+1});let y=e.output?.mode===xt.POST_RESPONSE_API?`\u5DF2\u76D1\u542C AI \u56DE\u590D\u5E76\u6267\u884C ${e.name}`:`\u5DF2\u76D1\u542C AI \u56DE\u590D\uFF1A${e.name} \u5DF2\u89E6\u53D1`;return d("success",y),{success:!0,duration:r,result:n}}let i=R(o),a=n?.error||"\u5DE5\u5177\u6267\u884C\u5931\u8D25";return as(o,{lastStatus:"error",lastError:a,lastDurationMs:r,errorCount:(i?.runtime?.errorCount||0)+1}),d("error",`${e.name} \u6267\u884C\u5931\u8D25\uFF1A${a}`),{success:!1,duration:r,error:a,result:n}}catch(n){let r=Date.now()-s,i=R(o),a=n?.message||String(n);throw as(o,{lastStatus:"error",lastError:a,lastDurationMs:r,errorCount:(i?.runtime?.errorCount||0)+1}),d("error",`${e.name} \u6267\u884C\u5931\u8D25\uFF1A${a}`),n}}function na(){for(let[e,t]of Z.listeners)cs(e,t);Z.listeners.clear(),Z.initialized=!1,Z.lastExecutionContext=null,v("\u5DE5\u5177\u89E6\u53D1\u7BA1\u7406\u5668\u5DF2\u9500\u6BC1")}function ra(){return{initialized:Z.initialized,listenersCount:Z.listeners.size,lastExecutionContext:Z.lastExecutionContext}}async function Jn(){if(N.isInitialized){v("\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316");return}if(!be()){v("\u65E0\u6CD5\u83B7\u53D6SillyTavern API\uFF0C\u5EF6\u8FDF\u521D\u59CB\u5316"),setTimeout(Jn,1e3);return}let t=ds();t.MESSAGE_SENT&&Kt(t.MESSAGE_SENT,s=>{ls({lastUserMessageId:s,lastUserMessageAt:Date.now()}),v(`\u7528\u6237\u6D88\u606F\u5DF2\u53D1\u9001: ${s}`)}),t.GENERATION_STARTED&&Kt(t.GENERATION_STARTED,(s,o)=>{ls({lastGenerationType:s,isGenerating:!0}),v(`\u751F\u6210\u5F00\u59CB: ${s}`)}),t.GENERATION_ENDED&&Kt(t.GENERATION_ENDED,()=>{ls({lastGenerationAt:Date.now(),isGenerating:!1}),v("\u751F\u6210\u7ED3\u675F")}),qn(),N.isInitialized=!0,v("\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210")}function ia(e){N.debugMode=e}var ho,N,Z,Kn=E(()=>{L();Gt();po();bo();K();ho={MESSAGE_RECEIVED:"MESSAGE_RECEIVED",MESSAGE_SENT:"MESSAGE_SENT",MESSAGE_UPDATED:"MESSAGE_UPDATED",MESSAGE_DELETED:"MESSAGE_DELETED",GENERATION_STARTED:"GENERATION_STARTED",GENERATION_ENDED:"GENERATION_ENDED",GENERATION_AFTER_COMMANDS:"GENERATION_AFTER_COMMANDS",CHARACTER_LOADED:"CHARACTER_LOADED",CHARACTER_DELETED:"CHARACTER_DELETED",CHAT_CHANGED:"CHAT_CHANGED",CHAT_CREATED:"CHAT_CREATED",WORLDBOOK_UPDATED:"WORLDBOOK_UPDATED",EXTENSIONS_LOADED:"EXTENSIONS_LOADED",SETTINGS_LOADED:"SETTINGS_LOADED"},N={listeners:new Map,handlers:new Map,gateState:{lastUserMessageId:null,lastUserMessageText:"",lastUserMessageAt:0,lastGenerationType:null,lastGenerationAt:0,isGenerating:!1},isInitialized:!1,debugMode:!1};Z={initialized:!1,listeners:new Map,lastExecutionContext:null}});var Zn={};O(Zn,{WindowManager:()=>ys,closeWindow:()=>da,createWindow:()=>ca,windowManager:()=>J});function la(){if(J.stylesInjected)return;J.stylesInjected=!0;let e=`
+// modules/ui-components.js
+var ui_components_exports = {};
+__export(ui_components_exports, {
+  ApiPresetPanel: () => ApiPresetPanel,
+  RegexExtractPanel: () => RegexExtractPanel,
+  SCRIPT_ID: () => SCRIPT_ID,
+  StatusBlockPanel: () => StatusBlockPanel,
+  SummaryToolPanel: () => SummaryToolPanel,
+  ToolManagePanel: () => ToolManagePanel,
+  default: () => ui_components_default,
+  escapeHtml: () => escapeHtml,
+  fillFormWithConfig: () => fillFormWithConfig,
+  getCurrentTab: () => getCurrentTab,
+  getFormApiConfig: () => getFormApiConfig,
+  getJQuery: () => getJQuery,
+  getRegexStyles: () => getRegexStyles,
+  getStyles: () => getStyles,
+  getToolStyles: () => getToolStyles,
+  initUI: () => initUI,
+  isContainerValid: () => isContainerValid,
+  registerComponents: () => registerComponents,
+  render: () => render,
+  renderRegex: () => renderRegex,
+  renderTool: () => renderTool,
+  setCurrentTab: () => setCurrentTab,
+  showToast: () => showToast,
+  uiManager: () => uiManager
+});
+function render(container) {
+  const $ = getJQuery();
+  if (!$) {
+    console.error("[YouYouToolkit] jQuery not available");
+    return;
+  }
+  if (container) {
+    if (typeof container === "string") {
+      $container = $(container);
+    } else if (container && container.jquery) {
+      $container = container;
+    } else if (container) {
+      $container = $(container);
+    }
+  }
+  if (!$container || !$container.length) {
+    console.error("[YouYouToolkit] Container not found or invalid");
+    return;
+  }
+  ApiPresetPanel.renderTo($container);
+}
+function renderRegex(container) {
+  const $ = getJQuery();
+  if (!$) {
+    console.error("[YouYouToolkit] jQuery not available");
+    return;
+  }
+  if (container) {
+    if (typeof container === "string") {
+      $regexContainer = $(container);
+    } else if (container && container.jquery) {
+      $regexContainer = container;
+    } else if (container) {
+      $regexContainer = $(container);
+    }
+  }
+  if (!$regexContainer || !$regexContainer.length) {
+    console.error("[YouYouToolkit] Regex container not found");
+    return;
+  }
+  RegexExtractPanel.renderTo($regexContainer);
+}
+function renderTool(container) {
+  const $ = getJQuery();
+  if (!$) {
+    console.error("[YouYouToolkit] jQuery not available");
+    return;
+  }
+  if (container) {
+    if (typeof container === "string") {
+      $toolContainer = $(container);
+    } else if (container && container.jquery) {
+      $toolContainer = container;
+    } else if (container) {
+      $toolContainer = $(container);
+    }
+  }
+  if (!$toolContainer || !$toolContainer.length) {
+    console.error("[YouYouToolkit] Tool container not found");
+    return;
+  }
+  ToolManagePanel.renderTo($toolContainer);
+}
+function getStyles() {
+  return ApiPresetPanel.getStyles();
+}
+function getRegexStyles() {
+  return RegexExtractPanel.getStyles();
+}
+function getToolStyles() {
+  return [
+    ToolManagePanel.getStyles(),
+    SummaryToolPanel.getStyles(),
+    StatusBlockPanel.getStyles()
+  ].join("\n");
+}
+function getCurrentTab() {
+  return uiManager.getCurrentTab();
+}
+function setCurrentTab(tab) {
+  uiManager.switchTab(tab);
+}
+var $container, $regexContainer, $toolContainer, ui_components_default;
+var init_ui_components = __esm({
+  "modules/ui-components.js"() {
+    init_ui();
+    $container = null;
+    $regexContainer = null;
+    $toolContainer = null;
+    ui_components_default = {
+      // 渲染函数
+      render,
+      renderRegex,
+      renderTool,
+      // 样式函数
+      getStyles,
+      getRegexStyles,
+      getToolStyles,
+      // 标签页管理
+      getCurrentTab,
+      setCurrentTab,
+      // 新模块API
+      uiManager,
+      ApiPresetPanel,
+      RegexExtractPanel,
+      ToolManagePanel,
+      SummaryToolPanel,
+      StatusBlockPanel,
+      registerComponents,
+      initUI,
+      // 工具函数
+      SCRIPT_ID,
+      escapeHtml,
+      showToast,
+      getJQuery,
+      isContainerValid,
+      getFormApiConfig,
+      fillFormWithConfig
+    };
+  }
+});
+
+// modules/window-manager.js
+var window_manager_exports = {};
+__export(window_manager_exports, {
+  WindowManager: () => WindowManager,
+  closeWindow: () => closeWindow,
+  createWindow: () => createWindow,
+  windowManager: () => windowManager
+});
+function injectWindowStyles() {
+  if (windowManager.stylesInjected)
+    return;
+  windowManager.stylesInjected = true;
+  const css = `
     /* ============================================================
        YouYou Toolkit - \u72EC\u7ACB\u7A97\u53E3\u7CFB\u7EDF\u6837\u5F0F
        ============================================================ */
@@ -2865,20 +10548,73 @@ ${n}`),o.join(`
       height: 20px;
       cursor: sw-resize;
     }
-  `,t=document.createElement("style");t.id=aa+"_styles",t.textContent=e,(document.head||document.documentElement).appendChild(t)}function ca(e){let{id:t,title:s="\u7A97\u53E3",content:o="",width:n=900,height:r=700,modal:i=!1,resizable:a=!0,maximizable:c=!0,startMaximized:y=!1,rememberState:p=!0,onClose:h,onReady:D}=e;la();let b=window.jQuery||window.parent?.jQuery;if(!b)return console.error("[WindowManager] jQuery not available"),null;if(J.isOpen(t))return J.bringToFront(t),J.getWindow(t);let z=window.innerWidth||1200,Se=window.innerHeight||800,xs=z<=1100,wt=null,vs=!1;p&&(wt=J.getState(t),wt&&!xs&&(vs=!0));let It,Dt;vs&&wt.width&&wt.height?(It=Math.max(400,Math.min(wt.width,z-40)),Dt=Math.max(300,Math.min(wt.height,Se-40))):(It=Math.max(400,Math.min(n,z-40)),Dt=Math.max(300,Math.min(r,Se-40)));let Ro=Math.max(20,Math.min((z-It)/2,z-It-20)),Io=Math.max(20,Math.min((Se-Dt)/2,Se-Dt-20)),Er=c&&!xs,Sr=`
-    <div class="yyt-window" id="${t}" style="left:${Ro}px; top:${Io}px; width:${It}px; height:${Dt}px;">
+  `;
+  const style = document.createElement("style");
+  style.id = WINDOW_MANAGER_ID + "_styles";
+  style.textContent = css;
+  (document.head || document.documentElement).appendChild(style);
+}
+function createWindow(options) {
+  const {
+    id,
+    title = "\u7A97\u53E3",
+    content = "",
+    width = 900,
+    height = 700,
+    modal = false,
+    resizable = true,
+    maximizable = true,
+    startMaximized = false,
+    rememberState = true,
+    onClose,
+    onReady
+  } = options;
+  injectWindowStyles();
+  const $ = window.jQuery || window.parent?.jQuery;
+  if (!$) {
+    console.error("[WindowManager] jQuery not available");
+    return null;
+  }
+  if (windowManager.isOpen(id)) {
+    windowManager.bringToFront(id);
+    return windowManager.getWindow(id);
+  }
+  const viewW = window.innerWidth || 1200;
+  const viewH = window.innerHeight || 800;
+  const isNarrowScreen = viewW <= 1100;
+  let savedState = null;
+  let useSavedState = false;
+  if (rememberState) {
+    savedState = windowManager.getState(id);
+    if (savedState && !isNarrowScreen) {
+      useSavedState = true;
+    }
+  }
+  let initialW, initialH;
+  if (useSavedState && savedState.width && savedState.height) {
+    initialW = Math.max(400, Math.min(savedState.width, viewW - 40));
+    initialH = Math.max(300, Math.min(savedState.height, viewH - 40));
+  } else {
+    initialW = Math.max(400, Math.min(width, viewW - 40));
+    initialH = Math.max(300, Math.min(height, viewH - 40));
+  }
+  const initialX = Math.max(20, Math.min((viewW - initialW) / 2, viewW - initialW - 20));
+  const initialY = Math.max(20, Math.min((viewH - initialH) / 2, viewH - initialH - 20));
+  const showMaximizeBtn = maximizable && !isNarrowScreen;
+  const windowHtml = `
+    <div class="yyt-window" id="${id}" style="left:${initialX}px; top:${initialY}px; width:${initialW}px; height:${initialH}px;">
       <div class="yyt-window-header">
         <div class="yyt-window-title">
           <i class="fa-solid fa-window-maximize"></i>
-          <span>${ya(s)}</span>
+          <span>${escapeHtml2(title)}</span>
         </div>
         <div class="yyt-window-controls">
-          ${Er?'<button class="yyt-window-btn maximize" title="\u6700\u5927\u5316/\u8FD8\u539F"><i class="fa-solid fa-expand"></i></button>':""}
+          ${showMaximizeBtn ? '<button class="yyt-window-btn maximize" title="\u6700\u5927\u5316/\u8FD8\u539F"><i class="fa-solid fa-expand"></i></button>' : ""}
           <button class="yyt-window-btn close" title="\u5173\u95ED"><i class="fa-solid fa-times"></i></button>
         </div>
       </div>
-      <div class="yyt-window-body">${o}</div>
-      ${a?`
+      <div class="yyt-window-body">${content}</div>
+      ${resizable ? `
         <div class="yyt-window-resize-handle se"></div>
         <div class="yyt-window-resize-handle e"></div>
         <div class="yyt-window-resize-handle s"></div>
@@ -2887,9 +10623,325 @@ ${n}`),o.join(`
         <div class="yyt-window-resize-handle nw"></div>
         <div class="yyt-window-resize-handle ne"></div>
         <div class="yyt-window-resize-handle sw"></div>
-      `:""}
+      ` : ""}
     </div>
-  `,Tt=null;i&&(Tt=b(`<div class="yyt-window-overlay" data-for="${t}"></div>`),b(document.body).append(Tt));let T=b(Sr);b(document.body).append(T),J.register(t,T),T.on("mousedown",()=>J.bringToFront(t));let yt=!1,Et={left:Ro,top:Io,width:It,height:Dt},_e=()=>{Et={left:parseInt(T.css("left")),top:parseInt(T.css("top")),width:T.width(),height:T.height()},T.addClass("maximized"),T.find(".yyt-window-btn.maximize i").removeClass("fa-expand").addClass("fa-compress"),yt=!0},_r=()=>{T.removeClass("maximized"),T.css({left:Et.left+"px",top:Et.top+"px",width:Et.width+"px",height:Et.height+"px"}),T.find(".yyt-window-btn.maximize i").removeClass("fa-compress").addClass("fa-expand"),yt=!1};T.find(".yyt-window-btn.maximize").on("click",()=>{yt?_r():_e()}),(xs&&c||vs&&wt.isMaximized&&c||y&&c)&&_e(),T.find(".yyt-window-btn.close").on("click",()=>{if(p&&c){let G={width:yt?Et.width:T.width(),height:yt?Et.height:T.height(),isMaximized:yt};J.saveState(t,G)}h&&h(),Tt&&Tt.remove(),T.remove(),J.unregister(t),b(document).off(".yytWindowDrag"+t),b(document).off(".yytWindowResize"+t)}),Tt&&Tt.on("click",G=>{G.target,Tt[0]});let Ce=!1,Do,Mo,Oo,Lo;if(T.find(".yyt-window-header").on("mousedown",G=>{b(G.target).closest(".yyt-window-controls").length||yt||(Ce=!0,Do=G.clientX,Mo=G.clientY,Oo=parseInt(T.css("left")),Lo=parseInt(T.css("top")),b(document.body).css("user-select","none"))}),b(document).on("mousemove.yytWindowDrag"+t,G=>{if(!Ce)return;let F=G.clientX-Do,Pe=G.clientY-Mo;T.css({left:Math.max(0,Oo+F)+"px",top:Math.max(0,Lo+Pe)+"px"})}),b(document).on("mouseup.yytWindowDrag"+t,()=>{Ce&&(Ce=!1,b(document.body).css("user-select",""))}),a){let G=!1,F="",Pe,No,$e,Ae,ws,Ts;T.find(".yyt-window-resize-handle").on("mousedown",function(Mt){yt||(G=!0,F="",b(this).hasClass("se")?F="se":b(this).hasClass("e")?F="e":b(this).hasClass("s")?F="s":b(this).hasClass("w")?F="w":b(this).hasClass("n")?F="n":b(this).hasClass("nw")?F="nw":b(this).hasClass("ne")?F="ne":b(this).hasClass("sw")&&(F="sw"),Pe=Mt.clientX,No=Mt.clientY,$e=T.width(),Ae=T.height(),ws=parseInt(T.css("left")),Ts=parseInt(T.css("top")),b(document.body).css("user-select","none"),Mt.stopPropagation())}),b(document).on("mousemove.yytWindowResize"+t,Mt=>{if(!G)return;let Es=Mt.clientX-Pe,Ss=Mt.clientY-No,jo=400,zo=300,_s=$e,Cs=Ae,Uo=ws,Bo=Ts;if(F.includes("e")&&(_s=Math.max(jo,$e+Es)),F.includes("s")&&(Cs=Math.max(zo,Ae+Ss)),F.includes("w")){let ee=$e-Es;ee>=jo&&(_s=ee,Uo=ws+Es)}if(F.includes("n")){let ee=Ae-Ss;ee>=zo&&(Cs=ee,Bo=Ts+Ss)}T.css({width:_s+"px",height:Cs+"px",left:Uo+"px",top:Bo+"px"})}),b(document).on("mouseup.yytWindowResize"+t,()=>{G&&(G=!1,b(document.body).css("user-select",""))})}return T.on("remove",()=>{b(document).off(".yytWindowDrag"+t),b(document).off(".yytWindowResize"+t)}),D&&setTimeout(()=>D(T),50),T}function da(e){let t=J.getWindow(e);if(t){let s=window.jQuery||window.parent?.jQuery;s&&(s(`.yyt-window-overlay[data-for="${e}"]`).remove(),s(document).off(".yytWindowDrag"+e),s(document).off(".yytWindowResize"+e)),t.remove(),J.unregister(e)}}function ya(e){return typeof e!="string"?"":e.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}var aa,Xn,ys,J,tr=E(()=>{et();aa="youyou_toolkit_window_manager",Xn="window_states",ys=class{constructor(){this.windows=new Map,this.baseZIndex=1e4,this.topZIndex=1e4,this.stylesInjected=!1}register(t,s){this.topZIndex++,this.windows.set(t,{$el:s,zIndex:this.topZIndex}),s.css("z-index",this.topZIndex)}unregister(t){this.windows.delete(t)}bringToFront(t){let s=this.windows.get(t);s&&(this.topZIndex++,s.zIndex=this.topZIndex,s.$el.css("z-index",this.topZIndex))}getWindow(t){return this.windows.get(t)?.$el||null}isOpen(t){return this.windows.has(t)}closeAll(){this.windows.forEach((t,s)=>{t.$el&&t.$el.remove()}),this.windows.clear()}saveState(t,s){let o=this.loadStates();o[t]={...s,updatedAt:Date.now()},se.set(Xn,o)}loadStates(){return se.get(Xn)||{}}getState(t){return this.loadStates()[t]||null}},J=new ys});var er={};O(er,{DEFAULT_PROMPT_SEGMENTS:()=>ps,PromptEditor:()=>us,default:()=>xa,getPromptEditorStyles:()=>fa,messagesToSegments:()=>ha,segmentsToMessages:()=>ba,validatePromptSegments:()=>ma});function fa(){return`
+  `;
+  let $overlay = null;
+  if (modal) {
+    $overlay = $(`<div class="yyt-window-overlay" data-for="${id}"></div>`);
+    $(document.body).append($overlay);
+  }
+  const $window = $(windowHtml);
+  $(document.body).append($window);
+  windowManager.register(id, $window);
+  $window.on("mousedown", () => windowManager.bringToFront(id));
+  let isMaximized = false;
+  let restoreState = { left: initialX, top: initialY, width: initialW, height: initialH };
+  const doMaximize = () => {
+    restoreState = {
+      left: parseInt($window.css("left")),
+      top: parseInt($window.css("top")),
+      width: $window.width(),
+      height: $window.height()
+    };
+    $window.addClass("maximized");
+    $window.find(".yyt-window-btn.maximize i").removeClass("fa-expand").addClass("fa-compress");
+    isMaximized = true;
+  };
+  const doRestore = () => {
+    $window.removeClass("maximized");
+    $window.css({
+      left: restoreState.left + "px",
+      top: restoreState.top + "px",
+      width: restoreState.width + "px",
+      height: restoreState.height + "px"
+    });
+    $window.find(".yyt-window-btn.maximize i").removeClass("fa-compress").addClass("fa-expand");
+    isMaximized = false;
+  };
+  $window.find(".yyt-window-btn.maximize").on("click", () => {
+    if (isMaximized) {
+      doRestore();
+    } else {
+      doMaximize();
+    }
+  });
+  if (isNarrowScreen && maximizable) {
+    doMaximize();
+  } else if (useSavedState && savedState.isMaximized && maximizable) {
+    doMaximize();
+  } else if (startMaximized && maximizable) {
+    doMaximize();
+  }
+  $window.find(".yyt-window-btn.close").on("click", () => {
+    if (rememberState && maximizable) {
+      const currentState = {
+        width: isMaximized ? restoreState.width : $window.width(),
+        height: isMaximized ? restoreState.height : $window.height(),
+        isMaximized
+      };
+      windowManager.saveState(id, currentState);
+    }
+    if (onClose)
+      onClose();
+    if ($overlay)
+      $overlay.remove();
+    $window.remove();
+    windowManager.unregister(id);
+    $(document).off(".yytWindowDrag" + id);
+    $(document).off(".yytWindowResize" + id);
+  });
+  if ($overlay) {
+    $overlay.on("click", (e) => {
+      if (e.target === $overlay[0]) {
+      }
+    });
+  }
+  let isDragging = false;
+  let dragStartX, dragStartY, windowStartX, windowStartY;
+  $window.find(".yyt-window-header").on("mousedown", (e) => {
+    if ($(e.target).closest(".yyt-window-controls").length)
+      return;
+    if (isMaximized)
+      return;
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    windowStartX = parseInt($window.css("left"));
+    windowStartY = parseInt($window.css("top"));
+    $(document.body).css("user-select", "none");
+  });
+  $(document).on("mousemove.yytWindowDrag" + id, (e) => {
+    if (!isDragging)
+      return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    $window.css({
+      left: Math.max(0, windowStartX + dx) + "px",
+      top: Math.max(0, windowStartY + dy) + "px"
+    });
+  });
+  $(document).on("mouseup.yytWindowDrag" + id, () => {
+    if (isDragging) {
+      isDragging = false;
+      $(document.body).css("user-select", "");
+    }
+  });
+  if (resizable) {
+    let isResizing = false;
+    let resizeType = "";
+    let resizeStartX, resizeStartY, startWidth, startHeight, startLeft, startTop;
+    $window.find(".yyt-window-resize-handle").on("mousedown", function(e) {
+      if (isMaximized)
+        return;
+      isResizing = true;
+      resizeType = "";
+      if ($(this).hasClass("se"))
+        resizeType = "se";
+      else if ($(this).hasClass("e"))
+        resizeType = "e";
+      else if ($(this).hasClass("s"))
+        resizeType = "s";
+      else if ($(this).hasClass("w"))
+        resizeType = "w";
+      else if ($(this).hasClass("n"))
+        resizeType = "n";
+      else if ($(this).hasClass("nw"))
+        resizeType = "nw";
+      else if ($(this).hasClass("ne"))
+        resizeType = "ne";
+      else if ($(this).hasClass("sw"))
+        resizeType = "sw";
+      resizeStartX = e.clientX;
+      resizeStartY = e.clientY;
+      startWidth = $window.width();
+      startHeight = $window.height();
+      startLeft = parseInt($window.css("left"));
+      startTop = parseInt($window.css("top"));
+      $(document.body).css("user-select", "none");
+      e.stopPropagation();
+    });
+    $(document).on("mousemove.yytWindowResize" + id, (e) => {
+      if (!isResizing)
+        return;
+      const dx = e.clientX - resizeStartX;
+      const dy = e.clientY - resizeStartY;
+      const minW = 400, minH = 300;
+      let newW = startWidth, newH = startHeight, newL = startLeft, newT = startTop;
+      if (resizeType.includes("e"))
+        newW = Math.max(minW, startWidth + dx);
+      if (resizeType.includes("s"))
+        newH = Math.max(minH, startHeight + dy);
+      if (resizeType.includes("w")) {
+        const proposedW = startWidth - dx;
+        if (proposedW >= minW) {
+          newW = proposedW;
+          newL = startLeft + dx;
+        }
+      }
+      if (resizeType.includes("n")) {
+        const proposedH = startHeight - dy;
+        if (proposedH >= minH) {
+          newH = proposedH;
+          newT = startTop + dy;
+        }
+      }
+      $window.css({
+        width: newW + "px",
+        height: newH + "px",
+        left: newL + "px",
+        top: newT + "px"
+      });
+    });
+    $(document).on("mouseup.yytWindowResize" + id, () => {
+      if (isResizing) {
+        isResizing = false;
+        $(document.body).css("user-select", "");
+      }
+    });
+  }
+  $window.on("remove", () => {
+    $(document).off(".yytWindowDrag" + id);
+    $(document).off(".yytWindowResize" + id);
+  });
+  if (onReady) {
+    setTimeout(() => onReady($window), 50);
+  }
+  return $window;
+}
+function closeWindow(id) {
+  const $window = windowManager.getWindow(id);
+  if ($window) {
+    const $ = window.jQuery || window.parent?.jQuery;
+    if ($) {
+      $(`.yyt-window-overlay[data-for="${id}"]`).remove();
+      $(document).off(".yytWindowDrag" + id);
+      $(document).off(".yytWindowResize" + id);
+    }
+    $window.remove();
+    windowManager.unregister(id);
+  }
+}
+function escapeHtml2(unsafe) {
+  if (typeof unsafe !== "string")
+    return "";
+  return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
+}
+var WINDOW_MANAGER_ID, WINDOW_STATE_STORAGE_KEY, WindowManager, windowManager;
+var init_window_manager = __esm({
+  "modules/window-manager.js"() {
+    init_storage_service();
+    WINDOW_MANAGER_ID = "youyou_toolkit_window_manager";
+    WINDOW_STATE_STORAGE_KEY = "window_states";
+    WindowManager = class {
+      constructor() {
+        this.windows = /* @__PURE__ */ new Map();
+        this.baseZIndex = 1e4;
+        this.topZIndex = 1e4;
+        this.stylesInjected = false;
+      }
+      /**
+       * 注册窗口
+       * @param {string} id - 窗口ID
+       * @param {jQuery} $el - 窗口jQuery对象
+       */
+      register(id, $el) {
+        this.topZIndex++;
+        this.windows.set(id, { $el, zIndex: this.topZIndex });
+        $el.css("z-index", this.topZIndex);
+      }
+      /**
+       * 注销窗口
+       * @param {string} id - 窗口ID
+       */
+      unregister(id) {
+        this.windows.delete(id);
+      }
+      /**
+       * 将窗口置顶
+       * @param {string} id - 窗口ID
+       */
+      bringToFront(id) {
+        const win = this.windows.get(id);
+        if (!win)
+          return;
+        this.topZIndex++;
+        win.zIndex = this.topZIndex;
+        win.$el.css("z-index", this.topZIndex);
+      }
+      /**
+       * 获取窗口
+       * @param {string} id - 窗口ID
+       * @returns {jQuery|null}
+       */
+      getWindow(id) {
+        return this.windows.get(id)?.$el || null;
+      }
+      /**
+       * 检查窗口是否打开
+       * @param {string} id - 窗口ID
+       * @returns {boolean}
+       */
+      isOpen(id) {
+        return this.windows.has(id);
+      }
+      /**
+       * 关闭所有窗口
+       */
+      closeAll() {
+        this.windows.forEach((win, id) => {
+          if (win.$el)
+            win.$el.remove();
+        });
+        this.windows.clear();
+      }
+      /**
+       * 保存窗口状态
+       * @param {string} windowId - 窗口ID
+       * @param {object} state - 窗口状态
+       */
+      saveState(windowId, state) {
+        const states = this.loadStates();
+        states[windowId] = {
+          ...state,
+          updatedAt: Date.now()
+        };
+        windowStorage.set(WINDOW_STATE_STORAGE_KEY, states);
+      }
+      /**
+       * 加载所有窗口状态
+       * @returns {object}
+       */
+      loadStates() {
+        return windowStorage.get(WINDOW_STATE_STORAGE_KEY) || {};
+      }
+      /**
+       * 获取单个窗口状态
+       * @param {string} windowId - 窗口ID
+       * @returns {object|null}
+       */
+      getState(windowId) {
+        const states = this.loadStates();
+        return states[windowId] || null;
+      }
+    };
+    windowManager = new WindowManager();
+  }
+});
+
+// modules/prompt-editor.js
+var prompt_editor_exports = {};
+__export(prompt_editor_exports, {
+  DEFAULT_PROMPT_SEGMENTS: () => DEFAULT_PROMPT_SEGMENTS,
+  PromptEditor: () => PromptEditor,
+  default: () => prompt_editor_default,
+  getPromptEditorStyles: () => getPromptEditorStyles,
+  messagesToSegments: () => messagesToSegments,
+  segmentsToMessages: () => segmentsToMessages,
+  validatePromptSegments: () => validatePromptSegments
+});
+function getPromptEditorStyles() {
+  return `
     /* ============================================================
        \u63D0\u793A\u8BCD\u7F16\u8F91\u5668\u6837\u5F0F
        ============================================================ */
@@ -3069,7 +11121,160 @@ ${n}`),o.join(`
     .yyt-prompt-textarea::placeholder {
       color: rgba(255, 255, 255, 0.3);
     }
-  `}function ma(e){let t=[];return Array.isArray(e)?(e.forEach((s,o)=>{s.id||t.push(`\u6BB5\u843D ${o+1} \u7F3A\u5C11ID`),s.role||t.push(`\u6BB5\u843D ${o+1} \u7F3A\u5C11role\u5B57\u6BB5`),["SYSTEM","USER","assistant"].includes(s.role)||t.push(`\u6BB5\u843D ${o+1} \u7684role\u503C\u65E0\u6548: ${s.role}`)}),{valid:t.length===0,errors:t}):{valid:!1,errors:["\u63D0\u793A\u8BCD\u6570\u636E\u5FC5\u987B\u662F\u6570\u7EC4"]}}function ba(e){return e.filter(t=>t.content&&t.content.trim()).map(t=>({role:t.role,content:t.content,deletable:t.deletable,mainSlot:t.mainSlot}))}function ha(e){return Array.isArray(e)?e.map((t,s)=>({id:`segment_${s}_${Date.now()}`,type:t.role==="SYSTEM"?"system":t.role==="assistant"?"ai":"user",role:t.role,mainSlot:t.mainSlot||"",content:t.content||"",deletable:t.deletable!==!1,expanded:!0,isMain:t.mainSlot==="A"||t.isMain,isMain2:t.mainSlot==="B"||t.isMain2})):[...ps]}var pa,ua,ga,ps,us,xa,sr=E(()=>{pa="youyou_toolkit_prompt_editor",ua={system:"System Prompt (\u7CFB\u7EDF\u63D0\u793A\u8BCD)",ai:"AI Prompt (AI\u6307\u4EE4\u63D0\u793A\u8BCD)",user:"User Prompt (\u7528\u6237\u63D0\u793A\u8BCD)"},ga={system:"fa-server",ai:"fa-robot",user:"fa-user"},ps=[{id:"system_1",type:"system",role:"SYSTEM",mainSlot:"",content:"",deletable:!1,expanded:!0},{id:"ai_1",type:"ai",role:"USER",mainSlot:"A",content:"",deletable:!1,expanded:!0,isMain:!0},{id:"user_1",type:"user",role:"USER",mainSlot:"B",content:"",deletable:!1,expanded:!0,isMain2:!0}],us=class{constructor(t={}){this.containerId=t.containerId||pa,this.segments=t.segments||[...ps],this.onChange=t.onChange||null,this.editable=t.editable!==!1,this.showMainSlot=t.showMainSlot!==!1,this.$container=null,this.$=null}init(t){if(this.$=window.jQuery||window.parent?.jQuery,!this.$){console.error("[PromptEditor] jQuery not available");return}this.$container=t,this.render(),this.bindEvents()}setSegments(t){this.segments=t&&Array.isArray(t)?[...t]:[...ps],this.$container&&(this.render(),this.bindEvents())}getSegments(){return this.segments.map(t=>({...t,content:this.getSegmentContent(t.id)}))}getSegmentContent(t){return this.$container&&this.$container.find(`[data-segment-id="${t}"] .yyt-prompt-textarea`).val()||""}render(){if(!this.$container)return;let t=`
+  `;
+}
+function validatePromptSegments(segments) {
+  const errors = [];
+  if (!Array.isArray(segments)) {
+    return { valid: false, errors: ["\u63D0\u793A\u8BCD\u6570\u636E\u5FC5\u987B\u662F\u6570\u7EC4"] };
+  }
+  segments.forEach((seg, index) => {
+    if (!seg.id) {
+      errors.push(`\u6BB5\u843D ${index + 1} \u7F3A\u5C11ID`);
+    }
+    if (!seg.role) {
+      errors.push(`\u6BB5\u843D ${index + 1} \u7F3A\u5C11role\u5B57\u6BB5`);
+    }
+    if (!["SYSTEM", "USER", "assistant"].includes(seg.role)) {
+      errors.push(`\u6BB5\u843D ${index + 1} \u7684role\u503C\u65E0\u6548: ${seg.role}`);
+    }
+  });
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+function segmentsToMessages(segments) {
+  return segments.filter((seg) => seg.content && seg.content.trim()).map((seg) => ({
+    role: seg.role,
+    content: seg.content,
+    deletable: seg.deletable,
+    mainSlot: seg.mainSlot
+  }));
+}
+function messagesToSegments(messages) {
+  if (!Array.isArray(messages))
+    return [...DEFAULT_PROMPT_SEGMENTS];
+  return messages.map((msg, index) => ({
+    id: `segment_${index}_${Date.now()}`,
+    type: msg.role === "SYSTEM" ? "system" : msg.role === "assistant" ? "ai" : "user",
+    role: msg.role,
+    mainSlot: msg.mainSlot || "",
+    content: msg.content || "",
+    deletable: msg.deletable !== false,
+    expanded: true,
+    isMain: msg.mainSlot === "A" || msg.isMain,
+    isMain2: msg.mainSlot === "B" || msg.isMain2
+  }));
+}
+var PROMPT_EDITOR_ID, PROMPT_TYPE_LABELS, PROMPT_TYPE_ICONS, DEFAULT_PROMPT_SEGMENTS, PromptEditor, prompt_editor_default;
+var init_prompt_editor = __esm({
+  "modules/prompt-editor.js"() {
+    PROMPT_EDITOR_ID = "youyou_toolkit_prompt_editor";
+    PROMPT_TYPE_LABELS = {
+      system: "System Prompt (\u7CFB\u7EDF\u63D0\u793A\u8BCD)",
+      ai: "AI Prompt (AI\u6307\u4EE4\u63D0\u793A\u8BCD)",
+      user: "User Prompt (\u7528\u6237\u63D0\u793A\u8BCD)"
+    };
+    PROMPT_TYPE_ICONS = {
+      system: "fa-server",
+      ai: "fa-robot",
+      user: "fa-user"
+    };
+    DEFAULT_PROMPT_SEGMENTS = [
+      {
+        id: "system_1",
+        type: "system",
+        role: "SYSTEM",
+        mainSlot: "",
+        content: "",
+        deletable: false,
+        expanded: true
+      },
+      {
+        id: "ai_1",
+        type: "ai",
+        role: "USER",
+        mainSlot: "A",
+        content: "",
+        deletable: false,
+        expanded: true,
+        isMain: true
+      },
+      {
+        id: "user_1",
+        type: "user",
+        role: "USER",
+        mainSlot: "B",
+        content: "",
+        deletable: false,
+        expanded: true,
+        isMain2: true
+      }
+    ];
+    PromptEditor = class {
+      constructor(options = {}) {
+        this.containerId = options.containerId || PROMPT_EDITOR_ID;
+        this.segments = options.segments || [...DEFAULT_PROMPT_SEGMENTS];
+        this.onChange = options.onChange || null;
+        this.editable = options.editable !== false;
+        this.showMainSlot = options.showMainSlot !== false;
+        this.$container = null;
+        this.$ = null;
+      }
+      /**
+       * 初始化编辑器
+       * @param {jQuery} $container - 容器jQuery对象
+       */
+      init($container2) {
+        this.$ = window.jQuery || window.parent?.jQuery;
+        if (!this.$) {
+          console.error("[PromptEditor] jQuery not available");
+          return;
+        }
+        this.$container = $container2;
+        this.render();
+        this.bindEvents();
+      }
+      /**
+       * 设置提示词数据
+       * @param {Array} segments - 提示词段落数组
+       */
+      setSegments(segments) {
+        this.segments = segments && Array.isArray(segments) ? [...segments] : [...DEFAULT_PROMPT_SEGMENTS];
+        if (this.$container) {
+          this.render();
+          this.bindEvents();
+        }
+      }
+      /**
+       * 获取提示词数据
+       * @returns {Array}
+       */
+      getSegments() {
+        return this.segments.map((seg) => ({
+          ...seg,
+          content: this.getSegmentContent(seg.id)
+        }));
+      }
+      /**
+       * 获取单个段落内容
+       * @param {string} segmentId - 段落ID
+       * @returns {string}
+       */
+      getSegmentContent(segmentId) {
+        if (!this.$container)
+          return "";
+        const $textarea = this.$container.find(`[data-segment-id="${segmentId}"] .yyt-prompt-textarea`);
+        return $textarea.val() || "";
+      }
+      /**
+       * 渲染编辑器
+       */
+      render() {
+        if (!this.$container)
+          return;
+        const html = `
       <div class="yyt-prompt-editor" id="${this.containerId}">
         <div class="yyt-prompt-editor-header">
           <div class="yyt-prompt-editor-title">
@@ -3089,31 +11294,47 @@ ${n}`),o.join(`
           </div>
         </div>
         <div class="yyt-prompt-segments">
-          ${this.segments.map(s=>this.renderSegment(s)).join("")}
+          ${this.segments.map((seg) => this.renderSegment(seg)).join("")}
         </div>
       </div>
-    `;this.$container.html(t)}renderSegment(t){let s=ua[t.type]||t.type,o=ga[t.type]||"fa-file",n=t.mainSlot==="A"||t.isMain,r=t.mainSlot==="B"||t.isMain2,i=n?"var(--yyt-accent, #7bb7ff)":r?"#ffb74d":"",a=this.showMainSlot&&t.mainSlot?`<span class="yyt-prompt-slot-badge">mainSlot: ${t.mainSlot}</span>`:"",c=`<span class="yyt-prompt-role-badge">role: ${t.role||"USER"}</span>`;return`
-      <div class="yyt-prompt-segment ${t.expanded?"yyt-expanded":""} ${n?"yyt-main-a":""} ${r?"yyt-main-b":""}" 
-           data-segment-id="${t.id}" 
-           data-segment-type="${t.type}"
-           style="${i?`border-left: 3px solid ${i};`:""}">
+    `;
+        this.$container.html(html);
+      }
+      /**
+       * 渲染单个提示词段落
+       * @param {object} segment - 段落配置
+       * @returns {string}
+       */
+      renderSegment(segment) {
+        const typeLabel = PROMPT_TYPE_LABELS[segment.type] || segment.type;
+        const typeIcon = PROMPT_TYPE_ICONS[segment.type] || "fa-file";
+        const isMainA = segment.mainSlot === "A" || segment.isMain;
+        const isMainB = segment.mainSlot === "B" || segment.isMain2;
+        const borderColor = isMainA ? "var(--yyt-accent, #7bb7ff)" : isMainB ? "#ffb74d" : "";
+        const mainSlotBadge = this.showMainSlot && segment.mainSlot ? `<span class="yyt-prompt-slot-badge">mainSlot: ${segment.mainSlot}</span>` : "";
+        const roleBadge = `<span class="yyt-prompt-role-badge">role: ${segment.role || "USER"}</span>`;
+        return `
+      <div class="yyt-prompt-segment ${segment.expanded ? "yyt-expanded" : ""} ${isMainA ? "yyt-main-a" : ""} ${isMainB ? "yyt-main-b" : ""}" 
+           data-segment-id="${segment.id}" 
+           data-segment-type="${segment.type}"
+           style="${borderColor ? `border-left: 3px solid ${borderColor};` : ""}">
         <div class="yyt-prompt-segment-header">
           <div class="yyt-prompt-segment-info">
-            <i class="fa-solid ${o}"></i>
-            <span class="yyt-prompt-segment-title">${s}</span>
+            <i class="fa-solid ${typeIcon}"></i>
+            <span class="yyt-prompt-segment-title">${typeLabel}</span>
             <div class="yyt-prompt-segment-badges">
-              ${c}
-              ${a}
+              ${roleBadge}
+              ${mainSlotBadge}
             </div>
           </div>
           <div class="yyt-prompt-segment-controls">
-            ${t.deletable!==!1?`
+            ${segment.deletable !== false ? `
               <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger yyt-prompt-delete" title="\u5220\u9664\u6BB5\u843D">
                 <i class="fa-solid fa-trash"></i>
               </button>
-            `:""}
+            ` : ""}
             <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-prompt-toggle" title="\u5C55\u5F00/\u6298\u53E0">
-              <i class="fa-solid ${t.expanded?"fa-chevron-up":"fa-chevron-down"}"></i>
+              <i class="fa-solid ${segment.expanded ? "fa-chevron-up" : "fa-chevron-down"}"></i>
             </button>
           </div>
         </div>
@@ -3122,36 +11343,628 @@ ${n}`),o.join(`
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>Role</label>
-                <select class="yyt-select yyt-prompt-role" ${this.editable?"":"disabled"}>
-                  <option value="SYSTEM" ${t.role==="SYSTEM"?"selected":""}>SYSTEM</option>
-                  <option value="USER" ${t.role==="USER"?"selected":""}>USER</option>
-                  <option value="assistant" ${t.role==="assistant"?"selected":""}>assistant</option>
+                <select class="yyt-select yyt-prompt-role" ${!this.editable ? "disabled" : ""}>
+                  <option value="SYSTEM" ${segment.role === "SYSTEM" ? "selected" : ""}>SYSTEM</option>
+                  <option value="USER" ${segment.role === "USER" ? "selected" : ""}>USER</option>
+                  <option value="assistant" ${segment.role === "assistant" ? "selected" : ""}>assistant</option>
                 </select>
               </div>
-              ${this.showMainSlot?`
+              ${this.showMainSlot ? `
               <div class="yyt-form-group yyt-flex-1">
                 <label>Main Slot</label>
-                <select class="yyt-select yyt-prompt-main-slot" ${this.editable?"":"disabled"}>
-                  <option value="" ${t.mainSlot?"":"selected"}>\u666E\u901A</option>
-                  <option value="A" ${t.mainSlot==="A"?"selected":""}>A (\u5EFA\u8BAESystem)</option>
-                  <option value="B" ${t.mainSlot==="B"?"selected":""}>B (\u5EFA\u8BAEUser)</option>
+                <select class="yyt-select yyt-prompt-main-slot" ${!this.editable ? "disabled" : ""}>
+                  <option value="" ${!segment.mainSlot ? "selected" : ""}>\u666E\u901A</option>
+                  <option value="A" ${segment.mainSlot === "A" ? "selected" : ""}>A (\u5EFA\u8BAESystem)</option>
+                  <option value="B" ${segment.mainSlot === "B" ? "selected" : ""}>B (\u5EFA\u8BAEUser)</option>
                 </select>
               </div>
-              `:""}
+              ` : ""}
             </div>
           </div>
           <textarea class="yyt-textarea yyt-prompt-textarea" 
                     rows="6" 
                     placeholder="\u8F93\u5165\u63D0\u793A\u8BCD\u5185\u5BB9..." 
-                    ${this.editable?"":"disabled"}>${this.escapeHtml(t.content||"")}</textarea>
+                    ${!this.editable ? "disabled" : ""}>${this.escapeHtml(segment.content || "")}</textarea>
         </div>
       </div>
-    `}bindEvents(){this.$container&&(this.$container.find(".yyt-prompt-toggle").on("click",t=>{this.$(t.currentTarget).closest(".yyt-prompt-segment").toggleClass("yyt-expanded"),this.$(t.currentTarget).find("i").toggleClass("fa-chevron-up fa-chevron-down")}),this.$container.find(".yyt-prompt-delete").on("click",t=>{let s=this.$(t.currentTarget).closest(".yyt-prompt-segment").data("segment-id");this.deleteSegment(s)}),this.$container.find(".yyt-prompt-role").on("change",t=>{let s=this.$(t.currentTarget).closest(".yyt-prompt-segment").data("segment-id"),o=this.$(t.currentTarget).val();this.updateSegmentMeta(s,{role:o})}),this.$container.find(".yyt-prompt-main-slot").on("change",t=>{let s=this.$(t.currentTarget).closest(".yyt-prompt-segment").data("segment-id"),o=this.$(t.currentTarget).val();this.updateSegmentMeta(s,{mainSlot:o})}),this.$container.find(".yyt-prompt-textarea").on("input",t=>{this.onChange&&this.onChange(this.getSegments())}),this.$container.find(`#${this.containerId}-add-segment`).on("click",()=>{this.addSegment()}),this.$container.find(`#${this.containerId}-import-prompt`).on("click",()=>{this.importPrompt()}),this.$container.find(`#${this.containerId}-export-prompt`).on("click",()=>{this.exportPrompt()}))}addSegment(t=null){let s=`segment_${Date.now()}`,o=t||{id:s,type:"user",role:"USER",mainSlot:"",content:"",deletable:!0,expanded:!0};o.id||(o.id=s),this.segments.push(o),this.render(),this.bindEvents(),this.onChange&&this.onChange(this.getSegments())}deleteSegment(t){let s=this.segments.findIndex(n=>n.id===t);if(s===-1)return;if(this.segments[s].deletable===!1){console.warn("[PromptEditor] \u8BE5\u6BB5\u843D\u4E0D\u53EF\u5220\u9664");return}this.segments.splice(s,1),this.render(),this.bindEvents(),this.onChange&&this.onChange(this.getSegments())}updateSegmentMeta(t,s){let o=this.segments.find(n=>n.id===t);o&&(Object.assign(o,s),this.onChange&&this.onChange(this.getSegments()))}importPrompt(){let t=document.createElement("input");t.type="file",t.accept=".json",t.onchange=s=>{let o=s.target.files[0];if(!o)return;let n=new FileReader;n.onload=r=>{try{let i=JSON.parse(r.target.result);Array.isArray(i)?(this.setSegments(i),console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5BFC\u5165\u6210\u529F")):console.error("[PromptEditor] \u65E0\u6548\u7684\u63D0\u793A\u8BCD\u683C\u5F0F")}catch(i){console.error("[PromptEditor] \u5BFC\u5165\u5931\u8D25:",i)}},n.readAsText(o)},t.click()}exportPrompt(){let t=this.getSegments(),s=JSON.stringify(t,null,2),o=new Blob([s],{type:"application/json"}),n=URL.createObjectURL(o),r=document.createElement("a");r.href=n,r.download=`prompt_group_${Date.now()}.json`,r.click(),URL.revokeObjectURL(n),console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5DF2\u5BFC\u51FA")}escapeHtml(t){return typeof t!="string"?"":t.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}};xa=us});var rr={};O(rr,{BUILTIN_VARIABLES:()=>or,VariableResolver:()=>gs,default:()=>va,variableResolver:()=>nr});var or,gs,nr,va,ir=E(()=>{L();or={lastUserMessage:{name:"lastUserMessage",description:"\u6700\u65B0\u7528\u6237\u6D88\u606F",category:"chat"},lastAiMessage:{name:"lastAiMessage",description:"\u6700\u65B0AI\u56DE\u590D",category:"chat"},chatHistory:{name:"chatHistory",description:"\u6700\u8FD1\u804A\u5929\u8BB0\u5F55",category:"chat"},characterCard:{name:"characterCard",description:"\u5F53\u524D\u89D2\u8272\u5361\u5185\u5BB9",category:"character"},toolName:{name:"toolName",description:"\u5DE5\u5177\u540D\u79F0",category:"tool"},injectedContext:{name:"injectedContext",description:"\u5DF2\u6CE8\u5165\u7684\u5DE5\u5177\u4E0A\u4E0B\u6587",category:"context"}},gs=class{constructor(){this.customVariables=new Map,this.variableHandlers=new Map,this.debugMode=!1,this._registerDefaultHandlers()}resolveTemplate(t,s){if(typeof t!="string")return t;let o=t;return o=this._resolveBuiltinVariables(o,s),o=this._resolveCustomVariables(o,s),o=this._resolveRegexVariables(o,s),o}resolveObject(t,s){if(!t||typeof t!="object")return t;if(Array.isArray(t))return t.map(n=>this.resolveObject(n,s));let o={};for(let[n,r]of Object.entries(t))typeof r=="string"?o[n]=this.resolveTemplate(r,s):typeof r=="object"&&r!==null?o[n]=this.resolveObject(r,s):o[n]=r;return o}buildToolContext(t){return{lastUserMessage:t.lastUserMessage||"",lastAiMessage:t.lastAiMessage||"",chatHistory:t.chatHistory||[],characterCard:t.characterCard||null,characterName:t.characterCard?.name||"",toolName:t.toolName||"",toolId:t.toolId||"",injectedContext:t.injectedContext||"",regexResults:t.regexResults||{},raw:t,timestamp:Date.now()}}registerVariable(t,s){t&&(this.customVariables.set(t,s),this._log(`\u6CE8\u518C\u81EA\u5B9A\u4E49\u53D8\u91CF: ${t}`))}unregisterVariable(t){this.customVariables.delete(t),this._log(`\u6CE8\u9500\u81EA\u5B9A\u4E49\u53D8\u91CF: ${t}`)}registerHandler(t,s){!t||typeof s!="function"||(this.variableHandlers.set(t,s),this._log(`\u6CE8\u518C\u53D8\u91CF\u5904\u7406\u5668: ${t}`))}getAvailableVariables(){let t=[];for(let[,s]of Object.entries(or))t.push({name:`{{${s.name}}}`,description:s.description,category:s.category,type:"builtin"});for(let[s,o]of this.customVariables)t.push({name:`{{${s}}}`,description:typeof o=="function"?"\u81EA\u5B9A\u4E49\u51FD\u6570\u53D8\u91CF":"\u81EA\u5B9A\u4E49\u9759\u6001\u53D8\u91CF",category:"custom",type:"custom"});return t}getVariableHelp(){let t=["\u53EF\u7528\u53D8\u91CF\uFF1A",""],s={chat:"\u804A\u5929\u76F8\u5173",character:"\u89D2\u8272\u76F8\u5173",tool:"\u5DE5\u5177\u76F8\u5173",context:"\u4E0A\u4E0B\u6587\u76F8\u5173",custom:"\u81EA\u5B9A\u4E49\u53D8\u91CF"},o={};for(let n of this.getAvailableVariables())o[n.category]||(o[n.category]=[]),o[n.category].push(n);for(let[n,r]of Object.entries(s))if(o[n]&&o[n].length>0){t.push(`\u3010${r}\u3011`);for(let i of o[n])t.push(`  ${i.name} - ${i.description}`);t.push("")}return t.push("\u3010\u6B63\u5219\u63D0\u53D6\u3011"),t.push("  {{regex.xxx}} - \u4F7F\u7528\u6B63\u5219\u63D0\u53D6\u7ED3\u679C\uFF0Cxxx\u4E3A\u6355\u83B7\u7EC4\u540D"),t.join(`
-`)}_registerDefaultHandlers(){this.registerHandler("regex",(t,s)=>(s.regexResults||s.raw?.regexResults||{})[t]||"")}_resolveBuiltinVariables(t,s){let o=t;return o=o.replace(/\{\{lastUserMessage\}\}/gi,s.lastUserMessage||s.raw?.lastUserMessage||""),o=o.replace(/\{\{lastAiMessage\}\}/gi,s.lastAiMessage||s.raw?.lastAiMessage||""),o=o.replace(/\{\{chatHistory\}\}/gi,()=>{let n=s.chatHistory||s.raw?.chatHistory||[];return this._formatChatHistory(n)}),o=o.replace(/\{\{characterCard\}\}/gi,()=>{let n=s.characterCard||s.raw?.characterCard;return n?this._formatCharacterCard(n):""}),o=o.replace(/\{\{toolName\}\}/gi,s.toolName||s.raw?.toolName||""),o=o.replace(/\{\{injectedContext\}\}/gi,s.injectedContext||s.raw?.injectedContext||""),o}_resolveCustomVariables(t,s){let o=t;for(let[n,r]of this.customVariables){let i=new RegExp(`\\{\\{${this._escapeRegex(n)}\\}\\}`,"gi");typeof r=="function"?o=o.replace(i,()=>{try{return r(s)}catch(a){return this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${n}:`,a),""}}):o=o.replace(i,String(r))}return o}_resolveRegexVariables(t,s){let o=t;for(let[n,r]of this.variableHandlers){let i=new RegExp(`\\{\\{${n}\\.([^}]+)\\}\\}`,"gi");o=o.replace(i,(a,c)=>{try{return r(c,s)}catch(y){return this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${n}.${c}:`,y),""}})}return o}_formatChatHistory(t){return!Array.isArray(t)||t.length===0?"":t.map(s=>{let o=s.role||"unknown",n=s.content||s.mes||"";return`[${o}]: ${n}`}).join(`
+    `;
+      }
+      /**
+       * 绑定事件
+       */
+      bindEvents() {
+        if (!this.$container)
+          return;
+        this.$container.find(".yyt-prompt-toggle").on("click", (e) => {
+          const $segment = this.$(e.currentTarget).closest(".yyt-prompt-segment");
+          $segment.toggleClass("yyt-expanded");
+          const $icon = this.$(e.currentTarget).find("i");
+          $icon.toggleClass("fa-chevron-up fa-chevron-down");
+        });
+        this.$container.find(".yyt-prompt-delete").on("click", (e) => {
+          const segmentId = this.$(e.currentTarget).closest(".yyt-prompt-segment").data("segment-id");
+          this.deleteSegment(segmentId);
+        });
+        this.$container.find(".yyt-prompt-role").on("change", (e) => {
+          const segmentId = this.$(e.currentTarget).closest(".yyt-prompt-segment").data("segment-id");
+          const role = this.$(e.currentTarget).val();
+          this.updateSegmentMeta(segmentId, { role });
+        });
+        this.$container.find(".yyt-prompt-main-slot").on("change", (e) => {
+          const segmentId = this.$(e.currentTarget).closest(".yyt-prompt-segment").data("segment-id");
+          const mainSlot = this.$(e.currentTarget).val();
+          this.updateSegmentMeta(segmentId, { mainSlot });
+        });
+        this.$container.find(".yyt-prompt-textarea").on("input", (e) => {
+          if (this.onChange) {
+            this.onChange(this.getSegments());
+          }
+        });
+        this.$container.find(`#${this.containerId}-add-segment`).on("click", () => {
+          this.addSegment();
+        });
+        this.$container.find(`#${this.containerId}-import-prompt`).on("click", () => {
+          this.importPrompt();
+        });
+        this.$container.find(`#${this.containerId}-export-prompt`).on("click", () => {
+          this.exportPrompt();
+        });
+      }
+      /**
+       * 添加段落
+       * @param {object} segmentData - 段落数据（可选）
+       */
+      addSegment(segmentData = null) {
+        const newId = `segment_${Date.now()}`;
+        const newSegment = segmentData || {
+          id: newId,
+          type: "user",
+          role: "USER",
+          mainSlot: "",
+          content: "",
+          deletable: true,
+          expanded: true
+        };
+        if (!newSegment.id)
+          newSegment.id = newId;
+        this.segments.push(newSegment);
+        this.render();
+        this.bindEvents();
+        if (this.onChange) {
+          this.onChange(this.getSegments());
+        }
+      }
+      /**
+       * 删除段落
+       * @param {string} segmentId - 段落ID
+       */
+      deleteSegment(segmentId) {
+        const index = this.segments.findIndex((s) => s.id === segmentId);
+        if (index === -1)
+          return;
+        const segment = this.segments[index];
+        if (segment.deletable === false) {
+          console.warn("[PromptEditor] \u8BE5\u6BB5\u843D\u4E0D\u53EF\u5220\u9664");
+          return;
+        }
+        this.segments.splice(index, 1);
+        this.render();
+        this.bindEvents();
+        if (this.onChange) {
+          this.onChange(this.getSegments());
+        }
+      }
+      /**
+       * 更新段落元数据
+       * @param {string} segmentId - 段落ID
+       * @param {object} meta - 元数据
+       */
+      updateSegmentMeta(segmentId, meta) {
+        const segment = this.segments.find((s) => s.id === segmentId);
+        if (!segment)
+          return;
+        Object.assign(segment, meta);
+        if (this.onChange) {
+          this.onChange(this.getSegments());
+        }
+      }
+      /**
+       * 导入提示词
+       */
+      importPrompt() {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json";
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          if (!file)
+            return;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              const data = JSON.parse(event.target.result);
+              if (Array.isArray(data)) {
+                this.setSegments(data);
+                console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5BFC\u5165\u6210\u529F");
+              } else {
+                console.error("[PromptEditor] \u65E0\u6548\u7684\u63D0\u793A\u8BCD\u683C\u5F0F");
+              }
+            } catch (err) {
+              console.error("[PromptEditor] \u5BFC\u5165\u5931\u8D25:", err);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      }
+      /**
+       * 导出提示词
+       */
+      exportPrompt() {
+        const data = this.getSegments();
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `prompt_group_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        console.log("[PromptEditor] \u63D0\u793A\u8BCD\u5DF2\u5BFC\u51FA");
+      }
+      /**
+       * HTML转义
+       * @param {string} unsafe - 原始字符串
+       * @returns {string}
+       */
+      escapeHtml(unsafe) {
+        if (typeof unsafe !== "string")
+          return "";
+        return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
+      }
+    };
+    prompt_editor_default = PromptEditor;
+  }
+});
 
-`)}_formatCharacterCard(t){if(!t)return"";let s=[];return t.name&&s.push(`\u59D3\u540D: ${t.name}`),t.description&&s.push(`\u63CF\u8FF0: ${t.description}`),t.personality&&s.push(`\u6027\u683C: ${t.personality}`),t.scenario&&s.push(`\u573A\u666F: ${t.scenario}`),s.join(`
+// modules/variable-resolver.js
+var variable_resolver_exports = {};
+__export(variable_resolver_exports, {
+  BUILTIN_VARIABLES: () => BUILTIN_VARIABLES,
+  VariableResolver: () => VariableResolver,
+  default: () => variable_resolver_default,
+  variableResolver: () => variableResolver
+});
+var BUILTIN_VARIABLES, VariableResolver, variableResolver, variable_resolver_default;
+var init_variable_resolver = __esm({
+  "modules/variable-resolver.js"() {
+    init_event_bus();
+    BUILTIN_VARIABLES = {
+      lastUserMessage: {
+        name: "lastUserMessage",
+        description: "\u6700\u65B0\u7528\u6237\u6D88\u606F",
+        category: "chat"
+      },
+      lastAiMessage: {
+        name: "lastAiMessage",
+        description: "\u6700\u65B0AI\u56DE\u590D",
+        category: "chat"
+      },
+      chatHistory: {
+        name: "chatHistory",
+        description: "\u6700\u8FD1\u804A\u5929\u8BB0\u5F55",
+        category: "chat"
+      },
+      characterCard: {
+        name: "characterCard",
+        description: "\u5F53\u524D\u89D2\u8272\u5361\u5185\u5BB9",
+        category: "character"
+      },
+      toolName: {
+        name: "toolName",
+        description: "\u5DE5\u5177\u540D\u79F0",
+        category: "tool"
+      },
+      injectedContext: {
+        name: "injectedContext",
+        description: "\u5DF2\u6CE8\u5165\u7684\u5DE5\u5177\u4E0A\u4E0B\u6587",
+        category: "context"
+      }
+    };
+    VariableResolver = class {
+      constructor() {
+        this.customVariables = /* @__PURE__ */ new Map();
+        this.variableHandlers = /* @__PURE__ */ new Map();
+        this.debugMode = false;
+        this._registerDefaultHandlers();
+      }
+      // ============================================================
+      // 核心方法
+      // ============================================================
+      /**
+       * 解析模板字符串
+       * @param {string} template - 模板字符串
+       * @param {Object} context - 上下文对象
+       * @returns {string} 解析后的字符串
+       */
+      resolveTemplate(template, context) {
+        if (typeof template !== "string") {
+          return template;
+        }
+        let result = template;
+        result = this._resolveBuiltinVariables(result, context);
+        result = this._resolveCustomVariables(result, context);
+        result = this._resolveRegexVariables(result, context);
+        return result;
+      }
+      /**
+       * 解析对象中的所有字符串值
+       * @param {Object} obj - 要解析的对象
+       * @param {Object} context - 上下文对象
+       * @returns {Object} 解析后的对象
+       */
+      resolveObject(obj, context) {
+        if (!obj || typeof obj !== "object") {
+          return obj;
+        }
+        if (Array.isArray(obj)) {
+          return obj.map((item) => this.resolveObject(item, context));
+        }
+        const result = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === "string") {
+            result[key] = this.resolveTemplate(value, context);
+          } else if (typeof value === "object" && value !== null) {
+            result[key] = this.resolveObject(value, context);
+          } else {
+            result[key] = value;
+          }
+        }
+        return result;
+      }
+      /**
+       * 构建工具执行上下文
+       * @param {Object} rawContext - 原始上下文
+       * @returns {Object} 构建后的上下文
+       */
+      buildToolContext(rawContext) {
+        return {
+          // 聊天相关
+          lastUserMessage: rawContext.lastUserMessage || "",
+          lastAiMessage: rawContext.lastAiMessage || "",
+          chatHistory: rawContext.chatHistory || [],
+          // 角色相关
+          characterCard: rawContext.characterCard || null,
+          characterName: rawContext.characterCard?.name || "",
+          // 工具相关
+          toolName: rawContext.toolName || "",
+          toolId: rawContext.toolId || "",
+          // 注入上下文
+          injectedContext: rawContext.injectedContext || "",
+          // 正则提取结果
+          regexResults: rawContext.regexResults || {},
+          // 原始数据
+          raw: rawContext,
+          // 时间戳
+          timestamp: Date.now()
+        };
+      }
+      // ============================================================
+      // 变量注册
+      // ============================================================
+      /**
+       * 注册自定义变量
+       * @param {string} name - 变量名（不含{{}}）
+       * @param {Function|*} handler - 处理函数或静态值
+       */
+      registerVariable(name, handler) {
+        if (!name)
+          return;
+        this.customVariables.set(name, handler);
+        this._log(`\u6CE8\u518C\u81EA\u5B9A\u4E49\u53D8\u91CF: ${name}`);
+      }
+      /**
+       * 注销自定义变量
+       * @param {string} name - 变量名
+       */
+      unregisterVariable(name) {
+        this.customVariables.delete(name);
+        this._log(`\u6CE8\u9500\u81EA\u5B9A\u4E49\u53D8\u91CF: ${name}`);
+      }
+      /**
+       * 注册变量处理器
+       * @param {string} prefix - 变量前缀，如 'regex'
+       * @param {Function} handler - 处理函数 (variableName, context) => value
+       */
+      registerHandler(prefix, handler) {
+        if (!prefix || typeof handler !== "function")
+          return;
+        this.variableHandlers.set(prefix, handler);
+        this._log(`\u6CE8\u518C\u53D8\u91CF\u5904\u7406\u5668: ${prefix}`);
+      }
+      // ============================================================
+      // 变量获取
+      // ============================================================
+      /**
+       * 获取所有可用变量
+       * @returns {Array} 变量列表
+       */
+      getAvailableVariables() {
+        const variables = [];
+        for (const [, info] of Object.entries(BUILTIN_VARIABLES)) {
+          variables.push({
+            name: `{{${info.name}}}`,
+            description: info.description,
+            category: info.category,
+            type: "builtin"
+          });
+        }
+        for (const [name, handler] of this.customVariables) {
+          variables.push({
+            name: `{{${name}}}`,
+            description: typeof handler === "function" ? "\u81EA\u5B9A\u4E49\u51FD\u6570\u53D8\u91CF" : "\u81EA\u5B9A\u4E49\u9759\u6001\u53D8\u91CF",
+            category: "custom",
+            type: "custom"
+          });
+        }
+        return variables;
+      }
+      /**
+       * 获取变量帮助文本
+       * @returns {string}
+       */
+      getVariableHelp() {
+        const lines = ["\u53EF\u7528\u53D8\u91CF\uFF1A", ""];
+        const categories = {
+          chat: "\u804A\u5929\u76F8\u5173",
+          character: "\u89D2\u8272\u76F8\u5173",
+          tool: "\u5DE5\u5177\u76F8\u5173",
+          context: "\u4E0A\u4E0B\u6587\u76F8\u5173",
+          custom: "\u81EA\u5B9A\u4E49\u53D8\u91CF"
+        };
+        const grouped = {};
+        for (const v of this.getAvailableVariables()) {
+          if (!grouped[v.category]) {
+            grouped[v.category] = [];
+          }
+          grouped[v.category].push(v);
+        }
+        for (const [category, label] of Object.entries(categories)) {
+          if (grouped[category] && grouped[category].length > 0) {
+            lines.push(`\u3010${label}\u3011`);
+            for (const v of grouped[category]) {
+              lines.push(`  ${v.name} - ${v.description}`);
+            }
+            lines.push("");
+          }
+        }
+        lines.push("\u3010\u6B63\u5219\u63D0\u53D6\u3011");
+        lines.push("  {{regex.xxx}} - \u4F7F\u7528\u6B63\u5219\u63D0\u53D6\u7ED3\u679C\uFF0Cxxx\u4E3A\u6355\u83B7\u7EC4\u540D");
+        return lines.join("\n");
+      }
+      // ============================================================
+      // 私有方法
+      // ============================================================
+      /**
+       * 注册默认处理器
+       * @private
+       */
+      _registerDefaultHandlers() {
+        this.registerHandler("regex", (varName, context) => {
+          const regexResults = context.regexResults || context.raw?.regexResults || {};
+          return regexResults[varName] || "";
+        });
+      }
+      /**
+       * 解析内置变量
+       * @private
+       */
+      _resolveBuiltinVariables(template, context) {
+        let result = template;
+        result = result.replace(
+          /\{\{lastUserMessage\}\}/gi,
+          context.lastUserMessage || context.raw?.lastUserMessage || ""
+        );
+        result = result.replace(
+          /\{\{lastAiMessage\}\}/gi,
+          context.lastAiMessage || context.raw?.lastAiMessage || ""
+        );
+        result = result.replace(/\{\{chatHistory\}\}/gi, () => {
+          const history = context.chatHistory || context.raw?.chatHistory || [];
+          return this._formatChatHistory(history);
+        });
+        result = result.replace(/\{\{characterCard\}\}/gi, () => {
+          const card = context.characterCard || context.raw?.characterCard;
+          return card ? this._formatCharacterCard(card) : "";
+        });
+        result = result.replace(
+          /\{\{toolName\}\}/gi,
+          context.toolName || context.raw?.toolName || ""
+        );
+        result = result.replace(
+          /\{\{injectedContext\}\}/gi,
+          context.injectedContext || context.raw?.injectedContext || ""
+        );
+        return result;
+      }
+      /**
+       * 解析自定义变量
+       * @private
+       */
+      _resolveCustomVariables(template, context) {
+        let result = template;
+        for (const [name, handler] of this.customVariables) {
+          const pattern = new RegExp(`\\{\\{${this._escapeRegex(name)}\\}\\}`, "gi");
+          if (typeof handler === "function") {
+            result = result.replace(pattern, () => {
+              try {
+                return handler(context);
+              } catch (e) {
+                this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${name}:`, e);
+                return "";
+              }
+            });
+          } else {
+            result = result.replace(pattern, String(handler));
+          }
+        }
+        return result;
+      }
+      /**
+       * 解析带前缀的变量（如 regex.xxx）
+       * @private
+       */
+      _resolveRegexVariables(template, context) {
+        let result = template;
+        for (const [prefix, handler] of this.variableHandlers) {
+          const pattern = new RegExp(`\\{\\{${prefix}\\.([^}]+)\\}\\}`, "gi");
+          result = result.replace(pattern, (match, varName) => {
+            try {
+              return handler(varName, context);
+            } catch (e) {
+              this._log(`\u53D8\u91CF\u5904\u7406\u9519\u8BEF ${prefix}.${varName}:`, e);
+              return "";
+            }
+          });
+        }
+        return result;
+      }
+      /**
+       * 格式化聊天历史
+       * @private
+       */
+      _formatChatHistory(history) {
+        if (!Array.isArray(history) || history.length === 0) {
+          return "";
+        }
+        return history.map((msg) => {
+          const role = msg.role || "unknown";
+          const content = msg.content || msg.mes || "";
+          return `[${role}]: ${content}`;
+        }).join("\n\n");
+      }
+      /**
+       * 格式化角色卡
+       * @private
+       */
+      _formatCharacterCard(card) {
+        if (!card)
+          return "";
+        const parts = [];
+        if (card.name)
+          parts.push(`\u59D3\u540D: ${card.name}`);
+        if (card.description)
+          parts.push(`\u63CF\u8FF0: ${card.description}`);
+        if (card.personality)
+          parts.push(`\u6027\u683C: ${card.personality}`);
+        if (card.scenario)
+          parts.push(`\u573A\u666F: ${card.scenario}`);
+        return parts.join("\n\n");
+      }
+      /**
+       * 转义正则表达式特殊字符
+       * @private
+       */
+      _escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+      /**
+       * 日志输出
+       * @private
+       */
+      _log(...args) {
+        if (this.debugMode) {
+          console.log("[VariableResolver]", ...args);
+        }
+      }
+    };
+    variableResolver = new VariableResolver();
+    variable_resolver_default = variableResolver;
+  }
+});
 
-`)}_escapeRegex(t){return t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}_log(...t){this.debugMode&&console.log("[VariableResolver]",...t)}},nr=new gs,va=nr});var So={};O(So,{SettingsPanel:()=>lr,THEME_CONFIGS:()=>Eo,applyTheme:()=>ar,default:()=>wa});function ar(e){let t=document.documentElement,s=Eo[e]||Eo["dark-blue"];Object.entries(s).forEach(([o,n])=>{t.style.setProperty(o,n)}),t.setAttribute("data-yyt-theme",e),e==="light"?t.style.setProperty("--yyt-text","rgba(15, 23, 42, 0.95)"):t.style.setProperty("--yyt-text","rgba(255, 255, 255, 0.95)")}var Eo,lr,wa,_o=E(()=>{L();es();K();Eo={"dark-blue":{"--yyt-accent":"#7bb7ff","--yyt-accent-glow":"rgba(123, 183, 255, 0.4)","--yyt-accent-soft":"rgba(123, 183, 255, 0.15)","--yyt-bg-base":"#0b0f15","--yyt-bg-gradient-1":"rgba(123, 183, 255, 0.12)","--yyt-bg-gradient-2":"rgba(155, 123, 255, 0.10)"},"dark-purple":{"--yyt-accent":"#a78bfa","--yyt-accent-glow":"rgba(167, 139, 250, 0.4)","--yyt-accent-soft":"rgba(167, 139, 250, 0.15)","--yyt-bg-base":"#0f0b15","--yyt-bg-gradient-1":"rgba(167, 139, 250, 0.12)","--yyt-bg-gradient-2":"rgba(123, 183, 255, 0.10)"},"dark-green":{"--yyt-accent":"#4ade80","--yyt-accent-glow":"rgba(74, 222, 128, 0.4)","--yyt-accent-soft":"rgba(74, 222, 128, 0.15)","--yyt-bg-base":"#0b150f","--yyt-bg-gradient-1":"rgba(74, 222, 128, 0.12)","--yyt-bg-gradient-2":"rgba(123, 183, 255, 0.10)"},light:{"--yyt-accent":"#3b82f6","--yyt-accent-glow":"rgba(59, 130, 246, 0.3)","--yyt-accent-soft":"rgba(59, 130, 246, 0.1)","--yyt-bg-base":"#f8fafc","--yyt-bg-gradient-1":"rgba(59, 130, 246, 0.08)","--yyt-bg-gradient-2":"rgba(139, 92, 246, 0.06)","--yyt-text":"rgba(15, 23, 42, 0.95)","--yyt-text-secondary":"rgba(15, 23, 42, 0.7)","--yyt-text-muted":"rgba(15, 23, 42, 0.45)","--yyt-surface":"rgba(0, 0, 0, 0.03)","--yyt-surface-hover":"rgba(0, 0, 0, 0.06)","--yyt-surface-active":"rgba(0, 0, 0, 0.08)","--yyt-border":"rgba(0, 0, 0, 0.08)","--yyt-border-strong":"rgba(0, 0, 0, 0.15)"}};lr={id:"settingsPanel",render(e){let t=ht.getSettings();return`
+// modules/ui/components/settings-panel.js
+var settings_panel_exports = {};
+__export(settings_panel_exports, {
+  SettingsPanel: () => SettingsPanel,
+  THEME_CONFIGS: () => THEME_CONFIGS,
+  applyTheme: () => applyTheme,
+  default: () => settings_panel_default
+});
+function applyTheme(themeName) {
+  const root = document.documentElement;
+  const theme = THEME_CONFIGS[themeName] || THEME_CONFIGS["dark-blue"];
+  Object.entries(theme).forEach(([property, value]) => {
+    root.style.setProperty(property, value);
+  });
+  root.setAttribute("data-yyt-theme", themeName);
+  if (themeName === "light") {
+    root.style.setProperty("--yyt-text", "rgba(15, 23, 42, 0.95)");
+  } else {
+    root.style.setProperty("--yyt-text", "rgba(255, 255, 255, 0.95)");
+  }
+}
+var THEME_CONFIGS, SettingsPanel, settings_panel_default;
+var init_settings_panel = __esm({
+  "modules/ui/components/settings-panel.js"() {
+    init_event_bus();
+    init_settings_service();
+    init_utils();
+    THEME_CONFIGS = {
+      "dark-blue": {
+        "--yyt-accent": "#7bb7ff",
+        "--yyt-accent-glow": "rgba(123, 183, 255, 0.4)",
+        "--yyt-accent-soft": "rgba(123, 183, 255, 0.15)",
+        "--yyt-bg-base": "#0b0f15",
+        "--yyt-bg-gradient-1": "rgba(123, 183, 255, 0.12)",
+        "--yyt-bg-gradient-2": "rgba(155, 123, 255, 0.10)"
+      },
+      "dark-purple": {
+        "--yyt-accent": "#a78bfa",
+        "--yyt-accent-glow": "rgba(167, 139, 250, 0.4)",
+        "--yyt-accent-soft": "rgba(167, 139, 250, 0.15)",
+        "--yyt-bg-base": "#0f0b15",
+        "--yyt-bg-gradient-1": "rgba(167, 139, 250, 0.12)",
+        "--yyt-bg-gradient-2": "rgba(123, 183, 255, 0.10)"
+      },
+      "dark-green": {
+        "--yyt-accent": "#4ade80",
+        "--yyt-accent-glow": "rgba(74, 222, 128, 0.4)",
+        "--yyt-accent-soft": "rgba(74, 222, 128, 0.15)",
+        "--yyt-bg-base": "#0b150f",
+        "--yyt-bg-gradient-1": "rgba(74, 222, 128, 0.12)",
+        "--yyt-bg-gradient-2": "rgba(123, 183, 255, 0.10)"
+      },
+      "light": {
+        "--yyt-accent": "#3b82f6",
+        "--yyt-accent-glow": "rgba(59, 130, 246, 0.3)",
+        "--yyt-accent-soft": "rgba(59, 130, 246, 0.1)",
+        "--yyt-bg-base": "#f8fafc",
+        "--yyt-bg-gradient-1": "rgba(59, 130, 246, 0.08)",
+        "--yyt-bg-gradient-2": "rgba(139, 92, 246, 0.06)",
+        "--yyt-text": "rgba(15, 23, 42, 0.95)",
+        "--yyt-text-secondary": "rgba(15, 23, 42, 0.7)",
+        "--yyt-text-muted": "rgba(15, 23, 42, 0.45)",
+        "--yyt-surface": "rgba(0, 0, 0, 0.03)",
+        "--yyt-surface-hover": "rgba(0, 0, 0, 0.06)",
+        "--yyt-surface-active": "rgba(0, 0, 0, 0.08)",
+        "--yyt-border": "rgba(0, 0, 0, 0.08)",
+        "--yyt-border-strong": "rgba(0, 0, 0, 0.15)"
+      }
+    };
+    SettingsPanel = {
+      id: "settingsPanel",
+      // ============================================================
+      // 渲染
+      // ============================================================
+      /**
+       * 渲染组件
+       * @param {Object} props
+       * @returns {string} HTML
+       */
+      render(props) {
+        const settings = settingsService.getSettings();
+        return `
       <div class="yyt-settings-panel">
         <!-- \u6807\u7B7E\u9875\u5BFC\u822A -->
         <div class="yyt-settings-tabs">
@@ -3171,10 +11984,10 @@ ${n}`),o.join(`
         
         <!-- \u6807\u7B7E\u9875\u5185\u5BB9 -->
         <div class="yyt-settings-content">
-          ${this._renderExecutorTab(t.executor)}
-          ${this._renderListenerTab(t.listener)}
-          ${this._renderDebugTab(t.debug)}
-          ${this._renderUiTab(t.ui)}
+          ${this._renderExecutorTab(settings.executor)}
+          ${this._renderListenerTab(settings.listener)}
+          ${this._renderDebugTab(settings.debug)}
+          ${this._renderUiTab(settings.ui)}
         </div>
         
         <!-- \u5E95\u90E8\u64CD\u4F5C -->
@@ -3187,7 +12000,17 @@ ${n}`),o.join(`
           </button>
         </div>
       </div>
-    `},_renderExecutorTab(e){return`
+    `;
+      },
+      // ============================================================
+      // 私有渲染方法
+      // ============================================================
+      /**
+       * 渲染执行器标签页
+       * @private
+       */
+      _renderExecutorTab(executor) {
+        return `
       <div class="yyt-settings-tab-content yyt-active" data-tab="executor">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u5E76\u53D1\u63A7\u5236</div>
@@ -3195,7 +12018,7 @@ ${n}`),o.join(`
             <label>\u6700\u5927\u5E76\u53D1\u6570</label>
             <div class="yyt-form-hint">\u540C\u65F6\u6267\u884C\u7684\u5DE5\u5177\u6570\u91CF\u4E0A\u9650</div>
             <input type="number" class="yyt-input" id="yyt-setting-maxConcurrent" 
-                   value="${e.maxConcurrent}" min="1" max="10">
+                   value="${executor.maxConcurrent}" min="1" max="10">
           </div>
         </div>
         
@@ -3205,12 +12028,12 @@ ${n}`),o.join(`
             <div class="yyt-form-group yyt-flex-1">
               <label>\u6700\u5927\u91CD\u8BD5\u6B21\u6570</label>
               <input type="number" class="yyt-input" id="yyt-setting-maxRetries" 
-                     value="${e.maxRetries}" min="0" max="10">
+                     value="${executor.maxRetries}" min="0" max="10">
             </div>
             <div class="yyt-form-group yyt-flex-1">
               <label>\u91CD\u8BD5\u95F4\u9694 (ms)</label>
               <input type="number" class="yyt-input" id="yyt-setting-retryDelayMs" 
-                     value="${e.retryDelayMs}" min="1000" max="60000" step="1000">
+                     value="${executor.retryDelayMs}" min="1000" max="60000" step="1000">
             </div>
           </div>
         </div>
@@ -3221,7 +12044,7 @@ ${n}`),o.join(`
             <label>\u8BF7\u6C42\u8D85\u65F6\u65F6\u95F4 (ms)</label>
             <div class="yyt-form-hint">\u5355\u4E2A\u8BF7\u6C42\u7684\u8D85\u65F6\u65F6\u95F4\uFF0C\u8D85\u8FC7\u5C06\u81EA\u52A8\u4E2D\u65AD</div>
             <input type="number" class="yyt-input" id="yyt-setting-requestTimeoutMs" 
-                   value="${e.requestTimeoutMs}" min="10000" max="300000" step="10000">
+                   value="${executor.requestTimeoutMs}" min="10000" max="300000" step="10000">
           </div>
         </div>
         
@@ -3230,21 +12053,28 @@ ${n}`),o.join(`
           <div class="yyt-form-group">
             <label>\u961F\u5217\u5904\u7406\u65B9\u5F0F</label>
             <select class="yyt-select" id="yyt-setting-queueStrategy">
-              <option value="fifo" ${e.queueStrategy==="fifo"?"selected":""}>FIFO (\u5148\u8FDB\u5148\u51FA)</option>
-              <option value="lifo" ${e.queueStrategy==="lifo"?"selected":""}>LIFO (\u540E\u8FDB\u5148\u51FA)</option>
-              <option value="priority" ${e.queueStrategy==="priority"?"selected":""}>\u4F18\u5148\u7EA7\u6392\u5E8F</option>
+              <option value="fifo" ${executor.queueStrategy === "fifo" ? "selected" : ""}>FIFO (\u5148\u8FDB\u5148\u51FA)</option>
+              <option value="lifo" ${executor.queueStrategy === "lifo" ? "selected" : ""}>LIFO (\u540E\u8FDB\u5148\u51FA)</option>
+              <option value="priority" ${executor.queueStrategy === "priority" ? "selected" : ""}>\u4F18\u5148\u7EA7\u6392\u5E8F</option>
             </select>
           </div>
         </div>
       </div>
-    `},_renderListenerTab(e){return`
+    `;
+      },
+      /**
+       * 渲染监听器标签页
+       * @private
+       */
+      _renderListenerTab(listener) {
+        return `
       <div class="yyt-settings-tab-content" data-tab="listener">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u4E8B\u4EF6\u76D1\u542C</div>
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-listenGenerationEnded" 
-                     ${e.listenGenerationEnded?"checked":""}>
+                     ${listener.listenGenerationEnded ? "checked" : ""}>
               <span>\u76D1\u542C AI \u56DE\u590D\u5B8C\u6210\u4E8B\u4EF6</span>
             </label>
             <div class="yyt-form-hint">\u542F\u7528\u540E\u5C06\u5728 AI \u56DE\u590D\u5B8C\u6210\u65F6\u81EA\u52A8\u89E6\u53D1\u5DE5\u5177</div>
@@ -3256,7 +12086,7 @@ ${n}`),o.join(`
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-ignoreQuietGeneration" 
-                     ${e.ignoreQuietGeneration?"checked":""}>
+                     ${listener.ignoreQuietGeneration ? "checked" : ""}>
               <span>\u5FFD\u7565\u9759\u9ED8\u751F\u6210</span>
             </label>
             <div class="yyt-form-hint">Quiet \u6A21\u5F0F\u7684\u751F\u6210\u4E0D\u4F1A\u89E6\u53D1\u5DE5\u5177</div>
@@ -3265,7 +12095,7 @@ ${n}`),o.join(`
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-ignoreAutoTrigger" 
-                     ${e.ignoreAutoTrigger?"checked":""}>
+                     ${listener.ignoreAutoTrigger ? "checked" : ""}>
               <span>\u5FFD\u7565\u81EA\u52A8\u89E6\u53D1</span>
             </label>
             <div class="yyt-form-hint">\u81EA\u52A8\u89E6\u53D1\u7684\u751F\u6210\u4E0D\u4F1A\u6267\u884C\u5DE5\u5177</div>
@@ -3278,18 +12108,25 @@ ${n}`),o.join(`
             <label>\u9632\u6296\u65F6\u95F4 (ms)</label>
             <div class="yyt-form-hint">\u8FDE\u7EED\u4E8B\u4EF6\u89E6\u53D1\u7684\u6700\u5C0F\u95F4\u9694</div>
             <input type="number" class="yyt-input" id="yyt-setting-debounceMs" 
-                   value="${e.debounceMs}" min="0" max="5000" step="100">
+                   value="${listener.debounceMs}" min="0" max="5000" step="100">
           </div>
         </div>
       </div>
-    `},_renderDebugTab(e){return`
+    `;
+      },
+      /**
+       * 渲染调试标签页
+       * @private
+       */
+      _renderDebugTab(debug) {
+        return `
       <div class="yyt-settings-tab-content" data-tab="debug">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u65E5\u5FD7\u8BBE\u7F6E</div>
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-enableDebugLog" 
-                     ${e.enableDebugLog?"checked":""}>
+                     ${debug.enableDebugLog ? "checked" : ""}>
               <span>\u542F\u7528\u8C03\u8BD5\u65E5\u5FD7</span>
             </label>
             <div class="yyt-form-hint">\u5728\u63A7\u5236\u53F0\u8F93\u51FA\u8BE6\u7EC6\u7684\u8C03\u8BD5\u4FE1\u606F</div>
@@ -3298,7 +12135,7 @@ ${n}`),o.join(`
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-saveExecutionHistory" 
-                     ${e.saveExecutionHistory?"checked":""}>
+                     ${debug.saveExecutionHistory ? "checked" : ""}>
               <span>\u4FDD\u5B58\u6267\u884C\u5386\u53F2</span>
             </label>
             <div class="yyt-form-hint">\u8BB0\u5F55\u5DE5\u5177\u6267\u884C\u5386\u53F2\uFF0C\u4FBF\u4E8E\u95EE\u9898\u6392\u67E5</div>
@@ -3310,31 +12147,38 @@ ${n}`),o.join(`
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-showRuntimeBadge" 
-                     ${e.showRuntimeBadge?"checked":""}>
+                     ${debug.showRuntimeBadge ? "checked" : ""}>
               <span>\u663E\u793A\u8FD0\u884C\u72B6\u6001\u5FBD\u7AE0</span>
             </label>
             <div class="yyt-form-hint">\u5728\u5DE5\u5177\u5361\u7247\u4E0A\u663E\u793A\u8FD0\u884C\u72B6\u6001\u6307\u793A\u5668</div>
           </div>
         </div>
       </div>
-    `},_renderUiTab(e){return`
+    `;
+      },
+      /**
+       * 渲染UI标签页
+       * @private
+       */
+      _renderUiTab(ui) {
+        return `
       <div class="yyt-settings-tab-content" data-tab="ui">
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">\u5916\u89C2\u8BBE\u7F6E</div>
           <div class="yyt-form-group">
             <label>\u4E3B\u9898</label>
             <select class="yyt-select" id="yyt-setting-theme">
-              <option value="dark-blue" ${e.theme==="dark-blue"?"selected":""}>\u6DF1\u84DD</option>
-              <option value="dark-purple" ${e.theme==="dark-purple"?"selected":""}>\u6DF1\u7D2B</option>
-              <option value="dark-green" ${e.theme==="dark-green"?"selected":""}>\u6DF1\u7EFF</option>
-              <option value="light" ${e.theme==="light"?"selected":""}>\u6D45\u8272</option>
+              <option value="dark-blue" ${ui.theme === "dark-blue" ? "selected" : ""}>\u6DF1\u84DD</option>
+              <option value="dark-purple" ${ui.theme === "dark-purple" ? "selected" : ""}>\u6DF1\u7D2B</option>
+              <option value="dark-green" ${ui.theme === "dark-green" ? "selected" : ""}>\u6DF1\u7EFF</option>
+              <option value="light" ${ui.theme === "light" ? "selected" : ""}>\u6D45\u8272</option>
             </select>
           </div>
           
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-compactMode" 
-                     ${e.compactMode?"checked":""}>
+                     ${ui.compactMode ? "checked" : ""}>
               <span>\u7D27\u51D1\u6A21\u5F0F</span>
             </label>
             <div class="yyt-form-hint">\u51CF\u5C11\u5361\u7247\u95F4\u8DDD\uFF0C\u663E\u793A\u66F4\u591A\u5185\u5BB9</div>
@@ -3343,14 +12187,103 @@ ${n}`),o.join(`
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-animationEnabled" 
-                     ${e.animationEnabled?"checked":""}>
+                     ${ui.animationEnabled ? "checked" : ""}>
               <span>\u542F\u7528\u52A8\u753B\u6548\u679C</span>
             </label>
             <div class="yyt-form-hint">\u754C\u9762\u8FC7\u6E21\u548C\u4EA4\u4E92\u52A8\u753B</div>
           </div>
         </div>
       </div>
-    `},bindEvents(e,t){let s=w();!s||!S(e)||(e.find(".yyt-settings-tab").on("click",o=>{let n=s(o.currentTarget).data("tab");e.find(".yyt-settings-tab").removeClass("yyt-active"),s(o.currentTarget).addClass("yyt-active"),e.find(".yyt-settings-tab-content").removeClass("yyt-active"),e.find(`.yyt-settings-tab-content[data-tab="${n}"]`).addClass("yyt-active")}),e.find("#yyt-settings-save").on("click",()=>{this._saveSettings(e,s)}),e.find("#yyt-settings-reset").on("click",()=>{confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u8BBE\u7F6E\u4E3A\u9ED8\u8BA4\u503C\u5417\uFF1F")&&(ht.resetSettings(),this.renderTo(e),d("success","\u8BBE\u7F6E\u5DF2\u91CD\u7F6E"))}))},_saveSettings(e,t){let s={executor:{maxConcurrent:parseInt(e.find("#yyt-setting-maxConcurrent").val())||3,maxRetries:parseInt(e.find("#yyt-setting-maxRetries").val())||2,retryDelayMs:parseInt(e.find("#yyt-setting-retryDelayMs").val())||5e3,requestTimeoutMs:parseInt(e.find("#yyt-setting-requestTimeoutMs").val())||9e4,queueStrategy:e.find("#yyt-setting-queueStrategy").val()||"fifo"},listener:{listenGenerationEnded:e.find("#yyt-setting-listenGenerationEnded").is(":checked"),ignoreQuietGeneration:e.find("#yyt-setting-ignoreQuietGeneration").is(":checked"),ignoreAutoTrigger:e.find("#yyt-setting-ignoreAutoTrigger").is(":checked"),debounceMs:parseInt(e.find("#yyt-setting-debounceMs").val())||300},debug:{enableDebugLog:e.find("#yyt-setting-enableDebugLog").is(":checked"),saveExecutionHistory:e.find("#yyt-setting-saveExecutionHistory").is(":checked"),showRuntimeBadge:e.find("#yyt-setting-showRuntimeBadge").is(":checked")},ui:{theme:e.find("#yyt-setting-theme").val()||"dark-blue",compactMode:e.find("#yyt-setting-compactMode").is(":checked"),animationEnabled:e.find("#yyt-setting-animationEnabled").is(":checked")}};ht.saveSettings(s),ar(s.ui.theme),document.documentElement.classList.toggle("yyt-compact-mode",s.ui.compactMode),document.documentElement.classList.toggle("yyt-no-animation",!s.ui.animationEnabled),d("success","\u8BBE\u7F6E\u5DF2\u4FDD\u5B58")},destroy(e){!w()||!S(e)||e.find("*").off()},getStyles(){return`
+    `;
+      },
+      // ============================================================
+      // 事件绑定
+      // ============================================================
+      /**
+       * 绑定事件
+       * @param {Object} $container
+       * @param {Object} dependencies
+       */
+      bindEvents($container2, dependencies) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find(".yyt-settings-tab").on("click", (e) => {
+          const tabId = $(e.currentTarget).data("tab");
+          $container2.find(".yyt-settings-tab").removeClass("yyt-active");
+          $(e.currentTarget).addClass("yyt-active");
+          $container2.find(".yyt-settings-tab-content").removeClass("yyt-active");
+          $container2.find(`.yyt-settings-tab-content[data-tab="${tabId}"]`).addClass("yyt-active");
+        });
+        $container2.find("#yyt-settings-save").on("click", () => {
+          this._saveSettings($container2, $);
+        });
+        $container2.find("#yyt-settings-reset").on("click", () => {
+          if (confirm("\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u8BBE\u7F6E\u4E3A\u9ED8\u8BA4\u503C\u5417\uFF1F")) {
+            settingsService.resetSettings();
+            this.renderTo($container2);
+            showToast("success", "\u8BBE\u7F6E\u5DF2\u91CD\u7F6E");
+          }
+        });
+      },
+      /**
+       * 保存设置
+       * @private
+       */
+      _saveSettings($container2, $) {
+        const settings = {
+          executor: {
+            maxConcurrent: parseInt($container2.find("#yyt-setting-maxConcurrent").val()) || 3,
+            maxRetries: parseInt($container2.find("#yyt-setting-maxRetries").val()) || 2,
+            retryDelayMs: parseInt($container2.find("#yyt-setting-retryDelayMs").val()) || 5e3,
+            requestTimeoutMs: parseInt($container2.find("#yyt-setting-requestTimeoutMs").val()) || 9e4,
+            queueStrategy: $container2.find("#yyt-setting-queueStrategy").val() || "fifo"
+          },
+          listener: {
+            listenGenerationEnded: $container2.find("#yyt-setting-listenGenerationEnded").is(":checked"),
+            ignoreQuietGeneration: $container2.find("#yyt-setting-ignoreQuietGeneration").is(":checked"),
+            ignoreAutoTrigger: $container2.find("#yyt-setting-ignoreAutoTrigger").is(":checked"),
+            debounceMs: parseInt($container2.find("#yyt-setting-debounceMs").val()) || 300
+          },
+          debug: {
+            enableDebugLog: $container2.find("#yyt-setting-enableDebugLog").is(":checked"),
+            saveExecutionHistory: $container2.find("#yyt-setting-saveExecutionHistory").is(":checked"),
+            showRuntimeBadge: $container2.find("#yyt-setting-showRuntimeBadge").is(":checked")
+          },
+          ui: {
+            theme: $container2.find("#yyt-setting-theme").val() || "dark-blue",
+            compactMode: $container2.find("#yyt-setting-compactMode").is(":checked"),
+            animationEnabled: $container2.find("#yyt-setting-animationEnabled").is(":checked")
+          }
+        };
+        settingsService.saveSettings(settings);
+        applyTheme(settings.ui.theme);
+        document.documentElement.classList.toggle("yyt-compact-mode", settings.ui.compactMode);
+        document.documentElement.classList.toggle("yyt-no-animation", !settings.ui.animationEnabled);
+        showToast("success", "\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
+      },
+      // ============================================================
+      // 销毁
+      // ============================================================
+      /**
+       * 销毁组件
+       * @param {Object} $container
+       */
+      destroy($container2) {
+        const $ = getJQuery();
+        if (!$ || !isContainerValid($container2))
+          return;
+        $container2.find("*").off();
+      },
+      // ============================================================
+      // 样式
+      // ============================================================
+      /**
+       * 获取样式
+       * @returns {string}
+       */
+      getStyles() {
+        return `
       /* \u8BBE\u7F6E\u9762\u677F\u6837\u5F0F */
       .yyt-settings-panel {
         display: flex;
@@ -3463,7 +12396,113 @@ ${n}`),o.join(`
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         flex-shrink: 0;
       }
-    `},renderTo(e){let t=this.render({});e.html(t),this.bindEvents(e,{})}},wa=lr});var M="youyou_toolkit",$o="0.6.2",he=`${M}-menu-item`,Co=`${M}-menu-container`,Ta=`${M}-popup`,I=typeof window.parent<"u"?window.parent:window,fs=null,tt=null,xe=null,Y=null,dr=null,hs=null,yr=null,ve=null,we=null,V=null,q=null,Te=null,pr=null,ur=null,gr=null,fr=null,ms=null;async function Zt(){try{return fs=await Promise.resolve().then(()=>(ne(),Ho)),tt=await Promise.resolve().then(()=>(As(),Qo)),xe=await Promise.resolve().then(()=>(ie(),qo)),Y=await Promise.resolve().then(()=>(Ln(),On)),dr=await Promise.resolve().then(()=>(Fs(),an)),hs=await Promise.resolve().then(()=>(Xs(),ln)),yr=await Promise.resolve().then(()=>(po(),Un)),ve=await Promise.resolve().then(()=>(Kn(),Vn)),we=await Promise.resolve().then(()=>(tr(),Zn)),V=await Promise.resolve().then(()=>(Gt(),En)),q=await Promise.resolve().then(()=>(sr(),er)),Te=await Promise.resolve().then(()=>(es(),Bn)),pr=await Promise.resolve().then(()=>(Ht(),Sn)),ur=await Promise.resolve().then(()=>(ir(),rr)),gr=await Promise.resolve().then(()=>(fo(),Gn)),fr=await Promise.resolve().then(()=>(mo(),Hn)),ms=await Promise.resolve().then(()=>(bo(),Wn)),ms?.toolOutputService&&tt&&ms.toolOutputService.setApiConnection(tt),!0}catch(e){return console.warn(`[${M}] \u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u5185\u7F6E\u529F\u80FD:`,e),!1}}function j(...e){console.log(`[${M}]`,...e)}function mr(...e){console.error(`[${M}]`,...e)}function cr(e){return typeof e!="string"?"":e.replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">").replace(/"/g,'"').replace(/'/g,"&#039;")}async function Ea(){let e=`${M}-styles`,t=I.document||document;if(t.getElementById(e))return;let s="";try{let n=await fetch("./styles/main.css");n.ok&&(s=await n.text())}catch{j("\u65E0\u6CD5\u52A0\u8F7D\u5916\u90E8\u6837\u5F0F\u6587\u4EF6\uFF0C\u4F7F\u7528\u5185\u7F6E\u6837\u5F0F")}s||(s=Sa());let o=t.createElement("style");o.id=e,o.textContent=s,(t.head||t.documentElement).appendChild(o),j("\u6837\u5F0F\u5DF2\u6CE8\u5165")}function Sa(){return`
+    `;
+      },
+      // ============================================================
+      // 便捷方法
+      // ============================================================
+      /**
+       * 渲染到容器
+       * @param {Object} $container
+       */
+      renderTo($container2) {
+        const html = this.render({});
+        $container2.html(html);
+        this.bindEvents($container2, {});
+      }
+    };
+    settings_panel_default = SettingsPanel;
+  }
+});
+
+// index.js
+var SCRIPT_ID2 = "youyou_toolkit";
+var SCRIPT_VERSION = "0.6.2";
+var MENU_ITEM_ID = `${SCRIPT_ID2}-menu-item`;
+var MENU_CONTAINER_ID = `${SCRIPT_ID2}-menu-container`;
+var POPUP_ID = `${SCRIPT_ID2}-popup`;
+var topLevelWindow = typeof window.parent !== "undefined" ? window.parent : window;
+var storageModule = null;
+var apiConnectionModule = null;
+var presetManagerModule = null;
+var uiComponentsModule = null;
+var regexExtractorModule = null;
+var toolManagerModule = null;
+var toolExecutorModule = null;
+var toolTriggerModule = null;
+var windowManagerModule = null;
+var toolRegistryModule = null;
+var promptEditorModule = null;
+var settingsServiceModule = null;
+var bypassManagerModule = null;
+var variableResolverModule = null;
+var contextInjectorModule = null;
+var toolPromptServiceModule = null;
+var toolOutputServiceModule = null;
+async function loadModules() {
+  try {
+    storageModule = await Promise.resolve().then(() => (init_storage(), storage_exports));
+    apiConnectionModule = await Promise.resolve().then(() => (init_api_connection(), api_connection_exports));
+    presetManagerModule = await Promise.resolve().then(() => (init_preset_manager(), preset_manager_exports));
+    uiComponentsModule = await Promise.resolve().then(() => (init_ui_components(), ui_components_exports));
+    regexExtractorModule = await Promise.resolve().then(() => (init_regex_extractor(), regex_extractor_exports));
+    toolManagerModule = await Promise.resolve().then(() => (init_tool_manager(), tool_manager_exports));
+    toolExecutorModule = await Promise.resolve().then(() => (init_tool_executor(), tool_executor_exports));
+    toolTriggerModule = await Promise.resolve().then(() => (init_tool_trigger(), tool_trigger_exports));
+    windowManagerModule = await Promise.resolve().then(() => (init_window_manager(), window_manager_exports));
+    toolRegistryModule = await Promise.resolve().then(() => (init_tool_registry(), tool_registry_exports));
+    promptEditorModule = await Promise.resolve().then(() => (init_prompt_editor(), prompt_editor_exports));
+    settingsServiceModule = await Promise.resolve().then(() => (init_settings_service(), settings_service_exports));
+    bypassManagerModule = await Promise.resolve().then(() => (init_bypass_manager(), bypass_manager_exports));
+    variableResolverModule = await Promise.resolve().then(() => (init_variable_resolver(), variable_resolver_exports));
+    contextInjectorModule = await Promise.resolve().then(() => (init_context_injector(), context_injector_exports));
+    toolPromptServiceModule = await Promise.resolve().then(() => (init_tool_prompt_service(), tool_prompt_service_exports));
+    toolOutputServiceModule = await Promise.resolve().then(() => (init_tool_output_service(), tool_output_service_exports));
+    if (toolOutputServiceModule?.toolOutputService && apiConnectionModule) {
+      toolOutputServiceModule.toolOutputService.setApiConnection(apiConnectionModule);
+    }
+    return true;
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID2}] \u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u5185\u7F6E\u529F\u80FD:`, error);
+    return false;
+  }
+}
+function log2(...args) {
+  console.log(`[${SCRIPT_ID2}]`, ...args);
+}
+function logError(...args) {
+  console.error(`[${SCRIPT_ID2}]`, ...args);
+}
+function escapeHtml3(unsafe) {
+  if (typeof unsafe !== "string")
+    return "";
+  return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').replace(/'/g, "&#039;");
+}
+async function injectStyles() {
+  const styleId = `${SCRIPT_ID2}-styles`;
+  const targetDoc = topLevelWindow.document || document;
+  if (targetDoc.getElementById(styleId))
+    return;
+  let css = "";
+  try {
+    const response = await fetch("./styles/main.css");
+    if (response.ok) {
+      css = await response.text();
+    }
+  } catch (e) {
+    log2("\u65E0\u6CD5\u52A0\u8F7D\u5916\u90E8\u6837\u5F0F\u6587\u4EF6\uFF0C\u4F7F\u7528\u5185\u7F6E\u6837\u5F0F");
+  }
+  if (!css) {
+    css = getBaseStyles();
+  }
+  const style = targetDoc.createElement("style");
+  style.id = styleId;
+  style.textContent = css;
+  (targetDoc.head || targetDoc.documentElement).appendChild(style);
+  log2("\u6837\u5F0F\u5DF2\u6CE8\u5165");
+}
+function getBaseStyles() {
+  return `
     /* CSS\u53D8\u91CF */
     :root {
       --yyt-accent: #7bb7ff;
@@ -3487,24 +12526,24 @@ ${n}`),o.join(`
     }
     
     /* \u83DC\u5355\u9879 */
-    #${Co} { display: flex; align-items: center; }
+    #${MENU_CONTAINER_ID} { display: flex; align-items: center; }
     
-    #${he} {
+    #${MENU_ITEM_ID} {
       display: flex; align-items: center; gap: 8px;
       padding: 10px 14px; cursor: pointer;
       transition: all 0.2s ease; border-radius: 8px; margin: 2px;
     }
     
-    #${he}:hover {
+    #${MENU_ITEM_ID}:hover {
       background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
     }
     
-    #${he} .fa-fw {
+    #${MENU_ITEM_ID} .fa-fw {
       font-size: 16px; color: var(--yyt-accent);
       filter: drop-shadow(0 0 6px var(--yyt-accent-glow));
     }
     
-    #${he} span { font-weight: 500; letter-spacing: 0.3px; }
+    #${MENU_ITEM_ID} span { font-weight: 500; letter-spacing: 0.3px; }
     
     /* \u4E3B\u5F39\u7A97\u906E\u7F69 */
     .yyt-popup-overlay {
@@ -3896,18 +12935,229 @@ ${n}`),o.join(`
         border: none;
       }
     }
-  `}var _=null,vt=null,te="apiPresets",Ao={};function bs(){_&&(_.remove(),_=null),vt&&(vt.remove(),vt=null),j("\u5F39\u7A97\u5DF2\u5173\u95ED")}function br(e){te=e;let t=I.jQuery||window.jQuery;if(!t||!_)return;t(_).find(".yyt-main-nav-item").removeClass("active"),t(_).find(`.yyt-main-nav-item[data-tab="${e}"]`).addClass("active");let s=V?.getToolConfig(e);s?.hasSubTabs?(t(_).find(".yyt-sub-nav").show(),xr(e,s.subTabs)):t(_).find(".yyt-sub-nav").hide(),t(_).find(".yyt-tab-content").removeClass("active"),t(_).find(`.yyt-tab-content[data-tab="${e}"]`).addClass("active"),vr(e)}function hr(e,t){Ao[e]=t;let s=I.jQuery||window.jQuery;!s||!_||(s(_).find(".yyt-sub-nav-item").removeClass("active"),s(_).find(`.yyt-sub-nav-item[data-subtab="${t}"]`).addClass("active"),ko(e,t))}function xr(e,t){let s=I.jQuery||window.jQuery;if(!s||!_||!t)return;let o=Ao[e]||t[0]?.id,n=t.map(r=>`
-    <div class="yyt-sub-nav-item ${r.id===o?"active":""}" data-subtab="${r.id}">
-      <i class="fa-solid ${r.icon||"fa-file"}"></i>
-      <span>${r.name}</span>
+  `;
+}
+var currentPopup = null;
+var currentOverlay = null;
+var currentMainTab = "apiPresets";
+var currentSubTab = {};
+function closePopup() {
+  if (currentPopup) {
+    currentPopup.remove();
+    currentPopup = null;
+  }
+  if (currentOverlay) {
+    currentOverlay.remove();
+    currentOverlay = null;
+  }
+  log2("\u5F39\u7A97\u5DF2\u5173\u95ED");
+}
+function switchMainTab(tabName) {
+  currentMainTab = tabName;
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup)
+    return;
+  $(currentPopup).find(".yyt-main-nav-item").removeClass("active");
+  $(currentPopup).find(`.yyt-main-nav-item[data-tab="${tabName}"]`).addClass("active");
+  const toolConfig = toolRegistryModule?.getToolConfig(tabName);
+  if (toolConfig?.hasSubTabs) {
+    $(currentPopup).find(".yyt-sub-nav").show();
+    renderSubNav(tabName, toolConfig.subTabs);
+  } else {
+    $(currentPopup).find(".yyt-sub-nav").hide();
+  }
+  $(currentPopup).find(".yyt-tab-content").removeClass("active");
+  $(currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`).addClass("active");
+  renderTabContent(tabName);
+}
+function switchSubTab(mainTab, subTab) {
+  currentSubTab[mainTab] = subTab;
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup)
+    return;
+  $(currentPopup).find(".yyt-sub-nav-item").removeClass("active");
+  $(currentPopup).find(`.yyt-sub-nav-item[data-subtab="${subTab}"]`).addClass("active");
+  renderSubTabContent(mainTab, subTab);
+}
+function renderSubNav(mainTab, subTabs) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup || !subTabs)
+    return;
+  const currentSub = currentSubTab[mainTab] || subTabs[0]?.id;
+  const subNavHtml = subTabs.map((tab) => `
+    <div class="yyt-sub-nav-item ${tab.id === currentSub ? "active" : ""}" data-subtab="${tab.id}">
+      <i class="fa-solid ${tab.icon || "fa-file"}"></i>
+      <span>${tab.name}</span>
     </div>
-  `).join("");s(_).find(".yyt-sub-nav").html(n),s(_).find(".yyt-sub-nav-item").on("click",function(){let r=s(this).data("subtab");hr(e,r)})}async function vr(e){let t=I.jQuery||window.jQuery;if(!t||!_)return;let s=t(_).find(`.yyt-tab-content[data-tab="${e}"]`);if(!s.length)return;let o=V?.getToolConfig(e);switch(e){case"apiPresets":Y&&Y.render(s);break;case"regexExtract":Y&&Y.renderRegex(s);break;case"tools":if(o?.hasSubTabs&&o.subTabs?.length>0){let n=o.subTabs[0].id;ko(e,n)}else s.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</span></div>');break;case"bypass":await _a(s);break;case"settings":await Ca(s);break;default:Pa(e,s);break}}async function _a(e){if(I.jQuery||window.jQuery)try{let{BypassPanel:s}=await Promise.resolve().then(()=>(Ve(),_n)),o=`${M}-bypass-styles`,n=I.document||document;if(!n.getElementById(o)&&s.getStyles){let r=n.createElement("style");r.id=o,r.textContent=s.getStyles(),(n.head||n.documentElement).appendChild(r)}s.renderTo(e)}catch(s){console.error(`[${M}] \u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`,s),e.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>')}}async function Ca(e){if(I.jQuery||window.jQuery)try{let{SettingsPanel:s}=await Promise.resolve().then(()=>(_o(),So)),o=`${M}-settings-styles`,n=I.document||document;if(!n.getElementById(o)&&s.getStyles){let r=n.createElement("style");r.id=o,r.textContent=s.getStyles(),(n.head||n.documentElement).appendChild(r)}s.renderTo(e)}catch(s){console.error(`[${M}] \u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`,s),e.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>')}}function ko(e,t){let s=I.jQuery||window.jQuery;if(!s||!_)return;let o=s(_).find(`.yyt-tab-content[data-tab="${e}"]`);if(!o.length)return;let n=V?.getToolConfig(e);if(n?.hasSubTabs){let i=n.subTabs?.find(a=>a.id===t);if(i){let a=o.find(".yyt-sub-content");switch(a.length||(o.html('<div class="yyt-sub-content"></div>'),a=o.find(".yyt-sub-content")),i.component){case"SummaryToolPanel":Y?.SummaryToolPanel?Y.SummaryToolPanel.renderTo(a):a.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u6458\u8981\u5DE5\u5177\u52A0\u8F7D\u5931\u8D25</span></div>');break;case"StatusBlockPanel":Y?.StatusBlockPanel?Y.StatusBlockPanel.renderTo(a):a.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u4E3B\u89D2\u72B6\u6001\u680F\u52A0\u8F7D\u5931\u8D25</span></div>');break;default:a.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>')}}return}let r=o.find(".yyt-sub-content");if(r.length)switch(t){case"config":$a(e,r);break;case"prompts":Aa(e,r);break;case"presets":ka(e,r);break;default:r.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>')}}function Pa(e,t){if(!(I.jQuery||window.jQuery))return;let o=V?.getToolConfig(e);if(!o){t.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728</span></div>');return}let n=Ao[e]||o.subTabs?.[0]?.id||"config";t.html(`
+  `).join("");
+  $(currentPopup).find(".yyt-sub-nav").html(subNavHtml);
+  $(currentPopup).find(".yyt-sub-nav-item").on("click", function() {
+    const subTab = $(this).data("subtab");
+    switchSubTab(mainTab, subTab);
+  });
+}
+async function renderTabContent(tabName) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup)
+    return;
+  const $content = $(currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`);
+  if (!$content.length)
+    return;
+  const toolConfig = toolRegistryModule?.getToolConfig(tabName);
+  switch (tabName) {
+    case "apiPresets":
+      if (uiComponentsModule) {
+        uiComponentsModule.render($content);
+      }
+      break;
+    case "regexExtract":
+      if (uiComponentsModule) {
+        uiComponentsModule.renderRegex($content);
+      }
+      break;
+    case "tools":
+      if (toolConfig?.hasSubTabs && toolConfig.subTabs?.length > 0) {
+        const defaultSubTab = toolConfig.subTabs[0].id;
+        renderSubTabContent(tabName, defaultSubTab);
+      } else {
+        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u52A0\u8F7D\u5931\u8D25</span></div>');
+      }
+      break;
+    case "bypass":
+      await renderBypassPanel($content);
+      break;
+    case "settings":
+      await renderSettingsPanel($content);
+      break;
+    default:
+      renderToolWindow(tabName, $content);
+      break;
+  }
+}
+async function renderBypassPanel($container2) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$)
+    return;
+  try {
+    const { BypassPanel: BypassPanel2 } = await Promise.resolve().then(() => (init_bypass_panel(), bypass_panel_exports));
+    const styleId = `${SCRIPT_ID2}-bypass-styles`;
+    const targetDoc = topLevelWindow.document || document;
+    if (!targetDoc.getElementById(styleId) && BypassPanel2.getStyles) {
+      const style = targetDoc.createElement("style");
+      style.id = styleId;
+      style.textContent = BypassPanel2.getStyles();
+      (targetDoc.head || targetDoc.documentElement).appendChild(style);
+    }
+    BypassPanel2.renderTo($container2);
+  } catch (error) {
+    console.error(`[${SCRIPT_ID2}] \u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`, error);
+    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u7834\u9650\u8BCD\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>`);
+  }
+}
+async function renderSettingsPanel($container2) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$)
+    return;
+  try {
+    const { SettingsPanel: SettingsPanel2 } = await Promise.resolve().then(() => (init_settings_panel(), settings_panel_exports));
+    const styleId = `${SCRIPT_ID2}-settings-styles`;
+    const targetDoc = topLevelWindow.document || document;
+    if (!targetDoc.getElementById(styleId) && SettingsPanel2.getStyles) {
+      const style = targetDoc.createElement("style");
+      style.id = styleId;
+      style.textContent = SettingsPanel2.getStyles();
+      (targetDoc.head || targetDoc.documentElement).appendChild(style);
+    }
+    SettingsPanel2.renderTo($container2);
+  } catch (error) {
+    console.error(`[${SCRIPT_ID2}] \u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25:`, error);
+    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u8BBE\u7F6E\u9762\u677F\u52A0\u8F7D\u5931\u8D25</span></div>`);
+  }
+}
+function renderSubTabContent(mainTab, subTab) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !currentPopup)
+    return;
+  const $mainContent = $(currentPopup).find(`.yyt-tab-content[data-tab="${mainTab}"]`);
+  if (!$mainContent.length)
+    return;
+  const mainToolConfig = toolRegistryModule?.getToolConfig(mainTab);
+  if (mainToolConfig?.hasSubTabs) {
+    const subToolConfig = mainToolConfig.subTabs?.find((st) => st.id === subTab);
+    if (subToolConfig) {
+      let $subContent = $mainContent.find(".yyt-sub-content");
+      if (!$subContent.length) {
+        $mainContent.html(`<div class="yyt-sub-content"></div>`);
+        $subContent = $mainContent.find(".yyt-sub-content");
+      }
+      switch (subToolConfig.component) {
+        case "SummaryToolPanel":
+          if (uiComponentsModule?.SummaryToolPanel) {
+            uiComponentsModule.SummaryToolPanel.renderTo($subContent);
+          } else {
+            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u6458\u8981\u5DE5\u5177\u52A0\u8F7D\u5931\u8D25</span></div>');
+          }
+          break;
+        case "StatusBlockPanel":
+          if (uiComponentsModule?.StatusBlockPanel) {
+            uiComponentsModule.StatusBlockPanel.renderTo($subContent);
+          } else {
+            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u4E3B\u89D2\u72B6\u6001\u680F\u52A0\u8F7D\u5931\u8D25</span></div>');
+          }
+          break;
+        default:
+          $subContent.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>`);
+      }
+    }
+    return;
+  }
+  const $content = $mainContent.find(".yyt-sub-content");
+  if (!$content.length)
+    return;
+  switch (subTab) {
+    case "config":
+      renderToolConfig(mainTab, $content);
+      break;
+    case "prompts":
+      renderPromptEditor(mainTab, $content);
+      break;
+    case "presets":
+      renderToolPresets(mainTab, $content);
+      break;
+    default:
+      $content.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>\u529F\u80FD\u5F00\u53D1\u4E2D...</span></div>`);
+  }
+}
+function renderToolWindow(toolId, $container2) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$)
+    return;
+  const toolConfig = toolRegistryModule?.getToolConfig(toolId);
+  if (!toolConfig) {
+    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u5DE5\u5177\u914D\u7F6E\u4E0D\u5B58\u5728</span></div>`);
+    return;
+  }
+  const currentSub = currentSubTab[toolId] || toolConfig.subTabs?.[0]?.id || "config";
+  $container2.html(`
     <div class="yyt-tool-window">
-      <div class="yyt-sub-content" data-subtab="${n}">
+      <div class="yyt-sub-content" data-subtab="${currentSub}">
         <!-- \u5B50\u5185\u5BB9\u5C06\u5728\u6B64\u6E32\u67D3 -->
       </div>
     </div>
-  `),ko(e,n)}function $a(e,t){if(!(I.jQuery||window.jQuery))return;let o=hs?.getTool(e),n=xe?.getAllPresets()||[],r=V?.getToolApiPreset(e)||"",i=n.map(a=>`<option value="${cr(a.name)}" ${a.name===r?"selected":""}>${cr(a.name)}</option>`).join("");t.html(`
+  `);
+  renderSubTabContent(toolId, currentSub);
+}
+function renderToolConfig(toolId, $container2) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$)
+    return;
+  const tool = toolManagerModule?.getTool(toolId);
+  const apiPresets = presetManagerModule?.getAllPresets() || [];
+  const boundPreset = toolRegistryModule?.getToolApiPreset(toolId) || "";
+  const presetOptions = apiPresets.map(
+    (p) => `<option value="${escapeHtml3(p.name)}" ${p.name === boundPreset ? "selected" : ""}>${escapeHtml3(p.name)}</option>`
+  ).join("");
+  $container2.html(`
     <div class="yyt-panel">
       <div class="yyt-panel-section">
         <div class="yyt-section-title">
@@ -3918,7 +13168,7 @@ ${n}`),o.join(`
           <label>\u9009\u62E9API\u9884\u8BBE</label>
           <select class="yyt-select" id="yyt-tool-api-preset">
             <option value="">\u4F7F\u7528\u5F53\u524D\u914D\u7F6E</option>
-            ${i}
+            ${presetOptions}
           </select>
         </div>
         <button class="yyt-btn yyt-btn-primary" id="yyt-save-tool-preset">
@@ -3934,16 +13184,60 @@ ${n}`),o.join(`
         <div class="yyt-form-row">
           <div class="yyt-form-group yyt-flex-1">
             <label>\u8D85\u65F6\u65F6\u95F4 (ms)</label>
-            <input type="number" class="yyt-input" id="yyt-tool-timeout" value="${o?.config?.execution?.timeout||6e4}">
+            <input type="number" class="yyt-input" id="yyt-tool-timeout" value="${tool?.config?.execution?.timeout || 6e4}">
           </div>
           <div class="yyt-form-group yyt-flex-1">
             <label>\u91CD\u8BD5\u6B21\u6570</label>
-            <input type="number" class="yyt-input" id="yyt-tool-retries" value="${o?.config?.execution?.retries||3}">
+            <input type="number" class="yyt-input" id="yyt-tool-retries" value="${tool?.config?.execution?.retries || 3}">
           </div>
         </div>
       </div>
     </div>
-  `),t.find("#yyt-save-tool-preset").on("click",function(){let a=t.find("#yyt-tool-api-preset").val();V?.setToolApiPreset(e,a);let c=I.toastr;c&&c.success("API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u4FDD\u5B58","YouYou \u5DE5\u5177\u7BB1")})}function Aa(e,t){if(!(I.jQuery||window.jQuery)||!q){t.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u63D0\u793A\u8BCD\u7F16\u8F91\u5668\u6A21\u5757\u672A\u52A0\u8F7D</span></div>');return}let n=hs?.getTool(e)?.config?.messages||[],r=q.messagesToSegments?q.messagesToSegments(n):q.DEFAULT_PROMPT_SEGMENTS,i=new q.PromptEditor({containerId:`yyt-prompt-editor-${e}`,segments:r,onChange:c=>{let y=q.segmentsToMessages?q.segmentsToMessages(c):[];j("\u63D0\u793A\u8BCD\u5DF2\u66F4\u65B0:",y.length,"\u6761\u6D88\u606F")}});t.html(`<div id="yyt-prompt-editor-${e}" class="yyt-prompt-editor-container"></div>`),i.init(t.find(`#yyt-prompt-editor-${e}`));let a=q.getPromptEditorStyles?q.getPromptEditorStyles():"";if(a){let c="yyt-prompt-editor-styles";if(!document.getElementById(c)){let y=document.createElement("style");y.id=c,y.textContent=a,document.head.appendChild(y)}}}function ka(e,t){(I.jQuery||window.jQuery)&&t.html(`
+  `);
+  $container2.find("#yyt-save-tool-preset").on("click", function() {
+    const presetName = $container2.find("#yyt-tool-api-preset").val();
+    toolRegistryModule?.setToolApiPreset(toolId, presetName);
+    const toastr = topLevelWindow.toastr;
+    if (toastr) {
+      toastr.success(`API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u4FDD\u5B58`, "YouYou \u5DE5\u5177\u7BB1");
+    }
+  });
+}
+function renderPromptEditor(toolId, $container2) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !promptEditorModule) {
+    $container2.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u63D0\u793A\u8BCD\u7F16\u8F91\u5668\u6A21\u5757\u672A\u52A0\u8F7D</span></div>`);
+    return;
+  }
+  const tool = toolManagerModule?.getTool(toolId);
+  const messages = tool?.config?.messages || [];
+  const segments = promptEditorModule.messagesToSegments ? promptEditorModule.messagesToSegments(messages) : promptEditorModule.DEFAULT_PROMPT_SEGMENTS;
+  const editor = new promptEditorModule.PromptEditor({
+    containerId: `yyt-prompt-editor-${toolId}`,
+    segments,
+    onChange: (newSegments) => {
+      const newMessages = promptEditorModule.segmentsToMessages ? promptEditorModule.segmentsToMessages(newSegments) : [];
+      log2("\u63D0\u793A\u8BCD\u5DF2\u66F4\u65B0:", newMessages.length, "\u6761\u6D88\u606F");
+    }
+  });
+  $container2.html(`<div id="yyt-prompt-editor-${toolId}" class="yyt-prompt-editor-container"></div>`);
+  editor.init($container2.find(`#yyt-prompt-editor-${toolId}`));
+  const editorStyles = promptEditorModule.getPromptEditorStyles ? promptEditorModule.getPromptEditorStyles() : "";
+  if (editorStyles) {
+    const styleId = `yyt-prompt-editor-styles`;
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = editorStyles;
+      document.head.appendChild(style);
+    }
+  }
+}
+function renderToolPresets(toolId, $container2) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$)
+    return;
+  $container2.html(`
     <div class="yyt-panel">
       <div class="yyt-panel-section">
         <div class="yyt-section-title">
@@ -3959,22 +13253,46 @@ ${n}`),o.join(`
         </div>
       </div>
     </div>
-  `)}function wr(){if(_){j("\u5F39\u7A97\u5DF2\u5B58\u5728");return}let e=I.jQuery||window.jQuery,t=I.document||document;if(!e){mr("jQuery \u672A\u627E\u5230\uFF0C\u65E0\u6CD5\u521B\u5EFA\u5F39\u7A97");return}let s=V?.getToolList()||[];vt=t.createElement("div"),vt.className="yyt-popup-overlay",vt.addEventListener("click",c=>{c.target===vt&&bs()}),t.body.appendChild(vt);let o=s.map(c=>`
-    <div class="yyt-main-nav-item ${c.id===te?"active":""}" data-tab="${c.id}">
-      <i class="fa-solid ${c.icon}"></i>
-      <span>${c.name}</span>
+  `);
+}
+function openPopup() {
+  if (currentPopup) {
+    log2("\u5F39\u7A97\u5DF2\u5B58\u5728");
+    return;
+  }
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  const targetDoc = topLevelWindow.document || document;
+  if (!$) {
+    logError("jQuery \u672A\u627E\u5230\uFF0C\u65E0\u6CD5\u521B\u5EFA\u5F39\u7A97");
+    return;
+  }
+  const tools = toolRegistryModule?.getToolList() || [];
+  currentOverlay = targetDoc.createElement("div");
+  currentOverlay.className = "yyt-popup-overlay";
+  currentOverlay.addEventListener("click", (e) => {
+    if (e.target === currentOverlay) {
+      closePopup();
+    }
+  });
+  targetDoc.body.appendChild(currentOverlay);
+  const mainNavHtml = tools.map((tool) => `
+    <div class="yyt-main-nav-item ${tool.id === currentMainTab ? "active" : ""}" data-tab="${tool.id}">
+      <i class="fa-solid ${tool.icon}"></i>
+      <span>${tool.name}</span>
     </div>
-  `).join(""),n=s.map(c=>`
-    <div class="yyt-tab-content ${c.id===te?"active":""}" data-tab="${c.id}">
+  `).join("");
+  const contentHtml = tools.map((tool) => `
+    <div class="yyt-tab-content ${tool.id === currentMainTab ? "active" : ""}" data-tab="${tool.id}">
       <!-- \u5185\u5BB9\u5C06\u52A8\u6001\u6E32\u67D3 -->
     </div>
-  `).join(""),r=`
-    <div class="yyt-popup" id="${Ta}">
+  `).join("");
+  const popupHtml = `
+    <div class="yyt-popup" id="${POPUP_ID}">
       <div class="yyt-popup-header">
         <div class="yyt-popup-title">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
           <span>YouYou \u5DE5\u5177\u7BB1</span>
-          <span style="font-size: 12px; opacity: 0.6;">v${$o}</span>
+          <span style="font-size: 12px; opacity: 0.6;">v${SCRIPT_VERSION}</span>
         </div>
         <button class="yyt-popup-close" title="\u5173\u95ED">
           <i class="fa-solid fa-times"></i>
@@ -3983,7 +13301,7 @@ ${n}`),o.join(`
       
       <div class="yyt-popup-body">
         <div class="yyt-main-nav">
-          ${o}
+          ${mainNavHtml}
         </div>
         
         <div class="yyt-sub-nav" style="display: none;">
@@ -3991,17 +13309,251 @@ ${n}`),o.join(`
         </div>
         
         <div class="yyt-content">
-          ${n}
+          ${contentHtml}
         </div>
       </div>
       
       <div class="yyt-popup-footer">
-        <button class="yyt-btn yyt-btn-secondary" id="${M}-close-btn">\u5173\u95ED</button>
+        <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID2}-close-btn">\u5173\u95ED</button>
       </div>
     </div>
-  `,i=t.createElement("div");i.innerHTML=r,_=i.firstElementChild,t.body.appendChild(_),e(_).find(".yyt-popup-close").on("click",bs),e(_).find(`#${M}-close-btn`).on("click",bs),e(_).find(".yyt-main-nav-item").on("click",function(){let c=e(this).data("tab");c&&br(c)}),vr(te);let a=V?.getToolConfig(te);a?.hasSubTabs&&(e(_).find(".yyt-sub-nav").show(),xr(te,a.subTabs)),j("\u5F39\u7A97\u5DF2\u6253\u5F00")}function Ee(){let e=I.jQuery||window.jQuery;if(!e){mr("jQuery \u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout(Ee,1e3);return}let t=I.document||document,s=e("#extensionsMenu",t);if(!s.length){j("\u9B54\u68D2\u83DC\u5355\u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5..."),setTimeout(Ee,2e3);return}if(e(`#${Co}`,s).length>0){j("\u83DC\u5355\u9879\u5DF2\u5B58\u5728");return}let n=e(`<div class="extension_container interactable" id="${Co}" tabindex="0"></div>`),r=`
-    <div class="list-group-item flex-container flexGap5 interactable" id="${he}" title="\u6253\u5F00 YouYou \u5DE5\u5177\u7BB1">
+  `;
+  const tempDiv = targetDoc.createElement("div");
+  tempDiv.innerHTML = popupHtml;
+  currentPopup = tempDiv.firstElementChild;
+  targetDoc.body.appendChild(currentPopup);
+  $(currentPopup).find(".yyt-popup-close").on("click", closePopup);
+  $(currentPopup).find(`#${SCRIPT_ID2}-close-btn`).on("click", closePopup);
+  $(currentPopup).find(".yyt-main-nav-item").on("click", function() {
+    const tab = $(this).data("tab");
+    if (tab) {
+      switchMainTab(tab);
+    }
+  });
+  renderTabContent(currentMainTab);
+  const currentToolConfig = toolRegistryModule?.getToolConfig(currentMainTab);
+  if (currentToolConfig?.hasSubTabs) {
+    $(currentPopup).find(".yyt-sub-nav").show();
+    renderSubNav(currentMainTab, currentToolConfig.subTabs);
+  }
+  log2("\u5F39\u7A97\u5DF2\u6253\u5F00");
+}
+function addMenuItem() {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$) {
+    logError("jQuery \u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5...");
+    setTimeout(addMenuItem, 1e3);
+    return;
+  }
+  const parentDoc = topLevelWindow.document || document;
+  const extensionsMenu = $("#extensionsMenu", parentDoc);
+  if (!extensionsMenu.length) {
+    log2("\u9B54\u68D2\u83DC\u5355\u672A\u627E\u5230\uFF0C\u5EF6\u8FDF\u91CD\u8BD5...");
+    setTimeout(addMenuItem, 2e3);
+    return;
+  }
+  const existingItem = $(`#${MENU_CONTAINER_ID}`, extensionsMenu);
+  if (existingItem.length > 0) {
+    log2("\u83DC\u5355\u9879\u5DF2\u5B58\u5728");
+    return;
+  }
+  const $menuContainer = $(`<div class="extension_container interactable" id="${MENU_CONTAINER_ID}" tabindex="0"></div>`);
+  const menuItemHtml = `
+    <div class="list-group-item flex-container flexGap5 interactable" id="${MENU_ITEM_ID}" title="\u6253\u5F00 YouYou \u5DE5\u5177\u7BB1">
       <div class="fa-fw fa-solid fa-wand-magic-sparkles extensionsMenuExtensionButton"></div>
       <span>YouYou \u5DE5\u5177\u7BB1</span>
     </div>
-  `,i=e(r);i.on("click",async function(a){a.stopPropagation(),j("\u83DC\u5355\u9879\u88AB\u70B9\u51FB");let c=e("#extensionsMenuButton",t);c.length&&s.is(":visible")&&c.trigger("click"),wr()}),n.append(i),s.append(n),j("\u83DC\u5355\u9879\u5DF2\u6DFB\u52A0\u5230\u9B54\u68D2\u533A")}var Po={version:$o,id:M,init:Tr,openPopup:wr,closePopup:bs,switchMainTab:br,switchSubTab:hr,addMenuItem:Ee,getStorage:()=>fs,getApiConnection:()=>tt,getPresetManager:()=>xe,getUiComponents:()=>Y,getRegexExtractor:()=>dr,getToolManager:()=>hs,getToolExecutor:()=>yr,getToolTrigger:()=>ve,getWindowManager:()=>we,getToolRegistry:()=>V,getPromptEditor:()=>q,getSettingsService:()=>Te,getBypassManager:()=>pr,getVariableResolver:()=>ur,getContextInjector:()=>gr,getToolPromptService:()=>fr,getToolOutputService:()=>ms,async getApiConfig(){return await Zt(),fs?fs.loadSettings().apiConfig:null},async saveApiConfig(e){return await Zt(),tt?(tt.updateApiConfig(e),!0):!1},async getPresets(){return await Zt(),xe?xe.getAllPresets():[]},async sendApiRequest(e,t){if(await Zt(),tt)return tt.sendApiRequest(e,t);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await Zt(),tt?tt.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(e,t){return V?.registerTool(e,t)||!1},unregisterTool(e){return V?.unregisterTool(e)||!1},getToolList(){return V?.getToolList()||[]},createWindow(e){return we?.createWindow(e)||null},closeWindow(e){we?.closeWindow(e)}};async function Tr(){if(j(`\u521D\u59CB\u5316\u5F00\u59CB... \u7248\u672C: ${$o}`),await Ea(),await Zt()){if(j("\u6240\u6709\u6A21\u5757\u52A0\u8F7D\u6210\u529F"),ve&&ve.initTriggerModule)try{ve.initTriggerModule(),j("\u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316")}catch(o){console.error(`[${M}] \u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5931\u8D25:`,o)}let s=I.document||document;if(Y){let o=`${M}-ui-styles`;if(!s.getElementById(o)){let i=s.createElement("style");i.id=o,i.textContent=Y.getStyles(),(s.head||s.documentElement).appendChild(i)}let n=`${M}-regex-styles`;if(!s.getElementById(n)&&Y.getRegexStyles){let i=s.createElement("style");i.id=n,i.textContent=Y.getRegexStyles(),(s.head||s.documentElement).appendChild(i)}let r=`${M}-tool-styles`;if(!s.getElementById(r)&&Y.getToolStyles){let i=s.createElement("style");i.id=r,i.textContent=Y.getToolStyles(),(s.head||s.documentElement).appendChild(i)}}if(we){let o=`${M}-window-styles`;s.getElementById(o)}if(q&&q.getPromptEditorStyles){let o=`${M}-prompt-styles`;if(!s.getElementById(o)){let n=s.createElement("style");n.id=o,n.textContent=q.getPromptEditorStyles(),(s.head||s.documentElement).appendChild(n)}}try{let{applyTheme:o}=await Promise.resolve().then(()=>(_o(),So));if(Te&&Te.settingsService){let n=Te.settingsService.getUiSettings();n&&n.theme&&(o(n.theme),j(`\u4E3B\u9898\u5DF2\u5E94\u7528: ${n.theme}`),n.compactMode&&document.documentElement.classList.add("yyt-compact-mode"),n.animationEnabled||document.documentElement.classList.add("yyt-no-animation"))}}catch(o){j("\u4E3B\u9898\u52A0\u8F7D\u5931\u8D25:",o)}}else j("\u90E8\u5206\u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u57FA\u7840\u529F\u80FD");let t=I.document||document;t.readyState==="loading"?t.addEventListener("DOMContentLoaded",()=>{setTimeout(Ee,1e3)}):setTimeout(Ee,1e3),j("\u521D\u59CB\u5316\u5B8C\u6210")}if(typeof window<"u"&&(window.YouYouToolkit=Po,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Po}catch{}var Sc=Po;Tr();j("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210");export{Sc as default};
+  `;
+  const $menuItem = $(menuItemHtml);
+  $menuItem.on("click", async function(e) {
+    e.stopPropagation();
+    log2("\u83DC\u5355\u9879\u88AB\u70B9\u51FB");
+    const exMenuBtn = $("#extensionsMenuButton", parentDoc);
+    if (exMenuBtn.length && extensionsMenu.is(":visible")) {
+      exMenuBtn.trigger("click");
+    }
+    openPopup();
+  });
+  $menuContainer.append($menuItem);
+  extensionsMenu.append($menuContainer);
+  log2("\u83DC\u5355\u9879\u5DF2\u6DFB\u52A0\u5230\u9B54\u68D2\u533A");
+}
+var YouYouToolkit = {
+  version: SCRIPT_VERSION,
+  id: SCRIPT_ID2,
+  // 初始化
+  init: init2,
+  // 弹窗控制
+  openPopup,
+  closePopup,
+  // 标签切换
+  switchMainTab,
+  switchSubTab,
+  // 菜单管理
+  addMenuItem,
+  // 模块访问（异步）
+  getStorage: () => storageModule,
+  getApiConnection: () => apiConnectionModule,
+  getPresetManager: () => presetManagerModule,
+  getUiComponents: () => uiComponentsModule,
+  getRegexExtractor: () => regexExtractorModule,
+  getToolManager: () => toolManagerModule,
+  getToolExecutor: () => toolExecutorModule,
+  getToolTrigger: () => toolTriggerModule,
+  getWindowManager: () => windowManagerModule,
+  getToolRegistry: () => toolRegistryModule,
+  getPromptEditor: () => promptEditorModule,
+  // v0.5 新模块访问
+  getSettingsService: () => settingsServiceModule,
+  getBypassManager: () => bypassManagerModule,
+  getVariableResolver: () => variableResolverModule,
+  getContextInjector: () => contextInjectorModule,
+  getToolPromptService: () => toolPromptServiceModule,
+  getToolOutputService: () => toolOutputServiceModule,
+  // 便捷方法
+  async getApiConfig() {
+    await loadModules();
+    return storageModule ? storageModule.loadSettings().apiConfig : null;
+  },
+  async saveApiConfig(config) {
+    await loadModules();
+    if (apiConnectionModule) {
+      apiConnectionModule.updateApiConfig(config);
+      return true;
+    }
+    return false;
+  },
+  async getPresets() {
+    await loadModules();
+    return presetManagerModule ? presetManagerModule.getAllPresets() : [];
+  },
+  async sendApiRequest(messages, options) {
+    await loadModules();
+    if (apiConnectionModule) {
+      return apiConnectionModule.sendApiRequest(messages, options);
+    }
+    throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D");
+  },
+  async testApiConnection() {
+    await loadModules();
+    if (apiConnectionModule) {
+      return apiConnectionModule.testApiConnection();
+    }
+    return { success: false, message: "API\u6A21\u5757\u672A\u52A0\u8F7D" };
+  },
+  // 工具注册
+  registerTool(id, config) {
+    return toolRegistryModule?.registerTool(id, config) || false;
+  },
+  unregisterTool(id) {
+    return toolRegistryModule?.unregisterTool(id) || false;
+  },
+  getToolList() {
+    return toolRegistryModule?.getToolList() || [];
+  },
+  // 窗口管理
+  createWindow(options) {
+    return windowManagerModule?.createWindow(options) || null;
+  },
+  closeWindow(id) {
+    windowManagerModule?.closeWindow(id);
+  }
+};
+async function init2() {
+  log2(`\u521D\u59CB\u5316\u5F00\u59CB... \u7248\u672C: ${SCRIPT_VERSION}`);
+  await injectStyles();
+  const modulesLoaded = await loadModules();
+  if (modulesLoaded) {
+    log2("\u6240\u6709\u6A21\u5757\u52A0\u8F7D\u6210\u529F");
+    if (toolTriggerModule && toolTriggerModule.initTriggerModule) {
+      try {
+        toolTriggerModule.initTriggerModule();
+        log2("\u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u5DF2\u521D\u59CB\u5316");
+      } catch (triggerError) {
+        console.error(`[${SCRIPT_ID2}] \u5DE5\u5177\u89E6\u53D1\u6A21\u5757\u521D\u59CB\u5316\u5931\u8D25:`, triggerError);
+      }
+    }
+    const targetDoc2 = topLevelWindow.document || document;
+    if (uiComponentsModule) {
+      const uiStyleId = `${SCRIPT_ID2}-ui-styles`;
+      if (!targetDoc2.getElementById(uiStyleId)) {
+        const uiStyle = targetDoc2.createElement("style");
+        uiStyle.id = uiStyleId;
+        uiStyle.textContent = uiComponentsModule.getStyles();
+        (targetDoc2.head || targetDoc2.documentElement).appendChild(uiStyle);
+      }
+      const regexStyleId = `${SCRIPT_ID2}-regex-styles`;
+      if (!targetDoc2.getElementById(regexStyleId) && uiComponentsModule.getRegexStyles) {
+        const regexStyle = targetDoc2.createElement("style");
+        regexStyle.id = regexStyleId;
+        regexStyle.textContent = uiComponentsModule.getRegexStyles();
+        (targetDoc2.head || targetDoc2.documentElement).appendChild(regexStyle);
+      }
+      const toolStyleId = `${SCRIPT_ID2}-tool-styles`;
+      if (!targetDoc2.getElementById(toolStyleId) && uiComponentsModule.getToolStyles) {
+        const toolStyle = targetDoc2.createElement("style");
+        toolStyle.id = toolStyleId;
+        toolStyle.textContent = uiComponentsModule.getToolStyles();
+        (targetDoc2.head || targetDoc2.documentElement).appendChild(toolStyle);
+      }
+    }
+    if (windowManagerModule) {
+      const windowStyleId = `${SCRIPT_ID2}-window-styles`;
+      if (!targetDoc2.getElementById(windowStyleId)) {
+      }
+    }
+    if (promptEditorModule && promptEditorModule.getPromptEditorStyles) {
+      const promptStyleId = `${SCRIPT_ID2}-prompt-styles`;
+      if (!targetDoc2.getElementById(promptStyleId)) {
+        const promptStyle = targetDoc2.createElement("style");
+        promptStyle.id = promptStyleId;
+        promptStyle.textContent = promptEditorModule.getPromptEditorStyles();
+        (targetDoc2.head || targetDoc2.documentElement).appendChild(promptStyle);
+      }
+    }
+    try {
+      const { applyTheme: applyTheme2 } = await Promise.resolve().then(() => (init_settings_panel(), settings_panel_exports));
+      if (settingsServiceModule && settingsServiceModule.settingsService) {
+        const uiSettings = settingsServiceModule.settingsService.getUiSettings();
+        if (uiSettings && uiSettings.theme) {
+          applyTheme2(uiSettings.theme);
+          log2(`\u4E3B\u9898\u5DF2\u5E94\u7528: ${uiSettings.theme}`);
+          if (uiSettings.compactMode) {
+            document.documentElement.classList.add("yyt-compact-mode");
+          }
+          if (!uiSettings.animationEnabled) {
+            document.documentElement.classList.add("yyt-no-animation");
+          }
+        }
+      }
+    } catch (themeError) {
+      log2("\u4E3B\u9898\u52A0\u8F7D\u5931\u8D25:", themeError);
+    }
+  } else {
+    log2("\u90E8\u5206\u6A21\u5757\u52A0\u8F7D\u5931\u8D25\uFF0C\u4F7F\u7528\u57FA\u7840\u529F\u80FD");
+  }
+  const targetDoc = topLevelWindow.document || document;
+  if (targetDoc.readyState === "loading") {
+    targetDoc.addEventListener("DOMContentLoaded", () => {
+      setTimeout(addMenuItem, 1e3);
+    });
+  } else {
+    setTimeout(addMenuItem, 1e3);
+  }
+  log2("\u521D\u59CB\u5316\u5B8C\u6210");
+}
+if (typeof window !== "undefined") {
+  window.YouYouToolkit = YouYouToolkit;
+  if (typeof window.parent !== "undefined" && window.parent !== window) {
+    try {
+      window.parent.YouYouToolkit = YouYouToolkit;
+    } catch (e) {
+    }
+  }
+}
+var youyou_Toolkit_default = YouYouToolkit;
+init2();
+log2("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210");
+export {
+  youyou_Toolkit_default as default
+};

@@ -64,6 +64,228 @@ export function showToast(type, message, duration = 3000) {
 }
 
 /**
+ * 显示顶部通知
+ * @param {string} type - 类型 ('success', 'error', 'warning', 'info')
+ * @param {string} message - 消息内容
+ * @param {Object} options - 显示选项
+ * @param {number} options.duration - 持续时间(ms)
+ * @param {boolean} options.sticky - 是否常驻，需手动关闭
+ * @param {string} options.noticeId - 通知ID，相同ID会先移除旧通知
+ */
+export function showTopNotice(type, message, options = {}) {
+  if (!message) {
+    message = type === 'error' ? '操作失败' : '操作完成';
+  }
+
+  const {
+    duration = 3500,
+    sticky = false,
+    noticeId = ''
+  } = options;
+
+  const targetDoc = (typeof window.parent !== 'undefined' && window.parent !== window)
+    ? window.parent.document
+    : document;
+
+  if (!targetDoc?.body) {
+    showToast(type, message, duration);
+    return;
+  }
+
+  const containerId = 'yyt-top-notice-container';
+  const styleId = 'yyt-top-notice-styles';
+
+  let container = targetDoc.getElementById(containerId);
+  if (!container) {
+    container = targetDoc.createElement('div');
+    container.id = containerId;
+    container.style.cssText = `
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: min(560px, calc(100vw - 24px));
+      z-index: 100000;
+      pointer-events: none;
+    `;
+    targetDoc.body.appendChild(container);
+  }
+
+  if (!targetDoc.getElementById(styleId)) {
+    const style = targetDoc.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .yyt-top-notice {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.95);
+        background: rgba(11, 15, 21, 0.92);
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        pointer-events: auto;
+        animation: yyt-top-notice-in 0.18s ease-out;
+      }
+
+      .yyt-top-notice__icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .yyt-top-notice__content {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .yyt-top-notice__close {
+        border: none;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.72);
+        cursor: pointer;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+
+      .yyt-top-notice__close:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .yyt-top-notice--success {
+        border-color: rgba(74, 222, 128, 0.35);
+      }
+
+      .yyt-top-notice--success .yyt-top-notice__icon {
+        background: rgba(74, 222, 128, 0.18);
+        color: #4ade80;
+      }
+
+      .yyt-top-notice--error {
+        border-color: rgba(248, 113, 113, 0.38);
+      }
+
+      .yyt-top-notice--error .yyt-top-notice__icon {
+        background: rgba(248, 113, 113, 0.18);
+        color: #f87171;
+      }
+
+      .yyt-top-notice--warning {
+        border-color: rgba(251, 191, 36, 0.38);
+      }
+
+      .yyt-top-notice--warning .yyt-top-notice__icon {
+        background: rgba(251, 191, 36, 0.18);
+        color: #fbbf24;
+      }
+
+      .yyt-top-notice--info {
+        border-color: rgba(123, 183, 255, 0.38);
+      }
+
+      .yyt-top-notice--info .yyt-top-notice__icon {
+        background: rgba(123, 183, 255, 0.18);
+        color: #7bb7ff;
+      }
+
+      @keyframes yyt-top-notice-in {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes yyt-top-notice-out {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+      }
+    `;
+    targetDoc.head.appendChild(style);
+  }
+
+  if (noticeId) {
+    const existing = container.querySelector(`[data-notice-id="${noticeId}"]`);
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  const iconMap = {
+    success: '✓',
+    error: '!',
+    warning: '•',
+    info: 'i'
+  };
+
+  const notice = targetDoc.createElement('div');
+  notice.className = `yyt-top-notice yyt-top-notice--${type || 'info'}`;
+  if (noticeId) {
+    notice.dataset.noticeId = noticeId;
+  }
+
+  const icon = targetDoc.createElement('span');
+  icon.className = 'yyt-top-notice__icon';
+  icon.textContent = iconMap[type] || iconMap.info;
+
+  const content = targetDoc.createElement('div');
+  content.className = 'yyt-top-notice__content';
+  content.textContent = message;
+
+  const closeBtn = targetDoc.createElement('button');
+  closeBtn.className = 'yyt-top-notice__close';
+  closeBtn.type = 'button';
+  closeBtn.setAttribute('aria-label', '关闭通知');
+  closeBtn.textContent = '×';
+
+  const removeNotice = () => {
+    notice.style.animation = 'yyt-top-notice-out 0.18s ease forwards';
+    setTimeout(() => notice.remove(), 180);
+  };
+
+  closeBtn.addEventListener('click', removeNotice);
+
+  notice.appendChild(icon);
+  notice.appendChild(content);
+  notice.appendChild(closeBtn);
+  container.appendChild(notice);
+
+  if (!sticky) {
+    setTimeout(removeNotice, duration);
+  }
+}
+
+/**
  * 显示回退Toast（当toastr不可用时）
  * @private
  */
@@ -385,6 +607,7 @@ export default {
   SCRIPT_ID,
   escapeHtml,
   showToast,
+  showTopNotice,
   getJQuery,
   resetJQueryCache,
   isContainerValid,
