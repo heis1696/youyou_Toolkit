@@ -4,14 +4,12 @@
  * @version 1.0.0
  */
 
-import { storage } from './core/storage-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
 
 // ============================================================
 // 存储键
 // ============================================================
 
-const CONTEXT_INJECTION_KEY = 'context_injection';
 const MESSAGE_TOOL_OUTPUTS_KEY = 'YouYouToolkit_toolOutputs';
 const MESSAGE_TOOL_CONTEXT_KEY = 'YouYouToolkit_injectedContext';
 
@@ -20,15 +18,8 @@ const MESSAGE_TOOL_CONTEXT_KEY = 'YouYouToolkit_injectedContext';
 // ============================================================
 
 const DEFAULT_INJECTION_OPTIONS = {
-  target: 'context',    // 注入目标：context, worldbook, message
-  scope: 'chat',        // 作用域：chat, global, character
   overwrite: true,      // 是否覆盖现有内容
-  enabled: true,
-  worldbookTarget: '__character__',
-  comment: '',
-  position: 'at_depth_as_system',
-  depth: 4,
-  order: 10000
+  enabled: true
 };
 
 // ============================================================
@@ -37,9 +28,6 @@ const DEFAULT_INJECTION_OPTIONS = {
 
 class ContextInjector {
   constructor() {
-    /** 内存缓存 */
-    this._cache = new Map();
-    
     /** 调试模式 */
     this.debugMode = false;
   }
@@ -62,16 +50,7 @@ class ContextInjector {
     }
 
     const mergedOptions = { ...DEFAULT_INJECTION_OPTIONS, ...options };
-    const chatId = options.chatId || this._getCurrentChatId();
-    
-    if (!chatId) {
-      this._log('注入失败: 无法获取聊天ID');
-      return false;
-    }
-
-    // 获取或创建聊天上下文存储
-    const storageKey = this._getStorageKey(chatId);
-    let chatContexts = this._getChatContexts(chatId);
+    const chatId = this._getCurrentChatId();
     
     // 创建注入条目
     const injectionEntry = {
@@ -81,20 +60,6 @@ class ContextInjector {
       sourceMessageId: options.sourceMessageId || null,
       options: mergedOptions
     };
-
-    // 根据overwrite策略处理
-    if (mergedOptions.overwrite || !chatContexts[toolId]) {
-      chatContexts[toolId] = injectionEntry;
-    } else {
-      // 追加模式
-      chatContexts[toolId] = {
-        ...injectionEntry,
-        content: (chatContexts[toolId]?.content || '') + '\n\n' + content
-      };
-    }
-
-    // 保存
-    this._saveChatContexts(chatId, chatContexts);
     
     // 发送事件
     eventBus.emit(EVENTS.TOOL_CONTEXT_INJECTED, {
@@ -104,82 +69,13 @@ class ContextInjector {
       options: mergedOptions
     });
 
-    if (mergedOptions.enabled !== false && mergedOptions.target === 'worldbook') {
-      const synced = await this._syncWorldbookEntry(toolId, injectionEntry.content, mergedOptions);
-      if (!synced) {
-        this._log(`世界书注入失败: ${toolId}`);
-        return false;
-      }
+    const inserted = await this._insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions);
+    if (!inserted) {
+      return false;
     }
-
-    await this._mirrorToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions);
     
     this._log(`注入成功: ${toolId} -> ${chatId}`);
     return true;
-  }
-
-  /**
-   * 获取可用世界书列表
-   * @returns {Promise<Array<{value: string, label: string, kind: string, isPrimary?: boolean}>>}
-   */
-  async getAvailableLorebooks() {
-    const helper = this._getTavernHelper();
-    const result = [];
-    const seen = new Set();
-
-    result.push({
-      value: '__character__',
-      label: '当前角色绑定世界书',
-      kind: 'character',
-      isPrimary: true
-    });
-    seen.add('__character__');
-
-    if (!helper) {
-      return result;
-    }
-
-    try {
-      let primary = '';
-      if (typeof helper.getCurrentCharPrimaryLorebook === 'function') {
-        primary = await helper.getCurrentCharPrimaryLorebook();
-      } else if (typeof helper.getCharLorebooks === 'function') {
-        const lorebooks = await helper.getCharLorebooks({ type: 'all' });
-        primary = lorebooks?.primary || '';
-      }
-
-      if (primary && !seen.has(primary)) {
-        result.push({
-          value: primary,
-          label: `${primary} [角色主世界书]`,
-          kind: 'lorebook',
-          isPrimary: true
-        });
-        seen.add(primary);
-      }
-    } catch (error) {
-      this._log('获取角色主世界书失败', error);
-    }
-
-    try {
-      if (typeof helper.getLorebooks === 'function') {
-        const lorebooks = await Promise.resolve(helper.getLorebooks());
-        const names = Array.isArray(lorebooks) ? lorebooks : [];
-        names.forEach((name) => {
-          if (!name || seen.has(name)) return;
-          result.push({
-            value: name,
-            label: name,
-            kind: 'lorebook'
-          });
-          seen.add(name);
-        });
-      }
-    } catch (error) {
-      this._log('获取世界书列表失败', error);
-    }
-
-    return result;
   }
 
   /**
@@ -188,30 +84,39 @@ class ContextInjector {
    * @returns {string} 聚合后的上下文文本
    */
   getAggregatedContext(chatId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId) return '';
+    return this.getLatestMessageInjectedContext();
+  }
 
-    const chatContexts = this._getChatContexts(actualChatId);
-    const mergedContexts = {
-      ...chatContexts,
-      ...this._getLatestAssistantMessageOutputs()
-    };
+  /**
+   * 获取最新 AI 消息上的注入上下文文本
+   * 这是工具链实际应读取的上下文来源，而不是历史缓存聚合。
+   * @param {string|number|null} sourceMessageId
+   * @returns {string}
+   */
+  getLatestMessageInjectedContext(sourceMessageId = null) {
+    try {
+      const { chat } = this._getChatRuntime();
+      const messageIndex = this._findAssistantMessageIndex(chat, sourceMessageId);
+      if (messageIndex < 0) {
+        return '';
+      }
 
-    const entries = Object.entries(mergedContexts)
-      .sort(([, a], [, b]) => (a?.updatedAt || 0) - (b?.updatedAt || 0));
-    
-    if (entries.length === 0) return '';
+      const targetMessage = chat[messageIndex] || {};
+      const directContext = targetMessage[MESSAGE_TOOL_CONTEXT_KEY];
+      if (typeof directContext === 'string' && directContext.trim()) {
+        return directContext.trim();
+      }
 
-    // 构建聚合输出
-    const lines = ['[工具上下文注入]', ''];
-    
-    for (const [toolId, entry] of entries) {
-      lines.push(`[${toolId}]`);
-      lines.push(entry.content || '');
-      lines.push('');
+      const outputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY];
+      if (outputs && typeof outputs === 'object') {
+        return this._buildMessageInjectedContext(outputs).trim();
+      }
+
+      return '';
+    } catch (error) {
+      this._log('读取最新 AI 消息 injectedContext 失败', error);
+      return '';
     }
-
-    return lines.join('\n');
   }
 
   /**
@@ -242,11 +147,16 @@ class ContextInjector {
    * @returns {Object|null} 注入条目
    */
   getToolContext(chatId, toolId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId || !toolId) return null;
-
-    const chatContexts = this._getChatContexts(actualChatId);
-    return chatContexts[toolId] || null;
+    if (!toolId) return null;
+    try {
+      const { chat } = this._getChatRuntime();
+      const messageIndex = this._findAssistantMessageIndex(chat, null);
+      if (messageIndex < 0) return null;
+      const outputs = chat[messageIndex]?.[MESSAGE_TOOL_OUTPUTS_KEY];
+      return outputs?.[toolId] || null;
+    } catch (error) {
+      return null;
+    }
   }
 
   /**
@@ -255,10 +165,7 @@ class ContextInjector {
    * @returns {Object} 工具上下文对象
    */
   getAllToolContexts(chatId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId) return {};
-    
-    return this._getChatContexts(actualChatId);
+    return this._getLatestAssistantMessageOutputs();
   }
 
   // ============================================================
@@ -271,22 +178,32 @@ class ContextInjector {
    * @param {string} toolId - 工具ID
    * @returns {boolean} 是否成功
    */
-  clearToolContext(chatId, toolId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId || !toolId) return false;
+  async clearToolContext(chatId, toolId) {
+    if (!toolId) return false;
+    try {
+      const { api, context, chat } = this._getChatRuntime();
+      const messageIndex = this._findAssistantMessageIndex(chat, null);
+      if (messageIndex < 0) return false;
 
-    const chatContexts = this._getChatContexts(actualChatId);
-    
-    if (chatContexts[toolId]) {
-      delete chatContexts[toolId];
-      this._saveChatContexts(actualChatId, chatContexts);
-      
-      eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, toolId });
-      this._log(`清除工具上下文: ${toolId}`);
+      const targetMessage = chat[messageIndex];
+      const outputs = targetMessage?.[MESSAGE_TOOL_OUTPUTS_KEY];
+      if (!outputs || !outputs[toolId]) return false;
+
+      delete outputs[toolId];
+      targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = outputs;
+      targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(outputs);
+
+      const saveChat = context?.saveChat || api?.saveChat || null;
+      if (typeof saveChat === 'function') {
+        await saveChat.call(context || api);
+      }
+
+      eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: chatId || this._getCurrentChatId(), toolId });
       return true;
+    } catch (error) {
+      this._log('清除工具上下文失败', error);
+      return false;
     }
-
-    return false;
   }
 
   /**
@@ -294,28 +211,33 @@ class ContextInjector {
    * @param {string} chatId - 聊天ID
    * @returns {boolean} 是否成功
    */
-  clearAllContext(chatId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId) return false;
+  async clearAllContext(chatId) {
+    try {
+      const { api, context, chat } = this._getChatRuntime();
+      const messageIndex = this._findAssistantMessageIndex(chat, null);
+      if (messageIndex < 0) return false;
 
-    const allContexts = this._getAllContexts();
-    delete allContexts[actualChatId];
-    
-    storage.set(CONTEXT_INJECTION_KEY, allContexts);
-    this._cache.delete(actualChatId);
-    
-    eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, allTools: true });
-    this._log(`清除聊天所有上下文: ${actualChatId}`);
-    return true;
+      const targetMessage = chat[messageIndex];
+      delete targetMessage[MESSAGE_TOOL_OUTPUTS_KEY];
+      delete targetMessage[MESSAGE_TOOL_CONTEXT_KEY];
+
+      const saveChat = context?.saveChat || api?.saveChat || null;
+      if (typeof saveChat === 'function') {
+        await saveChat.call(context || api);
+      }
+
+      eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: chatId || this._getCurrentChatId(), allTools: true });
+      return true;
+    } catch (error) {
+      this._log('清除所有工具上下文失败', error);
+      return false;
+    }
   }
 
   /**
    * 清除所有聊天的所有上下文
    */
   clearAllChatsContexts() {
-    storage.remove(CONTEXT_INJECTION_KEY);
-    this._cache.clear();
-    
     this._log('清除所有上下文');
   }
 
@@ -330,11 +252,7 @@ class ContextInjector {
    * @returns {boolean}
    */
   hasToolContext(chatId, toolId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId || !toolId) return false;
-    
-    const chatContexts = this._getChatContexts(actualChatId);
-    return !!chatContexts[toolId];
+    return !!this.getToolContext(chatId, toolId);
   }
 
   /**
@@ -343,18 +261,15 @@ class ContextInjector {
    * @returns {Object} 状态摘要
    */
   getContextSummary(chatId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId) return { tools: [], totalCount: 0 };
-
-    const chatContexts = this._getChatContexts(actualChatId);
-    const tools = Object.entries(chatContexts).map(([toolId, entry]) => ({
+    const outputs = this._getLatestAssistantMessageOutputs();
+    const tools = Object.entries(outputs).map(([toolId, entry]) => ({
       toolId,
       updatedAt: entry.updatedAt,
       contentLength: entry.content?.length || 0
     }));
 
     return {
-      chatId: actualChatId,
+      chatId: chatId || this._getCurrentChatId(),
       tools,
       totalCount: tools.length
     };
@@ -370,12 +285,9 @@ class ContextInjector {
    * @returns {Object} 上下文数据
    */
   exportContext(chatId) {
-    const actualChatId = chatId || this._getCurrentChatId();
-    if (!actualChatId) return {};
-
     return {
-      chatId: actualChatId,
-      contexts: this._getChatContexts(actualChatId),
+      chatId: chatId || this._getCurrentChatId(),
+      contexts: this._getLatestAssistantMessageOutputs(),
       exportedAt: Date.now()
     };
   }
@@ -387,22 +299,7 @@ class ContextInjector {
    * @returns {boolean} 是否成功
    */
   importContext(data, options = {}) {
-    if (!data || !data.chatId || !data.contexts) {
-      return false;
-    }
-
-    const { overwrite = false } = options;
-    
-    if (overwrite) {
-      this._saveChatContexts(data.chatId, data.contexts);
-    } else {
-      const existing = this._getChatContexts(data.chatId);
-      const merged = { ...existing, ...data.contexts };
-      this._saveChatContexts(data.chatId, merged);
-    }
-
-    this._log(`导入上下文: ${data.chatId}`);
-    return true;
+    return false;
   }
 
   // ============================================================
@@ -411,14 +308,6 @@ class ContextInjector {
 
   /**
    * 获取存储键
-   * @private
-   */
-  _getStorageKey(chatId) {
-    return `${CONTEXT_INJECTION_KEY}:${chatId}`;
-  }
-
-  /**
-   * 获取聊天数组与可用 API
    * @private
    */
   _getChatRuntime() {
@@ -529,15 +418,67 @@ class ContextInjector {
   }
 
   /**
-   * 将工具结果镜像写入最新 AI 回复消息对象
-   * 参考 shujuku 的“立即手动更新”思路，将结果挂在目标消息上并保存聊天记录。
+   * 获取可写入的消息字段及其文本内容
    * @private
    */
-  async _mirrorToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}) {
+  _getWritableMessageField(message) {
+    const candidates = ['mes', 'message', 'content', 'text'];
+    for (const key of candidates) {
+      if (typeof message?.[key] === 'string') {
+        return {
+          key,
+          text: message[key]
+        };
+      }
+    }
+
+    return {
+      key: 'mes',
+      text: ''
+    };
+  }
+
+  /**
+   * 从消息原文中移除旧的工具输出块
+   * @private
+   */
+  _stripExistingToolOutput(text, selectors = []) {
+    let result = String(text || '');
+    const normalizedSelectors = Array.isArray(selectors) ? selectors : [];
+
+    normalizedSelectors.forEach((selector) => {
+      const value = String(selector || '').trim();
+      if (!value) return;
+
+      if (value.startsWith('regex:')) {
+        try {
+          const regex = new RegExp(value.slice(6).trim(), 'gis');
+          result = result.replace(regex, '');
+        } catch (error) {
+          this._log('移除旧工具输出时正则无效', value, error);
+        }
+        return;
+      }
+
+      const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const htmlBlock = new RegExp(`<${escaped}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${escaped}>\\s*`, 'gi');
+      const curlyBlock = new RegExp(`\\{${escaped}\\|[\\s\\S]*?\\}\\s*`, 'gi');
+      result = result.replace(htmlBlock, '');
+      result = result.replace(curlyBlock, '');
+    });
+
+    return result.trimEnd();
+  }
+
+  /**
+   * 将工具输出直接插入最新 AI 楼层原文
+   * @private
+   */
+  async _insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}) {
     try {
       const { api, context, chat } = this._getChatRuntime();
       if (!Array.isArray(chat) || !chat.length) {
-        this._log('未找到聊天消息，跳过写回最新 AI 回复消息');
+        this._log('未找到聊天消息，无法插入工具输出');
         return false;
       }
 
@@ -548,21 +489,23 @@ class ContextInjector {
       }
 
       const targetMessage = chat[messageIndex];
-      const existingOutputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
-        && typeof targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] === 'object'
-        ? targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
-        : {};
+      const { key, text } = this._getWritableMessageField(targetMessage);
+      const baseText = options.overwrite === false
+        ? String(text || '')
+        : this._stripExistingToolOutput(text, options.extractionSelectors);
+      const appendContent = String(injectionEntry.content || '').trim();
+      const nextText = [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
 
-      existingOutputs[toolId] = {
-        toolId,
-        content: injectionEntry.content,
-        updatedAt: injectionEntry.updatedAt,
-        sourceMessageId: injectionEntry.sourceMessageId || null,
-        options: injectionEntry.options || {}
+      targetMessage[key] = nextText;
+      targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = appendContent;
+      targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = {
+        [toolId]: {
+          toolId,
+          content: appendContent,
+          updatedAt: injectionEntry.updatedAt,
+          sourceMessageId: injectionEntry.sourceMessageId || null
+        }
       };
-
-      targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = existingOutputs;
-      targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(existingOutputs);
 
       const saveChat = context?.saveChat || api?.saveChat || null;
       if (typeof saveChat === 'function') {
@@ -576,134 +519,14 @@ class ContextInjector {
         eventSource.emit(messageUpdatedEvent, messageIndex);
       }
 
-      this._log(`已将工具输出写回最新 AI 回复消息: ${toolId} -> #${messageIndex}`);
+      this._log(`已将工具输出插入最新 AI 回复原文: ${toolId} -> #${messageIndex}`);
       return true;
     } catch (error) {
-      this._log('写回最新 AI 回复消息失败', error);
+      this._log('插入最新 AI 回复原文失败', error);
       return false;
     }
   }
 
-  /**
-   * 获取 TavernHelper
-   * @private
-   */
-  _getTavernHelper() {
-    try {
-      const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window)
-        ? window.parent
-        : window;
-      return topWindow.TavernHelper || null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  /**
-   * 规范化世界书位置
-   * @private
-   */
-  _normalizeWorldbookPosition(position) {
-    const normalized = String(position || '').trim().toLowerCase();
-    if (normalized === 'before_char' || normalized === 'after_char' || normalized === 'at_depth_as_system') {
-      return normalized;
-    }
-    return 'at_depth_as_system';
-  }
-
-  /**
-   * 解析注入目标世界书名称
-   * @private
-   */
-  async _resolveWorldbookTarget(target) {
-    const helper = this._getTavernHelper();
-    if (!helper) return '';
-
-    if (!target || target === '__character__' || target === 'character') {
-      if (typeof helper.getCurrentCharPrimaryLorebook === 'function') {
-        return await helper.getCurrentCharPrimaryLorebook();
-      }
-      if (typeof helper.getCharLorebooks === 'function') {
-        const lorebooks = await helper.getCharLorebooks({ type: 'all' });
-        return lorebooks?.primary || '';
-      }
-      return '';
-    }
-
-    return target;
-  }
-
-  /**
-   * 将内容同步到世界书条目
-   * @private
-   */
-  async _syncWorldbookEntry(toolId, content, options) {
-    const helper = this._getTavernHelper();
-    if (!helper || typeof helper.getLorebookEntries !== 'function') {
-      this._log('TavernHelper 不可用，无法写入世界书');
-      return false;
-    }
-
-    const targetName = await this._resolveWorldbookTarget(options.worldbookTarget || options.targetName || options.target);
-    if (!targetName) {
-      this._log('未找到可用世界书，无法写入');
-      return false;
-    }
-
-    const comment = options.comment || `YouYouToolkit:${toolId}`;
-    const position = this._normalizeWorldbookPosition(options.position);
-    const depth = Number.isFinite(Number(options.depth)) ? Number(options.depth) : 4;
-    const order = Number.isFinite(Number(options.order)) ? Number(options.order) : 10000;
-
-    try {
-      const existingEntries = await helper.getLorebookEntries(targetName);
-      const entries = Array.isArray(existingEntries) ? existingEntries : [];
-      const existingEntry = entries.find((entry) => entry?.comment === comment || entry?.key === comment);
-
-      let nextContent = String(content);
-      if (existingEntry && options.overwrite === false) {
-        nextContent = [existingEntry.content || '', content].filter(Boolean).join('\n\n');
-      }
-
-      const payload = {
-        key: comment,
-        comment,
-        content: nextContent,
-        type: 'constant',
-        enabled: true,
-        disable: false,
-        prevent_recursion: true,
-        position,
-        order
-      };
-
-      if (position === 'at_depth_as_system') {
-        payload.depth = depth;
-      }
-
-      if (existingEntry?.uid != null && typeof helper.setLorebookEntries === 'function') {
-        await helper.setLorebookEntries(targetName, [{
-          ...payload,
-          uid: existingEntry.uid
-        }]);
-        return true;
-      }
-
-      if (typeof helper.createLorebookEntries === 'function') {
-        await helper.createLorebookEntries(targetName, [payload]);
-        return true;
-      }
-    } catch (error) {
-      this._log('写入世界书失败', error);
-    }
-
-    return false;
-  }
-
-  /**
-   * 获取当前聊天ID
-   * @private
-   */
   _getCurrentChatId() {
     try {
       const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window) 
@@ -741,47 +564,6 @@ class ContextInjector {
     } catch (e) {
       return 'chat_default';
     }
-  }
-
-  /**
-   * 获取所有上下文数据
-   * @private
-   */
-  _getAllContexts() {
-    return storage.get(CONTEXT_INJECTION_KEY, {});
-  }
-
-  /**
-   * 获取聊天的工具上下文
-   * @private
-   */
-  _getChatContexts(chatId) {
-    // 先检查缓存
-    if (this._cache.has(chatId)) {
-      return this._cache.get(chatId);
-    }
-
-    const allContexts = this._getAllContexts();
-    const chatContexts = allContexts[chatId] || {};
-    
-    // 更新缓存
-    this._cache.set(chatId, chatContexts);
-    
-    return chatContexts;
-  }
-
-  /**
-   * 保存聊天的工具上下文
-   * @private
-   */
-  _saveChatContexts(chatId, contexts) {
-    const allContexts = this._getAllContexts();
-    allContexts[chatId] = contexts;
-    
-    storage.set(CONTEXT_INJECTION_KEY, allContexts);
-    
-    // 更新缓存
-    this._cache.set(chatId, contexts);
   }
 
   /**

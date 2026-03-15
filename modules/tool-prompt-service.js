@@ -135,7 +135,6 @@ class ToolPromptService {
     const extractedContent = context?.extractedContent || context?.input?.extractedContent || '';
     const recentMessagesText = context?.recentMessagesText || '';
     const rawRecentMessagesText = context?.rawRecentMessagesText || '';
-    const injectedContext = context?.injectedContext || context?.input?.injectedContext || '';
     const userMessage = context?.userMessage || context?.input?.userMessage || '';
     const previousToolOutput = context?.previousToolOutput || context?.input?.previousToolOutput || '';
     const toolName = context?.toolName || '';
@@ -150,7 +149,6 @@ class ToolPromptService {
         '{{extractedContent}}': extractedContent,
         '{{recentMessagesText}}': recentMessagesText,
         '{{rawRecentMessagesText}}': rawRecentMessagesText,
-        '{{injectedContext}}': injectedContext,
         '{{userMessage}}': userMessage,
         '{{previousToolOutput}}': previousToolOutput,
         '{{toolName}}': toolName,
@@ -174,8 +172,6 @@ class ToolPromptService {
       parts.push(`\n${label}\n${value}`);
     };
 
-    appendSection('{{injectedContext}}', '以下是当前已注入的工具上下文：', injectedContext);
-    
     appendSection('{{extractedContent}}', '以下是基于提取规则筛出的内容：', extractedContent);
 
     if (recentMessagesText && !usedPlaceholders.has('{{recentMessagesText}}') && recentMessagesText !== lastAiMessage) {

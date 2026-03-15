@@ -626,7 +626,7 @@ const aggregated = contextInjector.getAggregatedContext('chat_123');
 contextInjector.clearToolContext('chat_123', 'summaryTool');
 ```
 
-从当前版本开始，`getAggregatedContext()` 除了读取插件自身按聊天存储的上下文缓存，也会合并“最新 AI 消息对象”上镜像写回的工具结果，从而让手动执行后的结果能立刻参与下一次工具调用。
+从当前版本开始，工具链在构建 `{{injectedContext}}` 时，会优先直接读取“最新 AI 消息对象”上镜像写回的工具结果，而不是把历史缓存聚合作为当前楼层上下文传入；聊天级缓存仍保留给导出/查询类能力使用。
 
 ### 8.10 破限词管理 (bypass-manager.js) - v0.5新增
 

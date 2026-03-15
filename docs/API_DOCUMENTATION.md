@@ -270,13 +270,12 @@ const resolver = YouYouToolkit.getVariableResolver();
 
 ### `getContextInjector()`
 
-获取上下文注入服务模块。
+获取楼层消息写回服务模块。
 
 ```javascript
 const injector = YouYouToolkit.getContextInjector();
-// injector.inject(toolId, content, options) // 注入工具上下文
-// injector.getAvailableLorebooks() // 获取可选世界书列表
-// injector.getAggregatedContext(chatId) // 获取聚合的注入上下文
+// injector.inject(toolId, content, options) // 将工具输出写回最新 AI 楼层
+// injector.getAggregatedContext(chatId) // 获取当前最新 AI 楼层上的工具输出文本
 // injector.getToolContext(chatId, toolId) // 获取单个工具的注入上下文
 // injector.getAllToolContexts(chatId) // 获取聊天下所有工具上下文
 // injector.clearToolContext(chatId, toolId) // 清除单个工具的上下文
@@ -287,7 +286,7 @@ const injector = YouYouToolkit.getContextInjector();
 // injector.importContext(data, options) // 导入上下文数据
 ```
 
-> 从 `v0.6.2+` 开始，`inject()` 除了写入插件自己的上下文存储/世界书外，还会把工具结果镜像写入“最新 AI 回复消息对象”上，字段包括 `YouYouToolkit_toolOutputs` 与 `YouYouToolkit_injectedContext`，并尝试触发 `MESSAGE_UPDATED` 刷新当前消息。
+> 当前主链路中，`inject()` 的职责已经收敛为：**把工具结果直接插入最新 AI 楼层原文**，并同步更新消息对象上的 `YouYouToolkit_toolOutputs` 与 `YouYouToolkit_injectedContext` 字段，然后触发 `MESSAGE_UPDATED` 刷新界面。
 
 ### `getToolPromptService()`
 
@@ -302,7 +301,7 @@ const promptService = YouYouToolkit.getToolPromptService();
 // promptService.setDebugMode(enabled)                  // 设置调试模式
 ```
 
-> 模板中可直接使用 `{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{injectedContext}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。若模板未显式引用 `{{injectedContext}}`，服务仍会自动追加当前已注入的工具上下文，便于后续链式工具读取前置结果。
+> 模板中可直接使用 `{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。
 
 > **v0.6 变更**: 删除了分段相关的方法（`resolvePromptSegments`、`addSegment`、`removeSegment`、`updateSegment`），改用简化的单模板模式。
 
@@ -597,16 +596,6 @@ interface ToolConfig {
     selectors: string[];       // 每个工具独立的标签/正则规则，regex: 前缀表示正则第一捕获组
   };
 
-  // 世界书注入配置
-  injection: {
-    enabled: boolean;          // 是否将结果写入世界书
-    target: string;            // 目标世界书，__character__ 表示当前角色绑定世界书
-    comment: string;           // 写入/更新时使用的世界书条目标识
-    position: 'at_depth_as_system' | 'before_char' | 'after_char';
-    depth: number;             // system depth 模式下的深度
-    order: number;             // 世界书条目顺序
-  };
-  
   // 提示词模板（v0.6 简化为单文本）
   promptTemplate: string;
   
@@ -642,16 +631,15 @@ interface ToolConfig {
 - 当输出模式为 `post_response_api` 时，才会在监听到 `GENERATION_ENDED` 后自动执行工具
 - 手动操作区支持直接触发一次工具执行，并复用当前模板、API 预设与破限预设配置
 - 每个工具现在都支持独立的“测试提取”能力，可基于最近若干条 AI 消息预览标签/正则提取结果
-- 每个工具现在都支持独立绑定世界书、设置最大提取消息数，以及配置单独的提取标签/正则规则
+- 每个工具现在都支持设置最大提取消息数，以及配置单独的提取标签/正则规则
 - 正文提取与工具标签提取现在都会分别直接作用于每条原始 AI 消息，不再串联依赖；测试提取界面也会按消息逐条展示原文、正文提取结果与工具提取结果，便于区分不同楼层
 - AI 回复自动触发时会在页面顶部显示通知，用于确认是否真正进入执行链路，以及是否执行成功/失败
-- 当工具执行成功后，会将提取后的结果真正写入目标世界书；若世界书写入失败，执行会被标记为失败并给出提示
+- 当工具执行成功后，会将工具回复直接插入最新 AI 楼层原文
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 - 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
 - 自动监听会记录用户发送意图，并跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
 - 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底触发来源；两条链路会按 `chatId + 最新 AI 消息ID` 去重，避免同一条回复重复执行工具
 - 构建工具执行上下文时会对“最新 AI 回复”做短暂重试读取，优先锁定刚生成完成的那一条消息，降低读取到旧回复的概率
-- `{{injectedContext}}` 现在不仅会读取插件持久化的上下文缓存，还会合并“最新 AI 消息对象”上镜像写回的工具结果，因此手动执行后也能立即进入下一次工具调用上下文
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕
 
 ### 输出模式说明 (v0.6)

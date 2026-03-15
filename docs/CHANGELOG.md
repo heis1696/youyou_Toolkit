@@ -14,8 +14,14 @@
 - 🐛 **工具自动触发补强与最新 AI 上下文回填修复** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/ui/utils.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 自动触发链路新增 `MESSAGE_RECEIVED` 兜底监听，并对 `GENERATION_ENDED / MESSAGE_RECEIVED` 共用同一套去重逻辑，降低部分环境下只收到消息事件、却未稳定触发工具链的问题
   - 构建执行上下文时改为带重试地读取最近聊天快照，优先锁定刚生成的最新 AI 消息，修复 AI 回复刚落盘时手动执行 / 自动执行读到旧消息的问题
-  - 聚合注入上下文时会同时合并“最新 AI 消息对象上镜像写回的工具结果”，修复手动调用后虽然结果已写回消息，但后续工具模板里 `{{injectedContext}}` 仍拿不到最新内容的问题
+  - 工具链读取 `{{injectedContext}}` 时改为直接读取“最新 AI 消息对象”上的镜像写回内容，不再把历史缓存聚合结果当作当前楼层上下文使用
   - 提取预览弹窗进一步限制最大高度并让正文区独立滚动，避免多楼层结果较长时超出屏幕
+
+- 🐛 **工具主链路收敛为“最新 AI 楼层原文 -> 工具回复回写楼层原文”** (`modules/context-injector.js`, `modules/tool-output-service.js`, `modules/tool-prompt-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `modules/tool-registry.js`, `docs/API_DOCUMENTATION.md`)
+  - 删除主链路中的世界书注入配置与相关 UI，避免流程分叉影响工具执行
+  - 删除工具提示词中的 `{{injectedContext}}` 自动拼接逻辑，避免历史状态混入本轮工具调用
+  - 工具执行成功后改为直接把工具回复插入最新 AI 楼层原文，并按提取规则移除旧工具块后覆盖刷新
+  - 上下文服务现仅保留“楼层消息写回 / 读取 / 清理”职责，不再承担聊天级缓存主链路角色
 
 - 🐛 **工具提取顺序与上下文注入修复** (`modules/tool-output-service.js`, `modules/tool-prompt-service.js`, `modules/context-injector.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`)
   - 修复最近消息收集逻辑，明确按“最近 N 条 AI 消息”逆序回溯采集，避免用户消息夹在中间时导致可用 AI 条数不足

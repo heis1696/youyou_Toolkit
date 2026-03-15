@@ -5387,10 +5387,6 @@ function getToolFullConfig(toolId) {
     ...defaultConfig.extraction || {},
     ...userConfig.extraction || {}
   };
-  mergedConfig.injection = {
-    ...defaultConfig.injection || {},
-    ...userConfig.injection || {}
-  };
   if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0) && Array.isArray(mergedConfig.extractTags) && mergedConfig.extractTags.length > 0) {
     mergedConfig.extraction.selectors = [...mergedConfig.extractTags];
   }
@@ -5421,8 +5417,6 @@ function saveToolConfig(toolId, config) {
     // 破限词配置
     "extraction",
     // 提取配置
-    "injection",
-    // 世界书注入配置
     "runtime"
     // 运行时状态
   ];
@@ -5568,15 +5562,6 @@ var init_tool_registry = __esm({
           maxMessages: 5,
           selectors: ["boo_FM"]
         },
-        // 注入配置
-        injection: {
-          enabled: true,
-          target: "__character__",
-          comment: "YouYouToolkit:summaryTool",
-          position: "at_depth_as_system",
-          depth: 4,
-          order: 1e4
-        },
         // 提示词模板（单文本）
         promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0BAI\u56DE\u590D\u751F\u6210\u6458\u8981\u5757\uFF1A
 
@@ -5633,15 +5618,6 @@ var init_tool_registry = __esm({
           enabled: true,
           maxMessages: 5,
           selectors: ["status_block"]
-        },
-        // 注入配置
-        injection: {
-          enabled: true,
-          target: "__character__",
-          comment: "YouYouToolkit:statusBlock",
-          position: "at_depth_as_system",
-          depth: 4,
-          order: 10001
         },
         // 提示词模板（单文本）
         promptTemplate: `\u8BF7\u6839\u636E\u4EE5\u4E0B\u5BF9\u8BDD\u5185\u5BB9\u751F\u6210\u89D2\u8272\u72B6\u6001\u5757\uFF1A
@@ -7127,31 +7103,19 @@ __export(context_injector_exports, {
   contextInjector: () => contextInjector,
   default: () => context_injector_default
 });
-var CONTEXT_INJECTION_KEY, MESSAGE_TOOL_OUTPUTS_KEY, MESSAGE_TOOL_CONTEXT_KEY, DEFAULT_INJECTION_OPTIONS, ContextInjector, contextInjector, context_injector_default;
+var MESSAGE_TOOL_OUTPUTS_KEY, MESSAGE_TOOL_CONTEXT_KEY, DEFAULT_INJECTION_OPTIONS, ContextInjector, contextInjector, context_injector_default;
 var init_context_injector = __esm({
   "modules/context-injector.js"() {
-    init_storage_service();
     init_event_bus();
-    CONTEXT_INJECTION_KEY = "context_injection";
     MESSAGE_TOOL_OUTPUTS_KEY = "YouYouToolkit_toolOutputs";
     MESSAGE_TOOL_CONTEXT_KEY = "YouYouToolkit_injectedContext";
     DEFAULT_INJECTION_OPTIONS = {
-      target: "context",
-      // 注入目标：context, worldbook, message
-      scope: "chat",
-      // 作用域：chat, global, character
       overwrite: true,
       // 是否覆盖现有内容
-      enabled: true,
-      worldbookTarget: "__character__",
-      comment: "",
-      position: "at_depth_as_system",
-      depth: 4,
-      order: 1e4
+      enabled: true
     };
     ContextInjector = class {
       constructor() {
-        this._cache = /* @__PURE__ */ new Map();
         this.debugMode = false;
       }
       // ============================================================
@@ -7170,13 +7134,7 @@ var init_context_injector = __esm({
           return false;
         }
         const mergedOptions = { ...DEFAULT_INJECTION_OPTIONS, ...options };
-        const chatId = options.chatId || this._getCurrentChatId();
-        if (!chatId) {
-          this._log("\u6CE8\u5165\u5931\u8D25: \u65E0\u6CD5\u83B7\u53D6\u804A\u5929ID");
-          return false;
-        }
-        const storageKey = this._getStorageKey(chatId);
-        let chatContexts = this._getChatContexts(chatId);
+        const chatId = this._getCurrentChatId();
         const injectionEntry = {
           toolId,
           content: String(content),
@@ -7184,89 +7142,18 @@ var init_context_injector = __esm({
           sourceMessageId: options.sourceMessageId || null,
           options: mergedOptions
         };
-        if (mergedOptions.overwrite || !chatContexts[toolId]) {
-          chatContexts[toolId] = injectionEntry;
-        } else {
-          chatContexts[toolId] = {
-            ...injectionEntry,
-            content: (chatContexts[toolId]?.content || "") + "\n\n" + content
-          };
-        }
-        this._saveChatContexts(chatId, chatContexts);
         eventBus.emit(EVENTS.TOOL_CONTEXT_INJECTED, {
           toolId,
           chatId,
           content: injectionEntry.content,
           options: mergedOptions
         });
-        if (mergedOptions.enabled !== false && mergedOptions.target === "worldbook") {
-          const synced = await this._syncWorldbookEntry(toolId, injectionEntry.content, mergedOptions);
-          if (!synced) {
-            this._log(`\u4E16\u754C\u4E66\u6CE8\u5165\u5931\u8D25: ${toolId}`);
-            return false;
-          }
+        const inserted = await this._insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions);
+        if (!inserted) {
+          return false;
         }
-        await this._mirrorToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions);
         this._log(`\u6CE8\u5165\u6210\u529F: ${toolId} -> ${chatId}`);
         return true;
-      }
-      /**
-       * 获取可用世界书列表
-       * @returns {Promise<Array<{value: string, label: string, kind: string, isPrimary?: boolean}>>}
-       */
-      async getAvailableLorebooks() {
-        const helper = this._getTavernHelper();
-        const result = [];
-        const seen = /* @__PURE__ */ new Set();
-        result.push({
-          value: "__character__",
-          label: "\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66",
-          kind: "character",
-          isPrimary: true
-        });
-        seen.add("__character__");
-        if (!helper) {
-          return result;
-        }
-        try {
-          let primary = "";
-          if (typeof helper.getCurrentCharPrimaryLorebook === "function") {
-            primary = await helper.getCurrentCharPrimaryLorebook();
-          } else if (typeof helper.getCharLorebooks === "function") {
-            const lorebooks = await helper.getCharLorebooks({ type: "all" });
-            primary = lorebooks?.primary || "";
-          }
-          if (primary && !seen.has(primary)) {
-            result.push({
-              value: primary,
-              label: `${primary} [\u89D2\u8272\u4E3B\u4E16\u754C\u4E66]`,
-              kind: "lorebook",
-              isPrimary: true
-            });
-            seen.add(primary);
-          }
-        } catch (error) {
-          this._log("\u83B7\u53D6\u89D2\u8272\u4E3B\u4E16\u754C\u4E66\u5931\u8D25", error);
-        }
-        try {
-          if (typeof helper.getLorebooks === "function") {
-            const lorebooks = await Promise.resolve(helper.getLorebooks());
-            const names = Array.isArray(lorebooks) ? lorebooks : [];
-            names.forEach((name) => {
-              if (!name || seen.has(name))
-                return;
-              result.push({
-                value: name,
-                label: name,
-                kind: "lorebook"
-              });
-              seen.add(name);
-            });
-          }
-        } catch (error) {
-          this._log("\u83B7\u53D6\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25", error);
-        }
-        return result;
       }
       /**
        * 获取聚合的注入上下文
@@ -7274,24 +7161,35 @@ var init_context_injector = __esm({
        * @returns {string} 聚合后的上下文文本
        */
       getAggregatedContext(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
+        return this.getLatestMessageInjectedContext();
+      }
+      /**
+       * 获取最新 AI 消息上的注入上下文文本
+       * 这是工具链实际应读取的上下文来源，而不是历史缓存聚合。
+       * @param {string|number|null} sourceMessageId
+       * @returns {string}
+       */
+      getLatestMessageInjectedContext(sourceMessageId = null) {
+        try {
+          const { chat } = this._getChatRuntime();
+          const messageIndex = this._findAssistantMessageIndex(chat, sourceMessageId);
+          if (messageIndex < 0) {
+            return "";
+          }
+          const targetMessage = chat[messageIndex] || {};
+          const directContext = targetMessage[MESSAGE_TOOL_CONTEXT_KEY];
+          if (typeof directContext === "string" && directContext.trim()) {
+            return directContext.trim();
+          }
+          const outputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY];
+          if (outputs && typeof outputs === "object") {
+            return this._buildMessageInjectedContext(outputs).trim();
+          }
           return "";
-        const chatContexts = this._getChatContexts(actualChatId);
-        const mergedContexts = {
-          ...chatContexts,
-          ...this._getLatestAssistantMessageOutputs()
-        };
-        const entries = Object.entries(mergedContexts).sort(([, a], [, b]) => (a?.updatedAt || 0) - (b?.updatedAt || 0));
-        if (entries.length === 0)
+        } catch (error) {
+          this._log("\u8BFB\u53D6\u6700\u65B0 AI \u6D88\u606F injectedContext \u5931\u8D25", error);
           return "";
-        const lines = ["[\u5DE5\u5177\u4E0A\u4E0B\u6587\u6CE8\u5165]", ""];
-        for (const [toolId, entry] of entries) {
-          lines.push(`[${toolId}]`);
-          lines.push(entry.content || "");
-          lines.push("");
         }
-        return lines.join("\n");
       }
       /**
        * 获取最新 AI 消息镜像写回的工具结果
@@ -7319,11 +7217,18 @@ var init_context_injector = __esm({
        * @returns {Object|null} 注入条目
        */
       getToolContext(chatId, toolId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId || !toolId)
+        if (!toolId)
           return null;
-        const chatContexts = this._getChatContexts(actualChatId);
-        return chatContexts[toolId] || null;
+        try {
+          const { chat } = this._getChatRuntime();
+          const messageIndex = this._findAssistantMessageIndex(chat, null);
+          if (messageIndex < 0)
+            return null;
+          const outputs = chat[messageIndex]?.[MESSAGE_TOOL_OUTPUTS_KEY];
+          return outputs?.[toolId] || null;
+        } catch (error) {
+          return null;
+        }
       }
       /**
        * 获取聊天下所有工具上下文
@@ -7331,10 +7236,7 @@ var init_context_injector = __esm({
        * @returns {Object} 工具上下文对象
        */
       getAllToolContexts(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return {};
-        return this._getChatContexts(actualChatId);
+        return this._getLatestAssistantMessageOutputs();
       }
       // ============================================================
       // 清除方法
@@ -7345,43 +7247,61 @@ var init_context_injector = __esm({
        * @param {string} toolId - 工具ID
        * @returns {boolean} 是否成功
        */
-      clearToolContext(chatId, toolId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId || !toolId)
+      async clearToolContext(chatId, toolId) {
+        if (!toolId)
           return false;
-        const chatContexts = this._getChatContexts(actualChatId);
-        if (chatContexts[toolId]) {
-          delete chatContexts[toolId];
-          this._saveChatContexts(actualChatId, chatContexts);
-          eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, toolId });
-          this._log(`\u6E05\u9664\u5DE5\u5177\u4E0A\u4E0B\u6587: ${toolId}`);
+        try {
+          const { api, context, chat } = this._getChatRuntime();
+          const messageIndex = this._findAssistantMessageIndex(chat, null);
+          if (messageIndex < 0)
+            return false;
+          const targetMessage = chat[messageIndex];
+          const outputs = targetMessage?.[MESSAGE_TOOL_OUTPUTS_KEY];
+          if (!outputs || !outputs[toolId])
+            return false;
+          delete outputs[toolId];
+          targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = outputs;
+          targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(outputs);
+          const saveChat = context?.saveChat || api?.saveChat || null;
+          if (typeof saveChat === "function") {
+            await saveChat.call(context || api);
+          }
+          eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: chatId || this._getCurrentChatId(), toolId });
           return true;
+        } catch (error) {
+          this._log("\u6E05\u9664\u5DE5\u5177\u4E0A\u4E0B\u6587\u5931\u8D25", error);
+          return false;
         }
-        return false;
       }
       /**
        * 清除聊天的所有工具上下文
        * @param {string} chatId - 聊天ID
        * @returns {boolean} 是否成功
        */
-      clearAllContext(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
+      async clearAllContext(chatId) {
+        try {
+          const { api, context, chat } = this._getChatRuntime();
+          const messageIndex = this._findAssistantMessageIndex(chat, null);
+          if (messageIndex < 0)
+            return false;
+          const targetMessage = chat[messageIndex];
+          delete targetMessage[MESSAGE_TOOL_OUTPUTS_KEY];
+          delete targetMessage[MESSAGE_TOOL_CONTEXT_KEY];
+          const saveChat = context?.saveChat || api?.saveChat || null;
+          if (typeof saveChat === "function") {
+            await saveChat.call(context || api);
+          }
+          eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: chatId || this._getCurrentChatId(), allTools: true });
+          return true;
+        } catch (error) {
+          this._log("\u6E05\u9664\u6240\u6709\u5DE5\u5177\u4E0A\u4E0B\u6587\u5931\u8D25", error);
           return false;
-        const allContexts = this._getAllContexts();
-        delete allContexts[actualChatId];
-        storage.set(CONTEXT_INJECTION_KEY, allContexts);
-        this._cache.delete(actualChatId);
-        eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: actualChatId, allTools: true });
-        this._log(`\u6E05\u9664\u804A\u5929\u6240\u6709\u4E0A\u4E0B\u6587: ${actualChatId}`);
-        return true;
+        }
       }
       /**
        * 清除所有聊天的所有上下文
        */
       clearAllChatsContexts() {
-        storage.remove(CONTEXT_INJECTION_KEY);
-        this._cache.clear();
         this._log("\u6E05\u9664\u6240\u6709\u4E0A\u4E0B\u6587");
       }
       // ============================================================
@@ -7394,11 +7314,7 @@ var init_context_injector = __esm({
        * @returns {boolean}
        */
       hasToolContext(chatId, toolId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId || !toolId)
-          return false;
-        const chatContexts = this._getChatContexts(actualChatId);
-        return !!chatContexts[toolId];
+        return !!this.getToolContext(chatId, toolId);
       }
       /**
        * 获取聊天的工具注入状态摘要
@@ -7406,17 +7322,14 @@ var init_context_injector = __esm({
        * @returns {Object} 状态摘要
        */
       getContextSummary(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return { tools: [], totalCount: 0 };
-        const chatContexts = this._getChatContexts(actualChatId);
-        const tools = Object.entries(chatContexts).map(([toolId, entry]) => ({
+        const outputs = this._getLatestAssistantMessageOutputs();
+        const tools = Object.entries(outputs).map(([toolId, entry]) => ({
           toolId,
           updatedAt: entry.updatedAt,
           contentLength: entry.content?.length || 0
         }));
         return {
-          chatId: actualChatId,
+          chatId: chatId || this._getCurrentChatId(),
           tools,
           totalCount: tools.length
         };
@@ -7430,12 +7343,9 @@ var init_context_injector = __esm({
        * @returns {Object} 上下文数据
        */
       exportContext(chatId) {
-        const actualChatId = chatId || this._getCurrentChatId();
-        if (!actualChatId)
-          return {};
         return {
-          chatId: actualChatId,
-          contexts: this._getChatContexts(actualChatId),
+          chatId: chatId || this._getCurrentChatId(),
+          contexts: this._getLatestAssistantMessageOutputs(),
           exportedAt: Date.now()
         };
       }
@@ -7446,32 +7356,13 @@ var init_context_injector = __esm({
        * @returns {boolean} 是否成功
        */
       importContext(data, options = {}) {
-        if (!data || !data.chatId || !data.contexts) {
-          return false;
-        }
-        const { overwrite = false } = options;
-        if (overwrite) {
-          this._saveChatContexts(data.chatId, data.contexts);
-        } else {
-          const existing = this._getChatContexts(data.chatId);
-          const merged = { ...existing, ...data.contexts };
-          this._saveChatContexts(data.chatId, merged);
-        }
-        this._log(`\u5BFC\u5165\u4E0A\u4E0B\u6587: ${data.chatId}`);
-        return true;
+        return false;
       }
       // ============================================================
       // 私有方法
       // ============================================================
       /**
        * 获取存储键
-       * @private
-       */
-      _getStorageKey(chatId) {
-        return `${CONTEXT_INJECTION_KEY}:${chatId}`;
-      }
-      /**
-       * 获取聊天数组与可用 API
        * @private
        */
       _getChatRuntime() {
@@ -7566,15 +7457,61 @@ var init_context_injector = __esm({
         return lines.join("\n");
       }
       /**
-       * 将工具结果镜像写入最新 AI 回复消息对象
-       * 参考 shujuku 的“立即手动更新”思路，将结果挂在目标消息上并保存聊天记录。
+       * 获取可写入的消息字段及其文本内容
        * @private
        */
-      async _mirrorToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}) {
+      _getWritableMessageField(message) {
+        const candidates = ["mes", "message", "content", "text"];
+        for (const key of candidates) {
+          if (typeof message?.[key] === "string") {
+            return {
+              key,
+              text: message[key]
+            };
+          }
+        }
+        return {
+          key: "mes",
+          text: ""
+        };
+      }
+      /**
+       * 从消息原文中移除旧的工具输出块
+       * @private
+       */
+      _stripExistingToolOutput(text, selectors = []) {
+        let result = String(text || "");
+        const normalizedSelectors = Array.isArray(selectors) ? selectors : [];
+        normalizedSelectors.forEach((selector) => {
+          const value = String(selector || "").trim();
+          if (!value)
+            return;
+          if (value.startsWith("regex:")) {
+            try {
+              const regex = new RegExp(value.slice(6).trim(), "gis");
+              result = result.replace(regex, "");
+            } catch (error) {
+              this._log("\u79FB\u9664\u65E7\u5DE5\u5177\u8F93\u51FA\u65F6\u6B63\u5219\u65E0\u6548", value, error);
+            }
+            return;
+          }
+          const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const htmlBlock = new RegExp(`<${escaped}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${escaped}>\\s*`, "gi");
+          const curlyBlock = new RegExp(`\\{${escaped}\\|[\\s\\S]*?\\}\\s*`, "gi");
+          result = result.replace(htmlBlock, "");
+          result = result.replace(curlyBlock, "");
+        });
+        return result.trimEnd();
+      }
+      /**
+       * 将工具输出直接插入最新 AI 楼层原文
+       * @private
+       */
+      async _insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}) {
         try {
           const { api, context, chat } = this._getChatRuntime();
           if (!Array.isArray(chat) || !chat.length) {
-            this._log("\u672A\u627E\u5230\u804A\u5929\u6D88\u606F\uFF0C\u8DF3\u8FC7\u5199\u56DE\u6700\u65B0 AI \u56DE\u590D\u6D88\u606F");
+            this._log("\u672A\u627E\u5230\u804A\u5929\u6D88\u606F\uFF0C\u65E0\u6CD5\u63D2\u5165\u5DE5\u5177\u8F93\u51FA");
             return false;
           }
           const messageIndex = this._findAssistantMessageIndex(chat, options.sourceMessageId);
@@ -7583,16 +7520,20 @@ var init_context_injector = __esm({
             return false;
           }
           const targetMessage = chat[messageIndex];
-          const existingOutputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] && typeof targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] === "object" ? targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] : {};
-          existingOutputs[toolId] = {
-            toolId,
-            content: injectionEntry.content,
-            updatedAt: injectionEntry.updatedAt,
-            sourceMessageId: injectionEntry.sourceMessageId || null,
-            options: injectionEntry.options || {}
+          const { key, text } = this._getWritableMessageField(targetMessage);
+          const baseText = options.overwrite === false ? String(text || "") : this._stripExistingToolOutput(text, options.extractionSelectors);
+          const appendContent = String(injectionEntry.content || "").trim();
+          const nextText = [baseText.trimEnd(), appendContent].filter(Boolean).join("\n\n").trim();
+          targetMessage[key] = nextText;
+          targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = appendContent;
+          targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = {
+            [toolId]: {
+              toolId,
+              content: appendContent,
+              updatedAt: injectionEntry.updatedAt,
+              sourceMessageId: injectionEntry.sourceMessageId || null
+            }
           };
-          targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = existingOutputs;
-          targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(existingOutputs);
           const saveChat = context?.saveChat || api?.saveChat || null;
           if (typeof saveChat === "function") {
             await saveChat.call(context || api);
@@ -7603,117 +7544,13 @@ var init_context_injector = __esm({
           if (eventSource && typeof eventSource.emit === "function") {
             eventSource.emit(messageUpdatedEvent, messageIndex);
           }
-          this._log(`\u5DF2\u5C06\u5DE5\u5177\u8F93\u51FA\u5199\u56DE\u6700\u65B0 AI \u56DE\u590D\u6D88\u606F: ${toolId} -> #${messageIndex}`);
+          this._log(`\u5DF2\u5C06\u5DE5\u5177\u8F93\u51FA\u63D2\u5165\u6700\u65B0 AI \u56DE\u590D\u539F\u6587: ${toolId} -> #${messageIndex}`);
           return true;
         } catch (error) {
-          this._log("\u5199\u56DE\u6700\u65B0 AI \u56DE\u590D\u6D88\u606F\u5931\u8D25", error);
+          this._log("\u63D2\u5165\u6700\u65B0 AI \u56DE\u590D\u539F\u6587\u5931\u8D25", error);
           return false;
         }
       }
-      /**
-       * 获取 TavernHelper
-       * @private
-       */
-      _getTavernHelper() {
-        try {
-          const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
-          return topWindow.TavernHelper || null;
-        } catch (error) {
-          return null;
-        }
-      }
-      /**
-       * 规范化世界书位置
-       * @private
-       */
-      _normalizeWorldbookPosition(position) {
-        const normalized = String(position || "").trim().toLowerCase();
-        if (normalized === "before_char" || normalized === "after_char" || normalized === "at_depth_as_system") {
-          return normalized;
-        }
-        return "at_depth_as_system";
-      }
-      /**
-       * 解析注入目标世界书名称
-       * @private
-       */
-      async _resolveWorldbookTarget(target) {
-        const helper = this._getTavernHelper();
-        if (!helper)
-          return "";
-        if (!target || target === "__character__" || target === "character") {
-          if (typeof helper.getCurrentCharPrimaryLorebook === "function") {
-            return await helper.getCurrentCharPrimaryLorebook();
-          }
-          if (typeof helper.getCharLorebooks === "function") {
-            const lorebooks = await helper.getCharLorebooks({ type: "all" });
-            return lorebooks?.primary || "";
-          }
-          return "";
-        }
-        return target;
-      }
-      /**
-       * 将内容同步到世界书条目
-       * @private
-       */
-      async _syncWorldbookEntry(toolId, content, options) {
-        const helper = this._getTavernHelper();
-        if (!helper || typeof helper.getLorebookEntries !== "function") {
-          this._log("TavernHelper \u4E0D\u53EF\u7528\uFF0C\u65E0\u6CD5\u5199\u5165\u4E16\u754C\u4E66");
-          return false;
-        }
-        const targetName = await this._resolveWorldbookTarget(options.worldbookTarget || options.targetName || options.target);
-        if (!targetName) {
-          this._log("\u672A\u627E\u5230\u53EF\u7528\u4E16\u754C\u4E66\uFF0C\u65E0\u6CD5\u5199\u5165");
-          return false;
-        }
-        const comment = options.comment || `YouYouToolkit:${toolId}`;
-        const position = this._normalizeWorldbookPosition(options.position);
-        const depth = Number.isFinite(Number(options.depth)) ? Number(options.depth) : 4;
-        const order = Number.isFinite(Number(options.order)) ? Number(options.order) : 1e4;
-        try {
-          const existingEntries = await helper.getLorebookEntries(targetName);
-          const entries = Array.isArray(existingEntries) ? existingEntries : [];
-          const existingEntry = entries.find((entry) => entry?.comment === comment || entry?.key === comment);
-          let nextContent = String(content);
-          if (existingEntry && options.overwrite === false) {
-            nextContent = [existingEntry.content || "", content].filter(Boolean).join("\n\n");
-          }
-          const payload = {
-            key: comment,
-            comment,
-            content: nextContent,
-            type: "constant",
-            enabled: true,
-            disable: false,
-            prevent_recursion: true,
-            position,
-            order
-          };
-          if (position === "at_depth_as_system") {
-            payload.depth = depth;
-          }
-          if (existingEntry?.uid != null && typeof helper.setLorebookEntries === "function") {
-            await helper.setLorebookEntries(targetName, [{
-              ...payload,
-              uid: existingEntry.uid
-            }]);
-            return true;
-          }
-          if (typeof helper.createLorebookEntries === "function") {
-            await helper.createLorebookEntries(targetName, [payload]);
-            return true;
-          }
-        } catch (error) {
-          this._log("\u5199\u5165\u4E16\u754C\u4E66\u5931\u8D25", error);
-        }
-        return false;
-      }
-      /**
-       * 获取当前聊天ID
-       * @private
-       */
       _getCurrentChatId() {
         try {
           const topWindow = typeof window.parent !== "undefined" && window.parent !== window ? window.parent : window;
@@ -7744,36 +7581,6 @@ var init_context_injector = __esm({
         } catch (e) {
           return "chat_default";
         }
-      }
-      /**
-       * 获取所有上下文数据
-       * @private
-       */
-      _getAllContexts() {
-        return storage.get(CONTEXT_INJECTION_KEY, {});
-      }
-      /**
-       * 获取聊天的工具上下文
-       * @private
-       */
-      _getChatContexts(chatId) {
-        if (this._cache.has(chatId)) {
-          return this._cache.get(chatId);
-        }
-        const allContexts = this._getAllContexts();
-        const chatContexts = allContexts[chatId] || {};
-        this._cache.set(chatId, chatContexts);
-        return chatContexts;
-      }
-      /**
-       * 保存聊天的工具上下文
-       * @private
-       */
-      _saveChatContexts(chatId, contexts) {
-        const allContexts = this._getAllContexts();
-        allContexts[chatId] = contexts;
-        storage.set(CONTEXT_INJECTION_KEY, allContexts);
-        this._cache.set(chatId, contexts);
       }
       /**
        * 日志输出
@@ -7896,7 +7703,6 @@ var init_tool_prompt_service = __esm({
         const extractedContent = context?.extractedContent || context?.input?.extractedContent || "";
         const recentMessagesText = context?.recentMessagesText || "";
         const rawRecentMessagesText = context?.rawRecentMessagesText || "";
-        const injectedContext = context?.injectedContext || context?.input?.injectedContext || "";
         const userMessage = context?.userMessage || context?.input?.userMessage || "";
         const previousToolOutput = context?.previousToolOutput || context?.input?.previousToolOutput || "";
         const toolName = context?.toolName || "";
@@ -7909,7 +7715,6 @@ var init_tool_prompt_service = __esm({
             "{{extractedContent}}": extractedContent,
             "{{recentMessagesText}}": recentMessagesText,
             "{{rawRecentMessagesText}}": rawRecentMessagesText,
-            "{{injectedContext}}": injectedContext,
             "{{userMessage}}": userMessage,
             "{{previousToolOutput}}": previousToolOutput,
             "{{toolName}}": toolName,
@@ -7931,7 +7736,6 @@ var init_tool_prompt_service = __esm({
 ${label}
 ${value}`);
         };
-        appendSection("{{injectedContext}}", "\u4EE5\u4E0B\u662F\u5F53\u524D\u5DF2\u6CE8\u5165\u7684\u5DE5\u5177\u4E0A\u4E0B\u6587\uFF1A", injectedContext);
         appendSection("{{extractedContent}}", "\u4EE5\u4E0B\u662F\u57FA\u4E8E\u63D0\u53D6\u89C4\u5219\u7B5B\u51FA\u7684\u5185\u5BB9\uFF1A", extractedContent);
         if (recentMessagesText && !usedPlaceholders.has("{{recentMessagesText}}") && recentMessagesText !== lastAiMessage) {
           parts.push(`
@@ -8097,16 +7901,9 @@ var init_tool_output_service = __esm({
           const outputContent = this._extractOutputContent(result, toolConfig);
           if (outputContent) {
             const injected = await contextInjector.inject(toolId, outputContent, {
-              chatId: rawContext.chatId,
               overwrite: toolConfig.output?.overwrite !== false,
               sourceMessageId: rawContext.messageId || "",
-              target: toolConfig.injection?.enabled === false ? "context" : "worldbook",
-              worldbookTarget: toolConfig.injection?.target || "__character__",
-              comment: toolConfig.injection?.comment || `YouYouToolkit:${toolId}`,
-              position: toolConfig.injection?.position || "at_depth_as_system",
-              depth: toolConfig.injection?.depth ?? 4,
-              order: toolConfig.injection?.order ?? 1e4,
-              enabled: toolConfig.injection?.enabled !== false
+              extractionSelectors: this._getExtractionSelectors(toolConfig)
             });
             if (!injected) {
               throw new Error("\u5DE5\u5177\u7ED3\u679C\u5DF2\u751F\u6210\uFF0C\u4F46\u5199\u5165\u4E0A\u4E0B\u6587/\u4E16\u754C\u4E66\u5931\u8D25");
@@ -8197,14 +7994,12 @@ var init_tool_output_service = __esm({
        * @private
        */
       async _buildToolMessages(toolConfig, rawContext) {
-        const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
         const messageEntries = this._buildRecentMessageExtractionEntries(toolConfig, rawContext);
         const rawRecentMessagesText = this._joinMessageBlocks(messageEntries, "rawText");
         const recentMessagesText = this._joinMessageBlocks(messageEntries, "filteredText");
         const extractedContent = this._joinMessageBlocks(messageEntries, "extractedText", { skipEmpty: true });
         const fullContext = {
           ...rawContext,
-          injectedContext,
           rawRecentMessagesText,
           recentMessagesText,
           extractedContent,
@@ -9499,9 +9294,7 @@ function createToolConfigPanel(options) {
     postResponseHint,
     extractionPlaceholder,
     previewDialogId,
-    previewTitle = "\u6D4B\u8BD5\u63D0\u53D6\u7ED3\u679C",
-    defaultInjectionOrder = 1e4,
-    lorebookLogTag = "ToolConfigPanel"
+    previewTitle = "\u6D4B\u8BD5\u63D0\u53D6\u7ED3\u679C"
   } = options;
   return {
     id,
@@ -9520,7 +9313,6 @@ function createToolConfigPanel(options) {
       const lastRunText = config.runtime?.lastRunAt ? new Date(config.runtime.lastRunAt).toLocaleString() : "\u672A\u8FD0\u884C";
       const lastError = config.runtime?.lastError || "";
       const extraction = config.extraction || {};
-      const injection = config.injection || {};
       const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join("\n") : "";
       const modeText = outputMode === "post_response_api" ? postResponseHint : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
       return `
@@ -9606,45 +9398,6 @@ function createToolConfigPanel(options) {
 
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
-              <i class="fa-solid fa-book"></i>
-              <span>\u4E16\u754C\u4E66\u6CE8\u5165</span>
-            </div>
-            <div class="yyt-form-group">
-              <label class="yyt-checkbox-label">
-                <input type="checkbox" id="${SCRIPT_ID}-tool-injection-enabled" ${injection.enabled !== false ? "checked" : ""}>
-                <span>\u6267\u884C\u540E\u5199\u5165\u4E16\u754C\u4E66</span>
-              </label>
-            </div>
-            <div class="yyt-injection-fields ${injection.enabled === false ? "yyt-hidden" : ""}">
-              <div class="yyt-form-group">
-                <label>\u76EE\u6807\u4E16\u754C\u4E66</label>
-                <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-target" data-current-value="${escapeHtml(injection.target || "__character__")}">
-                  <option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>
-                </select>
-              </div>
-              <div class="yyt-form-row">
-                <div class="yyt-form-group yyt-flex-1">
-                  <label>\u6CE8\u5165\u4F4D\u7F6E</label>
-                  <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-position">
-                    <option value="at_depth_as_system" ${injection.position === "at_depth_as_system" ? "selected" : ""}>\u7CFB\u7EDF\u6DF1\u5EA6</option>
-                    <option value="before_char" ${injection.position === "before_char" ? "selected" : ""}>\u89D2\u8272\u5361\u524D</option>
-                    <option value="after_char" ${injection.position === "after_char" ? "selected" : ""}>\u89D2\u8272\u5361\u540E</option>
-                  </select>
-                </div>
-                <div class="yyt-form-group yyt-flex-1">
-                  <label>Depth</label>
-                  <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-depth" value="${Number(injection.depth) || 4}">
-                </div>
-                <div class="yyt-form-group yyt-flex-1">
-                  <label>Order</label>
-                  <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-order" value="${Number(injection.order) || defaultInjectionOrder}">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
               <i class="fa-solid fa-file-code"></i>
               <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
               <div class="yyt-title-actions">
@@ -9725,12 +9478,10 @@ function createToolConfigPanel(options) {
       }
     },
     _getFormData($container2) {
-      const currentConfig = getToolFullConfig(this.toolId);
       const outputMode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
       const bypassEnabled = $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(":checked");
       const postResponseEnabled = outputMode === "post_response_api";
       const selectorLines = ($container2.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
-      const injectionEnabled = $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).is(":checked");
       return {
         enabled: true,
         promptTemplate: $container2.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || "",
@@ -9753,31 +9504,8 @@ function createToolConfigPanel(options) {
           enabled: true,
           maxMessages: Math.max(1, parseInt($container2.find(`#${SCRIPT_ID}-tool-max-messages`).val(), 10) || 5),
           selectors: selectorLines
-        },
-        injection: {
-          enabled: injectionEnabled,
-          target: $container2.find(`#${SCRIPT_ID}-tool-injection-target`).val() || "__character__",
-          comment: currentConfig?.injection?.comment || `YouYouToolkit:${this.toolId}`,
-          position: $container2.find(`#${SCRIPT_ID}-tool-injection-position`).val() || "at_depth_as_system",
-          depth: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-depth`).val(), 10) || 4,
-          order: parseInt($container2.find(`#${SCRIPT_ID}-tool-injection-order`).val(), 10) || defaultInjectionOrder
         }
       };
-    },
-    async _populateLorebookOptions($container2) {
-      try {
-        const currentValue = $container2.find(`#${SCRIPT_ID}-tool-injection-target`).data("currentValue") || "__character__";
-        const lorebooks = await contextInjector.getAvailableLorebooks();
-        const optionsHtml = lorebooks.map((item) => `
-          <option value="${escapeHtml(item.value)}" ${item.value === currentValue ? "selected" : ""}>${escapeHtml(item.label)}</option>
-        `).join("");
-        $container2.find(`#${SCRIPT_ID}-tool-injection-target`).html(optionsHtml || '<option value="__character__">\u5F53\u524D\u89D2\u8272\u7ED1\u5B9A\u4E16\u754C\u4E66</option>');
-        if (!lorebooks.some((item) => item.value === currentValue)) {
-          $container2.find(`#${SCRIPT_ID}-tool-injection-target`).append(`<option value="${escapeHtml(currentValue)}" selected>${escapeHtml(currentValue)}</option>`);
-        }
-      } catch (error) {
-        console.warn(`[${lorebookLogTag}] \u52A0\u8F7D\u4E16\u754C\u4E66\u5217\u8868\u5931\u8D25:`, error);
-      }
     },
     _showExtractionPreview($container2, result) {
       const $ = getJQuery();
@@ -9844,7 +9572,6 @@ function createToolConfigPanel(options) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container2))
         return;
-      this._populateLorebookOptions($container2);
       $container2.find(`#${SCRIPT_ID}-tool-output-mode`).on("change", () => {
         const mode = $container2.find(`#${SCRIPT_ID}-tool-output-mode`).val() || "follow_ai";
         const modeText = mode === "post_response_api" ? postResponseHint : "\u968F AI \u8F93\u51FA\u5373\u4E0D\u542F\u7528\u989D\u5916\u5DE5\u5177\u94FE\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u8C03\u7528\u989D\u5916\u6A21\u578B\u3002";
@@ -9853,10 +9580,6 @@ function createToolConfigPanel(options) {
       $container2.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on("change", (event) => {
         const enabled = $(event.currentTarget).is(":checked");
         $container2.find(".yyt-bypass-preset-select").toggleClass("yyt-hidden", !enabled);
-      });
-      $container2.find(`#${SCRIPT_ID}-tool-injection-enabled`).on("change", (event) => {
-        const enabled = $(event.currentTarget).is(":checked");
-        $container2.find(".yyt-injection-fields").toggleClass("yyt-hidden", !enabled);
       });
       $container2.find(`#${SCRIPT_ID}-tool-save`).on("click", () => {
         this._saveConfig($container2, { silent: false });
@@ -9941,7 +9664,6 @@ var init_tool_config_panel_factory = __esm({
     init_preset_manager();
     init_bypass_manager();
     init_tool_trigger();
-    init_context_injector();
     TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel {
     display: flex;

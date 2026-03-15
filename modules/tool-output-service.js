@@ -144,16 +144,9 @@ class ToolOutputService {
       // 5. 注入上下文
       if (outputContent) {
         const injected = await contextInjector.inject(toolId, outputContent, {
-          chatId: rawContext.chatId,
           overwrite: toolConfig.output?.overwrite !== false,
           sourceMessageId: rawContext.messageId || '',
-          target: toolConfig.injection?.enabled === false ? 'context' : 'worldbook',
-          worldbookTarget: toolConfig.injection?.target || '__character__',
-          comment: toolConfig.injection?.comment || `YouYouToolkit:${toolId}`,
-          position: toolConfig.injection?.position || 'at_depth_as_system',
-          depth: toolConfig.injection?.depth ?? 4,
-          order: toolConfig.injection?.order ?? 10000,
-          enabled: toolConfig.injection?.enabled !== false
+          extractionSelectors: this._getExtractionSelectors(toolConfig)
         });
 
         if (!injected) {
@@ -265,8 +258,7 @@ class ToolOutputService {
    * @private
    */
   async _buildToolMessages(toolConfig, rawContext) {
-    // 获取聚合的注入上下文
-    const injectedContext = await contextInjector.getAggregatedContext(rawContext.chatId);
+    // 工具链只围绕“最新 AI 楼层原文”工作：提取最新楼层内容 -> 调额外 API。
     const messageEntries = this._buildRecentMessageExtractionEntries(toolConfig, rawContext);
     const rawRecentMessagesText = this._joinMessageBlocks(messageEntries, 'rawText');
     const recentMessagesText = this._joinMessageBlocks(messageEntries, 'filteredText');
@@ -275,7 +267,6 @@ class ToolOutputService {
     // 构建完整上下文
     const fullContext = {
       ...rawContext,
-      injectedContext,
       rawRecentMessagesText,
       recentMessagesText,
       extractedContent,

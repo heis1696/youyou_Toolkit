@@ -23,7 +23,6 @@ import {
 import { getAllPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
 import { runToolManually, previewToolExtraction } from '../../tool-trigger.js';
-import { contextInjector } from '../../context-injector.js';
 
 export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel {
@@ -233,9 +232,7 @@ export function createToolConfigPanel(options) {
     postResponseHint,
     extractionPlaceholder,
     previewDialogId,
-    previewTitle = '测试提取结果',
-    defaultInjectionOrder = 10000,
-    lorebookLogTag = 'ToolConfigPanel'
+    previewTitle = '测试提取结果'
   } = options;
 
   return {
@@ -260,7 +257,6 @@ export function createToolConfigPanel(options) {
         : '未运行';
       const lastError = config.runtime?.lastError || '';
       const extraction = config.extraction || {};
-      const injection = config.injection || {};
       const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join('\n') : '';
       const modeText = outputMode === 'post_response_api'
         ? postResponseHint
@@ -349,45 +345,6 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
-              <i class="fa-solid fa-book"></i>
-              <span>世界书注入</span>
-            </div>
-            <div class="yyt-form-group">
-              <label class="yyt-checkbox-label">
-                <input type="checkbox" id="${SCRIPT_ID}-tool-injection-enabled" ${injection.enabled !== false ? 'checked' : ''}>
-                <span>执行后写入世界书</span>
-              </label>
-            </div>
-            <div class="yyt-injection-fields ${injection.enabled === false ? 'yyt-hidden' : ''}">
-              <div class="yyt-form-group">
-                <label>目标世界书</label>
-                <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-target" data-current-value="${escapeHtml(injection.target || '__character__')}">
-                  <option value="__character__">当前角色绑定世界书</option>
-                </select>
-              </div>
-              <div class="yyt-form-row">
-                <div class="yyt-form-group yyt-flex-1">
-                  <label>注入位置</label>
-                  <select class="yyt-select" id="${SCRIPT_ID}-tool-injection-position">
-                    <option value="at_depth_as_system" ${injection.position === 'at_depth_as_system' ? 'selected' : ''}>系统深度</option>
-                    <option value="before_char" ${injection.position === 'before_char' ? 'selected' : ''}>角色卡前</option>
-                    <option value="after_char" ${injection.position === 'after_char' ? 'selected' : ''}>角色卡后</option>
-                  </select>
-                </div>
-                <div class="yyt-form-group yyt-flex-1">
-                  <label>Depth</label>
-                  <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-depth" value="${Number(injection.depth) || 4}">
-                </div>
-                <div class="yyt-form-group yyt-flex-1">
-                  <label>Order</label>
-                  <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-injection-order" value="${Number(injection.order) || defaultInjectionOrder}">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
               <i class="fa-solid fa-file-code"></i>
               <span>模板修改框</span>
               <div class="yyt-title-actions">
@@ -471,7 +428,6 @@ export function createToolConfigPanel(options) {
     },
 
     _getFormData($container) {
-      const currentConfig = getToolFullConfig(this.toolId);
       const outputMode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
       const bypassEnabled = $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(':checked');
       const postResponseEnabled = outputMode === 'post_response_api';
@@ -479,7 +435,6 @@ export function createToolConfigPanel(options) {
         .split(/\r?\n/)
         .map(item => item.trim())
         .filter(Boolean);
-      const injectionEnabled = $container.find(`#${SCRIPT_ID}-tool-injection-enabled`).is(':checked');
 
       return {
         enabled: true,
@@ -503,33 +458,8 @@ export function createToolConfigPanel(options) {
           enabled: true,
           maxMessages: Math.max(1, parseInt($container.find(`#${SCRIPT_ID}-tool-max-messages`).val(), 10) || 5),
           selectors: selectorLines
-        },
-        injection: {
-          enabled: injectionEnabled,
-          target: $container.find(`#${SCRIPT_ID}-tool-injection-target`).val() || '__character__',
-          comment: currentConfig?.injection?.comment || `YouYouToolkit:${this.toolId}`,
-          position: $container.find(`#${SCRIPT_ID}-tool-injection-position`).val() || 'at_depth_as_system',
-          depth: parseInt($container.find(`#${SCRIPT_ID}-tool-injection-depth`).val(), 10) || 4,
-          order: parseInt($container.find(`#${SCRIPT_ID}-tool-injection-order`).val(), 10) || defaultInjectionOrder
         }
       };
-    },
-
-    async _populateLorebookOptions($container) {
-      try {
-        const currentValue = $container.find(`#${SCRIPT_ID}-tool-injection-target`).data('currentValue') || '__character__';
-        const lorebooks = await contextInjector.getAvailableLorebooks();
-        const optionsHtml = lorebooks.map(item => `
-          <option value="${escapeHtml(item.value)}" ${item.value === currentValue ? 'selected' : ''}>${escapeHtml(item.label)}</option>
-        `).join('');
-
-        $container.find(`#${SCRIPT_ID}-tool-injection-target`).html(optionsHtml || '<option value="__character__">当前角色绑定世界书</option>');
-        if (!lorebooks.some(item => item.value === currentValue)) {
-          $container.find(`#${SCRIPT_ID}-tool-injection-target`).append(`<option value="${escapeHtml(currentValue)}" selected>${escapeHtml(currentValue)}</option>`);
-        }
-      } catch (error) {
-        console.warn(`[${lorebookLogTag}] 加载世界书列表失败:`, error);
-      }
     },
 
     _showExtractionPreview($container, result) {
@@ -603,8 +533,6 @@ export function createToolConfigPanel(options) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
 
-      this._populateLorebookOptions($container);
-
       $container.find(`#${SCRIPT_ID}-tool-output-mode`).on('change', () => {
         const mode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
         const modeText = mode === 'post_response_api'
@@ -616,11 +544,6 @@ export function createToolConfigPanel(options) {
       $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on('change', (event) => {
         const enabled = $(event.currentTarget).is(':checked');
         $container.find('.yyt-bypass-preset-select').toggleClass('yyt-hidden', !enabled);
-      });
-
-      $container.find(`#${SCRIPT_ID}-tool-injection-enabled`).on('change', (event) => {
-        const enabled = $(event.currentTarget).is(':checked');
-        $container.find('.yyt-injection-fields').toggleClass('yyt-hidden', !enabled);
       });
 
       $container.find(`#${SCRIPT_ID}-tool-save`).on('click', () => {
