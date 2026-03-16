@@ -14,6 +14,7 @@
 - 🐛 **工具执行前 API 校验、工具页签恢复与上下文即时刷新修复** (`modules/api-connection.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `index.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 工具在执行额外 API 调用前会先校验当前配置或绑定预设；当未启用主 API 且自定义 API 配置不完整时，会直接给出明确错误提示，避免请求落到错误 URL 后出现 `Unexpected token '<'` 这类 HTML 解析报错
   - 自定义 API 响应解析改为先读取原始文本再尝试 JSON 解析；如果服务端返回 HTML / 重定向页面，会给出“可能是 URL 配置错误或应启用主 API”的可读提示
+  - 修复工具执行侧读取 API 预设时错误从 `settings.apiPresets` 取值、而不是从独立的 `api_presets` 存储键读取的问题，避免新建并保存的预设在工具执行时被误判为“不存在”
   - 工具箱重新打开时，工具页现在会优先恢复上次选中的子工具页签，不再总是回退到第一个工具，修复“高亮在主角状态栏但内容仍是摘要工具”的错位问题
   - 工具结果写回最新 AI 楼层时会保留同楼层已有的其他工具输出，并同时同步 `context.chat` / `SillyTavern.chat` 引用后重复触发 `MESSAGE_UPDATED`，提升插入上下文后的界面即时刷新成功率
 

@@ -3,7 +3,7 @@
  * @description 处理API连接、请求发送和错误处理
  */
 
-import { loadSettings, saveSettings } from './storage.js';
+import { loadSettings, saveSettings, loadApiPresets } from './storage.js';
 
 // ============================================================
 // 常量定义
@@ -88,10 +88,10 @@ export function validateApiConfig(config) {
  */
 export function getEffectiveApiConfig(presetName = '') {
   const settings = loadSettings();
-  
+
   // 如果指定了预设，从预设列表中获取配置
   if (presetName) {
-    const presets = settings.apiPresets || [];
+    const presets = loadApiPresets() || [];
     const preset = presets.find(p => p.name === presetName);
     if (preset && preset.apiConfig) {
       return {
@@ -113,8 +113,7 @@ export function getEffectiveApiConfig(presetName = '') {
 export function hasEffectiveApiPreset(presetName = '') {
   if (!presetName) return false;
 
-  const settings = loadSettings();
-  const presets = settings.apiPresets || [];
+  const presets = loadApiPresets() || [];
   return presets.some(p => p?.name === presetName);
 }
 
