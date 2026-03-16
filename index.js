@@ -680,8 +680,8 @@ async function renderTabContent(tabName) {
     case 'tools':
       // 工具集合 - 渲染次级顶栏和内容
       if (toolConfig?.hasSubTabs && toolConfig.subTabs?.length > 0) {
-        const defaultSubTab = toolConfig.subTabs[0].id;
-        renderSubTabContent(tabName, defaultSubTab);
+        const activeSubTab = currentSubTab[tabName] || toolConfig.subTabs[0].id;
+        renderSubTabContent(tabName, activeSubTab);
       } else {
         $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置加载失败</span></div>');
       }

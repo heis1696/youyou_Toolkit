@@ -317,23 +317,79 @@ class ContextInjector {
         : window;
       const api = topWindow.SillyTavern || null;
       const context = api?.getContext?.() || null;
-      const chat = Array.isArray(context?.chat)
-        ? context.chat
-        : (Array.isArray(api?.chat) ? api.chat : []);
+      const contextChat = Array.isArray(context?.chat) ? context.chat : [];
+      const apiChat = Array.isArray(api?.chat) ? api.chat : [];
+      const chat = contextChat.length ? contextChat : apiChat;
 
       return {
         topWindow,
         api,
         context,
-        chat
+        chat,
+        contextChat,
+        apiChat
       };
     } catch (error) {
       return {
         topWindow: null,
         api: null,
         context: null,
-        chat: []
+        chat: [],
+        contextChat: [],
+        apiChat: []
       };
+    }
+  }
+
+  /**
+   * 同步更新 context.chat / api.chat 中的同一条消息，提升界面即时刷新概率
+   * @private
+   */
+  _syncMessageToRuntimeChats(runtime, messageIndex, updatedMessage) {
+    const { contextChat, apiChat } = runtime || {};
+    const apply = (chatArray) => {
+      if (!Array.isArray(chatArray) || messageIndex < 0 || messageIndex >= chatArray.length) {
+        return;
+      }
+
+      if (chatArray[messageIndex] !== updatedMessage) {
+        chatArray[messageIndex] = {
+          ...(chatArray[messageIndex] || {}),
+          ...updatedMessage
+        };
+      }
+    };
+
+    apply(contextChat);
+    apply(apiChat);
+  }
+
+  /**
+   * 尝试触发聊天消息刷新
+   * @private
+   */
+  _notifyMessageUpdated(runtime, messageIndex) {
+    try {
+      const { api, topWindow } = runtime || {};
+      const eventSource = api?.eventSource || null;
+      const eventTypes = api?.eventTypes || {};
+      const messageUpdatedEvent = eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED';
+
+      if (eventSource && typeof eventSource.emit === 'function') {
+        eventSource.emit(messageUpdatedEvent, messageIndex);
+
+        if (typeof topWindow?.requestAnimationFrame === 'function') {
+          topWindow.requestAnimationFrame(() => {
+            eventSource.emit(messageUpdatedEvent, messageIndex);
+          });
+        } else if (typeof topWindow?.setTimeout === 'function') {
+          topWindow.setTimeout(() => {
+            eventSource.emit(messageUpdatedEvent, messageIndex);
+          }, 30);
+        }
+      }
+    } catch (error) {
+      this._log('触发消息刷新事件失败', error);
     }
   }
 
@@ -476,7 +532,8 @@ class ContextInjector {
    */
   async _insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}) {
     try {
-      const { api, context, chat } = this._getChatRuntime();
+      const runtime = this._getChatRuntime();
+      const { api, context, chat } = runtime;
       if (!Array.isArray(chat) || !chat.length) {
         this._log('未找到聊天消息，无法插入工具输出');
         return false;
@@ -496,9 +553,12 @@ class ContextInjector {
       const appendContent = String(injectionEntry.content || '').trim();
       const nextText = [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
 
-      targetMessage[key] = nextText;
-      targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = appendContent;
-      targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = {
+      const existingOutputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] && typeof targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] === 'object'
+        ? targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
+        : {};
+
+      const mergedOutputs = {
+        ...existingOutputs,
         [toolId]: {
           toolId,
           content: appendContent,
@@ -507,17 +567,18 @@ class ContextInjector {
         }
       };
 
-      const saveChat = context?.saveChat || api?.saveChat || null;
+      targetMessage[key] = nextText;
+      targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = mergedOutputs;
+      targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(mergedOutputs);
+
+      this._syncMessageToRuntimeChats(runtime, messageIndex, targetMessage);
+
+      const saveChat = context?.saveChat || api?.saveChat || context?.saveChatDebounced || api?.saveChatDebounced || null;
       if (typeof saveChat === 'function') {
         await saveChat.call(context || api);
       }
 
-      const eventSource = api?.eventSource || null;
-      const eventTypes = api?.eventTypes || {};
-      const messageUpdatedEvent = eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED';
-      if (eventSource && typeof eventSource.emit === 'function') {
-        eventSource.emit(messageUpdatedEvent, messageIndex);
-      }
+      this._notifyMessageUpdated(runtime, messageIndex);
 
       this._log(`已将工具输出插入最新 AI 回复原文: ${toolId} -> #${messageIndex}`);
       return true;

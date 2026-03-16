@@ -9,6 +9,7 @@ import { settingsService } from './core/settings-service.js';
 import { contextInjector } from './context-injector.js';
 import { toolPromptService } from './tool-prompt-service.js';
 import { extractTagContent, getTagRules, getContentBlacklist } from './regex-extractor.js';
+import { getEffectiveApiConfig, validateApiConfig, hasEffectiveApiPreset } from './api-connection.js';
 
 // ============================================================
 // 输出模式定义
@@ -312,6 +313,23 @@ class ToolOutputService {
     }
     
     const { timeoutMs = 90000, signal } = options;
+
+    let apiConfig = null;
+
+    if (presetName) {
+      if (!hasEffectiveApiPreset(presetName)) {
+        throw new Error(`未找到 API 预设“${presetName}”，请重新选择或保存后再执行`);
+      }
+
+      apiConfig = getEffectiveApiConfig(presetName);
+    } else {
+      apiConfig = getEffectiveApiConfig();
+    }
+
+    const validation = validateApiConfig(apiConfig || {});
+    if (!validation.valid && !(apiConfig?.useMainApi)) {
+      throw new Error(`API配置无效：${validation.errors.join('，')}。请先完善自定义API配置，或启用“使用SillyTavern主API”`);
+    }
     
     // 如果有预设名称，使用预设发送
     if (presetName && this._apiConnection.sendWithPreset) {

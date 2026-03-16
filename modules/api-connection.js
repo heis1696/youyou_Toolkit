@@ -106,6 +106,19 @@ export function getEffectiveApiConfig(presetName = '') {
 }
 
 /**
+ * 检查指定预设是否存在
+ * @param {string} presetName
+ * @returns {boolean}
+ */
+export function hasEffectiveApiPreset(presetName = '') {
+  if (!presetName) return false;
+
+  const settings = loadSettings();
+  const presets = settings.apiPresets || [];
+  return presets.some(p => p?.name === presetName);
+}
+
+/**
  * 使用指定预设发送API请求
  * @param {string} presetName - 预设名称
  * @param {Array} messages - OpenAI格式消息
@@ -229,13 +242,26 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
     body: JSON.stringify(requestBody),
     signal: abortSignal
   });
+
+  const responseText = await response.text().catch(() => '');
   
   if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
+    const errorText = responseText || 'Unknown error';
     throw new Error(`API请求失败 (${response.status}): ${errorText}`);
   }
-  
-  const data = await response.json();
+
+  let data = null;
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch (error) {
+    const snippet = String(responseText || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120);
+    throw new Error(
+      `自定义API返回的不是JSON，可能是URL配置错误或请求被重定向。请检查API URL，或改为启用“使用SillyTavern主API”。响应片段: ${snippet || '(空响应)'}`
+    );
+  }
   
   // 解析响应（兼容不同API格式）
   let content = '';

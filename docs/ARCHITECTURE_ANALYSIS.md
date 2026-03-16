@@ -151,6 +151,8 @@ tool-trigger.js 检测触发条件
 
 补充说明：当前实现中，自动工具链以 `GENERATION_ENDED` 为主触发源，同时增加 `MESSAGE_RECEIVED` 作为兜底来源；二者都会先重试读取“最新 AI 回复”并按 `chatId + messageId` 去重，避免同一条消息重复触发。
 
+另外，进入工具额外解析链前，`tool-output-service.js` 现在会先解析“当前配置 / 绑定预设”得到最终 API 配置，并在真正发请求前完成存在性与字段合法性校验；这让错误更早暴露在本地，而不是等到远端返回 HTML 错页后再以 JSON 解析异常的形式出现。
+
 ---
 
 ## 四、存储架构
@@ -628,6 +630,8 @@ contextInjector.clearToolContext('chat_123', 'summaryTool');
 
 从当前版本开始，工具链在构建 `{{injectedContext}}` 时，会优先直接读取“最新 AI 消息对象”上镜像写回的工具结果，而不是把历史缓存聚合作为当前楼层上下文传入；聊天级缓存仍保留给导出/查询类能力使用。
 
+在最新修复中，消息写回还会额外同步 `getContext().chat` 与 `SillyTavern.chat` 两侧数组里的目标消息对象，并补发 `MESSAGE_UPDATED` 刷新事件，以提升楼层正文插入后前端界面的即时可见性。
+
 ### 8.10 破限词管理 (bypass-manager.js) - v0.5新增
 
 管理破限词预设的创建、编辑、删除和工具绑定。
@@ -697,6 +701,11 @@ const validation = toolPromptService.validatePrompt(promptConfig);
 **输出模式：**
 - `follow_ai` - 随AI输出，不启用额外解析链
 - `post_response_api` - 额外AI模型解析后注入
+
+**当前额外门控：**
+- 如果工具绑定了 API 预设，会先确认预设仍存在
+- 如果未启用主 API，则会先校验自定义 API 的 URL / model 等必要字段
+- 当响应体不是 JSON 时，会输出“URL 配置错误 / 被重定向 / 建议启用主 API”的可读错误，而不是直接暴露底层 JSON 解析异常
 
 **使用示例：**
 ```javascript

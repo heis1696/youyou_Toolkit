@@ -288,6 +288,8 @@ const injector = YouYouToolkit.getContextInjector();
 
 > 当前主链路中，`inject()` 的职责已经收敛为：**把工具结果直接插入最新 AI 楼层原文**，并同步更新消息对象上的 `YouYouToolkit_toolOutputs` 与 `YouYouToolkit_injectedContext` 字段，然后触发 `MESSAGE_UPDATED` 刷新界面。
 
+> 从当前修复开始，写回流程会尽量同时同步 `SillyTavern.getContext().chat` 与 `SillyTavern.chat` 中对应消息对象，并额外补发一次 `MESSAGE_UPDATED`，以提高插入上下文后界面即时刷新的稳定性。
+
 ### `getToolPromptService()`
 
 获取工具提示词服务模块。
@@ -641,6 +643,9 @@ interface ToolConfig {
 - 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底触发来源；两条链路会按 `chatId + 最新 AI 消息ID` 去重，避免同一条回复重复执行工具
 - 构建工具执行上下文时会对“最新 AI 回复”做短暂重试读取，优先锁定刚生成完成的那一条消息，降低读取到旧回复的概率
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕
+- 执行前会先校验当前 API 配置或工具绑定预设；如果既没有启用 `useMainApi`，又缺少有效的自定义 `url/model`，工具会直接提示配置问题，而不会再发出错误请求
+- 当自定义 API 实际返回 HTML 或其他非 JSON 内容时，错误信息会明确提示这通常意味着 URL 配置不正确，或当前场景应改用 `SillyTavern` 主 API
+- 工具箱重新打开后会恢复上次查看的子工具页签，避免工具页高亮与实际渲染内容错位
 
 ### 输出模式说明 (v0.6)
 
@@ -652,6 +657,8 @@ interface ToolConfig {
 > ⚠️ **注意**: 旧的 `inline` 模式已重命名为 `follow_ai`，API 内部会自动兼容旧名称。
 >
 > 从 `v0.6.2+` 开始，工具在监听到 `GENERATION_ENDED` 后会同步更新运行时状态，并在触发开始、成功、失败时显示顶部通知，便于确认监听链路是否正常工作。
+
+> 若工具绑定了 `apiPreset`，执行前会先校验该预设是否存在；若预设被删除或失效，会直接返回明确错误而不是静默回退到错误配置。
 
 > 在部分酒馆 / TavernHelper 环境中，最新 AI 回复写入聊天记录与 `GENERATION_ENDED` 的时序可能不稳定，因此当前版本会同时监听 `MESSAGE_RECEIVED` 作为补充兜底，并自动去重。
 
