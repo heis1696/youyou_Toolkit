@@ -649,6 +649,7 @@ interface ToolConfig {
 - 工具的 API 预设现在会同时兼容 `output.apiPreset`、旧版 `apiPreset` 字段以及历史 `tool_api_bindings` 绑定；界面展示、保存和执行读取会统一归一到同一个预设值，避免显示与实际执行配置不一致
 - 自定义 API 请求会优先尝试走 SillyTavern 后端的 `/api/backends/chat-completions/generate` 转发链路，减少浏览器直接访问第三方接口时遇到的跨域或 HTML 跳转问题
 - 破限词消息现在也支持工具变量解析；如果只想使用单一宏，可直接写 `{{toolMacro}}` 来插入当前工具提取内容
+- 工具提示词正文不再自动附加提取结果；如需引用，请在模板或破限词里显式写入 `{{toolMacro}}`
 
 ### 输出模式说明 (v0.6)
 

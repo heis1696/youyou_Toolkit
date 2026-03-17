@@ -201,6 +201,21 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     color: var(--yyt-accent);
   }
 
+  .yyt-tool-macro-hint {
+    font-size: 12px;
+    color: var(--yyt-text-muted);
+    line-height: 1.7;
+    padding: 12px 14px;
+    border-radius: var(--yyt-radius-sm);
+    border: 1px dashed rgba(123, 183, 255, 0.25);
+    background: rgba(123, 183, 255, 0.06);
+  }
+
+  .yyt-tool-macro-hint code {
+    color: var(--yyt-accent);
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  }
+
   .yyt-error {
     padding: 20px;
     text-align: center;
@@ -407,6 +422,10 @@ export function createToolConfigPanel(options) {
                 <i class="fa-solid fa-save"></i> 保存配置
               </button>
             </div>
+          </div>
+
+          <div class="yyt-tool-macro-hint">
+            说明：工具不会再自动把“提取结果”附加到提示词正文中。如果你需要在提示词或破限词里使用当前工具提取内容，请手动插入单一宏 <code>{{toolMacro}}</code>。
           </div>
         </div>
       `;

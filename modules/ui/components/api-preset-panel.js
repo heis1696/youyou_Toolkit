@@ -317,6 +317,32 @@ export const ApiPresetPanel = {
     const $dropdown = $container.find(`#${SCRIPT_ID}-preset-dropdown`);
     const $trigger = $dropdown.find('.yyt-select-trigger');
     const $selectValue = $dropdown.find('.yyt-select-value');
+
+    const loadSelectedPreset = () => {
+      const value = String($selectValue.data('value') || '').trim();
+
+      if (!value) {
+        currentLoadedPresetName = '';
+        switchToPreset('');
+        fillFormWithConfig($container, getApiConfig(), SCRIPT_ID);
+        $container.find('.yyt-preset-item').removeClass('yyt-loaded');
+        showToast('info', '已切换到当前API配置');
+        return;
+      }
+
+      const preset = getPreset(value);
+      if (!preset) {
+        showToast('error', `预设 "${value}" 不存在`);
+        return;
+      }
+
+      currentLoadedPresetName = value;
+      switchToPreset(value);
+      fillFormWithConfig($container, preset.apiConfig, SCRIPT_ID);
+      $container.find('.yyt-preset-item').removeClass('yyt-loaded');
+      $container.find(`.yyt-preset-item[data-preset-name="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-loaded');
+      showToast('info', `已加载预设 "${value}"，修改后点击“保存配置”会覆盖该预设`);
+    };
     
     // 点击触发器展开/收起下拉框
     $trigger.on('click', function(e) {
@@ -342,14 +368,10 @@ export const ApiPresetPanel = {
       
       // 关闭下拉框
       $dropdown.removeClass('yyt-open');
-      
-      // 如果选择了预设，加载配置
-      if (value) {
-        const preset = getPreset(value);
-        if (preset) {
-          fillFormWithConfig($container, preset.apiConfig, SCRIPT_ID);
-        }
-      }
+    });
+
+    $container.find(`#${SCRIPT_ID}-load-preset`).on('click', () => {
+      loadSelectedPreset();
     });
     
     // 下拉框内的星标按钮点击事件
@@ -398,16 +420,10 @@ export const ApiPresetPanel = {
       
       switch (action) {
         case 'load':
-          const preset = getPreset(presetName);
-          if (preset) {
-            fillFormWithConfig($container, preset.apiConfig, SCRIPT_ID);
-            currentLoadedPresetName = presetName;
-            
-            $container.find('.yyt-preset-item').removeClass('yyt-loaded');
-            $item.addClass('yyt-loaded');
-            
-            showToast('info', `已加载预设 "${presetName}"，修改后可点击"保存配置"覆盖此预设`);
-          }
+          $container.find('.yyt-select-value').text(presetName).data('value', presetName);
+          $container.find('.yyt-select-option').removeClass('yyt-selected');
+          $container.find(`.yyt-select-option[data-value="${presetName.replace(/"/g, '&quot;')}"]`).addClass('yyt-selected');
+          $container.find(`#${SCRIPT_ID}-load-preset`).trigger('click');
           break;
           
         case 'delete':
@@ -524,6 +540,7 @@ export const ApiPresetPanel = {
         const result = updatePreset(currentLoadedPresetName, { apiConfig: config });
         if (result.success) {
           showToast('success', `配置已保存并覆盖预设 "${currentLoadedPresetName}"`);
+          switchToPreset(currentLoadedPresetName);
           eventBus.emit(EVENTS.PRESET_UPDATED, { name: currentLoadedPresetName });
           // 重新渲染
           const $panel = $container.closest('.yyt-api-manager').parent();

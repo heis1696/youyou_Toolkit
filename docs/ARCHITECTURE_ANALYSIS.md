@@ -157,6 +157,8 @@ tool-trigger.js 检测触发条件
 
 在请求发送层，`api-connection.js` 现在对“自定义 API”优先尝试复用 SillyTavern 后端的 chat-completions 生成接口进行转发，以减少扩展前端直接请求第三方地址时出现的跨域限制、登录页跳转或 HTML 错页返回。
 
+在 API 预设管理界面中，下拉选择、显式加载、当前已加载预设以及“保存配置时覆盖哪个预设”的状态也已被收敛为同一条状态链，减少界面显示值与实际生效配置不一致的问题。
+
 ---
 
 ## 四、存储架构
@@ -699,6 +701,8 @@ const validation = toolPromptService.validatePrompt(promptConfig);
 ```
 
 当前版本中，工具绑定的破限词消息也会走同一套变量解析流程；如果你只想使用一个单一宏入口，可直接使用 `{{toolMacro}}`，它会返回当前工具提取出的内容。保留的 `{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{toolName}}`、`{{toolId}}` 等变量则用于更细粒度控制。
+
+同时，工具提示词正文已不再自动把提取结果附加到末尾；新的推荐方式是由用户在模板或破限词中显式插入 `{{toolMacro}}`。
 
 ### 8.12 工具输出服务 (tool-output-service.js) - v0.5新增
 

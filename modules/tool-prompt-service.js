@@ -179,12 +179,6 @@ class ToolPromptService {
       parts.push(`\n${label}\n${value}`);
     };
 
-    appendSection('{{extractedContent}}', '以下是基于提取规则筛出的内容：', extractedContent);
-
-    if (recentMessagesText && !usedPlaceholders.has('{{recentMessagesText}}') && recentMessagesText !== lastAiMessage) {
-      parts.push(`\n以下是最近提取到的 AI 消息正文：\n${recentMessagesText}`);
-    }
-
     // 添加 AI 回复内容
     appendSection('{{lastAiMessage}}', '以下是需要处理的AI回复内容：', lastAiMessage);
     
