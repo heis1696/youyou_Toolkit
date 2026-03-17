@@ -24,6 +24,13 @@
   - API 预设面板的下拉选择现在会与“加载预设 / 当前已加载预设 / 保存覆盖目标”保持一致，修复仅切换下拉后看到的是某个预设、但保存或工具执行用的仍是旧配置的问题
   - 工具提示词不再自动追加“提取结果 / 最近消息正文”；若需要使用提取内容，改为由用户在模板或破限词中显式插入 `{{toolMacro}}`
 
+- 🐛 **当前 API 配置 / 激活预设 / 工具宏显式注入进一步收敛** (`modules/api-connection.js`, `modules/ui/components/api-preset-panel.js`, `modules/tool-prompt-service.js`, `docs/API_DOCUMENTATION.md`)
+  - 修复“使用当前API配置”仍直接读取 `settings.apiConfig`、未跟随当前激活 API 预设的问题；现在只要已激活某个预设，工具在未显式绑定专属预设时就会默认使用该激活预设
+  - 修复 API 预设面板重渲染仍按裸 `settings.apiConfig` 回填表单、导致显示值与激活预设再次分叉的问题；面板现在优先显示当前激活预设对应配置
+  - 修复加载预设后点击“保存配置”选择“不覆盖预设”时，虽然提示为仅保存当前配置，但实际仍保留激活预设的问题；现在该分支会同时切回“当前API配置”
+  - 修复工具提示词模板实际上仍保留 `lastAiMessage` 隐式兜底追加的问题；现在模板与破限词都改为纯显式宏模式，不再偷偷补任何 AI 正文
+  - 修复工具提示词模板中 `{{toolMacro}}` 仅在破限词可用、正文模板里却未真正解析的问题；现在正文模板同样统一走变量解析器
+
 - 🐛 **工具自动触发补强与最新 AI 上下文回填修复** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/ui/utils.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 自动触发链路新增 `MESSAGE_RECEIVED` 兜底监听，并对 `GENERATION_ENDED / MESSAGE_RECEIVED` 共用同一套去重逻辑，降低部分环境下只收到消息事件、却未稳定触发工具链的问题
   - 构建执行上下文时改为带重试地读取最近聊天快照，优先锁定刚生成的最新 AI 消息，修复 AI 回复刚落盘时手动执行 / 自动执行读到旧消息的问题

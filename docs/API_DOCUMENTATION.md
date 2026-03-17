@@ -647,9 +647,10 @@ interface ToolConfig {
 - 当自定义 API 实际返回 HTML 或其他非 JSON 内容时，错误信息会明确提示这通常意味着 URL 配置不正确，或当前场景应改用 `SillyTavern` 主 API
 - 工具箱重新打开后会恢复上次查看的子工具页签，避免工具页高亮与实际渲染内容错位
 - 工具的 API 预设现在会同时兼容 `output.apiPreset`、旧版 `apiPreset` 字段以及历史 `tool_api_bindings` 绑定；界面展示、保存和执行读取会统一归一到同一个预设值，避免显示与实际执行配置不一致
+- “使用当前API配置”的真实语义已收敛为：**若当前激活了 API 预设，则默认使用该激活预设；只有在未激活任何预设时，才回退到 `settings.apiConfig` 中保存的当前配置**
 - 自定义 API 请求会优先尝试走 SillyTavern 后端的 `/api/backends/chat-completions/generate` 转发链路，减少浏览器直接访问第三方接口时遇到的跨域或 HTML 跳转问题
 - 破限词消息现在也支持工具变量解析；如果只想使用单一宏，可直接写 `{{toolMacro}}` 来插入当前工具提取内容
-- 工具提示词正文不再自动附加提取结果；如需引用，请在模板或破限词里显式写入 `{{toolMacro}}`
+- 工具提示词正文不再自动附加任何 AI 正文、提取结果或最近消息正文；如需引用，请在模板或破限词里显式写入 `{{toolMacro}}`、`{{lastAiMessage}}`、`{{recentMessagesText}}` 等宏
 
 ### 输出模式说明 (v0.6)
 

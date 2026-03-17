@@ -46,7 +46,11 @@ import {
 // 状态
 // ============================================================
 
-let currentLoadedPresetName = '';
+let currentSelectedPresetName = null;
+
+function normalizePresetName(value) {
+  return String(value || '').trim();
+}
 
 // ============================================================
 // 组件定义
@@ -65,9 +69,9 @@ export const ApiPresetPanel = {
    * @returns {string} HTML
    */
   render(props) {
-    const config = getApiConfig();
-    const activeConfig = getActiveConfig();
-    const activePresetName = getActivePresetName();
+    const activeState = getActiveConfig();
+    const config = activeState?.apiConfig || getApiConfig();
+    const activePresetName = normalizePresetName(activeState?.presetName || getActivePresetName());
     const presets = getAllPresets();
     const starredPresets = getStarredPresets();
     
@@ -79,7 +83,9 @@ export const ApiPresetPanel = {
       : '';
     
     // 下拉框初始显示值
-    const initialSelectValue = currentLoadedPresetName || activePresetName || '';
+    const initialSelectValue = currentSelectedPresetName === null
+      ? (activePresetName || '')
+      : normalizePresetName(currentSelectedPresetName);
     const initialSelectText = initialSelectValue || '-- 当前配置 --';
     
     return `
@@ -322,7 +328,7 @@ export const ApiPresetPanel = {
       const value = String($selectValue.data('value') || '').trim();
 
       if (!value) {
-        currentLoadedPresetName = '';
+        currentSelectedPresetName = '';
         switchToPreset('');
         fillFormWithConfig($container, getApiConfig(), SCRIPT_ID);
         $container.find('.yyt-preset-item').removeClass('yyt-loaded');
@@ -336,7 +342,7 @@ export const ApiPresetPanel = {
         return;
       }
 
-      currentLoadedPresetName = value;
+      currentSelectedPresetName = value;
       switchToPreset(value);
       fillFormWithConfig($container, preset.apiConfig, SCRIPT_ID);
       $container.find('.yyt-preset-item').removeClass('yyt-loaded');
@@ -358,6 +364,7 @@ export const ApiPresetPanel = {
       const $option = $(e.currentTarget);
       const value = $option.data('value');
       const text = $option.find('.yyt-option-text').text();
+      currentSelectedPresetName = String(value || '').trim();
       
       // 更新显示值
       $selectValue.text(text).data('value', value);
@@ -431,8 +438,8 @@ export const ApiPresetPanel = {
             const delResult = deletePreset(presetName);
             showToast(delResult.success ? 'info' : 'error', delResult.message);
             if (delResult.success) {
-              if (currentLoadedPresetName === presetName) {
-                currentLoadedPresetName = '';
+              if (normalizePresetName(currentSelectedPresetName) === presetName) {
+                currentSelectedPresetName = null;
               }
               // 重新渲染
               const $panel = $container.closest('.yyt-api-manager').parent();
@@ -522,6 +529,7 @@ export const ApiPresetPanel = {
     // 保存配置
     $container.find(`#${SCRIPT_ID}-save-api-config`).on('click', () => {
       const config = getFormApiConfig($container, SCRIPT_ID);
+      const activePresetName = normalizePresetName(getActivePresetName());
       
       const validation = validateApiConfig(config);
       if (!validation.valid && !config.useMainApi) {
@@ -530,18 +538,26 @@ export const ApiPresetPanel = {
       }
       
       // 如果当前加载了预设，询问是否覆盖
-      if (currentLoadedPresetName) {
-        if (!confirm(`是否要覆盖预设 "${currentLoadedPresetName}" 的配置？\n\n点击"确定"覆盖预设，点击"取消"仅保存当前配置`)) {
+      if (activePresetName) {
+        if (!confirm(`是否要覆盖预设 "${activePresetName}" 的配置？\n\n点击"确定"覆盖预设，点击"取消"仅保存当前配置并切换到“当前配置”`)) {
           updateApiConfig(config);
-          showToast('success', 'API配置已保存');
+          switchToPreset('');
+          currentSelectedPresetName = '';
+          showToast('success', 'API配置已保存，并已切换到当前API配置');
+          const $panel = $container.closest('.yyt-api-manager').parent();
+          if ($panel.length) {
+            this.renderTo($panel);
+          }
           return;
         }
+
         updateApiConfig(config);
-        const result = updatePreset(currentLoadedPresetName, { apiConfig: config });
+        const result = updatePreset(activePresetName, { apiConfig: config });
         if (result.success) {
-          showToast('success', `配置已保存并覆盖预设 "${currentLoadedPresetName}"`);
-          switchToPreset(currentLoadedPresetName);
-          eventBus.emit(EVENTS.PRESET_UPDATED, { name: currentLoadedPresetName });
+          currentSelectedPresetName = activePresetName;
+          showToast('success', `配置已保存并覆盖预设 "${activePresetName}"`);
+          switchToPreset(activePresetName);
+          eventBus.emit(EVENTS.PRESET_UPDATED, { name: activePresetName });
           // 重新渲染
           const $panel = $container.closest('.yyt-api-manager').parent();
           if ($panel.length) {
@@ -553,14 +569,6 @@ export const ApiPresetPanel = {
         return;
       }
       
-      const activePreset = getActivePresetName();
-      if (activePreset) {
-        updateApiConfig(config);
-        updatePreset(activePreset, { apiConfig: config });
-        showToast('success', 'API配置已保存');
-        return;
-      }
-      
       updateApiConfig(config);
       showToast('success', 'API配置已保存');
     });
@@ -568,6 +576,8 @@ export const ApiPresetPanel = {
     // 重置配置
     $container.find(`#${SCRIPT_ID}-reset-api-config`).on('click', () => {
       if (confirm('确定要重置API配置吗？')) {
+        switchToPreset('');
+        currentSelectedPresetName = '';
         updateApiConfig({
           url: '',
           apiKey: '',

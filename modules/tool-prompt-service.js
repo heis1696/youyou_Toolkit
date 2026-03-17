@@ -67,7 +67,7 @@ class ToolPromptService {
     const promptTemplate = this._getPromptTemplate(toolConfig);
     
     // 4. 构建用户消息，附加 AI 回复内容
-    const userContent = this._buildUserContent(promptTemplate, context);
+    const userContent = this._buildUserContent(promptTemplate, variableContext);
     
     if (userContent.trim()) {
       messages.push({
@@ -88,7 +88,13 @@ class ToolPromptService {
    */
   buildPromptText(toolConfig, context) {
     const promptTemplate = this._getPromptTemplate(toolConfig);
-    return this._buildUserContent(promptTemplate, context);
+    const variableContext = variableResolver.buildToolContext({
+      ...context,
+      toolName: toolConfig?.name || context?.toolName || '',
+      toolId: toolConfig?.id || context?.toolId || '',
+      toolMacro: context?.extractedContent || context?.input?.extractedContent || ''
+    });
+    return this._buildUserContent(promptTemplate, variableContext);
   }
 
   /**
@@ -137,52 +143,11 @@ class ToolPromptService {
    * @private
    */
   _buildUserContent(promptTemplate, context) {
-    const parts = [];
-    const lastAiMessage = context?.lastAiMessage || context?.input?.lastAiMessage || '';
-    const extractedContent = context?.extractedContent || context?.input?.extractedContent || '';
-    const recentMessagesText = context?.recentMessagesText || '';
-    const rawRecentMessagesText = context?.rawRecentMessagesText || '';
-    const userMessage = context?.userMessage || context?.input?.userMessage || '';
-    const previousToolOutput = context?.previousToolOutput || context?.input?.previousToolOutput || '';
-    const toolName = context?.toolName || '';
-    const toolId = context?.toolId || '';
-    const usedPlaceholders = new Set();
-    
-    // 添加提示词模板
-    if (promptTemplate && promptTemplate.trim()) {
-      let resolvedTemplate = promptTemplate;
-      const replacements = {
-        '{{lastAiMessage}}': lastAiMessage,
-        '{{extractedContent}}': extractedContent,
-        '{{recentMessagesText}}': recentMessagesText,
-        '{{rawRecentMessagesText}}': rawRecentMessagesText,
-        '{{userMessage}}': userMessage,
-        '{{previousToolOutput}}': previousToolOutput,
-        '{{toolName}}': toolName,
-        '{{toolId}}': toolId
-      };
-
-      Object.entries(replacements).forEach(([placeholder, value]) => {
-        if (resolvedTemplate.includes(placeholder)) {
-          usedPlaceholders.add(placeholder);
-        }
-        resolvedTemplate = resolvedTemplate.split(placeholder).join(value || '');
-      });
-
-      parts.push(resolvedTemplate.trim());
+    if (!promptTemplate || !promptTemplate.trim()) {
+      return '';
     }
 
-    const appendSection = (placeholder, label, value) => {
-      if (!value || usedPlaceholders.has(placeholder)) {
-        return;
-      }
-      parts.push(`\n${label}\n${value}`);
-    };
-
-    // 添加 AI 回复内容
-    appendSection('{{lastAiMessage}}', '以下是需要处理的AI回复内容：', lastAiMessage);
-    
-    return parts.join('\n');
+    return variableResolver.resolveTemplate(promptTemplate, context).trim();
   }
 
   /**
