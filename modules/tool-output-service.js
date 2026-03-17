@@ -124,7 +124,7 @@ class ToolOutputService {
       const messages = await this._buildToolMessages(toolConfig, rawContext);
       
       if (!messages || messages.length === 0) {
-        throw new Error('无法构建有效的消息');
+        throw new Error('未配置可发送的AI指令预设消息。工具现在只提供 {{toolPromptMacro}} 和 {{toolContentMacro}} 两个宏，请在破限/AI指令预设中显式引用。');
       }
       
       this._log(`构建了 ${messages.length} 条消息`);
@@ -271,6 +271,7 @@ class ToolOutputService {
       rawRecentMessagesText,
       recentMessagesText,
       extractedContent,
+      toolContentMacro: this._buildToolContentMacro(messageEntries),
       toolName: toolConfig.name,
       toolId: toolConfig.id
     };
@@ -331,17 +332,10 @@ class ToolOutputService {
       throw new Error(`API配置无效：${validation.errors.join('，')}。请先完善自定义API配置，或启用“使用SillyTavern主API”`);
     }
     
-    // 如果有预设名称，使用预设发送
-    if (presetName && this._apiConnection.sendWithPreset) {
-      return await this._apiConnection.sendWithPreset(presetName, messages, {
-        timeoutMs
-      }, signal);
-    }
-    
-    // 否则使用默认API
     if (this._apiConnection.sendApiRequest) {
       return await this._apiConnection.sendApiRequest(messages, {
-        timeoutMs
+        timeoutMs,
+        apiConfig
       }, signal);
     }
     
@@ -616,6 +610,18 @@ class ToolOutputService {
       .filter(Boolean);
 
     return blocks.join('\n\n--------------------------------\n\n');
+  }
+
+  _buildToolContentMacro(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    const blocks = list.map((entry) => {
+      const title = `【第 ${entry?.order || 0} 条 AI 消息】`;
+      const body = String(entry?.filteredText || '').trim() || '(空)';
+      const tool = String(entry?.extractedText || '').trim() || '(空)';
+      return `${title}\n正文：\n${body}\n\n工具：\n${tool}`;
+    }).filter(Boolean);
+
+    return blocks.join('\n\n--------------------------------\n\n').trim();
   }
 
   // ============================================================

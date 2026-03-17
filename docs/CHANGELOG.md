@@ -11,6 +11,12 @@
 
 ### 修复
 
+- 🐛 **工具双宏模型与绑定预设执行链收敛** (`modules/variable-resolver.js`, `modules/tool-prompt-service.js`, `modules/tool-output-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
+  - 删除旧的单一工具宏入口，正式收敛为 `{{toolPromptMacro}}`（工具模板提示词）与 `{{toolContentMacro}}`（处理好的 n 条消息正文与工具结果）两个宏，减少使用理解负担
+  - 工具不再自动把模板提示词或正文拼接成额外消息；工具层现在只负责产出宏上下文，最终发送给额外模型的消息仅来自破限 / AI 指令预设渲染结果
+  - 当未配置任何可发送的 AI 指令预设消息时，工具执行会直接给出明确报错，而不是继续发送空消息
+  - 修复工具绑定 API 预设后仍走 `sendWithPreset()` 旧分支的问题；现在无论是否绑定预设，都会先解析成最终 `apiConfig`，再直接使用对应 API 与模型执行请求
+
 - 🐛 **工具执行前 API 校验、工具页签恢复与上下文即时刷新修复** (`modules/api-connection.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `index.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 工具在执行额外 API 调用前会先校验当前配置或绑定预设；当未启用主 API 且自定义 API 配置不完整时，会直接给出明确错误提示，避免请求落到错误 URL 后出现 `Unexpected token '<'` 这类 HTML 解析报错
   - 自定义 API 发送链路新增“优先走 SillyTavern 后端转发 `/api/backends/chat-completions/generate`，失败再回退浏览器直连”逻辑，尽量复用酒馆后端代理以规避浏览器直连自定义接口时的 CORS / HTML 跳转问题
@@ -20,16 +26,16 @@
   - 工具箱重新打开时，工具页现在会优先恢复上次选中的子工具页签，不再总是回退到第一个工具，修复“高亮在主角状态栏但内容仍是摘要工具”的错位问题
   - 工具结果写回最新 AI 楼层时会保留同楼层已有的其他工具输出，并同时同步 `context.chat` / `SillyTavern.chat` 引用后重复触发 `MESSAGE_UPDATED`，提升插入上下文后的界面即时刷新成功率
   - 破限词模板现在也会经过变量解析，可直接在破限词消息中使用 `{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{toolName}}`、`{{toolId}}` 等“工具宏”来自定义插入位置
-  - 新增单一宏 `{{toolMacro}}` 作为当前工具提取内容的统一别名；若只想用一个宏控制破限词插入位置，直接使用它即可
+  - 当时新增过单一工具宏别名作为当前工具提取内容入口（现已在后续版本中移除）
   - API 预设面板的下拉选择现在会与“加载预设 / 当前已加载预设 / 保存覆盖目标”保持一致，修复仅切换下拉后看到的是某个预设、但保存或工具执行用的仍是旧配置的问题
-  - 工具提示词不再自动追加“提取结果 / 最近消息正文”；若需要使用提取内容，改为由用户在模板或破限词中显式插入 `{{toolMacro}}`
+  - 工具提示词不再自动追加“提取结果 / 最近消息正文”；若需要使用提取内容，改为由用户在模板或破限词中显式插入工具宏
 
 - 🐛 **当前 API 配置 / 激活预设 / 工具宏显式注入进一步收敛** (`modules/api-connection.js`, `modules/ui/components/api-preset-panel.js`, `modules/tool-prompt-service.js`, `docs/API_DOCUMENTATION.md`)
   - 修复“使用当前API配置”仍直接读取 `settings.apiConfig`、未跟随当前激活 API 预设的问题；现在只要已激活某个预设，工具在未显式绑定专属预设时就会默认使用该激活预设
   - 修复 API 预设面板重渲染仍按裸 `settings.apiConfig` 回填表单、导致显示值与激活预设再次分叉的问题；面板现在优先显示当前激活预设对应配置
   - 修复加载预设后点击“保存配置”选择“不覆盖预设”时，虽然提示为仅保存当前配置，但实际仍保留激活预设的问题；现在该分支会同时切回“当前API配置”
   - 修复工具提示词模板实际上仍保留 `lastAiMessage` 隐式兜底追加的问题；现在模板与破限词都改为纯显式宏模式，不再偷偷补任何 AI 正文
-  - 修复工具提示词模板中 `{{toolMacro}}` 仅在破限词可用、正文模板里却未真正解析的问题；现在正文模板同样统一走变量解析器
+  - 修复旧单一工具宏仅在破限词可用、正文模板里却未真正解析的问题；现在正文模板同样统一走变量解析器
 
 - 🐛 **工具自动触发补强与最新 AI 上下文回填修复** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/ui/utils.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 自动触发链路新增 `MESSAGE_RECEIVED` 兜底监听，并对 `GENERATION_ENDED / MESSAGE_RECEIVED` 共用同一套去重逻辑，降低部分环境下只收到消息事件、却未稳定触发工具链的问题

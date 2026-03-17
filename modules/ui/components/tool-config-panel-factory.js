@@ -425,7 +425,7 @@ export function createToolConfigPanel(options) {
           </div>
 
           <div class="yyt-tool-macro-hint">
-            说明：工具不会再自动把“提取结果”附加到提示词正文中。如果你需要在提示词或破限词里使用当前工具提取内容，请手动插入单一宏 <code>{{toolMacro}}</code>。
+            说明：工具不会再自动拼接任何消息，只会提供两个宏给 AI 指令预设使用：<code>{{toolPromptMacro}}</code>（工具模板提示词）与 <code>{{toolContentMacro}}</code>（处理好的 n 条消息正文与工具结果）。
           </div>
         </div>
       `;

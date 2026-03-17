@@ -19,7 +19,8 @@ import { eventBus, EVENTS } from './core/event-bus.js';
  * - {{characterCard}} - 当前角色卡内容
  * - {{toolName}} - 工具名称
  * - {{toolId}} - 工具ID
- * - {{toolMacro}} - 当前工具提取内容（单一宏别名）
+ * - {{toolPromptMacro}} - 当前工具模板提示词宏
+ * - {{toolContentMacro}} - 当前工具处理后的内容宏
  * - {{injectedContext}} - 当前已注入的工具上下文汇总
  * - {{extractedContent}} - 工具提取结果
  * - {{recentMessagesText}} - 最近消息正文
@@ -58,9 +59,14 @@ const BUILTIN_VARIABLES = {
     description: '工具ID',
     category: 'tool'
   },
-  toolMacro: {
-    name: 'toolMacro',
-    description: '当前工具提取内容（单一宏别名）',
+  toolPromptMacro: {
+    name: 'toolPromptMacro',
+    description: '当前工具模板提示词宏',
+    category: 'tool'
+  },
+  toolContentMacro: {
+    name: 'toolContentMacro',
+    description: '当前工具处理后的内容宏',
     category: 'tool'
   },
   injectedContext: {
@@ -191,7 +197,8 @@ class VariableResolver {
       // 工具相关
       toolName: rawContext.toolName || '',
       toolId: rawContext.toolId || '',
-      toolMacro: rawContext.toolMacro || rawContext.extractedContent || '',
+      toolPromptMacro: rawContext.toolPromptMacro || '',
+      toolContentMacro: rawContext.toolContentMacro || '',
       
       // 注入上下文
       injectedContext: rawContext.injectedContext || '',
@@ -373,9 +380,13 @@ class VariableResolver {
     result = result.replace(/\{\{toolId\}\}/gi,
       context.toolId || context.raw?.toolId || '');
 
-    // {{toolMacro}}
-    result = result.replace(/\{\{toolMacro\}\}/gi,
-      context.toolMacro || context.extractedContent || context.raw?.toolMacro || context.raw?.extractedContent || '');
+    // {{toolPromptMacro}}
+    result = result.replace(/\{\{toolPromptMacro\}\}/gi,
+      context.toolPromptMacro || context.raw?.toolPromptMacro || '');
+
+    // {{toolContentMacro}}
+    result = result.replace(/\{\{toolContentMacro\}\}/gi,
+      context.toolContentMacro || context.raw?.toolContentMacro || '');
     
     // {{injectedContext}}
     result = result.replace(/\{\{injectedContext\}\}/gi, 

@@ -700,9 +700,9 @@ const template = toolPromptService.getDefaultPromptTemplate('summary');
 const validation = toolPromptService.validatePrompt(promptConfig);
 ```
 
-当前版本中，工具绑定的破限词消息也会走同一套变量解析流程；如果你只想使用一个单一宏入口，可直接使用 `{{toolMacro}}`，它会返回当前工具提取出的内容。保留的 `{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{toolName}}`、`{{toolId}}` 等变量则用于更细粒度控制。
+当前版本中，工具绑定的破限 / AI 指令预设消息会走同一套变量解析流程。工具层本身不再自动拼接消息，而是只提供两个正式宏：`{{toolPromptMacro}}`（工具模板提示词内容）与 `{{toolContentMacro}}`（处理好的 n 条消息正文与工具结果）。保留的 `{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{toolName}}`、`{{toolId}}` 等变量则用于更细粒度控制。
 
-同时，工具提示词正文已不再自动把提取结果附加到末尾；新的推荐方式是由用户在模板或破限词中显式插入 `{{toolMacro}}`。
+同时，工具提示词正文已不再自动把提取结果附加到末尾；新的推荐方式是由用户在 AI 指令预设中显式插入 `{{toolPromptMacro}}` 与 `{{toolContentMacro}}`。
 
 ### 8.12 工具输出服务 (tool-output-service.js) - v0.5新增
 

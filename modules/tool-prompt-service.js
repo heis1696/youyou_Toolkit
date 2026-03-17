@@ -24,6 +24,26 @@ class ToolPromptService {
     this.debugMode = false;
   }
 
+  _buildVariableContext(toolConfig, context = {}) {
+    const promptTemplate = this._getPromptTemplate(toolConfig);
+    const baseContext = variableResolver.buildToolContext({
+      ...context,
+      toolName: toolConfig?.name || context?.toolName || '',
+      toolId: toolConfig?.id || context?.toolId || ''
+    });
+
+    const toolPromptMacro = variableResolver.resolveTemplate(promptTemplate, baseContext).trim();
+    const toolContentMacro = String(context?.toolContentMacro || context?.input?.toolContentMacro || '').trim();
+
+    return variableResolver.buildToolContext({
+      ...context,
+      toolName: toolConfig?.name || context?.toolName || '',
+      toolId: toolConfig?.id || context?.toolId || '',
+      toolPromptMacro,
+      toolContentMacro
+    });
+  }
+
   // ============================================================
   // 核心方法
   // ============================================================
@@ -41,12 +61,7 @@ class ToolPromptService {
     }
 
     const messages = [];
-    const variableContext = variableResolver.buildToolContext({
-      ...context,
-      toolName: toolConfig.name || context?.toolName || '',
-      toolId: toolConfig.id || context?.toolId || '',
-      toolMacro: context?.extractedContent || context?.input?.extractedContent || ''
-    });
+    const variableContext = this._buildVariableContext(toolConfig, context);
     
     // 1. 获取破限词消息（如果启用）
     const bypassMessages = this._getBypassMessages(toolConfig);
@@ -63,19 +78,6 @@ class ToolPromptService {
       }
     }
     
-    // 3. 获取提示词模板
-    const promptTemplate = this._getPromptTemplate(toolConfig);
-    
-    // 4. 构建用户消息，附加 AI 回复内容
-    const userContent = this._buildUserContent(promptTemplate, variableContext);
-    
-    if (userContent.trim()) {
-      messages.push({
-        role: 'user',
-        content: userContent
-      });
-    }
-    
     this._log(`构建消息: ${messages.length} 条`);
     return messages;
   }
@@ -87,14 +89,8 @@ class ToolPromptService {
    * @returns {string} 提示词文本
    */
   buildPromptText(toolConfig, context) {
-    const promptTemplate = this._getPromptTemplate(toolConfig);
-    const variableContext = variableResolver.buildToolContext({
-      ...context,
-      toolName: toolConfig?.name || context?.toolName || '',
-      toolId: toolConfig?.id || context?.toolId || '',
-      toolMacro: context?.extractedContent || context?.input?.extractedContent || ''
-    });
-    return this._buildUserContent(promptTemplate, variableContext);
+    const variableContext = this._buildVariableContext(toolConfig, context);
+    return variableContext.toolPromptMacro || '';
   }
 
   /**

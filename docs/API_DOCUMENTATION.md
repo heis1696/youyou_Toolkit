@@ -301,9 +301,9 @@ const promptService = YouYouToolkit.getToolPromptService();
 // promptService.buildPromptText(toolConfig, context)   // 构建提示词文本
 // promptService.getToolPromptTemplate(toolConfig)      // 获取工具提示词模板
 // promptService.setDebugMode(enabled)                  // 设置调试模式
-> 模板中可直接使用 `{{toolMacro}}`、`{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。
+> AI 指令预设消息中可直接使用 `{{toolPromptMacro}}`、`{{toolContentMacro}}`、`{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。
 
-> 如果你只想用一个宏来拿“当前工具提取到的内容”，直接使用 `{{toolMacro}}` 即可。它是单一入口别名，当前等价于 `{{extractedContent}}`。这些占位符同样适用于工具绑定的破限词消息；也就是说，你可以把它们当作工具执行期可用的“宏”插入到破限词任意位置。
+> 工具现在不会再自动拼接模板消息或正文消息，而是只暴露两个正式宏：`{{toolPromptMacro}}` 用于表示工具模板提示词内容，`{{toolContentMacro}}` 用于表示处理好的 n 条消息正文与工具结果。最终发送给额外模型的消息，仅来自 AI 指令预设渲染后的消息数组。
 
 > **v0.6 变更**: 删除了分段相关的方法（`resolvePromptSegments`、`addSegment`、`removeSegment`、`updateSegment`），改用简化的单模板模式。
 
@@ -649,8 +649,8 @@ interface ToolConfig {
 - 工具的 API 预设现在会同时兼容 `output.apiPreset`、旧版 `apiPreset` 字段以及历史 `tool_api_bindings` 绑定；界面展示、保存和执行读取会统一归一到同一个预设值，避免显示与实际执行配置不一致
 - “使用当前API配置”的真实语义已收敛为：**若当前激活了 API 预设，则默认使用该激活预设；只有在未激活任何预设时，才回退到 `settings.apiConfig` 中保存的当前配置**
 - 自定义 API 请求会优先尝试走 SillyTavern 后端的 `/api/backends/chat-completions/generate` 转发链路，减少浏览器直接访问第三方接口时遇到的跨域或 HTML 跳转问题
-- 破限词消息现在也支持工具变量解析；如果只想使用单一宏，可直接写 `{{toolMacro}}` 来插入当前工具提取内容
-- 工具提示词正文不再自动附加任何 AI 正文、提取结果或最近消息正文；如需引用，请在模板或破限词里显式写入 `{{toolMacro}}`、`{{lastAiMessage}}`、`{{recentMessagesText}}` 等宏
+- 破限 / AI 指令预设消息现在也支持工具变量解析，可直接使用 `{{toolPromptMacro}}` 与 `{{toolContentMacro}}`
+- 工具不再自动附加任何模板消息、AI 正文、提取结果或最近消息正文；如需引用，请在 AI 指令预设中显式写入 `{{toolPromptMacro}}`、`{{toolContentMacro}}`、`{{lastAiMessage}}`、`{{recentMessagesText}}` 等宏
 
 ### 输出模式说明 (v0.6)
 
