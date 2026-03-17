@@ -16,6 +16,7 @@
   - 工具不再自动把模板提示词或正文拼接成额外消息；工具层现在只负责产出宏上下文，最终发送给额外模型的消息仅来自破限 / AI 指令预设渲染结果
   - 当未配置任何可发送的 AI 指令预设消息时，工具执行会直接给出明确报错，而不是继续发送空消息
   - 修复工具绑定 API 预设后仍走 `sendWithPreset()` 旧分支的问题；现在无论是否绑定预设，都会先解析成最终 `apiConfig`，再直接使用对应 API 与模型执行请求
+  - 修复自定义 API 代理分支失败后无条件回退浏览器直连的问题；现在只有在检测到 SillyTavern 后端转发路由本身不可用时才回退，避免后端真实错误被吞掉后伪装成“外部 API 返回 HTML / URL 配错”
 
 - 🐛 **工具执行前 API 校验、工具页签恢复与上下文即时刷新修复** (`modules/api-connection.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `index.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 工具在执行额外 API 调用前会先校验当前配置或绑定预设；当未启用主 API 且自定义 API 配置不完整时，会直接给出明确错误提示，避免请求落到错误 URL 后出现 `Unexpected token '<'` 这类 HTML 解析报错

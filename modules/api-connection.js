@@ -16,6 +16,44 @@ const API_STATUS = {
   ERROR: 'error'
 };
 
+function createApiError(message, options = {}) {
+  const error = new Error(message);
+  error.allowDirectFallback = options.allowDirectFallback === true;
+  return error;
+}
+
+function normalizeApiUrl(url, target = 'chat_completions') {
+  const rawUrl = String(url || '').trim();
+  if (!rawUrl) return '';
+
+  let parsed = null;
+  try {
+    parsed = new URL(rawUrl);
+  } catch (error) {
+    return rawUrl;
+  }
+
+  const cleanPath = parsed.pathname.replace(/\/+$/, '');
+  let nextPath = cleanPath;
+
+  if (target === 'chat_completions') {
+    if (!/\/chat\/completions$/i.test(cleanPath) && !/\/completions$/i.test(cleanPath)) {
+      nextPath = `${cleanPath || ''}/chat/completions`;
+    }
+  } else if (target === 'models') {
+    if (/\/chat\/completions$/i.test(cleanPath)) {
+      nextPath = cleanPath.replace(/\/chat\/completions$/i, '/models');
+    } else if (/\/completions$/i.test(cleanPath)) {
+      nextPath = cleanPath.replace(/\/completions$/i, '/models');
+    } else if (!/\/models$/i.test(cleanPath)) {
+      nextPath = `${cleanPath || ''}/models`;
+    }
+  }
+
+  parsed.pathname = nextPath.replace(/\/+/g, '/');
+  return parsed.toString();
+}
+
 // ============================================================
 // API配置管理
 // ============================================================
@@ -257,7 +295,9 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
     try {
       return await sendViaSillyTavernCustomApi(messages, config, options, abortSignal, topWindow);
     } catch (error) {
-      // 某些环境下酒馆后端路由可能不可用，回退到直接请求
+      if (!error?.allowDirectFallback) {
+        throw error;
+      }
     }
   }
 
@@ -274,12 +314,13 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
  * @returns {Promise<string>}
  */
 async function sendViaSillyTavernCustomApi(messages, config, options, abortSignal, topWindow) {
+  const proxyUrl = String(config.url || '').trim();
   const requestBody = {
     ...buildRequestBody(messages, { apiConfig: config, ...options }),
     chat_completion_source: 'custom',
-    reverse_proxy: config.url,
+    reverse_proxy: proxyUrl,
     proxy_password: '',
-    custom_url: config.url,
+    custom_url: proxyUrl,
     custom_include_headers: config.apiKey ? `Authorization: Bearer ${config.apiKey}` : ''
   };
 
@@ -290,17 +331,33 @@ async function sendViaSillyTavernCustomApi(messages, config, options, abortSigna
     'Content-Type': 'application/json'
   };
 
-  const response = await fetch('/api/backends/chat-completions/generate', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(requestBody),
-    signal: abortSignal
-  });
+  let response = null;
+  try {
+    response = await fetch('/api/backends/chat-completions/generate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: abortSignal
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw error;
+    }
+
+    throw createApiError(
+      `酒馆后端转发请求不可用，已尝试回退到浏览器直连。原始错误: ${error.message}`,
+      { allowDirectFallback: true }
+    );
+  }
 
   const responseText = await response.text().catch(() => '');
 
   if (!response.ok) {
-    throw new Error(`酒馆后端转发请求失败 (${response.status}): ${responseText || 'Unknown error'}`);
+    const allowDirectFallback = [404, 405, 501, 502].includes(response.status);
+    throw createApiError(
+      `酒馆后端转发请求失败 (${response.status}): ${responseText || 'Unknown error'}`,
+      { allowDirectFallback }
+    );
   }
 
   let data = null;
@@ -308,7 +365,7 @@ async function sendViaSillyTavernCustomApi(messages, config, options, abortSigna
     data = responseText ? JSON.parse(responseText) : {};
   } catch (error) {
     const snippet = String(responseText || '').replace(/\s+/g, ' ').trim().slice(0, 120);
-    throw new Error(`酒馆后端返回了非JSON内容。响应片段: ${snippet || '(空响应)'}`);
+    throw createApiError(`酒馆后端返回了非JSON内容。响应片段: ${snippet || '(空响应)'}`);
   }
 
   return extractResponseContent(data);
@@ -324,6 +381,7 @@ async function sendViaSillyTavernCustomApi(messages, config, options, abortSigna
  */
 async function sendViaDirectCustomApi(messages, config, options, abortSignal) {
   const requestBody = buildRequestBody(messages, { apiConfig: config, ...options });
+  const endpointUrl = normalizeApiUrl(config.url, 'chat_completions');
   
   // 构建请求头
   const headers = {
@@ -335,7 +393,7 @@ async function sendViaDirectCustomApi(messages, config, options, abortSignal) {
   }
   
   // 发送请求
-  const response = await fetch(config.url, {
+  const response = await fetch(endpointUrl, {
     method: 'POST',
     headers,
     body: JSON.stringify(requestBody),
@@ -358,7 +416,7 @@ async function sendViaDirectCustomApi(messages, config, options, abortSignal) {
       .trim()
       .slice(0, 120);
     throw new Error(
-      `自定义API返回的不是JSON，可能是URL配置错误或请求被重定向。请检查API URL，或改为启用“使用SillyTavern主API”。响应片段: ${snippet || '(空响应)'}`
+      `自定义API返回的不是JSON，可能是URL配置错误、只填写了站点首页/基础路径、或请求被重定向。当前会自动尝试补全 chat/completions 端点；若仍失败，请检查API URL，或改为启用“使用SillyTavern主API”。响应片段: ${snippet || '(空响应)'}`
     );
   }
   
@@ -454,9 +512,7 @@ async function fetchCustomApiModels(config) {
   }
   
   try {
-    // 尝试从/v1/models端点获取
-    const baseUrl = config.url.replace(/\/chat\/completions$/, '').replace(/\/completions$/, '');
-    const modelsUrl = `${baseUrl}/models`;
+    const modelsUrl = normalizeApiUrl(config.url, 'models');
     
     const response = await fetch(modelsUrl, {
       method: 'GET',
