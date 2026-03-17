@@ -6,6 +6,7 @@
 
 import { eventBus, EVENTS } from './core/event-bus.js';
 import { bypassManager } from './bypass-manager.js';
+import { variableResolver } from './variable-resolver.js';
 
 // ============================================================
 // 默认提示词模板
@@ -40,6 +41,12 @@ class ToolPromptService {
     }
 
     const messages = [];
+    const variableContext = variableResolver.buildToolContext({
+      ...context,
+      toolName: toolConfig.name || context?.toolName || '',
+      toolId: toolConfig.id || context?.toolId || '',
+      toolMacro: context?.extractedContent || context?.input?.extractedContent || ''
+    });
     
     // 1. 获取破限词消息（如果启用）
     const bypassMessages = this._getBypassMessages(toolConfig);
@@ -50,7 +57,7 @@ class ToolPromptService {
         if (msg.enabled !== false) {
           messages.push({
             role: this._normalizeRole(msg.role),
-            content: msg.content || ''
+            content: variableResolver.resolveTemplate(msg.content || '', variableContext)
           });
         }
       }

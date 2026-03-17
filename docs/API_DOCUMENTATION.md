@@ -301,9 +301,9 @@ const promptService = YouYouToolkit.getToolPromptService();
 // promptService.buildPromptText(toolConfig, context)   // 构建提示词文本
 // promptService.getToolPromptTemplate(toolConfig)      // 获取工具提示词模板
 // promptService.setDebugMode(enabled)                  // 设置调试模式
-```
+> 模板中可直接使用 `{{toolMacro}}`、`{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。
 
-> 模板中可直接使用 `{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。
+> 如果你只想用一个宏来拿“当前工具提取到的内容”，直接使用 `{{toolMacro}}` 即可。它是单一入口别名，当前等价于 `{{extractedContent}}`。这些占位符同样适用于工具绑定的破限词消息；也就是说，你可以把它们当作工具执行期可用的“宏”插入到破限词任意位置。
 
 > **v0.6 变更**: 删除了分段相关的方法（`resolvePromptSegments`、`addSegment`、`removeSegment`、`updateSegment`），改用简化的单模板模式。
 
@@ -647,6 +647,8 @@ interface ToolConfig {
 - 当自定义 API 实际返回 HTML 或其他非 JSON 内容时，错误信息会明确提示这通常意味着 URL 配置不正确，或当前场景应改用 `SillyTavern` 主 API
 - 工具箱重新打开后会恢复上次查看的子工具页签，避免工具页高亮与实际渲染内容错位
 - 工具的 API 预设现在会同时兼容 `output.apiPreset`、旧版 `apiPreset` 字段以及历史 `tool_api_bindings` 绑定；界面展示、保存和执行读取会统一归一到同一个预设值，避免显示与实际执行配置不一致
+- 自定义 API 请求会优先尝试走 SillyTavern 后端的 `/api/backends/chat-completions/generate` 转发链路，减少浏览器直接访问第三方接口时遇到的跨域或 HTML 跳转问题
+- 破限词消息现在也支持工具变量解析；如果只想使用单一宏，可直接写 `{{toolMacro}}` 来插入当前工具提取内容
 
 ### 输出模式说明 (v0.6)
 

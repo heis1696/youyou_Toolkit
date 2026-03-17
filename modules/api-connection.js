@@ -154,6 +154,33 @@ function buildRequestBody(messages, options = {}) {
 }
 
 /**
+ * 从不同响应格式中提取文本内容
+ * @param {Object} data
+ * @returns {string}
+ */
+function extractResponseContent(data) {
+  let content = '';
+
+  if (data?.choices && data.choices[0]?.message?.content) {
+    content = data.choices[0].message.content;
+  }
+  else if (data?.content) {
+    content = data.content;
+  }
+  else if (data?.text) {
+    content = data.text;
+  }
+  else if (data?.response) {
+    content = data.response;
+  }
+  else {
+    throw new Error(`无法解析API响应格式: ${JSON.stringify(data).slice(0, 200)}`);
+  }
+
+  return String(content || '').trim();
+}
+
+/**
  * 发送API请求
  * @param {Array} messages - OpenAI格式的消息数组
  * @param {Object} options - 请求选项
@@ -223,6 +250,78 @@ async function sendViaMainApi(messages, options, abortSignal) {
  * @returns {Promise<string>}
  */
 async function sendViaCustomApi(messages, config, options, abortSignal) {
+  const topWindow = (typeof window.parent !== 'undefined' ? window.parent : window);
+
+  if (topWindow.SillyTavern?.getRequestHeaders) {
+    try {
+      return await sendViaSillyTavernCustomApi(messages, config, options, abortSignal, topWindow);
+    } catch (error) {
+      // 某些环境下酒馆后端路由可能不可用，回退到直接请求
+    }
+  }
+
+  return await sendViaDirectCustomApi(messages, config, options, abortSignal);
+}
+
+/**
+ * 通过 SillyTavern 后端转发自定义 API 请求，避免浏览器直连带来的 CORS / HTML 重定向问题
+ * @param {Array} messages
+ * @param {Object} config
+ * @param {Object} options
+ * @param {AbortSignal} abortSignal
+ * @param {Window} topWindow
+ * @returns {Promise<string>}
+ */
+async function sendViaSillyTavernCustomApi(messages, config, options, abortSignal, topWindow) {
+  const requestBody = {
+    ...buildRequestBody(messages, { apiConfig: config, ...options }),
+    chat_completion_source: 'custom',
+    reverse_proxy: config.url,
+    proxy_password: '',
+    custom_url: config.url,
+    custom_include_headers: config.apiKey ? `Authorization: Bearer ${config.apiKey}` : ''
+  };
+
+  const headers = {
+    ...(typeof topWindow.SillyTavern?.getRequestHeaders === 'function'
+      ? topWindow.SillyTavern.getRequestHeaders()
+      : {}),
+    'Content-Type': 'application/json'
+  };
+
+  const response = await fetch('/api/backends/chat-completions/generate', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody),
+    signal: abortSignal
+  });
+
+  const responseText = await response.text().catch(() => '');
+
+  if (!response.ok) {
+    throw new Error(`酒馆后端转发请求失败 (${response.status}): ${responseText || 'Unknown error'}`);
+  }
+
+  let data = null;
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch (error) {
+    const snippet = String(responseText || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    throw new Error(`酒馆后端返回了非JSON内容。响应片段: ${snippet || '(空响应)'}`);
+  }
+
+  return extractResponseContent(data);
+}
+
+/**
+ * 直接请求自定义 API
+ * @param {Array} messages
+ * @param {Object} config
+ * @param {Object} options
+ * @param {AbortSignal} abortSignal
+ * @returns {Promise<string>}
+ */
+async function sendViaDirectCustomApi(messages, config, options, abortSignal) {
   const requestBody = buildRequestBody(messages, { apiConfig: config, ...options });
   
   // 构建请求头
@@ -262,28 +361,7 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
     );
   }
   
-  // 解析响应（兼容不同API格式）
-  let content = '';
-  
-  // OpenAI格式
-  if (data.choices && data.choices[0]?.message?.content) {
-    content = data.choices[0].message.content;
-  }
-  // 其他可能的格式
-  else if (data.content) {
-    content = data.content;
-  }
-  else if (data.text) {
-    content = data.text;
-  }
-  else if (data.response) {
-    content = data.response;
-  }
-  else {
-    throw new Error(`无法解析API响应格式: ${JSON.stringify(data).slice(0, 200)}`);
-  }
-  
-  return content.trim();
+  return extractResponseContent(data);
 }
 
 /**

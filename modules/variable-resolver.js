@@ -18,7 +18,14 @@ import { eventBus, EVENTS } from './core/event-bus.js';
  * - {{chatHistory}} - 最近聊天记录
  * - {{characterCard}} - 当前角色卡内容
  * - {{toolName}} - 工具名称
+ * - {{toolId}} - 工具ID
+ * - {{toolMacro}} - 当前工具提取内容（单一宏别名）
  * - {{injectedContext}} - 当前已注入的工具上下文汇总
+ * - {{extractedContent}} - 工具提取结果
+ * - {{recentMessagesText}} - 最近消息正文
+ * - {{rawRecentMessagesText}} - 最近消息原文
+ * - {{userMessage}} - 当前用户消息
+ * - {{previousToolOutput}} - 上一次工具输出
  */
 const BUILTIN_VARIABLES = {
   lastUserMessage: {
@@ -46,9 +53,44 @@ const BUILTIN_VARIABLES = {
     description: '工具名称',
     category: 'tool'
   },
+  toolId: {
+    name: 'toolId',
+    description: '工具ID',
+    category: 'tool'
+  },
+  toolMacro: {
+    name: 'toolMacro',
+    description: '当前工具提取内容（单一宏别名）',
+    category: 'tool'
+  },
   injectedContext: {
     name: 'injectedContext',
     description: '已注入的工具上下文',
+    category: 'context'
+  },
+  extractedContent: {
+    name: 'extractedContent',
+    description: '工具提取内容',
+    category: 'context'
+  },
+  recentMessagesText: {
+    name: 'recentMessagesText',
+    description: '最近消息正文',
+    category: 'context'
+  },
+  rawRecentMessagesText: {
+    name: 'rawRecentMessagesText',
+    description: '最近消息原文',
+    category: 'context'
+  },
+  userMessage: {
+    name: 'userMessage',
+    description: '当前用户消息',
+    category: 'chat'
+  },
+  previousToolOutput: {
+    name: 'previousToolOutput',
+    description: '上一次工具输出',
     category: 'context'
   }
 };
@@ -149,9 +191,15 @@ class VariableResolver {
       // 工具相关
       toolName: rawContext.toolName || '',
       toolId: rawContext.toolId || '',
+      toolMacro: rawContext.toolMacro || rawContext.extractedContent || '',
       
       // 注入上下文
       injectedContext: rawContext.injectedContext || '',
+      extractedContent: rawContext.extractedContent || '',
+      recentMessagesText: rawContext.recentMessagesText || '',
+      rawRecentMessagesText: rawContext.rawRecentMessagesText || '',
+      userMessage: rawContext.userMessage || '',
+      previousToolOutput: rawContext.previousToolOutput || '',
       
       // 正则提取结果
       regexResults: rawContext.regexResults || {},
@@ -320,10 +368,38 @@ class VariableResolver {
     // {{toolName}}
     result = result.replace(/\{\{toolName\}\}/gi, 
       context.toolName || context.raw?.toolName || '');
+
+    // {{toolId}}
+    result = result.replace(/\{\{toolId\}\}/gi,
+      context.toolId || context.raw?.toolId || '');
+
+    // {{toolMacro}}
+    result = result.replace(/\{\{toolMacro\}\}/gi,
+      context.toolMacro || context.extractedContent || context.raw?.toolMacro || context.raw?.extractedContent || '');
     
     // {{injectedContext}}
     result = result.replace(/\{\{injectedContext\}\}/gi, 
       context.injectedContext || context.raw?.injectedContext || '');
+
+    // {{extractedContent}}
+    result = result.replace(/\{\{extractedContent\}\}/gi,
+      context.extractedContent || context.raw?.extractedContent || '');
+
+    // {{recentMessagesText}}
+    result = result.replace(/\{\{recentMessagesText\}\}/gi,
+      context.recentMessagesText || context.raw?.recentMessagesText || '');
+
+    // {{rawRecentMessagesText}}
+    result = result.replace(/\{\{rawRecentMessagesText\}\}/gi,
+      context.rawRecentMessagesText || context.raw?.rawRecentMessagesText || '');
+
+    // {{userMessage}}
+    result = result.replace(/\{\{userMessage\}\}/gi,
+      context.userMessage || context.raw?.userMessage || '');
+
+    // {{previousToolOutput}}
+    result = result.replace(/\{\{previousToolOutput\}\}/gi,
+      context.previousToolOutput || context.raw?.previousToolOutput || '');
     
     return result;
   }
