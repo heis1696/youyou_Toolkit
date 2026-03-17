@@ -11,6 +11,13 @@
 
 ### 修复
 
+- 🐛 **自动监听稳定性、最新楼层回填与小幽点评工具接入** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-prompt-service.js`, `modules/tool-output-service.js`, `modules/tool-executor.js`, `modules/tool-registry.js`, `modules/ui/index.js`, `modules/ui-components.js`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/youyou-review-panel.js`, `index.js`, `README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
+  - 自动监听在读取最新 AI 楼层时新增对 `message_id` 字段的兼容，并过滤 `MESSAGE_RECEIVED` 早期常见的 `...` 占位消息，降低“AI 已回复但工具未自动触发”的概率
+  - `getToolsForEvent()` 不再只写死遍历摘要工具和状态栏，而是改为从所有启用的默认工具中按触发事件动态筛选，为新增工具自动触发打通链路
+  - 工具请求构建恢复为“破限词前置消息 + 当前工具模板解析后的 user 消息”，避免必须额外配置 AI 指令预设消息才能运行，修复此前工具虽然监听到了回复、但实际没有构造出请求消息的问题
+  - 最新楼层写回增强：插入工具结果时会额外尝试调用 `setChatMessages()` / `setChatMessage()`，并同步 `mes / message / content / text` 多字段，同时去除该工具上一次存储的纯文本结果，修复“获得工具回复后没有稳定插入到最新楼层”与“覆盖时重复叠加旧结果”的问题
+  - 新增默认工具 `youyouReview`（小幽点评），并接入工具页签、配置面板、默认模板和自动触发链路，用于生成 `<youyou>` 与 `<gouzi>` 结构化点评输出
+
 - 🐛 **工具双宏模型与绑定预设执行链收敛** (`modules/variable-resolver.js`, `modules/tool-prompt-service.js`, `modules/tool-output-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 删除旧的单一工具宏入口，正式收敛为 `{{toolPromptMacro}}`（工具模板提示词）与 `{{toolContentMacro}}`（处理好的 n 条消息正文与工具结果）两个宏，减少使用理解负担
   - 工具不再自动把模板提示词或正文拼接成额外消息；工具层现在只负责产出宏上下文，最终发送给额外模型的消息仅来自破限 / AI 指令预设渲染结果

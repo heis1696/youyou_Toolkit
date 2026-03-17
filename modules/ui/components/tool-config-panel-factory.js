@@ -374,7 +374,7 @@ export function createToolConfigPanel(options) {
                         id="${SCRIPT_ID}-tool-prompt-template"
                         rows="12"
                         placeholder="输入提示词模板...">${escapeHtml(config.promptTemplate || '')}</textarea>
-              <div class="yyt-tool-compact-hint">这里直接填写发送给额外解析模型的完整模板。</div>
+              <div class="yyt-tool-compact-hint">这里直接填写发送给额外解析模型的完整模板；可在正文中显式使用 <code>{{toolContentMacro}}</code>、<code>{{lastAiMessage}}</code>、<code>{{userMessage}}</code> 等宏。</div>
             </div>
           </div>
 
@@ -425,7 +425,7 @@ export function createToolConfigPanel(options) {
           </div>
 
           <div class="yyt-tool-macro-hint">
-            说明：工具不会再自动拼接任何消息，只会提供两个宏给 AI 指令预设使用：<code>{{toolPromptMacro}}</code>（工具模板提示词）与 <code>{{toolContentMacro}}</code>（处理好的 n 条消息正文与工具结果）。
+            说明：工具会把当前模板解析后作为最终用户请求发送给额外模型；若启用了破限词，则会作为前置消息一并发送。可用宏包括 <code>{{toolPromptMacro}}</code>、<code>{{toolContentMacro}}</code>、<code>{{lastAiMessage}}</code>、<code>{{recentMessagesText}}</code>、<code>{{rawRecentMessagesText}}</code>、<code>{{userMessage}}</code>、<code>{{toolName}}</code>、<code>{{toolId}}</code>。
           </div>
         </div>
       `;

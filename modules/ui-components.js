@@ -16,6 +16,7 @@ import {
   ToolManagePanel,
   SummaryToolPanel,
   StatusBlockPanel,
+  YouyouReviewPanel,
   registerComponents,
   initUI,
   SCRIPT_ID,
@@ -144,7 +145,8 @@ export function getRegexStyles() {
 export function getToolStyles() {
   return [
     ToolManagePanel.getStyles(),
-    SummaryToolPanel.getStyles()
+    SummaryToolPanel.getStyles(),
+    YouyouReviewPanel.getStyles()
   ].join('\n');
 }
 
@@ -179,6 +181,7 @@ export {
   ToolManagePanel,
   SummaryToolPanel,
   StatusBlockPanel,
+  YouyouReviewPanel,
   registerComponents,
   initUI,
   SCRIPT_ID,
@@ -216,6 +219,7 @@ export default {
   ToolManagePanel,
   SummaryToolPanel,
   StatusBlockPanel,
+  YouyouReviewPanel,
   registerComponents,
   initUI,
   

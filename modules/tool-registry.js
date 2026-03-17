@@ -148,6 +148,65 @@ const DEFAULT_TOOL_CONFIGS = {
     // 兼容字段
     apiPreset: '',
     extractTags: ['status_block']
+  },
+
+  youyouReview: {
+    id: 'youyouReview',
+    name: '小幽点评',
+    icon: 'fa-comment-dots',
+    description: '在回复末尾生成小幽点评与剧情钩子',
+    enabled: true,
+    order: 5,
+
+    trigger: {
+      event: 'GENERATION_ENDED',
+      enabled: true
+    },
+
+    bypass: {
+      enabled: false,
+      presetId: ''
+    },
+
+    output: {
+      mode: 'follow_ai',
+      apiPreset: '',
+      overwrite: true,
+      enabled: true
+    },
+
+    extraction: {
+      enabled: true,
+      maxMessages: 5,
+      selectors: ['youyou']
+    },
+
+    promptTemplate: `请基于以下最新剧情回复，生成“小幽点评”。
+
+硬性要求：
+1. 只输出一个 <youyou>...</youyou> 块，不要输出其它说明。
+2. <youyou> 内先写一整段“小幽点评”正文，正文不换行，必须使用小幽第一人称口吻，带一点自夸、吐槽、犀利点评的个性。
+3. 点评内容必须覆盖：本次创作亮点与绝妙之处、剧情推进情况、伏笔埋设、后续注意事项。
+4. 结尾单独追加一个 <gouzi>...</gouzi>，用于留下剧情钩子。
+5. <gouzi> 必须放在 <youyou> 内部，并且单独成段，但整体仍只返回一个 <youyou> 块。
+
+输出模板：
+<youyou>
+这里是一整段不换行点评正文
+<gouzi>这里写剧情钩子</gouzi>
+</youyou>`,
+
+    runtime: {
+      lastRunAt: 0,
+      lastStatus: 'idle',
+      lastError: '',
+      lastDurationMs: 0,
+      successCount: 0,
+      errorCount: 0
+    },
+
+    apiPreset: '',
+    extractTags: ['youyou']
   }
 };
 
@@ -194,7 +253,8 @@ export const TOOL_REGISTRY = {
     order: 3,
     subTabs: [
       { id: 'summaryTool', name: '摘要工具', icon: 'fa-file-lines', component: 'SummaryToolPanel' },
-      { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' }
+      { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' },
+      { id: 'youyouReview', name: '小幽点评', icon: 'fa-comment-dots', component: 'YouyouReviewPanel' }
     ]
   },
   // v0.5 新增页面

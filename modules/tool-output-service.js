@@ -124,7 +124,7 @@ class ToolOutputService {
       const messages = await this._buildToolMessages(toolConfig, rawContext);
       
       if (!messages || messages.length === 0) {
-        throw new Error('未配置可发送的AI指令预设消息。工具现在只提供 {{toolPromptMacro}} 和 {{toolContentMacro}} 两个宏，请在破限/AI指令预设中显式引用。');
+        throw new Error('未构建出可发送的工具请求消息，请检查提示词模板或破限词配置是否为空。');
       }
       
       this._log(`构建了 ${messages.length} 条消息`);

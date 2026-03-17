@@ -151,7 +151,11 @@ tool-trigger.js 检测触发条件
 
 补充说明：当前实现中，自动工具链以 `GENERATION_ENDED` 为主触发源，同时增加 `MESSAGE_RECEIVED` 作为兜底来源；二者都会先重试读取“最新 AI 回复”并按 `chatId + messageId` 去重，避免同一条消息重复触发。
 
+为避免 `MESSAGE_RECEIVED` 在流式早期就抛出仅包含 `...` 的占位楼层，触发层现在会先过滤过短内容与纯省略号消息，只在楼层正文足够稳定时才进入工具链。
+
 另外，进入工具额外解析链前，`tool-output-service.js` 现在会先解析“当前配置 / 绑定预设”得到最终 API 配置，并在真正发请求前完成存在性与字段合法性校验；这让错误更早暴露在本地，而不是等到远端返回 HTML 错页后再以 JSON 解析异常的形式出现。
+
+当前版本中，请求消息的构成已经收敛为：若工具启用了破限词，则先发送破限词消息；随后总是附加一条由 `promptTemplate` 经变量解析后得到的 `user` 消息。这样工具可直接依赖自身模板运行，不再强制要求额外存在单独的 AI 指令预设消息。
 
 为兼容旧数据，工具预设解析现在还会统一合并三处来源：工具配置里的 `output.apiPreset`、兼容字段 `apiPreset`，以及历史遗留的 `tool_api_bindings`。最终执行链只消费归一化后的值，从而减少 UI 显示与实际执行配置漂移的问题。
 
@@ -638,6 +642,8 @@ contextInjector.clearToolContext('chat_123', 'summaryTool');
 
 在最新修复中，消息写回还会额外同步 `getContext().chat` 与 `SillyTavern.chat` 两侧数组里的目标消息对象，并补发 `MESSAGE_UPDATED` 刷新事件，以提升楼层正文插入后前端界面的即时可见性。
 
+进一步地，写回流程现在还会尝试优先调用宿主环境暴露的 `setChatMessages()` 或 `setChatMessage()` 来更新最新楼层，并同时镜像写入 `mes / message / content / text` 常见字段，以提高不同 TavernHelper / SillyTavern 版本下的正文刷新稳定性。
+
 ### 8.10 破限词管理 (bypass-manager.js) - v0.5新增
 
 管理破限词预设的创建、编辑、删除和工具绑定。
@@ -700,9 +706,9 @@ const template = toolPromptService.getDefaultPromptTemplate('summary');
 const validation = toolPromptService.validatePrompt(promptConfig);
 ```
 
-当前版本中，工具绑定的破限 / AI 指令预设消息会走同一套变量解析流程。工具层本身不再自动拼接消息，而是只提供两个正式宏：`{{toolPromptMacro}}`（工具模板提示词内容）与 `{{toolContentMacro}}`（处理好的 n 条消息正文与工具结果）。保留的 `{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{toolName}}`、`{{toolId}}` 等变量则用于更细粒度控制。
+当前版本中，工具绑定的破限词消息会走统一的变量解析流程；工具模板自身也会先解析成最终 user 消息再发送。工具仍提供 `{{toolPromptMacro}}`（工具模板提示词内容）与 `{{toolContentMacro}}`（处理好的 n 条消息正文与工具结果）两个宏，同时保留 `{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{toolName}}`、`{{toolId}}` 等变量用于更细粒度控制。
 
-同时，工具提示词正文已不再自动把提取结果附加到末尾；新的推荐方式是由用户在 AI 指令预设中显式插入 `{{toolPromptMacro}}` 与 `{{toolContentMacro}}`。
+也就是说，当前主链路是“破限词前置消息 + 当前工具模板解析后的 user 消息”；如果模板中需要引用多楼层整理结果，直接显式插入 `{{toolContentMacro}}` 即可。
 
 ### 8.12 工具输出服务 (tool-output-service.js) - v0.5新增
 

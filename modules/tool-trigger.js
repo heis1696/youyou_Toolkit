@@ -136,10 +136,10 @@ function wait(ms) {
  */
 function getMessageIdentity(msg, index) {
   const candidates = [
+    msg?.message_id,
     msg?.messageId,
     msg?.id,
     msg?.mes_id,
-    msg?.swipe_id,
     index
   ];
 
@@ -154,6 +154,25 @@ function getMessageIdentity(msg, index) {
   }
 
   return index;
+}
+
+/**
+ * 判断 AI 消息是否已经具备“可供工具处理”的正文内容
+ * 用于过滤 MESSAGE_RECEIVED 早期可能出现的 "..." 占位楼层。
+ * @param {string} text
+ * @returns {boolean}
+ */
+function isMeaningfulAssistantContent(text) {
+  const value = String(text || '').trim();
+  if (!value || value.length < 5) {
+    return false;
+  }
+
+  if (/^[.。·•…\s]+$/.test(value)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -186,7 +205,7 @@ function buildConversationSnapshot(rawMessages, preferredMessageId = null) {
   for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
     const message = normalizedMessages[index];
 
-    if (!lastAiMessage && message.role === 'assistant' && message.content) {
+    if (!lastAiMessage && message.role === 'assistant' && isMeaningfulAssistantContent(message.content)) {
       if (!normalizedPreferredId || String(message.sourceId).trim() === normalizedPreferredId || message.chatIndex === Number(normalizedPreferredId)) {
         lastAiMessage = message;
       } else if (!lastAiMessage) {

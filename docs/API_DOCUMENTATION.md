@@ -290,6 +290,8 @@ const injector = YouYouToolkit.getContextInjector();
 
 > 从当前修复开始，写回流程会尽量同时同步 `SillyTavern.getContext().chat` 与 `SillyTavern.chat` 中对应消息对象，并额外补发一次 `MESSAGE_UPDATED`，以提高插入上下文后界面即时刷新的稳定性。
 
+> 新版本还会优先尝试调用宿主暴露的 `setChatMessages()` / `setChatMessage()` 完成楼层正文更新，并同时写入 `mes`、`message`、`content`、`text` 等常见字段，提升不同环境下“工具结果已生成但最新楼层没刷新出来”的兼容性。
+
 ### `getToolPromptService()`
 
 获取工具提示词服务模块。
@@ -301,9 +303,11 @@ const promptService = YouYouToolkit.getToolPromptService();
 // promptService.buildPromptText(toolConfig, context)   // 构建提示词文本
 // promptService.getToolPromptTemplate(toolConfig)      // 获取工具提示词模板
 // promptService.setDebugMode(enabled)                  // 设置调试模式
-> AI 指令预设消息中可直接使用 `{{toolPromptMacro}}`、`{{toolContentMacro}}`、`{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。
+```
 
-> 工具现在不会再自动拼接模板消息或正文消息，而是只暴露两个正式宏：`{{toolPromptMacro}}` 用于表示工具模板提示词内容，`{{toolContentMacro}}` 用于表示处理好的 n 条消息正文与工具结果。最终发送给额外模型的消息，仅来自 AI 指令预设渲染后的消息数组。
+> 工具模板与破限词消息都会经过同一套变量解析流程，可直接使用 `{{toolPromptMacro}}`、`{{toolContentMacro}}`、`{{lastAiMessage}}`、`{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{previousToolOutput}}`、`{{toolName}}`、`{{toolId}}`。
+
+> 当前发送给额外模型的消息结构为：**前置破限词消息（如果启用） + 当前工具 `promptTemplate` 解析后的 user 消息**。因此即使没有单独的 AI 指令预设，工具也可以直接依赖自身模板完成请求构建。
 
 > **v0.6 变更**: 删除了分段相关的方法（`resolvePromptSegments`、`addSegment`、`removeSegment`、`updateSegment`），改用简化的单模板模式。
 
@@ -650,7 +654,27 @@ interface ToolConfig {
 - “使用当前API配置”的真实语义已收敛为：**若当前激活了 API 预设，则默认使用该激活预设；只有在未激活任何预设时，才回退到 `settings.apiConfig` 中保存的当前配置**
 - 自定义 API 请求会优先尝试走 SillyTavern 后端的 `/api/backends/chat-completions/generate` 转发链路；仅当检测到酒馆后端转发路由本身不可用时，才会回退到浏览器直连，避免把后端真实报错误判成外部 API URL 配置错误
 - 破限 / AI 指令预设消息现在也支持工具变量解析，可直接使用 `{{toolPromptMacro}}` 与 `{{toolContentMacro}}`
-- 工具不再自动附加任何模板消息、AI 正文、提取结果或最近消息正文；如需引用，请在 AI 指令预设中显式写入 `{{toolPromptMacro}}`、`{{toolContentMacro}}`、`{{lastAiMessage}}`、`{{recentMessagesText}}` 等宏
+- 工具默认会把“当前模板解析结果”作为额外模型请求正文发送；如需引用最近多条 AI 楼层整理结果，可在模板中显式写入 `{{toolContentMacro}}`、`{{lastAiMessage}}`、`{{recentMessagesText}}` 等宏
+- 自动监听现在会跳过只包含 `...` / 纯省略号的早期占位 AI 消息，减少工具链误触发或因读到未完成楼层而不执行的问题
+- 默认内置工具现包含：`summaryTool`、`statusBlock`、`youyouReview`
+
+#### `youyouReview` 默认工具
+
+新增 `小幽点评 / youyouReview` 工具，默认用于在回复末尾生成：
+
+```xml
+<youyou>
+点评正文
+<gouzi>剧情钩子</gouzi>
+</youyou>
+```
+
+其默认约束包括：
+
+- 点评正文使用小幽第一人称口吻
+- 正文尽量保持单段、不换行
+- 必须覆盖亮点、剧情推进、伏笔、后续注意事项
+- 结尾必须补一个 `<gouzi>` 钩子
 
 ### 输出模式说明 (v0.6)
 

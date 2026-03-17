@@ -77,6 +77,14 @@ class ToolPromptService {
         }
       }
     }
+
+    const userContent = this._buildUserContent(this._getPromptTemplate(toolConfig), variableContext);
+    if (userContent) {
+      messages.push({
+        role: 'user',
+        content: userContent
+      });
+    }
     
     this._log(`构建消息: ${messages.length} 条`);
     return messages;

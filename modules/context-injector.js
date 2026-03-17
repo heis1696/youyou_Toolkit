@@ -418,15 +418,11 @@ class ContextInjector {
       if (sourceMessageId === undefined || sourceMessageId === null || sourceMessageId === '') {
         return false;
       }
-
-      if (typeof sourceMessageId === 'number') {
-        return index === sourceMessageId;
-      }
-
       const normalizedSourceId = String(sourceMessageId).trim();
       if (!normalizedSourceId) return false;
 
       const candidates = [
+        message.message_id,
         message.id,
         message.messageId,
         message.mes_id,
@@ -495,6 +491,30 @@ class ContextInjector {
   }
 
   /**
+   * 同步更新消息上的所有常见正文字段，尽量兼容不同前端渲染路径
+   * @private
+   */
+  _applyMessageText(message, nextText) {
+    const target = message && typeof message === 'object' ? message : {};
+    const candidates = ['mes', 'message', 'content', 'text'];
+    let applied = false;
+
+    candidates.forEach((key) => {
+      if (typeof target[key] === 'string') {
+        target[key] = nextText;
+        applied = true;
+      }
+    });
+
+    if (!applied) {
+      target.mes = nextText;
+      target.message = nextText;
+    }
+
+    return target;
+  }
+
+  /**
    * 从消息原文中移除旧的工具输出块
    * @private
    */
@@ -527,6 +547,20 @@ class ContextInjector {
   }
 
   /**
+   * 额外移除当前工具上一次写回的纯文本内容，避免当工具结果并未带标签壳时无法覆盖
+   * @private
+   */
+  _stripPreviousStoredToolContent(text, previousContent) {
+    const sourceText = String(text || '');
+    const stored = String(previousContent || '').trim();
+    if (!stored) {
+      return sourceText.trimEnd();
+    }
+
+    return sourceText.replace(stored, '').trimEnd();
+  }
+
+  /**
    * 将工具输出直接插入最新 AI 楼层原文
    * @private
    */
@@ -547,15 +581,18 @@ class ContextInjector {
 
       const targetMessage = chat[messageIndex];
       const { key, text } = this._getWritableMessageField(targetMessage);
-      const baseText = options.overwrite === false
-        ? String(text || '')
-        : this._stripExistingToolOutput(text, options.extractionSelectors);
-      const appendContent = String(injectionEntry.content || '').trim();
-      const nextText = [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
-
       const existingOutputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] && typeof targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] === 'object'
         ? targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
         : {};
+      const previousToolContent = existingOutputs?.[toolId]?.content || '';
+      const baseText = options.overwrite === false
+        ? String(text || '')
+        : this._stripPreviousStoredToolContent(
+            this._stripExistingToolOutput(text, options.extractionSelectors),
+            previousToolContent
+          );
+      const appendContent = String(injectionEntry.content || '').trim();
+      const nextText = [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
 
       const mergedOutputs = {
         ...existingOutputs,
@@ -568,10 +605,41 @@ class ContextInjector {
       };
 
       targetMessage[key] = nextText;
+      this._applyMessageText(targetMessage, nextText);
       targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = mergedOutputs;
       targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(mergedOutputs);
 
       this._syncMessageToRuntimeChats(runtime, messageIndex, targetMessage);
+
+      const setChatMessages = context?.setChatMessages || api?.setChatMessages || runtime?.topWindow?.setChatMessages || null;
+      const setChatMessage = context?.setChatMessage || api?.setChatMessage || runtime?.topWindow?.setChatMessage || null;
+
+      if (typeof setChatMessages === 'function') {
+        try {
+          await setChatMessages.call(context || api || runtime?.topWindow, [{
+            message_id: messageIndex,
+            message: nextText,
+            mes: nextText,
+            content: nextText,
+            text: nextText
+          }], {
+            refresh: 'none'
+          });
+        } catch (error) {
+          this._log('setChatMessages 写回失败，回退本地同步', error);
+        }
+      } else if (typeof setChatMessage === 'function') {
+        try {
+          await setChatMessage.call(context || api || runtime?.topWindow, {
+            message: nextText,
+            mes: nextText,
+            content: nextText,
+            text: nextText
+          }, messageIndex);
+        } catch (error) {
+          this._log('setChatMessage 写回失败，回退本地同步', error);
+        }
+      }
 
       const saveChat = context?.saveChat || api?.saveChat || context?.saveChatDebounced || api?.saveChatDebounced || null;
       if (typeof saveChat === 'function') {

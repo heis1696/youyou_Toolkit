@@ -3,7 +3,7 @@
  * @description 负责工具的调度、并发控制和结果处理
  */
 
-import { getToolFullConfig } from './tool-registry.js';
+import { getToolFullConfig, getEnabledTools } from './tool-registry.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
 
 // ============================================================
@@ -813,12 +813,9 @@ export async function executeToolsBatch(toolIds, context, options = {}) {
  */
 export function getToolsForEvent(eventType) {
   const allConfigs = [];
-  
-  // 获取摘要工具和状态栏工具的配置
-  const toolIds = ['summaryTool', 'statusBlock'];
-  
-  for (const toolId of toolIds) {
-    const config = getToolFullConfig(toolId);
+  const enabledTools = getEnabledTools();
+
+  for (const config of enabledTools) {
     const matchesNewTrigger = config?.trigger?.enabled && config?.trigger?.event === eventType;
     const matchesLegacyTrigger = Array.isArray(config?.triggerEvents) && config.triggerEvents.includes(eventType);
 

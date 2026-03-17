@@ -802,6 +802,14 @@ function renderSubTabContent(mainTab, subTab) {
             $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
           }
           break;
+
+        case 'YouyouReviewPanel':
+          if (uiComponentsModule?.YouyouReviewPanel) {
+            uiComponentsModule.YouyouReviewPanel.renderTo($subContent);
+          } else {
+            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
+          }
+          break;
           
         default:
           $subContent.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>`);
