@@ -247,6 +247,7 @@ export function createToolConfigPanel(options) {
       }
 
       const apiPresets = this._getApiPresets();
+      const selectedApiPreset = config.output?.apiPreset || config.apiPreset || '';
       const bypassPresets = this._getBypassPresets();
       const outputMode = config.output?.mode || 'follow_ai';
       const bypassEnabled = config.bypass?.enabled || false;
@@ -289,7 +290,7 @@ export function createToolConfigPanel(options) {
               <select class="yyt-select" id="${SCRIPT_ID}-tool-api-preset">
                 <option value="">使用当前API配置</option>
                 ${apiPresets.map((preset) => `
-                  <option value="${escapeHtml(preset.name)}" ${preset.name === config.output?.apiPreset ? 'selected' : ''}>
+                  <option value="${escapeHtml(preset.name)}" ${preset.name === selectedApiPreset ? 'selected' : ''}>
                     ${escapeHtml(preset.name)}
                   </option>
                 `).join('')}
@@ -439,6 +440,7 @@ export function createToolConfigPanel(options) {
       return {
         enabled: true,
         promptTemplate: $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || '',
+        apiPreset: $container.find(`#${SCRIPT_ID}-tool-api-preset`).val() || '',
         extractTags: selectorLines,
         trigger: {
           event: 'GENERATION_ENDED',

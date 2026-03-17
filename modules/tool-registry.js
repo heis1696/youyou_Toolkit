@@ -446,6 +446,7 @@ export function getToolFullConfig(toolId) {
   
   const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
   const userConfig = userConfigs[toolId] || {};
+  const legacyApiPresetBinding = getToolApiPreset(toolId);
 
   const mergedConfig = {
     ...defaultConfig,
@@ -478,6 +479,18 @@ export function getToolFullConfig(toolId) {
     ...(userConfig.extraction || {})
   };
 
+  const resolvedApiPreset = mergedConfig.output?.apiPreset
+    || mergedConfig.apiPreset
+    || legacyApiPresetBinding
+    || '';
+
+  mergedConfig.output = {
+    ...(mergedConfig.output || {}),
+    apiPreset: resolvedApiPreset
+  };
+
+  mergedConfig.apiPreset = resolvedApiPreset;
+
   if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0)
     && Array.isArray(mergedConfig.extractTags)
     && mergedConfig.extractTags.length > 0) {
@@ -506,12 +519,15 @@ export function saveToolConfig(toolId, config) {
   }
   
   const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
+  const resolvedApiPreset = config?.output?.apiPreset ?? config?.apiPreset ?? '';
   
   // v0.6 简化后的可保存字段
   const saveableFields = [
     'promptTemplate',      // 单提示词模板
     'enabled',             // 启用状态
     'extractTags',         // 提取标签（兼容）
+    'apiPreset',           // API预设（兼容）
     // 新结构
     'trigger',             // 触发配置
     'output',              // 输出配置（包含 mode, apiPreset, overwrite）
@@ -523,11 +539,39 @@ export function saveToolConfig(toolId, config) {
   userConfigs[toolId] = {};
   saveableFields.forEach(field => {
     if (config[field] !== undefined) {
+      if (field === 'output' && config.output) {
+        userConfigs[toolId][field] = {
+          ...config.output,
+          apiPreset: resolvedApiPreset
+        };
+        return;
+      }
+
+      if (field === 'apiPreset') {
+        userConfigs[toolId][field] = resolvedApiPreset;
+        return;
+      }
+
       userConfigs[toolId][field] = config[field];
     }
   });
+
+  if (userConfigs[toolId].apiPreset === undefined) {
+    userConfigs[toolId].apiPreset = resolvedApiPreset;
+  }
+
+  if (!userConfigs[toolId].output && config.output !== undefined) {
+    userConfigs[toolId].output = {
+      ...(config.output || {}),
+      apiPreset: resolvedApiPreset
+    };
+  }
   
   storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
+
+  bindings[toolId] = resolvedApiPreset;
+  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
+
   eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });
   
   console.log(`[ToolRegistry] 工具配置已保存: ${toolId}`);
@@ -565,6 +609,7 @@ export function setToolApiPresetConfig(toolId, presetName) {
   
   return saveToolConfig(toolId, {
     ...config,
+    apiPreset: presetName,
     output: {
       ...config.output,
       apiPreset: presetName

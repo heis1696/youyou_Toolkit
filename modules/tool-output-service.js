@@ -130,7 +130,7 @@ class ToolOutputService {
       this._log(`构建了 ${messages.length} 条消息`);
       
       // 2. 获取API配置
-      const apiPreset = toolConfig.output?.apiPreset;
+      const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
       const timeoutMs = await this._getRequestTimeout();
       
       // 3. 发送API请求

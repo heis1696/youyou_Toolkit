@@ -701,7 +701,8 @@ export async function executeToolWithConfig(toolId, context, options = {}) {
     // 检查是否有API调用函数
     if (typeof options.callApi === 'function') {
       // 使用提供的API调用函数
-      const apiConfig = config.apiPreset ? { preset: config.apiPreset } : null;
+      const resolvedApiPreset = config.output?.apiPreset || config.apiPreset || '';
+      const apiConfig = resolvedApiPreset ? { preset: resolvedApiPreset } : null;
       const response = await options.callApi(messages, apiConfig, options.signal);
       
       // 处理输出
@@ -733,7 +734,7 @@ export async function executeToolWithConfig(toolId, context, options = {}) {
         data: {
           messages,
           config: {
-            apiPreset: config.apiPreset,
+            apiPreset: config.output?.apiPreset || config.apiPreset || '',
             outputMode: config.outputMode,
             extractTags: config.extractTags
           }
