@@ -146,6 +146,7 @@ export function getToolStyles() {
   return [
     ToolManagePanel.getStyles(),
     SummaryToolPanel.getStyles(),
+    StatusBlockPanel.getStyles(),
     YouyouReviewPanel.getStyles()
   ].join('\n');
 }

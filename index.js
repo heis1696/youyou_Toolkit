@@ -39,6 +39,7 @@ let variableResolverModule = null;
 let contextInjectorModule = null;
 let toolPromptServiceModule = null;
 let toolOutputServiceModule = null;
+const dynamicToolPanelCache = new Map();
 
 async function loadModules() {
   try {
@@ -810,6 +811,10 @@ function renderSubTabContent(mainTab, subTab) {
             $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
           }
           break;
+
+        case 'GenericToolConfigPanel':
+          renderGenericToolConfigPanel(subToolConfig, $subContent);
+          break;
           
         default:
           $subContent.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>`);
@@ -835,6 +840,40 @@ function renderSubTabContent(mainTab, subTab) {
       break;
     default:
       $content.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>`);
+  }
+}
+
+async function renderGenericToolConfigPanel(subToolConfig, $container) {
+  const $ = topLevelWindow.jQuery || window.jQuery;
+  if (!$ || !$container?.length || !subToolConfig?.id) return;
+
+  try {
+    let panel = dynamicToolPanelCache.get(subToolConfig.id);
+
+    if (!panel) {
+      const module = await import('./modules/ui/components/tool-config-panel-factory.js');
+      const createToolConfigPanel = module?.createToolConfigPanel;
+
+      if (typeof createToolConfigPanel !== 'function') {
+        throw new Error('通用工具面板工厂不可用');
+      }
+
+      panel = createToolConfigPanel({
+        id: `${subToolConfig.id}Panel`,
+        toolId: subToolConfig.id,
+        postResponseHint: `监听 AI 回复结束后，调用额外模型执行“${subToolConfig.name || subToolConfig.id}”。`,
+        extractionPlaceholder: '每行一个标签，如 custom_tag\n或 regex:<custom_tag>([\\s\\S]*?)</custom_tag>',
+        previewDialogId: `${subToolConfig.id}-extraction-preview`,
+        previewTitle: `${subToolConfig.name || subToolConfig.id} 提取预览`
+      });
+
+      dynamicToolPanelCache.set(subToolConfig.id, panel);
+    }
+
+    panel.renderTo($container);
+  } catch (error) {
+    console.error(`[${SCRIPT_ID}] 自定义工具面板加载失败:`, error);
+    $container.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>自定义工具面板加载失败</span></div>');
   }
 }
 

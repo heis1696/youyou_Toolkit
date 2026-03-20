@@ -641,6 +641,7 @@ interface ToolConfig {
 - 正文提取与工具标签提取现在都会分别直接作用于每条原始 AI 消息，不再串联依赖；测试提取界面也会按消息逐条展示原文、正文提取结果与工具提取结果，便于区分不同楼层
 - AI 回复自动触发时会在页面顶部显示通知，用于确认是否真正进入执行链路，以及是否执行成功/失败
 - 当工具执行成功后，会将工具回复直接插入最新 AI 楼层原文
+- 工具输出在按提取规则写回楼层时，会尽量保留命中的完整标签块（如 `<boo_FM>...</boo_FM>`、`<status_block>...</status_block>`、`<youyou>...</youyou>`），避免把模板里明确要求输出的外层提取标签剥掉
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 - 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
 - 自动监听会记录用户发送意图，并跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
@@ -657,6 +658,7 @@ interface ToolConfig {
 - 工具默认会把“当前模板解析结果”作为额外模型请求正文发送；如需引用最近多条 AI 楼层整理结果，可在模板中显式写入 `{{toolContentMacro}}`、`{{lastAiMessage}}`、`{{recentMessagesText}}` 等宏
 - 自动监听现在会跳过只包含 `...` / 纯省略号的早期占位 AI 消息，减少工具链误触发或因读到未完成楼层而不执行的问题
 - 默认内置工具现包含：`summaryTool`、`statusBlock`、`youyouReview`
+- 通过“工具列表 -> 新建工具”创建的自定义工具，会自动出现在“工具”页签下，并复用统一的工具配置面板进行模板、提取规则、API 预设与手动测试配置
 
 #### `youyouReview` 默认工具
 

@@ -11,6 +11,11 @@
 
 ### 修复
 
+- 🐛 **工具输出标签保留与自定义工具页签打通** (`modules/tool-output-service.js`, `modules/tool-registry.js`, `modules/ui-components.js`, `index.js`, `docs/API_DOCUMENTATION.md`, `docs/EXTENSION_GUIDE.md`)
+  - 修复工具结果写回最新 AI 楼层时会把提取用外层标签一并剥掉的问题；现在命中提取规则后会优先保留完整标签块，避免明明在模板里输出了 `<boo_FM>` / `<status_block>` / `<youyou>`，最终注入时却只剩内部正文
+  - 打通“工具列表 -> 新建工具”与实际工具页签之间的链路：新建的自定义工具现在会自动出现在“工具”页签下，并复用统一配置面板进行编辑与手动测试
+  - 补齐工具样式聚合，避免部分工具/自定义工具面板样式注入不完整
+
 - 🐛 **自动监听稳定性、最新楼层回填与小幽点评工具接入** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-prompt-service.js`, `modules/tool-output-service.js`, `modules/tool-executor.js`, `modules/tool-registry.js`, `modules/ui/index.js`, `modules/ui-components.js`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/youyou-review-panel.js`, `index.js`, `README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 自动监听在读取最新 AI 楼层时新增对 `message_id` 字段的兼容，并过滤 `MESSAGE_RECEIVED` 早期常见的 `...` 占位消息，降低“AI 已回复但工具未自动触发”的概率
   - `getToolsForEvent()` 不再只写死遍历摘要工具和状态栏，而是改为从所有启用的默认工具中按触发事件动态筛选，为新增工具自动触发打通链路

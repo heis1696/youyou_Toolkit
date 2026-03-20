@@ -5,6 +5,7 @@
 
 import { storage } from './core/storage-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
+import { getAllTools as getManagedTools } from './tool-manager.js';
 
 // ============================================================
 // 工具配置存储键
@@ -308,6 +309,84 @@ export const TOOL_CATEGORIES = {
  */
 let registeredTools = { ...TOOL_REGISTRY };
 
+function getCustomManagedToolEntries() {
+  const managedTools = getManagedTools() || {};
+  return Object.entries(managedTools)
+    .filter(([toolId]) => !DEFAULT_TOOL_CONFIGS[toolId])
+    .map(([toolId, tool]) => [toolId, tool || {}]);
+}
+
+function buildToolsSubTabs() {
+  const baseSubTabs = Array.isArray(TOOL_REGISTRY.tools?.subTabs)
+    ? [...TOOL_REGISTRY.tools.subTabs]
+    : [];
+
+  const customSubTabs = getCustomManagedToolEntries().map(([toolId, tool], index) => ({
+    id: toolId,
+    name: tool.name || toolId,
+    icon: tool.icon || 'fa-screwdriver-wrench',
+    component: 'GenericToolConfigPanel',
+    order: Number.isFinite(tool.order) ? tool.order : (100 + index),
+    isCustom: true,
+    description: tool.description || ''
+  }));
+
+  return [...baseSubTabs, ...customSubTabs]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+function createCustomToolDefaultConfig(toolId, toolDef = {}) {
+  const extractionSelectors = Array.isArray(toolDef?.extractTags)
+    ? toolDef.extractTags.map(item => String(item || '').trim()).filter(Boolean)
+    : [];
+
+  return {
+    id: toolId,
+    name: toolDef.name || toolId,
+    icon: toolDef.icon || 'fa-screwdriver-wrench',
+    description: toolDef.description || '',
+    enabled: toolDef.enabled !== false,
+    order: Number.isFinite(toolDef.order) ? toolDef.order : 100,
+    trigger: {
+      event: 'GENERATION_ENDED',
+      enabled: false
+    },
+    bypass: {
+      enabled: false,
+      presetId: ''
+    },
+    output: {
+      mode: 'follow_ai',
+      apiPreset: toolDef?.config?.api?.preset || '',
+      overwrite: true,
+      enabled: false
+    },
+    extraction: {
+      enabled: true,
+      maxMessages: Math.max(1, parseInt(toolDef?.config?.context?.depth, 10) || 5),
+      selectors: extractionSelectors
+    },
+    promptTemplate: typeof toolDef?.promptTemplate === 'string'
+      ? toolDef.promptTemplate
+      : `请基于最近的 AI 回复为工具“${toolDef.name || toolId}”生成结构化输出。`,
+    runtime: {
+      lastRunAt: 0,
+      lastStatus: 'idle',
+      lastError: '',
+      lastDurationMs: 0,
+      successCount: 0,
+      errorCount: 0
+    },
+    apiPreset: toolDef?.config?.api?.preset || '',
+    extractTags: extractionSelectors,
+    isCustom: true,
+    category: toolDef.category || 'utility',
+    metadata: {
+      ...(toolDef.metadata || {})
+    }
+  };
+}
+
 /**
  * 注册新工具
  * @param {string} id - 工具ID
@@ -366,7 +445,16 @@ export function unregisterTool(id) {
  * @returns {Array} 工具列表
  */
 export function getToolList(sorted = true) {
-  const tools = Object.values(registeredTools);
+  const tools = Object.values(registeredTools).map((tool) => {
+    if (tool.id === 'tools') {
+      return {
+        ...tool,
+        subTabs: buildToolsSubTabs()
+      };
+    }
+
+    return tool;
+  });
   
   if (sorted) {
     return tools.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -381,6 +469,13 @@ export function getToolList(sorted = true) {
  * @returns {object|null} 工具配置
  */
 export function getToolConfig(id) {
+  if (id === 'tools' && registeredTools[id]) {
+    return {
+      ...registeredTools[id],
+      subTabs: buildToolsSubTabs()
+    };
+  }
+
   return registeredTools[id] || null;
 }
 
@@ -399,7 +494,7 @@ export function hasTool(id) {
  * @returns {Array} 次级标签页列表
  */
 export function getToolSubTabs(toolId) {
-  const tool = registeredTools[toolId];
+  const tool = getToolConfig(toolId);
   if (!tool || !tool.hasSubTabs) {
     return [];
   }
@@ -498,8 +593,11 @@ export function onPresetDeleted(presetName) {
  */
 export function getToolFullConfig(toolId) {
   const defaultConfig = DEFAULT_TOOL_CONFIGS[toolId];
-  if (!defaultConfig) {
-    // 如果没有默认配置，返回基本注册信息
+  const managedTools = getManagedTools() || {};
+  const customToolDef = managedTools[toolId] || null;
+
+  const baseConfig = defaultConfig || (customToolDef ? createCustomToolDefaultConfig(toolId, customToolDef) : null);
+  if (!baseConfig) {
     const basicConfig = getToolConfig(toolId);
     return basicConfig;
   }
@@ -509,33 +607,33 @@ export function getToolFullConfig(toolId) {
   const legacyApiPresetBinding = getToolApiPreset(toolId);
 
   const mergedConfig = {
-    ...defaultConfig,
+    ...baseConfig,
     ...userConfig,
     id: toolId  // ID不可覆盖
   };
 
   mergedConfig.trigger = {
-    ...(defaultConfig.trigger || {}),
+    ...(baseConfig.trigger || {}),
     ...(userConfig.trigger || {})
   };
 
   mergedConfig.output = {
-    ...(defaultConfig.output || {}),
+    ...(baseConfig.output || {}),
     ...(userConfig.output || {})
   };
 
   mergedConfig.bypass = {
-    ...(defaultConfig.bypass || {}),
+    ...(baseConfig.bypass || {}),
     ...(userConfig.bypass || {})
   };
 
   mergedConfig.runtime = {
-    ...(defaultConfig.runtime || {}),
+    ...(baseConfig.runtime || {}),
     ...(userConfig.runtime || {})
   };
 
   mergedConfig.extraction = {
-    ...(defaultConfig.extraction || {}),
+    ...(baseConfig.extraction || {}),
     ...(userConfig.extraction || {})
   };
 
@@ -573,7 +671,7 @@ export function getToolFullConfig(toolId) {
  * @returns {boolean} 是否成功
  */
 export function saveToolConfig(toolId, config) {
-  if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
+  if (!toolId || !getToolFullConfig(toolId)) {
     console.warn('[ToolRegistry] 工具不存在:', toolId);
     return false;
   }
@@ -765,7 +863,14 @@ export function getAllDefaultToolConfigs() {
  * @returns {Array} 配置数组
  */
 export function getAllToolFullConfigs() {
-  return Object.keys(DEFAULT_TOOL_CONFIGS).map(toolId => getToolFullConfig(toolId));
+  const toolIds = new Set([
+    ...Object.keys(DEFAULT_TOOL_CONFIGS),
+    ...getCustomManagedToolEntries().map(([toolId]) => toolId)
+  ]);
+
+  return Array.from(toolIds)
+    .map(toolId => getToolFullConfig(toolId))
+    .filter(Boolean);
 }
 
 /**

@@ -364,38 +364,101 @@ class ToolOutputService {
     
     // 如果响应是字符串，直接返回
     if (typeof response === 'string') {
-      return this._applyExtractionSelectors(response, toolConfig);
+      return this._applyOutputExtractionSelectors(response, toolConfig);
     }
     
     // 如果响应是对象，尝试提取内容
     if (typeof response === 'object') {
       // OpenAI 格式
       if (response.choices && response.choices[0]?.message?.content) {
-        return this._applyExtractionSelectors(response.choices[0].message.content, toolConfig);
+        return this._applyOutputExtractionSelectors(response.choices[0].message.content, toolConfig);
       }
       
       // 简单格式
       if (response.content) {
-        return this._applyExtractionSelectors(response.content, toolConfig);
+        return this._applyOutputExtractionSelectors(response.content, toolConfig);
       }
       
       if (response.text) {
-        return this._applyExtractionSelectors(response.text, toolConfig);
+        return this._applyOutputExtractionSelectors(response.text, toolConfig);
       }
       
       if (response.message) {
-        return this._applyExtractionSelectors(response.message, toolConfig);
+        return this._applyOutputExtractionSelectors(response.message, toolConfig);
       }
       
       // 尝试JSON序列化
       try {
-        return this._applyExtractionSelectors(JSON.stringify(response, null, 2), toolConfig);
+        return this._applyOutputExtractionSelectors(JSON.stringify(response, null, 2), toolConfig);
       } catch (e) {
-        return this._applyExtractionSelectors(String(response), toolConfig);
+        return this._applyOutputExtractionSelectors(String(response), toolConfig);
       }
     }
     
-    return this._applyExtractionSelectors(String(response), toolConfig);
+    return this._applyOutputExtractionSelectors(String(response), toolConfig);
+  }
+
+  /**
+   * 对工具模型返回结果应用提取规则。
+   * 与最近消息提取不同，这里优先保留命中的完整标签块，
+   * 避免把用户在模板中明确要求输出的外层标签剥掉。
+   * @private
+   */
+  _applyOutputExtractionSelectors(text, toolConfig) {
+    const sourceText = typeof text === 'string' ? text : String(text || '');
+    const selectors = this._getExtractionSelectors(toolConfig);
+
+    if (!selectors.length) {
+      return sourceText.trim();
+    }
+
+    const matchedBlocks = [];
+
+    for (const selector of selectors) {
+      const value = String(selector || '').trim();
+      if (!value) continue;
+
+      if (value.startsWith('regex:')) {
+        const pattern = value.slice(6).trim();
+        if (!pattern) continue;
+
+        try {
+          const regex = new RegExp(pattern, 'gi');
+          const matches = [...sourceText.matchAll(regex)];
+          matches.forEach((match) => {
+            const fullMatch = String(match?.[0] || '').trim();
+            if (fullMatch) {
+              matchedBlocks.push(fullMatch);
+            }
+          });
+        } catch (error) {
+          this._log('工具输出正则提取失败，跳过该规则', { selector: value, error });
+        }
+        continue;
+      }
+
+      const tagName = value.replace(/^<|>$/g, '').trim();
+      if (!tagName) continue;
+
+      try {
+        const tagRegex = new RegExp(`<${tagName}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${tagName}>`, 'gi');
+        const matches = sourceText.match(tagRegex) || [];
+        matches.forEach((match) => {
+          const fullMatch = String(match || '').trim();
+          if (fullMatch) {
+            matchedBlocks.push(fullMatch);
+          }
+        });
+      } catch (error) {
+        this._log('工具输出标签提取失败，跳过该规则', { selector: value, error });
+      }
+    }
+
+    if (matchedBlocks.length > 0) {
+      return matchedBlocks.join('\n\n').trim();
+    }
+
+    return sourceText.trim();
   }
 
   /**
