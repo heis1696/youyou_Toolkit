@@ -36,6 +36,38 @@ export function createPopupShell(context) {
     return topLevelWindow.document || document;
   }
 
+  function getTabDisplayName(tabId) {
+    if (!tabId) return '未选择页面';
+
+    const mainConfig = modules.toolRegistryModule?.getToolConfig(tabId);
+    if (!mainConfig) {
+      return tabId;
+    }
+
+    if (!mainConfig.hasSubTabs) {
+      return mainConfig.name || tabId;
+    }
+
+    const activeSubTabId = uiState.currentSubTab[tabId] || mainConfig.subTabs?.[0]?.id || '';
+    const subConfig = mainConfig.subTabs?.find(item => item.id === activeSubTabId);
+
+    if (subConfig?.name) {
+      return `${mainConfig.name} / ${subConfig.name}`;
+    }
+
+    return mainConfig.name || tabId;
+  }
+
+  function updatePopupStatus() {
+    const popup = uiState.currentPopup;
+    if (!popup) return;
+
+    const label = popup.querySelector('.yyt-popup-active-label');
+    if (!label) return;
+
+    label.textContent = `当前：${getTabDisplayName(uiState.currentMainTab)}`;
+  }
+
   function cleanupPopupDrag() {
     if (typeof popupDragState.cleanup === 'function') {
       popupDragState.cleanup();
@@ -168,6 +200,7 @@ export function createPopupShell(context) {
     $(uiState.currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`).addClass('active');
 
     renderTabContent(tabName);
+    updatePopupStatus();
   }
 
   function switchSubTab(mainTab, subTab) {
@@ -180,6 +213,7 @@ export function createPopupShell(context) {
     $(uiState.currentPopup).find(`.yyt-sub-nav-item[data-subtab="${subTab}"]`).addClass('active');
 
     renderSubTabContent(mainTab, subTab);
+    updatePopupStatus();
   }
 
   function renderSubNav(mainTab, subTabs) {
@@ -577,32 +611,55 @@ export function createPopupShell(context) {
     const popupHtml = `
       <div class="yyt-popup" id="${POPUP_ID}">
         <div class="yyt-popup-header">
-          <div class="yyt-popup-title">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-            <span>YouYou 工具箱</span>
-            <span style="font-size: 12px; opacity: 0.6;">v${SCRIPT_VERSION}</span>
+          <div class="yyt-popup-brand">
+            <div class="yyt-popup-title-row">
+              <div class="yyt-popup-title">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>YouYou 工具箱</span>
+              </div>
+              <span class="yyt-popup-version">v${SCRIPT_VERSION}</span>
+            </div>
+            <div class="yyt-popup-subtitle">工具编排、配置与调试工作台</div>
           </div>
-          <button class="yyt-popup-close" title="关闭">
-            <i class="fa-solid fa-times"></i>
-          </button>
+          <div class="yyt-popup-header-actions">
+            <div class="yyt-popup-drag-hint">
+              <i class="fa-solid fa-grip-lines"></i>
+              <span>拖动窗口</span>
+            </div>
+            <button class="yyt-popup-close" title="关闭">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
         </div>
 
         <div class="yyt-popup-body">
-          <div class="yyt-main-nav">
-            ${mainNavHtml}
-          </div>
+          <div class="yyt-popup-shell">
+            <div class="yyt-main-nav">
+              ${mainNavHtml}
+            </div>
 
-          <div class="yyt-sub-nav" style="display: none;">
-            <!-- 次级顶栏将动态渲染 -->
-          </div>
+            <div class="yyt-sub-nav" style="display: none;">
+              <!-- 次级顶栏将动态渲染 -->
+            </div>
 
-          <div class="yyt-content">
-            ${contentHtml}
+            <div class="yyt-content">
+              <div class="yyt-content-inner">
+                ${contentHtml}
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="yyt-popup-footer">
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-close-btn">关闭</button>
+          <div class="yyt-popup-footer-left">
+            <div class="yyt-popup-status">
+              <i class="fa-solid fa-compass"></i>
+              <span class="yyt-popup-active-label">当前：${getTabDisplayName(uiState.currentMainTab)}</span>
+            </div>
+          </div>
+          <div class="yyt-popup-footer-right">
+            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-close-btn">关闭</button>
+          </div>
         </div>
       </div>
     `;
@@ -630,6 +687,8 @@ export function createPopupShell(context) {
       $(uiState.currentPopup).find('.yyt-sub-nav').show();
       renderSubNav(uiState.currentMainTab, currentToolConfig.subTabs);
     }
+
+    updatePopupStatus();
 
     log('弹窗已打开');
   }

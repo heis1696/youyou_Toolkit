@@ -72,6 +72,7 @@ export function createBootstrap(context, options = {}) {
         --yyt-accent-glow: rgba(123, 183, 255, 0.4);
         --yyt-accent-soft: rgba(123, 183, 255, 0.15);
         --yyt-accent-strong: #a5d4ff;
+        --yyt-on-accent: #0b0f15;
         --yyt-success: #4ade80;
         --yyt-success-glow: rgba(74, 222, 128, 0.3);
         --yyt-error: #f87171;
@@ -147,7 +148,7 @@ export function createBootstrap(context, options = {}) {
         border-radius: 16px;
         box-shadow: 0 25px 80px rgba(0, 0, 0, 0.65), 0 0 60px rgba(123, 183, 255, 0.1);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
-        color: rgba(255, 255, 255, 0.92);
+        color: var(--yyt-text);
         z-index: 10000;
       }
 
@@ -157,11 +158,25 @@ export function createBootstrap(context, options = {}) {
         align-items: center;
         justify-content: space-between;
         padding: 14px 20px;
-        background: rgba(255, 255, 255, 0.04);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--yyt-surface-hover);
+        border-bottom: 1px solid var(--yyt-border);
         border-radius: 16px 16px 0 0;
         flex-shrink: 0;
         cursor: grab;
+      }
+
+      .yyt-popup-brand {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .yyt-popup-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
       }
 
       .yyt-popup.yyt-popup-dragging .yyt-popup-header {
@@ -174,7 +189,33 @@ export function createBootstrap(context, options = {}) {
         gap: 12px;
         font-size: 15px;
         font-weight: 700;
-        color: rgba(255, 255, 255, 0.95);
+        color: var(--yyt-text);
+        min-width: 0;
+      }
+
+      .yyt-popup-title span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .yyt-popup-version {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--yyt-accent);
+        background: var(--yyt-accent-soft);
+        border: 1px solid rgba(123, 183, 255, 0.18);
+        flex-shrink: 0;
+      }
+
+      .yyt-popup-subtitle {
+        font-size: 12px;
+        color: var(--yyt-text-muted);
+        letter-spacing: 0.3px;
       }
 
       .yyt-popup-title i {
@@ -182,13 +223,36 @@ export function createBootstrap(context, options = {}) {
         font-size: 18px;
       }
 
+      .yyt-popup-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+
+      .yyt-popup-drag-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+      }
+
+      .yyt-popup-drag-hint i {
+        color: var(--yyt-accent);
+      }
+
       .yyt-popup-close {
         width: 32px;
         height: 32px;
         border: none;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.06);
-        color: rgba(255, 255, 255, 0.7);
+        background: var(--yyt-surface-hover);
+        color: var(--yyt-text-secondary);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -211,16 +275,48 @@ export function createBootstrap(context, options = {}) {
         overflow: hidden;
       }
 
+      .yyt-popup-shell {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1;
+        gap: 14px;
+      }
+
       /* 弹窗底部 */
       .yyt-popup-footer {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
         gap: 10px;
         padding: 14px 20px;
-        background: rgba(255, 255, 255, 0.02);
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--yyt-surface);
+        border-top: 1px solid var(--yyt-border);
         border-radius: 0 0 16px 16px;
         flex-shrink: 0;
+      }
+
+      .yyt-popup-footer-left,
+      .yyt-popup-footer-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .yyt-popup-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .yyt-popup-status i {
+        color: var(--yyt-accent);
       }
 
       /* 主顶栏 */
@@ -254,7 +350,7 @@ export function createBootstrap(context, options = {}) {
       }
 
       .yyt-main-nav-item.active {
-        color: #0b0f15;
+        color: var(--yyt-on-accent);
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
       }
 
@@ -298,7 +394,14 @@ export function createBootstrap(context, options = {}) {
         flex: 1;
         min-height: 0;
         overflow: auto;
-        padding: 0 4px;
+        padding: 4px;
+        border-radius: calc(var(--yyt-radius) + 2px);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.015) 0%, rgba(255, 255, 255, 0.03) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .yyt-content-inner {
+        min-height: 100%;
       }
 
       /* 标签内容 */
@@ -363,7 +466,7 @@ export function createBootstrap(context, options = {}) {
 
       .yyt-btn-primary {
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
-        color: #0b0f15;
+        color: var(--yyt-on-accent);
       }
 
       .yyt-btn-primary:hover {
@@ -518,6 +621,14 @@ export function createBootstrap(context, options = {}) {
           width: 98vw;
           height: 90vh;
         }
+
+        .yyt-popup-header-actions {
+          gap: 8px;
+        }
+
+        .yyt-popup-drag-hint {
+          padding: 6px 10px;
+        }
       }
 
       @media screen and (max-width: 768px) {
@@ -526,6 +637,25 @@ export function createBootstrap(context, options = {}) {
           height: 100vh;
           border-radius: 0;
           border: none;
+        }
+
+        .yyt-popup-header-actions {
+          gap: 6px;
+        }
+
+        .yyt-popup-drag-hint {
+          display: none;
+        }
+
+        .yyt-popup-footer {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .yyt-popup-footer-left,
+        .yyt-popup-footer-right {
+          width: 100%;
+          justify-content: center;
         }
       }
     `;

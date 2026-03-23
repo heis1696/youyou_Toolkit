@@ -12,15 +12,28 @@ import { showToast, getJQuery, isContainerValid } from '../utils.js';
 // 主题配置
 // ============================================================
 
+const BASE_THEME_TOKENS = {
+  '--yyt-accent': '#7bb7ff',
+  '--yyt-accent-glow': 'rgba(123, 183, 255, 0.4)',
+  '--yyt-accent-soft': 'rgba(123, 183, 255, 0.15)',
+  '--yyt-accent-strong': '#a5d4ff',
+  '--yyt-bg-base': '#0b0f15',
+  '--yyt-bg-gradient-1': 'rgba(123, 183, 255, 0.12)',
+  '--yyt-bg-gradient-2': 'rgba(155, 123, 255, 0.10)',
+  '--yyt-surface': 'rgba(255, 255, 255, 0.03)',
+  '--yyt-surface-hover': 'rgba(255, 255, 255, 0.06)',
+  '--yyt-surface-active': 'rgba(255, 255, 255, 0.08)',
+  '--yyt-border': 'rgba(255, 255, 255, 0.08)',
+  '--yyt-border-strong': 'rgba(255, 255, 255, 0.15)',
+  '--yyt-text': 'rgba(255, 255, 255, 0.95)',
+  '--yyt-text-secondary': 'rgba(255, 255, 255, 0.7)',
+  '--yyt-text-muted': 'rgba(255, 255, 255, 0.45)',
+  '--yyt-on-accent': '#0b0f15'
+};
+
 const THEME_CONFIGS = {
   'dark-blue': {
-    '--yyt-accent': '#7bb7ff',
-    '--yyt-accent-glow': 'rgba(123, 183, 255, 0.4)',
-    '--yyt-accent-soft': 'rgba(123, 183, 255, 0.15)',
-    '--yyt-accent-strong': '#a5d4ff',
-    '--yyt-bg-base': '#0b0f15',
-    '--yyt-bg-gradient-1': 'rgba(123, 183, 255, 0.12)',
-    '--yyt-bg-gradient-2': 'rgba(155, 123, 255, 0.10)'
+    '--yyt-on-accent': '#0b0f15'
   },
   'dark-purple': {
     '--yyt-accent': '#a78bfa',
@@ -29,7 +42,8 @@ const THEME_CONFIGS = {
     '--yyt-accent-strong': '#c4b5fd',
     '--yyt-bg-base': '#0f0b15',
     '--yyt-bg-gradient-1': 'rgba(167, 139, 250, 0.12)',
-    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)'
+    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)',
+    '--yyt-on-accent': '#120b1f'
   },
   'dark-green': {
     '--yyt-accent': '#4ade80',
@@ -38,7 +52,8 @@ const THEME_CONFIGS = {
     '--yyt-accent-strong': '#86efac',
     '--yyt-bg-base': '#0b150f',
     '--yyt-bg-gradient-1': 'rgba(74, 222, 128, 0.12)',
-    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)'
+    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)',
+    '--yyt-on-accent': '#0b150f'
   },
   'light': {
     '--yyt-accent': '#3b82f6',
@@ -55,7 +70,8 @@ const THEME_CONFIGS = {
     '--yyt-surface-hover': 'rgba(0, 0, 0, 0.06)',
     '--yyt-surface-active': 'rgba(0, 0, 0, 0.08)',
     '--yyt-border': 'rgba(0, 0, 0, 0.08)',
-    '--yyt-border-strong': 'rgba(0, 0, 0, 0.15)'
+    '--yyt-border-strong': 'rgba(0, 0, 0, 0.15)',
+    '--yyt-on-accent': '#0f172a'
   }
 };
 
@@ -82,7 +98,10 @@ function getTargetRoot(targetDocument = getTargetDocument()) {
  */
 function applyTheme(themeName, targetDocument = getTargetDocument()) {
   const root = getTargetRoot(targetDocument);
-  const theme = THEME_CONFIGS[themeName] || THEME_CONFIGS['dark-blue'];
+  const theme = {
+    ...BASE_THEME_TOKENS,
+    ...(THEME_CONFIGS[themeName] || THEME_CONFIGS['dark-blue'])
+  };
   
   // 应用主题变量
   Object.entries(theme).forEach(([property, value]) => {
@@ -92,12 +111,6 @@ function applyTheme(themeName, targetDocument = getTargetDocument()) {
   // 设置主题属性
   root.setAttribute('data-yyt-theme', themeName);
   
-  // 对于浅色主题，需要额外处理
-  if (themeName === 'light') {
-    root.style.setProperty('--yyt-text', 'rgba(15, 23, 42, 0.95)');
-  } else {
-    root.style.setProperty('--yyt-text', 'rgba(255, 255, 255, 0.95)');
-  }
 }
 
 /**

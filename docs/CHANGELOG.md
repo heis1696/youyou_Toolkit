@@ -11,6 +11,12 @@
 
 ### 更改
 
+- 🎨 **阶段后收尾：主工具箱 HTML 结构与视觉层次优化** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`)
+  - 调整主工具箱 header 结构，补充品牌区、副标题、版本徽标、拖动提示与当前页面状态展示
+  - 优化 content / footer 分区层次，增加更明确的工作台感和信息层级
+  - 将 popup 激活态、按钮、标题与底部状态区进一步收口到统一主题 token，避免美化后再次出现深浅主题下对比不足的问题
+  - 执行 `npm run build` 构建验证通过
+
 - 🔧 **阶段后收尾：文档同步、主窗口拖动与主题应用修复** (`README.md`, `docs/EXTENSION_GUIDE.md`, `docs/CONTRIBUTING.md`, `modules/app/popup-shell.js`, `modules/ui/components/settings-panel.js`, `modules/app/bootstrap.js`, `styles/main.css`, `modules/window-manager.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 同步更新 `README.md`、`docs/EXTENSION_GUIDE.md` 与 `docs/CONTRIBUTING.md`，修正文档中仍把 `ui-components.js`、`window-manager.js`、旧版页签和旧目录结构当成主路径的问题
   - 为主工具箱弹窗增加头部拖动能力，避免 popup 固定居中后无法调整位置
