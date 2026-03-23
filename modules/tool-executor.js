@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - 工具执行引擎
- * @description 负责工具的调度、并发控制和结果处理
+ * @description 负责工具的调度、并发控制、执行历史，以及少量 legacy 兼容执行入口
  */
 
 import { getToolFullConfig, getEnabledTools } from './tool-registry.js';
@@ -595,6 +595,16 @@ export function enhanceMessagesWithBypass(messages, bypassMessages) {
 // ============================================================
 
 /**
+ * Legacy compatibility helper.
+ *
+ * 注意：当前自动主链并不依赖本函数构建请求消息；
+ * 自动执行的事实主路径已经收敛为：
+ * tool-trigger -> tool-output-service -> tool-prompt-service -> api-connection -> context-injector
+ *
+ * 本函数仅保留给兼容执行路径 / 手动回退路径使用。
+ */
+
+/**
  * 转义正则表达式特殊字符
  * @param {string} string 需要转义的字符串
  * @returns {string} 转义后的字符串
@@ -608,6 +618,7 @@ function escapeRegex(string) {
  * @param {Object} config 工具配置
  * @param {Object} context 执行上下文
  * @returns {Array} 消息数组
+ * @deprecated 这是 legacy compatibility API，当前自动主链请使用 tool-output-service + tool-prompt-service
  */
 export function buildToolMessages(config, context) {
   const messages = [];
@@ -664,6 +675,7 @@ export function buildToolMessages(config, context) {
  * @param {Object} context 执行上下文
  * @param {Object} options 执行选项
  * @returns {Promise<Object>} 执行结果
+ * @deprecated 这是兼容执行入口，不代表当前自动工具主链
  */
 export async function executeToolWithConfig(toolId, context, options = {}) {
   const config = getToolFullConfig(toolId);
@@ -695,12 +707,12 @@ export async function executeToolWithConfig(toolId, context, options = {}) {
     // 发送执行开始事件
     eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, { toolId, taskId, context });
     
-    // 构建消息
+    // Legacy 路径：基于旧式模板构建逻辑生成消息
     const messages = buildToolMessages(config, context);
     
     // 检查是否有API调用函数
     if (typeof options.callApi === 'function') {
-      // 使用提供的API调用函数
+      // 兼容路径：由调用方提供实际 API 执行函数
       const resolvedApiPreset = config.output?.apiPreset || config.apiPreset || '';
       const apiConfig = resolvedApiPreset ? { preset: resolvedApiPreset } : null;
       const response = await options.callApi(messages, apiConfig, options.signal);
@@ -726,7 +738,7 @@ export async function executeToolWithConfig(toolId, context, options = {}) {
       
       return result;
     } else {
-      // 没有API调用函数，返回构建的消息供外部处理
+      // 兼容模式：仅返回 legacy 构建结果供外部处理
       return {
         success: true,
         taskId,
@@ -810,6 +822,7 @@ export async function executeToolsBatch(toolIds, context, options = {}) {
  * 根据触发事件获取需要执行的工具
  * @param {string} eventType 事件类型
  * @returns {Array} 需要执行的工具配置列表
+ * @description 仅负责事件筛选，不代表实际执行一定走本文件中的 legacy 执行入口
  */
 export function getToolsForEvent(eventType) {
   const allConfigs = [];

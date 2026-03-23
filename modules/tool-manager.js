@@ -41,7 +41,11 @@ const DEFAULT_TOOL_STRUCTURE = {
   id: '',
   name: '',
   description: '',
+  icon: 'fa-screwdriver-wrench',
+  order: 100,
   category: 'utility',
+  promptTemplate: '',
+  extractTags: [],
   config: {
     trigger: {
       type: 'manual',
@@ -53,8 +57,8 @@ const DEFAULT_TOOL_STRUCTURE = {
     },
     api: {
       preset: '',
-      useBypass: true,
-      bypassPreset: 'standard'
+      useBypass: false,
+      bypassPreset: ''
     },
     messages: [],
     context: {
@@ -89,6 +93,182 @@ const TOOL_STORAGE_KEYS = {
 };
 
 // ============================================================
+// 归一化辅助函数
+// ============================================================
+
+function normalizeStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(item => String(item || '').trim()).filter(Boolean);
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function buildPromptTemplateFromMessages(messages = []) {
+  const normalizedMessages = Array.isArray(messages)
+    ? messages
+      .map(message => ({
+        role: String(message?.role || 'user').trim().toUpperCase(),
+        content: String(message?.content || '').trim()
+      }))
+      .filter(message => message.content)
+    : [];
+
+  if (normalizedMessages.length === 0) {
+    return '';
+  }
+
+  if (normalizedMessages.length === 1) {
+    return normalizedMessages[0].content;
+  }
+
+  return normalizedMessages
+    .map(message => `【${message.role || 'USER'}】\n${message.content}`)
+    .join('\n\n');
+}
+
+function buildToolPromptTemplate(toolId, toolDef = {}) {
+  const explicitTemplate = typeof toolDef?.promptTemplate === 'string'
+    ? toolDef.promptTemplate.trim()
+    : '';
+
+  if (explicitTemplate) {
+    return explicitTemplate;
+  }
+
+  const messageTemplate = buildPromptTemplateFromMessages(toolDef?.config?.messages || []);
+  if (messageTemplate) {
+    return messageTemplate;
+  }
+
+  return `请基于最近的 AI 回复为工具“${toolDef?.name || toolId}”生成结构化输出。`;
+}
+
+export function createDefaultToolDefinition(input = {}) {
+  const now = new Date().toISOString();
+  const config = input?.config || {};
+
+  return {
+    ...DEFAULT_TOOL_STRUCTURE,
+    ...input,
+    id: input?.id || DEFAULT_TOOL_STRUCTURE.id,
+    icon: input?.icon || DEFAULT_TOOL_STRUCTURE.icon,
+    order: Number.isFinite(input?.order) ? input.order : DEFAULT_TOOL_STRUCTURE.order,
+    promptTemplate: typeof input?.promptTemplate === 'string'
+      ? input.promptTemplate
+      : DEFAULT_TOOL_STRUCTURE.promptTemplate,
+    extractTags: normalizeStringArray(input?.extractTags),
+    config: {
+      ...DEFAULT_TOOL_STRUCTURE.config,
+      ...config,
+      trigger: {
+        ...DEFAULT_TOOL_STRUCTURE.config.trigger,
+        ...(config.trigger || {}),
+        events: normalizeStringArray(config?.trigger?.events)
+      },
+      execution: {
+        ...DEFAULT_TOOL_STRUCTURE.config.execution,
+        ...(config.execution || {}),
+        timeout: normalizePositiveInteger(config?.execution?.timeout, DEFAULT_TOOL_STRUCTURE.config.execution.timeout),
+        retries: Math.max(0, parseInt(config?.execution?.retries, 10) || DEFAULT_TOOL_STRUCTURE.config.execution.retries)
+      },
+      api: {
+        ...DEFAULT_TOOL_STRUCTURE.config.api,
+        ...(config.api || {})
+      },
+      messages: Array.isArray(config?.messages) ? config.messages : [],
+      context: {
+        ...DEFAULT_TOOL_STRUCTURE.config.context,
+        ...(config.context || {}),
+        depth: normalizePositiveInteger(config?.context?.depth, DEFAULT_TOOL_STRUCTURE.config.context.depth),
+        includeTags: normalizeStringArray(config?.context?.includeTags),
+        excludeTags: normalizeStringArray(config?.context?.excludeTags)
+      }
+    },
+    enabled: input?.enabled !== false,
+    metadata: {
+      ...DEFAULT_TOOL_STRUCTURE.metadata,
+      ...(input?.metadata || {}),
+      createdAt: input?.metadata?.createdAt || now,
+      updatedAt: input?.metadata?.updatedAt || now
+    }
+  };
+}
+
+export function normalizeToolDefinitionToRuntimeConfig(toolId, toolDef = {}, options = {}) {
+  const normalizedDefinition = createDefaultToolDefinition({
+    ...toolDef,
+    id: toolId || toolDef?.id || ''
+  });
+
+  const triggerEvents = normalizeStringArray(normalizedDefinition?.config?.trigger?.events);
+  const extractionSelectors = normalizeStringArray(
+    normalizedDefinition?.extractTags?.length
+      ? normalizedDefinition.extractTags
+      : normalizedDefinition?.config?.context?.includeTags
+  );
+
+  const apiPreset = String(
+    toolDef?.output?.apiPreset
+    || normalizedDefinition?.config?.api?.preset
+    || ''
+  ).trim();
+
+  const promptTemplate = buildToolPromptTemplate(toolId, normalizedDefinition);
+  const triggerEvent = triggerEvents[0] || 'GENERATION_ENDED';
+  const triggerEnabled = triggerEvents.includes('GENERATION_ENDED');
+  const outputMode = typeof toolDef?.output?.mode === 'string' && toolDef.output.mode.trim()
+    ? toolDef.output.mode.trim()
+    : (options.defaultOutputMode || 'follow_ai');
+
+  return {
+    id: normalizedDefinition.id || toolId,
+    name: normalizedDefinition.name || toolId,
+    icon: normalizedDefinition.icon || 'fa-screwdriver-wrench',
+    description: normalizedDefinition.description || '',
+    enabled: normalizedDefinition.enabled !== false,
+    order: Number.isFinite(normalizedDefinition.order) ? normalizedDefinition.order : 100,
+    trigger: {
+      event: triggerEvent,
+      enabled: triggerEnabled
+    },
+    bypass: {
+      enabled: normalizedDefinition?.config?.api?.useBypass === true && !!normalizedDefinition?.config?.api?.bypassPreset,
+      presetId: normalizedDefinition?.config?.api?.bypassPreset || ''
+    },
+    output: {
+      mode: outputMode,
+      apiPreset,
+      overwrite: true,
+      enabled: outputMode === 'post_response_api' ? triggerEnabled : false
+    },
+    extraction: {
+      enabled: true,
+      maxMessages: normalizePositiveInteger(normalizedDefinition?.config?.context?.depth, 5),
+      selectors: extractionSelectors
+    },
+    promptTemplate,
+    runtime: {
+      lastRunAt: 0,
+      lastStatus: 'idle',
+      lastError: '',
+      lastDurationMs: 0,
+      successCount: 0,
+      errorCount: 0
+    },
+    apiPreset,
+    extractTags: extractionSelectors,
+    isCustom: true,
+    category: normalizedDefinition.category || 'utility',
+    metadata: {
+      ...(normalizedDefinition.metadata || {})
+    }
+  };
+}
+
+// ============================================================
 // 工具管理API
 // ============================================================
 
@@ -98,12 +278,19 @@ const TOOL_STORAGE_KEYS = {
  */
 export function getAllTools() {
   const saved = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS);
+  const mergedTools = (saved && typeof saved === 'object')
+    ? { ...DEFAULT_TOOL_PRESETS, ...saved }
+    : { ...DEFAULT_TOOL_PRESETS };
   
-  if (saved && typeof saved === 'object') {
-    return { ...DEFAULT_TOOL_PRESETS, ...saved };
-  }
-  
-  return { ...DEFAULT_TOOL_PRESETS };
+  return Object.fromEntries(
+    Object.entries(mergedTools).map(([toolId, toolDef]) => [
+      toolId,
+      createDefaultToolDefinition({
+        ...(toolDef || {}),
+        id: toolId
+      })
+    ])
+  );
 }
 
 /**
@@ -130,22 +317,17 @@ export function saveTool(toolId, toolDef) {
   const customTools = toolStorage.get(TOOL_STORAGE_KEYS.TOOLS) || {};
   const isNewTool = !customTools[toolId] && !DEFAULT_TOOL_PRESETS[toolId];
   
-  // 合并默认结构
-  const validatedTool = {
-    ...DEFAULT_TOOL_STRUCTURE,
+  const validatedTool = createDefaultToolDefinition({
+    ...(customTools[toolId] || {}),
     ...toolDef,
     id: toolId,
     metadata: {
-      ...DEFAULT_TOOL_STRUCTURE.metadata,
-      ...toolDef.metadata,
+      ...(customTools[toolId]?.metadata || {}),
+      ...(toolDef.metadata || {}),
+      createdAt: customTools[toolId]?.metadata?.createdAt || toolDef?.metadata?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
-  };
-  
-  // 如果是新建，设置创建时间
-  if (!customTools[toolId]) {
-    validatedTool.metadata.createdAt = new Date().toISOString();
-  }
+  });
   
   customTools[toolId] = validatedTool;
   toolStorage.set(TOOL_STORAGE_KEYS.TOOLS, customTools);
@@ -377,7 +559,10 @@ export function importTools(jsonString, overwrite = false) {
       for (const [id, tool] of Object.entries(imported.tools)) {
         if (DEFAULT_TOOL_PRESETS[id] && !shouldOverwrite) continue;
         if (tool && typeof tool === 'object') {
-          existingTools[id] = tool;
+          existingTools[id] = createDefaultToolDefinition({
+            ...tool,
+            id
+          });
           toolsCount++;
         }
       }

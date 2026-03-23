@@ -623,7 +623,7 @@ class ContextInjector {
             content: nextText,
             text: nextText
           }], {
-            refresh: 'none'
+            refresh: 'affected'
           });
         } catch (error) {
           this._log('setChatMessages 写回失败，回退本地同步', error);
@@ -641,7 +641,21 @@ class ContextInjector {
         }
       }
 
-      const saveChat = context?.saveChat || api?.saveChat || context?.saveChatDebounced || api?.saveChatDebounced || null;
+      if (typeof setChatMessage === 'function') {
+        try {
+          await setChatMessage.call(context || api || runtime?.topWindow, {}, messageIndex);
+        } catch (error) {
+          this._log('使用空 setChatMessage 强制刷新失败', error);
+        }
+      }
+
+      const saveChat = context?.saveChat || api?.saveChat || null;
+      const saveChatDebounced = context?.saveChatDebounced || api?.saveChatDebounced || null;
+
+      if (typeof saveChatDebounced === 'function') {
+        saveChatDebounced.call(context || api);
+      }
+
       if (typeof saveChat === 'function') {
         await saveChat.call(context || api);
       }

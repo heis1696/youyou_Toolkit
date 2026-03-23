@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - UI管理器
- * @description 统一管理UI组件的注册、渲染和销毁
+ * @description 统一管理已注册 UI 组件的生命周期与样式聚合；不负责 popup shell 路由控制
  * @version 1.0.0
  */
 
@@ -22,10 +22,10 @@ class UIManager {
     /** @type {Object} 依赖注入 */
     this.dependencies = {};
     
-    /** 当前标签页 */
+    /** 当前标签页（仅保留给兼容层查询，不作为 popup shell 主路由源） */
     this.currentTab = 'main';
     
-    /** 当前子标签页 */
+    /** 当前子标签页（仅保留给兼容层查询，不作为 popup shell 主路由源） */
     this.currentSubTab = {};
     
     /** 初始化状态 */
@@ -234,15 +234,16 @@ class UIManager {
 
   /**
    * 注入样式到页面
+   * @param {Document} targetDocument
    */
-  injectStyles() {
+  injectStyles(targetDocument = document) {
     const styleId = 'yyt-component-styles';
-    if (document.getElementById(styleId)) return;
+    if (targetDocument.getElementById(styleId)) return;
     
-    const style = document.createElement('style');
+    const style = targetDocument.createElement('style');
     style.id = styleId;
     style.textContent = this.getAllStyles();
-    document.head.appendChild(style);
+    (targetDocument.head || targetDocument.documentElement).appendChild(style);
   }
 
   // ============================================================

@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - 工具输出服务
- * @description 处理工具的输出模式，支持 inline 和 post_response_api 模式
+ * @description 处理工具的输出模式，是当前自动工具链的直接执行层
  * @version 1.0.0
  */
 
@@ -34,6 +34,22 @@ export const TOOL_RUNTIME_STATUS = {
   RUNNING: 'running',
   SUCCESS: 'success',
   ERROR: 'error'
+};
+
+export const TOOL_FAILURE_STAGES = {
+  BUILD_MESSAGES: 'build_messages',
+  SEND_API_REQUEST: 'send_api_request',
+  EXTRACT_OUTPUT: 'extract_output',
+  INJECT_CONTEXT: 'inject_context',
+  COMPATIBILITY_EXECUTE: 'compatibility_execute',
+  UNKNOWN: 'unknown'
+};
+
+export const TOOL_WRITEBACK_STATUS = {
+  SUCCESS: 'success',
+  FAILED: 'failed',
+  SKIPPED_EMPTY_OUTPUT: 'skipped_empty_output',
+  NOT_APPLICABLE: 'not_applicable'
 };
 
 // ============================================================
@@ -106,10 +122,17 @@ class ToolOutputService {
    * @param {Object} toolConfig - 工具配置
    * @param {Object} rawContext - 原始上下文
    * @returns {Promise<Object>} 执行结果
+   * @description 当前自动执行与手动 post_response_api 执行的统一主路径
    */
   async runToolPostResponse(toolConfig, rawContext) {
     const startTime = Date.now();
     const toolId = toolConfig.id;
+    const selectors = this._getExtractionSelectors(toolConfig);
+    const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
+    let failureStage = '';
+    let writebackStatus = TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
+    let messages = [];
+    let outputContent = '';
     
     this._log(`开始执行工具: ${toolId}`);
     
@@ -121,7 +144,8 @@ class ToolOutputService {
     
     try {
       // 1. 构建消息
-      const messages = await this._buildToolMessages(toolConfig, rawContext);
+      failureStage = TOOL_FAILURE_STAGES.BUILD_MESSAGES;
+      messages = await this._buildToolMessages(toolConfig, rawContext);
       
       if (!messages || messages.length === 0) {
         throw new Error('未构建出可发送的工具请求消息，请检查提示词模板或破限词配置是否为空。');
@@ -130,30 +154,39 @@ class ToolOutputService {
       this._log(`构建了 ${messages.length} 条消息`);
       
       // 2. 获取API配置
-      const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
       const timeoutMs = await this._getRequestTimeout();
       
       // 3. 发送API请求
+      failureStage = TOOL_FAILURE_STAGES.SEND_API_REQUEST;
       const result = await this._sendApiRequest(apiPreset, messages, {
         timeoutMs,
         signal: rawContext.signal
       });
       
       // 4. 处理输出
-      const outputContent = this._extractOutputContent(result, toolConfig);
+      failureStage = TOOL_FAILURE_STAGES.EXTRACT_OUTPUT;
+      outputContent = this._extractOutputContent(result, toolConfig);
       
       // 5. 注入上下文
       if (outputContent) {
+        failureStage = TOOL_FAILURE_STAGES.INJECT_CONTEXT;
         const injected = await contextInjector.inject(toolId, outputContent, {
           overwrite: toolConfig.output?.overwrite !== false,
           sourceMessageId: rawContext.messageId || '',
-          extractionSelectors: this._getExtractionSelectors(toolConfig)
+          extractionSelectors: selectors
         });
 
         if (!injected) {
+          writebackStatus = TOOL_WRITEBACK_STATUS.FAILED;
           throw new Error('工具结果已生成，但写入上下文/世界书失败');
         }
+
+        writebackStatus = TOOL_WRITEBACK_STATUS.SUCCESS;
+      } else {
+        writebackStatus = TOOL_WRITEBACK_STATUS.SKIPPED_EMPTY_OUTPUT;
       }
+
+      failureStage = '';
       
       const duration = Date.now() - startTime;
       
@@ -171,11 +204,20 @@ class ToolOutputService {
         success: true,
         toolId,
         output: outputContent,
-        duration
+        duration,
+        meta: {
+          messageCount: messages.length,
+          selectors,
+          apiPreset,
+          writebackStatus,
+          failureStage: ''
+        }
       };
       
     } catch (error) {
       const duration = Date.now() - startTime;
+      const resolvedFailureStage = failureStage || TOOL_FAILURE_STAGES.UNKNOWN;
+      const resolvedWritebackStatus = writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
       
       this._log(`工具执行失败: ${toolId}`, error);
       
@@ -190,7 +232,14 @@ class ToolOutputService {
         success: false,
         toolId,
         error: error.message || String(error),
-        duration
+        duration,
+        meta: {
+          messageCount: messages.length,
+          selectors,
+          apiPreset,
+          writebackStatus: resolvedWritebackStatus,
+          failureStage: resolvedFailureStage
+        }
       };
     }
   }
@@ -200,6 +249,7 @@ class ToolOutputService {
    * @param {Object} toolConfig - 工具配置
    * @param {Object} rawContext - 原始上下文
    * @returns {Promise<Object>}
+   * @deprecated 当前主链不再依赖该路径，仅保留兼容语义
    */
   async runToolInline(toolConfig, rawContext) {
     const startTime = Date.now();
@@ -728,7 +778,7 @@ class ToolOutputService {
    * @private
    */
   _log(...args) {
-    if (this.debugMode) {
+    if (this.debugMode || settingsService.getDebugSettings()?.enableDebugLog) {
       console.log('[ToolOutputService]', ...args);
     }
   }

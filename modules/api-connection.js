@@ -54,6 +54,27 @@ function normalizeApiUrl(url, target = 'chat_completions') {
   return parsed.toString();
 }
 
+function normalizeApiBaseUrl(url) {
+  const rawUrl = String(url || '').trim();
+  if (!rawUrl) return '';
+
+  try {
+    const parsed = new URL(rawUrl);
+    parsed.pathname = parsed.pathname
+      .replace(/\/chat\/completions$/i, '')
+      .replace(/\/completions$/i, '')
+      .replace(/\/models$/i, '')
+      .replace(/\/+$/, '') || '/';
+    return parsed.toString().replace(/\/$/, '');
+  } catch (error) {
+    return rawUrl
+      .replace(/\/chat\/completions$/i, '')
+      .replace(/\/completions$/i, '')
+      .replace(/\/models$/i, '')
+      .replace(/\/+$/, '');
+  }
+}
+
 // ============================================================
 // API配置管理
 // ============================================================
@@ -291,6 +312,14 @@ async function sendViaMainApi(messages, options, abortSignal) {
 async function sendViaCustomApi(messages, config, options, abortSignal) {
   const topWindow = (typeof window.parent !== 'undefined' ? window.parent : window);
 
+  if (topWindow.TavernHelper?.generateRaw) {
+    try {
+      return await sendViaTavernHelperCustomApi(messages, config, options, abortSignal, topWindow);
+    } catch (error) {
+      console.warn('[youyou_toolkit] TavernHelper 自定义请求失败，回退到后备链路:', error);
+    }
+  }
+
   if (topWindow.SillyTavern?.getRequestHeaders) {
     try {
       return await sendViaSillyTavernCustomApi(messages, config, options, abortSignal, topWindow);
@@ -302,6 +331,33 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
   }
 
   return await sendViaDirectCustomApi(messages, config, options, abortSignal);
+}
+
+async function sendViaTavernHelperCustomApi(messages, config, options, abortSignal, topWindow) {
+  if (abortSignal?.aborted) {
+    throw new DOMException('请求已取消', 'AbortError');
+  }
+
+  const response = await topWindow.TavernHelper.generateRaw({
+    ordered_prompts: messages,
+    should_stream: false,
+    max_chat_history: 0,
+    custom_api: {
+      apiurl: normalizeApiBaseUrl(config.url),
+      key: config.apiKey || '',
+      model: config.model || 'gpt-3.5-turbo',
+      max_tokens: config.max_tokens || 4096,
+      temperature: config.temperature ?? 0.7,
+      top_p: config.top_p ?? 0.9
+    },
+    ...(options.extraParams || {})
+  });
+
+  if (typeof response === 'string') {
+    return response.trim();
+  }
+
+  return extractResponseContent(response);
 }
 
 /**

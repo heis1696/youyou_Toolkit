@@ -19,6 +19,9 @@ import {
   YouyouReviewPanel,
   registerComponents,
   initUI,
+  renderApiPanel,
+  renderRegexPanel,
+  renderToolPanel,
   SCRIPT_ID,
   escapeHtml,
   showToast,
@@ -74,8 +77,7 @@ export function render(container) {
     return;
   }
   
-  // 使用新的组件
-  ApiPresetPanel.renderTo($container);
+  renderApiPanel($container);
 }
 
 // ============================================================
@@ -94,8 +96,7 @@ export function renderRegex(container) {
     return;
   }
   
-  // 使用新的组件
-  RegexExtractPanel.renderTo($regexContainer);
+  renderRegexPanel($regexContainer);
 }
 
 // ============================================================
@@ -114,8 +115,7 @@ export function renderTool(container) {
     return;
   }
   
-  // 使用新的组件
-  ToolManagePanel.renderTo($toolContainer);
+  renderToolPanel($toolContainer);
 }
 
 // ============================================================

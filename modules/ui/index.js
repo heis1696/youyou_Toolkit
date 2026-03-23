@@ -12,6 +12,7 @@ import { SummaryToolPanel } from './components/summary-tool-panel.js';
 import { StatusBlockPanel } from './components/status-block-panel.js';
 import { YouyouReviewPanel } from './components/youyou-review-panel.js';
 import { BypassPanel } from './components/bypass-panel.js';
+import { SettingsPanel } from './components/settings-panel.js';
 
 // ============================================================
 // 工具导出
@@ -36,6 +37,7 @@ export { SummaryToolPanel } from './components/summary-tool-panel.js';
 export { StatusBlockPanel } from './components/status-block-panel.js';
 export { YouyouReviewPanel } from './components/youyou-review-panel.js';
 export { BypassPanel } from './components/bypass-panel.js';
+export { SettingsPanel } from './components/settings-panel.js';
 
 // ============================================================
 // 组件注册
@@ -52,6 +54,7 @@ export function registerComponents() {
   uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
   uiManager.register(YouyouReviewPanel.id, YouyouReviewPanel);
   uiManager.register(BypassPanel.id, BypassPanel);
+  uiManager.register(SettingsPanel.id, SettingsPanel);
   
   console.log('[UI] 组件注册完成');
 }
@@ -61,16 +64,28 @@ export function registerComponents() {
  * @param {Object} options - 初始化选项
  */
 export function initUI(options = {}) {
+  const {
+    autoInjectStyles = true,
+    targetDocument,
+    ...managerOptions
+  } = options;
+
   // 初始化管理器
-  uiManager.init(options);
+  uiManager.init(managerOptions);
   
   // 注册组件
   registerComponents();
   
   // 注入样式
-  uiManager.injectStyles();
+  if (autoInjectStyles) {
+    uiManager.injectStyles(targetDocument);
+  }
   
   console.log('[UI] 模块初始化完成');
+}
+
+function renderRegisteredPanel(componentId, container, props = {}) {
+  uiManager.render(componentId, container, props);
 }
 
 // ============================================================
@@ -82,7 +97,7 @@ export function initUI(options = {}) {
  * @param {Object} container - 容器
  */
 export function renderApiPanel(container) {
-  uiManager.render(ApiPresetPanel.id, container);
+  renderRegisteredPanel(ApiPresetPanel.id, container);
 }
 
 /**
@@ -90,7 +105,7 @@ export function renderApiPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderRegexPanel(container) {
-  uiManager.render(RegexExtractPanel.id, container);
+  renderRegisteredPanel(RegexExtractPanel.id, container);
 }
 
 /**
@@ -98,7 +113,47 @@ export function renderRegexPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderToolPanel(container) {
-  uiManager.render(ToolManagePanel.id, container);
+  renderRegisteredPanel(ToolManagePanel.id, container);
+}
+
+/**
+ * 渲染摘要工具面板
+ * @param {Object} container - 容器
+ */
+export function renderSummaryToolPanel(container) {
+  renderRegisteredPanel(SummaryToolPanel.id, container);
+}
+
+/**
+ * 渲染主角状态栏面板
+ * @param {Object} container - 容器
+ */
+export function renderStatusBlockPanel(container) {
+  renderRegisteredPanel(StatusBlockPanel.id, container);
+}
+
+/**
+ * 渲染小幽点评面板
+ * @param {Object} container - 容器
+ */
+export function renderYouyouReviewPanel(container) {
+  renderRegisteredPanel(YouyouReviewPanel.id, container);
+}
+
+/**
+ * 渲染破限词面板
+ * @param {Object} container - 容器
+ */
+export function renderBypassPanel(container) {
+  renderRegisteredPanel(BypassPanel.id, container);
+}
+
+/**
+ * 渲染设置面板
+ * @param {Object} container - 容器
+ */
+export function renderSettingsPanel(container) {
+  renderRegisteredPanel(SettingsPanel.id, container);
 }
 
 // ============================================================
@@ -122,10 +177,20 @@ export default {
   ApiPresetPanel,
   RegexExtractPanel,
   ToolManagePanel,
+  SummaryToolPanel,
+  StatusBlockPanel,
+  YouyouReviewPanel,
+  BypassPanel,
+  SettingsPanel,
   registerComponents,
   initUI,
   renderApiPanel,
   renderRegexPanel,
   renderToolPanel,
+  renderSummaryToolPanel,
+  renderStatusBlockPanel,
+  renderYouyouReviewPanel,
+  renderBypassPanel,
+  renderSettingsPanel,
   getAllStyles
 };

@@ -4,9 +4,15 @@
  */
 
 import { eventBus, EVENTS } from './core/event-bus.js';
-import { getToolFullConfig, updateToolRuntime } from './tool-registry.js';
+import { settingsService } from './core/settings-service.js';
+import { getToolFullConfig, updateToolRuntime, patchToolRuntime } from './tool-registry.js';
 import { executeToolWithConfig, getToolsForEvent } from './tool-executor.js';
-import { toolOutputService, OUTPUT_MODES } from './tool-output-service.js';
+import {
+  toolOutputService,
+  OUTPUT_MODES,
+  TOOL_FAILURE_STAGES,
+  TOOL_WRITEBACK_STATUS
+} from './tool-output-service.js';
 import { showToast, showTopNotice } from './ui/utils.js';
 
 // ============================================================
@@ -73,6 +79,20 @@ const triggerState = {
   
   // 调试模式
   debugMode: false
+};
+
+export const AUTO_TRIGGER_SKIP_REASONS = {
+  QUIET_GENERATION: 'quiet_generation',
+  MISSING_AI_MESSAGE: 'missing_ai_message',
+  DUPLICATE_MESSAGE: 'duplicate_message',
+  NO_ELIGIBLE_TOOLS: 'no_eligible_tools',
+  TOOL_DISABLED: 'tool_disabled'
+};
+
+export const TOOL_EXECUTION_PATHS = {
+  AUTO_POST_RESPONSE_API: 'auto_post_response_api',
+  MANUAL_POST_RESPONSE_API: 'manual_post_response_api',
+  MANUAL_COMPATIBILITY: 'manual_compatibility'
 };
 
 // ============================================================
@@ -389,9 +409,45 @@ function getEventTypes() {
  * 日志输出
  */
 function log(...args) {
-  if (triggerState.debugMode) {
+  if (triggerState.debugMode || settingsService.getDebugSettings()?.enableDebugLog) {
     console.log('[YouYouToolkit:Trigger]', ...args);
   }
+}
+
+function createAutoTriggerSnapshot(snapshot = {}) {
+  return {
+    triggerEvent: '',
+    messageId: '',
+    messageKey: '',
+    selectedToolIds: [],
+    skipReason: '',
+    lockedAiMessageId: '',
+    triggeredAt: Date.now(),
+    ...snapshot
+  };
+}
+
+function saveAutoTriggerSnapshot(snapshot = {}) {
+  const normalizedSnapshot = createAutoTriggerSnapshot(snapshot);
+  toolTriggerManagerState.lastAutoTriggerSnapshot = normalizedSnapshot;
+  log('自动触发快照:', normalizedSnapshot);
+  return normalizedSnapshot;
+}
+
+function patchToolsDiagnostics(tools, runtimePartial) {
+  const toolList = Array.isArray(tools) ? tools : [];
+
+  toolList.forEach((tool) => {
+    if (!tool?.id) return;
+
+    patchToolRuntime(tool.id, {
+      lastTriggerAt: Date.now(),
+      ...runtimePartial
+    }, {
+      touchLastRunAt: false,
+      emitEvent: false
+    });
+  });
 }
 
 /**
@@ -981,8 +1037,32 @@ const toolTriggerManagerState = {
   initialized: false,
   listeners: new Map(),
   lastExecutionContext: null,
-  lastHandledMessageKey: ''
+  lastHandledMessageKey: '',
+  pendingMessageTimers: new Map(),
+  lastAutoTriggerSnapshot: null
 };
+
+/**
+ * 自动工具主链说明：
+ * 1. tool-trigger 负责监听宿主事件、门控、上下文构建
+ * 2. tool-output-service 负责构建额外模型请求、执行请求、处理输出并写回楼层
+ * 3. executeToolWithConfig 仅保留为兼容执行回退路径，主要用于非 post_response_api 的 legacy/manual 场景
+ */
+
+function scheduleAutoTrigger(eventType, data, delayMs = 0) {
+  const timerKey = `${eventType}::${typeof data === 'object' ? (data?.messageId || data?.id || 'latest') : String(data ?? 'latest')}`;
+  const existingTimer = toolTriggerManagerState.pendingMessageTimers.get(timerKey);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  const timer = setTimeout(async () => {
+    toolTriggerManagerState.pendingMessageTimers.delete(timerKey);
+    await handleAutoTrigger(eventType, data);
+  }, delayMs);
+
+  toolTriggerManagerState.pendingMessageTimers.set(timerKey, timer);
+}
 
 /**
  * 生成自动触发去重键
@@ -997,6 +1077,17 @@ function getAutoTriggerMessageKey(context) {
   return `${chatId}::${messageId}`;
 }
 
+function resolveExecutionPath(tool, context) {
+  const isManual = context?.triggerEvent === 'MANUAL';
+  if (isManual) {
+    return tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API
+      ? TOOL_EXECUTION_PATHS.MANUAL_POST_RESPONSE_API
+      : TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY;
+  }
+
+  return TOOL_EXECUTION_PATHS.AUTO_POST_RESPONSE_API;
+}
+
 /**
  * 统一处理自动触发链路
  * @param {string} eventType
@@ -1005,12 +1096,28 @@ function getAutoTriggerMessageKey(context) {
 async function handleAutoTrigger(eventType, data) {
   log(`${eventType}触发:`, data);
 
+  const candidateTools = getToolsToExecute(EVENT_TYPES.GENERATION_ENDED);
+  const candidateToolIds = candidateTools.map(tool => tool.id);
+
   if (isQuietLikeGeneration(
     triggerState.gateState.lastGenerationType,
     triggerState.gateState.lastGenerationParams,
     triggerState.gateState.lastGenerationDryRun
   )) {
     log('检测到 quiet / dryRun 生成，跳过工具自动执行');
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      selectedToolIds: candidateToolIds,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION
+    });
+    patchToolsDiagnostics(candidateTools, {
+      lastTriggerEvent: eventType,
+      lastMessageKey: '',
+      lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      lastExecutionPath: '',
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: ''
+    });
     return;
   }
 
@@ -1024,22 +1131,72 @@ async function handleAutoTrigger(eventType, data) {
 
   if (!context?.lastAiMessage) {
     log(`${eventType} 后未读取到最新 AI 回复，跳过工具执行`);
+    const messageKey = getAutoTriggerMessageKey(context || {});
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      messageId: context?.messageId || '',
+      messageKey,
+      selectedToolIds: candidateToolIds,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      lockedAiMessageId: context?.messageId || ''
+    });
+    patchToolsDiagnostics(candidateTools, {
+      lastTriggerEvent: eventType,
+      lastMessageKey: messageKey,
+      lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      lastExecutionPath: '',
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: ''
+    });
     return;
   }
 
   const messageKey = getAutoTriggerMessageKey(context);
   if (toolTriggerManagerState.lastHandledMessageKey === messageKey) {
     log(`检测到重复自动触发，跳过: ${messageKey}`);
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      messageId: context?.messageId || '',
+      messageKey,
+      selectedToolIds: candidateToolIds,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+      lockedAiMessageId: context?.messageId || ''
+    });
+    patchToolsDiagnostics(candidateTools, {
+      lastTriggerEvent: eventType,
+      lastMessageKey: messageKey,
+      lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+      lastExecutionPath: '',
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: ''
+    });
     return;
   }
 
-  const toolsToExecute = getToolsToExecute(EVENT_TYPES.GENERATION_ENDED);
+  const toolsToExecute = candidateTools;
   if (toolsToExecute.length === 0) {
     log('没有需要执行的工具');
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      messageId: context?.messageId || '',
+      messageKey,
+      selectedToolIds: [],
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      lockedAiMessageId: context?.messageId || ''
+    });
     return;
   }
 
   toolTriggerManagerState.lastHandledMessageKey = messageKey;
+  context.messageKey = messageKey;
+  saveAutoTriggerSnapshot({
+    triggerEvent: eventType,
+    messageId: context?.messageId || '',
+    messageKey,
+    selectedToolIds: toolsToExecute.map(tool => tool.id),
+    skipReason: '',
+    lockedAiMessageId: context?.messageId || ''
+  });
   log(`需要执行 ${toolsToExecute.length} 个工具:`, toolsToExecute.map(t => t.id));
   showTopNotice('info', `检测到 AI 回复，开始自动执行 ${toolsToExecute.length} 个工具`, {
     duration: 2400,
@@ -1065,6 +1222,20 @@ async function handleAutoTrigger(eventType, data) {
   }
 
   toolTriggerManagerState.lastExecutionContext = context;
+}
+
+/**
+ * 执行工具的主路径选择器。
+ *
+ * - 自动执行 / 手动 post_response_api：优先走当前主链 runToolPostResponse()
+ * - 其余场景：回退到 executeToolWithConfig() 兼容入口
+ */
+async function executeToolByResolvedPath(tool, context, isManual) {
+  if (isManual || tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API) {
+    return toolOutputService.runToolPostResponse(tool, context);
+  }
+
+  return executeToolWithConfig(tool.id, context);
 }
 
 /**
@@ -1095,11 +1266,16 @@ function registerGenerationEndedListener() {
     await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, data);
   });
 
+  const generationAfterCommandsListener = registerEventListener(EVENT_TYPES.GENERATION_AFTER_COMMANDS, async (data) => {
+    scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, 180);
+  });
+
   const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
-    await handleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data);
+    scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, 420);
   });
   
   toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_ENDED, generationEndedListener);
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_AFTER_COMMANDS, generationAfterCommandsListener);
   toolTriggerManagerState.listeners.set(EVENT_TYPES.MESSAGE_RECEIVED, messageReceivedListener);
 }
 
@@ -1119,8 +1295,8 @@ async function buildToolExecutionContext(eventData) {
 
   const conversation = await getConversationSnapshot({
     preferredMessageId,
-    retries: triggerEvent === 'GENERATION_ENDED' ? 6 : 2,
-    retryDelayMs: triggerEvent === 'GENERATION_ENDED' ? 300 : 120
+    retries: triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW' ? 2 : 8,
+    retryDelayMs: triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW' ? 120 : 260
   });
 
   const messages = conversation.messages || [];
@@ -1185,11 +1361,20 @@ async function executeTriggeredTool(tool, context) {
   const toolId = tool.id;
   const isManual = context?.triggerEvent === 'MANUAL';
   const noticeId = `yyt-tool-run-${toolId}`;
+  const executionPath = resolveExecutionPath(tool, context);
+  const messageKey = context?.messageKey || getAutoTriggerMessageKey(context || {});
 
   updateRuntime(toolId, {
     lastStatus: 'running',
     lastError: '',
-    lastDurationMs: 0
+    lastDurationMs: 0,
+    lastTriggerAt: startedAt,
+    lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
+    lastMessageKey: messageKey,
+    lastSkipReason: '',
+    lastExecutionPath: executionPath,
+    lastWritebackStatus: '',
+    lastFailureStage: ''
   });
 
   eventBus.emit(EVENTS.TOOL_EXECUTION_REQUESTED, {
@@ -1204,13 +1389,7 @@ async function executeTriggeredTool(tool, context) {
   });
 
   try {
-    let result;
-
-    if (tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API) {
-      result = await toolOutputService.runToolPostResponse(tool, context);
-    } else {
-      result = await executeToolWithConfig(toolId, context);
-    }
+    const result = await executeToolByResolvedPath(tool, context, isManual);
 
     const duration = Date.now() - startedAt;
 
@@ -1220,7 +1399,14 @@ async function executeTriggeredTool(tool, context) {
         lastStatus: 'success',
         lastError: '',
         lastDurationMs: duration,
-        successCount: (config?.runtime?.successCount || 0) + 1
+        successCount: (config?.runtime?.successCount || 0) + 1,
+        lastTriggerAt: startedAt,
+        lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
+        lastMessageKey: messageKey,
+        lastSkipReason: '',
+        lastExecutionPath: executionPath,
+        lastWritebackStatus: result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+        lastFailureStage: result?.meta?.failureStage || ''
       });
 
       const message = isManual
@@ -1242,7 +1428,16 @@ async function executeTriggeredTool(tool, context) {
       lastStatus: 'error',
       lastError: errorMessage,
       lastDurationMs: duration,
-      errorCount: (config?.runtime?.errorCount || 0) + 1
+      errorCount: (config?.runtime?.errorCount || 0) + 1,
+      lastTriggerAt: startedAt,
+      lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
+      lastMessageKey: messageKey,
+      lastSkipReason: '',
+      lastExecutionPath: executionPath,
+      lastWritebackStatus: result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: result?.meta?.failureStage || (executionPath === TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY
+        ? TOOL_FAILURE_STAGES.COMPATIBILITY_EXECUTE
+        : TOOL_FAILURE_STAGES.UNKNOWN)
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
@@ -1260,7 +1455,16 @@ async function executeTriggeredTool(tool, context) {
       lastStatus: 'error',
       lastError: errorMessage,
       lastDurationMs: duration,
-      errorCount: (config?.runtime?.errorCount || 0) + 1
+      errorCount: (config?.runtime?.errorCount || 0) + 1,
+      lastTriggerAt: startedAt,
+      lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
+      lastMessageKey: messageKey,
+      lastSkipReason: '',
+      lastExecutionPath: executionPath,
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: executionPath === TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY
+        ? TOOL_FAILURE_STAGES.COMPATIBILITY_EXECUTE
+        : TOOL_FAILURE_STAGES.UNKNOWN
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
@@ -1288,19 +1492,24 @@ export async function runToolManually(toolId) {
   }
 
   if (!tool.enabled) {
+    patchToolRuntime(toolId, {
+      lastTriggerAt: Date.now(),
+      lastTriggerEvent: 'MANUAL',
+      lastMessageKey: '',
+      lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.TOOL_DISABLED,
+      lastExecutionPath: '',
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: ''
+    }, {
+      touchLastRunAt: false,
+      emitEvent: false
+    });
+
     showTopNotice('warning', `${tool.name} 未启用，无法手动执行`, {
       duration: 2800,
       noticeId: `yyt-tool-run-${toolId}`
     });
     return { success: false, error: '工具未启用' };
-  }
-
-  if (!toolOutputService.shouldRunPostResponse(tool)) {
-    showTopNotice('warning', `${tool.name} 当前为“随 AI 输出”，不会执行额外解析`, {
-      duration: 3200,
-      noticeId: `yyt-tool-run-${toolId}`
-    });
-    return { success: false, error: '当前输出模式不执行额外解析' };
   }
 
   const context = await buildToolExecutionContext({ triggerEvent: 'MANUAL' });
@@ -1330,6 +1539,11 @@ export async function previewToolExtraction(toolId) {
  * 销毁工具触发管理器
  */
 export function destroyToolTriggerManager() {
+  for (const timer of toolTriggerManagerState.pendingMessageTimers.values()) {
+    clearTimeout(timer);
+  }
+  toolTriggerManagerState.pendingMessageTimers.clear();
+
   for (const [eventType, listener] of toolTriggerManagerState.listeners) {
     unregisterEventListener(eventType, listener);
   }
@@ -1337,6 +1551,7 @@ export function destroyToolTriggerManager() {
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
   toolTriggerManagerState.lastHandledMessageKey = '';
+  toolTriggerManagerState.lastAutoTriggerSnapshot = null;
   
   log('工具触发管理器已销毁');
 }
@@ -1349,7 +1564,8 @@ export function getToolTriggerManagerState() {
   return {
     initialized: toolTriggerManagerState.initialized,
     listenersCount: toolTriggerManagerState.listeners.size,
-    lastExecutionContext: toolTriggerManagerState.lastExecutionContext
+    lastExecutionContext: toolTriggerManagerState.lastExecutionContext,
+    lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot
   };
 }
 

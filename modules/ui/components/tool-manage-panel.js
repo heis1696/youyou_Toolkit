@@ -26,12 +26,39 @@ import {
   resetTools
 } from '../../tool-manager.js';
 
+import { ensureToolRuntimeConfig } from '../../tool-registry.js';
+
 // ============================================================
 // 组件定义
 // ============================================================
 
 export const ToolManagePanel = {
   id: 'toolManagePanel',
+
+  _getToolkitWindow() {
+    try {
+      if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
+        return window.parent;
+      }
+    } catch (error) {
+      // ignore cross window access issues
+    }
+    return window;
+  },
+
+  _openToolConfig(toolId) {
+    if (!toolId) return;
+
+    const hostWindow = this._getToolkitWindow();
+    const toolkit = hostWindow?.YouYouToolkit || window.YouYouToolkit;
+    if (!toolkit) {
+      showToast('warning', '未找到工具箱实例，无法跳转到工具配置');
+      return;
+    }
+
+    toolkit.switchMainTab('tools');
+    toolkit.switchSubTab('tools', toolId);
+  },
   
   // ============================================================
   // 渲染
@@ -47,6 +74,16 @@ export const ToolManagePanel = {
     
     return `
       <div class="yyt-tool-manager">
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>说明</span>
+          </div>
+          <div class="yyt-tool-manage-hint">
+            在这里新建的工具会自动出现在上方“工具”页签里，可继续配置模板、提取规则、API 预设，并支持手动执行与测试提取。
+          </div>
+        </div>
+
         <!-- 工具列表 -->
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
@@ -91,7 +128,17 @@ export const ToolManagePanel = {
    * @private
    */
   _renderToolList(tools) {
-    return Object.entries(tools).map(([id, tool]) => `
+    const entries = Object.entries(tools);
+    if (!entries.length) {
+      return `
+        <div class="yyt-empty-state-small">
+          <i class="fa-solid fa-toolbox"></i>
+          <span>还没有自定义工具，点击右上角“新建工具”开始创建</span>
+        </div>
+      `;
+    }
+
+    return entries.map(([id, tool]) => `
       <div class="yyt-tool-item ${tool.enabled ? 'yyt-enabled' : 'yyt-disabled'}" data-tool-id="${id}">
         <div class="yyt-tool-header">
           <div class="yyt-tool-info">
@@ -106,6 +153,17 @@ export const ToolManagePanel = {
           </div>
         </div>
         <div class="yyt-tool-desc">${escapeHtml(tool.description)}</div>
+        <div class="yyt-tool-actions">
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="config">
+            <i class="fa-solid fa-sliders"></i> 配置
+          </button>
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="edit">
+            <i class="fa-solid fa-pen"></i> 编辑
+          </button>
+          <button class="yyt-btn yyt-btn-small yyt-btn-danger" data-action="delete">
+            <i class="fa-solid fa-trash"></i> 删除
+          </button>
+        </div>
       </div>
     `).join('');
   },
@@ -146,6 +204,35 @@ export const ToolManagePanel = {
     // 新建工具
     $container.find('#yyt-add-tool').on('click', () => {
       this._showToolEditDialog($container, $, null);
+    });
+
+    $container.find('.yyt-tool-item [data-action="config"]').on('click', (e) => {
+      const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
+      this._openToolConfig(toolId);
+    });
+
+    $container.find('.yyt-tool-item [data-action="edit"]').on('click', (e) => {
+      const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
+      this._showToolEditDialog($container, $, toolId);
+    });
+
+    $container.find('.yyt-tool-item [data-action="delete"]').on('click', (e) => {
+      const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
+      const tool = getTool(toolId);
+      if (!toolId || !tool) return;
+
+      if (!confirm(`确定要删除工具“${tool.name}”吗？`)) {
+        return;
+      }
+
+      const success = deleteTool(toolId);
+      if (!success) {
+        showToast('error', '删除失败');
+        return;
+      }
+
+      this.renderTo($container);
+      showToast('success', '工具已删除');
     });
   },
   
@@ -281,23 +368,40 @@ export const ToolManagePanel = {
       }
       
       const id = toolId || `tool_${Date.now()}`;
-      saveTool(id, {
+      const saveSuccess = saveTool(id, {
         name,
         category,
         description: desc,
+        promptTemplate: tool?.promptTemplate || '',
+        extractTags: Array.isArray(tool?.extractTags) ? tool.extractTags : [],
         config: {
-          trigger: { type: 'manual', events: [] },
+          trigger: tool?.config?.trigger || { type: 'manual', events: [] },
           execution: { timeout, retries },
-          api: { preset: '' },
-          messages: [],
-          context: { depth: 3, includeTags: [], excludeTags: [] }
+          api: tool?.config?.api || { preset: '', useBypass: false, bypassPreset: '' },
+          messages: Array.isArray(tool?.config?.messages) ? tool.config.messages : [],
+          context: {
+            depth: tool?.config?.context?.depth || 3,
+            includeTags: Array.isArray(tool?.config?.context?.includeTags) ? tool.config.context.includeTags : [],
+            excludeTags: Array.isArray(tool?.config?.context?.excludeTags) ? tool.config.context.excludeTags : []
+          }
         },
-        enabled: true
+        enabled: tool?.enabled !== false
       });
+
+      if (!saveSuccess) {
+        showToast('error', isEdit ? '工具更新失败' : '工具创建失败');
+        return;
+      }
+
+      ensureToolRuntimeConfig(id);
       
       closeDialog();
       this.renderTo($container);
       showToast('success', isEdit ? '工具已更新' : '工具已创建');
+
+      if (!isEdit) {
+        this._openToolConfig(id);
+      }
     });
   },
   
@@ -339,6 +443,12 @@ export const ToolManagePanel = {
         gap: 10px;
         max-height: 300px;
         overflow-y: auto;
+      }
+
+      .yyt-tool-manage-hint {
+        font-size: 13px;
+        color: var(--yyt-text-secondary);
+        line-height: 1.7;
       }
       
       .yyt-tool-item {
@@ -387,6 +497,13 @@ export const ToolManagePanel = {
       .yyt-tool-desc {
         font-size: 12px;
         color: var(--yyt-text-muted);
+        margin-bottom: 10px;
+      }
+
+      .yyt-tool-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
       }
       
       .yyt-dialog-wide {

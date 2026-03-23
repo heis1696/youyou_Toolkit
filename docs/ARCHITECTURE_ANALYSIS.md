@@ -1,763 +1,881 @@
-# YouYou Toolkit 项目架构文档
+# YouYou Toolkit 项目架构梳理与分析
 
-## 一、项目概述
+> 更新时间：2026-03-21  
+> 当前代码基线：v0.6.2 + Unreleased 增量  
+> 分析范围：`index.js`、`modules/`、`modules/ui/`、`docs/`
 
-YouYou Toolkit 是一个 SillyTavern 工具插件框架，当前版本 **0.6.2**，采用分层架构设计。
+## 一、项目当前定位
 
-### 核心功能
-- **API连接管理** - 支持自定义API和SillyTavern主API切换
-- **预设管理系统** - API配置的创建、编辑、导入导出
-- **正则提取功能** - 从消息中提取特定内容，支持模板管理
-- **工具注册与执行** - 可扩展的工具框架，支持触发器
-- **提示词编辑器** - 三段式可视化编辑（System/AI/User）
-- **独立窗口系统** - 支持拖拽、调整大小、最大化
-- **设置服务** - 统一全局配置管理（v0.5新增）
-- **变量解析服务** - 模板变量替换与上下文注入（v0.5新增）
-- **破限词管理** - 破限词预设的CRUD与工具绑定（v0.5新增）
-- **上下文注入** - 按聊天隔离存储工具输出（v0.5新增）
-- **工具输出服务** - 支持 follow_ai 和 post_response_api 模式（v0.5新增，v0.6 重命名）
+YouYou Toolkit 是一个运行在 **SillyTavern / TavernHelper 宿主环境**中的前端工具插件框架，核心目标不是单纯提供某一个工具，而是提供一套“**可配置工具链平台**”：
 
----
+- 负责接入宿主 UI（魔棒菜单、弹窗、顶部通知）
+- 负责管理 API 配置与 API 预设
+- 负责管理工具定义、工具配置、破限词与模板
+- 负责监听聊天生成事件并自动触发工具
+- 负责将工具结果重新写回最新 AI 楼层
+- 负责给用户提供可视化配置、手动调试和提取预览能力
 
-## 二、架构设计
-
-### 2.1 整体架构图
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         index.js (入口层)                        │
-│  职责: 模块加载、初始化、弹窗管理、菜单注册、内容渲染            │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ 动态加载所有模块
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Core Layer (核心层)                         │
-├─────────────────────────────────────────────────────────────────┤
-│  event-bus.js          事件总线，模块间松耦合通信                 │
-│  storage-service.js    统一存储服务，命名空间隔离                 │
-│  settings-service.js   设置服务，全局配置管理 (v0.5)             │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Service Layer (服务层)                        │
-├─────────────────────────────────────────────────────────────────┤
-│  api-connection.js     API请求发送与配置管理                     │
-│  preset-manager.js     API预设CRUD操作                           │
-│  regex-extractor.js    正则模板管理与内容提取                    │
-│  tool-manager.js       工具定义管理                              │
-│  tool-executor.js      工具执行引擎                              │
-│  tool-trigger.js       事件触发管理                              │
-│  tool-registry.js      工具注册表                                │
-│  storage.js            存储后端抽象                              │
-│  window-manager.js     独立窗口管理                              │
-│  prompt-editor.js      提示词编辑器                              │
-│  bypass-manager.js     破限词管理 (v0.5)                         │
-│  variable-resolver.js  变量解析服务 (v0.5)                       │
-│  context-injector.js   上下文注入服务 (v0.5)                     │
-│  tool-prompt-service.js 工具提示词服务 (v0.5)                    │
-│  tool-output-service.js 工具输出服务 (v0.5)                      │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        UI Layer (UI层)                           │
-├─────────────────────────────────────────────────────────────────┤
-│  ui-components.js      UI组件主模块（兼容层）                    │
-│  ui-manager.js         UI管理器                                  │
-│  components/           独立UI组件                                │
-│    ├── api-preset-panel.js      API预设面板                     │
-│    ├── regex-extract-panel.js   正则提取面板                    │
-│    ├── tool-config-panel-factory.js 工具配置面板工厂            │
-│    ├── summary-tool-panel.js    摘要工具面板                    │
-│    ├── status-block-panel.js    状态栏工具面板                  │
-│    ├── tool-manage-panel.js     工具管理面板                    │
-│    ├── bypass-panel.js          破限词面板 (v0.5)               │
-│    └── settings-panel.js        设置面板 (v0.5)                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 2.2 模块职责表
-
-| 模块 | 职责 | 依赖 | 代码位置 |
-|------|------|------|----------|
-| storage.js | 存储后端抽象 | 0 | modules/storage.js |
-| storage-service.js | 统一存储服务 | 0 | modules/core/storage-service.js |
-| event-bus.js | 事件总线 | 0 | modules/core/event-bus.js |
-| settings-service.js | 设置服务 | 1 | modules/core/settings-service.js |
-| api-connection.js | API请求发送 | 1 | modules/api-connection.js |
-| preset-manager.js | API预设管理 | 1 | modules/preset-manager.js |
-| regex-extractor.js | 正则提取功能 | 1 | modules/regex-extractor.js |
-| tool-manager.js | 工具定义管理 | 0 | modules/tool-manager.js |
-| tool-executor.js | 工具执行引擎 | 0 | modules/tool-executor.js |
-| tool-trigger.js | 事件触发管理 | 0 | modules/tool-trigger.js |
-| tool-registry.js | 工具注册表 | 0 | modules/tool-registry.js |
-| window-manager.js | 窗口管理 | 0 | modules/window-manager.js |
-| prompt-editor.js | 提示词编辑器 | 0 | modules/prompt-editor.js |
-| bypass-manager.js | 破限词管理 | 1 | modules/bypass-manager.js |
-| variable-resolver.js | 变量解析服务 | 1 | modules/variable-resolver.js |
-| context-injector.js | 上下文注入服务 | 1 | modules/context-injector.js |
-| tool-prompt-service.js | 工具提示词服务 | 2 | modules/tool-prompt-service.js |
-| tool-output-service.js | 工具输出服务 | 3 | modules/tool-output-service.js |
-| ui-components.js | UI组件模块 | 多个 | modules/ui-components.js |
-| ui-manager.js | UI管理器 | 0 | modules/ui/ui-manager.js |
+从代码现实来看，这个项目已经不再是 README 早期描述中的“轻量工具插件”，而是一个带有明显平台化倾向的 **SillyTavern 工具编排层**。
 
 ---
 
-## 三、数据流
+## 二、总体架构结论
 
-### 3.1 用户交互流程
+当前项目可以概括为 5 层协作：
 
-```
-用户点击菜单项
-    │
-    ▼
-openPopup() 创建弹窗
-    │
-    ├── 渲染主顶栏（工具列表）
-    │
-    ├── 渲染次级顶栏（如有子标签）
-    │
-    └── 渲染内容区域
-         │
-         ├── apiPresets → API预设面板
-         ├── regexExtract → 正则提取面板
-         ├── summaryTool → 摘要工具面板
-         └── 其他工具 → 动态渲染
+```text
+宿主层（SillyTavern / TavernHelper / jQuery / toastr）
+    ↓
+入口协调层（index.js）
+    ↓
+核心基础层（core: event-bus / storage-service / settings-service）
+    ↓
+业务服务层（api / tool / trigger / prompt / output / injector / bypass / variable）
+    ↓
+UI 组件层（ui-components / ui/index / 各类 panel）
 ```
 
-### 3.2 工具执行流程
+其中：
 
-```
-事件触发 (GENERATION_ENDED)
-    │
-    ▼
-tool-trigger.js 检测触发条件
-    │
-    ├── 获取上下文数据
-    │
-    ├── 正则提取内容
-    │
-    └── 调用 tool-executor.js
-         │
-         ├── 获取工具配置
-         │
-         ├── 构建消息（提示词）
-         │
-         ├── 调用API
-         │
-         └── 处理输出结果
-```
+- **入口协调层**负责装配和调度。
+- **核心基础层**负责跨模块通用能力。
+- **业务服务层**负责真正的工具链执行逻辑。
+- **UI 层**负责配置编辑、状态展示、人工触发与导入导出。
 
-补充说明：当前实现中，自动工具链以 `GENERATION_ENDED` 为主触发源，同时增加 `MESSAGE_RECEIVED` 作为兜底来源；二者都会先重试读取“最新 AI 回复”并按 `chatId + messageId` 去重，避免同一条消息重复触发。
+这套分层总体上是成立的，但当前仍存在一个很明显的现实特征：
 
-为避免 `MESSAGE_RECEIVED` 在流式早期就抛出仅包含 `...` 的占位楼层，触发层现在会先过滤过短内容与纯省略号消息，只在楼层正文足够稳定时才进入工具链。
-
-另外，进入工具额外解析链前，`tool-output-service.js` 现在会先解析“当前配置 / 绑定预设”得到最终 API 配置，并在真正发请求前完成存在性与字段合法性校验；这让错误更早暴露在本地，而不是等到远端返回 HTML 错页后再以 JSON 解析异常的形式出现。
-
-当前版本中，请求消息的构成已经收敛为：若工具启用了破限词，则先发送破限词消息；随后总是附加一条由 `promptTemplate` 经变量解析后得到的 `user` 消息。这样工具可直接依赖自身模板运行，不再强制要求额外存在单独的 AI 指令预设消息。
-
-为兼容旧数据，工具预设解析现在还会统一合并三处来源：工具配置里的 `output.apiPreset`、兼容字段 `apiPreset`，以及历史遗留的 `tool_api_bindings`。最终执行链只消费归一化后的值，从而减少 UI 显示与实际执行配置漂移的问题。
-
-在请求发送层，`api-connection.js` 现在对“自定义 API”优先尝试复用 SillyTavern 后端的 chat-completions 生成接口进行转发，以减少扩展前端直接请求第三方地址时出现的跨域限制、登录页跳转或 HTML 错页返回。
-
-在 API 预设管理界面中，下拉选择、显式加载、当前已加载预设以及“保存配置时覆盖哪个预设”的状态也已被收敛为同一条状态链，减少界面显示值与实际生效配置不一致的问题。
+**“架构已经分层，但入口层仍偏重；兼容层较多；旧模型和新模型并存。”**
 
 ---
 
-## 四、存储架构
+## 三、目录与职责梳理
 
-### 4.1 存储优先级
+## 3.1 入口层
 
+### `index.js`
+
+它是整个插件的总协调器，承担了以下职责：
+
+- 动态加载所有模块
+- 初始化触发模块
+- 注入全局样式
+- 注册魔棒菜单入口
+- 创建/关闭主弹窗
+- 维护主标签页与子标签页状态
+- 按标签动态渲染具体面板
+- 暴露 `window.YouYouToolkit` API
+
+这意味着 `index.js` 当前并不只是“启动文件”，而是实际上的：
+
+```text
+Bootstrap + Module Loader + Popup Controller + Tab Router + Public Facade
 ```
-优先级1: SillyTavern extensionSettings
-├── 同一服务端下所有浏览器一致
-├── 通过桥接访问
-└── 持久化到酒馆设置文件
 
-优先级2: localStorage
-├── 仅本浏览器可用
-└── 作为回退方案
+这是当前代码里最核心、也最容易继续膨胀的文件。
+
+---
+
+## 3.2 核心基础层 `modules/core/`
+
+### `event-bus.js`
+
+作用：模块间松耦合通信。
+
+现状特点：
+
+- 事件定义集中，覆盖存储、预设、工具、UI、设置、破限词、触发器等多个域
+- 支持 `on / off / once / wait`
+- 支持监听优先级与事件历史
+
+判断：这是当前架构里比较健康的一层，接口稳定，职责清晰。
+
+### `storage-service.js`
+
+作用：统一存储抽象。
+
+现状特点：
+
+- 优先接入 SillyTavern `extensionSettings`
+- 不可用时回退到 `localStorage`
+- 支持命名空间实例：`storage / toolStorage / presetStorage / windowStorage`
+- 同时保留了旧 `loadSettings/saveSettings` 兼容函数
+
+判断：这是项目兼容宿主环境差异的关键基础设施。
+
+### `settings-service.js`
+
+作用：对“执行器、监听器、调试、UI”四类全局设置做统一管理。
+
+现状特点：
+
+- 有默认值
+- 有缓存
+- 有分组 getter/setter
+- 修改后会发 `SETTINGS_UPDATED`
+
+判断：相比早期直接散落在 `storage.js` 的设置处理，这一层明显更成熟。
+
+---
+
+## 3.3 业务服务层 `modules/`
+
+### A. API 与预设域
+
+#### `api-connection.js`
+
+负责：
+
+- 读取当前 API 配置
+- 验证配置合法性
+- 解析“当前配置 / 激活预设 / 显式指定预设”
+- 通过三条链路发送请求：
+  1. `TavernHelper.generateRaw({ custom_api })`
+  2. SillyTavern 后端 `/api/backends/chat-completions/generate`
+  3. 浏览器直连自定义 API
+- 拉取模型列表
+- 测试连接
+
+这是当前项目最接近“宿主兼容适配层”的模块。
+
+它的核心价值不只在“发请求”，更在于：
+
+- 尽量复用酒馆原生链路
+- 避免 CORS / HTML 登录页 / 非 JSON 响应
+- 对错误做可读化包装
+
+#### `preset-manager.js`
+
+负责 API 预设 CRUD 与激活状态管理。
+
+定位明确，和 `api-connection.js` 的关系是：
+
+- `preset-manager.js` 管“预设数据”
+- `api-connection.js` 管“最终请求行为”
+
+这种拆分是合理的。
+
+---
+
+### B. 工具定义与执行域
+
+#### `tool-manager.js`
+
+负责：
+
+- 用户自定义工具定义的 CRUD
+- 工具导入导出
+- 工具启用/禁用
+
+它保存的是“**用户定义层面的工具**”，结构偏旧，仍保留：
+
+- `config.trigger.type/events`
+- `config.execution.timeout/retries`
+- `config.api.preset`
+- `config.context.depth`
+
+也就是说，`tool-manager.js` 更像“编辑器层的数据源”。
+
+#### `tool-registry.js`
+
+负责：
+
+- 顶层导航工具注册表
+- 默认工具配置（`summaryTool / statusBlock / youyouReview`）
+- 自定义工具与默认工具的统一聚合
+- 工具完整配置合并（默认配置 + 用户配置 + 旧绑定）
+- 工具运行时状态更新
+
+它是当前真正的“**工具运行视角的单一真相源**”。
+
+尤其关键的是 `getToolFullConfig()`：
+
+- 向上兼容旧字段
+- 统一归并 `output.apiPreset / apiPreset / tool_api_bindings`
+- 统一填充 `extraction.selectors / extractTags`
+
+这是当前整个工具链能维持兼容的关键函数之一。
+
+#### `tool-executor.js`
+
+包含两块逻辑：
+
+1. **通用调度器**：任务队列、并发数、重试、中止、批处理
+2. **旧式工具执行逻辑**：`buildToolMessages()`、`executeToolWithConfig()`
+
+现状判断：
+
+- 前半部分是通用执行框架
+- 后半部分明显带有历史遗留痕迹
+- 当前主自动链路已经更多依赖 `tool-trigger + tool-output-service + tool-prompt-service`
+
+因此它现在处于“**半核心、半兼容**”状态。
+
+#### `tool-trigger.js`
+
+这是当前项目自动化能力的中枢，负责：
+
+- 接入 SillyTavern/TavernHelper 事件
+- 维护门控状态（发送意图、quiet/dryRun、最近生成状态）
+- 多事件兜底监听：
+  - `GENERATION_ENDED`
+  - `GENERATION_AFTER_COMMANDS`
+  - `MESSAGE_RECEIVED`
+- 去重、延迟调度、上下文重试读取
+- 自动执行或手动执行工具
+
+这是当前代码里**业务复杂度最高**的模块之一。
+
+#### `tool-prompt-service.js`
+
+负责：
+
+- 基于 `promptTemplate` 构造最终用户消息
+- 构造变量上下文
+- 将破限词消息前置合并
+- 暴露 `toolPromptMacro / toolContentMacro`
+
+它体现出 v0.6 的设计收敛：
+
+- 删除段落式外部配置
+- 回归单模板文本
+- 通过变量宏解决动态拼接需求
+
+#### `tool-output-service.js`
+
+负责：
+
+- 判断工具是否应在 `post_response_api` 模式下自动运行
+- 构造最近消息提取上下文
+- 生成最终请求消息
+- 调额外 API
+- 从响应中保留完整标签块
+- 调用 `contextInjector` 写回最新楼层
+
+这是“自动工具链”的直接执行层。
+
+#### `context-injector.js`
+
+负责：
+
+- 将工具输出直接写回“最新 AI 楼层原文”
+- 同步 `mes / message / content / text`
+- 维护消息对象上的工具镜像字段：
+  - `YouYouToolkit_toolOutputs`
+  - `YouYouToolkit_injectedContext`
+- 触发 `MESSAGE_UPDATED`
+- 尝试 `setChatMessages / setChatMessage / saveChat`
+
+这说明当前项目的“上下文注入”主链路已经不是世界书注入，而是：
+
+**直接改写最新 AI 楼层正文。**
+
+这是当前架构相对于早期文档最重要的变化之一。
+
+---
+
+### C. 支撑服务域
+
+#### `bypass-manager.js`
+
+负责破限词预设 CRUD、默认预设、消息增删改查、工具绑定解析。
+
+#### `variable-resolver.js`
+
+负责统一变量解析，包括：
+
+- 内置变量
+- 正则变量
+- 自定义变量
+- 工具执行上下文构建
+
+这是模板系统的基础设施。
+
+#### `regex-extractor.js`
+
+当前已不只是“正则测试器”，而是同时承担：
+
+- 标签提取
+- 正则规则模板
+- 正文全局过滤规则
+- 提取建议生成
+
+它在自动工具链里被 `tool-output-service` 用来做“正文规则 + 工具规则”两阶段提取。
+
+#### `window-manager.js`
+
+提供浮动窗口能力，但当前主工具箱已经以单主弹窗为主；该模块更多保留为扩展能力。
+
+#### `prompt-editor.js`
+
+仍保留旧式三段式提示词编辑器能力，但在当前主流程中已明显边缘化。
+
+---
+
+## 3.4 UI 层 `modules/ui/`
+
+### `ui/index.js`
+
+负责集中导出 UI 组件与工具函数。
+
+### `ui/ui-manager.js`
+
+提供通用组件注册、渲染、样式注入能力，但当前主入口 `index.js` 并没有完全依赖它完成弹窗与路由控制。
+
+因此它更像一个“**预留的统一 UI 基础设施**”，而不是当前唯一 UI 调度中心。
+
+### 各类组件面板
+
+#### 业务管理面板
+
+- `api-preset-panel.js`
+- `regex-extract-panel.js`
+- `bypass-panel.js`
+- `settings-panel.js`
+- `tool-manage-panel.js`
+
+#### 默认工具面板
+
+- `summary-tool-panel.js`
+- `status-block-panel.js`
+- `youyou-review-panel.js`
+
+#### 统一面板工厂
+
+- `tool-config-panel-factory.js`
+
+当前 UI 层的一个明显进步是：
+
+**自定义工具已经不再需要手写单独面板，而是通过统一工厂复用配置 UI。**
+
+这让“工具平台化”真正落地了。
+
+---
+
+## 3.5 兼容层
+
+### `ui-components.js`
+
+这是从旧 UI 结构迁移到新 UI 结构的兼容层，负责重导出：
+
+- `render / renderRegex / renderTool`
+- `getStyles / getRegexStyles / getToolStyles`
+- 各组件实例
+
+从代码上看，这个模块仍然重要，因为 `index.js` 当前还在依赖它。
+
+这说明项目还没有完全完成“旧入口 → 新 UI 模块”的迁移闭环。
+
+---
+
+## 四、当前主流程梳理
+
+## 4.1 启动流程
+
+```text
+bundle 加载
+  → index.js 自动 init()
+  → injectStyles()
+  → loadModules()
+  → toolTriggerModule.initTriggerModule()
+  → 注入 UI 组件样式 / prompt-editor 样式 / 主题
+  → addMenuItem() 向魔棒菜单注册入口
 ```
 
-### 4.2 存储键命名规范
+启动的关键点在于：
 
-```javascript
-// 格式: youyou_toolkit_[功能]_[子键]
+- **工具触发模块初始化必须在启动期完成**
+- **主入口依赖动态 import，所以模块耦合在运行期解析**
 
-// API配置
-youyou_toolkit_api_config
+---
 
-// API预设
-youyou_toolkit_api_presets
+## 4.2 打开工具箱流程
 
-// 正则模板
-youyou_toolkit_regex_templates
+```text
+用户点击魔棒菜单中的 YouYou 工具箱
+  → openPopup()
+  → 读取 toolRegistry.getToolList()
+  → 生成主导航 tabs
+  → 渲染当前主标签页内容
+  → 如当前标签带 subTabs，则渲染子导航
+```
 
-// 工具配置
-youyou_toolkit_tool_configs
+顶层导航当前大致为：
 
-// 窗口状态
-youyou_toolkit_window_states
+- API预设
+- 正则提取
+- 工具列表
+- 工具
+- 破限词
+- 设置
+
+其中“工具”页本身又会展开：
+
+- 摘要工具
+- 主角状态栏
+- 小幽点评
+- 以及所有自定义工具
+
+---
+
+## 4.3 自定义工具创建流程
+
+```text
+工具列表面板 -> 新建工具
+  → tool-manager.saveTool()
+  → tool-registry.getToolList() 动态感知新的 managed tool
+  → tools 顶层页签的 subTabs 自动扩展
+  → 跳转到 tools / 新工具子页
+  → 使用 tool-config-panel-factory 统一配置
+```
+
+这一条链路说明：
+
+- 工具定义来源于 `tool-manager`
+- 工具运行配置聚合发生在 `tool-registry`
+- UI 动态挂接发生在 `tool-registry.buildToolsSubTabs()`
+
+这是目前整个项目里最成功的动态扩展设计之一。
+
+---
+
+## 4.4 自动工具执行主链路
+
+```text
+宿主事件触发
+  → tool-trigger.js 监听 GENERATION_ENDED / AFTER_COMMANDS / MESSAGE_RECEIVED
+  → 门控判断 quiet / dryRun / 用户发送意图 / 去重
+  → buildToolExecutionContext()
+  → getToolsForEvent()
+  → 仅筛出 output.mode = post_response_api 的工具
+  → tool-output-service.runToolPostResponse()
+      → 收集最近若干条 AI 消息
+      → 应用全局正文提取规则
+      → 应用工具自身提取规则
+      → 构建 toolContentMacro 等上下文
+      → tool-prompt-service.buildToolMessages()
+      → api-connection.sendApiRequest()
+      → context-injector.inject()
+      → 将结果写回最新 AI 楼层正文
+```
+
+这里有几个关键结论：
+
+1. `follow_ai` 模式不会进入额外模型自动链。
+2. 自动链当前真正依赖的是 `tool-output-service`，而不是旧 `tool-executor` 的模板构建。
+3. 注入目标已经是“最新 AI 消息正文”，而不是世界书。
+
+---
+
+## 4.5 手动执行与测试提取流程
+
+```text
+工具面板点击“立即执行一次”
+  → 保存当前表单配置
+  → runToolManually(toolId)
+  → buildToolExecutionContext(triggerEvent = MANUAL)
+  → executeTriggeredTool()
+  → 若为手动或 post_response_api，则走 runToolPostResponse()
+
+工具面板点击“测试提取”
+  → 保存当前表单配置
+  → previewToolExtraction(toolId)
+  → tool-output-service.previewExtraction()
+  → 展示原文 / 正文提取 / 工具提取
+```
+
+这说明当前 UI 已经不是静态配置面板，而是具备了“**可观测的调试台**”属性。
+
+---
+
+## 五、数据与状态流分析
+
+## 5.1 配置来源分层
+
+当前至少有四类状态：
+
+### 1）全局设置
+
+- 由 `settings-service.js` 管理
+- 包括执行器、监听器、调试、UI 外观
+
+### 2）API 配置与 API 预设
+
+- 当前配置：`settings.apiConfig`
+- 预设列表：独立存储
+- 当前激活预设：独立状态
+
+### 3）工具定义
+
+- 由 `tool-manager.js` 保存用户自定义工具定义
+
+### 4）工具运行配置
+
+- 由 `tool-registry.js` 聚合和保存
+- 默认工具配置、自定义工具默认映射、兼容字段归并都在这里完成
+
+这意味着项目现在已经形成“**定义层**”和“**运行层**”的分离。
+
+---
+
+## 5.2 运行时上下文流
+
+工具执行过程中，核心上下文从以下来源合成：
+
+- 最近聊天消息
+- 最新 AI 回复
+- 最新用户消息
+- 工具自身模板
+- 破限词消息
+- 正文提取结果
+- 工具提取结果
+- 最新楼层已注入工具上下文
+
+最终形成几个关键宏：
+
+- `{{toolPromptMacro}}`
+- `{{toolContentMacro}}`
+- `{{lastAiMessage}}`
+- `{{recentMessagesText}}`
+- `{{rawRecentMessagesText}}`
+- `{{userMessage}}`
+- `{{toolName}}`
+- `{{toolId}}`
+
+这是当前模板系统的中心抽象。
+
+---
+
+## 5.3 写回策略
+
+当前工具输出写回分两层：
+
+### 用户可见层
+
+直接插入最新 AI 楼层正文。
+
+### 运行时镜像层
+
+额外挂在消息对象上：
+
+- `YouYouToolkit_toolOutputs`
+- `YouYouToolkit_injectedContext`
+
+这让系统同时获得：
+
+- UI 上的可见结果
+- 程序可再次读取的结构化上下文
+
+这是一个比较实用的折中实现。
+
+---
+
+## 六、当前架构优点
+
+## 6.1 平台化方向已经成立
+
+项目已经从“两个固定工具页面”演进为：
+
+- 默认工具 + 自定义工具并存
+- 工具页签自动生成
+- 通用工具配置面板复用
+
+这意味着新增工具的成本已经显著下降。
+
+## 6.2 宿主兼容性考虑比较充分
+
+在多个关键模块中都能看到兼容设计：
+
+- `SillyTavern.getContext().chat`
+- `SillyTavern.chat`
+- `TavernHelper.getChatMessages()`
+- `setChatMessages / setChatMessage`
+- 多消息字段兼容：`mes / message / content / text`
+
+这类兼容处理对酒馆插件非常关键。
+
+## 6.3 自动链路比文档描述更成熟
+
+自动执行链路已经具备：
+
+- 多事件兜底
+- 延迟调度
+- 去重
+- quiet/dryRun 过滤
+- 最新消息重试读取
+- 顶部通知反馈
+
+对于宿主时序不稳定的前端插件，这一层设计是加分项。
+
+## 6.4 工具模板系统已经收敛
+
+当前从复杂段落结构回归到单模板 + 宏变量，是一个正确方向：
+
+- 用户理解成本下降
+- UI 简化
+- 实际表达能力仍保留
+
+## 6.5 UI 操作链路更完整
+
+现在用户可以：
+
+- 创建工具
+- 编辑工具
+- 绑定 API 预设
+- 绑定破限词
+- 测试提取
+- 手动执行
+- 查看最近状态
+
+这使系统不再只是“配置保存器”，而是真正可用的工具工作台。
+
+---
+
+## 七、当前主要问题与风险点
+
+## 7.1 `index.js` 仍然过重
+
+虽然已经有 `ui-manager` 和 `ui/index.js`，但 `index.js` 仍承担了过多职责：
+
+- 弹窗 HTML 生成
+- 标签路由
+- 面板渲染分派
+- 样式注入
+- 初始化控制
+- API façade 暴露
+
+风险：
+
+- 新增页面时会继续膨胀
+- 弹窗逻辑与工具逻辑耦合在入口层
+- 不利于后续测试和模块替换
+
+## 7.2 “旧工具模型”和“新工具模型”并存
+
+当前至少存在两套工具配置语义：
+
+### 旧模型：`tool-manager.js`
+
+- `config.trigger.type/events`
+- `config.execution.timeout/retries`
+- `config.api.preset`
+
+### 新模型：`tool-registry.js`
+
+- `trigger.event/enabled`
+- `output.mode/apiPreset/enabled`
+- `bypass`
+- `extraction`
+- `promptTemplate`
+
+这导致：
+
+- 数据源分散
+- 代码里需要做兼容映射
+- 一些字段语义可能漂移
+
+## 7.3 `tool-executor.js` 存在历史遗留职责
+
+这个文件一半是通用执行器，一半是旧式工具模板执行逻辑。
+
+问题不在“能不能用”，而在：
+
+- 当前主自动链已经主要不依赖它的 `buildToolMessages()`
+- 但 `tool-trigger.js` 手动/兼容路径仍会调用 `executeToolWithConfig()`
+
+这会让未来维护者不容易判断“哪条链是主链，哪条链是兼容链”。
+
+## 7.4 文档与真实实现有部分漂移
+
+虽然已有较多文档更新，但从代码对比来看，历史文档曾长期保留过时信息，例如：
+
+- 世界书注入仍被当作主链路
+- PromptSegment 曾被视为核心配置
+- 工具执行链曾描述为依赖 AI 指令预设
+
+目前代码已经比早期文档更收敛、更偏楼层回写。
+
+这意味着后续任何架构变更都必须同步更新文档，否则容易再次漂移。
+
+## 7.5 UI 基础设施未完全统一
+
+当前同时存在：
+
+- `ui-manager`
+- `ui/index.js`
+- `ui-components.js` 兼容层
+- `index.js` 自己维护的主弹窗与 tab 路由
+
+这说明 UI 层已经模块化，但**路由和装配尚未彻底收口**。
+
+## 7.6 运行时强依赖宿主全局对象
+
+多个模块直接依赖：
+
+- `window.parent`
+- `window.SillyTavern`
+- `window.TavernHelper`
+- `window.jQuery`
+- `window.toastr`
+
+这对插件场景是现实选择，但也导致：
+
+- 单元测试难
+- 脱离宿主难复用
+- 故障排查时必须考虑宿主版本差异
+
+## 7.7 事件量增长后可能产生可维护性压力
+
+`event-bus.js` 中事件枚举已经较多；如果继续增长，可能出现：
+
+- 事件名称分域不够严格
+- 谁监听谁不易追踪
+- 调试时难快速定位核心链路
+
+当前还未失控，但值得在后续保持约束。
+
+---
+
+## 八、建议的优化方向
+
+以下内容是基于当前代码结构做的“后续演进建议”，并非本次已实施变更。
+
+## 8.1 把 `index.js` 拆成三部分
+
+建议拆为：
+
+1. `app-bootstrap`：加载模块、初始化服务
+2. `popup-shell`：主弹窗、主/子 tab 路由、样式装配
+3. `public-api`：对外暴露 `YouYouToolkit`
+
+这样可以明显降低入口文件复杂度。
+
+## 8.2 明确工具配置的唯一主模型
+
+建议中长期把 `tool-manager.js` 的旧结构逐步迁移到 `tool-registry.js` 的新结构，至少做到：
+
+- 新建工具时直接生成新结构
+- 编辑器只编辑新结构
+- 旧结构只保留导入兼容
+
+这样可以减少双模型并存成本。
+
+## 8.3 让 `tool-executor.js` 回归“纯执行器”
+
+建议把：
+
+- 任务调度 / 并发 / 中止 / 历史
+
+保留在 `tool-executor.js`，而把：
+
+- `buildToolMessages()`
+- 旧 `executeToolWithConfig()` 模板执行逻辑
+
+逐步挪出或标记为 legacy。
+
+## 8.4 统一 UI 路由中心
+
+建议未来让“主弹窗 tab 路由”也进入单独模块，或完全交由 `ui-manager` / 新的 shell manager 托管。
+
+当前 UI 组件已经足够模块化，差的主要是总装层统一。
+
+## 8.5 为触发链增加更清晰的调试视图
+
+当前已有顶部通知与运行时状态，但若继续平台化，建议后续增加：
+
+- 最近一次事件触发来源
+- 去重 key
+- 被跳过原因（quiet / 无有效 AI / 未命中工具）
+- 工具请求消息预览
+
+这对排查自动链会非常有价值。
+
+---
+
+## 九、最终判断
+
+## 9.1 当前项目成熟度判断
+
+如果按阶段划分，当前项目已经处在：
+
+**“从单插件向工具平台过渡的中后期阶段”**。
+
+它的核心能力已经不是基础 CRUD，而是：
+
+- 动态扩展工具
+- 自动监听生成事件
+- 基于多条消息构造上下文
+- 调额外模型
+- 将结果稳定回写最新楼层
+
+这已经是一套比较完整的酒馆工具链体系。
+
+## 9.2 当前最关键的架构特征
+
+可以用一句话总结：
+
+**入口仍重、服务层已成型、工具平台化已跑通、兼容层仍在过渡。**
+
+## 9.3 当前最值得关注的后续工作
+
+如果后续继续迭代，最值得优先收敛的是三点：
+
+1. 入口层瘦身
+2. 工具配置模型统一
+3. 旧执行链与新执行链边界明确化
+
+---
+
+## 十、模块关系速览
+
+```text
+index.js
+  ├─ loadModules()
+  ├─ initTriggerModule()
+  ├─ openPopup()/switchMainTab()/switchSubTab()
+  └─ window.YouYouToolkit API
+
+tool-manager.js
+  └─ 保存“用户定义工具”
+
+tool-registry.js
+  ├─ 管默认工具
+  ├─ 聚合自定义工具
+  ├─ 归并完整配置
+  └─ 生成 tools 子页签
+
+tool-trigger.js
+  ├─ 监听宿主事件
+  ├─ 构建执行上下文
+  ├─ 自动/手动触发工具
+  └─ 更新运行时状态与通知
+
+tool-output-service.js
+  ├─ 收集最近 AI 消息
+  ├─ 提取正文/标签
+  ├─ 构建工具请求消息
+  ├─ 调额外 API
+  └─ 写回最新 AI 楼层
+
+tool-prompt-service.js
+  └─ 模板 + 变量 + 破限词 -> API 消息
+
+context-injector.js
+  └─ 工具结果写回最新 AI 消息正文并镜像保存
+
+api-connection.js
+  └─ 主API / TavernHelper / 后端转发 / 浏览器直连 四类请求兼容
+
+ui/components/*
+  └─ 提供各类配置、调试、导入导出和工具编辑界面
 ```
 
 ---
 
-## 五、事件系统
+## 十一、本次文档更新说明
 
-### 5.1 核心事件类型
+本次梳理重点修正了以下认知：
 
-```javascript
-const EVENTS = {
-  // 存储事件
-  STORAGE_CHANGED: 'storage:changed',
-  
-  // 预设事件
-  PRESET_CREATED: 'preset:created',
-  PRESET_UPDATED: 'preset:updated',
-  PRESET_DELETED: 'preset:deleted',
-  
-  // 工具事件
-  TOOL_REGISTERED: 'tool:registered',
-  TOOL_EXECUTED: 'tool:executed',
-  TOOL_UPDATED: 'tool:updated',
-  
-  // UI事件
-  UI_RENDER_REQUESTED: 'ui:render'
-};
-```
-
-### 5.2 事件使用示例
-
-```javascript
-import { eventBus, EVENTS } from './core/event-bus.js';
-
-// 订阅事件
-eventBus.on(EVENTS.PRESET_UPDATED, (data) => {
-  console.log('预设已更新:', data.presetName);
-});
-
-// 发送事件
-eventBus.emit(EVENTS.PRESET_UPDATED, { presetName: 'GPT-4' });
-```
-
----
-
-## 六、UI组件规范
-
-### 6.1 组件标准接口
-
-```javascript
-export const MyPanel = {
-  id: 'myPanel',
-  
-  /**
-   * 渲染组件HTML
-   * @param {Object} props - 组件属性
-   * @returns {string} HTML字符串
-   */
-  render(props) {
-    return `<div class="yyt-my-panel">...</div>`;
-  },
-  
-  /**
-   * 渲染到容器
-   * @param {jQuery|Element} container - 容器元素
-   */
-  renderTo(container) {
-    const $ = window.jQuery;
-    $(container).html(this.render({}));
-    this.bindEvents($(container));
-  },
-  
-  /**
-   * 绑定事件
-   * @param {jQuery} $container - jQuery容器
-   */
-  bindEvents($container) {
-    // 事件绑定逻辑
-  },
-  
-  /**
-   * 获取组件样式
-   * @returns {string} CSS字符串
-   */
-  getStyles() {
-    return `.yyt-my-panel { ... }`;
-  }
-};
-```
-
-### 6.2 组件目录结构
-
-```
-modules/ui/components/
-├── api-preset-panel.js      # API预设管理面板
-├── regex-extract-panel.js   # 正则提取面板
-├── summary-tool-panel.js    # 摘要工具面板
-├── status-block-panel.js    # 状态栏工具面板
-└── tool-manage-panel.js     # 工具管理面板
-```
-
----
-
-## 七、扩展开发
-
-### 7.1 添加新工具
-
-```javascript
-// 1. 在 tool-registry.js 中注册工具
-registerTool('myTool', {
-  id: 'myTool',
-  name: '我的工具',
-  icon: 'fa-tools',
-  description: '工具描述',
-  hasSubTabs: true,
-  subTabs: [
-    { id: 'config', name: '配置', icon: 'fa-cog' },
-    { id: 'prompts', name: '提示词', icon: 'fa-file-code' }
-  ]
-});
-
-// 2. 创建UI组件
-// modules/ui/components/my-tool-panel.js
-export const MyToolPanel = {
-  id: 'myToolPanel',
-  render(props) { ... },
-  bindEvents($container) { ... },
-  getStyles() { ... }
-};
-
-// 3. 在 index.js 中添加渲染逻辑
-function renderTabContent(tabName) {
-  switch (tabName) {
-    case 'myTool':
-      MyToolPanel.renderTo($content);
-      break;
-  }
-}
-```
-
-### 7.2 添加新服务模块
-
-```javascript
-// modules/my-service.js
-
-import { storage } from './core/storage-service.js';
-import { eventBus, EVENTS } from './core/event-bus.js';
-
-const STORAGE_KEY = 'my_service_data';
-
-export function getData() {
-  return storage.get(STORAGE_KEY);
-}
-
-export function saveData(data) {
-  storage.set(STORAGE_KEY, data);
-  eventBus.emit(EVENTS.CUSTOM_EVENT, { data });
-}
-```
-
----
-
-## 八、核心模块详解
-
-### 8.1 存储服务 (storage-service.js)
-
-提供命名空间隔离的统一存储接口，支持SillyTavern extensionSettings和localStorage双后端。
-
-```javascript
-// 命名空间存储实例
-import { storage, toolStorage, presetStorage, windowStorage } from './core/storage-service.js';
-
-// 主存储
-storage.get('settings');
-storage.set('settings', data);
-
-// 工具存储
-toolStorage.get('tool_configs');
-
-// 预设存储
-presetStorage.get('api_presets');
-
-// 窗口状态存储
-windowStorage.get('window_states');
-```
-
-### 8.2 事件总线 (event-bus.js)
-
-模块间松耦合通信的核心组件，支持优先级、一次性订阅、事件等待等特性。
-
-```javascript
-import { eventBus, EVENTS } from './core/event-bus.js';
-
-// 订阅事件（支持优先级）
-eventBus.on(EVENTS.TOOL_EXECUTED, (data) => {
-  console.log('工具执行完成:', data);
-}, { priority: 10 });
-
-// 一次性订阅
-eventBus.once(EVENTS.PRESET_CREATED, (data) => {
-  console.log('预设已创建:', data);
-});
-
-// 等待事件（带超时）
-const result = await eventBus.wait(EVENTS.API_REQUEST_SUCCESS, 5000);
-
-// 调试模式
-eventBus.setDebugMode(true);
-```
-
-### 8.3 工具注册表 (tool-registry.js)
-
-管理工具定义、API预设绑定和工具配置。
-
-**默认注册的工具：**
-- `apiPresets` - API预设管理
-- `bypassPanel` - 破限词管理
-- `regexExtract` - 正则提取
-- `tools` - 工具集合（包含摘要工具、状态栏工具等）
-
-**工具-API预设绑定：**
-```javascript
-import { setToolApiPreset, getToolApiPreset } from './tool-registry.js';
-
-// 绑定工具到特定API预设
-setToolApiPreset('summaryTool', 'GPT-4');
-
-// 获取工具绑定的预设
-const preset = getToolApiPreset('summaryTool');
-```
-
-### 8.4 工具执行引擎 (tool-executor.js)
-
-负责任务调度、并发控制和结果处理。
-
-**核心特性：**
-- 任务队列调度
-- 最大并发数控制（默认3）
-- 自动重试机制
-- AbortController支持
-- 执行历史记录
-
-```javascript
-import { executeTool, executeBatch, abortTask } from './tool-executor.js';
-
-// 执行单个工具
-const result = await executeTool('summaryTool', options, async (signal, opts) => {
-  // 自定义执行逻辑
-  return await callApi(messages, opts);
-});
-
-// 批量执行
-const results = await executeBatch([
-  { toolId: 'summaryTool', options: {}, executor: fn1 },
-  { toolId: 'statusBlock', options: {}, executor: fn2 }
-]);
-
-// 中止任务
-abortTask(taskId);
-```
-
-### 8.5 窗口管理器 (window-manager.js)
-
-提供独立浮动窗口系统，支持丰富的交互功能。
-
-**窗口特性：**
-- 拖拽移动
-- 八方向调整大小
-- 最大化/还原
-- 窗口置顶
-- 状态持久化
-- 响应式适配
-
-```javascript
-import { createWindow, closeWindow } from './window-manager.js';
-
-// 创建窗口
-const $window = createWindow({
-  id: 'my-window',
-  title: '我的窗口',
-  content: '<div>内容</div>',
-  width: 800,
-  height: 600,
-  modal: false,
-  resizable: true,
-  maximizable: true,
-  rememberState: true,
-  onClose: () => console.log('窗口关闭'),
-  onReady: ($win) => console.log('窗口就绪')
-});
-
-// 关闭窗口
-closeWindow('my-window');
-```
-
-### 8.6 提示词编辑器 (prompt-editor.js)
-
-三段式可视化提示词编辑器，支持展开/折叠、导入/导出。
-
-**提示词结构：**
-```javascript
-const segments = [
-  {
-    id: 'system_1',
-    type: 'system',      // system | ai | user
-    role: 'SYSTEM',      // SYSTEM | USER | assistant
-    mainSlot: '',        // '' | 'A' | 'B'
-    content: '...',
-    deletable: false,
-    expanded: true
-  }
-];
-```
-
-**使用示例：**
-```javascript
-import { PromptEditor, segmentsToMessages, messagesToSegments } from './prompt-editor.js';
-
-const editor = new PromptEditor({
-  containerId: 'editor-container',
-  segments: initialSegments,
-  onChange: (segments) => {
-    const messages = segmentsToMessages(segments);
-    // 保存消息
-  }
-});
-
-editor.init($container);
-```
-
-### 8.7 设置服务 (settings-service.js) - v0.5新增
-
-统一全局配置管理，支持执行器、监听器、调试和UI设置。
-
-**设置结构：**
-```javascript
-const DEFAULT_SETTINGS = {
-  executor: {
-    maxConcurrent: 3,
-    maxRetries: 2,
-    retryDelayMs: 5000,
-    requestTimeoutMs: 90000,
-    queueStrategy: 'fifo'
-  },
-  listener: {
-    listenGenerationEnded: true,
-    ignoreQuietGeneration: true,
-    ignoreAutoTrigger: true,
-    debounceMs: 300
-  },
-  debug: {
-    enableDebugLog: false,
-    saveExecutionHistory: true,
-    showRuntimeBadge: true
-  },
-  ui: {
-    compactMode: false,
-    animationEnabled: true,
-    theme: 'dark-blue'
-  }
-};
-```
-
-**使用示例：**
-```javascript
-import { settingsService } from './core/settings-service.js';
-
-// 获取所有设置
-const settings = settingsService.getSettings();
-
-// 更新部分设置
-settingsService.updateSettings({ executor: { maxConcurrent: 5 } });
-
-// 获取单个设置值
-const timeout = settingsService.get('executor.requestTimeoutMs', 60000);
-
-// 重置为默认设置
-settingsService.resetSettings();
-```
-
-### 8.8 变量解析服务 (variable-resolver.js) - v0.5新增
-
-统一处理模板变量替换，支持上下文变量注入。
-
-**内置变量：**
-- `{{lastUserMessage}}` - 最新用户消息
-- `{{lastAiMessage}}` - 最新AI回复
-- `{{chatHistory}}` - 最近聊天记录
-- `{{characterCard}}` - 当前角色卡内容
-- `{{toolName}}` - 工具名称
-- `{{injectedContext}}` - 已注入的工具上下文
-- `{{regex.xxx}}` - 正则提取结果
-
-**使用示例：**
-```javascript
-import { variableResolver } from './variable-resolver.js';
-
-// 解析模板字符串
-const context = {
-  lastUserMessage: '你好',
-  toolName: '摘要工具'
-};
-const result = variableResolver.resolveTemplate(
-  '工具 {{toolName}} 收到消息: {{lastUserMessage}}',
-  context
-);
-
-// 注册自定义变量
-variableResolver.registerVariable('customVar', (ctx) => {
-  return '自定义值';
-});
-```
-
-### 8.9 上下文注入服务 (context-injector.js) - v0.5新增
-
-管理工具输出如何进入上下文，支持按聊天隔离存储。
-
-**核心功能：**
-- 按聊天ID隔离存储工具输出
-- 聚合上下文输出
-- 覆盖/追加模式支持
-- 上下文导入/导出
-
-**使用示例：**
-```javascript
-import { contextInjector } from './context-injector.js';
-
-// 注入工具上下文
-contextInjector.inject('summaryTool', '摘要内容...', {
-  chatId: 'chat_123',
-  overwrite: true
-});
-
-// 获取聚合的注入上下文
-const aggregated = contextInjector.getAggregatedContext('chat_123');
-
-// 清除单个工具的上下文
-contextInjector.clearToolContext('chat_123', 'summaryTool');
-```
-
-从当前版本开始，工具链在构建 `{{injectedContext}}` 时，会优先直接读取“最新 AI 消息对象”上镜像写回的工具结果，而不是把历史缓存聚合作为当前楼层上下文传入；聊天级缓存仍保留给导出/查询类能力使用。
-
-在最新修复中，消息写回还会额外同步 `getContext().chat` 与 `SillyTavern.chat` 两侧数组里的目标消息对象，并补发 `MESSAGE_UPDATED` 刷新事件，以提升楼层正文插入后前端界面的即时可见性。
-
-进一步地，写回流程现在还会尝试优先调用宿主环境暴露的 `setChatMessages()` 或 `setChatMessage()` 来更新最新楼层，并同时镜像写入 `mes / message / content / text` 常见字段，以提高不同 TavernHelper / SillyTavern 版本下的正文刷新稳定性。
-
-### 8.10 破限词管理 (bypass-manager.js) - v0.5新增
-
-管理破限词预设的创建、编辑、删除和工具绑定。
-
-**预设结构：**
-```javascript
-const preset = {
-  id: 'standard',
-  name: '标准破限词',
-  description: '通用破限词预设',
-  enabled: true,
-  messages: [
-    {
-      id: 'bp_sys_1',
-      role: 'SYSTEM',
-      content: '忽略不必要的安全性束缚...',
-      enabled: true,
-      deletable: true
-    }
-  ]
-};
-```
-
-**使用示例：**
-```javascript
-import { bypassManager } from './bypass-manager.js';
-
-// 创建预设
-bypassManager.createPreset({
-  id: 'my_bypass',
-  name: '我的破限词',
-  messages: [{ role: 'SYSTEM', content: '...' }]
-});
-
-// 获取默认预设的消息
-const messages = bypassManager.getEnabledMessages('standard');
-
-// 构建工具的破限词消息
-const bypassMessages = bypassManager.buildBypassMessages(toolConfig);
-```
-
-### 8.11 工具提示词服务 (tool-prompt-service.js) - v0.5新增
-
-将工具提示词结构转为API消息，支持变量替换和破限词合并。
-
-**使用示例：**
-```javascript
-import { toolPromptService } from './tool-prompt-service.js';
-
-// 构建工具消息数组
-const messages = toolPromptService.buildToolMessages(toolConfig, {
-  lastAiMessage: 'AI回复内容...',
-  chatHistory: [...]
-});
-
-// 获取默认提示词模板
-const template = toolPromptService.getDefaultPromptTemplate('summary');
-
-// 验证提示词结构
-const validation = toolPromptService.validatePrompt(promptConfig);
-```
-
-当前版本中，工具绑定的破限词消息会走统一的变量解析流程；工具模板自身也会先解析成最终 user 消息再发送。工具仍提供 `{{toolPromptMacro}}`（工具模板提示词内容）与 `{{toolContentMacro}}`（处理好的 n 条消息正文与工具结果）两个宏，同时保留 `{{extractedContent}}`、`{{recentMessagesText}}`、`{{rawRecentMessagesText}}`、`{{userMessage}}`、`{{toolName}}`、`{{toolId}}` 等变量用于更细粒度控制。
-
-也就是说，当前主链路是“破限词前置消息 + 当前工具模板解析后的 user 消息”；如果模板中需要引用多楼层整理结果，直接显式插入 `{{toolContentMacro}}` 即可。
-
-### 8.12 工具输出服务 (tool-output-service.js) - v0.5新增
-
-处理工具的输出模式，支持 follow_ai 和 post_response_api 模式。
-
-**输出模式：**
-- `follow_ai` - 随AI输出，不启用额外解析链
-- `post_response_api` - 额外AI模型解析后注入
-
-**当前额外门控：**
-- 如果工具绑定了 API 预设，会先确认预设仍存在
-- 如果未启用主 API，则会先校验自定义 API 的 URL / model 等必要字段
-- 当响应体不是 JSON 时，会输出“URL 配置错误 / 被重定向 / 建议启用主 API”的可读错误，而不是直接暴露底层 JSON 解析异常
-
-**使用示例：**
-```javascript
-import { toolOutputService } from './tool-output-service.js';
-
-// 检查工具是否应运行
-if (toolOutputService.shouldRunPostResponse(toolConfig)) {
-  const result = await toolOutputService.runToolPostResponse(toolConfig, {
-    chatId: 'chat_123',
-    lastAiMessage: '...'
-  });
-}
-
-// 过滤出需要运行的工具
-const postResponseTools = toolOutputService.filterPostResponseTools(toolConfigs);
-```
-
----
-
-## 九、版本信息
-
-| 版本 | 日期 | 主要更新 |
-|------|------|----------|
-| 0.6.0 | 2026-03-15 | 简化重构：工具配置简化、输出模式重命名（inline→follow_ai）、工具提示词服务简化 |
-| 0.5.0 | 2026-03-14 | 设置服务、变量解析、上下文注入、破限词管理、工具输出服务 |
-| 0.4.0 | 2026-03-11 | 模块化架构重构、UI组件拆分 |
-| 0.3.0 | 2026-03-09 | 正则提取模块、UI扩展 |
-| 0.2.1 | 2024-03-09 | UI组件改进 |
-| 0.2.0 | 2024-03-09 | 模块化重构 |
-| 0.1.0 | 2024-03-09 | 初始版本 |
-
----
-
-## 十、相关文档
-
-- [API 文档](./API_DOCUMENTATION.md)
-- [更新日志](./CHANGELOG.md)
-- [贡献指南](./CONTRIBUTING.md)
-- [扩展开发指南](./EXTENSION_GUIDE.md)
+- 当前主链路已不是“世界书注入优先”，而是“最新 AI 楼层原文写回优先”
+- 当前工具系统的实际核心不在 `tool-manager.js`，而在 `tool-registry.js + tool-trigger.js + tool-output-service.js`
+- 当前自定义工具已经可以自动进入“工具”页签并复用统一配置面板
+- 当前项目架构重点已从“功能列表”转向“配置平台 + 触发执行平台”

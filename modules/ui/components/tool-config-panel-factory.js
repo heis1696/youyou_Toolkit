@@ -17,7 +17,7 @@ import {
 import {
   getToolFullConfig,
   saveToolConfig,
-  getAllDefaultToolConfigs
+  getToolBaseConfig
 } from '../../tool-registry.js';
 
 import { getAllPresets } from '../../preset-manager.js';
@@ -229,6 +229,49 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     justify-content: flex-end;
   }
 
+  .yyt-tool-debug-panel {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--yyt-radius-sm);
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .yyt-tool-debug-summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--yyt-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .yyt-tool-debug-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .yyt-tool-debug-summary::before {
+    content: '▸';
+    color: var(--yyt-accent);
+    transition: transform 0.18s ease;
+  }
+
+  .yyt-tool-debug-panel[open] .yyt-tool-debug-summary::before {
+    transform: rotate(90deg);
+  }
+
+  .yyt-tool-debug-content {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .yyt-tool-debug-content .yyt-tool-runtime-line {
+    padding-top: 0;
+  }
+
   @media screen and (max-width: 768px) {
     .yyt-tool-manual-area {
       grid-template-columns: 1fr;
@@ -276,7 +319,8 @@ export function createToolConfigPanel(options) {
       const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join('\n') : '';
       const modeText = outputMode === 'post_response_api'
         ? postResponseHint
-        : '随 AI 输出即不启用额外工具链，不会自动调用额外模型。';
+        : '随 AI 输出不会自动调用额外模型，但仍然支持手动执行与测试提取。';
+      const diagnosticsHtml = this._buildDiagnosticsHtml(config.runtime || {});
 
       return `
         <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
@@ -288,7 +332,7 @@ export function createToolConfigPanel(options) {
             <div class="yyt-form-group">
               <label>输出模式</label>
               <select class="yyt-select" id="${SCRIPT_ID}-tool-output-mode">
-                <option value="follow_ai" ${outputMode === 'follow_ai' ? 'selected' : ''}>随 AI 输出（不启用）</option>
+                <option value="follow_ai" ${outputMode === 'follow_ai' ? 'selected' : ''}>随 AI 输出（支持手动执行）</option>
                 <option value="post_response_api" ${outputMode === 'post_response_api' ? 'selected' : ''}>额外 AI 模型解析</option>
               </select>
               <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}</div>
@@ -427,7 +471,106 @@ export function createToolConfigPanel(options) {
           <div class="yyt-tool-macro-hint">
             说明：工具会把当前模板解析后作为最终用户请求发送给额外模型；若启用了破限词，则会作为前置消息一并发送。可用宏包括 <code>{{toolPromptMacro}}</code>、<code>{{toolContentMacro}}</code>、<code>{{lastAiMessage}}</code>、<code>{{recentMessagesText}}</code>、<code>{{rawRecentMessagesText}}</code>、<code>{{userMessage}}</code>、<code>{{toolName}}</code>、<code>{{toolId}}</code>。
           </div>
+
+          ${diagnosticsHtml}
         </div>
+      `;
+    },
+
+    _formatDiagnosticValue(value, fallback = '未记录') {
+      const text = String(value || '').trim();
+      return escapeHtml(text || fallback);
+    },
+
+    _formatDiagnosticTime(timestamp) {
+      const value = Number(timestamp) || 0;
+      return value > 0 ? new Date(value).toLocaleString() : '未记录';
+    },
+
+    _formatSkipReason(reason) {
+      const mapping = {
+        quiet_generation: '已跳过：quiet / dryRun 生成',
+        missing_ai_message: '已跳过：未读取到有效 AI 回复',
+        duplicate_message: '已跳过：命中自动去重',
+        no_eligible_tools: '已跳过：没有命中可执行工具',
+        tool_disabled: '已跳过：工具未启用'
+      };
+
+      return mapping[reason] || reason || '无';
+    },
+
+    _formatExecutionPath(path) {
+      const mapping = {
+        auto_post_response_api: '自动链：post_response_api',
+        manual_post_response_api: '手动链：post_response_api',
+        manual_compatibility: '手动链：compatibility 回退'
+      };
+
+      return mapping[path] || path || '未记录';
+    },
+
+    _formatWritebackStatus(status) {
+      const mapping = {
+        success: '写回成功',
+        failed: '写回失败',
+        skipped_empty_output: '无输出，跳过写回',
+        not_applicable: '不适用'
+      };
+
+      return mapping[status] || status || '未记录';
+    },
+
+    _formatFailureStage(stage) {
+      const mapping = {
+        build_messages: '构造请求消息',
+        send_api_request: '发送 API 请求',
+        extract_output: '提取工具输出',
+        inject_context: '写回上下文',
+        compatibility_execute: '兼容执行入口',
+        unknown: '未知阶段'
+      };
+
+      return mapping[stage] || stage || '无';
+    },
+
+    _buildDiagnosticsHtml(runtime) {
+      const data = runtime || {};
+      const hasDiagnostics = Boolean(
+        data.lastTriggerAt
+        || data.lastTriggerEvent
+        || data.lastMessageKey
+        || data.lastSkipReason
+        || data.lastExecutionPath
+        || data.lastWritebackStatus
+        || data.lastFailureStage
+      );
+
+      if (!hasDiagnostics) {
+        return '';
+      }
+
+      const rows = [
+        ['最近触发时间', this._formatDiagnosticTime(data.lastTriggerAt)],
+        ['最近触发事件', this._formatDiagnosticValue(data.lastTriggerEvent)],
+        ['最近消息键', this._formatDiagnosticValue(data.lastMessageKey)],
+        ['最近跳过原因', this._formatDiagnosticValue(this._formatSkipReason(data.lastSkipReason), '无')],
+        ['最近执行路径', this._formatDiagnosticValue(this._formatExecutionPath(data.lastExecutionPath))],
+        ['最近写回状态', this._formatDiagnosticValue(this._formatWritebackStatus(data.lastWritebackStatus))],
+        ['最近失败阶段', this._formatDiagnosticValue(this._formatFailureStage(data.lastFailureStage), '无')]
+      ];
+
+      return `
+        <details class="yyt-tool-debug-panel">
+          <summary class="yyt-tool-debug-summary">最近触发诊断</summary>
+          <div class="yyt-tool-debug-content">
+            ${rows.map(([label, value]) => `
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">${label}</span>
+                <span class="yyt-tool-runtime-value">${value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </details>
       `;
     },
 
@@ -448,6 +591,7 @@ export function createToolConfigPanel(options) {
     },
 
     _getFormData($container) {
+      const currentConfig = getToolFullConfig(this.toolId);
       const outputMode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
       const bypassEnabled = $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(':checked');
       const postResponseEnabled = outputMode === 'post_response_api';
@@ -457,7 +601,7 @@ export function createToolConfigPanel(options) {
         .filter(Boolean);
 
       return {
-        enabled: true,
+        enabled: currentConfig?.enabled !== false,
         promptTemplate: $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val() || '',
         apiPreset: $container.find(`#${SCRIPT_ID}-tool-api-preset`).val() || '',
         extractTags: selectorLines,
@@ -558,7 +702,7 @@ export function createToolConfigPanel(options) {
         const mode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
         const modeText = mode === 'post_response_api'
           ? postResponseHint
-          : '随 AI 输出即不启用额外工具链，不会自动调用额外模型。';
+          : '随 AI 输出不会自动调用额外模型，但仍然支持手动执行与测试提取。';
         $container.find('.yyt-tool-mode-hint').text(modeText);
       });
 
@@ -572,10 +716,9 @@ export function createToolConfigPanel(options) {
       });
 
       $container.find(`#${SCRIPT_ID}-tool-reset-template`).on('click', () => {
-        const defaultConfigs = getAllDefaultToolConfigs();
-        const defaultConfig = defaultConfigs[this.toolId];
-        if (defaultConfig?.promptTemplate) {
-          $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(defaultConfig.promptTemplate);
+        const baseConfig = getToolBaseConfig(this.toolId);
+        if (baseConfig?.promptTemplate) {
+          $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(baseConfig.promptTemplate);
           showToast('info', '模板已重置');
         }
       });

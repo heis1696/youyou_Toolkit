@@ -5,7 +5,10 @@
 
 import { storage } from './core/storage-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
-import { getAllTools as getManagedTools } from './tool-manager.js';
+import {
+  getAllTools as getManagedTools,
+  normalizeToolDefinitionToRuntimeConfig
+} from './tool-manager.js';
 
 // ============================================================
 // 工具配置存储键
@@ -14,6 +17,25 @@ import { getAllTools as getManagedTools } from './tool-manager.js';
 const TOOL_CONFIG_STORAGE_KEY = 'tool_configs';
 const TOOL_API_PRESET_BINDING_KEY = 'tool_api_bindings';
 const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
+
+function createToolRuntimeState(runtime = {}) {
+  return {
+    lastRunAt: 0,
+    lastStatus: 'idle',
+    lastError: '',
+    lastDurationMs: 0,
+    successCount: 0,
+    errorCount: 0,
+    lastTriggerAt: 0,
+    lastTriggerEvent: '',
+    lastMessageKey: '',
+    lastSkipReason: '',
+    lastExecutionPath: '',
+    lastWritebackStatus: '',
+    lastFailureStage: '',
+    ...runtime
+  };
+}
 
 // ============================================================
 // 默认工具配置
@@ -245,13 +267,22 @@ export const TOOL_REGISTRY = {
       excludeRules: []
     }
   },
+  toolManage: {
+    id: 'toolManage',
+    name: '工具列表',
+    icon: 'fa-screwdriver-wrench',
+    hasSubTabs: false,
+    description: '创建、编辑和管理自定义工具',
+    component: 'ToolManagePanel',
+    order: 3
+  },
   tools: {
     id: 'tools',
     name: '工具',
     icon: 'fa-tools',
     hasSubTabs: true,
     description: '工具集合',
-    order: 3,
+    order: 4,
     subTabs: [
       { id: 'summaryTool', name: '摘要工具', icon: 'fa-file-lines', component: 'SummaryToolPanel' },
       { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' },
@@ -266,7 +297,7 @@ export const TOOL_REGISTRY = {
     hasSubTabs: false,
     description: '管理破限词预设',
     component: 'BypassPanel',
-    order: 4
+    order: 5
   },
   settings: {
     id: 'settings',
@@ -275,7 +306,7 @@ export const TOOL_REGISTRY = {
     hasSubTabs: false,
     description: '全局设置',
     component: 'SettingsPanel',
-    order: 5
+    order: 6
   }
 };
 
@@ -321,70 +352,147 @@ function buildToolsSubTabs() {
     ? [...TOOL_REGISTRY.tools.subTabs]
     : [];
 
-  const customSubTabs = getCustomManagedToolEntries().map(([toolId, tool], index) => ({
-    id: toolId,
-    name: tool.name || toolId,
-    icon: tool.icon || 'fa-screwdriver-wrench',
-    component: 'GenericToolConfigPanel',
-    order: Number.isFinite(tool.order) ? tool.order : (100 + index),
-    isCustom: true,
-    description: tool.description || ''
-  }));
+  const customSubTabs = getCustomManagedToolEntries().map(([toolId, tool], index) => {
+    const runtimeConfig = normalizeToolDefinitionToRuntimeConfig(toolId, tool);
+
+    return {
+      id: toolId,
+      name: runtimeConfig.name || toolId,
+      icon: runtimeConfig.icon || 'fa-screwdriver-wrench',
+      component: 'GenericToolConfigPanel',
+      order: Number.isFinite(runtimeConfig.order) ? runtimeConfig.order : (100 + index),
+      isCustom: true,
+      description: runtimeConfig.description || ''
+    };
+  });
 
   return [...baseSubTabs, ...customSubTabs]
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 function createCustomToolDefaultConfig(toolId, toolDef = {}) {
-  const extractionSelectors = Array.isArray(toolDef?.extractTags)
-    ? toolDef.extractTags.map(item => String(item || '').trim()).filter(Boolean)
-    : [];
+  const normalizedConfig = normalizeToolDefinitionToRuntimeConfig(toolId, toolDef, {
+    defaultOutputMode: 'follow_ai'
+  });
 
   return {
-    id: toolId,
-    name: toolDef.name || toolId,
-    icon: toolDef.icon || 'fa-screwdriver-wrench',
-    description: toolDef.description || '',
-    enabled: toolDef.enabled !== false,
-    order: Number.isFinite(toolDef.order) ? toolDef.order : 100,
-    trigger: {
-      event: 'GENERATION_ENDED',
-      enabled: false
-    },
-    bypass: {
-      enabled: false,
-      presetId: ''
-    },
-    output: {
-      mode: 'follow_ai',
-      apiPreset: toolDef?.config?.api?.preset || '',
-      overwrite: true,
-      enabled: false
-    },
-    extraction: {
-      enabled: true,
-      maxMessages: Math.max(1, parseInt(toolDef?.config?.context?.depth, 10) || 5),
-      selectors: extractionSelectors
-    },
-    promptTemplate: typeof toolDef?.promptTemplate === 'string'
-      ? toolDef.promptTemplate
-      : `请基于最近的 AI 回复为工具“${toolDef.name || toolId}”生成结构化输出。`,
-    runtime: {
-      lastRunAt: 0,
-      lastStatus: 'idle',
-      lastError: '',
-      lastDurationMs: 0,
-      successCount: 0,
-      errorCount: 0
-    },
-    apiPreset: toolDef?.config?.api?.preset || '',
-    extractTags: extractionSelectors,
-    isCustom: true,
-    category: toolDef.category || 'utility',
-    metadata: {
-      ...(toolDef.metadata || {})
-    }
+    ...normalizedConfig,
+    runtime: createToolRuntimeState(normalizedConfig.runtime)
   };
+}
+
+function getBaseToolRuntimeConfig(toolId) {
+  const defaultConfig = DEFAULT_TOOL_CONFIGS[toolId];
+  if (defaultConfig) {
+    return {
+      ...defaultConfig,
+      trigger: { ...(defaultConfig.trigger || {}) },
+      output: { ...(defaultConfig.output || {}) },
+      bypass: { ...(defaultConfig.bypass || {}) },
+      extraction: { ...(defaultConfig.extraction || {}) },
+      runtime: createToolRuntimeState(defaultConfig.runtime),
+      extractTags: Array.isArray(defaultConfig.extractTags) ? [...defaultConfig.extractTags] : []
+    };
+  }
+
+  const managedTools = getManagedTools() || {};
+  const customToolDef = managedTools[toolId] || null;
+  if (customToolDef) {
+    return createCustomToolDefaultConfig(toolId, customToolDef);
+  }
+
+  return getToolConfig(toolId);
+}
+
+export function getToolBaseConfig(toolId) {
+  const baseConfig = getBaseToolRuntimeConfig(toolId);
+  if (!baseConfig) return null;
+
+  return {
+    ...baseConfig,
+    trigger: { ...(baseConfig.trigger || {}) },
+    output: { ...(baseConfig.output || {}) },
+    bypass: { ...(baseConfig.bypass || {}) },
+    extraction: {
+      ...(baseConfig.extraction || {}),
+      selectors: Array.isArray(baseConfig?.extraction?.selectors)
+        ? [...baseConfig.extraction.selectors]
+        : []
+    },
+    runtime: { ...(baseConfig.runtime || {}) },
+    extractTags: Array.isArray(baseConfig.extractTags) ? [...baseConfig.extractTags] : []
+  };
+}
+
+function mergeToolRuntimeConfig(baseConfig, userConfig = {}, legacyApiPresetBinding = '') {
+  if (!baseConfig) return null;
+
+  const mergedConfig = {
+    ...baseConfig,
+    ...userConfig,
+    id: baseConfig.id || userConfig.id
+  };
+
+  mergedConfig.trigger = {
+    ...(baseConfig.trigger || {}),
+    ...(userConfig.trigger || {})
+  };
+
+  mergedConfig.output = {
+    ...(baseConfig.output || {}),
+    ...(userConfig.output || {})
+  };
+
+  mergedConfig.bypass = {
+    ...(baseConfig.bypass || {}),
+    ...(userConfig.bypass || {})
+  };
+
+  mergedConfig.runtime = createToolRuntimeState({
+    ...(baseConfig.runtime || {}),
+    ...(userConfig.runtime || {})
+  });
+
+  mergedConfig.extraction = {
+    ...(baseConfig.extraction || {}),
+    ...(userConfig.extraction || {})
+  };
+
+  const resolvedApiPreset = userConfig?.output?.apiPreset
+    || userConfig?.apiPreset
+    || mergedConfig.output?.apiPreset
+    || mergedConfig.apiPreset
+    || legacyApiPresetBinding
+    || '';
+
+  mergedConfig.output = {
+    ...(mergedConfig.output || {}),
+    apiPreset: resolvedApiPreset
+  };
+
+  mergedConfig.apiPreset = resolvedApiPreset;
+
+  if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0)
+    && Array.isArray(mergedConfig.extractTags)
+    && mergedConfig.extractTags.length > 0) {
+    mergedConfig.extraction.selectors = [...mergedConfig.extractTags];
+  }
+
+  if (!Array.isArray(mergedConfig.extractTags) || mergedConfig.extractTags.length === 0) {
+    mergedConfig.extractTags = Array.isArray(mergedConfig.extraction.selectors)
+      ? [...mergedConfig.extraction.selectors]
+      : [];
+  }
+
+  if (baseConfig.isCustom) {
+    mergedConfig.enabled = baseConfig.enabled !== false;
+  } else if (typeof userConfig.enabled === 'boolean') {
+    mergedConfig.enabled = userConfig.enabled;
+  } else {
+    mergedConfig.enabled = baseConfig.enabled !== false;
+  }
+
+  return mergedConfig;
 }
 
 /**
@@ -592,11 +700,7 @@ export function onPresetDeleted(presetName) {
  * @returns {object|null} 完整配置
  */
 export function getToolFullConfig(toolId) {
-  const defaultConfig = DEFAULT_TOOL_CONFIGS[toolId];
-  const managedTools = getManagedTools() || {};
-  const customToolDef = managedTools[toolId] || null;
-
-  const baseConfig = defaultConfig || (customToolDef ? createCustomToolDefaultConfig(toolId, customToolDef) : null);
+  const baseConfig = getBaseToolRuntimeConfig(toolId);
   if (!baseConfig) {
     const basicConfig = getToolConfig(toolId);
     return basicConfig;
@@ -606,62 +710,56 @@ export function getToolFullConfig(toolId) {
   const userConfig = userConfigs[toolId] || {};
   const legacyApiPresetBinding = getToolApiPreset(toolId);
 
-  const mergedConfig = {
+  return mergeToolRuntimeConfig({
     ...baseConfig,
-    ...userConfig,
-    id: toolId  // ID不可覆盖
-  };
+    id: toolId
+  }, userConfig, legacyApiPresetBinding);
+}
 
-  mergedConfig.trigger = {
-    ...(baseConfig.trigger || {}),
-    ...(userConfig.trigger || {})
-  };
+/**
+ * 确保工具存在首份完整运行态配置
+ * @param {string} toolId - 工具ID
+ * @returns {boolean}
+ */
+export function ensureToolRuntimeConfig(toolId) {
+  if (!toolId) return false;
 
-  mergedConfig.output = {
-    ...(baseConfig.output || {}),
-    ...(userConfig.output || {})
-  };
-
-  mergedConfig.bypass = {
-    ...(baseConfig.bypass || {}),
-    ...(userConfig.bypass || {})
-  };
-
-  mergedConfig.runtime = {
-    ...(baseConfig.runtime || {}),
-    ...(userConfig.runtime || {})
-  };
-
-  mergedConfig.extraction = {
-    ...(baseConfig.extraction || {}),
-    ...(userConfig.extraction || {})
-  };
-
-  const resolvedApiPreset = mergedConfig.output?.apiPreset
-    || mergedConfig.apiPreset
-    || legacyApiPresetBinding
-    || '';
-
-  mergedConfig.output = {
-    ...(mergedConfig.output || {}),
-    apiPreset: resolvedApiPreset
-  };
-
-  mergedConfig.apiPreset = resolvedApiPreset;
-
-  if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0)
-    && Array.isArray(mergedConfig.extractTags)
-    && mergedConfig.extractTags.length > 0) {
-    mergedConfig.extraction.selectors = [...mergedConfig.extractTags];
+  const baseConfig = getBaseToolRuntimeConfig(toolId);
+  if (!baseConfig) {
+    return false;
   }
 
-  if (!Array.isArray(mergedConfig.extractTags) || mergedConfig.extractTags.length === 0) {
-    mergedConfig.extractTags = Array.isArray(mergedConfig.extraction.selectors)
-      ? [...mergedConfig.extraction.selectors]
-      : [];
+  const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
+  if (userConfigs[toolId]) {
+    return true;
   }
 
-  return mergedConfig;
+  const initialConfig = {
+    promptTemplate: baseConfig.promptTemplate || '',
+    enabled: baseConfig.enabled !== false,
+    extractTags: Array.isArray(baseConfig.extractTags) ? [...baseConfig.extractTags] : [],
+    apiPreset: baseConfig.apiPreset || '',
+    trigger: { ...(baseConfig.trigger || {}) },
+    output: { ...(baseConfig.output || {}) },
+    bypass: { ...(baseConfig.bypass || {}) },
+    extraction: {
+      ...(baseConfig.extraction || {}),
+      selectors: Array.isArray(baseConfig?.extraction?.selectors)
+        ? [...baseConfig.extraction.selectors]
+        : []
+    },
+    runtime: { ...(baseConfig.runtime || {}) }
+  };
+
+  userConfigs[toolId] = initialConfig;
+  storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
+
+  const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
+  bindings[toolId] = initialConfig.output?.apiPreset || initialConfig.apiPreset || '';
+  storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
+
+  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: initialConfig });
+  return true;
 }
 
 /**
@@ -670,11 +768,13 @@ export function getToolFullConfig(toolId) {
  * @param {object} config - 配置对象
  * @returns {boolean} 是否成功
  */
-export function saveToolConfig(toolId, config) {
+export function saveToolConfig(toolId, config, options = {}) {
   if (!toolId || !getToolFullConfig(toolId)) {
     console.warn('[ToolRegistry] 工具不存在:', toolId);
     return false;
   }
+
+  const { emitEvent = true } = options;
   
   const userConfigs = storage.get(TOOL_CONFIG_STORAGE_KEY) || {};
   const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
@@ -730,7 +830,9 @@ export function saveToolConfig(toolId, config) {
   bindings[toolId] = resolvedApiPreset;
   storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
 
-  eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });
+  if (emitEvent) {
+    eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });
+  }
   
   console.log(`[ToolRegistry] 工具配置已保存: ${toolId}`);
   return true;
@@ -811,22 +913,49 @@ export function setToolPromptTemplate(toolId, template) {
 }
 
 /**
+ * 轻量更新工具运行时诊断信息。
+ * 默认不刷新 lastRunAt，也不广播 TOOL_UPDATED，避免高频触发导致 UI 抖动。
+ * @param {string} toolId - 工具ID
+ * @param {Object} runtimePartial - 运行时增量
+ * @param {Object} options - 选项
+ * @param {boolean} options.touchLastRunAt - 是否刷新 lastRunAt
+ * @param {boolean} options.emitEvent - 是否广播 TOOL_UPDATED
+ * @returns {boolean}
+ */
+export function patchToolRuntime(toolId, runtimePartial, options = {}) {
+  const config = getToolFullConfig(toolId);
+  if (!config) return false;
+
+  const {
+    touchLastRunAt = false,
+    emitEvent = false
+  } = options;
+
+  const runtime = createToolRuntimeState({
+    ...(config.runtime || {}),
+    ...(runtimePartial || {})
+  });
+
+  if (touchLastRunAt) {
+    runtime.lastRunAt = Date.now();
+  }
+
+  return saveToolConfig(toolId, {
+    ...config,
+    runtime
+  }, { emitEvent });
+}
+
+/**
  * 更新工具运行时状态
  * @param {string} toolId - 工具ID
  * @param {Object} runtimePartial - 部分运行时状态
  * @returns {boolean} 是否成功
  */
 export function updateToolRuntime(toolId, runtimePartial) {
-  const config = getToolFullConfig(toolId);
-  if (!config) return false;
-  
-  return saveToolConfig(toolId, {
-    ...config,
-    runtime: {
-      ...config.runtime,
-      ...runtimePartial,
-      lastRunAt: Date.now()
-    }
+  return patchToolRuntime(toolId, runtimePartial, {
+    touchLastRunAt: true,
+    emitEvent: true
   });
 }
 
@@ -931,7 +1060,10 @@ export default {
   saveToolWindowState,
   getToolWindowState,
   // 新增配置管理函数
+  getToolBaseConfig,
+  ensureToolRuntimeConfig,
   getToolFullConfig,
+  patchToolRuntime,
   saveToolConfig,
   resetToolConfig,
   getAllDefaultToolConfigs,

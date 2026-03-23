@@ -9,7 +9,68 @@
 
 ## [Unreleased]
 
+### 更改
+
+- 🔧 **Phase 5：调试与回归保障增强完成** (`modules/tool-registry.js`, `modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 为自动触发链新增最近一次全局触发快照 `lastAutoTriggerSnapshot`，统一记录最近触发事件、去重键、命中的工具列表与跳过原因
+  - 为单工具运行态新增最近触发时间、最近触发事件、最近消息键、最近跳过原因、最近执行路径、最近写回状态与最近失败阶段等紧凑诊断字段
+  - 在工具输出主链中补齐 `failureStage` 与 `writebackStatus` 结构化元数据，方便定位失败发生在构造消息、发送请求、提取输出还是写回阶段
+  - 在工具配置面板中新增折叠式“最近触发诊断”区，低噪声展示最近一次诊断信息而不干扰默认使用体验
+  - 执行 `npm run build` 构建验证通过，完成本轮 Phase 5 收尾
+
+- 🔧 **Phase 4：UI 装配中心统一完成** (`index.js`, `modules/app/bootstrap.js`, `modules/app/popup-shell.js`, `modules/app/public-api.js`, `modules/ui/index.js`, `modules/ui/ui-manager.js`, `modules/ui-components.js`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 将 `modules/ui/index.js` 提升为当前 UI 主装配入口，并在 `bootstrap` 中统一完成 UI 初始化与样式聚合注入
+  - `popup-shell.js` 现在优先通过统一 helper 渲染 API 预设、正则、工具列表、默认工具、破限词和设置面板，减少对兼容层静态导出的主路径依赖
+  - `ui-manager.js` 的职责说明收敛为组件注册 / 渲染 / 销毁 / 样式聚合，不再被误解为 popup shell 路由中心
+  - `ui-components.js` 降级为 compatibility facade，并在公开 API 中新增 `getUi()` / `getUiModule()` 作为推荐入口
+  - 执行 `npm run build` 构建验证通过，为进入 Phase 5 提供稳定基线
+
+- 🔧 **Phase 3：执行链清主次完成** (`modules/tool-executor.js`, `modules/tool-trigger.js`, `modules/tool-output-service.js`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 明确自动工具主链已经收敛为 `tool-trigger -> tool-output-service -> tool-prompt-service -> api-connection -> context-injector`
+  - 为 `tool-executor.js` 中的 `buildToolMessages()` 与 `executeToolWithConfig()` 增加 compatibility / legacy 定位说明，弱化其主链语义
+  - 在触发模块中显式区分自动执行主路径与兼容执行回退路径
+  - 在 API 文档中补充自动主链、手动执行链与兼容执行链说明，减少后续维护误判
+  - 执行 `npm run build` 构建验证通过，为进入 Phase 4 提供稳定基线
+
+- 🔧 **Phase 2：工具模型统一完成** (`modules/tool-manager.js`, `modules/tool-registry.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 为 `tool-manager.js` 增加默认定义构造与运行态归一化函数，统一 legacy 字段到新运行模型的映射出口
+  - 收口 `tool-registry.js` 中自定义工具基础运行配置、配置合并与首份运行态配置初始化逻辑
+  - 调整“工具列表 -> 新建工具”流程，使自定义工具创建后立即具备完整新结构运行配置
+  - 工具配置页的模板重置改为基于运行态基础配置，进一步统一显示值、存储值与执行读取值
+  - 执行 `npm run build` 构建验证通过，为进入 Phase 3 提供稳定基线
+
+- 🔧 **Phase 1：入口层拆壳完成** (`index.js`, `modules/app/bootstrap.js`, `modules/app/popup-shell.js`, `modules/app/public-api.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 新增 `bootstrap` 模块，集中承接模块动态加载、样式注入、主题恢复与魔棒菜单入口注册
+  - 新增 `popup-shell` 模块，承接主弹窗、主/子标签切换与页面装配逻辑
+  - 新增 `public-api` 模块，统一组装 `YouYouToolkit` 对外公开 API
+  - 将 `index.js` 收敛为薄入口，仅保留上下文装配、全局挂载与初始化调用
+  - 执行 `npm run build` 构建验证通过，为进入 Phase 2 提供稳定基线
+
+### 文档
+
+- 📝 **新增优化方案施工文档** (`docs/OPTIMIZATION_EXECUTION_PLAN.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
+  - 基于最新架构梳理结果，新增面向后续重构落地的施工文档
+  - 将优化目标收敛为入口拆壳、工具模型统一、执行链清主次、UI 装配中心统一、调试与回归保障增强五个阶段
+  - 为每个阶段补充目标、涉及文件、实施内容、风险点、验收标准与整体施工顺序
+
+- 📝 **新增优化施工进程文档** (`docs/OPTIMIZATION_PROGRESS.md`, `docs/OPTIMIZATION_EXECUTION_PLAN.md`)
+  - 新增用于记录实际施工过程的进程文档，和“架构分析 / 优化方案”文档形成分层分工
+  - 初始化 Phase 看板、当前施工焦点、阶段验收项、施工日志与回归检查模板
+  - 为后续逐阶段实施提供统一记录载体
+
+- 📝 **补充 shujuku / MVU 参考项目启发结论** (`docs/OPTIMIZATION_EXECUTION_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 结合 shujuku 的事件门控、多层兜底与宿主兼容策略，明确当前项目的高风险点主要集中在触发链与宿主时序问题
+  - 结合 MVU 的单一运行态模型、强约束输出与生命周期回调思想，明确后续工具模型统一与结构化工具链的演进方向
+  - 将参考项目启发同步到优化方案与施工进程文档，作为 Phase 1 前的设计输入
+
 ### 修复
+
+- 🐛 **工具列表入口、手动执行、自动触发与楼层刷新进一步修复** (`modules/tool-registry.js`, `index.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `modules/tool-trigger.js`, `modules/api-connection.js`, `modules/context-injector.js`, `docs/API_DOCUMENTATION.md`)
+  - 新增可见的顶层 `工具列表` UI 页面，用户可直接在界面里创建、编辑、删除自定义工具；新建工具后会自动跳转到对应配置页
+  - 修复 `follow_ai` 模式下“手动执行”被错误禁用的问题；现在该模式仅关闭自动额外解析，不再阻止手动执行
+  - 自定义 API 请求链路新增优先尝试 `TavernHelper.generateRaw({ custom_api })`，使后台表现更接近 MVU / 酒馆原生额外模型请求
+  - 自动触发链路新增 `GENERATION_AFTER_COMMANDS` 参考触发，并对 `MESSAGE_RECEIVED` 改为延迟调度，降低消息尚未稳定写入时的漏触发概率
+  - 工具结果写回最新楼层时改为优先 `refresh: 'affected'`，补发 `MESSAGE_UPDATED`，并尝试额外调用空 `setChatMessage` 强制刷新，缓解插入后仍需手动刷新页面的问题
 
 - 🐛 **工具输出标签保留与自定义工具页签打通** (`modules/tool-output-service.js`, `modules/tool-registry.js`, `modules/ui-components.js`, `index.js`, `docs/API_DOCUMENTATION.md`, `docs/EXTENSION_GUIDE.md`)
   - 修复工具结果写回最新 AI 楼层时会把提取用外层标签一并剥掉的问题；现在命中提取规则后会优先保留完整标签块，避免明明在模板里输出了 `<boo_FM>` / `<status_block>` / `<youyou>`，最终注入时却只剩内部正文
