@@ -1,27 +1,29 @@
 # YouYou Toolkit - SillyTavern 工具插件
 
-一个轻量级的 SillyTavern 工具插件框架，支持API连接管理、预设管理与正则提取功能。
+YouYou Toolkit 现已不只是一个“轻量级工具页”，而是一套运行在 SillyTavern / TavernHelper 宿主环境中的 **可配置工具链平台**。当前版本已经具备：API 预设管理、自定义工具管理、自动触发执行、楼层写回、破限词绑定、提取预览、运行态诊断与统一 UI 装配能力。
 
 ## ✨ 功能特点
 
 ### 基础功能
 - ✅ 在 SillyTavern 底部魔棒区注册插件入口
-- ✅ 点击后弹出独立窗口
+- ✅ 点击后打开统一的主工具箱弹窗（popup shell）
 - ✅ 支持 ES Module 方式导入
 - ✅ 模块化设计，易于扩展
 
-### 🆕 API连接管理
+### 🆕 API预设与连接管理
 - ✅ 支持自定义API配置（URL、API Key、模型等）
 - ✅ 支持切换使用SillyTavern主API
 - ✅ 支持从API端点自动加载模型列表
 - ✅ 美观的滑动开关切换主API
 
-### 🆕 预设管理
+### 🆕 工具与预设管理
 - ✅ 创建、编辑、删除API预设
 - ✅ 快速切换不同预设配置
 - ✅ 预设导入/导出（JSON格式）
 - ✅ 从当前配置快速创建预设
 - ✅ 预设与API配置合并显示，操作更便捷
+- ✅ 提供“工具列表”页面，可直接创建、编辑、删除自定义工具
+- ✅ 自定义工具创建后自动进入“工具”页签，并复用统一配置面板
 
 ### 🆕 正则提取
 - ✅ 从消息内容中提取特定文本
@@ -73,6 +75,13 @@
 - ✅ 工具结果自动回填到最新 AI 楼层正文
 - ✅ 新增“小幽点评”工具，可自动生成点评与剧情钩子
 
+### 🆕 当前架构收敛成果（Phase 1 ~ Phase 5）
+- ✅ `index.js` 已收敛为薄入口，应用层拆分为 `bootstrap / popup-shell / public-api`
+- ✅ `tool-registry.js` 已成为工具运行主模型中心
+- ✅ 自动执行主链已明确为 `tool-trigger -> tool-output-service -> tool-prompt-service -> api-connection -> context-injector`
+- ✅ `modules/ui/index.js` 已成为 UI 主装配入口，`ui-components.js` 降级为 compatibility facade
+- ✅ 工具运行态已具备最近触发事件、跳过原因、执行路径、写回状态、失败阶段等轻量诊断字段
+
 ## 📦 安装方法
 
 ### 方法一：通过酒馆助手脚本库导入（推荐）
@@ -92,7 +101,7 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 // ==UserScript==
 // @name         YouYou Toolkit
 // @namespace    http://tampermonkey.net/
-// @version      0.2.0
+// @version      0.6.2
 // @match        */*
 // @grant        none
 // ==/UserScript==
@@ -115,9 +124,9 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 3. 在弹出的菜单中找到 **"YouYou 工具箱"**
 4. 点击打开工具窗口
 
-### API配置与预设管理
+### API预设管理
 
-1. 点击 **"API管理"** 标签页进入统一管理面板
+1. 点击 **"API预设"** 标签页进入统一管理面板
 2. **预设选择区**：
    - 从下拉框选择预设，点击"应用"切换配置
    - 点击预设项的下载图标可加载预设配置到表单
@@ -170,32 +179,45 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 ```
 youyou_Toolkit/
 ├── index.js                      # 主入口文件
+├── modules/app/                  # 应用装配层
+│   ├── bootstrap.js              # 模块加载、主题恢复、菜单注册
+│   ├── popup-shell.js            # 主工具箱弹窗与主/子标签路由
+│   └── public-api.js             # 对外 API 门面组装
 ├── modules/
 │   ├── core/                     # 核心层
 │   │   ├── index.js              # 核心模块入口
 │   │   ├── event-bus.js          # 事件总线
-│   │   └── storage-service.js    # 统一存储服务
+│   │   ├── storage-service.js    # 统一存储服务
+│   │   └── settings-service.js   # 全局设置服务
 │   ├── ui/                       # UI层
 │   │   ├── index.js              # UI模块入口
-│   │   ├── ui-manager.js         # UI管理器
+│   │   ├── ui-manager.js         # UI生命周期与样式聚合管理器
 │   │   ├── utils.js              # UI工具函数
 │   │   └── components/           # UI组件目录
 │   │       ├── api-preset-panel.js
+│   │       ├── bypass-panel.js
 │   │       ├── regex-extract-panel.js
+│   │       ├── settings-panel.js
+│   │       ├── tool-config-panel-factory.js
 │   │       ├── summary-tool-panel.js
 │   │       ├── status-block-panel.js
-│   │       └── tool-manage-panel.js
+│   │       ├── tool-manage-panel.js
+│   │       └── youyou-review-panel.js
 │   ├── storage.js                # 存储后端抽象
 │   ├── api-connection.js         # API连接管理
 │   ├── preset-manager.js         # 预设管理
 │   ├── regex-extractor.js        # 正则提取
+│   ├── context-injector.js       # 最新 AI 楼层写回
+│   ├── variable-resolver.js      # 变量解析
 │   ├── tool-registry.js          # 工具注册表
-│   ├── tool-executor.js          # 工具执行引擎
+│   ├── tool-executor.js          # 调度/批处理/兼容执行入口
 │   ├── tool-trigger.js           # 事件触发管理
+│   ├── tool-output-service.js    # 自动工具链直接执行层
+│   ├── tool-prompt-service.js    # 工具消息构建与模板解析
 │   ├── tool-manager.js           # 工具管理
-│   ├── window-manager.js         # 窬口管理
+│   ├── window-manager.js         # 独立窗口能力（扩展用）
 │   ├── prompt-editor.js          # 提示词编辑器
-│   └── ui-components.js          # UI组件（兼容层）
+│   └── ui-components.js          # UI兼容层
 ├── styles/
 │   └── main.css                  # 主样式文件
 ├── docs/
@@ -221,7 +243,7 @@ YouYouToolkit.id         // 插件ID
 // 弹窗控制
 YouYouToolkit.openPopup()   // 打开弹窗
 YouYouToolkit.closePopup()  // 关闭弹窗
-YouYouToolkit.switchMainTab('apiPresets')   // 切换到API管理页
+YouYouToolkit.switchMainTab('apiPresets')   // 切换到API预设页
 YouYouToolkit.switchMainTab('regexExtract') // 切换到正则提取页
 
 // API配置（异步方法）
@@ -307,6 +329,8 @@ npm run watch      # 监听文件变化自动构建
 - 最大化/还原
 - 窗口状态持久化
 
+> 说明：`window-manager.js` 当前保留为扩展能力；主工具箱默认走 `popup-shell.js` 的统一弹窗，而不是独立窗口主路径。
+
 **prompt-editor.js - 提示词编辑器**
 - 三段式可视化编辑（System/AI/User）
 - 展开/折叠
@@ -318,14 +342,26 @@ npm run watch      # 监听文件变化自动构建
 **ui-manager.js - UI管理器**
 - 组件注册与生命周期管理
 - 统一样式注入
-- 标签页切换
+- 不负责 popup shell 路由控制
+
+**ui/index.js - UI主装配入口**
+- 提供主面板渲染 helper
+- 统一导出默认工具面板与静态页面入口
+- 收口 UI 样式聚合
+
+**ui-components.js - 兼容层**
+- 仅保留旧接口别名与兼容导出
+- 新代码应优先使用 `modules/ui/index.js`
 
 **components/ - UI组件**
 - `api-preset-panel.js` - API预设管理面板
+- `bypass-panel.js` - 破限词面板
 - `regex-extract-panel.js` - 正则提取面板
+- `settings-panel.js` - 设置面板
 - `summary-tool-panel.js` - 摘要工具面板
 - `status-block-panel.js` - 状态栏工具面板
 - `tool-manage-panel.js` - 工具管理面板
+- `youyou-review-panel.js` - 小幽点评工具面板
 
 ## 📚 文档
 
@@ -350,10 +386,10 @@ npm run watch      # 监听文件变化自动构建
 - 📝 同步修正文档、版本号与兼容说明
 
 ### Unreleased
-- 🐛 **自动监听进一步修复** - 过滤 `MESSAGE_RECEIVED` 早期的 `...` 占位消息，并兼容 `message_id` 字段，降低读到旧楼层或空楼层导致不触发的概率
+- 🔧 **Phase 1 ~ Phase 5 架构收敛完成** - 已完成入口拆壳、工具模型统一、执行链清主次、UI 装配中心统一、调试与回归保障增强
 - 🐛 **最新楼层回填增强** - 工具结果写回时会同时尝试同步 `mes/message/content/text` 多字段，并优先调用 `setChatMessages/setChatMessage` 刷新最新 AI 楼层
-- ✨ **新增小幽点评工具** - 新增 `Youyou_Review / 小幽点评` 工具页签与默认模板，支持输出 `<youyou><gouzi></gouzi></youyou>` 结构
-- 🔧 **工具请求构建收敛** - 额外模型请求现在使用“破限词前置消息 + 当前工具模板解析后的 user 消息”结构，不再要求必须额外配置 AI 指令预设消息才能运行
+- ✨ **新增小幽点评工具** - 新增 `youyouReview / 小幽点评` 工具页签与默认模板，支持输出 `<youyou><gouzi></gouzi></youyou>` 结构
+- 🔧 **UI 装配与诊断增强** - `modules/ui/index.js` 现为 UI 主入口，工具面板支持查看最近触发诊断
 
 ### v0.5.0 (2026-03-14)
 - ✨ **设置服务** - 统一全局配置管理

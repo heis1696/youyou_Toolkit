@@ -17,6 +17,7 @@ const THEME_CONFIGS = {
     '--yyt-accent': '#7bb7ff',
     '--yyt-accent-glow': 'rgba(123, 183, 255, 0.4)',
     '--yyt-accent-soft': 'rgba(123, 183, 255, 0.15)',
+    '--yyt-accent-strong': '#a5d4ff',
     '--yyt-bg-base': '#0b0f15',
     '--yyt-bg-gradient-1': 'rgba(123, 183, 255, 0.12)',
     '--yyt-bg-gradient-2': 'rgba(155, 123, 255, 0.10)'
@@ -25,6 +26,7 @@ const THEME_CONFIGS = {
     '--yyt-accent': '#a78bfa',
     '--yyt-accent-glow': 'rgba(167, 139, 250, 0.4)',
     '--yyt-accent-soft': 'rgba(167, 139, 250, 0.15)',
+    '--yyt-accent-strong': '#c4b5fd',
     '--yyt-bg-base': '#0f0b15',
     '--yyt-bg-gradient-1': 'rgba(167, 139, 250, 0.12)',
     '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)'
@@ -33,6 +35,7 @@ const THEME_CONFIGS = {
     '--yyt-accent': '#4ade80',
     '--yyt-accent-glow': 'rgba(74, 222, 128, 0.4)',
     '--yyt-accent-soft': 'rgba(74, 222, 128, 0.15)',
+    '--yyt-accent-strong': '#86efac',
     '--yyt-bg-base': '#0b150f',
     '--yyt-bg-gradient-1': 'rgba(74, 222, 128, 0.12)',
     '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)'
@@ -41,6 +44,7 @@ const THEME_CONFIGS = {
     '--yyt-accent': '#3b82f6',
     '--yyt-accent-glow': 'rgba(59, 130, 246, 0.3)',
     '--yyt-accent-soft': 'rgba(59, 130, 246, 0.1)',
+    '--yyt-accent-strong': '#93c5fd',
     '--yyt-bg-base': '#f8fafc',
     '--yyt-bg-gradient-1': 'rgba(59, 130, 246, 0.08)',
     '--yyt-bg-gradient-2': 'rgba(139, 92, 246, 0.06)',
@@ -55,12 +59,29 @@ const THEME_CONFIGS = {
   }
 };
 
+function getTargetDocument() {
+  try {
+    if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
+      return window.parent.document || document;
+    }
+  } catch (error) {
+    // 忽略跨窗口访问异常，回退到当前文档
+  }
+
+  return document;
+}
+
+function getTargetRoot(targetDocument = getTargetDocument()) {
+  return targetDocument?.documentElement || document.documentElement;
+}
+
 /**
  * 应用主题
  * @param {string} themeName - 主题名称
+ * @param {Document} targetDocument - 目标文档
  */
-function applyTheme(themeName) {
-  const root = document.documentElement;
+function applyTheme(themeName, targetDocument = getTargetDocument()) {
+  const root = getTargetRoot(targetDocument);
   const theme = THEME_CONFIGS[themeName] || THEME_CONFIGS['dark-blue'];
   
   // 应用主题变量
@@ -77,6 +98,24 @@ function applyTheme(themeName) {
   } else {
     root.style.setProperty('--yyt-text', 'rgba(255, 255, 255, 0.95)');
   }
+}
+
+/**
+ * 将 UI 外观设置统一应用到目标文档
+ * @param {Object} uiSettings
+ * @param {Document} targetDocument
+ */
+function applyUiPreferences(uiSettings = {}, targetDocument = getTargetDocument()) {
+  const root = getTargetRoot(targetDocument);
+  const {
+    theme = 'dark-blue',
+    compactMode = false,
+    animationEnabled = true
+  } = uiSettings || {};
+
+  applyTheme(theme, targetDocument);
+  root.classList.toggle('yyt-compact-mode', !!compactMode);
+  root.classList.toggle('yyt-no-animation', !animationEnabled);
 }
 
 // ============================================================
@@ -371,6 +410,7 @@ export const SettingsPanel = {
     $container.find('#yyt-settings-reset').on('click', () => {
       if (confirm('确定要重置所有设置为默认值吗？')) {
         settingsService.resetSettings();
+        applyUiPreferences(DEFAULT_SETTINGS.ui, getTargetDocument());
         this.renderTo($container);
         showToast('success', '设置已重置');
       }
@@ -409,15 +449,8 @@ export const SettingsPanel = {
     };
     
     settingsService.saveSettings(settings);
-    
-    // 应用主题
-    applyTheme(settings.ui.theme);
-    
-    // 应用紧凑模式
-    document.documentElement.classList.toggle('yyt-compact-mode', settings.ui.compactMode);
-    
-    // 应用动画设置
-    document.documentElement.classList.toggle('yyt-no-animation', !settings.ui.animationEnabled);
+
+    applyUiPreferences(settings.ui, getTargetDocument());
     
     showToast('success', '设置已保存');
   },
@@ -578,5 +611,5 @@ export const SettingsPanel = {
 };
 
 // 导出主题应用函数供初始化使用
-export { applyTheme, THEME_CONFIGS };
+export { applyTheme, applyUiPreferences, THEME_CONFIGS };
 export default SettingsPanel;

@@ -6,6 +6,9 @@
 export function createPopupShell(context) {
   const { constants, topLevelWindow, modules, caches, uiState } = context;
   const { SCRIPT_ID, SCRIPT_VERSION, POPUP_ID } = constants;
+  const popupDragState = {
+    cleanup: null
+  };
 
   function log(...args) {
     console.log(`[${SCRIPT_ID}]`, ...args);
@@ -29,7 +32,108 @@ export function createPopupShell(context) {
     return topLevelWindow.jQuery || window.jQuery;
   }
 
+  function getTargetDocument() {
+    return topLevelWindow.document || document;
+  }
+
+  function cleanupPopupDrag() {
+    if (typeof popupDragState.cleanup === 'function') {
+      popupDragState.cleanup();
+      popupDragState.cleanup = null;
+    }
+  }
+
+  function enablePopupDrag() {
+    const targetDoc = getTargetDocument();
+    const popup = uiState.currentPopup;
+    const header = popup?.querySelector('.yyt-popup-header');
+
+    if (!popup || !header || !targetDoc) {
+      return;
+    }
+
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let popupStartLeft = 0;
+    let popupStartTop = 0;
+    let previousUserSelect = '';
+
+    const getViewport = () => ({
+      width: topLevelWindow.innerWidth || targetDoc.documentElement?.clientWidth || window.innerWidth || 0,
+      height: topLevelWindow.innerHeight || targetDoc.documentElement?.clientHeight || window.innerHeight || 0
+    });
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const stopDragging = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      popup.classList.remove('yyt-popup-dragging');
+      targetDoc.body.style.userSelect = previousUserSelect;
+    };
+
+    const onMouseMove = (event) => {
+      if (!isDragging || !uiState.currentPopup) return;
+
+      const dx = event.clientX - dragStartX;
+      const dy = event.clientY - dragStartY;
+      const { width, height } = getViewport();
+      const popupWidth = popup.offsetWidth || 0;
+      const popupHeight = popup.offsetHeight || 0;
+      const maxLeft = Math.max(0, width - popupWidth);
+      const maxTop = Math.max(0, height - popupHeight);
+
+      popup.style.left = `${clamp(popupStartLeft + dx, 0, maxLeft)}px`;
+      popup.style.top = `${clamp(popupStartTop + dy, 0, maxTop)}px`;
+      popup.style.transform = 'none';
+      popup.style.right = 'auto';
+      popup.style.bottom = 'auto';
+    };
+
+    const onMouseUp = () => {
+      stopDragging();
+    };
+
+    const onMouseDown = (event) => {
+      if (event.button !== 0) return;
+      if (event.target?.closest('.yyt-popup-close')) return;
+
+      isDragging = true;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+
+      const rect = popup.getBoundingClientRect();
+      popupStartLeft = rect.left;
+      popupStartTop = rect.top;
+
+      popup.style.left = `${rect.left}px`;
+      popup.style.top = `${rect.top}px`;
+      popup.style.transform = 'none';
+      popup.style.right = 'auto';
+      popup.style.bottom = 'auto';
+      popup.classList.add('yyt-popup-dragging');
+
+      previousUserSelect = targetDoc.body.style.userSelect || '';
+      targetDoc.body.style.userSelect = 'none';
+      event.preventDefault();
+    };
+
+    header.addEventListener('mousedown', onMouseDown);
+    targetDoc.addEventListener('mousemove', onMouseMove);
+    targetDoc.addEventListener('mouseup', onMouseUp);
+
+    popupDragState.cleanup = () => {
+      stopDragging();
+      header.removeEventListener('mousedown', onMouseDown);
+      targetDoc.removeEventListener('mousemove', onMouseMove);
+      targetDoc.removeEventListener('mouseup', onMouseUp);
+    };
+  }
+
   function closePopup() {
+    cleanupPopupDrag();
+
     if (uiState.currentPopup) {
       uiState.currentPopup.remove();
       uiState.currentPopup = null;
@@ -431,7 +535,7 @@ export function createPopupShell(context) {
     }
 
     const $ = getJQuery();
-    const targetDoc = topLevelWindow.document || document;
+    const targetDoc = getTargetDocument();
 
     if (!$) {
       logError('jQuery 未找到，无法创建弹窗');
@@ -516,6 +620,8 @@ export function createPopupShell(context) {
         switchMainTab(tab);
       }
     });
+
+    enablePopupDrag();
 
     renderTabContent(uiState.currentMainTab);
 

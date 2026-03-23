@@ -155,10 +155,10 @@ function injectWindowStyles() {
       display: flex;
       flex-direction: column;
       background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(123, 183, 255, 0.12), transparent 60%),
-        radial-gradient(900px 500px at 100% 0%, rgba(155, 123, 255, 0.10), transparent 55%),
+        radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1, rgba(123, 183, 255, 0.12)), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2, rgba(155, 123, 255, 0.10)), transparent 55%),
         linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 22%),
-        #0b0f15;
+        var(--yyt-bg-base, #0b0f15);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 16px;
       box-shadow: 

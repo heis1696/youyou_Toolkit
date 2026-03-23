@@ -71,12 +71,16 @@ export function createBootstrap(context, options = {}) {
         --yyt-accent: #7bb7ff;
         --yyt-accent-glow: rgba(123, 183, 255, 0.4);
         --yyt-accent-soft: rgba(123, 183, 255, 0.15);
+        --yyt-accent-strong: #a5d4ff;
         --yyt-success: #4ade80;
         --yyt-success-glow: rgba(74, 222, 128, 0.3);
         --yyt-error: #f87171;
         --yyt-danger: var(--yyt-error);
         --yyt-error-glow: rgba(248, 113, 113, 0.3);
         --yyt-warning: #fbbf24;
+        --yyt-bg-base: #0b0f15;
+        --yyt-bg-gradient-1: rgba(123, 183, 255, 0.12);
+        --yyt-bg-gradient-2: rgba(155, 123, 255, 0.10);
         --yyt-surface: rgba(255, 255, 255, 0.03);
         --yyt-surface-hover: rgba(255, 255, 255, 0.06);
         --yyt-surface-active: rgba(255, 255, 255, 0.08);
@@ -135,10 +139,10 @@ export function createBootstrap(context, options = {}) {
         height: 85vh;
         max-height: 90vh;
         background:
-          radial-gradient(1200px 600px at 10% -10%, rgba(123, 183, 255, 0.12), transparent 60%),
-          radial-gradient(900px 500px at 100% 0%, rgba(155, 123, 255, 0.10), transparent 55%),
+          radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1), transparent 60%),
+          radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2), transparent 55%),
           linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 22%),
-          #0b0f15;
+          var(--yyt-bg-base);
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 16px;
         box-shadow: 0 25px 80px rgba(0, 0, 0, 0.65), 0 0 60px rgba(123, 183, 255, 0.1);
@@ -157,6 +161,11 @@ export function createBootstrap(context, options = {}) {
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px 16px 0 0;
         flex-shrink: 0;
+        cursor: grab;
+      }
+
+      .yyt-popup.yyt-popup-dragging .yyt-popup-header {
+        cursor: grabbing;
       }
 
       .yyt-popup-title {
@@ -169,7 +178,7 @@ export function createBootstrap(context, options = {}) {
       }
 
       .yyt-popup-title i {
-        color: rgba(123, 183, 255, 0.85);
+        color: var(--yyt-accent);
         font-size: 18px;
       }
 
@@ -246,7 +255,7 @@ export function createBootstrap(context, options = {}) {
 
       .yyt-main-nav-item.active {
         color: #0b0f15;
-        background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
+        background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
       }
 
       /* 次级顶栏 */
@@ -353,7 +362,7 @@ export function createBootstrap(context, options = {}) {
       }
 
       .yyt-btn-primary {
-        background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
+        background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         color: #0b0f15;
       }
 
@@ -483,6 +492,26 @@ export function createBootstrap(context, options = {}) {
         height: 100%;
       }
 
+      .yyt-compact-mode .yyt-popup-body {
+        padding: 12px 16px;
+      }
+
+      .yyt-compact-mode .yyt-panel {
+        gap: 14px;
+      }
+
+      .yyt-compact-mode .yyt-panel-section {
+        padding: 14px;
+        gap: 10px;
+      }
+
+      .yyt-no-animation *,
+      .yyt-no-animation *::before,
+      .yyt-no-animation *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+
       /* 响应式 */
       @media screen and (max-width: 1100px) {
         .yyt-popup {
@@ -568,20 +597,13 @@ export function createBootstrap(context, options = {}) {
 
   async function applySavedTheme() {
     try {
-      const { applyTheme } = await import('../ui/components/settings-panel.js');
+      const { applyUiPreferences } = await import('../ui/components/settings-panel.js');
       if (modules.settingsServiceModule?.settingsService) {
         const uiSettings = modules.settingsServiceModule.settingsService.getUiSettings();
         if (uiSettings && uiSettings.theme) {
-          applyTheme(uiSettings.theme);
+          const targetDoc = topLevelWindow.document || document;
+          applyUiPreferences(uiSettings, targetDoc);
           log(`主题已应用: ${uiSettings.theme}`);
-
-          if (uiSettings.compactMode) {
-            document.documentElement.classList.add('yyt-compact-mode');
-          }
-
-          if (!uiSettings.animationEnabled) {
-            document.documentElement.classList.add('yyt-no-animation');
-          }
         }
       }
     } catch (themeError) {

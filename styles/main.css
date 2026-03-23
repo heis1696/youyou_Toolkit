@@ -11,12 +11,16 @@
   --yyt-accent: #7bb7ff;
   --yyt-accent-glow: rgba(123, 183, 255, 0.4);
   --yyt-accent-soft: rgba(123, 183, 255, 0.15);
+  --yyt-accent-strong: #a5d4ff;
   --yyt-success: #4ade80;
   --yyt-success-glow: rgba(74, 222, 128, 0.3);
   --yyt-error: #f87171;
   --yyt-danger: var(--yyt-error);
   --yyt-error-glow: rgba(248, 113, 113, 0.3);
   --yyt-warning: #fbbf24;
+  --yyt-bg-base: #0b0f15;
+  --yyt-bg-gradient-1: rgba(123, 183, 255, 0.12);
+  --yyt-bg-gradient-2: rgba(155, 123, 255, 0.10);
   --yyt-surface: rgba(255, 255, 255, 0.03);
   --yyt-surface-hover: rgba(255, 255, 255, 0.06);
   --yyt-surface-active: rgba(255, 255, 255, 0.08);
@@ -81,7 +85,7 @@
 
 .yyt-main-nav-item.active {
   color: #0b0f15;
-  background: linear-gradient(135deg, var(--yyt-accent) 0%, #a5d4ff 100%);
+  background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
   box-shadow: 0 4px 15px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -925,10 +929,10 @@
   height: 85vh;
   max-height: 90vh;
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(123, 183, 255, 0.12), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(155, 123, 255, 0.10), transparent 55%),
+    radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2), transparent 55%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 22%),
-    #0b0f15;
+    var(--yyt-bg-base);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 16px;
   box-shadow: 
@@ -961,6 +965,11 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px 16px 0 0;
   flex-shrink: 0;
+  cursor: grab;
+}
+
+.yyt-popup.yyt-popup-dragging .yyt-popup-header {
+  cursor: grabbing;
 }
 
 .yyt-popup-title {
@@ -1042,6 +1051,26 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.yyt-compact-mode .yyt-popup-body {
+  padding: 12px 16px;
+}
+
+.yyt-compact-mode .yyt-panel {
+  gap: 14px;
+}
+
+.yyt-compact-mode .yyt-panel-section {
+  padding: 14px;
+  gap: 10px;
+}
+
+.yyt-no-animation *,
+.yyt-no-animation *::before,
+.yyt-no-animation *::after {
+  animation: none !important;
+  transition: none !important;
 }
 
 /* 响应式调整 */

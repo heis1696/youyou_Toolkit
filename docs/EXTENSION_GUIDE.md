@@ -50,13 +50,21 @@ YouYou Toolkit 采用分层模块化架构设计：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         index.js (入口层)                        │
+│                    index.js (薄入口 / 全局挂载)                   │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+┌───────────────────────────┴─────────────────────────────────────┐
+│                      App Layer (应用装配层)                       │
+│  bootstrap.js          模块加载 / 主题恢复 / 菜单注册             │
+│  popup-shell.js        主工具箱弹窗与主/子标签路由               │
+│  public-api.js         对外 API 门面                              │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
 │                      Core Layer (核心层)                         │
 │  event-bus.js          事件总线                                   │
 │  storage-service.js    统一存储服务                               │
+│  settings-service.js   全局设置服务                               │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
@@ -64,18 +72,23 @@ YouYou Toolkit 采用分层模块化架构设计：
 │  api-connection.js     API连接管理                               │
 │  preset-manager.js     预设管理                                   │
 │  regex-extractor.js    正则提取                                   │
-│  tool-manager.js       工具管理                                   │
-│  tool-executor.js      工具执行                                   │
-│  tool-registry.js      工具注册                                   │
+│  tool-manager.js       定义层工具管理                             │
+│  tool-registry.js      运行态工具主模型                           │
+│  tool-trigger.js       自动触发入口层                             │
+│  tool-output-service.js 自动工具链直接执行层                      │
+│  tool-prompt-service.js 提示词与消息构建                           │
+│  context-injector.js   最新 AI 楼层写回                           │
+│  tool-executor.js      调度/批处理/兼容执行入口                   │
 │  bypass-manager.js     破限词管理                                 │
-│  window-manager.js     窗口管理                                   │
-│  prompt-editor.js      提示词编辑器                               │
+│  variable-resolver.js  变量解析                                   │
+│  window-manager.js     独立窗口扩展能力                           │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────┴─────────────────────────────────────┐
 │                        UI Layer (UI层)                           │
-│  ui-components.js      UI组件主模块（兼容层）                     │
-│  ui-manager.js         UI管理器                                   │
+│  ui/index.js           UI主装配入口                               │
+│  ui-manager.js         UI生命周期与样式聚合管理器                 │
+│  ui-components.js      UI兼容层                                   │
 │  components/           独立UI组件                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -84,10 +97,11 @@ YouYou Toolkit 采用分层模块化架构设计：
 
 | 模块 | 文件 | 功能 |
 |------|------|------|
-| 主入口 | `index.js` | 弹窗管理、菜单注册、模块协调 |
+| 主入口 | `index.js` | 薄入口、上下文装配、全局挂载 |
+| 应用装配层 | `modules/app/*` | bootstrap / popup shell / public API |
 | 核心层 | `modules/core/` | 事件总线、统一存储 |
 | 服务层 | `modules/*.js` | 各类业务服务 |
-| UI层 | `modules/ui/` | UI组件与渲染 |
+| UI层 | `modules/ui/` | UI主装配入口、组件生命周期与渲染 |
 
 ### 插件生命周期
 
@@ -646,6 +660,10 @@ youyou_Toolkit/
 │   │   ├── event-bus.js        # 事件总线
 │   │   ├── storage-service.js  # 存储服务
 │   │   └── index.js            # 核心模块入口
+│   ├── app/                    # 应用装配层
+│   │   ├── bootstrap.js
+│   │   ├── popup-shell.js
+│   │   └── public-api.js
 │   ├── ui/                     # UI层
 │   │   ├── index.js            # UI模块入口
 │   │   ├── ui-manager.js       # UI管理器
@@ -663,13 +681,17 @@ youyou_Toolkit/
 │   ├── preset-manager.js       # 预设管理
 │   ├── regex-extractor.js      # 正则提取
 │   ├── tool-manager.js         # 工具管理
-│   ├── tool-executor.js        # 工具执行
+│   ├── tool-executor.js        # 调度/兼容执行
 │   ├── tool-trigger.js         # 事件触发
+│   ├── tool-output-service.js  # 自动工具链直接执行层
+│   ├── tool-prompt-service.js  # 提示词构建
+│   ├── context-injector.js     # 最新楼层写回
+│   ├── variable-resolver.js    # 变量解析
 │   ├── tool-registry.js        # 工具注册
 │   ├── bypass-manager.js       # 破限词管理
 │   ├── window-manager.js       # 窗口管理
 │   ├── prompt-editor.js        # 提示词编辑器
-│   └── ui-components.js        # UI组件（兼容层）
+│   └── ui-components.js        # UI兼容层
 ├── styles/
 │   └── main.css                # 主样式文件
 ├── docs/                       # 文档目录

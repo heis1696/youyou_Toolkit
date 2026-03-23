@@ -11,6 +11,12 @@
 
 ### 更改
 
+- 🔧 **阶段后收尾：文档同步、主窗口拖动与主题应用修复** (`README.md`, `docs/EXTENSION_GUIDE.md`, `docs/CONTRIBUTING.md`, `modules/app/popup-shell.js`, `modules/ui/components/settings-panel.js`, `modules/app/bootstrap.js`, `styles/main.css`, `modules/window-manager.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 同步更新 `README.md`、`docs/EXTENSION_GUIDE.md` 与 `docs/CONTRIBUTING.md`，修正文档中仍把 `ui-components.js`、`window-manager.js`、旧版页签和旧目录结构当成主路径的问题
+  - 为主工具箱弹窗增加头部拖动能力，避免 popup 固定居中后无法调整位置
+  - 修复设置页主题切换、紧凑模式与动画开关应用到错误 document 的问题，确保 popup 所在顶层文档能够真正响应主题变更
+  - 补齐主题变量与弹窗样式对接，统一主 popup 与独立 window 的主题 token 来源
+
 - 🔧 **Phase 5：调试与回归保障增强完成** (`modules/tool-registry.js`, `modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 为自动触发链新增最近一次全局触发快照 `lastAutoTriggerSnapshot`，统一记录最近触发事件、去重键、命中的工具列表与跳过原因
   - 为单工具运行态新增最近触发时间、最近触发事件、最近消息键、最近跳过原因、最近执行路径、最近写回状态与最近失败阶段等紧凑诊断字段

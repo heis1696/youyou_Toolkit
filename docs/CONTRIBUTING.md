@@ -46,9 +46,9 @@
 
 5. **进行修改**
 
-   - 修改 `index.js` 源代码
+   - 修改对应模块源码（如 `modules/app/*`、`modules/ui/*`、`modules/tool-*` 等）
    - 运行 `npm run build` 构建测试
-   - 更新相关文档
+   - 更新相关文档（至少同步 `README.md`、`docs/API_DOCUMENTATION.md`、`docs/CHANGELOG.md`；若涉及施工演进，也同步 `docs/OPTIMIZATION_PROGRESS.md`）
 
 6. **提交更改**
 
@@ -99,9 +99,13 @@ youyou_Toolkit/
 │   │   ├── event-bus.js        # 事件总线
 │   │   ├── storage-service.js  # 存储服务
 │   │   └── index.js            # 核心模块入口
+│   ├── app/                    # 应用装配层
+│   │   ├── bootstrap.js        # 启动、样式、菜单注册
+│   │   ├── popup-shell.js      # 主工具箱弹窗与路由
+│   │   └── public-api.js       # 对外 API 门面
 │   ├── ui/                     # UI层
 │   │   ├── index.js            # UI模块入口
-│   │   ├── ui-manager.js       # UI管理器
+│   │   ├── ui-manager.js       # UI生命周期与样式聚合管理器
 │   │   ├── utils.js            # 工具函数
 │   │   └── components/         # UI组件
 │   │       ├── api-preset-panel.js
@@ -110,17 +114,22 @@ youyou_Toolkit/
 │   │       ├── tool-config-panel-factory.js
 │   │       ├── summary-tool-panel.js
 │   │       ├── status-block-panel.js
-│   │       └── tool-manage-panel.js
+│   │       ├── tool-manage-panel.js
+│   │       └── youyou-review-panel.js
 │   ├── storage.js              # 存储管理
 │   ├── api-connection.js       # API连接
 │   ├── preset-manager.js       # 预设管理
 │   ├── regex-extractor.js      # 正则提取
 │   ├── tool-manager.js         # 工具管理
-│   ├── tool-executor.js        # 工具执行
+│   ├── tool-executor.js        # 调度/兼容执行
 │   ├── tool-trigger.js         # 事件触发
+│   ├── tool-output-service.js  # 自动工具链直接执行层
+│   ├── tool-prompt-service.js  # 工具提示词构建
+│   ├── context-injector.js     # 最新楼层写回
+│   ├── variable-resolver.js    # 变量解析
 │   ├── tool-registry.js        # 工具注册
 │   ├── bypass-manager.js       # 破限词管理
-│   ├── window-manager.js       # 窗口管理
+│   ├── window-manager.js       # 独立窗口扩展能力
 │   ├── prompt-editor.js        # 提示词编辑器
 │   └── ui-components.js        # UI组件（兼容层）
 ├── styles/
@@ -163,6 +172,12 @@ youyou_Toolkit/
 - `README.md` - 用户使用说明
 - `docs/API_DOCUMENTATION.md` - API 文档
 - `docs/CHANGELOG.md` - 更新日志
+
+如果你修改的是架构边界、分阶段施工状态或优化计划，请继续同步：
+
+- `docs/OPTIMIZATION_PROGRESS.md`
+- `docs/OPTIMIZATION_EXECUTION_PLAN.md`
+- `docs/ARCHITECTURE_ANALYSIS.md`（若涉及架构结论变化）
 
 ---
 
