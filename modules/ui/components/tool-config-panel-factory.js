@@ -489,7 +489,9 @@ export function createToolConfigPanel(options) {
 
     _formatSkipReason(reason) {
       const mapping = {
+        listener_disabled: '已跳过：自动监听已关闭',
         quiet_generation: '已跳过：quiet / dryRun 生成',
+        ignored_auto_trigger: '已跳过：判定为非用户主动触发生成',
         missing_ai_message: '已跳过：未读取到有效 AI 回复',
         duplicate_message: '已跳过：命中自动去重',
         no_eligible_tools: '已跳过：没有命中可执行工具',

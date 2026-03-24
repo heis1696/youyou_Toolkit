@@ -60,6 +60,11 @@
 
 ### 文档
 
+- 📝 **优化施工文档完成度复核** (`docs/OPTIMIZATION_EXECUTION_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
+  - 为施工方案文档补充 2026-03-24 完成度复核，明确 5 个 Phase 与 11 项实施清单均已在代码中找到落点
+  - 更新施工进程文档中的最后更新时间、当前状态、施工日志与回归结论，正式将“文档施工状态”收口为已完成
+  - 为架构分析文档补充“施工前基线 / 施工后复核”定位说明，避免把历史问题误读成当前代码现状
+
 - 📝 **新增优化方案施工文档** (`docs/OPTIMIZATION_EXECUTION_PLAN.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 基于最新架构梳理结果，新增面向后续重构落地的施工文档
   - 将优化目标收敛为入口拆壳、工具模型统一、执行链清主次、UI 装配中心统一、调试与回归保障增强五个阶段
@@ -76,6 +81,19 @@
   - 将参考项目启发同步到优化方案与施工进程文档，作为 Phase 1 前的设计输入
 
 ### 修复
+
+- 🐛 **写回链分层结果标准化与最终校验增强** (`modules/context-injector.js`, `modules/tool-output-service.js`, `docs/API_DOCUMENTATION.md`)
+  - 保留 `contextInjector.inject()` 的布尔兼容接口，同时新增 `injectDetailed()` 返回分层写回结果，便于区分“找不到目标消息 / 宿主写回失败 / 写回后校验失败”
+  - 写回结果现在会记录目标消息索引、写入字段、宿主写回方式、各步骤状态与最终校验结果
+  - `tool-output-service.runToolPostResponse()` 的 `meta` 结构新增 `writebackDetails`，用于更精确定位写回链问题
+  - 宿主写回逻辑新增 `setChatMessages -> setChatMessage` 的回退链，而不是前者失败后只停留在本地同步
+
+- 🐛 **自动触发设置接线与事件级诊断补齐** (`modules/tool-trigger.js`, `modules/core/settings-service.js`, `modules/ui/components/settings-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`)
+  - 将监听器设置真正接入自动触发主链：`listenGenerationEnded`、`ignoreQuietGeneration`、`debounceMs` 不再只是 UI / 存储项
+  - 为 `ignoreAutoTrigger` 增加“最近用户发送意图”门控语义，用于尽量跳过插件/脚本引发的自动生成误触发
+  - 新增 `lastEventDebugSnapshot` 事件级调试快照，帮助定位“宿主事件是否收到 / 是否被调度 / 在哪一步被跳过”
+  - 修复 `destroyToolTriggerManager()` 使用错误回调清理监听器的问题，避免后续重绑时残留脏监听
+  - 同步调整设置页说明文案与工具面板跳过原因文案，降低“设置看起来有，但实际上不生效”的误导
 
 - 🐛 **工具列表入口、手动执行、自动触发与楼层刷新进一步修复** (`modules/tool-registry.js`, `index.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `modules/tool-trigger.js`, `modules/api-connection.js`, `modules/context-injector.js`, `docs/API_DOCUMENTATION.md`)
   - 新增可见的顶层 `工具列表` UI 页面，用户可直接在界面里创建、编辑、删除自定义工具；新建工具后会自动跳转到对应配置页

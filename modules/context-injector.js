@@ -22,6 +22,18 @@ const DEFAULT_INJECTION_OPTIONS = {
   enabled: true
 };
 
+const WRITEBACK_RESULT_STATUS = {
+  SUCCESS: 'success',
+  FAILED: 'failed'
+};
+
+const WRITEBACK_METHODS = {
+  NONE: 'none',
+  LOCAL_ONLY: 'local_only',
+  SET_CHAT_MESSAGES: 'setChatMessages',
+  SET_CHAT_MESSAGE: 'setChatMessage'
+};
+
 // ============================================================
 // 上下文注入器类
 // ============================================================
@@ -41,16 +53,30 @@ class ContextInjector {
    * @param {string} toolId - 工具ID
    * @param {string} content - 要注入的内容
    * @param {Object} options - 注入选项
-   * @returns {boolean} 是否成功
+   * @returns {boolean} 是否成功（兼容接口）
    */
   async inject(toolId, content, options = {}) {
+    const result = await this.injectDetailed(toolId, content, options);
+    return result.success;
+  }
+
+  /**
+   * 注入工具上下文，并返回分层写回结果。
+   * @param {string} toolId - 工具ID
+   * @param {string} content - 要注入的内容
+   * @param {Object} options - 注入选项
+   * @returns {Object} 写回结果
+   */
+  async injectDetailed(toolId, content, options = {}) {
+    const mergedOptions = { ...DEFAULT_INJECTION_OPTIONS, ...options };
+    const writebackResult = this._createWritebackResult(toolId, mergedOptions);
+
     if (!toolId || content === undefined || content === null) {
       this._log('注入失败: 参数无效');
-      return false;
+      writebackResult.error = '注入失败: 参数无效';
+      return writebackResult;
     }
-
-    const mergedOptions = { ...DEFAULT_INJECTION_OPTIONS, ...options };
-    const chatId = this._getCurrentChatId();
+    const chatId = writebackResult.chatId;
     
     // 创建注入条目
     const injectionEntry = {
@@ -69,13 +95,13 @@ class ContextInjector {
       options: mergedOptions
     });
 
-    const inserted = await this._insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions);
-    if (!inserted) {
-      return false;
-    }
+    const inserted = await this._insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions, writebackResult);
     
-    this._log(`注入成功: ${toolId} -> ${chatId}`);
-    return true;
+    if (inserted.success) {
+      this._log(`注入成功: ${toolId} -> ${chatId}`, inserted);
+    }
+
+    return inserted;
   }
 
   /**
@@ -342,6 +368,40 @@ class ContextInjector {
   }
 
   /**
+   * 创建标准化写回结果。
+   * @private
+   */
+  _createWritebackResult(toolId, options = {}) {
+    return {
+      success: false,
+      toolId,
+      chatId: this._getCurrentChatId(),
+      sourceMessageId: options.sourceMessageId || null,
+      messageIndex: -1,
+      textField: '',
+      hostUpdateMethod: WRITEBACK_METHODS.NONE,
+      writebackStatus: WRITEBACK_RESULT_STATUS.FAILED,
+      error: '',
+      errors: [],
+      steps: {
+        foundTargetMessage: false,
+        localTextApplied: false,
+        runtimeSynced: false,
+        hostSetChatMessages: false,
+        hostSetChatMessage: false,
+        saveChatDebounced: false,
+        saveChat: false,
+        notifiedMessageUpdated: false,
+        verifiedAfterWrite: false
+      },
+      verification: {
+        textIncludesContent: false,
+        mirrorStored: false
+      }
+    };
+  }
+
+  /**
    * 同步更新 context.chat / api.chat 中的同一条消息，提升界面即时刷新概率
    * @private
    */
@@ -564,23 +624,31 @@ class ContextInjector {
    * 将工具输出直接插入最新 AI 楼层原文
    * @private
    */
-  async _insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}) {
+  async _insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}, writebackResult = null) {
+    const result = writebackResult || this._createWritebackResult(toolId, options);
+
     try {
       const runtime = this._getChatRuntime();
       const { api, context, chat } = runtime;
       if (!Array.isArray(chat) || !chat.length) {
         this._log('未找到聊天消息，无法插入工具输出');
-        return false;
+        result.error = '未找到聊天消息，无法插入工具输出';
+        return result;
       }
 
       const messageIndex = this._findAssistantMessageIndex(chat, options.sourceMessageId);
       if (messageIndex < 0) {
         this._log('未找到可写入的最新 AI 回复消息');
-        return false;
+        result.error = '未找到可写入的最新 AI 回复消息';
+        return result;
       }
+
+      result.messageIndex = messageIndex;
+      result.steps.foundTargetMessage = true;
 
       const targetMessage = chat[messageIndex];
       const { key, text } = this._getWritableMessageField(targetMessage);
+      result.textField = key;
       const existingOutputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] && typeof targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] === 'object'
         ? targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
         : {};
@@ -608,11 +676,14 @@ class ContextInjector {
       this._applyMessageText(targetMessage, nextText);
       targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = mergedOutputs;
       targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(mergedOutputs);
+      result.steps.localTextApplied = true;
 
       this._syncMessageToRuntimeChats(runtime, messageIndex, targetMessage);
+      result.steps.runtimeSynced = true;
 
       const setChatMessages = context?.setChatMessages || api?.setChatMessages || runtime?.topWindow?.setChatMessages || null;
       const setChatMessage = context?.setChatMessage || api?.setChatMessage || runtime?.topWindow?.setChatMessage || null;
+      let hostWriteCompleted = false;
 
       if (typeof setChatMessages === 'function') {
         try {
@@ -625,10 +696,16 @@ class ContextInjector {
           }], {
             refresh: 'affected'
           });
+          result.steps.hostSetChatMessages = true;
+          result.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
+          hostWriteCompleted = true;
         } catch (error) {
           this._log('setChatMessages 写回失败，回退本地同步', error);
+          result.errors.push(`setChatMessages: ${error?.message || String(error)}`);
         }
-      } else if (typeof setChatMessage === 'function') {
+      }
+
+      if (!hostWriteCompleted && typeof setChatMessage === 'function') {
         try {
           await setChatMessage.call(context || api || runtime?.topWindow, {
             message: nextText,
@@ -636,9 +713,17 @@ class ContextInjector {
             content: nextText,
             text: nextText
           }, messageIndex);
+          result.steps.hostSetChatMessage = true;
+          result.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
+          hostWriteCompleted = true;
         } catch (error) {
           this._log('setChatMessage 写回失败，回退本地同步', error);
+          result.errors.push(`setChatMessage: ${error?.message || String(error)}`);
         }
+      }
+
+      if (!hostWriteCompleted) {
+        result.hostUpdateMethod = WRITEBACK_METHODS.LOCAL_ONLY;
       }
 
       if (typeof setChatMessage === 'function') {
@@ -646,6 +731,7 @@ class ContextInjector {
           await setChatMessage.call(context || api || runtime?.topWindow, {}, messageIndex);
         } catch (error) {
           this._log('使用空 setChatMessage 强制刷新失败', error);
+          result.errors.push(`setChatMessage(refresh): ${error?.message || String(error)}`);
         }
       }
 
@@ -654,19 +740,49 @@ class ContextInjector {
 
       if (typeof saveChatDebounced === 'function') {
         saveChatDebounced.call(context || api);
+        result.steps.saveChatDebounced = true;
       }
 
       if (typeof saveChat === 'function') {
         await saveChat.call(context || api);
+        result.steps.saveChat = true;
       }
 
       this._notifyMessageUpdated(runtime, messageIndex);
+      result.steps.notifiedMessageUpdated = true;
+
+      const latestMessage = runtime?.contextChat?.[messageIndex]
+        || runtime?.apiChat?.[messageIndex]
+        || chat[messageIndex]
+        || targetMessage;
+      const latestText = this._getWritableMessageField(latestMessage).text || '';
+      const expectedContent = String(injectionEntry.content || '').trim();
+      const mirroredEntry = latestMessage?.[MESSAGE_TOOL_OUTPUTS_KEY]?.[toolId];
+
+      result.verification.textIncludesContent = expectedContent
+        ? latestText.includes(expectedContent)
+        : true;
+      result.verification.mirrorStored = Boolean(
+        mirroredEntry
+        && String(mirroredEntry.content || '').trim() === expectedContent
+      );
+      result.steps.verifiedAfterWrite = result.verification.textIncludesContent && result.verification.mirrorStored;
+      result.success = result.steps.localTextApplied && result.steps.runtimeSynced && result.steps.verifiedAfterWrite;
+      result.writebackStatus = result.success
+        ? WRITEBACK_RESULT_STATUS.SUCCESS
+        : WRITEBACK_RESULT_STATUS.FAILED;
+
+      if (!result.success && !result.error) {
+        result.error = '工具结果已尝试写回，但最终校验未通过';
+      }
 
       this._log(`已将工具输出插入最新 AI 回复原文: ${toolId} -> #${messageIndex}`);
-      return true;
+      return result;
     } catch (error) {
       this._log('插入最新 AI 回复原文失败', error);
-      return false;
+      result.error = error?.message || String(error);
+      result.errors.push(result.error);
+      return result;
     }
   }
 
@@ -725,5 +841,10 @@ class ContextInjector {
 // ============================================================
 
 export const contextInjector = new ContextInjector();
-export { DEFAULT_INJECTION_OPTIONS, ContextInjector };
+export {
+  DEFAULT_INJECTION_OPTIONS,
+  WRITEBACK_RESULT_STATUS,
+  WRITEBACK_METHODS,
+  ContextInjector
+};
 export default contextInjector;

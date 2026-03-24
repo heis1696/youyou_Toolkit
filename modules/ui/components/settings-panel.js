@@ -264,9 +264,9 @@ export const SettingsPanel = {
             <label class="yyt-toggle-label">
               <input type="checkbox" class="yyt-toggle" id="yyt-setting-listenGenerationEnded" 
                      ${listener.listenGenerationEnded ? 'checked' : ''}>
-              <span>监听 AI 回复完成事件</span>
+              <span>启用自动工具监听</span>
             </label>
-            <div class="yyt-form-hint">启用后将在 AI 回复完成时自动触发工具</div>
+            <div class="yyt-form-hint">启用后会监听 GENERATION_ENDED，并结合 GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED 作为兜底来源自动触发工具。</div>
           </div>
         </div>
         
@@ -278,7 +278,7 @@ export const SettingsPanel = {
                      ${listener.ignoreQuietGeneration ? 'checked' : ''}>
               <span>忽略静默生成</span>
             </label>
-            <div class="yyt-form-hint">Quiet 模式的生成不会触发工具</div>
+            <div class="yyt-form-hint">启用后会跳过 quiet / dryRun / 后台生成，减少未真正产生回复时的误触发。</div>
           </div>
           
           <div class="yyt-form-group">
@@ -287,7 +287,7 @@ export const SettingsPanel = {
                      ${listener.ignoreAutoTrigger ? 'checked' : ''}>
               <span>忽略自动触发</span>
             </label>
-            <div class="yyt-form-hint">自动触发的生成不会执行工具</div>
+            <div class="yyt-form-hint">启用后会尽量跳过“没有最近用户发送意图”的生成，减少其他插件/脚本触发生成时的误执行。</div>
           </div>
         </div>
         
@@ -295,7 +295,7 @@ export const SettingsPanel = {
           <div class="yyt-settings-section-title">防抖设置</div>
           <div class="yyt-form-group">
             <label>防抖时间 (ms)</label>
-            <div class="yyt-form-hint">连续事件触发的最小间隔</div>
+            <div class="yyt-form-hint">用于 GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED 等兜底事件的延迟调度与去抖。</div>
             <input type="number" class="yyt-input" id="yyt-setting-debounceMs" 
                    value="${listener.debounceMs}" min="0" max="5000" step="100">
           </div>

@@ -1,6 +1,7 @@
 # YouYou Toolkit 优化方案施工文档
 
 > 创建时间：2026-03-21  
+> 最后复核：2026-03-24  
 > 关联文档：`docs/ARCHITECTURE_ANALYSIS.md`  
 > 当前适用基线：v0.6.2 + Unreleased 变更集合
 
@@ -708,3 +709,60 @@ MVU 对本项目最适合的定位应是：
 9. 统一 UI 壳层与组件层的装配边界，降低 `ui-components.js` 的主路径权重。
 10. 补充自动触发链、去重链、跳过原因与写回链的调试可观测信息。
 11. 为每一阶段建立最小回归测试清单并逐步验收。
+
+---
+
+## 十三、2026-03-24 完成度复核
+
+本次复核目标不是重新提出新方案，而是确认本施工文档中定义的实施范围是否已经真正落到代码与进度文档中。
+
+### 13.1 分阶段复核结果
+
+| Phase | 复核结果 | 代码落点 |
+|------|------|------|
+| Phase 1：入口层拆壳 | 已完成 | `index.js`、`modules/app/bootstrap.js`、`modules/app/popup-shell.js`、`modules/app/public-api.js` |
+| Phase 2：工具模型统一 | 已完成 | `modules/tool-manager.js`、`modules/tool-registry.js`、`modules/ui/components/tool-manage-panel.js`、`modules/ui/components/tool-config-panel-factory.js` |
+| Phase 3：执行链清主次 | 已完成 | `modules/tool-executor.js`、`modules/tool-trigger.js`、`modules/tool-output-service.js`、`docs/API_DOCUMENTATION.md` |
+| Phase 4：UI 装配中心统一 | 已完成 | `modules/ui/index.js`、`modules/ui/ui-manager.js`、`modules/ui-components.js`、`modules/app/popup-shell.js` |
+| Phase 5：调试与回归保障增强 | 已完成 | `modules/tool-registry.js`、`modules/tool-trigger.js`、`modules/tool-output-service.js`、`modules/ui/components/tool-config-panel-factory.js` |
+
+### 13.2 对实施清单的逐项结论
+
+1. **抽离初始化逻辑到 bootstrap 模块**：已完成。  
+   对应 `modules/app/bootstrap.js`，并由 `index.js` 调用。
+
+2. **抽离主弹窗与标签切换到 popup shell 模块**：已完成。  
+   对应 `modules/app/popup-shell.js`。
+
+3. **抽离对外 API 组装逻辑**：已完成。  
+   对应 `modules/app/public-api.js`。
+
+4. **为 `tool-manager.js` 增加运行态归一化输出**：已完成。  
+   已存在 `createDefaultToolDefinition()` 与 `normalizeToolDefinitionToRuntimeConfig()`。
+
+5. **收敛 `tool-registry.js` 中默认工具、自定义工具与兼容字段合并策略**：已完成。  
+   已存在 `getToolBaseConfig()`、`getToolFullConfig()`、`ensureToolRuntimeConfig()` 等统一入口。
+
+6. **统一新建工具默认配置到新主模型结构**：已完成。  
+   `tool-manage-panel.js` 在新建后会调用 `ensureToolRuntimeConfig()`。
+
+7. **标记并迁移 `tool-executor.js` 中旧式消息构建和旧执行逻辑**：已完成。  
+   代码注释与 API 文档都已将 `buildToolMessages()` / `executeToolWithConfig()` 标记为 compatibility / legacy 入口。
+
+8. **明确自动主链为 `tool-trigger -> tool-output-service -> tool-prompt-service -> context-injector`**：已完成。  
+   `tool-trigger.js` 与 `tool-output-service.js` 中均已写明主路径职责。
+
+9. **统一 UI 壳层与组件层装配边界**：已完成。  
+   当前 `modules/ui/index.js` 是主 UI 装配入口，`ui-components.js` 已降级为 compatibility facade。
+
+10. **补充自动链调试可观测信息**：已完成。  
+    已补齐 `lastAutoTriggerSnapshot`、单工具运行态诊断字段与折叠式诊断面板。
+
+11. **建立并维护最小回归清单**：已完成，但说明需分两层理解。  
+    文档层面的回归清单与阶段验收项已经补齐；不过 SillyTavern / TavernHelper 宿主环境下的最终实机回归，仍建议在真实运行环境中再执行一轮。这属于发布级验证建议，不构成本轮文档施工未完成的阻塞项。
+
+### 13.3 复核结论
+
+结论：**本施工方案文档定义的 5 个 Phase 与 11 项实施清单，均已在当前代码库与进度文档中找到明确落点，本轮“文档施工”可以判定为已完成。**
+
+当前剩余事项不再属于“方案是否落地”的问题，而是是否还要继续进行一轮宿主环境实测与发布前体验收尾。

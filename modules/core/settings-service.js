@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   listener: {
     listenGenerationEnded: true,
     ignoreQuietGeneration: true,
-    ignoreAutoTrigger: true,
+    ignoreAutoTrigger: false,
     debounceMs: 300
   },
   debug: {

@@ -237,6 +237,8 @@ const trigger = YouYouToolkit.getToolTrigger();
 
 > 从 `Phase 5` 开始，`getToolTriggerManagerState()` 额外会返回最近一次自动触发快照 `lastAutoTriggerSnapshot`，用于定位自动链最近一次是正常进入执行、还是被 `quiet` / 去重 / 未读取到 AI 回复等原因跳过。
 
+> 从当前修复开始，`getToolTriggerManagerState()` 还会额外返回 `lastEventDebugSnapshot`，用于定位“宿主事件有没有收到、有没有被调度、是不是在设置门控或消息读取阶段被提前跳过”。
+
 ### `getBypassManager()`
 
 获取破限词管理模块。
@@ -306,6 +308,7 @@ const resolver = YouYouToolkit.getVariableResolver();
 ```javascript
 const injector = YouYouToolkit.getContextInjector();
 // injector.inject(toolId, content, options) // 将工具输出写回最新 AI 楼层
+// injector.injectDetailed(toolId, content, options) // 将工具输出写回最新 AI 楼层，并返回分层写回结果
 // injector.getAggregatedContext(chatId) // 获取当前最新 AI 楼层上的工具输出文本
 // injector.getToolContext(chatId, toolId) // 获取单个工具的注入上下文
 // injector.getAllToolContexts(chatId) // 获取聊天下所有工具上下文
@@ -318,6 +321,8 @@ const injector = YouYouToolkit.getContextInjector();
 ```
 
 > 当前主链路中，`inject()` 的职责已经收敛为：**把工具结果直接插入最新 AI 楼层原文**，并同步更新消息对象上的 `YouYouToolkit_toolOutputs` 与 `YouYouToolkit_injectedContext` 字段，然后触发 `MESSAGE_UPDATED` 刷新界面。
+
+> 从当前优化开始，额外提供 `injectDetailed()`：在保留 `inject()` 布尔值兼容接口的同时，返回一份分层写回结果，至少包含目标消息索引、宿主写回方式、分步执行状态以及最终校验结果，便于定位“到底是没找到消息、宿主写回失败，还是写完后校验失败”。
 
 > 从当前修复开始，写回流程会尽量同时同步 `SillyTavern.getContext().chat` 与 `SillyTavern.chat` 中对应消息对象，并额外补发一次 `MESSAGE_UPDATED`，以提高插入上下文后界面即时刷新的稳定性。
 
@@ -370,7 +375,39 @@ const outputService = YouYouToolkit.getToolOutputService();
   selectors,
   apiPreset,
   writebackStatus,
-  failureStage
+  failureStage,
+  writebackDetails
+}
+```
+
+其中 `writebackDetails` 会包含类似结构：
+
+```javascript
+{
+  success,
+  chatId,
+  toolId,
+  sourceMessageId,
+  messageIndex,
+  textField,
+  hostUpdateMethod,
+  writebackStatus,
+  error,
+  steps: {
+    foundTargetMessage,
+    localTextApplied,
+    runtimeSynced,
+    hostSetChatMessages,
+    hostSetChatMessage,
+    saveChatDebounced,
+    saveChat,
+    notifiedMessageUpdated,
+    verifiedAfterWrite
+  },
+  verification: {
+    textIncludesContent,
+    mirrorStored
+  }
 }
 ```
 
@@ -461,11 +498,24 @@ tool-registry.runtime
 
 | 值 | 说明 |
 |------|------|
+| `listener_disabled` | 自动工具监听已关闭 |
 | `quiet_generation` | 当前生成属于 quiet / dryRun / 后台生成 |
+| `ignored_auto_trigger` | 判定为缺少最近用户发送意图，疑似插件/脚本自动触发生成 |
 | `missing_ai_message` | 未读取到可供处理的有效 AI 回复 |
 | `duplicate_message` | 命中自动去重，避免同一消息重复执行 |
 | `no_eligible_tools` | 当前没有命中可自动执行的工具 |
 | `tool_disabled` | 工具未启用（主要用于手动执行场景） |
+
+### 监听器设置的当前语义
+
+当前 `settings.listener` 中与自动链直接相关的字段，已经真正接入自动触发主链：
+
+| 字段 | 当前语义 |
+|------|------|
+| `listenGenerationEnded` | 自动监听总开关。关闭后，自动工具链不会再响应 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` |
+| `ignoreQuietGeneration` | 是否跳过 quiet / dryRun / 后台生成 |
+| `ignoreAutoTrigger` | 是否尽量跳过“没有最近用户发送意图”的生成，减少其他插件/脚本引发的误执行 |
+| `debounceMs` | `GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 这类兜底事件的延迟调度与去抖时间 |
 
 ### 标准执行路径
 

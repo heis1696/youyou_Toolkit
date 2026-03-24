@@ -131,6 +131,7 @@ class ToolOutputService {
     const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
     let failureStage = '';
     let writebackStatus = TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
+    let writebackDetails = null;
     let messages = [];
     let outputContent = '';
     
@@ -170,15 +171,15 @@ class ToolOutputService {
       // 5. 注入上下文
       if (outputContent) {
         failureStage = TOOL_FAILURE_STAGES.INJECT_CONTEXT;
-        const injected = await contextInjector.inject(toolId, outputContent, {
+        writebackDetails = await contextInjector.injectDetailed(toolId, outputContent, {
           overwrite: toolConfig.output?.overwrite !== false,
           sourceMessageId: rawContext.messageId || '',
           extractionSelectors: selectors
         });
 
-        if (!injected) {
+        if (!writebackDetails?.success) {
           writebackStatus = TOOL_WRITEBACK_STATUS.FAILED;
-          throw new Error('工具结果已生成，但写入上下文/世界书失败');
+          throw new Error(writebackDetails?.error || '工具结果已生成，但写入上下文/世界书失败');
         }
 
         writebackStatus = TOOL_WRITEBACK_STATUS.SUCCESS;
@@ -210,7 +211,8 @@ class ToolOutputService {
           selectors,
           apiPreset,
           writebackStatus,
-          failureStage: ''
+          failureStage: '',
+          writebackDetails
         }
       };
       
@@ -238,7 +240,8 @@ class ToolOutputService {
           selectors,
           apiPreset,
           writebackStatus: resolvedWritebackStatus,
-          failureStage: resolvedFailureStage
+          failureStage: resolvedFailureStage,
+          writebackDetails
         }
       };
     }

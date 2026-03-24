@@ -82,7 +82,9 @@ const triggerState = {
 };
 
 export const AUTO_TRIGGER_SKIP_REASONS = {
+  LISTENER_DISABLED: 'listener_disabled',
   QUIET_GENERATION: 'quiet_generation',
+  IGNORED_AUTO_TRIGGER: 'ignored_auto_trigger',
   MISSING_AI_MESSAGE: 'missing_ai_message',
   DUPLICATE_MESSAGE: 'duplicate_message',
   NO_ELIGIBLE_TOOLS: 'no_eligible_tools',
@@ -94,6 +96,8 @@ export const TOOL_EXECUTION_PATHS = {
   MANUAL_POST_RESPONSE_API: 'manual_post_response_api',
   MANUAL_COMPATIBILITY: 'manual_compatibility'
 };
+
+const AUTO_TRIGGER_USER_INTENT_TTL_MS = 15000;
 
 // ============================================================
 // 工具函数
@@ -412,6 +416,89 @@ function log(...args) {
   if (triggerState.debugMode || settingsService.getDebugSettings()?.enableDebugLog) {
     console.log('[YouYouToolkit:Trigger]', ...args);
   }
+}
+
+function getResolvedListenerSettings() {
+  const listenerSettings = settingsService.getListenerSettings?.()
+    || settingsService.getSettings?.()?.listener
+    || {};
+
+  const parsedDebounceMs = parseInt(listenerSettings?.debounceMs, 10);
+
+  return {
+    listenGenerationEnded: listenerSettings?.listenGenerationEnded !== false,
+    ignoreQuietGeneration: listenerSettings?.ignoreQuietGeneration !== false,
+    ignoreAutoTrigger: listenerSettings?.ignoreAutoTrigger === true,
+    debounceMs: Number.isFinite(parsedDebounceMs) ? Math.max(0, parsedDebounceMs) : 300
+  };
+}
+
+function extractEventMessageId(data) {
+  if (typeof data === 'string' || typeof data === 'number') {
+    return String(data);
+  }
+
+  return data?.messageId || data?.id || data?.message_id || '';
+}
+
+function hasRecentUserTriggerIntent(now = Date.now()) {
+  const candidates = [
+    triggerState.gateState.lastUserSendIntentAt,
+    triggerState.gateState.lastUserMessageAt
+  ].filter(value => Number(value) > 0);
+
+  return candidates.some(timestamp => (now - timestamp) <= AUTO_TRIGGER_USER_INTENT_TTL_MS);
+}
+
+function createEventDebugSnapshot(snapshot = {}) {
+  return {
+    stage: '',
+    eventType: '',
+    messageId: '',
+    messageKey: '',
+    reason: '',
+    scheduledDelayMs: 0,
+    candidateToolIds: [],
+    receivedAt: Date.now(),
+    handledAt: 0,
+    registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
+    listenerSettings: getResolvedListenerSettings(),
+    hasRecentUserTriggerIntent: hasRecentUserTriggerIntent(),
+    ...snapshot
+  };
+}
+
+function saveEventDebugSnapshot(snapshot = {}) {
+  const normalizedSnapshot = createEventDebugSnapshot(snapshot);
+  toolTriggerManagerState.lastEventDebugSnapshot = normalizedSnapshot;
+  log('自动触发事件快照:', normalizedSnapshot);
+  return normalizedSnapshot;
+}
+
+function shouldSkipAutoTriggerByListenerSettings() {
+  const listenerSettings = getResolvedListenerSettings();
+
+  if (listenerSettings.listenGenerationEnded === false) {
+    return {
+      skip: true,
+      reason: AUTO_TRIGGER_SKIP_REASONS.LISTENER_DISABLED,
+      listenerSettings
+    };
+  }
+
+  if (listenerSettings.ignoreAutoTrigger && !hasRecentUserTriggerIntent()) {
+    return {
+      skip: true,
+      reason: AUTO_TRIGGER_SKIP_REASONS.IGNORED_AUTO_TRIGGER,
+      listenerSettings
+    };
+  }
+
+  return {
+    skip: false,
+    reason: '',
+    listenerSettings
+  };
 }
 
 function createAutoTriggerSnapshot(snapshot = {}) {
@@ -1039,7 +1126,8 @@ const toolTriggerManagerState = {
   lastExecutionContext: null,
   lastHandledMessageKey: '',
   pendingMessageTimers: new Map(),
-  lastAutoTriggerSnapshot: null
+  lastAutoTriggerSnapshot: null,
+  lastEventDebugSnapshot: null
 };
 
 /**
@@ -1050,16 +1138,33 @@ const toolTriggerManagerState = {
  */
 
 function scheduleAutoTrigger(eventType, data, delayMs = 0) {
+  const resolvedDelayMs = Number.isFinite(delayMs)
+    ? Math.max(0, delayMs)
+    : getResolvedListenerSettings().debounceMs;
+  const messageId = extractEventMessageId(data);
   const timerKey = `${eventType}::${typeof data === 'object' ? (data?.messageId || data?.id || 'latest') : String(data ?? 'latest')}`;
   const existingTimer = toolTriggerManagerState.pendingMessageTimers.get(timerKey);
   if (existingTimer) {
     clearTimeout(existingTimer);
   }
 
+  saveEventDebugSnapshot({
+    stage: 'scheduled',
+    eventType,
+    messageId,
+    scheduledDelayMs: resolvedDelayMs
+  });
+
   const timer = setTimeout(async () => {
     toolTriggerManagerState.pendingMessageTimers.delete(timerKey);
+    saveEventDebugSnapshot({
+      stage: 'dispatching',
+      eventType,
+      messageId,
+      scheduledDelayMs: resolvedDelayMs
+    });
     await handleAutoTrigger(eventType, data);
-  }, delayMs);
+  }, resolvedDelayMs);
 
   toolTriggerManagerState.pendingMessageTimers.set(timerKey, timer);
 }
@@ -1098,8 +1203,45 @@ async function handleAutoTrigger(eventType, data) {
 
   const candidateTools = getToolsToExecute(EVENT_TYPES.GENERATION_ENDED);
   const candidateToolIds = candidateTools.map(tool => tool.id);
+  const listenerDecision = shouldSkipAutoTriggerByListenerSettings();
+  const incomingMessageId = extractEventMessageId(data);
 
-  if (isQuietLikeGeneration(
+  saveEventDebugSnapshot({
+    stage: 'handling',
+    eventType,
+    messageId: incomingMessageId,
+    candidateToolIds,
+    handledAt: Date.now()
+  });
+
+  if (listenerDecision.skip) {
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      messageId: incomingMessageId,
+      selectedToolIds: candidateToolIds,
+      skipReason: listenerDecision.reason,
+      lockedAiMessageId: incomingMessageId || ''
+    });
+    patchToolsDiagnostics(candidateTools, {
+      lastTriggerEvent: eventType,
+      lastMessageKey: '',
+      lastSkipReason: listenerDecision.reason,
+      lastExecutionPath: '',
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: ''
+    });
+    saveEventDebugSnapshot({
+      stage: 'skipped',
+      eventType,
+      messageId: incomingMessageId,
+      reason: listenerDecision.reason,
+      candidateToolIds,
+      handledAt: Date.now()
+    });
+    return;
+  }
+
+  if (listenerDecision.listenerSettings.ignoreQuietGeneration && isQuietLikeGeneration(
     triggerState.gateState.lastGenerationType,
     triggerState.gateState.lastGenerationParams,
     triggerState.gateState.lastGenerationDryRun
@@ -1117,6 +1259,14 @@ async function handleAutoTrigger(eventType, data) {
       lastExecutionPath: '',
       lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
       lastFailureStage: ''
+    });
+    saveEventDebugSnapshot({
+      stage: 'skipped',
+      eventType,
+      messageId: incomingMessageId,
+      reason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      candidateToolIds,
+      handledAt: Date.now()
     });
     return;
   }
@@ -1148,6 +1298,15 @@ async function handleAutoTrigger(eventType, data) {
       lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
       lastFailureStage: ''
     });
+    saveEventDebugSnapshot({
+      stage: 'skipped',
+      eventType,
+      messageId: context?.messageId || incomingMessageId,
+      messageKey,
+      reason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      candidateToolIds,
+      handledAt: Date.now()
+    });
     return;
   }
 
@@ -1170,6 +1329,15 @@ async function handleAutoTrigger(eventType, data) {
       lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
       lastFailureStage: ''
     });
+    saveEventDebugSnapshot({
+      stage: 'skipped',
+      eventType,
+      messageId: context?.messageId || incomingMessageId,
+      messageKey,
+      reason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+      candidateToolIds,
+      handledAt: Date.now()
+    });
     return;
   }
 
@@ -1183,6 +1351,15 @@ async function handleAutoTrigger(eventType, data) {
       selectedToolIds: [],
       skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
       lockedAiMessageId: context?.messageId || ''
+    });
+    saveEventDebugSnapshot({
+      stage: 'skipped',
+      eventType,
+      messageId: context?.messageId || incomingMessageId,
+      messageKey,
+      reason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      candidateToolIds: [],
+      handledAt: Date.now()
     });
     return;
   }
@@ -1222,6 +1399,14 @@ async function handleAutoTrigger(eventType, data) {
   }
 
   toolTriggerManagerState.lastExecutionContext = context;
+  saveEventDebugSnapshot({
+    stage: 'completed',
+    eventType,
+    messageId: context?.messageId || incomingMessageId,
+    messageKey,
+    candidateToolIds: toolsToExecute.map(tool => tool.id),
+    handledAt: Date.now()
+  });
 }
 
 /**
@@ -1263,15 +1448,37 @@ export function initToolTriggerManager() {
  */
 function registerGenerationEndedListener() {
   const generationEndedListener = registerEventListener(EVENT_TYPES.GENERATION_ENDED, async (data) => {
+    saveEventDebugSnapshot({
+      stage: 'received',
+      eventType: EVENT_TYPES.GENERATION_ENDED,
+      messageId: extractEventMessageId(data),
+      receivedAt: Date.now()
+    });
     await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, data);
   });
 
   const generationAfterCommandsListener = registerEventListener(EVENT_TYPES.GENERATION_AFTER_COMMANDS, async (data) => {
-    scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, 180);
+    const { debounceMs } = getResolvedListenerSettings();
+    saveEventDebugSnapshot({
+      stage: 'received',
+      eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
+      messageId: extractEventMessageId(data),
+      receivedAt: Date.now(),
+      scheduledDelayMs: debounceMs
+    });
+    scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, debounceMs);
   });
 
   const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
-    scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, 420);
+    const { debounceMs } = getResolvedListenerSettings();
+    saveEventDebugSnapshot({
+      stage: 'received',
+      eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+      messageId: extractEventMessageId(data),
+      receivedAt: Date.now(),
+      scheduledDelayMs: debounceMs
+    });
+    scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, debounceMs);
   });
   
   toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_ENDED, generationEndedListener);
@@ -1544,14 +1751,17 @@ export function destroyToolTriggerManager() {
   }
   toolTriggerManagerState.pendingMessageTimers.clear();
 
-  for (const [eventType, listener] of toolTriggerManagerState.listeners) {
-    unregisterEventListener(eventType, listener);
+  for (const unregister of toolTriggerManagerState.listeners.values()) {
+    if (typeof unregister === 'function') {
+      unregister();
+    }
   }
   toolTriggerManagerState.listeners.clear();
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
   toolTriggerManagerState.lastHandledMessageKey = '';
   toolTriggerManagerState.lastAutoTriggerSnapshot = null;
+  toolTriggerManagerState.lastEventDebugSnapshot = null;
   
   log('工具触发管理器已销毁');
 }
@@ -1565,7 +1775,8 @@ export function getToolTriggerManagerState() {
     initialized: toolTriggerManagerState.initialized,
     listenersCount: toolTriggerManagerState.listeners.size,
     lastExecutionContext: toolTriggerManagerState.lastExecutionContext,
-    lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot
+    lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot,
+    lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot
   };
 }
 
