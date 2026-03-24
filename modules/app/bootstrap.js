@@ -592,6 +592,15 @@ export function createBootstrap(context, options = {}) {
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
       }
 
+      .yyt-shell-main-actions {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+
       .yyt-shell-main-heading-block {
         display: flex;
         flex-direction: column;
@@ -631,6 +640,11 @@ export function createBootstrap(context, options = {}) {
         color: var(--yyt-text-secondary);
         font-size: 12px;
         line-height: 1.5;
+      }
+
+      .yyt-shell-main-save-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
       }
 
       /* 次级顶栏 */
@@ -1004,6 +1018,12 @@ export function createBootstrap(context, options = {}) {
         .yyt-shell-main-header {
           flex-direction: column;
           align-items: flex-start;
+        }
+
+        .yyt-shell-main-actions {
+          width: 100%;
+          justify-content: flex-start;
+          margin-left: 0;
         }
 
         .yyt-shell-stats {

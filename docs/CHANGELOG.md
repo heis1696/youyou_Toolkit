@@ -101,6 +101,11 @@
   - 在工具配置页 hero 区补充顶部“保存配置”按钮，减少每次修改后都要拖到底部才能保存的成本
   - 执行 `npm run build` 构建验证通过
 
+- 🐛 **工具详情滚轮命中修正与壳层保存按钮兜底** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 修正工具详情区滚轮代理的命中层级，使滚轮优先驱动当前激活工具详情容器，而不是停留在外层 content 容器导致视觉上“没滚动”
+  - 在 popup shell 主内容头部直接补充壳层“保存当前工具”按钮，并同步补齐主样式与 fallback 样式，避免动态工具 hero 内按钮未及时渲染时仍然无保存入口
+  - 执行 `npm run build` 构建验证通过
+
 - 🐛 **自动触发 message session 收敛、写回块身份与诊断历史增强** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-output-service.js`, `modules/tool-registry.js`, `modules/core/settings-service.js`, `modules/ui/components/settings-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 自动触发链新增消息级 session 聚合：`GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 现在会尽量归并到同一条消息的生命周期记录中，并暴露 `activeSessionCount / recentSessionHistory`
   - listener 设置新增 fallback 开关、session 窗口与历史保留条数，设置页也同步补齐了对应开关与说明文案

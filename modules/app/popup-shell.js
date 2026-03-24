@@ -114,6 +114,22 @@ export function createPopupShell(context) {
     if (currentPageDesc) {
       currentPageDesc.textContent = description;
     }
+
+    syncShellActions();
+  }
+
+  function syncShellActions() {
+    const popup = uiState.currentPopup;
+    if (!popup) return;
+
+    const shellSaveButton = popup.querySelector(`#${SCRIPT_ID}-shell-save-btn`);
+    if (!shellSaveButton) return;
+
+    const activeTabContent = popup.querySelector('.yyt-tab-content.active');
+    const targetSaveButton = activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save-top`)
+      || activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save`);
+
+    shellSaveButton.hidden = !targetSaveButton;
   }
 
   function cleanupPopupDrag() {
@@ -169,6 +185,27 @@ export function createPopupShell(context) {
 
   function isNearestScrollableSurface(container, target) {
     return target?.closest?.('.yyt-scrollable-surface') === container;
+  }
+
+  function getPreferredWheelContainer(rootContainer, target) {
+    if (!rootContainer || !target) return null;
+
+    const candidates = [
+      target.closest?.('.yyt-tool-list'),
+      target.closest?.('.yyt-settings-content'),
+      target.closest?.('.yyt-sub-content'),
+      target.closest?.('.yyt-tab-content.active'),
+      rootContainer
+    ].filter(Boolean);
+
+    return candidates.find((candidate) => {
+      if (candidate !== rootContainer && !rootContainer.contains(candidate)) {
+        return false;
+      }
+
+      return candidate.scrollHeight > candidate.clientHeight + 2
+        || candidate.scrollWidth > candidate.clientWidth + 2;
+    }) || rootContainer;
   }
 
   function bindDragScroll(container) {
@@ -245,25 +282,39 @@ export function createPopupShell(context) {
 
     const onWheel = (event) => {
       if (event.ctrlKey) return;
-      if (!isNearestScrollableSurface(container, event.target)) return;
       if (shouldPreserveWheelTarget(event.target)) return;
 
-      const hasScrollableOverflow = container.scrollHeight > container.clientHeight + 2
-        || container.scrollWidth > container.clientWidth + 2;
+      const isRootContentSurface = container.classList.contains('yyt-content');
+      if (!isRootContentSurface && !isNearestScrollableSurface(container, event.target)) {
+        return;
+      }
+
+      const wheelContainer = getPreferredWheelContainer(container, event.target);
+
+      if (!wheelContainer) {
+        return;
+      }
+
+      const hasScrollableOverflow = wheelContainer.scrollHeight > wheelContainer.clientHeight + 2
+        || wheelContainer.scrollWidth > wheelContainer.clientWidth + 2;
 
       if (!hasScrollableOverflow) {
         return;
       }
 
       if (Math.abs(event.deltaY) > 0) {
-        container.scrollTop += event.deltaY;
+        wheelContainer.scrollTop += event.deltaY;
       }
 
       if (Math.abs(event.deltaX) > 0) {
-        container.scrollLeft += event.deltaX;
+        wheelContainer.scrollLeft += event.deltaX;
       }
 
       event.preventDefault();
+
+      if (!isRootContentSurface || wheelContainer !== container) {
+        event.stopPropagation();
+      }
     };
 
     const onDragStart = (event) => {
@@ -436,6 +487,7 @@ export function createPopupShell(context) {
     renderTabContent(tabName);
     updatePopupStatus();
     refreshScrollableSurfaces();
+    syncShellActions();
   }
 
   function switchSubTab(mainTab, subTab) {
@@ -941,9 +993,15 @@ export function createPopupShell(context) {
                     <div class="yyt-shell-main-title">${escapeHtml(currentDisplayName)}</div>
                     <div class="yyt-shell-main-description">${escapeHtml(currentDescription)}</div>
                   </div>
-                  <div class="yyt-shell-main-meta">
-                    <i class="fa-solid fa-circle-info"></i>
-                    <span>保存后自动监听与写回链会使用最新配置</span>
+                  <div class="yyt-shell-main-actions">
+                    <div class="yyt-shell-main-meta">
+                      <i class="fa-solid fa-circle-info"></i>
+                      <span>保存后自动监听与写回链会使用最新配置</span>
+                    </div>
+                    <button class="yyt-btn yyt-btn-primary yyt-btn-small yyt-shell-main-save-btn" id="${SCRIPT_ID}-shell-save-btn" hidden>
+                      <i class="fa-solid fa-save"></i>
+                      <span>保存当前工具</span>
+                    </button>
                   </div>
                 </div>
 
@@ -987,6 +1045,15 @@ export function createPopupShell(context) {
 
     $(uiState.currentPopup).find('.yyt-popup-close').on('click', closePopup);
     $(uiState.currentPopup).find(`#${SCRIPT_ID}-close-btn`).on('click', closePopup);
+    $(uiState.currentPopup).find(`#${SCRIPT_ID}-shell-save-btn`).on('click', () => {
+      const activeTabContent = uiState.currentPopup?.querySelector('.yyt-tab-content.active');
+      const targetSaveButton = activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save-top`)
+        || activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save`);
+
+      if (targetSaveButton instanceof HTMLElement) {
+        targetSaveButton.click();
+      }
+    });
     $(uiState.currentPopup).find('.yyt-main-nav-item').on('click', function onMainTabClick() {
       const tab = $(this).data('tab');
       if (tab) {
