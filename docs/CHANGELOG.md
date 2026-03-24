@@ -89,10 +89,21 @@
 
 ### 修复
 
+- 🐛 **主工具箱工作台布局错乱与样式注入回退修复** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 调整主工具箱工作台 topbar / sidebar / main workspace 的栅格比例、当前页面信息卡与响应式断点，避免导航区过宽、内容区被严重压缩
+  - 收紧侧栏宽度并增强主内容区高度继承与滚动约束，修复页面信息堆叠成“纯文本块”后可读性极差的问题
+  - 修复 `bootstrap` 中 `styles/main.css` 仅按单一路径拉取导致宿主环境加载失败的问题；现在会尝试基于 `import.meta.url` 的多个候选路径，并在失败时回退到更新后的内置工作台骨架样式
+  - 执行 `npm run build` 构建验证通过
+
 - 🐛 **自动触发初始化时序补强与 youyou 前缀控制台日志增强** (`modules/tool-trigger.js`)
   - 触发模块初始化时改为同时等待 `SillyTavern API` 与 `eventSource` 就绪，避免在酒馆事件源尚未挂载时过早初始化导致自动监听失效
   - 新增一组始终输出的 `[youyou_trigger]` 控制台日志，覆盖初始化、事件注册、事件接收、自动调度、跳过原因、工具执行成功/失败等关键节点
   - 便于在酒馆控制台中快速判断“有没有收到事件、有没有进入自动触发、是在哪一步被跳过或失败”
+
+- 🐛 **事件源获取兼容层补强** (`modules/tool-trigger.js`)
+  - 自动触发初始化不再只依赖 `SillyTavern.eventSource`，而是增加对 `topWindow.eventSource`、`SillyTavern.getContext()` 以及 `/script.js` 导出事件源的多源兼容探测
+  - 修复此前 `hasApi: true, hasEventSource: false` 时会一直卡在重试初始化、导致自动触发链根本无法启动的问题
+  - 新增事件源来源日志，便于确认当前酒馆环境究竟命中了哪条兼容路径
 
 - 🐛 **写回链分层结果标准化与最终校验增强** (`modules/context-injector.js`, `modules/tool-output-service.js`, `docs/API_DOCUMENTATION.md`)
   - 保留 `contextInjector.inject()` 的布尔兼容接口，同时新增 `injectDetailed()` 返回分层写回结果，便于区分“找不到目标消息 / 宿主写回失败 / 写回后校验失败”

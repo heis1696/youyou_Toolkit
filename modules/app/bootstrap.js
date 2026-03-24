@@ -135,10 +135,10 @@ export function createBootstrap(context, options = {}) {
         transform: translate(-50%, -50%);
         display: flex;
         flex-direction: column;
-        width: 950px;
-        max-width: 95vw;
-        height: 85vh;
-        max-height: 90vh;
+        width: min(1120px, calc(100vw - 28px));
+        max-width: calc(100vw - 28px);
+        height: min(900px, calc(100vh - 28px));
+        max-height: calc(100vh - 28px);
         background:
           radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1), transparent 60%),
           radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2), transparent 55%),
@@ -271,7 +271,7 @@ export function createBootstrap(context, options = {}) {
         display: flex;
         flex-direction: column;
         min-height: 0;
-        padding: 16px 20px;
+        padding: 18px 20px;
         overflow: hidden;
       }
 
@@ -281,6 +281,16 @@ export function createBootstrap(context, options = {}) {
         min-height: 0;
         flex: 1;
         gap: 14px;
+      }
+
+      .yyt-content-frame {
+        flex: 1;
+        min-height: 0;
+        padding: 6px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
 
       /* 弹窗底部 */
@@ -320,22 +330,189 @@ export function createBootstrap(context, options = {}) {
       }
 
       /* 主顶栏 */
+      .yyt-shell-topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+        gap: 18px;
+        padding: 18px 20px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        background:
+          radial-gradient(600px 240px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 65%),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      }
+
+      .yyt-shell-topbar-main {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .yyt-shell-topbar-side {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .yyt-shell-kicker {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(123, 183, 255, 0.12);
+        border: 1px solid rgba(123, 183, 255, 0.18);
+        color: var(--yyt-accent);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+      }
+
+      .yyt-shell-heading {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1.1;
+        color: var(--yyt-text);
+      }
+
+      .yyt-shell-overview-text {
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--yyt-text-secondary);
+      }
+
+      .yyt-shell-current-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .yyt-shell-current-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: var(--yyt-text-muted);
+      }
+
+      .yyt-shell-current-page {
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 1.3;
+        color: var(--yyt-text);
+        word-break: break-word;
+      }
+
+      .yyt-shell-current-desc {
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--yyt-text-secondary);
+      }
+
+      .yyt-shell-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(90px, 1fr));
+        gap: 10px;
+      }
+
+      .yyt-shell-stat {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        min-width: 92px;
+        padding: 14px 14px 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .yyt-shell-stat-label {
+        font-size: 11px;
+        color: var(--yyt-text-muted);
+      }
+
+      .yyt-shell-stat-value {
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--yyt-text);
+      }
+
+      .yyt-shell-workspace {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: minmax(220px, 248px) minmax(0, 1fr);
+        gap: 14px;
+      }
+
+      .yyt-shell-sidebar {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .yyt-shell-sidebar-card {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: hidden;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+      }
+
+      .yyt-shell-sidebar-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .yyt-shell-sidebar-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--yyt-text);
+      }
+
+      .yyt-shell-sidebar-hint {
+        font-size: 11px;
+        color: var(--yyt-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+
       .yyt-main-nav {
         display: flex;
-        gap: 4px;
-        padding: 8px;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border-radius: 14px;
-        margin-bottom: 16px;
-        border: 1px solid var(--yyt-border);
-        flex-shrink: 0;
+        flex-direction: column;
+        gap: 6px;
+        padding: 0;
+        margin-bottom: 0;
+        background: transparent;
+        border: none;
+        min-height: 0;
+        overflow-y: auto;
       }
 
       .yyt-main-nav-item {
         display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 18px;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
         border-radius: 10px;
         cursor: pointer;
         transition: all 0.25s ease;
@@ -352,6 +529,108 @@ export function createBootstrap(context, options = {}) {
       .yyt-main-nav-item.active {
         color: var(--yyt-on-accent);
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
+      }
+
+      .yyt-main-nav-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+      }
+
+      .yyt-main-nav-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .yyt-main-nav-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: inherit;
+      }
+
+      .yyt-main-nav-desc {
+        font-size: 11px;
+        line-height: 1.45;
+        color: inherit;
+        opacity: 0.72;
+      }
+
+      .yyt-shell-sidebar-note {
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px dashed rgba(123, 183, 255, 0.18);
+        background: rgba(123, 183, 255, 0.05);
+        color: var(--yyt-text-secondary);
+        font-size: 12px;
+        line-height: 1.65;
+      }
+
+      .yyt-shell-main {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .yyt-shell-main-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+      }
+
+      .yyt-shell-main-heading-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .yyt-shell-main-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--yyt-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .yyt-shell-main-title {
+        font-size: 20px;
+        font-weight: 800;
+        line-height: 1.15;
+        color: var(--yyt-text);
+      }
+
+      .yyt-shell-main-description {
+        font-size: 13px;
+        line-height: 1.65;
+        color: var(--yyt-text-secondary);
+      }
+
+      .yyt-shell-main-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--yyt-text-secondary);
+        font-size: 12px;
+        line-height: 1.5;
       }
 
       /* 次级顶栏 */
@@ -410,6 +689,7 @@ export function createBootstrap(context, options = {}) {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
+        height: 100%;
       }
 
       .yyt-tab-content.active {
@@ -586,6 +866,7 @@ export function createBootstrap(context, options = {}) {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
+        height: 100%;
       }
 
       /* 工具窗口容器 */
@@ -616,10 +897,26 @@ export function createBootstrap(context, options = {}) {
       }
 
       /* 响应式 */
-      @media screen and (max-width: 1100px) {
+      @media screen and (max-width: 980px) {
         .yyt-popup {
-          width: 98vw;
-          height: 90vh;
+          width: calc(100vw - 18px);
+          max-width: calc(100vw - 18px);
+          height: calc(100vh - 18px);
+          max-height: calc(100vh - 18px);
+        }
+
+        .yyt-shell-topbar {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-shell-topbar-side {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+          align-items: stretch;
+        }
+
+        .yyt-shell-stats {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .yyt-popup-header-actions {
@@ -628,6 +925,27 @@ export function createBootstrap(context, options = {}) {
 
         .yyt-popup-drag-hint {
           padding: 6px 10px;
+        }
+      }
+
+      @media screen and (max-width: 860px) {
+        .yyt-shell-workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-shell-topbar-side {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-main-nav {
+          flex-direction: row;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 4px;
+        }
+
+        .yyt-main-nav-item {
+          min-width: 220px;
         }
       }
 
@@ -645,6 +963,43 @@ export function createBootstrap(context, options = {}) {
 
         .yyt-popup-drag-hint {
           display: none;
+        }
+
+        .yyt-popup-body {
+          padding: 10px 14px;
+        }
+
+        .yyt-shell-topbar,
+        .yyt-shell-main-header,
+        .yyt-shell-sidebar-card {
+          padding: 14px;
+          border-radius: 16px;
+        }
+
+        .yyt-shell-heading {
+          font-size: 20px;
+        }
+
+        .yyt-shell-main-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .yyt-shell-stats {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-shell-topbar-side {
+          display: flex;
+        }
+
+        .yyt-main-nav {
+          flex-direction: column;
+          overflow: visible;
+        }
+
+        .yyt-main-nav-item {
+          min-width: 0;
         }
 
         .yyt-popup-footer {
@@ -668,16 +1023,36 @@ export function createBootstrap(context, options = {}) {
     if (targetDoc.getElementById(styleId)) return;
 
     let css = '';
+    const styleCandidates = [];
+
     try {
-      const response = await fetch('./styles/main.css');
-      if (response.ok) {
-        css = await response.text();
-      }
+      styleCandidates.push(new URL('../styles/main.css', import.meta.url).href);
     } catch (error) {
-      log('无法加载外部样式文件，使用内置样式');
+      // ignore url resolution failure
+    }
+
+    try {
+      styleCandidates.push(new URL('../../styles/main.css', import.meta.url).href);
+    } catch (error) {
+      // ignore url resolution failure
+    }
+
+    styleCandidates.push('./styles/main.css');
+
+    for (const styleUrl of [...new Set(styleCandidates.filter(Boolean))]) {
+      try {
+        const response = await fetch(styleUrl);
+        if (response.ok) {
+          css = await response.text();
+          break;
+        }
+      } catch (error) {
+        // continue trying fallback paths
+      }
     }
 
     if (!css) {
+      log('无法加载外部样式文件，使用内置样式');
       css = getBaseStyles();
     }
 

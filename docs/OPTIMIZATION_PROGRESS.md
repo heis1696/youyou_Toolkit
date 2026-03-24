@@ -567,6 +567,45 @@
 - 状态：
   - 成功
 
+## 2026-03-24 17:42
+
+- 阶段：阶段后增强（事件桥接兼容）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 为自动触发初始化补充多源事件桥接兼容：`SillyTavern.eventSource`、`topWindow.eventSource`、`SillyTavern.getContext()`、`/script.js` 导出事件源
+  - 修复在酒馆环境中 API 已存在但事件源缺失时无限延迟初始化的问题
+  - 增加事件源来源日志，便于判断当前宿主环境命中的兼容路径
+- 修改原因：
+  - 用户在真实酒馆中反馈 `hasApi: true, hasEventSource: false`，说明此前的事件源获取逻辑与宿主实际结构不匹配，需要补齐桥接兼容层
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-24 17:35
+
+- 阶段：阶段后修复（工作台布局回退）
+- 修改文件：
+  - `modules/app/popup-shell.js`
+  - `styles/main.css`
+  - `modules/app/bootstrap.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 重新收紧 popup shell 的 topbar / sidebar / main workspace 布局比例，补充“当前页面”信息卡，避免顶部信息和侧栏把主内容区挤成窄列
+  - 为 tab content / sub content / content frame 补齐高度继承和滚动约束，修复内容区像纯文本堆叠、卡片样式失真的问题
+  - 修复 `bootstrap` 样式注入只尝试 `./styles/main.css` 单一路径的问题，改为同时尝试基于 `import.meta.url` 的候选路径，并在失败时回退到同步更新后的内置骨架样式
+  - 执行 `npm run build`，确认构建通过
+- 修改原因：
+  - 用户在宿主环境中反馈本轮“整体 UI / HTML 美化”后界面出现严重错位，结合截图判断不仅是布局比例问题，还存在宿主未成功加载最新 `styles/main.css`、从而落到旧内置样式的问题，因此需要同时修正布局和样式注入回退链
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
 ---
 
 ## 六、待处理问题 / 阻塞清单
@@ -595,6 +634,7 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - [x] 三份优化文档之间的分工关系已重新对齐：分析文档负责基线，方案文档负责计划，进程文档负责落地状态
 - [x] 自动触发链已补齐事件级调试快照，写回链已补齐分层结果与最终校验信息
 - [x] 主工具箱与高频页面已完成一轮整体 UI / HTML 美化收口，并通过构建验证
+- [x] 主工具箱工作台布局错乱与样式注入回退问题已修复，并通过 `npm run build` 验证
 
 ### 尚未登记为最新一次完成结果的项
 

@@ -81,6 +81,17 @@ const triggerState = {
   debugMode: false
 };
 
+const EVENT_SOURCE_IMPORT_URL = '/script.js';
+
+const eventBridgeState = {
+  eventSource: null,
+  eventTypes: null,
+  source: '',
+  scriptModule: null,
+  loadingPromise: null,
+  importError: null
+};
+
 export const AUTO_TRIGGER_SKIP_REASONS = {
   LISTENER_DISABLED: 'listener_disabled',
   QUIET_GENERATION: 'quiet_generation',
@@ -380,33 +391,122 @@ function getTavernHelperAPI() {
   return topWindow.TavernHelper || null;
 }
 
+function isValidEventSource(candidate) {
+  return !!candidate
+    && typeof candidate.on === 'function'
+    && typeof candidate.off === 'function';
+}
+
+function getEventTypesFromCandidate(candidate) {
+  if (!candidate || typeof candidate !== 'object') {
+    return null;
+  }
+
+  return candidate.eventTypes
+    || candidate.event_types
+    || null;
+}
+
+function cacheEventBridge(eventSource, eventTypes, source) {
+  if (isValidEventSource(eventSource)) {
+    eventBridgeState.eventSource = eventSource;
+    eventBridgeState.eventTypes = eventTypes || eventBridgeState.eventTypes || null;
+    eventBridgeState.source = source || eventBridgeState.source || 'unknown';
+  }
+}
+
+function resolveDirectEventBridge() {
+  const topWindow = getTopWindow();
+  const api = topWindow.SillyTavern || null;
+  const context = api?.getContext?.() || null;
+
+  const candidates = [
+    {
+      source: 'SillyTavern.eventSource',
+      eventSource: api?.eventSource,
+      eventTypes: api?.eventTypes || api?.event_types || null
+    },
+    {
+      source: 'topWindow.eventSource',
+      eventSource: topWindow?.eventSource,
+      eventTypes: topWindow?.event_types || topWindow?.eventTypes || null
+    },
+    {
+      source: 'SillyTavern.getContext()',
+      eventSource: context?.eventSource || null,
+      eventTypes: context?.eventTypes || context?.event_types || null
+    },
+    {
+      source: 'scriptModule exports',
+      eventSource: eventBridgeState.scriptModule?.eventSource || null,
+      eventTypes: eventBridgeState.scriptModule?.event_types || eventBridgeState.scriptModule?.eventTypes || null
+    }
+  ];
+
+  for (const candidate of candidates) {
+    if (isValidEventSource(candidate.eventSource)) {
+      cacheEventBridge(candidate.eventSource, candidate.eventTypes, candidate.source);
+      return candidate;
+    }
+  }
+
+  return {
+    source: '',
+    eventSource: null,
+    eventTypes: null
+  };
+}
+
+async function ensureEventBridgeReady() {
+  const directBridge = resolveDirectEventBridge();
+  if (directBridge.eventSource) {
+    return directBridge;
+  }
+
+  if (!eventBridgeState.loadingPromise) {
+    eventBridgeState.loadingPromise = (async () => {
+      try {
+        const importUrl = EVENT_SOURCE_IMPORT_URL;
+        eventBridgeState.scriptModule = await import(importUrl);
+      } catch (error) {
+        eventBridgeState.importError = error;
+        traceAlways('warn', '加载 /script.js 事件桥接失败', error?.message || String(error));
+      } finally {
+        eventBridgeState.loadingPromise = null;
+      }
+    })();
+  }
+
+  await eventBridgeState.loadingPromise;
+
+  const bridgeAfterImport = resolveDirectEventBridge();
+  if (bridgeAfterImport.eventSource) {
+    return bridgeAfterImport;
+  }
+
+  return {
+    source: '',
+    eventSource: null,
+    eventTypes: null
+  };
+}
+
 /**
  * 获取事件源
  */
 function getEventSource() {
-  const topWindow = getTopWindow();
-  const api = topWindow.SillyTavern;
-  
-  if (api && api.eventSource) {
-    return api.eventSource;
-  }
-  
-  return null;
+  const bridge = resolveDirectEventBridge();
+  return bridge.eventSource || eventBridgeState.eventSource || null;
 }
 
 /**
  * 获取事件类型常量
  */
 function getEventTypes() {
-  const topWindow = getTopWindow();
-  const api = topWindow.SillyTavern;
-  
-  if (api && api.eventTypes) {
-    return api.eventTypes;
-  }
-  
-  // 回退到本地定义
-  return EVENT_TYPES;
+  const bridge = resolveDirectEventBridge();
+  return bridge.eventTypes
+    || eventBridgeState.eventTypes
+    || EVENT_TYPES;
 }
 
 /**
@@ -1873,12 +1973,28 @@ export async function initTriggerModule() {
   
   // 获取SillyTavern API
   const api = getSillyTavernAPI();
-  const eventSource = getEventSource();
-  if (!api || !eventSource) {
+  if (!api) {
     log('无法获取SillyTavern API，延迟初始化');
     traceAlways('warn', '等待酒馆事件源就绪后再初始化触发模块', {
       hasApi: !!api,
-      hasEventSource: !!eventSource
+      hasEventSource: false,
+      hasEventTypes: false
+    });
+    setTimeout(initTriggerModule, 1000);
+    return;
+  }
+
+  const bridge = await ensureEventBridgeReady();
+  const eventSource = bridge?.eventSource || getEventSource();
+  const eventTypes = bridge?.eventTypes || getEventTypes();
+
+  if (!eventSource) {
+    log('无法获取SillyTavern事件源，延迟初始化');
+    traceAlways('warn', '等待酒馆事件源就绪后再初始化触发模块', {
+      hasApi: !!api,
+      hasEventSource: !!eventSource,
+      hasEventTypes: !!eventTypes,
+      importError: eventBridgeState.importError?.message || ''
     });
     setTimeout(initTriggerModule, 1000);
     return;
@@ -1887,7 +2003,11 @@ export async function initTriggerModule() {
   traceAlways('info', '开始初始化触发模块', {
     hasApi: !!api,
     hasEventSource: !!eventSource,
+    hasEventTypes: !!eventTypes,
     listenerSettings: getResolvedListenerSettings()
+  });
+  traceAlways('info', '使用事件源', {
+    source: bridge?.source || eventBridgeState.source || 'unknown'
   });
 
   installSendIntentCaptureHooks();

@@ -106,6 +106,11 @@ export function createPopupShell(context) {
     if (currentPageChip) {
       currentPageChip.textContent = displayName;
     }
+
+    const currentPageDesc = popup.querySelector('.yyt-shell-current-desc');
+    if (currentPageDesc) {
+      currentPageDesc.textContent = description;
+    }
   }
 
   function cleanupPopupDrag() {
@@ -689,27 +694,28 @@ export function createPopupShell(context) {
             <div class="yyt-shell-topbar">
               <div class="yyt-shell-topbar-main">
                 <div class="yyt-shell-kicker">Workspace</div>
-                <div class="yyt-shell-heading-row">
-                  <div class="yyt-shell-heading-block">
-                    <div class="yyt-shell-heading">统一工具工作台</div>
-                    <div class="yyt-shell-breadcrumb">${escapeHtml(currentDisplayName)}</div>
-                  </div>
-                  <span class="yyt-shell-current-page">${escapeHtml(currentDisplayName)}</span>
-                </div>
-                <div class="yyt-shell-overview-text">${escapeHtml(currentDescription)}</div>
+                <div class="yyt-shell-heading">统一工具工作台</div>
+                <div class="yyt-shell-overview-text">将 API、工具、提取规则、破限词与执行诊断收口到一个更紧凑的工作区里，优先保证可读性和可操作空间。</div>
               </div>
-              <div class="yyt-shell-stats">
-                <div class="yyt-shell-stat">
-                  <span class="yyt-shell-stat-label">主页面</span>
-                  <strong class="yyt-shell-stat-value">${tools.length}</strong>
+              <div class="yyt-shell-topbar-side">
+                <div class="yyt-shell-current-card">
+                  <span class="yyt-shell-current-label">当前页面</span>
+                  <strong class="yyt-shell-current-page">${escapeHtml(currentDisplayName)}</strong>
+                  <span class="yyt-shell-current-desc">${escapeHtml(currentDescription)}</span>
                 </div>
-                <div class="yyt-shell-stat">
-                  <span class="yyt-shell-stat-label">默认工具</span>
-                  <strong class="yyt-shell-stat-value">${defaultToolCount}</strong>
-                </div>
-                <div class="yyt-shell-stat">
-                  <span class="yyt-shell-stat-label">自定义工具</span>
-                  <strong class="yyt-shell-stat-value">${customToolCount}</strong>
+                <div class="yyt-shell-stats">
+                  <div class="yyt-shell-stat">
+                    <span class="yyt-shell-stat-label">主页面</span>
+                    <strong class="yyt-shell-stat-value">${tools.length}</strong>
+                  </div>
+                  <div class="yyt-shell-stat">
+                    <span class="yyt-shell-stat-label">默认工具</span>
+                    <strong class="yyt-shell-stat-value">${defaultToolCount}</strong>
+                  </div>
+                  <div class="yyt-shell-stat">
+                    <span class="yyt-shell-stat-label">自定义工具</span>
+                    <strong class="yyt-shell-stat-value">${customToolCount}</strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -718,15 +724,15 @@ export function createPopupShell(context) {
               <aside class="yyt-shell-sidebar">
                 <div class="yyt-shell-sidebar-card">
                   <div class="yyt-shell-sidebar-title-row">
-                    <span class="yyt-shell-sidebar-title">主导航</span>
-                    <span class="yyt-shell-sidebar-hint">Tabs</span>
+                    <span class="yyt-shell-sidebar-title">页面导航</span>
+                    <span class="yyt-shell-sidebar-hint">${tools.length} tabs</span>
                   </div>
                   <div class="yyt-main-nav">
                     ${mainNavHtml}
                   </div>
-                </div>
-                <div class="yyt-shell-sidebar-note">
-                  修改高频页面配置后，请记得保存；自动监听与诊断将以最新保存配置为准。
+                  <div class="yyt-shell-sidebar-note">
+                    保存后，自动监听、手动执行与写回链都会以最新配置为准。
+                  </div>
                 </div>
               </aside>
 
@@ -766,7 +772,7 @@ export function createPopupShell(context) {
               <span class="yyt-popup-active-label">当前：${escapeHtml(currentDisplayName)}</span>
             </div>
             <div class="yyt-popup-footer-note">
-              统一管理 API、工具、提取规则、破限词与执行诊断。
+              API、工具、提取与诊断统一入口。
             </div>
           </div>
           <div class="yyt-popup-footer-right">
