@@ -28,7 +28,60 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel {
     display: flex;
     flex-direction: column;
+    gap: 18px;
+  }
+
+  .yyt-tool-panel-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 16px;
+    align-items: stretch;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+  }
+
+  .yyt-tool-panel-hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .yyt-tool-panel-hero-title {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--yyt-text);
+  }
+
+  .yyt-tool-panel-hero-desc {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--yyt-text-secondary);
+  }
+
+  .yyt-tool-panel-hero-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .yyt-tool-hero-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    letter-spacing: 0.3px;
+    color: var(--yyt-text-secondary);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .yyt-tool-compact-hint {
@@ -86,7 +139,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-manual-area {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
     gap: 16px;
     align-items: start;
   }
@@ -94,11 +147,12 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-runtime-card {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px;
-    background: rgba(0, 0, 0, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--yyt-radius-sm);
+    gap: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .yyt-tool-runtime-line {
@@ -157,7 +211,11 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 10px;
-    min-width: 180px;
+    min-width: 0;
+    padding: 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
   }
 
   .yyt-preview-box {
@@ -205,8 +263,8 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     font-size: 12px;
     color: var(--yyt-text-muted);
     line-height: 1.7;
-    padding: 12px 14px;
-    border-radius: var(--yyt-radius-sm);
+    padding: 14px 16px;
+    border-radius: 14px;
     border: 1px dashed rgba(123, 183, 255, 0.25);
     background: rgba(123, 183, 255, 0.06);
   }
@@ -231,8 +289,8 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-debug-panel {
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--yyt-radius-sm);
-    padding: 12px 14px;
+    border-radius: 14px;
+    padding: 14px 16px;
     background: rgba(255, 255, 255, 0.02);
   }
 
@@ -273,6 +331,14 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   @media screen and (max-width: 768px) {
+    .yyt-tool-panel-hero {
+      grid-template-columns: 1fr;
+    }
+
+    .yyt-tool-panel-hero-tags {
+      justify-content: flex-start;
+    }
+
     .yyt-tool-manual-area {
       grid-template-columns: 1fr;
     }
@@ -321,9 +387,23 @@ export function createToolConfigPanel(options) {
         ? postResponseHint
         : '随 AI 输出不会自动调用额外模型，但仍然支持手动执行与测试提取。';
       const diagnosticsHtml = this._buildDiagnosticsHtml(config.runtime || {});
+      const outputModeLabel = outputMode === 'post_response_api' ? '额外解析' : '随 AI 输出';
+      const apiPresetLabel = selectedApiPreset || '当前配置';
 
       return `
         <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
+          <div class="yyt-tool-panel-hero">
+            <div class="yyt-tool-panel-hero-copy">
+              <div class="yyt-tool-panel-hero-title">${escapeHtml(config.name || this.toolId)}</div>
+              <div class="yyt-tool-panel-hero-desc">${escapeHtml(config.description || '配置模板、提取规则、API 预设与手动调试能力。')}</div>
+            </div>
+            <div class="yyt-tool-panel-hero-tags">
+              <span class="yyt-tool-hero-chip">模式 ${escapeHtml(outputModeLabel)}</span>
+              <span class="yyt-tool-hero-chip">预设 ${escapeHtml(apiPresetLabel)}</span>
+              <span class="yyt-tool-hero-chip">最近状态 ${escapeHtml(runtimeStatus)}</span>
+            </div>
+          </div>
+
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-wand-magic-sparkles"></i>

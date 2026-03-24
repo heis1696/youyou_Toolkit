@@ -11,6 +11,13 @@
 
 ### 更改
 
+- 🎨 **主工具箱与高频面板整体 UI / HTML 美化收口** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/settings-panel.js`)
+  - 重构主工具箱 popup shell 的 HTML 层级，新增 topbar、workspace、sidebar、main content frame 与更清晰的 footer 信息区
+  - 将主导航升级为“图标 + 标题 + 简述”的工作台侧栏样式，补充页面说明、页面统计与当前页面概览区
+  - 统一 popup / content frame / section / 表单 / 按钮 / 对话框 / 响应式风格，整体强化工作台感与层级节奏
+  - 优化工具配置页 hero 区、手动操作区、runtime 卡片与调试区密度；优化工具列表页 hero 区与统计卡片；优化设置页 hero 区与状态 chips
+  - 执行 `npm run build` 构建验证通过
+
 - 🎨 **阶段后收尾：主工具箱 HTML 结构与视觉层次优化** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`)
   - 调整主工具箱 header 结构，补充品牌区、副标题、版本徽标、拖动提示与当前页面状态展示
   - 优化 content / footer 分区层次，增加更明确的工作台感和信息层级
@@ -81,6 +88,11 @@
   - 将参考项目启发同步到优化方案与施工进程文档，作为 Phase 1 前的设计输入
 
 ### 修复
+
+- 🐛 **自动触发初始化时序补强与 youyou 前缀控制台日志增强** (`modules/tool-trigger.js`)
+  - 触发模块初始化时改为同时等待 `SillyTavern API` 与 `eventSource` 就绪，避免在酒馆事件源尚未挂载时过早初始化导致自动监听失效
+  - 新增一组始终输出的 `[youyou_trigger]` 控制台日志，覆盖初始化、事件注册、事件接收、自动调度、跳过原因、工具执行成功/失败等关键节点
+  - 便于在酒馆控制台中快速判断“有没有收到事件、有没有进入自动触发、是在哪一步被跳过或失败”
 
 - 🐛 **写回链分层结果标准化与最终校验增强** (`modules/context-injector.js`, `modules/tool-output-service.js`, `docs/API_DOCUMENTATION.md`)
   - 保留 `contextInjector.inject()` 的布尔兼容接口，同时新增 `injectDetailed()` 返回分层写回结果，便于区分“找不到目标消息 / 宿主写回失败 / 写回后校验失败”

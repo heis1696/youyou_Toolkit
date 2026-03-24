@@ -149,9 +149,23 @@ export const SettingsPanel = {
    */
   render(props) {
     const settings = settingsService.getSettings();
+    const listenerEnabled = settings.listener?.listenGenerationEnded !== false;
+    const debugEnabled = settings.debug?.enableDebugLog === true;
     
     return `
       <div class="yyt-settings-panel">
+        <div class="yyt-settings-hero">
+          <div class="yyt-settings-hero-copy">
+            <div class="yyt-settings-hero-title">全局偏好与运行策略</div>
+            <div class="yyt-settings-hero-desc">统一管理执行器、监听器、调试与外观设置，让工具链行为与界面体验保持一致。</div>
+          </div>
+          <div class="yyt-settings-hero-status">
+            <span class="yyt-settings-status-chip ${listenerEnabled ? 'is-on' : 'is-off'}">监听 ${listenerEnabled ? '开启' : '关闭'}</span>
+            <span class="yyt-settings-status-chip ${debugEnabled ? 'is-on' : 'is-off'}">调试 ${debugEnabled ? '开启' : '关闭'}</span>
+            <span class="yyt-settings-status-chip is-neutral">主题 ${settings.ui?.theme || 'dark-blue'}</span>
+          </div>
+        </div>
+
         <!-- 标签页导航 -->
         <div class="yyt-settings-tabs">
           <button class="yyt-settings-tab yyt-active" data-tab="executor">
@@ -498,14 +512,83 @@ export const SettingsPanel = {
         display: flex;
         flex-direction: column;
         height: 100%;
+        gap: 14px;
+      }
+
+      .yyt-settings-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+      }
+
+      .yyt-settings-hero-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .yyt-settings-hero-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--yyt-text);
+        line-height: 1.15;
+      }
+
+      .yyt-settings-hero-desc {
+        font-size: 13px;
+        color: var(--yyt-text-secondary);
+        line-height: 1.7;
+        max-width: 72ch;
+      }
+
+      .yyt-settings-hero-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .yyt-settings-status-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .yyt-settings-status-chip.is-on {
+        color: var(--yyt-success);
+        background: rgba(74, 222, 128, 0.1);
+      }
+
+      .yyt-settings-status-chip.is-off {
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .yyt-settings-status-chip.is-neutral {
+        color: var(--yyt-accent);
+        background: rgba(123, 183, 255, 0.1);
       }
       
       .yyt-settings-tabs {
         display: flex;
         gap: 4px;
-        padding: 12px 16px;
+        padding: 8px;
         background: rgba(255, 255, 255, 0.02);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
         flex-shrink: 0;
       }
       
@@ -537,7 +620,7 @@ export const SettingsPanel = {
       .yyt-settings-content {
         flex: 1;
         overflow-y: auto;
-        padding: 16px;
+        padding: 4px;
       }
       
       .yyt-settings-tab-content {
@@ -550,6 +633,10 @@ export const SettingsPanel = {
       
       .yyt-settings-section {
         margin-bottom: 24px;
+        padding: 18px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
       }
       
       .yyt-settings-section-title {
@@ -600,10 +687,24 @@ export const SettingsPanel = {
         display: flex;
         justify-content: flex-end;
         gap: 12px;
-        padding: 16px;
+        padding: 16px 0 0;
         background: rgba(255, 255, 255, 0.02);
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         flex-shrink: 0;
+      }
+
+      @media screen and (max-width: 768px) {
+        .yyt-settings-hero {
+          flex-direction: column;
+        }
+
+        .yyt-settings-hero-status {
+          justify-content: flex-start;
+        }
+
+        .yyt-form-row {
+          flex-direction: column;
+        }
       }
     `;
   },

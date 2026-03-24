@@ -71,16 +71,33 @@ export const ToolManagePanel = {
    */
   render(props) {
     const tools = getAllTools();
+    const toolEntries = Object.entries(tools);
+    const enabledCount = toolEntries.filter(([, tool]) => tool?.enabled !== false).length;
     
     return `
       <div class="yyt-tool-manager">
-        <div class="yyt-panel-section">
+        <div class="yyt-tool-manage-hero yyt-panel-section">
           <div class="yyt-section-title">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>说明</span>
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+            <span>工具工作区</span>
           </div>
-          <div class="yyt-tool-manage-hint">
-            在这里新建的工具会自动出现在上方“工具”页签里，可继续配置模板、提取规则、API 预设，并支持手动执行与测试提取。
+          <div class="yyt-tool-manage-hero-grid">
+            <div class="yyt-tool-manage-copy">
+              <div class="yyt-tool-manage-lead">在这里集中创建、整理和维护自定义工具。</div>
+              <div class="yyt-tool-manage-hint">
+                新建工具后会自动出现在上方“工具”页签里，可继续配置模板、提取规则、API 预设，并支持手动执行与测试提取。
+              </div>
+            </div>
+            <div class="yyt-tool-manage-stats">
+              <div class="yyt-tool-manage-stat">
+                <span class="yyt-tool-manage-stat-label">工具总数</span>
+                <strong class="yyt-tool-manage-stat-value">${toolEntries.length}</strong>
+              </div>
+              <div class="yyt-tool-manage-stat">
+                <span class="yyt-tool-manage-stat-label">已启用</span>
+                <strong class="yyt-tool-manage-stat-value">${enabledCount}</strong>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -436,13 +453,38 @@ export const ToolManagePanel = {
         flex-direction: column;
         gap: 20px;
       }
+
+      .yyt-tool-manage-hero {
+        gap: 18px;
+      }
+
+      .yyt-tool-manage-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .yyt-tool-manage-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .yyt-tool-manage-lead {
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.2;
+        color: var(--yyt-text);
+      }
       
       .yyt-tool-list {
         display: flex;
         flex-direction: column;
         gap: 10px;
-        max-height: 300px;
+        max-height: 420px;
         overflow-y: auto;
+        padding-right: 4px;
       }
 
       .yyt-tool-manage-hint {
@@ -450,54 +492,90 @@ export const ToolManagePanel = {
         color: var(--yyt-text-secondary);
         line-height: 1.7;
       }
+
+      .yyt-tool-manage-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(110px, 1fr));
+        gap: 10px;
+      }
+
+      .yyt-tool-manage-stat {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        padding: 14px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        min-width: 110px;
+      }
+
+      .yyt-tool-manage-stat-label {
+        font-size: 11px;
+        color: var(--yyt-text-muted);
+      }
+
+      .yyt-tool-manage-stat-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--yyt-text);
+        line-height: 1;
+      }
       
       .yyt-tool-item {
-        padding: 14px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
+        padding: 16px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
         transition: all 0.2s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
       
       .yyt-tool-item:hover {
-        border-color: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.16);
+        transform: translateY(-1px);
       }
       
       .yyt-tool-item.yyt-disabled {
-        opacity: 0.5;
+        opacity: 0.62;
       }
       
       .yyt-tool-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        gap: 12px;
       }
       
       .yyt-tool-info {
         display: flex;
         align-items: center;
         gap: 10px;
+        min-width: 0;
+        flex-wrap: wrap;
       }
       
       .yyt-tool-name {
         font-weight: 600;
-        font-size: 14px;
+        font-size: 15px;
         color: var(--yyt-text);
       }
       
       .yyt-tool-category {
         font-size: 11px;
-        padding: 2px 8px;
+        padding: 4px 8px;
         background: rgba(123, 183, 255, 0.1);
-        border-radius: 4px;
+        border-radius: 999px;
         color: var(--yyt-accent);
       }
       
       .yyt-tool-desc {
         font-size: 12px;
         color: var(--yyt-text-muted);
-        margin-bottom: 10px;
+        margin-bottom: 12px;
+        line-height: 1.7;
       }
 
       .yyt-tool-actions {
@@ -505,9 +583,28 @@ export const ToolManagePanel = {
         gap: 8px;
         flex-wrap: wrap;
       }
+
+      .yyt-tool-controls {
+        flex-shrink: 0;
+      }
       
       .yyt-dialog-wide {
         width: 480px;
+      }
+
+      @media screen and (max-width: 768px) {
+        .yyt-tool-manage-hero-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .yyt-tool-manage-stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .yyt-tool-header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
       }
     `;
   },

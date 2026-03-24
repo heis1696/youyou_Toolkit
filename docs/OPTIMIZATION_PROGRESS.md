@@ -527,6 +527,46 @@
 - 状态：
   - 成功
 
+## 2026-03-24 16:58
+
+- 阶段：阶段后增强（整体 UI / HTML 美化）
+- 修改文件：
+  - `modules/app/popup-shell.js`
+  - `styles/main.css`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `modules/ui/components/tool-manage-panel.js`
+  - `modules/ui/components/settings-panel.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 重构主工具箱 popup shell 的 HTML 结构，整理为 topbar / workspace / sidebar / main content / footer 的工作台布局
+  - 统一主导航、内容框架、section、表单、按钮、对话框和响应式细节的视觉语言
+  - 为工具配置页、工具列表页、设置页补充 hero 区、统计/状态区与更清晰的信息层级
+  - 执行 `npm run build`，确认构建通过
+- 修改原因：
+  - 在架构收敛基本完成后，进一步把 UI 从“能用”提升到“层级清晰、风格统一、便于继续扩展”的工作台形态
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-24 17:10
+
+- 阶段：阶段后增强（自动触发排查日志）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 自动触发初始化改为等待 `eventSource` 就绪，降低在酒馆环境中因初始化过早导致监听失效的概率
+  - 增加一组稳定输出的 `[youyou_trigger]` 控制台日志，覆盖初始化、事件注册、接收、调度、跳过、执行成功/失败等关键节点
+- 修改原因：
+  - 用户在真实酒馆环境中仍遇到“无法自动触发工具调用”，且缺少足够明确的控制台判断依据，因此优先补齐时序保障和观测信息
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
 ---
 
 ## 六、待处理问题 / 阻塞清单
@@ -554,6 +594,7 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - [x] 各阶段 `npm run build` 构建级验证已在施工日志中登记
 - [x] 三份优化文档之间的分工关系已重新对齐：分析文档负责基线，方案文档负责计划，进程文档负责落地状态
 - [x] 自动触发链已补齐事件级调试快照，写回链已补齐分层结果与最终校验信息
+- [x] 主工具箱与高频页面已完成一轮整体 UI / HTML 美化收口，并通过构建验证
 
 ### 尚未登记为最新一次完成结果的项
 

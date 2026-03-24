@@ -418,6 +418,11 @@ function log(...args) {
   }
 }
 
+function traceAlways(level = 'info', ...args) {
+  const logger = typeof console[level] === 'function' ? console[level] : console.log;
+  logger('[youyou_trigger]', ...args);
+}
+
 function getResolvedListenerSettings() {
   const listenerSettings = settingsService.getListenerSettings?.()
     || settingsService.getSettings?.()?.listener
@@ -584,6 +589,7 @@ function resolveStableChatId(api, context, character) {
 export function registerEventListener(eventType, callback, options = {}) {
   if (!eventType || typeof callback !== 'function') {
     log('无效的事件类型或回调函数');
+    traceAlways('warn', '注册事件监听失败：事件类型或回调无效', { eventType });
     return () => {};
   }
   
@@ -599,9 +605,12 @@ export function registerEventListener(eventType, callback, options = {}) {
   // 创建包装回调
   const wrappedCallback = async (...args) => {
     try {
+      traceAlways('info', '收到事件', eventType, args[0] ?? null);
+
       // 门控检查
       if (options.gateCheck && !await checkGate(options.gateCheck)) {
         log(`门控检查失败，跳过事件: ${eventType}`);
+        traceAlways('warn', '门控检查失败，跳过事件', eventType);
         return;
       }
       
@@ -627,12 +636,14 @@ export function registerEventListener(eventType, callback, options = {}) {
   if (eventSource && typeof eventSource.on === 'function') {
     eventSource.on(stEventType, wrappedCallback);
     log(`已注册事件监听器: ${eventType}`);
+    traceAlways('info', '已注册事件源监听', { eventType, stEventType });
   } else {
     // 回退到DOM事件
     const topWindow = getTopWindow();
     if (topWindow.addEventListener) {
       topWindow.addEventListener(stEventType, wrappedCallback);
       log(`已注册DOM事件监听器: ${eventType}`);
+      traceAlways('warn', '事件源不可用，回退为 DOM 事件监听', { eventType, stEventType });
     }
   }
   
@@ -1154,6 +1165,11 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0) {
     messageId,
     scheduledDelayMs: resolvedDelayMs
   });
+  traceAlways('info', '已调度自动触发', {
+    eventType,
+    messageId,
+    delayMs: resolvedDelayMs
+  });
 
   const timer = setTimeout(async () => {
     toolTriggerManagerState.pendingMessageTimers.delete(timerKey);
@@ -1200,6 +1216,10 @@ function resolveExecutionPath(tool, context) {
  */
 async function handleAutoTrigger(eventType, data) {
   log(`${eventType}触发:`, data);
+  traceAlways('info', '开始处理自动触发', {
+    eventType,
+    incomingMessageId: extractEventMessageId(data)
+  });
 
   const candidateTools = getToolsToExecute(EVENT_TYPES.GENERATION_ENDED);
   const candidateToolIds = candidateTools.map(tool => tool.id);
@@ -1215,6 +1235,12 @@ async function handleAutoTrigger(eventType, data) {
   });
 
   if (listenerDecision.skip) {
+    traceAlways('warn', '根据监听器设置跳过自动触发', {
+      eventType,
+      reason: listenerDecision.reason,
+      listenerSettings: listenerDecision.listenerSettings,
+      candidateToolIds
+    });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
       messageId: incomingMessageId,
@@ -1247,6 +1273,10 @@ async function handleAutoTrigger(eventType, data) {
     triggerState.gateState.lastGenerationDryRun
   )) {
     log('检测到 quiet / dryRun 生成，跳过工具自动执行');
+    traceAlways('warn', '检测到 quiet/dryRun，跳过自动触发', {
+      eventType,
+      candidateToolIds
+    });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
       selectedToolIds: candidateToolIds,
@@ -1281,6 +1311,11 @@ async function handleAutoTrigger(eventType, data) {
 
   if (!context?.lastAiMessage) {
     log(`${eventType} 后未读取到最新 AI 回复，跳过工具执行`);
+    traceAlways('warn', '未读取到有效 AI 回复，自动触发中止', {
+      eventType,
+      preferredMessageId: incomingMessageId,
+      candidateToolIds
+    });
     const messageKey = getAutoTriggerMessageKey(context || {});
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
@@ -1313,6 +1348,11 @@ async function handleAutoTrigger(eventType, data) {
   const messageKey = getAutoTriggerMessageKey(context);
   if (toolTriggerManagerState.lastHandledMessageKey === messageKey) {
     log(`检测到重复自动触发，跳过: ${messageKey}`);
+    traceAlways('warn', '命中自动去重，跳过执行', {
+      eventType,
+      messageKey,
+      candidateToolIds
+    });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
       messageId: context?.messageId || '',
@@ -1344,6 +1384,11 @@ async function handleAutoTrigger(eventType, data) {
   const toolsToExecute = candidateTools;
   if (toolsToExecute.length === 0) {
     log('没有需要执行的工具');
+    traceAlways('warn', '当前事件未命中任何可执行工具', {
+      eventType,
+      messageKey,
+      candidateToolIds
+    });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
       messageId: context?.messageId || '',
@@ -1375,6 +1420,11 @@ async function handleAutoTrigger(eventType, data) {
     lockedAiMessageId: context?.messageId || ''
   });
   log(`需要执行 ${toolsToExecute.length} 个工具:`, toolsToExecute.map(t => t.id));
+  traceAlways('info', '自动触发命中工具', {
+    eventType,
+    messageKey,
+    toolIds: toolsToExecute.map(t => t.id)
+  });
   showTopNotice('info', `检测到 AI 回复，开始自动执行 ${toolsToExecute.length} 个工具`, {
     duration: 2400,
     noticeId: 'yyt-tool-batch-start'
@@ -1594,6 +1644,13 @@ async function executeTriggeredTool(tool, context) {
     sticky: true,
     noticeId
   });
+  traceAlways('info', '开始执行工具', {
+    toolId,
+    toolName: tool.name,
+    triggerEvent: context?.triggerEvent,
+    executionPath,
+    messageKey
+  });
 
   try {
     const result = await executeToolByResolvedPath(tool, context, isManual);
@@ -1625,6 +1682,12 @@ async function executeTriggeredTool(tool, context) {
         duration: 3200,
         noticeId
       });
+      traceAlways('info', '工具执行成功', {
+        toolId,
+        executionPath,
+        duration,
+        writebackStatus: result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE
+      });
       return { success: true, duration, result };
     }
 
@@ -1652,6 +1715,13 @@ async function executeTriggeredTool(tool, context) {
       sticky: true,
       noticeId
     });
+    traceAlways('error', '工具执行失败', {
+      toolId,
+      executionPath,
+      duration,
+      error: errorMessage,
+      failureStage: result?.meta?.failureStage || ''
+    });
     return { success: false, duration, error: errorMessage, result };
   } catch (error) {
     const duration = Date.now() - startedAt;
@@ -1678,6 +1748,12 @@ async function executeTriggeredTool(tool, context) {
     showTopNotice('error', `${tool.name} 执行失败：${errorMessage}`, {
       sticky: true,
       noticeId
+    });
+    traceAlways('error', '工具执行抛出异常', {
+      toolId,
+      executionPath,
+      duration,
+      error: errorMessage
     });
     throw error;
   }
@@ -1720,6 +1796,7 @@ export async function runToolManually(toolId) {
   }
 
   const context = await buildToolExecutionContext({ triggerEvent: 'MANUAL' });
+  traceAlways('info', '手动执行工具', { toolId });
   return executeTriggeredTool(tool, context);
 }
 
@@ -1790,16 +1867,28 @@ export function getToolTriggerManagerState() {
 export async function initTriggerModule() {
   if (triggerState.isInitialized) {
     log('触发模块已初始化');
+    traceAlways('info', '触发模块已初始化，跳过重复初始化');
     return;
   }
   
   // 获取SillyTavern API
   const api = getSillyTavernAPI();
-  if (!api) {
+  const eventSource = getEventSource();
+  if (!api || !eventSource) {
     log('无法获取SillyTavern API，延迟初始化');
+    traceAlways('warn', '等待酒馆事件源就绪后再初始化触发模块', {
+      hasApi: !!api,
+      hasEventSource: !!eventSource
+    });
     setTimeout(initTriggerModule, 1000);
     return;
   }
+
+  traceAlways('info', '开始初始化触发模块', {
+    hasApi: !!api,
+    hasEventSource: !!eventSource,
+    listenerSettings: getResolvedListenerSettings()
+  });
 
   installSendIntentCaptureHooks();
   
@@ -1820,6 +1909,10 @@ export async function initTriggerModule() {
         lastUserMessageText: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || ''
       });
       log(`用户消息已发送: ${messageId}`);
+      traceAlways('info', '记录用户发送意图', {
+        messageId,
+        lastUserMessage: lastUserMessage?.content || ''
+      });
     });
   
   // 监听生成开始事件
@@ -1831,6 +1924,11 @@ export async function initTriggerModule() {
         isGenerating: true
       });
       log(`生成开始: ${type}`);
+      traceAlways('info', '收到生成开始事件', {
+        type,
+        dryRun: !!dryRun,
+        params: params || null
+      });
     });
   
   // 监听生成结束事件
@@ -1840,6 +1938,7 @@ export async function initTriggerModule() {
         isGenerating: false
       });
       log('生成结束');
+      traceAlways('info', '收到生成结束事件');
     });
   
   // 初始化工具触发管理器
@@ -1847,6 +1946,9 @@ export async function initTriggerModule() {
   
   triggerState.isInitialized = true;
   log('触发模块初始化完成');
+  traceAlways('info', '触发模块初始化完成', {
+    listenerSettings: getResolvedListenerSettings()
+  });
 }
 
 /**
