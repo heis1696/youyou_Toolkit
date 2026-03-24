@@ -101,6 +101,7 @@ export const AUTO_TRIGGER_SKIP_REASONS = {
   LISTENER_DISABLED: 'listener_disabled',
   QUIET_GENERATION: 'quiet_generation',
   IGNORED_AUTO_TRIGGER: 'ignored_auto_trigger',
+  UNRELATED_UI_EVENT: 'unrelated_ui_event',
   NON_ASSISTANT_MESSAGE: 'non_assistant_message',
   MISSING_AI_MESSAGE: 'missing_ai_message',
   DUPLICATE_MESSAGE: 'duplicate_message',
@@ -2281,8 +2282,10 @@ function registerGenerationEndedListener() {
 
   const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
     const messageId = extractEventMessageId(data, EVENT_TYPES.MESSAGE_RECEIVED);
-    const resolvedMessageEntry = await findRawChatMessageByIdentity(messageId)
-      || await getLatestRawChatMessageEntry();
+    const allowLatestMessageFallback = !messageId && triggerState.gateState.isGenerating;
+    const resolvedMessageEntry = messageId
+      ? await findRawChatMessageByIdentity(messageId)
+      : (allowLatestMessageFallback ? await getLatestRawChatMessageEntry() : null);
     const resolvedMessage = resolvedMessageEntry?.message || null;
     const resolvedRole = resolvedMessage ? normalizeMessageRole(resolvedMessage) : '';
     const resolvedMessageId = resolvedMessageEntry
@@ -2295,6 +2298,37 @@ function registerGenerationEndedListener() {
       messageId: effectiveMessageId,
       messageRole: resolvedRole
     });
+
+    if (!messageId && !allowLatestMessageFallback) {
+      traceAlways('info', 'MESSAGE_RECEIVED 缺少消息身份且当前并非生成中，判定为宿主 UI 干扰事件，跳过', {
+        rawEventData: data ?? null
+      });
+      saveEventDebugSnapshot({
+        stage: 'ignored_ui_side_effect',
+        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+        traceId: session?.traceId || '',
+        sessionKey: session?.sessionKey || '',
+        messageId: '',
+        messageRole: resolvedRole,
+        reason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+        handledAt: Date.now()
+      });
+      updateMessageSession(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+        completedAt: Date.now(),
+        messageRole: resolvedRole
+      });
+      appendMessageSessionHistory(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+        messageId: '',
+        messageRole: resolvedRole,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT
+      });
+      return;
+    }
+
     saveEventDebugSnapshot({
       stage: 'received',
       eventType: EVENT_TYPES.MESSAGE_RECEIVED,

@@ -89,6 +89,11 @@
 
 ### 修复
 
+- 🐛 **打开宿主聊天信息窗口时的自动工具误触发修复** (`modules/tool-trigger.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - `MESSAGE_RECEIVED` 兜底链现在要求“存在明确消息身份”或“当前确实处于生成中”才允许继续回退到最新消息推断，避免打开聊天信息窗口等宿主 UI 操作时被误当成有效回复事件
+  - 对无消息身份且非生成期的 `MESSAGE_RECEIVED` 事件统一标记为 `unrelated_ui_event` 并直接忽略，不再触发工具请求
+  - 执行 `npm run build` 构建验证通过
+
 - 🐛 **滚轮滚动恢复与主工具箱窗口进一步放大** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 移除拖拽滚动层对 `wheel` 事件的拦截，恢复鼠标滚轮在主内容区、设置区与工具列表中的原生滚动行为
   - 保留按住左键拖拽滚动能力，但避免与原生滚轮滚动互相打架
