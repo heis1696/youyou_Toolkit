@@ -237,7 +237,36 @@ const trigger = YouYouToolkit.getToolTrigger();
 
 > 从 `Phase 5` 开始，`getToolTriggerManagerState()` 额外会返回最近一次自动触发快照 `lastAutoTriggerSnapshot`，用于定位自动链最近一次是正常进入执行、还是被 `quiet` / 去重 / 未读取到 AI 回复等原因跳过。
 
-> 从当前修复开始，`getToolTriggerManagerState()` 还会额外返回 `lastEventDebugSnapshot`，用于定位“宿主事件有没有收到、有没有被调度、是不是在设置门控或消息读取阶段被提前跳过”。
+> 从当前修复开始，`getToolTriggerManagerState()` 还会额外返回 `lastEventDebugSnapshot`，用于定位“宿主事件有没有收到、有没有被调度、是不是在设置门控、消息角色判定或消息读取阶段被提前跳过”。
+
+> 从当前 Phase 6 收口开始，`getToolTriggerManagerState()` 还会额外返回 `activeSessionCount` 与 `recentSessionHistory`，用于观察“同一条消息被哪些宿主事件命中、最后进入了什么 phase、是否被跳过或完成”。
+
+典型结构可理解为：
+
+```javascript
+{
+  initialized: boolean,
+  listenersCount: number,
+  activeSessionCount: number,
+  recentSessionHistory: Array<{
+    id: string,
+    at: number,
+    traceId: string,
+    sessionKey: string,
+    phase: string,
+    eventType: string,
+    messageId: string,
+    messageKey: string,
+    messageRole: string,
+    skipReason: string,
+    candidateToolIds: string[],
+    executionPathIds: string[]
+  }>,
+  lastExecutionContext: object | null,
+  lastAutoTriggerSnapshot: object | null,
+  lastEventDebugSnapshot: object | null
+}
+```
 
 ### `getBypassManager()`
 
@@ -387,11 +416,19 @@ const outputService = YouYouToolkit.getToolOutputService();
   success,
   chatId,
   toolId,
+  traceId,
+  sessionKey,
   sourceMessageId,
   messageIndex,
   textField,
+  blockIdentity,
   hostUpdateMethod,
   writebackStatus,
+  replacedExistingBlock,
+  insertedNewBlock,
+  conflictDetected,
+  conflictReason,
+  preservedOtherToolBlocks,
   error,
   steps: {
     foundTargetMessage,
@@ -492,6 +529,19 @@ tool-registry.runtime
 - `lastAutoTriggerSnapshot`：用于定位最近一次自动触发的来源、去重键、命中的工具列表与跳过原因
 - `tool.runtime.*`：用于定位单个工具最近一次触发事件、执行路径、写回状态与失败阶段
 
+从当前收口开始，还补充了一层消息级 session 诊断：
+
+```text
+tool-trigger
+  -> messageSessions（运行中消息级 session）
+  -> recentSessionHistory（最近 N 次 session 事件历史）
+```
+
+其中：
+
+- `messageSessions`：表示当前仍在窗口期内的消息级自动触发会话
+- `recentSessionHistory`：表示最近若干次消息级 session 的 phase 演进记录
+
 ### 标准跳过原因
 
 当前自动链会把常见跳过原因收敛为以下标准值：
@@ -501,6 +551,7 @@ tool-registry.runtime
 | `listener_disabled` | 自动工具监听已关闭 |
 | `quiet_generation` | 当前生成属于 quiet / dryRun / 后台生成 |
 | `ignored_auto_trigger` | 判定为缺少最近用户发送意图，疑似插件/脚本自动触发生成 |
+| `non_assistant_message` | `MESSAGE_RECEIVED` 命中的并非 AI 楼层，已在事件级直接忽略 |
 | `missing_ai_message` | 未读取到可供处理的有效 AI 回复 |
 | `duplicate_message` | 命中自动去重，避免同一消息重复执行 |
 | `no_eligible_tools` | 当前没有命中可自动执行的工具 |
@@ -513,9 +564,13 @@ tool-registry.runtime
 | 字段 | 当前语义 |
 |------|------|
 | `listenGenerationEnded` | 自动监听总开关。关闭后，自动工具链不会再响应 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` |
+| `useGenerationAfterCommandsFallback` | 是否允许 `GENERATION_AFTER_COMMANDS` 参与消息级 session 兜底 |
+| `useMessageReceivedFallback` | 是否允许 `MESSAGE_RECEIVED` 参与消息级 session 兜底 |
 | `ignoreQuietGeneration` | 是否跳过 quiet / dryRun / 后台生成 |
 | `ignoreAutoTrigger` | 是否尽量跳过“没有最近用户发送意图”的生成，减少其他插件/脚本引发的误执行 |
 | `debounceMs` | `GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 这类兜底事件的延迟调度与去抖时间 |
+| `messageSessionWindowMs` | 同一条消息在多事件并发命中时的 session 聚合窗口 |
+| `historyRetentionLimit` | 单工具触发/写回历史与消息级 session 历史的保留条数 |
 
 ### 标准执行路径
 
@@ -836,6 +891,31 @@ interface ToolConfig {
     lastExecutionPath: string;
     lastWritebackStatus: string;
     lastFailureStage: string;
+    lastTraceId: string;
+    recentTriggerHistory: Array<{
+      id: string;
+      at: number;
+      traceId: string;
+      eventType: string;
+      messageId?: string;
+      messageKey?: string;
+      skipReason?: string;
+      executionPath?: string;
+      writebackStatus?: string;
+      failureStage?: string;
+    }>;
+    recentWritebackHistory: Array<{
+      id: string;
+      at: number;
+      traceId: string;
+      eventType: string;
+      messageId?: string;
+      messageKey?: string;
+      executionPath?: string;
+      writebackStatus?: string;
+      failureStage?: string;
+      success?: boolean;
+    }>;
   };
   
   // 兼容字段
@@ -872,8 +952,9 @@ interface ToolConfig {
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 - 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
 - 自动监听会记录用户发送意图，并跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
-- 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底触发来源；两条链路会按 `chatId + 最新 AI 消息ID` 去重，避免同一条回复重复执行工具
-- 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，并对 `MESSAGE_RECEIVED` 增加延迟调度，减少消息刚落盘时读取为空或过早触发的问题
+- 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底触发来源；但 `MESSAGE_RECEIVED` 现在会先确认命中的楼层确实是 AI 回复，避免把用户消息也误当成可执行事件
+- 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，并对 `MESSAGE_RECEIVED` 增加延迟调度；相同消息 ID 的兜底定时器会尽量合并，减少同一条回复被重复调度
+- 多条兜底事件同时命中同一条回复时，自动链仍会按 `chatId + 最新 AI 消息ID` 去重；同一消息短时间内重复命中去重时，也会抑制重复的调试噪声日志
 - 构建工具执行上下文时会对“最新 AI 回复”做短暂重试读取，优先锁定刚生成完成的那一条消息，降低读取到旧回复的概率
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕
 - 执行前会先校验当前 API 配置或工具绑定预设；如果既没有启用 `useMainApi`，又缺少有效的自定义 `url/model`，工具会直接提示配置问题，而不会再发出错误请求
@@ -920,7 +1001,9 @@ interface ToolConfig {
 
 > 若工具绑定了 `apiPreset`，执行前会先校验该预设是否存在；若预设被删除或失效，会直接返回明确错误而不是静默回退到错误配置。
 
-> 在部分酒馆 / TavernHelper 环境中，最新 AI 回复写入聊天记录与 `GENERATION_ENDED` 的时序可能不稳定，因此当前版本会同时监听 `MESSAGE_RECEIVED` 作为补充兜底，并自动去重。
+> 在部分酒馆 / TavernHelper 环境中，最新 AI 回复写入聊天记录与 `GENERATION_ENDED` 的时序可能不稳定，因此当前版本会同时监听 `MESSAGE_RECEIVED` 作为补充兜底，并自动去重；同时也会先过滤掉命中的非 AI 楼层，避免把用户消息误判成回复事件。
+
+> 当前版本会把 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 命中的同一条楼层，尽量收敛到同一个 message session；因此 fallback 事件的意义不再是“多执行一次”，而是“补足同一条消息的生命周期信号”。
 
 ### ~~提示词段落对象~~ (v0.6 已弃用)
 
@@ -939,9 +1022,13 @@ interface Settings {
   };
   listener: {
     listenGenerationEnded: boolean;  // 监听生成结束事件
+    useGenerationAfterCommandsFallback: boolean; // 是否启用 GENERATION_AFTER_COMMANDS 兜底
+    useMessageReceivedFallback: boolean; // 是否启用 MESSAGE_RECEIVED 兜底
     ignoreQuietGeneration: boolean;  // 忽略静默生成
     ignoreAutoTrigger: boolean;      // 忽略自动触发
     debounceMs: number;              // 防抖延迟(ms)
+    messageSessionWindowMs: number;  // 消息级 session 聚合窗口(ms)
+    historyRetentionLimit: number;   // 调试历史保留条数
   };
   debug: {
     enableDebugLog: boolean;         // 启用调试日志

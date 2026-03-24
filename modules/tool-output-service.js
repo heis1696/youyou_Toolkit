@@ -127,6 +127,8 @@ class ToolOutputService {
   async runToolPostResponse(toolConfig, rawContext) {
     const startTime = Date.now();
     const toolId = toolConfig.id;
+    const executionTraceId = rawContext?.traceId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const sessionKey = rawContext?.sessionKey || '';
     const selectors = this._getExtractionSelectors(toolConfig);
     const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
     let failureStage = '';
@@ -140,6 +142,8 @@ class ToolOutputService {
     // 发送执行开始事件
     eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, {
       toolId,
+      traceId: executionTraceId,
+      sessionKey,
       mode: OUTPUT_MODES.POST_RESPONSE_API
     });
     
@@ -174,7 +178,9 @@ class ToolOutputService {
         writebackDetails = await contextInjector.injectDetailed(toolId, outputContent, {
           overwrite: toolConfig.output?.overwrite !== false,
           sourceMessageId: rawContext.messageId || '',
-          extractionSelectors: selectors
+          extractionSelectors: selectors,
+          traceId: executionTraceId,
+          sessionKey
         });
 
         if (!writebackDetails?.success) {
@@ -194,6 +200,8 @@ class ToolOutputService {
       // 发送执行成功事件
       eventBus.emit(EVENTS.TOOL_EXECUTED, {
         toolId,
+        traceId: executionTraceId,
+        sessionKey,
         success: true,
         duration,
         mode: OUTPUT_MODES.POST_RESPONSE_API
@@ -207,6 +215,8 @@ class ToolOutputService {
         output: outputContent,
         duration,
         meta: {
+          traceId: executionTraceId,
+          sessionKey,
           messageCount: messages.length,
           selectors,
           apiPreset,
@@ -226,6 +236,8 @@ class ToolOutputService {
       // 发送执行失败事件
       eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, {
         toolId,
+        traceId: executionTraceId,
+        sessionKey,
         error: error.message || String(error),
         duration
       });
@@ -236,6 +248,8 @@ class ToolOutputService {
         error: error.message || String(error),
         duration,
         meta: {
+          traceId: executionTraceId,
+          sessionKey,
           messageCount: messages.length,
           selectors,
           apiPreset,

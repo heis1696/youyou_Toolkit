@@ -376,11 +376,19 @@ class ContextInjector {
       success: false,
       toolId,
       chatId: this._getCurrentChatId(),
+      traceId: options.traceId || '',
+      sessionKey: options.sessionKey || '',
       sourceMessageId: options.sourceMessageId || null,
       messageIndex: -1,
       textField: '',
+      blockIdentity: null,
       hostUpdateMethod: WRITEBACK_METHODS.NONE,
       writebackStatus: WRITEBACK_RESULT_STATUS.FAILED,
+      replacedExistingBlock: false,
+      insertedNewBlock: false,
+      conflictDetected: false,
+      conflictReason: '',
+      preservedOtherToolBlocks: true,
       error: '',
       errors: [],
       steps: {
@@ -398,6 +406,49 @@ class ContextInjector {
         textIncludesContent: false,
         mirrorStored: false
       }
+    };
+  }
+
+  /**
+   * 识别工具输出块类型。
+   * @private
+   */
+  _inferBlockType(text) {
+    const value = String(text || '').trim();
+    if (!value) return 'empty';
+
+    const tagMatch = value.match(/^<([a-zA-Z0-9_-]+)(?:\s[^>]*)?>[\s\S]*<\/\1>$/);
+    if (tagMatch?.[1]) {
+      return tagMatch[1];
+    }
+
+    return 'plain_text';
+  }
+
+  /**
+   * 优先按上次保存的完整块文本做精确替换。
+   * @private
+   */
+  _stripExactStoredBlock(text, storedBlockText) {
+    const sourceText = String(text || '');
+    const targetBlock = String(storedBlockText || '').trim();
+    if (!targetBlock) {
+      return {
+        text: sourceText,
+        removed: false
+      };
+    }
+
+    if (!sourceText.includes(targetBlock)) {
+      return {
+        text: sourceText,
+        removed: false
+      };
+    }
+
+    return {
+      text: sourceText.replace(targetBlock, '').trimEnd(),
+      removed: true
     };
   }
 
@@ -652,21 +703,76 @@ class ContextInjector {
       const existingOutputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] && typeof targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] === 'object'
         ? targetMessage[MESSAGE_TOOL_OUTPUTS_KEY]
         : {};
-      const previousToolContent = existingOutputs?.[toolId]?.content || '';
+      const previousToolEntry = existingOutputs?.[toolId] || {};
+      const previousToolContent = previousToolEntry?.content || '';
+      const previousBlockText = previousToolEntry?.blockText || previousToolContent || '';
+      const otherToolEntries = Object.entries(existingOutputs)
+        .filter(([id]) => id !== toolId)
+        .map(([, entry]) => entry || {});
+      const appendContent = String(injectionEntry.content || '').trim();
+      const blockType = this._inferBlockType(appendContent);
+      const blockIdentity = {
+        toolId,
+        messageId: options.sourceMessageId || targetMessage?.message_id || targetMessage?.messageId || messageIndex,
+        blockType,
+        insertedAt: injectionEntry.updatedAt,
+        replaceable: options.overwrite !== false
+      };
+      result.blockIdentity = blockIdentity;
+
+      const exactStripResult = options.overwrite === false
+        ? { text: String(text || ''), removed: false }
+        : this._stripExactStoredBlock(text, previousBlockText);
+      let workingText = exactStripResult.text;
+      let conflictReason = '';
+
+      if (options.overwrite !== false && previousBlockText && !exactStripResult.removed) {
+        conflictReason = 'previous_block_not_found';
+      }
+
+      const selectorStrippedText = options.overwrite === false
+        ? workingText
+        : this._stripExistingToolOutput(workingText, options.extractionSelectors);
+      const removedBySelector = selectorStrippedText !== workingText;
+      workingText = selectorStrippedText;
+
+      const contentStrippedText = options.overwrite === false
+        ? workingText
+        : this._stripPreviousStoredToolContent(workingText, previousToolContent);
+      const removedByContent = contentStrippedText !== workingText;
+      workingText = contentStrippedText;
+
+      result.replacedExistingBlock = exactStripResult.removed || removedBySelector || removedByContent;
+
       const baseText = options.overwrite === false
         ? String(text || '')
-        : this._stripPreviousStoredToolContent(
-            this._stripExistingToolOutput(text, options.extractionSelectors),
-            previousToolContent
-          );
-      const appendContent = String(injectionEntry.content || '').trim();
+        : workingText;
       const nextText = [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
+      result.insertedNewBlock = Boolean(appendContent);
+
+      const preservedOtherToolBlocks = otherToolEntries.every((entry) => {
+        const expectedBlock = String(entry?.blockText || entry?.content || '').trim();
+        if (!expectedBlock) return true;
+        return nextText.includes(expectedBlock);
+      });
+
+      result.preservedOtherToolBlocks = preservedOtherToolBlocks;
+      if (!preservedOtherToolBlocks) {
+        result.conflictDetected = true;
+        result.conflictReason = 'other_tool_block_removed';
+      } else if (conflictReason) {
+        result.conflictDetected = true;
+        result.conflictReason = conflictReason;
+      }
 
       const mergedOutputs = {
         ...existingOutputs,
         [toolId]: {
           toolId,
           content: appendContent,
+          blockText: appendContent,
+          blockType,
+          blockIdentity,
           updatedAt: injectionEntry.updatedAt,
           sourceMessageId: injectionEntry.sourceMessageId || null
         }
@@ -774,6 +880,10 @@ class ContextInjector {
 
       if (!result.success && !result.error) {
         result.error = '工具结果已尝试写回，但最终校验未通过';
+      }
+
+      if (result.conflictDetected && !result.error) {
+        result.error = `工具结果已写回，但检测到块冲突：${result.conflictReason}`;
       }
 
       this._log(`已将工具输出插入最新 AI 回复原文: ${toolId} -> #${messageIndex}`);

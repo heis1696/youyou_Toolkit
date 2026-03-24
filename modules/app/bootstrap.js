@@ -135,10 +135,10 @@ export function createBootstrap(context, options = {}) {
         transform: translate(-50%, -50%);
         display: flex;
         flex-direction: column;
-        width: min(1120px, calc(100vw - 28px));
-        max-width: calc(100vw - 28px);
-        height: min(900px, calc(100vh - 28px));
-        max-height: calc(100vh - 28px);
+        width: min(1500px, calc(100vw - 4px));
+        max-width: calc(100vw - 4px);
+        height: min(1120px, calc(100vh - 4px));
+        max-height: calc(100vh - 4px);
         background:
           radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1), transparent 60%),
           radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2), transparent 55%),
@@ -899,10 +899,10 @@ export function createBootstrap(context, options = {}) {
       /* 响应式 */
       @media screen and (max-width: 980px) {
         .yyt-popup {
-          width: calc(100vw - 18px);
-          max-width: calc(100vw - 18px);
-          height: calc(100vh - 18px);
-          max-height: calc(100vh - 18px);
+          width: calc(100vw - 4px);
+          max-width: calc(100vw - 4px);
+          height: calc(100vh - 4px);
+          max-height: calc(100vh - 4px);
         }
 
         .yyt-shell-topbar {
@@ -946,6 +946,27 @@ export function createBootstrap(context, options = {}) {
 
         .yyt-main-nav-item {
           min-width: 220px;
+        }
+      }
+
+      @media screen and (max-height: 860px) {
+        .yyt-popup {
+          height: calc(100vh - 4px);
+          max-height: calc(100vh - 4px);
+        }
+
+        .yyt-popup-body {
+          padding: 10px 12px;
+        }
+
+        .yyt-popup-shell {
+          gap: 8px;
+        }
+
+        .yyt-shell-topbar,
+        .yyt-shell-main-header,
+        .yyt-shell-sidebar-card {
+          padding: 12px;
         }
       }
 

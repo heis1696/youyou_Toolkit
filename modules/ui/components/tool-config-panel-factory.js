@@ -326,6 +326,58 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     gap: 8px;
   }
 
+  .yyt-tool-debug-history {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 6px;
+  }
+
+  .yyt-tool-debug-history-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--yyt-text-secondary);
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+  }
+
+  .yyt-tool-debug-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .yyt-tool-debug-history-item {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .yyt-tool-debug-history-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--yyt-text-secondary);
+  }
+
+  .yyt-tool-debug-history-main {
+    font-size: 12px;
+    color: var(--yyt-text);
+    line-height: 1.6;
+    word-break: break-word;
+  }
+
+  .yyt-tool-debug-history-empty {
+    font-size: 12px;
+    color: var(--yyt-text-muted);
+  }
+
   .yyt-tool-debug-content .yyt-tool-runtime-line {
     padding-top: 0;
   }
@@ -572,10 +624,13 @@ export function createToolConfigPanel(options) {
         listener_disabled: '已跳过：自动监听已关闭',
         quiet_generation: '已跳过：quiet / dryRun 生成',
         ignored_auto_trigger: '已跳过：判定为非用户主动触发生成',
+        non_assistant_message: '已跳过：命中的并非 AI 楼层',
         missing_ai_message: '已跳过：未读取到有效 AI 回复',
         duplicate_message: '已跳过：命中自动去重',
         no_eligible_tools: '已跳过：没有命中可执行工具',
-        tool_disabled: '已跳过：工具未启用'
+        tool_disabled: '已跳过：工具未启用',
+        generation_after_commands_fallback_disabled: '已忽略：GENERATION_AFTER_COMMANDS 兜底已关闭',
+        message_received_fallback_disabled: '已忽略：MESSAGE_RECEIVED 兜底已关闭'
       };
 
       return mapping[reason] || reason || '无';
@@ -615,6 +670,53 @@ export function createToolConfigPanel(options) {
       return mapping[stage] || stage || '无';
     },
 
+    _formatHistoryTime(timestamp) {
+      return this._formatDiagnosticTime(timestamp);
+    },
+
+    _buildHistorySection(title, entries = [], type = 'trigger') {
+      const list = Array.isArray(entries) ? entries.filter(Boolean).slice().reverse() : [];
+
+      if (!list.length) {
+        return `
+          <div class="yyt-tool-debug-history">
+            <div class="yyt-tool-debug-history-title">${escapeHtml(title)}</div>
+            <div class="yyt-tool-debug-history-empty">暂无记录</div>
+          </div>
+        `;
+      }
+
+      const itemsHtml = list.map((entry) => {
+        const eventText = this._formatDiagnosticValue(entry.eventType, '未记录');
+        const messageText = this._formatDiagnosticValue(entry.messageKey || entry.messageId, '未记录');
+        const traceText = this._formatDiagnosticValue(entry.traceId, '无');
+        const detailText = type === 'writeback'
+          ? `执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)} / 失败阶段：${this._formatFailureStage(entry.failureStage)}`
+          : `跳过原因：${this._formatSkipReason(entry.skipReason)} / 执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)}`;
+
+        return `
+          <div class="yyt-tool-debug-history-item">
+            <div class="yyt-tool-debug-history-meta">
+              <span>${escapeHtml(this._formatHistoryTime(entry.at))}</span>
+              <span>trace ${traceText}</span>
+            </div>
+            <div class="yyt-tool-debug-history-main">
+              事件：${eventText}<br>
+              消息：${messageText}<br>
+              ${escapeHtml(detailText)}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="yyt-tool-debug-history">
+          <div class="yyt-tool-debug-history-title">${escapeHtml(title)}</div>
+          <div class="yyt-tool-debug-history-list">${itemsHtml}</div>
+        </div>
+      `;
+    },
+
     _buildDiagnosticsHtml(runtime) {
       const data = runtime || {};
       const hasDiagnostics = Boolean(
@@ -625,6 +727,9 @@ export function createToolConfigPanel(options) {
         || data.lastExecutionPath
         || data.lastWritebackStatus
         || data.lastFailureStage
+        || data.lastTraceId
+        || (Array.isArray(data.recentTriggerHistory) && data.recentTriggerHistory.length > 0)
+        || (Array.isArray(data.recentWritebackHistory) && data.recentWritebackHistory.length > 0)
       );
 
       if (!hasDiagnostics) {
@@ -634,12 +739,16 @@ export function createToolConfigPanel(options) {
       const rows = [
         ['最近触发时间', this._formatDiagnosticTime(data.lastTriggerAt)],
         ['最近触发事件', this._formatDiagnosticValue(data.lastTriggerEvent)],
+        ['最近 Trace', this._formatDiagnosticValue(data.lastTraceId, '无')],
         ['最近消息键', this._formatDiagnosticValue(data.lastMessageKey)],
         ['最近跳过原因', this._formatDiagnosticValue(this._formatSkipReason(data.lastSkipReason), '无')],
         ['最近执行路径', this._formatDiagnosticValue(this._formatExecutionPath(data.lastExecutionPath))],
         ['最近写回状态', this._formatDiagnosticValue(this._formatWritebackStatus(data.lastWritebackStatus))],
         ['最近失败阶段', this._formatDiagnosticValue(this._formatFailureStage(data.lastFailureStage), '无')]
       ];
+
+      const triggerHistoryHtml = this._buildHistorySection('最近触发历史', data.recentTriggerHistory || [], 'trigger');
+      const writebackHistoryHtml = this._buildHistorySection('最近写回历史', data.recentWritebackHistory || [], 'writeback');
 
       return `
         <details class="yyt-tool-debug-panel">
@@ -651,6 +760,8 @@ export function createToolConfigPanel(options) {
                 <span class="yyt-tool-runtime-value">${value}</span>
               </div>
             `).join('')}
+            ${triggerHistoryHtml}
+            ${writebackHistoryHtml}
           </div>
         </details>
       `;

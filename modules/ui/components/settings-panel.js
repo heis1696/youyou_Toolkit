@@ -282,6 +282,24 @@ export const SettingsPanel = {
             </label>
             <div class="yyt-form-hint">启用后会监听 GENERATION_ENDED，并结合 GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED 作为兜底来源自动触发工具。</div>
           </div>
+
+          <div class="yyt-form-group">
+            <label class="yyt-toggle-label">
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-useGenerationAfterCommandsFallback" 
+                     ${listener.useGenerationAfterCommandsFallback !== false ? 'checked' : ''}>
+              <span>启用 GENERATION_AFTER_COMMANDS 兜底</span>
+            </label>
+            <div class="yyt-form-hint">关闭后，自动链不再把 GENERATION_AFTER_COMMANDS 作为消息级 session 的补充事件源。</div>
+          </div>
+
+          <div class="yyt-form-group">
+            <label class="yyt-toggle-label">
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-useMessageReceivedFallback" 
+                     ${listener.useMessageReceivedFallback !== false ? 'checked' : ''}>
+              <span>启用 MESSAGE_RECEIVED 兜底</span>
+            </label>
+            <div class="yyt-form-hint">关闭后，自动链不再使用 MESSAGE_RECEIVED 兜底；启用时也只会吸收 assistant 楼层进入同一消息 session。</div>
+          </div>
         </div>
         
         <div class="yyt-settings-section">
@@ -306,12 +324,26 @@ export const SettingsPanel = {
         </div>
         
         <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">防抖设置</div>
+          <div class="yyt-settings-section-title">Session 与防抖</div>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
+              <label>防抖时间 (ms)</label>
+              <div class="yyt-form-hint">用于 GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED 等兜底事件的延迟调度与去抖。</div>
+              <input type="number" class="yyt-input" id="yyt-setting-debounceMs" 
+                     value="${listener.debounceMs}" min="0" max="5000" step="100">
+            </div>
+            <div class="yyt-form-group yyt-flex-1">
+              <label>消息 Session 窗口 (ms)</label>
+              <div class="yyt-form-hint">同一条消息在该窗口内命中的多种宿主事件会被聚合进同一 session。</div>
+              <input type="number" class="yyt-input" id="yyt-setting-messageSessionWindowMs" 
+                     value="${listener.messageSessionWindowMs || 1800}" min="300" max="10000" step="100">
+            </div>
+          </div>
           <div class="yyt-form-group">
-            <label>防抖时间 (ms)</label>
-            <div class="yyt-form-hint">用于 GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED 等兜底事件的延迟调度与去抖。</div>
-            <input type="number" class="yyt-input" id="yyt-setting-debounceMs" 
-                   value="${listener.debounceMs}" min="0" max="5000" step="100">
+            <label>诊断历史保留条数</label>
+            <div class="yyt-form-hint">控制消息级 session 历史与单工具最近触发 / 写回历史的保留数量，避免诊断信息无限膨胀。</div>
+            <input type="number" class="yyt-input" id="yyt-setting-historyRetentionLimit" 
+                   value="${listener.historyRetentionLimit || 10}" min="1" max="50" step="1">
           </div>
         </div>
       </div>
@@ -461,7 +493,11 @@ export const SettingsPanel = {
         listenGenerationEnded: $container.find('#yyt-setting-listenGenerationEnded').is(':checked'),
         ignoreQuietGeneration: $container.find('#yyt-setting-ignoreQuietGeneration').is(':checked'),
         ignoreAutoTrigger: $container.find('#yyt-setting-ignoreAutoTrigger').is(':checked'),
-        debounceMs: parseInt($container.find('#yyt-setting-debounceMs').val()) || 300
+        debounceMs: parseInt($container.find('#yyt-setting-debounceMs').val()) || 300,
+        useGenerationAfterCommandsFallback: $container.find('#yyt-setting-useGenerationAfterCommandsFallback').is(':checked'),
+        useMessageReceivedFallback: $container.find('#yyt-setting-useMessageReceivedFallback').is(':checked'),
+        messageSessionWindowMs: parseInt($container.find('#yyt-setting-messageSessionWindowMs').val()) || 1800,
+        historyRetentionLimit: parseInt($container.find('#yyt-setting-historyRetentionLimit').val()) || 10
       },
       debug: {
         enableDebugLog: $container.find('#yyt-setting-enableDebugLog').is(':checked'),

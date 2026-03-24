@@ -53,6 +53,8 @@
 - `docs/OPTIMIZATION_PROGRESS.md` 已将当前状态、施工日志与回归结论收口到“文档施工已完成”
 - `docs/ARCHITECTURE_ANALYSIS.md` 已补充“施工前基线 / 施工后复核”定位说明，避免把历史问题误读为当前现状
 - `modules/tool-trigger.js` 已补上监听器设置接线与事件级调试快照 `lastEventDebugSnapshot`
+- `modules/tool-trigger.js` 已进一步补上 `MESSAGE_RECEIVED` 的非 AI 楼层过滤，以及短时间重复去重日志收敛，减少真实宿主环境中的误监听与调试噪声
+- `modules/tool-trigger.js` 已进一步引入 message session 聚合、运行态触发/写回历史与 trace 贯通；`modules/context-injector.js` 已补上块身份与冲突诊断结果
 - `modules/context-injector.js` 已新增 `injectDetailed()` 分层写回结果，`modules/tool-output-service.js` 的 `meta` 现已补充 `writebackDetails`
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
@@ -629,6 +631,75 @@
 - 状态：
   - 成功
 
+## 2026-03-24 18:24
+
+- 阶段：阶段后修复（自动触发过滤与日志收敛）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 为 `MESSAGE_RECEIVED` 兜底链新增消息角色判定，若命中的并非 AI 楼层则直接在事件级忽略，不再把用户消息误当成可执行回复
+  - 为自动执行上下文新增“按事件消息 ID 锁定目标楼层”的策略，降低用户消息事件错误映射到最新 AI 回复的概率
+  - 将兜底调度键优先收敛到消息 ID，并对短时间重复命中的去重日志做抑制，减少控制台里同类 skip 日志连续刷屏
+  - 同步更新 API 文档与更新日志说明
+- 修改原因：
+  - 用户在真实酒馆环境中确认功能已恢复，但反馈仍会误监听用户消息，且去重相关日志在一次回复后会重复出现数次，因此需要继续收紧事件过滤并降低调试噪声
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-24 18:58
+
+- 阶段：阶段后增强（Phase 6：session / 幂等写回 / 历史诊断）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/context-injector.js`
+  - `modules/tool-output-service.js`
+  - `modules/tool-registry.js`
+  - `modules/core/settings-service.js`
+  - `modules/ui/components/settings-panel.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 为自动触发链补上 message session 聚合、session 历史与 trace 贯通，降低多事件命中同一消息时的漂移与诊断盲区
+  - 为 listener 设置新增 fallback 开关、session 窗口与历史条数配置，并同步到设置页 UI
+  - 为写回链补上块身份、替换结果、冲突检测与保留其他工具块的校验字段
+  - 为单工具 runtime 增加最近触发历史与最近写回历史，并在工具面板折叠区可视化展示
+  - 新增宿主环境回归清单文档，作为后续发布前实测基线
+- 修改原因：
+  - 在自动触发链已基本可用后，继续把系统从“能运行”提升到“可验证、可回溯、可发布”的状态，减少后续真实宿主环境中的偶发问题难以复盘
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-24 19:39
+
+- 阶段：阶段后修复（滚轮恢复与窗口放大）
+- 修改文件：
+  - `modules/app/popup-shell.js`
+  - `styles/main.css`
+  - `modules/app/bootstrap.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 移除拖拽滚动实现对 `wheel` 事件的拦截，恢复鼠标滚轮在主内容区、设置区和工具列表中的原生滚动行为
+  - 保留按住左键拖拽滚动的辅助能力，但避免它与滚轮滚动互相冲突
+  - 继续放大 popup 主窗口尺寸，并同步调整 fallback 内置样式，确保宿主在外部样式拉取失败时也不会退回较小尺寸
+  - 执行 `npm run build`，确认构建通过
+- 修改原因：
+  - 用户反馈拖拽滚动虽然可用，但滚轮滚动被破坏，且当前窗口仍然不够大，因此需要优先恢复原生滚轮，再直接扩大整个工作台可视区域
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
 ---
 
 ## 六、待处理问题 / 阻塞清单
@@ -659,6 +730,7 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - [x] 主工具箱与高频页面已完成一轮整体 UI / HTML 美化收口，并通过构建验证
 - [x] 主工具箱工作台布局错乱与样式注入回退问题已修复，并通过 `npm run build` 验证
 - [x] 主工具箱工作台可视区过小与内容区不可滚动/拖拽问题已修复，并通过 `npm run build` 验证
+- [x] 主工具箱滚轮滚动与进一步放大窗口尺寸问题已修复，并通过 `npm run build` 验证
 
 ### 尚未登记为最新一次完成结果的项
 

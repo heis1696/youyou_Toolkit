@@ -5,7 +5,12 @@
 
 import { eventBus, EVENTS } from './core/event-bus.js';
 import { settingsService } from './core/settings-service.js';
-import { getToolFullConfig, updateToolRuntime, patchToolRuntime } from './tool-registry.js';
+import {
+  getToolFullConfig,
+  updateToolRuntime,
+  patchToolRuntime,
+  appendToolRuntimeHistory
+} from './tool-registry.js';
 import { executeToolWithConfig, getToolsForEvent } from './tool-executor.js';
 import {
   toolOutputService,
@@ -96,6 +101,7 @@ export const AUTO_TRIGGER_SKIP_REASONS = {
   LISTENER_DISABLED: 'listener_disabled',
   QUIET_GENERATION: 'quiet_generation',
   IGNORED_AUTO_TRIGGER: 'ignored_auto_trigger',
+  NON_ASSISTANT_MESSAGE: 'non_assistant_message',
   MISSING_AI_MESSAGE: 'missing_ai_message',
   DUPLICATE_MESSAGE: 'duplicate_message',
   NO_ELIGIBLE_TOOLS: 'no_eligible_tools',
@@ -108,7 +114,18 @@ export const TOOL_EXECUTION_PATHS = {
   MANUAL_COMPATIBILITY: 'manual_compatibility'
 };
 
+const MESSAGE_SESSION_PHASES = {
+  RECEIVED: 'received',
+  SCHEDULED: 'scheduled',
+  DISPATCHING: 'dispatching',
+  HANDLING: 'handling',
+  COMPLETED: 'completed',
+  SKIPPED: 'skipped',
+  IGNORED: 'ignored'
+};
+
 const AUTO_TRIGGER_USER_INTENT_TTL_MS = 15000;
+const DUPLICATE_SKIP_LOG_WINDOW_MS = 1500;
 
 // ============================================================
 // 工具函数
@@ -149,6 +166,18 @@ function getMessageContent(msg) {
     if (typeof value === 'string' && value.trim()) {
       return value;
     }
+  }
+
+  return '';
+}
+
+function normalizeMessageIdentityValue(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
   }
 
   return '';
@@ -216,7 +245,8 @@ function isMeaningfulAssistantContent(text) {
  * @param {string|number|null} preferredMessageId
  * @returns {{messages: Array, lastUserMessage: Object|null, lastAiMessage: Object|null}}
  */
-function buildConversationSnapshot(rawMessages, preferredMessageId = null) {
+function buildConversationSnapshot(rawMessages, preferredMessageId = null, options = {}) {
+  const { lockToMessageId = false } = options;
   const chat = Array.isArray(rawMessages) ? rawMessages : [];
   const normalizedMessages = chat.map((message, index) => ({
     role: normalizeMessageRole(message),
@@ -239,11 +269,15 @@ function buildConversationSnapshot(rawMessages, preferredMessageId = null) {
 
   for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
     const message = normalizedMessages[index];
+    const messageSourceId = normalizeMessageIdentityValue(message.sourceId);
+    const matchesPreferredId = normalizedPreferredId
+      && (
+        messageSourceId === normalizedPreferredId
+        || String(message.chatIndex) === normalizedPreferredId
+      );
 
     if (!lastAiMessage && message.role === 'assistant' && isMeaningfulAssistantContent(message.content)) {
-      if (!normalizedPreferredId || String(message.sourceId).trim() === normalizedPreferredId || message.chatIndex === Number(normalizedPreferredId)) {
-        lastAiMessage = message;
-      } else if (!lastAiMessage) {
+      if (!normalizedPreferredId || !lockToMessageId || matchesPreferredId) {
         lastAiMessage = message;
       }
     }
@@ -273,14 +307,17 @@ async function getConversationSnapshot(options = {}) {
   const {
     preferredMessageId = null,
     retries = 0,
-    retryDelayMs = 250
+    retryDelayMs = 250,
+    lockToMessageId = false
   } = options;
 
   let snapshot = { messages: [], lastUserMessage: null, lastAiMessage: null };
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     const rawMessages = await getRawChatMessages();
-    snapshot = buildConversationSnapshot(rawMessages, preferredMessageId);
+    snapshot = buildConversationSnapshot(rawMessages, preferredMessageId, {
+      lockToMessageId
+    });
 
     if (snapshot.lastAiMessage?.content) {
       return snapshot;
@@ -389,6 +426,13 @@ function getSillyTavernAPI() {
 function getTavernHelperAPI() {
   const topWindow = getTopWindow();
   return topWindow.TavernHelper || null;
+}
+
+function shouldTreatScalarEventPayloadAsMessageId(eventType = '') {
+  return eventType === EVENT_TYPES.MESSAGE_RECEIVED
+    || eventType === EVENT_TYPES.MESSAGE_SENT
+    || eventType === EVENT_TYPES.MESSAGE_UPDATED
+    || eventType === EVENT_TYPES.MESSAGE_DELETED;
 }
 
 function isValidEventSource(candidate) {
@@ -567,21 +611,103 @@ function getResolvedListenerSettings() {
     || {};
 
   const parsedDebounceMs = parseInt(listenerSettings?.debounceMs, 10);
+  const parsedSessionWindowMs = parseInt(listenerSettings?.messageSessionWindowMs, 10);
+  const parsedHistoryRetentionLimit = parseInt(listenerSettings?.historyRetentionLimit, 10);
 
   return {
     listenGenerationEnded: listenerSettings?.listenGenerationEnded !== false,
     ignoreQuietGeneration: listenerSettings?.ignoreQuietGeneration !== false,
     ignoreAutoTrigger: listenerSettings?.ignoreAutoTrigger === true,
-    debounceMs: Number.isFinite(parsedDebounceMs) ? Math.max(0, parsedDebounceMs) : 300
+    debounceMs: Number.isFinite(parsedDebounceMs) ? Math.max(0, parsedDebounceMs) : 300,
+    useMessageReceivedFallback: listenerSettings?.useMessageReceivedFallback !== false,
+    useGenerationAfterCommandsFallback: listenerSettings?.useGenerationAfterCommandsFallback !== false,
+    messageSessionWindowMs: Number.isFinite(parsedSessionWindowMs) ? Math.max(300, parsedSessionWindowMs) : 1800,
+    historyRetentionLimit: Number.isFinite(parsedHistoryRetentionLimit)
+      ? Math.max(1, Math.min(50, parsedHistoryRetentionLimit))
+      : 10
   };
 }
 
-function extractEventMessageId(data) {
-  if (typeof data === 'string' || typeof data === 'number') {
-    return String(data);
+function extractEventMessageId(data, eventType = '') {
+  if (data && typeof data === 'object') {
+    return normalizeMessageIdentityValue(
+      data?.messageId
+      ?? data?.id
+      ?? data?.message_id
+      ?? data?.mes_id
+    );
   }
 
-  return data?.messageId || data?.id || data?.message_id || '';
+  if (!shouldTreatScalarEventPayloadAsMessageId(eventType)) {
+    return '';
+  }
+
+  return normalizeMessageIdentityValue(data);
+}
+
+function doesMessageMatchIdentity(message, index, candidateId) {
+  const normalizedCandidateId = normalizeMessageIdentityValue(candidateId);
+  if (!normalizedCandidateId) {
+    return false;
+  }
+
+  const identity = normalizeMessageIdentityValue(getMessageIdentity(message, index));
+  if (identity && identity === normalizedCandidateId) {
+    return true;
+  }
+
+  const numericCandidateId = Number(normalizedCandidateId);
+  return Number.isInteger(numericCandidateId) && index === numericCandidateId;
+}
+
+async function findRawChatMessageByIdentity(candidateId) {
+  const normalizedCandidateId = normalizeMessageIdentityValue(candidateId);
+  if (!normalizedCandidateId) {
+    return null;
+  }
+
+  const rawMessages = await getRawChatMessages();
+  for (let index = rawMessages.length - 1; index >= 0; index -= 1) {
+    const message = rawMessages[index];
+    if (doesMessageMatchIdentity(message, index, normalizedCandidateId)) {
+      return {
+        message,
+        index
+      };
+    }
+  }
+
+  return null;
+}
+
+async function getLatestRawChatMessageEntry() {
+  const rawMessages = await getRawChatMessages();
+  if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
+    return null;
+  }
+
+  const index = rawMessages.length - 1;
+  return {
+    message: rawMessages[index],
+    index
+  };
+}
+
+function shouldLockToEventMessageId(triggerEvent, eventData, preferredMessageId) {
+  if (!normalizeMessageIdentityValue(preferredMessageId)) {
+    return false;
+  }
+
+  if (triggerEvent === EVENT_TYPES.MESSAGE_RECEIVED || triggerEvent === EVENT_TYPES.MESSAGE_UPDATED) {
+    return true;
+  }
+
+  return !!(eventData && typeof eventData === 'object' && (
+    eventData?.messageId !== undefined
+    || eventData?.message_id !== undefined
+    || eventData?.id !== undefined
+    || eventData?.mes_id !== undefined
+  ));
 }
 
 function hasRecentUserTriggerIntent(now = Date.now()) {
@@ -597,8 +723,11 @@ function createEventDebugSnapshot(snapshot = {}) {
   return {
     stage: '',
     eventType: '',
+    traceId: '',
+    sessionKey: '',
     messageId: '',
     messageKey: '',
+    messageRole: '',
     reason: '',
     scheduledDelayMs: 0,
     candidateToolIds: [],
@@ -647,6 +776,8 @@ function shouldSkipAutoTriggerByListenerSettings() {
 function createAutoTriggerSnapshot(snapshot = {}) {
   return {
     triggerEvent: '',
+    traceId: '',
+    sessionKey: '',
     messageId: '',
     messageKey: '',
     selectedToolIds: [],
@@ -1273,12 +1404,216 @@ export function removeAllTriggerHandlers() {
 const toolTriggerManagerState = {
   initialized: false,
   listeners: new Map(),
+  messageSessions: new Map(),
+  recentSessionHistory: [],
   lastExecutionContext: null,
   lastHandledMessageKey: '',
   pendingMessageTimers: new Map(),
   lastAutoTriggerSnapshot: null,
-  lastEventDebugSnapshot: null
+  lastEventDebugSnapshot: null,
+  lastDuplicateMessageKey: '',
+  lastDuplicateMessageAt: 0
 };
+
+function createTraceId(prefix = 'trace') {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function trimManagerHistoryEntries(entries, limit = 10) {
+  const normalizedLimit = Number.isFinite(limit)
+    ? Math.max(1, Math.min(50, Math.floor(limit)))
+    : 10;
+
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  if (entries.length <= normalizedLimit) {
+    return entries;
+  }
+
+  return entries.slice(entries.length - normalizedLimit);
+}
+
+function resolveCurrentChatIdForSession() {
+  const api = getSillyTavernAPI();
+  const context = api?.getContext?.() || null;
+  return resolveStableChatId(api, context, null);
+}
+
+function buildMessageSessionKey(chatId, messageId, eventType = '') {
+  const resolvedChatId = chatId || resolveCurrentChatIdForSession();
+  const normalizedMessageId = normalizeMessageIdentityValue(messageId);
+  return `${resolvedChatId}::${normalizedMessageId || `event:${eventType || 'unknown'}:latest`}`;
+}
+
+function createMessageSession(eventType, data, snapshot = {}) {
+  const messageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
+  const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
+  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, messageId, eventType);
+  const now = Date.now();
+
+  return {
+    sessionKey,
+    traceId: snapshot?.traceId || createTraceId('session'),
+    chatId,
+    messageId,
+    messageKey: snapshot?.messageKey || '',
+    messageRole: snapshot?.messageRole || '',
+    firstEventType: snapshot?.eventType || eventType || '',
+    receivedEvents: eventType ? [eventType] : [],
+    phase: snapshot?.phase || MESSAGE_SESSION_PHASES.RECEIVED,
+    skipReason: snapshot?.skipReason || '',
+    scheduledAt: 0,
+    handledAt: 0,
+    completedAt: 0,
+    candidateToolIds: Array.isArray(snapshot?.candidateToolIds) ? [...snapshot.candidateToolIds] : [],
+    executionPathIds: Array.isArray(snapshot?.executionPathIds) ? [...snapshot.executionPathIds] : [],
+    sourceMessageLocked: !!messageId,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function pruneExpiredMessageSessions(now = Date.now()) {
+  const { messageSessionWindowMs } = getResolvedListenerSettings();
+  for (const [sessionKey, session] of toolTriggerManagerState.messageSessions.entries()) {
+    const anchor = session?.completedAt || session?.handledAt || session?.updatedAt || session?.createdAt || 0;
+    if (anchor > 0 && (now - anchor) > messageSessionWindowMs) {
+      toolTriggerManagerState.messageSessions.delete(sessionKey);
+    }
+  }
+}
+
+function getOrCreateMessageSession(eventType, data, snapshot = {}) {
+  pruneExpiredMessageSessions();
+
+  const provisionalMessageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
+  const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
+  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, provisionalMessageId, eventType);
+  let session = toolTriggerManagerState.messageSessions.get(sessionKey);
+
+  if (!session) {
+    session = createMessageSession(eventType, data, {
+      ...snapshot,
+      chatId,
+      sessionKey,
+      messageId: provisionalMessageId
+    });
+    toolTriggerManagerState.messageSessions.set(sessionKey, session);
+    return session;
+  }
+
+  if (eventType && !session.receivedEvents.includes(eventType)) {
+    session.receivedEvents.push(eventType);
+  }
+
+  if (provisionalMessageId && !session.messageId) {
+    session.messageId = provisionalMessageId;
+    session.sourceMessageLocked = true;
+  }
+
+  if (snapshot?.messageRole) {
+    session.messageRole = snapshot.messageRole;
+  }
+
+  if (snapshot?.candidateToolIds) {
+    session.candidateToolIds = [...snapshot.candidateToolIds];
+  }
+
+  session.updatedAt = Date.now();
+  return session;
+}
+
+function updateMessageSession(session, partial = {}) {
+  if (!session) return null;
+
+  Object.assign(session, partial, {
+    updatedAt: Date.now()
+  });
+
+  return session;
+}
+
+function rekeyMessageSession(session, nextSessionKey) {
+  if (!session || !nextSessionKey || session.sessionKey === nextSessionKey) {
+    return session;
+  }
+
+  toolTriggerManagerState.messageSessions.delete(session.sessionKey);
+  session.sessionKey = nextSessionKey;
+  session.updatedAt = Date.now();
+  toolTriggerManagerState.messageSessions.set(nextSessionKey, session);
+  return session;
+}
+
+function appendMessageSessionHistory(session, historyPartial = {}) {
+  if (!session) return null;
+
+  const { historyRetentionLimit } = getResolvedListenerSettings();
+  const entry = {
+    id: historyPartial?.id || createTraceId('session_hist'),
+    at: historyPartial?.at || Date.now(),
+    traceId: session.traceId,
+    sessionKey: session.sessionKey,
+    phase: historyPartial?.phase || session.phase,
+    eventType: historyPartial?.eventType || session.firstEventType,
+    messageId: historyPartial?.messageId || session.messageId,
+    messageKey: historyPartial?.messageKey || session.messageKey,
+    messageRole: historyPartial?.messageRole || session.messageRole,
+    skipReason: historyPartial?.skipReason || session.skipReason || '',
+    candidateToolIds: Array.isArray(historyPartial?.candidateToolIds)
+      ? [...historyPartial.candidateToolIds]
+      : [...(session.candidateToolIds || [])],
+    executionPathIds: Array.isArray(historyPartial?.executionPathIds)
+      ? [...historyPartial.executionPathIds]
+      : [...(session.executionPathIds || [])]
+  };
+
+  toolTriggerManagerState.recentSessionHistory = trimManagerHistoryEntries([
+    ...toolTriggerManagerState.recentSessionHistory,
+    entry
+  ], historyRetentionLimit);
+
+  return entry;
+}
+
+function appendTriggerHistoryForTools(tools, historyEntry = {}) {
+  const toolList = Array.isArray(tools) ? tools : [];
+  const { historyRetentionLimit } = getResolvedListenerSettings();
+
+  toolList.forEach((tool) => {
+    if (!tool?.id) return;
+    appendToolRuntimeHistory(tool.id, 'trigger', historyEntry, {
+      limit: historyRetentionLimit,
+      emitEvent: false
+    });
+  });
+}
+
+function appendWritebackHistoryForTool(toolId, historyEntry = {}) {
+  if (!toolId) return;
+
+  const { historyRetentionLimit } = getResolvedListenerSettings();
+  appendToolRuntimeHistory(toolId, 'writeback', historyEntry, {
+    limit: historyRetentionLimit,
+    emitEvent: false
+  });
+}
+
+function shouldReportDuplicateSkip(messageKey) {
+  const now = Date.now();
+  if (
+    toolTriggerManagerState.lastDuplicateMessageKey === messageKey
+    && (now - toolTriggerManagerState.lastDuplicateMessageAt) < DUPLICATE_SKIP_LOG_WINDOW_MS
+  ) {
+    return false;
+  }
+
+  toolTriggerManagerState.lastDuplicateMessageKey = messageKey;
+  toolTriggerManagerState.lastDuplicateMessageAt = now;
+  return true;
+}
 
 /**
  * 自动工具主链说明：
@@ -1288,19 +1623,37 @@ const toolTriggerManagerState = {
  */
 
 function scheduleAutoTrigger(eventType, data, delayMs = 0) {
+  const session = getOrCreateMessageSession(eventType, data, {
+    eventType,
+    messageId: extractEventMessageId(data, eventType)
+  });
   const resolvedDelayMs = Number.isFinite(delayMs)
     ? Math.max(0, delayMs)
     : getResolvedListenerSettings().debounceMs;
-  const messageId = extractEventMessageId(data);
-  const timerKey = `${eventType}::${typeof data === 'object' ? (data?.messageId || data?.id || 'latest') : String(data ?? 'latest')}`;
+  const messageId = session?.messageId || extractEventMessageId(data, eventType);
+  const timerKey = session?.sessionKey || (messageId
+    ? `message::${messageId}`
+    : `${eventType}::latest`);
   const existingTimer = toolTriggerManagerState.pendingMessageTimers.get(timerKey);
   if (existingTimer) {
     clearTimeout(existingTimer);
   }
 
+  updateMessageSession(session, {
+    phase: MESSAGE_SESSION_PHASES.SCHEDULED,
+    scheduledAt: Date.now()
+  });
+  appendMessageSessionHistory(session, {
+    phase: MESSAGE_SESSION_PHASES.SCHEDULED,
+    eventType,
+    messageId
+  });
+
   saveEventDebugSnapshot({
     stage: 'scheduled',
     eventType,
+    traceId: session?.traceId || '',
+    sessionKey: session?.sessionKey || '',
     messageId,
     scheduledDelayMs: resolvedDelayMs
   });
@@ -1312,9 +1665,19 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0) {
 
   const timer = setTimeout(async () => {
     toolTriggerManagerState.pendingMessageTimers.delete(timerKey);
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.DISPATCHING
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.DISPATCHING,
+      eventType,
+      messageId
+    });
     saveEventDebugSnapshot({
       stage: 'dispatching',
       eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId,
       scheduledDelayMs: resolvedDelayMs
     });
@@ -1357,17 +1720,36 @@ async function handleAutoTrigger(eventType, data) {
   log(`${eventType}触发:`, data);
   traceAlways('info', '开始处理自动触发', {
     eventType,
-    incomingMessageId: extractEventMessageId(data)
+    incomingMessageId: extractEventMessageId(data, eventType)
   });
 
   const candidateTools = getToolsToExecute(EVENT_TYPES.GENERATION_ENDED);
   const candidateToolIds = candidateTools.map(tool => tool.id);
   const listenerDecision = shouldSkipAutoTriggerByListenerSettings();
-  const incomingMessageId = extractEventMessageId(data);
+  const incomingMessageId = extractEventMessageId(data, eventType);
+  const session = getOrCreateMessageSession(eventType, data, {
+    eventType,
+    messageId: incomingMessageId,
+    candidateToolIds
+  });
+
+  updateMessageSession(session, {
+    phase: MESSAGE_SESSION_PHASES.HANDLING,
+    handledAt: Date.now(),
+    candidateToolIds
+  });
+  appendMessageSessionHistory(session, {
+    phase: MESSAGE_SESSION_PHASES.HANDLING,
+    eventType,
+    messageId: incomingMessageId,
+    candidateToolIds
+  });
 
   saveEventDebugSnapshot({
     stage: 'handling',
     eventType,
+    traceId: session?.traceId || '',
+    sessionKey: session?.sessionKey || '',
     messageId: incomingMessageId,
     candidateToolIds,
     handledAt: Date.now()
@@ -1382,6 +1764,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId: incomingMessageId,
       selectedToolIds: candidateToolIds,
       skipReason: listenerDecision.reason,
@@ -1398,10 +1782,35 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId: incomingMessageId,
       reason: listenerDecision.reason,
       candidateToolIds,
       handledAt: Date.now()
+    });
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      skipReason: listenerDecision.reason,
+      completedAt: Date.now(),
+      candidateToolIds
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      eventType,
+      messageId: incomingMessageId,
+      skipReason: listenerDecision.reason,
+      candidateToolIds
+    });
+    appendTriggerHistoryForTools(candidateTools, {
+      traceId: session?.traceId || '',
+      eventType,
+      messageId: incomingMessageId,
+      messageKey: '',
+      skipReason: listenerDecision.reason,
+      executionPath: '',
+      writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      failureStage: ''
     });
     return;
   }
@@ -1418,6 +1827,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION
     });
@@ -1432,10 +1843,35 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId: incomingMessageId,
       reason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
       candidateToolIds,
       handledAt: Date.now()
+    });
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      completedAt: Date.now(),
+      candidateToolIds
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      eventType,
+      messageId: incomingMessageId,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      candidateToolIds
+    });
+    appendTriggerHistoryForTools(candidateTools, {
+      traceId: session?.traceId || '',
+      eventType,
+      messageId: incomingMessageId,
+      messageKey: '',
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      executionPath: '',
+      writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      failureStage: ''
     });
     return;
   }
@@ -1443,9 +1879,20 @@ async function handleAutoTrigger(eventType, data) {
   const context = await buildToolExecutionContext({
     ...(typeof data === 'object' && data ? data : {}),
     triggerEvent: eventType,
-    messageId: (typeof data === 'string' || typeof data === 'number')
-      ? data
-      : (data?.messageId || data?.id || '')
+    ...(incomingMessageId ? { messageId: incomingMessageId } : {}),
+    traceId: session?.traceId || '',
+    sessionKey: session?.sessionKey || ''
+  });
+
+  context.traceId = session?.traceId || context.traceId || createTraceId('exec');
+  context.sessionKey = session?.sessionKey || context.sessionKey || '';
+
+  const resolvedSessionKey = buildMessageSessionKey(context.chatId, context.messageId, eventType);
+  rekeyMessageSession(session, resolvedSessionKey);
+  updateMessageSession(session, {
+    messageId: context.messageId || incomingMessageId,
+    messageKey: getAutoTriggerMessageKey(context),
+    sourceMessageLocked: !!context.messageId
   });
 
   if (!context?.lastAiMessage) {
@@ -1458,6 +1905,8 @@ async function handleAutoTrigger(eventType, data) {
     const messageKey = getAutoTriggerMessageKey(context || {});
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || '',
       messageKey,
       selectedToolIds: candidateToolIds,
@@ -1475,48 +1924,106 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       reason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       candidateToolIds,
       handledAt: Date.now()
     });
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      messageKey,
+      completedAt: Date.now(),
+      candidateToolIds
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      eventType,
+      messageId: context?.messageId || incomingMessageId,
+      messageKey,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      candidateToolIds
+    });
+    appendTriggerHistoryForTools(candidateTools, {
+      traceId: session?.traceId || '',
+      eventType,
+      messageId: context?.messageId || incomingMessageId,
+      messageKey,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      executionPath: '',
+      writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      failureStage: ''
+    });
     return;
   }
 
   const messageKey = getAutoTriggerMessageKey(context);
   if (toolTriggerManagerState.lastHandledMessageKey === messageKey) {
-    log(`检测到重复自动触发，跳过: ${messageKey}`);
-    traceAlways('warn', '命中自动去重，跳过执行', {
-      eventType,
-      messageKey,
-      candidateToolIds
-    });
-    saveAutoTriggerSnapshot({
-      triggerEvent: eventType,
-      messageId: context?.messageId || '',
-      messageKey,
-      selectedToolIds: candidateToolIds,
-      skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
-      lockedAiMessageId: context?.messageId || ''
-    });
-    patchToolsDiagnostics(candidateTools, {
-      lastTriggerEvent: eventType,
-      lastMessageKey: messageKey,
-      lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
-      lastExecutionPath: '',
-      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
-      lastFailureStage: ''
-    });
-    saveEventDebugSnapshot({
-      stage: 'skipped',
-      eventType,
-      messageId: context?.messageId || incomingMessageId,
-      messageKey,
-      reason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
-      candidateToolIds,
-      handledAt: Date.now()
-    });
+    if (shouldReportDuplicateSkip(messageKey)) {
+      log(`检测到重复自动触发，跳过: ${messageKey}`);
+      traceAlways('warn', '命中自动去重，跳过执行', {
+        eventType,
+        messageKey,
+        candidateToolIds
+      });
+      saveAutoTriggerSnapshot({
+        triggerEvent: eventType,
+        traceId: session?.traceId || '',
+        sessionKey: session?.sessionKey || '',
+        messageId: context?.messageId || '',
+        messageKey,
+        selectedToolIds: candidateToolIds,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        lockedAiMessageId: context?.messageId || ''
+      });
+      patchToolsDiagnostics(candidateTools, {
+        lastTriggerEvent: eventType,
+        lastMessageKey: messageKey,
+        lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        lastExecutionPath: '',
+        lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+        lastFailureStage: ''
+      });
+      saveEventDebugSnapshot({
+        stage: 'skipped',
+        eventType,
+        traceId: session?.traceId || '',
+        sessionKey: session?.sessionKey || '',
+        messageId: context?.messageId || incomingMessageId,
+        messageKey,
+        reason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        candidateToolIds,
+        handledAt: Date.now()
+      });
+      updateMessageSession(session, {
+        phase: MESSAGE_SESSION_PHASES.SKIPPED,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        messageKey,
+        completedAt: Date.now(),
+        candidateToolIds
+      });
+      appendMessageSessionHistory(session, {
+        phase: MESSAGE_SESSION_PHASES.SKIPPED,
+        eventType,
+        messageId: context?.messageId || incomingMessageId,
+        messageKey,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        candidateToolIds
+      });
+      appendTriggerHistoryForTools(candidateTools, {
+        traceId: session?.traceId || '',
+        eventType,
+        messageId: context?.messageId || incomingMessageId,
+        messageKey,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        executionPath: '',
+        writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+        failureStage: ''
+      });
+    }
     return;
   }
 
@@ -1530,6 +2037,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || '',
       messageKey,
       selectedToolIds: [],
@@ -1539,19 +2048,40 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       reason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
       candidateToolIds: [],
       handledAt: Date.now()
     });
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      messageKey,
+      completedAt: Date.now(),
+      candidateToolIds: []
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      eventType,
+      messageId: context?.messageId || incomingMessageId,
+      messageKey,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      candidateToolIds: []
+    });
     return;
   }
 
   toolTriggerManagerState.lastHandledMessageKey = messageKey;
+  toolTriggerManagerState.lastDuplicateMessageKey = '';
+  toolTriggerManagerState.lastDuplicateMessageAt = 0;
   context.messageKey = messageKey;
   saveAutoTriggerSnapshot({
     triggerEvent: eventType,
+    traceId: session?.traceId || '',
+    sessionKey: session?.sessionKey || '',
     messageId: context?.messageId || '',
     messageKey,
     selectedToolIds: toolsToExecute.map(tool => tool.id),
@@ -1569,9 +2099,48 @@ async function handleAutoTrigger(eventType, data) {
     noticeId: 'yyt-tool-batch-start'
   });
 
+  updateMessageSession(session, {
+    messageKey,
+    candidateToolIds: toolsToExecute.map(tool => tool.id),
+    executionPathIds: [],
+    phase: MESSAGE_SESSION_PHASES.DISPATCHING
+  });
+  appendMessageSessionHistory(session, {
+    phase: MESSAGE_SESSION_PHASES.DISPATCHING,
+    eventType,
+    messageId: context?.messageId || incomingMessageId,
+    messageKey,
+    candidateToolIds: toolsToExecute.map(tool => tool.id)
+  });
+  appendTriggerHistoryForTools(toolsToExecute, {
+    traceId: session?.traceId || '',
+    eventType,
+    messageId: context?.messageId || incomingMessageId,
+    messageKey,
+    skipReason: '',
+    executionPath: TOOL_EXECUTION_PATHS.AUTO_POST_RESPONSE_API,
+    writebackStatus: '',
+    failureStage: ''
+  });
+
   for (const tool of toolsToExecute) {
     try {
       const result = await executeTriggeredTool(tool, context);
+
+      const executionPathForTool = resolveExecutionPath(tool, context);
+      if (!session.executionPathIds.includes(executionPathForTool)) {
+        session.executionPathIds.push(executionPathForTool);
+      }
+      appendWritebackHistoryForTool(tool.id, {
+        traceId: session?.traceId || '',
+        eventType,
+        messageId: context?.messageId || incomingMessageId,
+        messageKey,
+        executionPath: executionPathForTool,
+        writebackStatus: result?.result?.meta?.writebackStatus || result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+        failureStage: result?.result?.meta?.failureStage || result?.meta?.failureStage || '',
+        success: !!result?.success
+      });
 
       if (result.success) {
         log(`工具 ${tool.id} 执行成功`);
@@ -1591,10 +2160,26 @@ async function handleAutoTrigger(eventType, data) {
   saveEventDebugSnapshot({
     stage: 'completed',
     eventType,
+    traceId: session?.traceId || '',
+    sessionKey: session?.sessionKey || '',
     messageId: context?.messageId || incomingMessageId,
     messageKey,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
     handledAt: Date.now()
+  });
+  updateMessageSession(session, {
+    phase: MESSAGE_SESSION_PHASES.COMPLETED,
+    messageKey,
+    completedAt: Date.now(),
+    candidateToolIds: toolsToExecute.map(tool => tool.id)
+  });
+  appendMessageSessionHistory(session, {
+    phase: MESSAGE_SESSION_PHASES.COMPLETED,
+    eventType,
+    messageId: context?.messageId || incomingMessageId,
+    messageKey,
+    candidateToolIds: toolsToExecute.map(tool => tool.id),
+    executionPathIds: [...(session.executionPathIds || [])]
   });
 }
 
@@ -1637,37 +2222,154 @@ export function initToolTriggerManager() {
  */
 function registerGenerationEndedListener() {
   const generationEndedListener = registerEventListener(EVENT_TYPES.GENERATION_ENDED, async (data) => {
+    const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_ENDED, data, {
+      eventType: EVENT_TYPES.GENERATION_ENDED,
+      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED)
+    });
     saveEventDebugSnapshot({
       stage: 'received',
       eventType: EVENT_TYPES.GENERATION_ENDED,
-      messageId: extractEventMessageId(data),
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED),
       receivedAt: Date.now()
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.RECEIVED,
+      eventType: EVENT_TYPES.GENERATION_ENDED,
+      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED)
     });
     await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, data);
   });
 
   const generationAfterCommandsListener = registerEventListener(EVENT_TYPES.GENERATION_AFTER_COMMANDS, async (data) => {
     const { debounceMs } = getResolvedListenerSettings();
+    const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
+      eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
+      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS)
+    });
     saveEventDebugSnapshot({
       stage: 'received',
       eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-      messageId: extractEventMessageId(data),
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS),
       receivedAt: Date.now(),
       scheduledDelayMs: debounceMs
     });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.RECEIVED,
+      eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
+      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS)
+    });
+    if (!getResolvedListenerSettings().useGenerationAfterCommandsFallback) {
+      updateMessageSession(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        skipReason: 'generation_after_commands_fallback_disabled',
+        completedAt: Date.now()
+      });
+      appendMessageSessionHistory(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
+        messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS),
+        skipReason: 'generation_after_commands_fallback_disabled'
+      });
+      return;
+    }
     scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, debounceMs);
   });
 
   const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
+    const messageId = extractEventMessageId(data, EVENT_TYPES.MESSAGE_RECEIVED);
+    const resolvedMessageEntry = await findRawChatMessageByIdentity(messageId)
+      || await getLatestRawChatMessageEntry();
+    const resolvedMessage = resolvedMessageEntry?.message || null;
+    const resolvedRole = resolvedMessage ? normalizeMessageRole(resolvedMessage) : '';
+    const resolvedMessageId = resolvedMessageEntry
+      ? normalizeMessageIdentityValue(getMessageIdentity(resolvedMessage, resolvedMessageEntry.index))
+      : '';
+    const effectiveMessageId = messageId || resolvedMessageId;
     const { debounceMs } = getResolvedListenerSettings();
+    const session = getOrCreateMessageSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
+      eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+      messageId: effectiveMessageId,
+      messageRole: resolvedRole
+    });
     saveEventDebugSnapshot({
       stage: 'received',
       eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-      messageId: extractEventMessageId(data),
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: effectiveMessageId,
+      messageRole: resolvedRole,
       receivedAt: Date.now(),
       scheduledDelayMs: debounceMs
     });
-    scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, debounceMs);
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.RECEIVED,
+      eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+      messageId: effectiveMessageId,
+      messageRole: resolvedRole
+    });
+
+    if (!getResolvedListenerSettings().useMessageReceivedFallback) {
+      updateMessageSession(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        skipReason: 'message_received_fallback_disabled',
+        completedAt: Date.now(),
+        messageRole: resolvedRole
+      });
+      appendMessageSessionHistory(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+        messageId: effectiveMessageId,
+        messageRole: resolvedRole,
+        skipReason: 'message_received_fallback_disabled'
+      });
+      return;
+    }
+
+    if (resolvedMessage && resolvedRole !== 'assistant') {
+      traceAlways('info', 'MESSAGE_RECEIVED 命中非 AI 消息，跳过自动触发调度', {
+        messageId: effectiveMessageId,
+        messageRole: resolvedRole
+      });
+      saveEventDebugSnapshot({
+        stage: 'ignored_non_assistant',
+        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+        traceId: session?.traceId || '',
+        sessionKey: session?.sessionKey || '',
+        messageId: effectiveMessageId,
+        messageRole: resolvedRole,
+        reason: AUTO_TRIGGER_SKIP_REASONS.NON_ASSISTANT_MESSAGE,
+        handledAt: Date.now()
+      });
+      updateMessageSession(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.NON_ASSISTANT_MESSAGE,
+        completedAt: Date.now(),
+        messageRole: resolvedRole
+      });
+      appendMessageSessionHistory(session, {
+        phase: MESSAGE_SESSION_PHASES.IGNORED,
+        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
+        messageId: effectiveMessageId,
+        messageRole: resolvedRole,
+        skipReason: AUTO_TRIGGER_SKIP_REASONS.NON_ASSISTANT_MESSAGE
+      });
+      return;
+    }
+
+    scheduleAutoTrigger(
+      EVENT_TYPES.MESSAGE_RECEIVED,
+      effectiveMessageId
+        ? {
+            ...(typeof data === 'object' && data ? data : {}),
+            messageId: effectiveMessageId
+          }
+        : data,
+      debounceMs
+    );
   });
   
   toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_ENDED, generationEndedListener);
@@ -1684,15 +2386,15 @@ async function buildToolExecutionContext(eventData) {
   const character = await getCurrentCharacter();
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
-  const preferredMessageId = (typeof eventData === 'string' || typeof eventData === 'number')
-    ? eventData
-    : (eventData?.messageId || eventData?.id || '');
   const triggerEvent = eventData?.triggerEvent || 'GENERATION_ENDED';
+  const preferredMessageId = extractEventMessageId(eventData, triggerEvent);
+  const lockToMessageId = shouldLockToEventMessageId(triggerEvent, eventData, preferredMessageId);
 
   const conversation = await getConversationSnapshot({
     preferredMessageId,
     retries: triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW' ? 2 : 8,
-    retryDelayMs: triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW' ? 120 : 260
+    retryDelayMs: triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW' ? 120 : 260,
+    lockToMessageId
   });
 
   const messages = conversation.messages || [];
@@ -1703,6 +2405,8 @@ async function buildToolExecutionContext(eventData) {
   return {
     triggeredAt: Date.now(),
     triggerEvent,
+    traceId: eventData?.traceId || '',
+    sessionKey: eventData?.sessionKey || '',
     chatId: resolveStableChatId(api, stContext, character),
     messageId,
     lastAiMessage: lastAiMessage?.content || '',
@@ -1764,6 +2468,7 @@ async function executeTriggeredTool(tool, context) {
     lastStatus: 'running',
     lastError: '',
     lastDurationMs: 0,
+    lastTraceId: context?.traceId || '',
     lastTriggerAt: startedAt,
     lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
     lastMessageKey: messageKey,
@@ -1775,6 +2480,7 @@ async function executeTriggeredTool(tool, context) {
 
   eventBus.emit(EVENTS.TOOL_EXECUTION_REQUESTED, {
     toolId,
+    traceId: context?.traceId || '',
     triggerEvent: context?.triggerEvent || 'GENERATION_ENDED',
     context
   });
@@ -1802,6 +2508,7 @@ async function executeTriggeredTool(tool, context) {
         lastStatus: 'success',
         lastError: '',
         lastDurationMs: duration,
+        lastTraceId: context?.traceId || '',
         successCount: (config?.runtime?.successCount || 0) + 1,
         lastTriggerAt: startedAt,
         lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
@@ -1823,6 +2530,7 @@ async function executeTriggeredTool(tool, context) {
       });
       traceAlways('info', '工具执行成功', {
         toolId,
+        traceId: context?.traceId || '',
         executionPath,
         duration,
         writebackStatus: result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE
@@ -1837,6 +2545,7 @@ async function executeTriggeredTool(tool, context) {
       lastStatus: 'error',
       lastError: errorMessage,
       lastDurationMs: duration,
+      lastTraceId: context?.traceId || '',
       errorCount: (config?.runtime?.errorCount || 0) + 1,
       lastTriggerAt: startedAt,
       lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
@@ -1856,6 +2565,7 @@ async function executeTriggeredTool(tool, context) {
     });
     traceAlways('error', '工具执行失败', {
       toolId,
+      traceId: context?.traceId || '',
       executionPath,
       duration,
       error: errorMessage,
@@ -1871,6 +2581,7 @@ async function executeTriggeredTool(tool, context) {
       lastStatus: 'error',
       lastError: errorMessage,
       lastDurationMs: duration,
+      lastTraceId: context?.traceId || '',
       errorCount: (config?.runtime?.errorCount || 0) + 1,
       lastTriggerAt: startedAt,
       lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
@@ -1890,6 +2601,7 @@ async function executeTriggeredTool(tool, context) {
     });
     traceAlways('error', '工具执行抛出异常', {
       toolId,
+      traceId: context?.traceId || '',
       executionPath,
       duration,
       error: errorMessage
@@ -1973,11 +2685,15 @@ export function destroyToolTriggerManager() {
     }
   }
   toolTriggerManagerState.listeners.clear();
+  toolTriggerManagerState.messageSessions.clear();
+  toolTriggerManagerState.recentSessionHistory = [];
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
   toolTriggerManagerState.lastHandledMessageKey = '';
   toolTriggerManagerState.lastAutoTriggerSnapshot = null;
   toolTriggerManagerState.lastEventDebugSnapshot = null;
+  toolTriggerManagerState.lastDuplicateMessageKey = '';
+  toolTriggerManagerState.lastDuplicateMessageAt = 0;
   
   log('工具触发管理器已销毁');
 }
@@ -1990,6 +2706,8 @@ export function getToolTriggerManagerState() {
   return {
     initialized: toolTriggerManagerState.initialized,
     listenersCount: toolTriggerManagerState.listeners.size,
+    activeSessionCount: toolTriggerManagerState.messageSessions.size,
+    recentSessionHistory: [...toolTriggerManagerState.recentSessionHistory],
     lastExecutionContext: toolTriggerManagerState.lastExecutionContext,
     lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot,
     lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot

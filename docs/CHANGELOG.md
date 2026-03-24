@@ -89,6 +89,23 @@
 
 ### 修复
 
+- 🐛 **滚轮滚动恢复与主工具箱窗口进一步放大** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 移除拖拽滚动层对 `wheel` 事件的拦截，恢复鼠标滚轮在主内容区、设置区与工具列表中的原生滚动行为
+  - 保留按住左键拖拽滚动能力，但避免与原生滚轮滚动互相打架
+  - 将 popup 主窗口继续放大到更接近宿主视口上限，并同步更新 fallback 内置样式，避免外部样式加载失败时尺寸回退
+  - 执行 `npm run build` 构建验证通过
+
+- 🐛 **自动触发 message session 收敛、写回块身份与诊断历史增强** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-output-service.js`, `modules/tool-registry.js`, `modules/core/settings-service.js`, `modules/ui/components/settings-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 自动触发链新增消息级 session 聚合：`GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 现在会尽量归并到同一条消息的生命周期记录中，并暴露 `activeSessionCount / recentSessionHistory`
+  - listener 设置新增 fallback 开关、session 窗口与历史保留条数，设置页也同步补齐了对应开关与说明文案
+  - 写回链新增块身份、替换结果与冲突诊断字段，用于区分“替换旧块 / 保守插入新块 / 影响其他工具块”三类结果
+  - 单工具运行态新增 `lastTraceId / recentTriggerHistory / recentWritebackHistory`，工具配置面板可直接查看最近触发历史与最近写回历史
+
+- 🐛 **自动触发仅响应 AI 楼层并收敛重复去重日志** (`modules/tool-trigger.js`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - `MESSAGE_RECEIVED` 兜底链现在会先解析实际命中的消息楼层；若判定为用户消息或其他非 AI 楼层，则直接在事件级忽略，不再误触发自动工具链
+  - 构建自动执行上下文时，若事件已明确给出目标消息 ID，会优先锁定该楼层，减少把用户消息事件误配到“最新 AI 回复”的概率
+  - 同一消息的兜底调度键现在优先基于消息 ID 合并，且对短时间内重复命中的 `duplicate_message` 日志做了抑制，降低控制台噪声
+
 - 🐛 **工作台可视区过小与内容区不可滚动/拖拽修复** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/settings-panel.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 收紧 popup 顶部概览、侧栏与主内容说明区的高度与间距，把更多垂直空间让给实际配置区
   - 为主内容区、激活页签区、子面板区和侧栏导航补齐高度继承、最小宽高约束与 `overscroll-behavior`，恢复稳定滚动

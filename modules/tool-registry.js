@@ -19,6 +19,13 @@ const TOOL_API_PRESET_BINDING_KEY = 'tool_api_bindings';
 const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
 
 function createToolRuntimeState(runtime = {}) {
+  const recentTriggerHistory = Array.isArray(runtime?.recentTriggerHistory)
+    ? runtime.recentTriggerHistory.filter(Boolean)
+    : [];
+  const recentWritebackHistory = Array.isArray(runtime?.recentWritebackHistory)
+    ? runtime.recentWritebackHistory.filter(Boolean)
+    : [];
+
   return {
     lastRunAt: 0,
     lastStatus: 'idle',
@@ -33,8 +40,27 @@ function createToolRuntimeState(runtime = {}) {
     lastExecutionPath: '',
     lastWritebackStatus: '',
     lastFailureStage: '',
-    ...runtime
+    lastTraceId: '',
+    ...runtime,
+    recentTriggerHistory,
+    recentWritebackHistory
   };
+}
+
+function trimRuntimeHistoryEntries(entries, limit = 10) {
+  const normalizedLimit = Number.isFinite(limit)
+    ? Math.max(1, Math.min(50, Math.floor(limit)))
+    : 10;
+
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  if (entries.length <= normalizedLimit) {
+    return entries;
+  }
+
+  return entries.slice(entries.length - normalizedLimit);
 }
 
 // ============================================================
@@ -947,6 +973,51 @@ export function patchToolRuntime(toolId, runtimePartial, options = {}) {
 }
 
 /**
+ * 追加工具运行时历史。
+ * @param {string} toolId - 工具ID
+ * @param {'trigger'|'writeback'} historyType - 历史类型
+ * @param {Object} historyEntry - 历史记录
+ * @param {Object} options - 选项
+ * @param {number} options.limit - 保留条数
+ * @param {boolean} options.emitEvent - 是否广播 TOOL_UPDATED
+ * @returns {boolean}
+ */
+export function appendToolRuntimeHistory(toolId, historyType, historyEntry = {}, options = {}) {
+  const config = getToolFullConfig(toolId);
+  if (!config) return false;
+
+  const {
+    limit = 10,
+    emitEvent = false
+  } = options;
+
+  const runtime = createToolRuntimeState(config.runtime || {});
+  const fieldName = historyType === 'writeback'
+    ? 'recentWritebackHistory'
+    : 'recentTriggerHistory';
+
+  const nextEntry = {
+    id: historyEntry?.id || `hist_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    at: historyEntry?.at || Date.now(),
+    ...historyEntry
+  };
+
+  runtime[fieldName] = trimRuntimeHistoryEntries([
+    ...(Array.isArray(runtime[fieldName]) ? runtime[fieldName] : []),
+    nextEntry
+  ], limit);
+
+  if (nextEntry?.traceId) {
+    runtime.lastTraceId = nextEntry.traceId;
+  }
+
+  return saveToolConfig(toolId, {
+    ...config,
+    runtime
+  }, { emitEvent });
+}
+
+/**
  * 更新工具运行时状态
  * @param {string} toolId - 工具ID
  * @param {Object} runtimePartial - 部分运行时状态
@@ -1064,6 +1135,7 @@ export default {
   ensureToolRuntimeConfig,
   getToolFullConfig,
   patchToolRuntime,
+  appendToolRuntimeHistory,
   saveToolConfig,
   resetToolConfig,
   getAllDefaultToolConfigs,

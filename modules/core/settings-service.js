@@ -23,7 +23,11 @@ const DEFAULT_SETTINGS = {
     listenGenerationEnded: true,
     ignoreQuietGeneration: true,
     ignoreAutoTrigger: false,
-    debounceMs: 300
+    debounceMs: 300,
+    useMessageReceivedFallback: true,
+    useGenerationAfterCommandsFallback: true,
+    messageSessionWindowMs: 1800,
+    historyRetentionLimit: 10
   },
   debug: {
     enableDebugLog: false,
