@@ -95,6 +95,12 @@
   - 将 popup 主窗口继续放大到更接近宿主视口上限，并同步更新 fallback 内置样式，避免外部样式加载失败时尺寸回退
   - 执行 `npm run build` 构建验证通过
 
+- 🐛 **工具详情区滚轮代理与顶部保存按钮补齐** (`modules/app/popup-shell.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 工具详情区现在支持“鼠标位于内容区任意位置时，滚轮即可驱动当前详情区滚动”，不再必须把光标精确移到滚动条上
+  - 为 textarea、提取预览、下拉面板和对话框正文保留原生内部滚动优先级，避免细分区域滚动被外层抢走
+  - 在工具配置页 hero 区补充顶部“保存配置”按钮，减少每次修改后都要拖到底部才能保存的成本
+  - 执行 `npm run build` 构建验证通过
+
 - 🐛 **自动触发 message session 收敛、写回块身份与诊断历史增强** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-output-service.js`, `modules/tool-registry.js`, `modules/core/settings-service.js`, `modules/ui/components/settings-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 自动触发链新增消息级 session 聚合：`GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 现在会尽量归并到同一条消息的生命周期记录中，并暴露 `activeSessionCount / recentSessionHistory`
   - listener 设置新增 fallback 开关、session 窗口与历史保留条数，设置页也同步补齐了对应开关与说明文案

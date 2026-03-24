@@ -151,6 +151,26 @@ export function createPopupShell(context) {
     ].join(',')));
   }
 
+  function shouldPreserveWheelTarget(target) {
+    const scrollableInner = target?.closest?.([
+      'textarea',
+      '.yyt-preview-pre',
+      '.yyt-select-dropdown',
+      '.yyt-dialog-body'
+    ].join(','));
+
+    if (!scrollableInner) {
+      return false;
+    }
+
+    return scrollableInner.scrollHeight > scrollableInner.clientHeight + 2
+      || scrollableInner.scrollWidth > scrollableInner.clientWidth + 2;
+  }
+
+  function isNearestScrollableSurface(container, target) {
+    return target?.closest?.('.yyt-scrollable-surface') === container;
+  }
+
   function bindDragScroll(container) {
     const targetDoc = getTargetDocument();
     if (!container || !targetDoc) return;
@@ -175,6 +195,7 @@ export function createPopupShell(context) {
     const onMouseDown = (event) => {
       if (event.button !== 0) return;
       if (isInteractiveScrollTarget(event.target)) return;
+      if (!isNearestScrollableSurface(container, event.target)) return;
 
       canScrollX = container.scrollWidth > container.clientWidth + 2;
       canScrollY = container.scrollHeight > container.clientHeight + 2;
@@ -222,6 +243,29 @@ export function createPopupShell(context) {
       stopDragging();
     };
 
+    const onWheel = (event) => {
+      if (event.ctrlKey) return;
+      if (!isNearestScrollableSurface(container, event.target)) return;
+      if (shouldPreserveWheelTarget(event.target)) return;
+
+      const hasScrollableOverflow = container.scrollHeight > container.clientHeight + 2
+        || container.scrollWidth > container.clientWidth + 2;
+
+      if (!hasScrollableOverflow) {
+        return;
+      }
+
+      if (Math.abs(event.deltaY) > 0) {
+        container.scrollTop += event.deltaY;
+      }
+
+      if (Math.abs(event.deltaX) > 0) {
+        container.scrollLeft += event.deltaX;
+      }
+
+      event.preventDefault();
+    };
+
     const onDragStart = (event) => {
       if (isDragging) {
         event.preventDefault();
@@ -229,6 +273,7 @@ export function createPopupShell(context) {
     };
 
     container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('wheel', onWheel, { passive: false });
     container.addEventListener('dragstart', onDragStart);
     targetDoc.addEventListener('mousemove', onMouseMove);
     targetDoc.addEventListener('mouseup', onMouseUp);
@@ -237,6 +282,7 @@ export function createPopupShell(context) {
       stopDragging();
       container.classList.remove('yyt-scrollable-surface');
       container.removeEventListener('mousedown', onMouseDown);
+      container.removeEventListener('wheel', onWheel);
       container.removeEventListener('dragstart', onDragStart);
       targetDoc.removeEventListener('mousemove', onMouseMove);
       targetDoc.removeEventListener('mouseup', onMouseUp);
@@ -253,6 +299,8 @@ export function createPopupShell(context) {
       ...popup.querySelectorAll('.yyt-shell-sidebar .yyt-main-nav'),
       ...popup.querySelectorAll('.yyt-sub-nav'),
       ...popup.querySelectorAll('.yyt-content'),
+      ...popup.querySelectorAll('.yyt-tab-content.active'),
+      ...popup.querySelectorAll('.yyt-tab-content.active .yyt-sub-content'),
       ...popup.querySelectorAll('.yyt-settings-content'),
       ...popup.querySelectorAll('.yyt-tool-list')
     ];

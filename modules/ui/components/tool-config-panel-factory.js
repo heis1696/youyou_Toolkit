@@ -70,6 +70,17 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     justify-content: flex-end;
   }
 
+  .yyt-tool-panel-hero-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 4px;
+  }
+
+  .yyt-tool-save-top {
+    white-space: nowrap;
+  }
+
   .yyt-tool-hero-chip {
     display: inline-flex;
     align-items: center;
@@ -453,6 +464,11 @@ export function createToolConfigPanel(options) {
               <span class="yyt-tool-hero-chip">模式 ${escapeHtml(outputModeLabel)}</span>
               <span class="yyt-tool-hero-chip">预设 ${escapeHtml(apiPresetLabel)}</span>
               <span class="yyt-tool-hero-chip">最近状态 ${escapeHtml(runtimeStatus)}</span>
+              <div class="yyt-tool-panel-hero-actions">
+                <button class="yyt-btn yyt-btn-primary yyt-btn-small yyt-tool-save-top" id="${SCRIPT_ID}-tool-save-top">
+                  <i class="fa-solid fa-save"></i> 保存配置
+                </button>
+              </div>
             </div>
           </div>
 
@@ -904,7 +920,7 @@ export function createToolConfigPanel(options) {
         $container.find('.yyt-bypass-preset-select').toggleClass('yyt-hidden', !enabled);
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-save`).on('click', () => {
+      $container.find(`#${SCRIPT_ID}-tool-save, #${SCRIPT_ID}-tool-save-top`).on('click', () => {
         this._saveConfig($container, { silent: false });
       });
 
