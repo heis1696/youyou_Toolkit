@@ -393,8 +393,40 @@ function getTavernHelperAPI() {
 
 function isValidEventSource(candidate) {
   return !!candidate
-    && typeof candidate.on === 'function'
-    && typeof candidate.off === 'function';
+    && (
+      typeof candidate.on === 'function'
+      || typeof candidate.addEventListener === 'function'
+    );
+}
+
+function detachEventSourceListener(eventSource, eventName, callback) {
+  if (!eventSource || typeof callback !== 'function') {
+    return false;
+  }
+
+  try {
+    if (typeof eventSource.off === 'function') {
+      eventSource.off(eventName, callback);
+      return true;
+    }
+
+    if (typeof eventSource.removeListener === 'function') {
+      eventSource.removeListener(eventName, callback);
+      return true;
+    }
+
+    if (typeof eventSource.removeEventListener === 'function') {
+      eventSource.removeEventListener(eventName, callback);
+      return true;
+    }
+  } catch (error) {
+    traceAlways('warn', '移除事件监听失败', {
+      eventName,
+      error: error?.message || String(error)
+    });
+  }
+
+  return false;
 }
 
 function getEventTypesFromCandidate(candidate) {
@@ -412,6 +444,12 @@ function cacheEventBridge(eventSource, eventTypes, source) {
     eventBridgeState.eventSource = eventSource;
     eventBridgeState.eventTypes = eventTypes || eventBridgeState.eventTypes || null;
     eventBridgeState.source = source || eventBridgeState.source || 'unknown';
+    traceAlways('info', '缓存事件桥接成功', {
+      source: eventBridgeState.source,
+      hasOff: typeof eventSource.off === 'function',
+      hasRemoveListener: typeof eventSource.removeListener === 'function',
+      hasAddEventListener: typeof eventSource.addEventListener === 'function'
+    });
   }
 }
 
@@ -737,6 +775,10 @@ export function registerEventListener(eventType, callback, options = {}) {
     eventSource.on(stEventType, wrappedCallback);
     log(`已注册事件监听器: ${eventType}`);
     traceAlways('info', '已注册事件源监听', { eventType, stEventType });
+  } else if (eventSource && typeof eventSource.addEventListener === 'function') {
+    eventSource.addEventListener(stEventType, wrappedCallback);
+    log(`已注册事件监听器: ${eventType}`);
+    traceAlways('info', '已注册 addEventListener 事件监听', { eventType, stEventType });
   } else {
     // 回退到DOM事件
     const topWindow = getTopWindow();
@@ -766,8 +808,7 @@ export function unregisterEventListener(eventType, callback) {
     const eventTypes = getEventTypes();
     const stEventType = eventTypes[eventType] || eventType;
     
-    if (eventSource && typeof eventSource.off === 'function') {
-      eventSource.off(stEventType, callback);
+    if (detachEventSourceListener(eventSource, stEventType, callback)) {
       log(`已取消事件监听器: ${eventType}`);
     } else {
       // 回退到DOM事件
@@ -790,9 +831,7 @@ export function removeAllListeners() {
     const stEventType = eventTypes[eventType] || eventType;
     
     for (const callback of listeners) {
-      if (eventSource && typeof eventSource.off === 'function') {
-        eventSource.off(stEventType, callback);
-      } else {
+      if (!detachEventSourceListener(eventSource, stEventType, callback)) {
         const topWindow = getTopWindow();
         if (topWindow.removeEventListener) {
           topWindow.removeEventListener(stEventType, callback);
