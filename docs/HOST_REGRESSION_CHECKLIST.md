@@ -63,14 +63,43 @@
 验证步骤：
 
 1. 触发 quiet 或后台生成
+2. 触发宿主会产生的 `dryRun: true` 生成流程（如打开历史记录 / 聊天信息窗口时宿主会抛出的伪生成）
 2. 观察控制台和工具 runtime
 
 预期结果：
 
 1. 自动链被跳过
-2. 跳过原因应明确显示为 `quiet_generation` 或等价说明
+2. quiet / 后台生成可显示为 `quiet_generation`
+3. `dryRun` 必须显示为 `dry_run_generation`，且即使关闭 `ignoreQuietGeneration` 也不能继续执行
 
-### A5. fallback 开关语义正确
+### A5. 打开旧对话记录不会误触发工具
+
+验证步骤：
+
+1. 打开一个包含历史 assistant 消息的旧聊天
+2. 不发送任何新用户消息，只观察控制台与工具 runtime
+
+预期结果：
+
+1. 不应发起任何工具请求
+2. 若宿主抛出了 `GENERATION_AFTER_COMMANDS` / 无 messageId 的 `MESSAGE_RECEIVED`，应被记录为 `speculative_generation_after_commands` 或 `ui_side_effect_event`
+3. 不应再把旧聊天里的“最后一条 assistant 消息”吸收为本轮目标
+
+### A6. 打开聊天信息窗口 / 消息详情窗口不会误触发工具
+
+验证步骤：
+
+1. 在已有聊天中打开聊天信息窗口
+2. 再打开消息详情、消息编辑或类似宿主信息面板
+3. 观察控制台与工具 runtime
+
+预期结果：
+
+1. 不应发起任何工具请求
+2. 若收到无消息身份事件，应被标记为 `ui_side_effect_event`
+3. 若处于 `CHAT_CHANGED / CHAT_CREATED` 后的守卫窗口，应可看到 `uiTransitionGuardActive` 或等价诊断信息
+
+### A7. fallback 开关语义正确
 
 验证步骤：
 
@@ -82,6 +111,33 @@
 1. 被关闭的事件源不再进入调度
 2. 调试历史中可看到 `*_fallback_disabled` 类原因
 3. 其余主路径行为保持不回归
+
+### A8. stopGeneration / 停止按钮 / UI 短操作不会误触发工具
+
+验证步骤：
+
+1. 发送一条用户消息并在生成途中点击停止生成
+2. 再尝试点击隐藏停止按钮、关闭局部面板等宿主 UI 短操作
+3. 观察控制台与工具 runtime
+
+预期结果：
+
+1. 没有新增 assistant 楼层时，不应执行工具
+2. `GENERATION_ENDED` 若未确认到 baseline 之后的新 assistant 楼层，应显示 `no_confirmed_assistant_message`
+
+### A9. `GENERATION_AFTER_COMMANDS` 多次命中只作为同一 session 观察事件
+
+验证步骤：
+
+1. 开启全部 fallback
+2. 发送一条用户消息，观察一次完整正常回复流程
+3. 关注控制台中同一回复是否被多次命中 `GENERATION_AFTER_COMMANDS`
+
+预期结果：
+
+1. 同一条回复最终只允许执行一次工具链
+2. 额外的 `GENERATION_AFTER_COMMANDS` 应只收敛进同一 session 历史
+3. 若其中某次没有可确认消息身份，应仅保留 speculative 记录，不应创建新的执行定时器
 
 ---
 
@@ -152,6 +208,22 @@
 1. 可看到 `activeSessionCount`
 2. 可看到 `recentSessionHistory`
 3. 可看到最近一次 `lastAutoTriggerSnapshot / lastEventDebugSnapshot`
+4. `recentSessionHistory` / `lastEventDebugSnapshot` 中应可看到 `confirmedAssistantMessageId`、`confirmationSource`、`isSpeculativeSession`、`skipReasonDetailed`
+
+### D3. generation baseline / UI guard 诊断可读
+
+验证步骤：
+
+1. 先执行一次正常回复
+2. 再打开旧对话或聊天信息窗口
+3. 调用 `YouYouToolkit.getToolTrigger().getToolTriggerManagerState()` 或查看控制台快照
+
+预期结果：
+
+1. 能看到 `generationTraceId`
+2. 能看到 baseline 相关字段，如 `generationBaselineMessageCount / generationBaselineAssistantId`
+3. 能区分本次是 `message_received`、`generation_ended` 还是 `none` 确认
+4. UI 守卫场景下应能看到 `uiTransitionGuardActive` 或等价诊断
 
 ### D2. 单工具历史可读
 

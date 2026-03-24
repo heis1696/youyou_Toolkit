@@ -241,6 +241,13 @@ const trigger = YouYouToolkit.getToolTrigger();
 
 > 从当前 Phase 6 收口开始，`getToolTriggerManagerState()` 还会额外返回 `activeSessionCount` 与 `recentSessionHistory`，用于观察“同一条消息被哪些宿主事件命中、最后进入了什么 phase、是否被跳过或完成”。
 
+> 从当前这轮宿主误触发系统性修复开始，自动链进一步区分 **speculative session（观察态）** 与 **confirmed trigger（确认态）**：
+>
+> - `GENERATION_AFTER_COMMANDS` 默认只作为观察事件记录 session，不再因为“没有 messageId 的宿主副作用事件”直接进入执行
+> - `MESSAGE_RECEIVED` 只有在带明确 `messageId` 且最终确认命中 assistant 新楼层时，才会进入执行调度
+> - `GENERATION_ENDED` 只在存在有效 generation baseline、非 dryRun、且 baseline 之后确实新增 assistant 楼层时，才会作为兜底确认事件放行
+> - `dryRun` 与宿主 UI 切换窗口期事件现在都会被视为硬跳过条件，而不是仅依赖用户偏好开关
+
 典型结构可理解为：
 
 ```javascript
@@ -258,7 +265,11 @@ const trigger = YouYouToolkit.getToolTrigger();
     messageId: string,
     messageKey: string,
     messageRole: string,
+    confirmedAssistantMessageId: string,
+    confirmationSource: string,
+    isSpeculativeSession: boolean,
     skipReason: string,
+    skipReasonDetailed: string,
     candidateToolIds: string[],
     executionPathIds: string[]
   }>,
@@ -540,7 +551,29 @@ tool-trigger
 其中：
 
 - `messageSessions`：表示当前仍在窗口期内的消息级自动触发会话
-- `recentSessionHistory`：表示最近若干次消息级 session 的 phase 演进记录
+- `recentSessionHistory`：表示最近若干次消息级 session 的 phase 演进记录；现在还会显式标出该 session 是否只是 speculative 观察态、最终由哪个事件确认，以及更细的跳过细节
+
+### generation baseline / confirmation source 语义
+
+当前自动链会在 `GENERATION_STARTED` 时记录一份 generation baseline，至少包含：
+
+- `generationTraceId`
+- `generationStartedAt`
+- `generationBaselineMessageCount`
+- `generationBaselineAssistantId`
+- `generationStartedByUserIntent`
+- `generationDryRun`
+
+后续所有 fallback 事件都必须围绕这份 baseline 判断“本轮是否真的新增了一条 assistant 楼层”，而不再允许简单回退到“当前聊天里最后一条 assistant 消息”。
+
+当前 `confirmationSource` 的标准值为：
+
+| 值 | 说明 |
+|------|------|
+| `message_received` | 由带明确消息身份的 `MESSAGE_RECEIVED` 确认 |
+| `generation_after_commands` | 仅当宿主真的提供了可确认消息身份时，才可能由 `GENERATION_AFTER_COMMANDS` 确认 |
+| `generation_ended` | 由 `GENERATION_ENDED` 基于 baseline 检测到新增 assistant 楼层后确认 |
+| `none` | 当前仅为 speculative 观察态，或最终未获得确认 |
 
 ### 标准跳过原因
 
@@ -550,7 +583,11 @@ tool-trigger
 |------|------|
 | `listener_disabled` | 自动工具监听已关闭 |
 | `quiet_generation` | 当前生成属于 quiet / dryRun / 后台生成 |
+| `dry_run_generation` | 当前事件对应 generation 明确为 dryRun，已被硬阻断 |
 | `ignored_auto_trigger` | 判定为缺少最近用户发送意图，疑似插件/脚本自动触发生成 |
+| `ui_side_effect_event` | 判定为宿主 UI 打开历史 / 信息窗口 / 切换聊天导致的副作用事件 |
+| `speculative_generation_after_commands` | `GENERATION_AFTER_COMMANDS` 仅记录观察态 session，不进入执行 |
+| `no_confirmed_assistant_message` | 本轮未能确认 baseline 之后新增 assistant 楼层 |
 | `non_assistant_message` | `MESSAGE_RECEIVED` 命中的并非 AI 楼层，已在事件级直接忽略 |
 | `missing_ai_message` | 未读取到可供处理的有效 AI 回复 |
 | `duplicate_message` | 命中自动去重，避免同一消息重复执行 |
@@ -564,9 +601,9 @@ tool-trigger
 | 字段 | 当前语义 |
 |------|------|
 | `listenGenerationEnded` | 自动监听总开关。关闭后，自动工具链不会再响应 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` |
-| `useGenerationAfterCommandsFallback` | 是否允许 `GENERATION_AFTER_COMMANDS` 参与消息级 session 兜底 |
-| `useMessageReceivedFallback` | 是否允许 `MESSAGE_RECEIVED` 参与消息级 session 兜底 |
-| `ignoreQuietGeneration` | 是否跳过 quiet / dryRun / 后台生成 |
+| `useGenerationAfterCommandsFallback` | 是否允许 `GENERATION_AFTER_COMMANDS` 参与消息级 session 观察；即使开启，缺少确认消息身份时也不会直接执行 |
+| `useMessageReceivedFallback` | 是否允许 `MESSAGE_RECEIVED` 参与确认链；只有带 `messageId` 且最终确认命中 assistant 新楼层时才会执行 |
+| `ignoreQuietGeneration` | 是否跳过 quiet / 后台生成；`dryRun` 已升级为系统级硬阻断，不再受此开关影响 |
 | `ignoreAutoTrigger` | 是否尽量跳过“没有最近用户发送意图”的生成，减少其他插件/脚本引发的误执行 |
 | `debounceMs` | `GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 这类兜底事件的延迟调度与去抖时间 |
 | `messageSessionWindowMs` | 同一条消息在多事件并发命中时的 session 聚合窗口 |
@@ -952,10 +989,11 @@ interface ToolConfig {
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 - 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
 - 自动监听会记录用户发送意图，并跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
-- 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底触发来源；但 `MESSAGE_RECEIVED` 现在会先确认命中的楼层确实是 AI 回复，避免把用户消息也误当成可执行事件
-- 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，并对 `MESSAGE_RECEIVED` 增加延迟调度；相同消息 ID 的兜底定时器会尽量合并，减少同一条回复被重复调度
+- 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底确认来源；但 `MESSAGE_RECEIVED` 现在必须带明确 `messageId`，并最终确认命中的楼层确实是 baseline 之后新增的 assistant 回复，避免把用户消息或宿主 UI 副作用事件误当成可执行事件
+- 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，但它默认只作为 speculative 观察事件记录 session；只有宿主真的提供了可确认的消息身份时，才可能升级为确认来源
 - 多条兜底事件同时命中同一条回复时，自动链仍会按 `chatId + 最新 AI 消息ID` 去重；同一消息短时间内重复命中去重时，也会抑制重复的调试噪声日志
-- 构建工具执行上下文时会对“最新 AI 回复”做短暂重试读取，优先锁定刚生成完成的那一条消息，降低读取到旧回复的概率
+- 构建工具执行上下文时会对“确认后的 assistant 楼层”做短暂重试读取，并以 generation baseline 限制目标范围，避免再从当前聊天快照里回退吸收旧 assistant 消息
+- 在 `CHAT_CHANGED / CHAT_CREATED` 后会进入一小段 UI transition guard 窗口；在窗口内，无消息身份事件会直接被视为宿主 UI 副作用并忽略
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕
 - 执行前会先校验当前 API 配置或工具绑定预设；如果既没有启用 `useMainApi`，又缺少有效的自定义 `url/model`，工具会直接提示配置问题，而不会再发出错误请求
 - 当自定义 API 实际返回 HTML 或其他非 JSON 内容时，错误信息会明确提示这通常意味着 URL 配置不正确，或当前场景应改用 `SillyTavern` 主 API

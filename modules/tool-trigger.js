@@ -72,11 +72,16 @@ const triggerState = {
     lastUserMessageId: null,
     lastUserMessageText: '',
     lastUserMessageAt: 0,
+    lastGenerationTraceId: '',
     lastGenerationType: null,
     lastGenerationParams: null,
     lastGenerationDryRun: false,
     lastGenerationAt: 0,
-    isGenerating: false
+    isGenerating: false,
+    lastGenerationBaseline: null,
+    uiTransitionGuardUntil: 0,
+    lastUiTransitionAt: 0,
+    lastUiTransitionSource: ''
   },
   
   // 是否已初始化
@@ -100,8 +105,11 @@ const eventBridgeState = {
 export const AUTO_TRIGGER_SKIP_REASONS = {
   LISTENER_DISABLED: 'listener_disabled',
   QUIET_GENERATION: 'quiet_generation',
+  DRY_RUN_GENERATION: 'dry_run_generation',
   IGNORED_AUTO_TRIGGER: 'ignored_auto_trigger',
-  UNRELATED_UI_EVENT: 'unrelated_ui_event',
+  UNRELATED_UI_EVENT: 'ui_side_effect_event',
+  SPECULATIVE_FALLBACK_WITHOUT_MESSAGE: 'speculative_generation_after_commands',
+  NO_CONFIRMED_ASSISTANT_MESSAGE: 'no_confirmed_assistant_message',
   NON_ASSISTANT_MESSAGE: 'non_assistant_message',
   MISSING_AI_MESSAGE: 'missing_ai_message',
   DUPLICATE_MESSAGE: 'duplicate_message',
@@ -127,6 +135,7 @@ const MESSAGE_SESSION_PHASES = {
 
 const AUTO_TRIGGER_USER_INTENT_TTL_MS = 15000;
 const DUPLICATE_SKIP_LOG_WINDOW_MS = 1500;
+const UI_TRANSITION_GUARD_MS = 1800;
 
 // ============================================================
 // 工具函数
@@ -221,6 +230,21 @@ function getMessageIdentity(msg, index) {
   return index;
 }
 
+function normalizeChatMessages(rawMessages = []) {
+  const chat = Array.isArray(rawMessages) ? rawMessages : [];
+  return chat.map((message, index) => ({
+    role: normalizeMessageRole(message),
+    content: getMessageContent(message),
+    name: message?.name || '',
+    timestamp: message?.send_date || message?.timestamp || '',
+    isSystem: !!message?.is_system,
+    isUser: !!message?.is_user,
+    sourceId: getMessageIdentity(message, index),
+    chatIndex: index,
+    originalMessage: message
+  }));
+}
+
 /**
  * 判断 AI 消息是否已经具备“可供工具处理”的正文内容
  * 用于过滤 MESSAGE_RECEIVED 早期可能出现的 "..." 占位楼层。
@@ -248,18 +272,7 @@ function isMeaningfulAssistantContent(text) {
  */
 function buildConversationSnapshot(rawMessages, preferredMessageId = null, options = {}) {
   const { lockToMessageId = false } = options;
-  const chat = Array.isArray(rawMessages) ? rawMessages : [];
-  const normalizedMessages = chat.map((message, index) => ({
-    role: normalizeMessageRole(message),
-    content: getMessageContent(message),
-    name: message?.name || '',
-    timestamp: message?.send_date || message?.timestamp || '',
-    isSystem: !!message?.is_system,
-    isUser: !!message?.is_user,
-    sourceId: getMessageIdentity(message, index),
-    chatIndex: index,
-    originalMessage: message
-  }));
+  const normalizedMessages = normalizeChatMessages(rawMessages);
 
   const normalizedPreferredId = preferredMessageId === undefined || preferredMessageId === null || preferredMessageId === ''
     ? null
@@ -639,6 +652,16 @@ function extractEventMessageId(data, eventType = '') {
     );
   }
 
+  if (eventType === EVENT_TYPES.GENERATION_ENDED) {
+    if (typeof data === 'number' && Number.isFinite(data)) {
+      return String(data);
+    }
+
+    if (typeof data === 'string' && /^\d+$/.test(data.trim())) {
+      return data.trim();
+    }
+  }
+
   if (!shouldTreatScalarEventPayloadAsMessageId(eventType)) {
     return '';
   }
@@ -675,6 +698,28 @@ async function findRawChatMessageByIdentity(candidateId) {
         message,
         index
       };
+    }
+  }
+
+  return null;
+}
+
+async function findRawChatMessageByIdentityWithRetries(candidateId, options = {}) {
+  const {
+    retries = 0,
+    retryDelayMs = 80
+  } = options;
+
+  let entry = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    entry = await findRawChatMessageByIdentity(candidateId);
+    if (entry) {
+      return entry;
+    }
+
+    if (attempt < retries) {
+      await wait(retryDelayMs);
     }
   }
 
@@ -720,6 +765,216 @@ function hasRecentUserTriggerIntent(now = Date.now()) {
   return candidates.some(timestamp => (now - timestamp) <= AUTO_TRIGGER_USER_INTENT_TTL_MS);
 }
 
+function getCurrentGenerationBaseline(chatId = resolveCurrentChatIdForSession()) {
+  const baseline = triggerState.gateState.lastGenerationBaseline;
+  if (!baseline) {
+    return null;
+  }
+
+  if (chatId && baseline.chatId && baseline.chatId !== chatId) {
+    return null;
+  }
+
+  return baseline;
+}
+
+function hasConfirmedUserTriggerIntent(now = Date.now()) {
+  if (hasRecentUserTriggerIntent(now)) {
+    return true;
+  }
+
+  return !!getCurrentGenerationBaseline()?.startedByUserIntent;
+}
+
+function getGenerationConfirmationEligibility() {
+  const baseline = getCurrentGenerationBaseline();
+
+  if (!baseline) {
+    return {
+      eligible: false,
+      baseline: null,
+      reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+      detail: 'missing_generation_baseline'
+    };
+  }
+
+  if (triggerState.gateState.lastGenerationDryRun || baseline.dryRun) {
+    return {
+      eligible: false,
+      baseline,
+      reason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      detail: 'dry_run_generation'
+    };
+  }
+
+  if (!baseline.startedByUserIntent) {
+    return {
+      eligible: false,
+      baseline,
+      reason: AUTO_TRIGGER_SKIP_REASONS.IGNORED_AUTO_TRIGGER,
+      detail: 'generation_started_without_recent_user_intent'
+    };
+  }
+
+  return {
+    eligible: true,
+    baseline,
+    reason: '',
+    detail: ''
+  };
+}
+
+function isUiTransitionGuardActive(now = Date.now()) {
+  return Number(triggerState.gateState.uiTransitionGuardUntil) > now;
+}
+
+function enterUiTransitionGuard(source = '') {
+  const now = Date.now();
+  updateGateState({
+    uiTransitionGuardUntil: now + UI_TRANSITION_GUARD_MS,
+    lastUiTransitionAt: now,
+    lastUiTransitionSource: source || ''
+  });
+
+  traceAlways('info', '进入宿主 UI 过渡守卫', {
+    source: source || 'unknown',
+    guardUntil: now + UI_TRANSITION_GUARD_MS
+  });
+}
+
+function clearPendingAutoTriggerTimers(reason = '') {
+  for (const timer of toolTriggerManagerState.pendingMessageTimers.values()) {
+    clearTimeout(timer);
+  }
+
+  toolTriggerManagerState.pendingMessageTimers.clear();
+
+  if (reason) {
+    traceAlways('info', '已清理待执行自动触发定时器', { reason });
+  }
+}
+
+function buildGenerationBaseline(rawMessages = [], metadata = {}) {
+  const api = getSillyTavernAPI();
+  const context = api?.getContext?.() || null;
+  const normalizedMessages = normalizeChatMessages(rawMessages);
+  let lastAssistantMessage = null;
+
+  for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
+    const message = normalizedMessages[index];
+    if (message.role === 'assistant' && isMeaningfulAssistantContent(message.content)) {
+      lastAssistantMessage = message;
+      break;
+    }
+  }
+
+  return {
+    traceId: metadata.traceId || createTraceId('generation'),
+    startedAt: Number(metadata.startedAt) || Date.now(),
+    capturedAt: Date.now(),
+    chatId: resolveStableChatId(api, context, null),
+    messageCount: normalizedMessages.length,
+    lastAssistantIndex: lastAssistantMessage?.chatIndex ?? -1,
+    lastAssistantMessageId: normalizeMessageIdentityValue(lastAssistantMessage?.sourceId),
+    lastAssistantPreview: String(lastAssistantMessage?.content || '').slice(0, 160),
+    dryRun: !!metadata.dryRun,
+    generationType: metadata.type || '',
+    generationParams: metadata.params || null,
+    startedByUserIntent: !!metadata.startedByUserIntent,
+    userIntentDetectedAt: Number(metadata.userIntentDetectedAt) || 0
+  };
+}
+
+async function captureGenerationBaseline(metadata = {}) {
+  const rawMessages = await getRawChatMessages();
+  return buildGenerationBaseline(rawMessages, metadata);
+}
+
+function isAssistantMessageAfterBaseline(message, baseline) {
+  if (!message || message.role !== 'assistant' || !isMeaningfulAssistantContent(message.content)) {
+    return false;
+  }
+
+  if (!baseline) {
+    return true;
+  }
+
+  if (Number.isInteger(baseline.lastAssistantIndex) && baseline.lastAssistantIndex >= 0) {
+    return message.chatIndex > baseline.lastAssistantIndex;
+  }
+
+  const baselineMessageCount = Number.isFinite(baseline.messageCount)
+    ? baseline.messageCount
+    : 0;
+
+  return message.chatIndex >= baselineMessageCount;
+}
+
+async function resolveConfirmedAssistantMessage(preferredMessageId = '') {
+  const normalizedPreferredMessageId = normalizeMessageIdentityValue(preferredMessageId);
+  const api = getSillyTavernAPI();
+  const context = api?.getContext?.() || null;
+  const currentChatId = resolveStableChatId(api, context, null);
+  const rawMessages = await getRawChatMessages();
+  const normalizedMessages = normalizeChatMessages(rawMessages);
+  const baseline = triggerState.gateState.lastGenerationBaseline?.chatId === currentChatId
+    ? triggerState.gateState.lastGenerationBaseline
+    : null;
+
+  if (normalizedPreferredMessageId) {
+    const matched = normalizedMessages.find((message) => {
+      const sourceId = normalizeMessageIdentityValue(message.sourceId);
+      return sourceId === normalizedPreferredMessageId
+        || String(message.chatIndex) === normalizedPreferredMessageId;
+    });
+
+    if (!matched) {
+      return null;
+    }
+
+    return isMeaningfulAssistantContent(matched.content)
+      && matched.role === 'assistant'
+      && (!baseline || isAssistantMessageAfterBaseline(matched, baseline))
+      ? matched
+      : null;
+  }
+
+  if (!baseline) {
+    return null;
+  }
+
+  for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
+    const message = normalizedMessages[index];
+    if (isAssistantMessageAfterBaseline(message, baseline)) {
+      return message;
+    }
+  }
+
+  return null;
+}
+
+async function getConfirmedAssistantMessageWithRetries(preferredMessageId = '', options = {}) {
+  const {
+    retries = 0,
+    retryDelayMs = 250
+  } = options;
+
+  let confirmedMessage = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    confirmedMessage = await resolveConfirmedAssistantMessage(preferredMessageId);
+    if (confirmedMessage) {
+      return confirmedMessage;
+    }
+
+    if (attempt < retries) {
+      await wait(retryDelayMs);
+    }
+  }
+
+  return null;
+}
+
 function createEventDebugSnapshot(snapshot = {}) {
   return {
     stage: '',
@@ -730,13 +985,29 @@ function createEventDebugSnapshot(snapshot = {}) {
     messageKey: '',
     messageRole: '',
     reason: '',
+    skipReasonDetailed: '',
+    confirmedAssistantMessageId: '',
     scheduledDelayMs: 0,
     candidateToolIds: [],
     receivedAt: Date.now(),
     handledAt: 0,
+    generationTraceId: triggerState.gateState.lastGenerationTraceId || '',
+    generationDryRun: !!triggerState.gateState.lastGenerationDryRun,
+    generationStartedAt: triggerState.gateState.lastGenerationBaseline?.startedAt || 0,
+    uiTransitionGuardActive: isUiTransitionGuardActive(),
+    uiTransitionGuardUntil: triggerState.gateState.uiTransitionGuardUntil || 0,
+    lastUiTransitionSource: triggerState.gateState.lastUiTransitionSource || '',
+    baselineMessageCount: triggerState.gateState.lastGenerationBaseline?.messageCount || 0,
+    baselineAssistantId: triggerState.gateState.lastGenerationBaseline?.lastAssistantMessageId || '',
+    generationBaselineMessageCount: triggerState.gateState.lastGenerationBaseline?.messageCount || 0,
+    generationBaselineAssistantId: triggerState.gateState.lastGenerationBaseline?.lastAssistantMessageId || '',
+    confirmationSource: '',
+    isSpeculativeSession: false,
     registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
     listenerSettings: getResolvedListenerSettings(),
     hasRecentUserTriggerIntent: hasRecentUserTriggerIntent(),
+    hasConfirmedUserTriggerIntent: hasConfirmedUserTriggerIntent(),
+    generationStartedByUserIntent: !!triggerState.gateState.lastGenerationBaseline?.startedByUserIntent,
     ...snapshot
   };
 }
@@ -759,7 +1030,7 @@ function shouldSkipAutoTriggerByListenerSettings() {
     };
   }
 
-  if (listenerSettings.ignoreAutoTrigger && !hasRecentUserTriggerIntent()) {
+  if (listenerSettings.ignoreAutoTrigger && !hasConfirmedUserTriggerIntent()) {
     return {
       skip: true,
       reason: AUTO_TRIGGER_SKIP_REASONS.IGNORED_AUTO_TRIGGER,
@@ -783,7 +1054,11 @@ function createAutoTriggerSnapshot(snapshot = {}) {
     messageKey: '',
     selectedToolIds: [],
     skipReason: '',
+    skipReasonDetailed: '',
     lockedAiMessageId: '',
+    confirmedAssistantMessageId: '',
+    confirmationSource: '',
+    generationTraceId: triggerState.gateState.lastGenerationTraceId || '',
     triggeredAt: Date.now(),
     ...snapshot
   };
@@ -1068,11 +1343,16 @@ export function resetGateState() {
     lastUserMessageId: null,
     lastUserMessageText: '',
     lastUserMessageAt: 0,
+    lastGenerationTraceId: '',
     lastGenerationType: null,
     lastGenerationParams: null,
     lastGenerationDryRun: false,
     lastGenerationAt: 0,
-    isGenerating: false
+    isGenerating: false,
+    lastGenerationBaseline: null,
+    uiTransitionGuardUntil: 0,
+    lastUiTransitionAt: 0,
+    lastUiTransitionSource: ''
   };
 }
 
@@ -1461,6 +1741,10 @@ function createMessageSession(eventType, data, snapshot = {}) {
     messageId,
     messageKey: snapshot?.messageKey || '',
     messageRole: snapshot?.messageRole || '',
+    confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
+    confirmationSource: snapshot?.confirmationSource || '',
+    isSpeculativeSession: !!snapshot?.isSpeculativeSession,
+    skipReasonDetailed: snapshot?.skipReasonDetailed || '',
     firstEventType: snapshot?.eventType || eventType || '',
     receivedEvents: eventType ? [eventType] : [],
     phase: snapshot?.phase || MESSAGE_SESSION_PHASES.RECEIVED,
@@ -1518,6 +1802,22 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
     session.messageRole = snapshot.messageRole;
   }
 
+  if (snapshot?.confirmedAssistantMessageId) {
+    session.confirmedAssistantMessageId = snapshot.confirmedAssistantMessageId;
+  }
+
+  if (snapshot?.confirmationSource) {
+    session.confirmationSource = snapshot.confirmationSource;
+  }
+
+  if (snapshot?.skipReasonDetailed) {
+    session.skipReasonDetailed = snapshot.skipReasonDetailed;
+  }
+
+  if (snapshot?.isSpeculativeSession !== undefined) {
+    session.isSpeculativeSession = !!snapshot.isSpeculativeSession;
+  }
+
   if (snapshot?.candidateToolIds) {
     session.candidateToolIds = [...snapshot.candidateToolIds];
   }
@@ -1562,7 +1862,11 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
     messageId: historyPartial?.messageId || session.messageId,
     messageKey: historyPartial?.messageKey || session.messageKey,
     messageRole: historyPartial?.messageRole || session.messageRole,
+    confirmedAssistantMessageId: historyPartial?.confirmedAssistantMessageId || session.confirmedAssistantMessageId || '',
+    confirmationSource: historyPartial?.confirmationSource || session.confirmationSource || '',
+    isSpeculativeSession: historyPartial?.isSpeculativeSession ?? session.isSpeculativeSession ?? false,
     skipReason: historyPartial?.skipReason || session.skipReason || '',
+    skipReasonDetailed: historyPartial?.skipReasonDetailed || session.skipReasonDetailed || '',
     candidateToolIds: Array.isArray(historyPartial?.candidateToolIds)
       ? [...historyPartial.candidateToolIds]
       : [...(session.candidateToolIds || [])],
@@ -1623,18 +1927,106 @@ function shouldReportDuplicateSkip(messageKey) {
  * 3. executeToolWithConfig 仅保留为兼容执行回退路径，主要用于非 post_response_api 的 legacy/manual 场景
  */
 
-function scheduleAutoTrigger(eventType, data, delayMs = 0) {
+function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
+  const messageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
   const session = getOrCreateMessageSession(eventType, data, {
     eventType,
-    messageId: extractEventMessageId(data, eventType)
+    messageId,
+    confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
+    confirmationSource: snapshot?.confirmationSource || 'none',
+    skipReasonDetailed: snapshot?.skipReasonDetailed || 'speculative_session_only',
+    isSpeculativeSession: true
+  });
+  const reason = snapshot?.reason || AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE;
+  const detail = snapshot?.skipReasonDetailed || 'speculative_session_only';
+
+  traceAlways('info', '记录 speculative session，未进入执行调度', {
+    eventType,
+    traceId: session?.traceId || '',
+    sessionKey: session?.sessionKey || '',
+    messageId,
+    reason,
+    detail
+  });
+
+  saveEventDebugSnapshot({
+    stage: 'speculative_observed',
+    eventType,
+    traceId: session?.traceId || '',
+    sessionKey: session?.sessionKey || '',
+    messageId,
+    reason,
+    skipReasonDetailed: detail,
+    confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
+    confirmationSource: snapshot?.confirmationSource || 'none',
+    isSpeculativeSession: true,
+    handledAt: Date.now()
+  });
+
+  updateMessageSession(session, {
+    phase: MESSAGE_SESSION_PHASES.IGNORED,
+    skipReason: reason,
+    skipReasonDetailed: detail,
+    confirmationSource: snapshot?.confirmationSource || 'none',
+    confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
+    isSpeculativeSession: true,
+    completedAt: Date.now()
+  });
+  appendMessageSessionHistory(session, {
+    phase: MESSAGE_SESSION_PHASES.IGNORED,
+    eventType,
+    messageId,
+    skipReason: reason,
+    skipReasonDetailed: detail,
+    confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
+    confirmationSource: snapshot?.confirmationSource || 'none',
+    isSpeculativeSession: true
+  });
+
+  return session;
+}
+
+function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
+  const confirmedAssistantMessageId = normalizeMessageIdentityValue(
+    snapshot?.confirmedAssistantMessageId
+    || snapshot?.messageId
+    || extractEventMessageId(data, eventType)
+  );
+
+  if (!confirmedAssistantMessageId) {
+    return scheduleSpeculativeSession(eventType, data, {
+      ...snapshot,
+      reason: snapshot?.reason || AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+      skipReasonDetailed: snapshot?.skipReasonDetailed || 'missing_confirmed_message_identity',
+      confirmationSource: snapshot?.confirmationSource || 'none'
+    });
+  }
+
+  const enrichedData = typeof data === 'object' && data
+    ? {
+        ...data,
+        messageId: confirmedAssistantMessageId,
+        confirmedAssistantMessageId,
+        confirmationSource: snapshot?.confirmationSource || data?.confirmationSource || ''
+      }
+    : {
+        messageId: confirmedAssistantMessageId,
+        confirmedAssistantMessageId,
+        confirmationSource: snapshot?.confirmationSource || ''
+      };
+
+  const session = getOrCreateMessageSession(eventType, enrichedData, {
+    ...snapshot,
+    eventType,
+    messageId: confirmedAssistantMessageId,
+    confirmedAssistantMessageId,
+    confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    isSpeculativeSession: false
   });
   const resolvedDelayMs = Number.isFinite(delayMs)
     ? Math.max(0, delayMs)
     : getResolvedListenerSettings().debounceMs;
-  const messageId = session?.messageId || extractEventMessageId(data, eventType);
-  const timerKey = session?.sessionKey || (messageId
-    ? `message::${messageId}`
-    : `${eventType}::latest`);
+  const timerKey = session?.sessionKey || `message::${confirmedAssistantMessageId}`;
   const existingTimer = toolTriggerManagerState.pendingMessageTimers.get(timerKey);
   if (existingTimer) {
     clearTimeout(existingTimer);
@@ -1642,12 +2034,19 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0) {
 
   updateMessageSession(session, {
     phase: MESSAGE_SESSION_PHASES.SCHEDULED,
+    messageId: confirmedAssistantMessageId,
+    confirmedAssistantMessageId,
+    confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    isSpeculativeSession: false,
     scheduledAt: Date.now()
   });
   appendMessageSessionHistory(session, {
     phase: MESSAGE_SESSION_PHASES.SCHEDULED,
     eventType,
-    messageId
+    messageId: confirmedAssistantMessageId,
+    confirmedAssistantMessageId,
+    confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    isSpeculativeSession: false
   });
 
   saveEventDebugSnapshot({
@@ -1655,37 +2054,51 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0) {
     eventType,
     traceId: session?.traceId || '',
     sessionKey: session?.sessionKey || '',
-    messageId,
+    messageId: confirmedAssistantMessageId,
+    confirmedAssistantMessageId,
+    confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    isSpeculativeSession: false,
     scheduledDelayMs: resolvedDelayMs
   });
-  traceAlways('info', '已调度自动触发', {
+  traceAlways('info', '已调度确认后的自动触发', {
     eventType,
-    messageId,
+    messageId: confirmedAssistantMessageId,
+    confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
     delayMs: resolvedDelayMs
   });
 
   const timer = setTimeout(async () => {
     toolTriggerManagerState.pendingMessageTimers.delete(timerKey);
     updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.DISPATCHING
+      phase: MESSAGE_SESSION_PHASES.DISPATCHING,
+      confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+      confirmedAssistantMessageId,
+      isSpeculativeSession: false
     });
     appendMessageSessionHistory(session, {
       phase: MESSAGE_SESSION_PHASES.DISPATCHING,
       eventType,
-      messageId
+      messageId: confirmedAssistantMessageId,
+      confirmedAssistantMessageId,
+      confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+      isSpeculativeSession: false
     });
     saveEventDebugSnapshot({
       stage: 'dispatching',
       eventType,
       traceId: session?.traceId || '',
       sessionKey: session?.sessionKey || '',
-      messageId,
+      messageId: confirmedAssistantMessageId,
+      confirmedAssistantMessageId,
+      confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+      isSpeculativeSession: false,
       scheduledDelayMs: resolvedDelayMs
     });
-    await handleAutoTrigger(eventType, data);
+    await handleAutoTrigger(eventType, enrichedData);
   }, resolvedDelayMs);
 
   toolTriggerManagerState.pendingMessageTimers.set(timerKey, timer);
+  return session;
 }
 
 /**
@@ -1719,30 +2132,46 @@ function resolveExecutionPath(tool, context) {
  */
 async function handleAutoTrigger(eventType, data) {
   log(`${eventType}触发:`, data);
+  const confirmationSource = typeof data === 'object' && data
+    ? String(data?.confirmationSource || '').trim()
+    : '';
   traceAlways('info', '开始处理自动触发', {
     eventType,
-    incomingMessageId: extractEventMessageId(data, eventType)
+    incomingMessageId: extractEventMessageId(data, eventType),
+    confirmationSource
   });
 
   const candidateTools = getToolsToExecute(EVENT_TYPES.GENERATION_ENDED);
   const candidateToolIds = candidateTools.map(tool => tool.id);
   const listenerDecision = shouldSkipAutoTriggerByListenerSettings();
   const incomingMessageId = extractEventMessageId(data, eventType);
+  const confirmedAssistantMessageId = normalizeMessageIdentityValue(
+    (typeof data === 'object' && data ? data?.confirmedAssistantMessageId : '')
+    || incomingMessageId
+  );
   const session = getOrCreateMessageSession(eventType, data, {
     eventType,
     messageId: incomingMessageId,
+    confirmedAssistantMessageId,
+    confirmationSource,
     candidateToolIds
   });
 
   updateMessageSession(session, {
     phase: MESSAGE_SESSION_PHASES.HANDLING,
     handledAt: Date.now(),
+    confirmedAssistantMessageId,
+    confirmationSource,
+    isSpeculativeSession: false,
     candidateToolIds
   });
   appendMessageSessionHistory(session, {
     phase: MESSAGE_SESSION_PHASES.HANDLING,
     eventType,
     messageId: incomingMessageId,
+    confirmedAssistantMessageId,
+    confirmationSource,
+    isSpeculativeSession: false,
     candidateToolIds
   });
 
@@ -1752,9 +2181,155 @@ async function handleAutoTrigger(eventType, data) {
     traceId: session?.traceId || '',
     sessionKey: session?.sessionKey || '',
     messageId: incomingMessageId,
+    confirmedAssistantMessageId,
+    confirmationSource,
+    isSpeculativeSession: false,
     candidateToolIds,
     handledAt: Date.now()
   });
+
+  if (isUiTransitionGuardActive() && !hasConfirmedUserTriggerIntent()) {
+    traceAlways('warn', '当前处于宿主 UI 过渡守卫窗口，自动触发直接忽略', {
+      eventType,
+      candidateToolIds,
+      uiTransitionGuardUntil: triggerState.gateState.uiTransitionGuardUntil,
+      lastUiTransitionSource: triggerState.gateState.lastUiTransitionSource || ''
+    });
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: incomingMessageId,
+      selectedToolIds: candidateToolIds,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+      skipReasonDetailed: 'ui_transition_guard_active',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      lockedAiMessageId: incomingMessageId || ''
+    });
+    patchToolsDiagnostics(candidateTools, {
+      lastTriggerEvent: eventType,
+      lastMessageKey: '',
+      lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+      lastExecutionPath: '',
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: ''
+    });
+    saveEventDebugSnapshot({
+      stage: 'ignored_ui_transition_guard',
+      eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: incomingMessageId,
+      reason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+      skipReasonDetailed: 'ui_transition_guard_active',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      candidateToolIds,
+      handledAt: Date.now()
+    });
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.IGNORED,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+      skipReasonDetailed: 'ui_transition_guard_active',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      completedAt: Date.now(),
+      candidateToolIds
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.IGNORED,
+      eventType,
+      messageId: incomingMessageId,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+      skipReasonDetailed: 'ui_transition_guard_active',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      candidateToolIds
+    });
+    appendTriggerHistoryForTools(candidateTools, {
+      traceId: session?.traceId || '',
+      eventType,
+      messageId: incomingMessageId,
+      messageKey: '',
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+      executionPath: '',
+      writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      failureStage: ''
+    });
+    return;
+  }
+
+  if (triggerState.gateState.lastGenerationDryRun) {
+    traceAlways('warn', '当前 generation 为 dryRun，自动触发直接阻断', {
+      eventType,
+      candidateToolIds,
+      generationTraceId: triggerState.gateState.lastGenerationTraceId || ''
+    });
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: incomingMessageId,
+      selectedToolIds: candidateToolIds,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      skipReasonDetailed: 'dry_run_generation',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      lockedAiMessageId: incomingMessageId || ''
+    });
+    patchToolsDiagnostics(candidateTools, {
+      lastTriggerEvent: eventType,
+      lastMessageKey: '',
+      lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      lastExecutionPath: '',
+      lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      lastFailureStage: ''
+    });
+    saveEventDebugSnapshot({
+      stage: 'skipped',
+      eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: incomingMessageId,
+      reason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      skipReasonDetailed: 'dry_run_generation',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      candidateToolIds,
+      handledAt: Date.now()
+    });
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      skipReasonDetailed: 'dry_run_generation',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      completedAt: Date.now(),
+      candidateToolIds
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      eventType,
+      messageId: incomingMessageId,
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      skipReasonDetailed: 'dry_run_generation',
+      confirmedAssistantMessageId,
+      confirmationSource,
+      candidateToolIds
+    });
+    appendTriggerHistoryForTools(candidateTools, {
+      traceId: session?.traceId || '',
+      eventType,
+      messageId: incomingMessageId,
+      messageKey: '',
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      executionPath: '',
+      writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+      failureStage: ''
+    });
+    return;
+  }
 
   if (listenerDecision.skip) {
     traceAlways('warn', '根据监听器设置跳过自动触发', {
@@ -1770,6 +2345,9 @@ async function handleAutoTrigger(eventType, data) {
       messageId: incomingMessageId,
       selectedToolIds: candidateToolIds,
       skipReason: listenerDecision.reason,
+      skipReasonDetailed: `listener_setting_${listenerDecision.reason}`,
+      confirmedAssistantMessageId,
+      confirmationSource,
       lockedAiMessageId: incomingMessageId || ''
     });
     patchToolsDiagnostics(candidateTools, {
@@ -1787,12 +2365,18 @@ async function handleAutoTrigger(eventType, data) {
       sessionKey: session?.sessionKey || '',
       messageId: incomingMessageId,
       reason: listenerDecision.reason,
+      skipReasonDetailed: `listener_setting_${listenerDecision.reason}`,
+      confirmedAssistantMessageId,
+      confirmationSource,
       candidateToolIds,
       handledAt: Date.now()
     });
     updateMessageSession(session, {
       phase: MESSAGE_SESSION_PHASES.SKIPPED,
       skipReason: listenerDecision.reason,
+      skipReasonDetailed: `listener_setting_${listenerDecision.reason}`,
+      confirmedAssistantMessageId,
+      confirmationSource,
       completedAt: Date.now(),
       candidateToolIds
     });
@@ -1801,6 +2385,9 @@ async function handleAutoTrigger(eventType, data) {
       eventType,
       messageId: incomingMessageId,
       skipReason: listenerDecision.reason,
+      skipReasonDetailed: `listener_setting_${listenerDecision.reason}`,
+      confirmedAssistantMessageId,
+      confirmationSource,
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
@@ -1831,7 +2418,10 @@ async function handleAutoTrigger(eventType, data) {
       traceId: session?.traceId || '',
       sessionKey: session?.sessionKey || '',
       selectedToolIds: candidateToolIds,
-      skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION
+      skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      skipReasonDetailed: 'quiet_generation_listener_filter',
+      confirmedAssistantMessageId,
+      confirmationSource
     });
     patchToolsDiagnostics(candidateTools, {
       lastTriggerEvent: eventType,
@@ -1848,12 +2438,18 @@ async function handleAutoTrigger(eventType, data) {
       sessionKey: session?.sessionKey || '',
       messageId: incomingMessageId,
       reason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      skipReasonDetailed: 'quiet_generation_listener_filter',
+      confirmedAssistantMessageId,
+      confirmationSource,
       candidateToolIds,
       handledAt: Date.now()
     });
     updateMessageSession(session, {
       phase: MESSAGE_SESSION_PHASES.SKIPPED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      skipReasonDetailed: 'quiet_generation_listener_filter',
+      confirmedAssistantMessageId,
+      confirmationSource,
       completedAt: Date.now(),
       candidateToolIds
     });
@@ -1862,6 +2458,9 @@ async function handleAutoTrigger(eventType, data) {
       eventType,
       messageId: incomingMessageId,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
+      skipReasonDetailed: 'quiet_generation_listener_filter',
+      confirmedAssistantMessageId,
+      confirmationSource,
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
@@ -1881,6 +2480,8 @@ async function handleAutoTrigger(eventType, data) {
     ...(typeof data === 'object' && data ? data : {}),
     triggerEvent: eventType,
     ...(incomingMessageId ? { messageId: incomingMessageId } : {}),
+    ...(confirmedAssistantMessageId ? { confirmedAssistantMessageId } : {}),
+    ...(confirmationSource ? { confirmationSource } : {}),
     traceId: session?.traceId || '',
     sessionKey: session?.sessionKey || ''
   });
@@ -1893,6 +2494,8 @@ async function handleAutoTrigger(eventType, data) {
   updateMessageSession(session, {
     messageId: context.messageId || incomingMessageId,
     messageKey: getAutoTriggerMessageKey(context),
+    confirmedAssistantMessageId: context.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    confirmationSource: context.confirmationSource || confirmationSource,
     sourceMessageLocked: !!context.messageId
   });
 
@@ -1912,6 +2515,9 @@ async function handleAutoTrigger(eventType, data) {
       messageKey,
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       lockedAiMessageId: context?.messageId || ''
     });
     patchToolsDiagnostics(candidateTools, {
@@ -1930,13 +2536,19 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       reason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       candidateToolIds,
       handledAt: Date.now()
     });
     updateMessageSession(session, {
       phase: MESSAGE_SESSION_PHASES.SKIPPED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
       messageKey,
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       completedAt: Date.now(),
       candidateToolIds
     });
@@ -1946,6 +2558,9 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
@@ -1978,6 +2593,9 @@ async function handleAutoTrigger(eventType, data) {
         messageKey,
         selectedToolIds: candidateToolIds,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        skipReasonDetailed: 'message_key_already_handled',
+        confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+        confirmationSource: context?.confirmationSource || confirmationSource,
         lockedAiMessageId: context?.messageId || ''
       });
       patchToolsDiagnostics(candidateTools, {
@@ -1996,13 +2614,19 @@ async function handleAutoTrigger(eventType, data) {
         messageId: context?.messageId || incomingMessageId,
         messageKey,
         reason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        skipReasonDetailed: 'message_key_already_handled',
+        confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+        confirmationSource: context?.confirmationSource || confirmationSource,
         candidateToolIds,
         handledAt: Date.now()
       });
       updateMessageSession(session, {
         phase: MESSAGE_SESSION_PHASES.SKIPPED,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        skipReasonDetailed: 'message_key_already_handled',
         messageKey,
+        confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+        confirmationSource: context?.confirmationSource || confirmationSource,
         completedAt: Date.now(),
         candidateToolIds
       });
@@ -2012,6 +2636,9 @@ async function handleAutoTrigger(eventType, data) {
         messageId: context?.messageId || incomingMessageId,
         messageKey,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
+        skipReasonDetailed: 'message_key_already_handled',
+        confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+        confirmationSource: context?.confirmationSource || confirmationSource,
         candidateToolIds
       });
       appendTriggerHistoryForTools(candidateTools, {
@@ -2044,6 +2671,9 @@ async function handleAutoTrigger(eventType, data) {
       messageKey,
       selectedToolIds: [],
       skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      skipReasonDetailed: 'no_tools_configured_for_auto_post_response',
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       lockedAiMessageId: context?.messageId || ''
     });
     saveEventDebugSnapshot({
@@ -2054,13 +2684,19 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       reason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      skipReasonDetailed: 'no_tools_configured_for_auto_post_response',
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       candidateToolIds: [],
       handledAt: Date.now()
     });
     updateMessageSession(session, {
       phase: MESSAGE_SESSION_PHASES.SKIPPED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      skipReasonDetailed: 'no_tools_configured_for_auto_post_response',
       messageKey,
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       completedAt: Date.now(),
       candidateToolIds: []
     });
@@ -2070,6 +2706,9 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
+      skipReasonDetailed: 'no_tools_configured_for_auto_post_response',
+      confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+      confirmationSource: context?.confirmationSource || confirmationSource,
       candidateToolIds: []
     });
     return;
@@ -2087,6 +2726,8 @@ async function handleAutoTrigger(eventType, data) {
     messageKey,
     selectedToolIds: toolsToExecute.map(tool => tool.id),
     skipReason: '',
+    confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    confirmationSource: context?.confirmationSource || confirmationSource,
     lockedAiMessageId: context?.messageId || ''
   });
   log(`需要执行 ${toolsToExecute.length} 个工具:`, toolsToExecute.map(t => t.id));
@@ -2104,6 +2745,8 @@ async function handleAutoTrigger(eventType, data) {
     messageKey,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
     executionPathIds: [],
+    confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    confirmationSource: context?.confirmationSource || confirmationSource,
     phase: MESSAGE_SESSION_PHASES.DISPATCHING
   });
   appendMessageSessionHistory(session, {
@@ -2111,6 +2754,8 @@ async function handleAutoTrigger(eventType, data) {
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
+    confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id)
   });
   appendTriggerHistoryForTools(toolsToExecute, {
@@ -2165,12 +2810,16 @@ async function handleAutoTrigger(eventType, data) {
     sessionKey: session?.sessionKey || '',
     messageId: context?.messageId || incomingMessageId,
     messageKey,
+    confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
     handledAt: Date.now()
   });
   updateMessageSession(session, {
     phase: MESSAGE_SESSION_PHASES.COMPLETED,
     messageKey,
+    confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    confirmationSource: context?.confirmationSource || confirmationSource,
     completedAt: Date.now(),
     candidateToolIds: toolsToExecute.map(tool => tool.id)
   });
@@ -2179,6 +2828,8 @@ async function handleAutoTrigger(eventType, data) {
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
+    confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
     executionPathIds: [...(session.executionPathIds || [])]
   });
@@ -2223,45 +2874,80 @@ export function initToolTriggerManager() {
  */
 function registerGenerationEndedListener() {
   const generationEndedListener = registerEventListener(EVENT_TYPES.GENERATION_ENDED, async (data) => {
+    const incomingMessageId = extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED);
     const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_ENDED, data, {
       eventType: EVENT_TYPES.GENERATION_ENDED,
-      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED)
+      messageId: incomingMessageId
     });
     saveEventDebugSnapshot({
       stage: 'received',
       eventType: EVENT_TYPES.GENERATION_ENDED,
       traceId: session?.traceId || '',
       sessionKey: session?.sessionKey || '',
-      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED),
+      messageId: incomingMessageId,
       receivedAt: Date.now()
     });
     appendMessageSessionHistory(session, {
       phase: MESSAGE_SESSION_PHASES.RECEIVED,
       eventType: EVENT_TYPES.GENERATION_ENDED,
-      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED)
+      messageId: incomingMessageId
     });
-    await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, data);
+
+    const eligibility = getGenerationConfirmationEligibility();
+    if (!eligibility.eligible) {
+      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_ENDED, data, {
+        messageId: incomingMessageId,
+        reason: eligibility.reason,
+        skipReasonDetailed: eligibility.detail,
+        confirmationSource: 'none'
+      });
+      return;
+    }
+
+    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(incomingMessageId, {
+      retries: incomingMessageId ? 3 : 8,
+      retryDelayMs: incomingMessageId ? 120 : 260
+    });
+    const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
+
+    if (!confirmedAssistantMessageId) {
+      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_ENDED, data, {
+        messageId: incomingMessageId,
+        reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+        skipReasonDetailed: 'missing_new_assistant_message_after_generation',
+        confirmationSource: 'none'
+      });
+      return;
+    }
+
+    await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, {
+      ...(typeof data === 'object' && data ? data : {}),
+      messageId: confirmedAssistantMessageId,
+      confirmedAssistantMessageId,
+      confirmationSource: 'generation_ended'
+    });
   });
 
   const generationAfterCommandsListener = registerEventListener(EVENT_TYPES.GENERATION_AFTER_COMMANDS, async (data) => {
+    const incomingMessageId = extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS);
     const { debounceMs } = getResolvedListenerSettings();
     const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
       eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS)
+      messageId: incomingMessageId
     });
     saveEventDebugSnapshot({
       stage: 'received',
       eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
       traceId: session?.traceId || '',
       sessionKey: session?.sessionKey || '',
-      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS),
+      messageId: incomingMessageId,
       receivedAt: Date.now(),
       scheduledDelayMs: debounceMs
     });
     appendMessageSessionHistory(session, {
       phase: MESSAGE_SESSION_PHASES.RECEIVED,
       eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-      messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS)
+      messageId: incomingMessageId
     });
     if (!getResolvedListenerSettings().useGenerationAfterCommandsFallback) {
       updateMessageSession(session, {
@@ -2272,20 +2958,65 @@ function registerGenerationEndedListener() {
       appendMessageSessionHistory(session, {
         phase: MESSAGE_SESSION_PHASES.IGNORED,
         eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-        messageId: extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS),
+        messageId: incomingMessageId,
         skipReason: 'generation_after_commands_fallback_disabled'
       });
       return;
     }
-    scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, debounceMs);
+
+    const eligibility = getGenerationConfirmationEligibility();
+    if (!incomingMessageId) {
+      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
+        reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
+        skipReasonDetailed: eligibility.eligible
+          ? 'generation_after_commands_without_message_identity'
+          : eligibility.detail,
+        confirmationSource: 'none'
+      });
+      return;
+    }
+
+    if (!eligibility.eligible) {
+      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
+        messageId: incomingMessageId,
+        reason: eligibility.reason,
+        skipReasonDetailed: eligibility.detail,
+        confirmationSource: 'none'
+      });
+      return;
+    }
+
+    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(incomingMessageId, {
+      retries: 2,
+      retryDelayMs: 120
+    });
+    const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
+
+    if (!confirmedAssistantMessageId) {
+      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
+        messageId: incomingMessageId,
+        reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
+        skipReasonDetailed: 'generation_after_commands_message_not_confirmed',
+        confirmationSource: 'none'
+      });
+      return;
+    }
+
+    scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, debounceMs, {
+      messageId: incomingMessageId,
+      confirmedAssistantMessageId,
+      confirmationSource: 'generation_after_commands'
+    });
   });
 
   const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
     const messageId = extractEventMessageId(data, EVENT_TYPES.MESSAGE_RECEIVED);
-    const allowLatestMessageFallback = !messageId && triggerState.gateState.isGenerating;
     const resolvedMessageEntry = messageId
-      ? await findRawChatMessageByIdentity(messageId)
-      : (allowLatestMessageFallback ? await getLatestRawChatMessageEntry() : null);
+      ? await findRawChatMessageByIdentityWithRetries(messageId, {
+          retries: 3,
+          retryDelayMs: 120
+        })
+      : null;
     const resolvedMessage = resolvedMessageEntry?.message || null;
     const resolvedRole = resolvedMessage ? normalizeMessageRole(resolvedMessage) : '';
     const resolvedMessageId = resolvedMessageEntry
@@ -2299,8 +3030,8 @@ function registerGenerationEndedListener() {
       messageRole: resolvedRole
     });
 
-    if (!messageId && !allowLatestMessageFallback) {
-      traceAlways('info', 'MESSAGE_RECEIVED 缺少消息身份且当前并非生成中，判定为宿主 UI 干扰事件，跳过', {
+    if (!messageId) {
+      traceAlways('info', 'MESSAGE_RECEIVED 缺少消息身份，判定为宿主 UI 干扰事件，跳过', {
         rawEventData: data ?? null
       });
       saveEventDebugSnapshot({
@@ -2363,6 +3094,16 @@ function registerGenerationEndedListener() {
       return;
     }
 
+    if (!resolvedMessageEntry) {
+      scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
+        messageId,
+        reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+        skipReasonDetailed: 'message_received_identity_not_resolved',
+        confirmationSource: 'none'
+      });
+      return;
+    }
+
     if (resolvedMessage && resolvedRole !== 'assistant') {
       traceAlways('info', 'MESSAGE_RECEIVED 命中非 AI 消息，跳过自动触发调度', {
         messageId: effectiveMessageId,
@@ -2394,16 +3135,27 @@ function registerGenerationEndedListener() {
       return;
     }
 
-    scheduleAutoTrigger(
-      EVENT_TYPES.MESSAGE_RECEIVED,
-      effectiveMessageId
-        ? {
-            ...(typeof data === 'object' && data ? data : {}),
-            messageId: effectiveMessageId
-          }
-        : data,
-      debounceMs
-    );
+    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(effectiveMessageId, {
+      retries: 3,
+      retryDelayMs: 120
+    });
+    const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
+
+    if (!confirmedAssistantMessageId) {
+      scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
+        messageId: effectiveMessageId,
+        reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+        skipReasonDetailed: 'message_received_not_confirmed_as_new_assistant',
+        confirmationSource: 'none'
+      });
+      return;
+    }
+
+    scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, debounceMs, {
+      messageId: effectiveMessageId,
+      confirmedAssistantMessageId,
+      confirmationSource: 'message_received'
+    });
   });
   
   toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_ENDED, generationEndedListener);
@@ -2421,26 +3173,57 @@ async function buildToolExecutionContext(eventData) {
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
   const triggerEvent = eventData?.triggerEvent || 'GENERATION_ENDED';
-  const preferredMessageId = extractEventMessageId(eventData, triggerEvent);
-  const lockToMessageId = shouldLockToEventMessageId(triggerEvent, eventData, preferredMessageId);
+  const preferredMessageId = normalizeMessageIdentityValue(
+    eventData?.confirmedAssistantMessageId || extractEventMessageId(eventData, triggerEvent)
+  );
+  const confirmationSource = String(eventData?.confirmationSource || '').trim();
+  const isManual = triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW';
+
+  let confirmedAssistantMessage = null;
+  let targetMessageId = normalizeMessageIdentityValue(preferredMessageId);
+
+  if (!isManual) {
+    confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(targetMessageId, {
+      retries: targetMessageId ? 3 : 8,
+      retryDelayMs: targetMessageId ? 120 : 260
+    });
+
+    if (confirmedAssistantMessage) {
+      targetMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage.sourceId);
+    }
+  }
+
+  const lockToMessageId = shouldLockToEventMessageId(triggerEvent, eventData, targetMessageId)
+    || Boolean(targetMessageId);
 
   const conversation = await getConversationSnapshot({
-    preferredMessageId,
-    retries: triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW' ? 2 : 8,
-    retryDelayMs: triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW' ? 120 : 260,
+    preferredMessageId: targetMessageId || null,
+    retries: isManual ? 2 : (targetMessageId ? 2 : 0),
+    retryDelayMs: isManual ? 120 : 120,
     lockToMessageId
   });
 
   const messages = conversation.messages || [];
   const lastUserMessage = conversation.lastUserMessage;
-  const lastAiMessage = conversation.lastAiMessage;
-  const messageId = lastAiMessage?.sourceId ?? preferredMessageId ?? '';
+  let lastAiMessage = conversation.lastAiMessage;
+
+  if (!isManual) {
+    if (!confirmedAssistantMessage) {
+      lastAiMessage = null;
+    } else if (normalizeMessageIdentityValue(lastAiMessage?.sourceId) !== targetMessageId) {
+      lastAiMessage = confirmedAssistantMessage;
+    }
+  }
+
+  const messageId = targetMessageId || normalizeMessageIdentityValue(lastAiMessage?.sourceId) || '';
   
   return {
     triggeredAt: Date.now(),
     triggerEvent,
     traceId: eventData?.traceId || '',
     sessionKey: eventData?.sessionKey || '',
+    confirmationSource,
+    confirmedAssistantMessageId: messageId,
     chatId: resolveStableChatId(api, stContext, character),
     messageId,
     lastAiMessage: lastAiMessage?.content || '',
@@ -2827,18 +3610,40 @@ export async function initTriggerModule() {
     });
   
   // 监听生成开始事件
-  registerEventListener(EVENT_TYPES.GENERATION_STARTED, (type, params, dryRun) => {
+  registerEventListener(EVENT_TYPES.GENERATION_STARTED, async (type, params, dryRun) => {
+      const startedAt = Date.now();
+      const traceId = createTraceId('generation');
+      const startedByUserIntent = hasRecentUserTriggerIntent(startedAt);
+      const userIntentDetectedAt = Math.max(
+        Number(triggerState.gateState.lastUserSendIntentAt) || 0,
+        Number(triggerState.gateState.lastUserMessageAt) || 0
+      );
+      const baseline = await captureGenerationBaseline({
+        traceId,
+        startedAt,
+        type,
+        params: params || null,
+        dryRun: !!dryRun,
+        startedByUserIntent,
+        userIntentDetectedAt
+      });
+
       updateGateState({
+        lastGenerationTraceId: traceId,
         lastGenerationType: type,
         lastGenerationParams: params || null,
         lastGenerationDryRun: !!dryRun,
-        isGenerating: true
+        isGenerating: true,
+        lastGenerationBaseline: baseline
       });
       log(`生成开始: ${type}`);
       traceAlways('info', '收到生成开始事件', {
         type,
         dryRun: !!dryRun,
-        params: params || null
+        params: params || null,
+        traceId,
+        startedByUserIntent,
+        baseline
       });
     });
   
@@ -2850,6 +3655,22 @@ export async function initTriggerModule() {
       });
       log('生成结束');
       traceAlways('info', '收到生成结束事件');
+    });
+
+  registerEventListener(EVENT_TYPES.CHAT_CHANGED, (data) => {
+      enterUiTransitionGuard(EVENT_TYPES.CHAT_CHANGED);
+      clearPendingAutoTriggerTimers('chat_changed');
+      traceAlways('info', '收到聊天切换事件', {
+        data: data ?? null
+      });
+    });
+
+  registerEventListener(EVENT_TYPES.CHAT_CREATED, (data) => {
+      enterUiTransitionGuard(EVENT_TYPES.CHAT_CREATED);
+      clearPendingAutoTriggerTimers('chat_created');
+      traceAlways('info', '收到聊天创建事件', {
+        data: data ?? null
+      });
     });
   
   // 初始化工具触发管理器

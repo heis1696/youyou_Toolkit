@@ -89,6 +89,13 @@
 
 ### 修复
 
+- 🐛 **自动触发链状态机收口，修复旧对话 / 聊天信息窗口误触发工具** (`modules/tool-trigger.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 在 `GENERATION_STARTED` 时记录 generation baseline，后续只允许 baseline 之后新增的 assistant 楼层成为本轮确认目标，不再回退吸收“当前聊天里最后一条 assistant 消息”
+  - 将 `GENERATION_AFTER_COMMANDS` 默认降级为 speculative 观察事件；缺少明确消息身份时只记录 session，不再直接进入执行调度
+  - 将 `MESSAGE_RECEIVED` 收紧为“必须带 `messageId` 且最终确认命中 assistant 新楼层”才允许执行；无身份事件统一视为宿主 UI 副作用
+  - 将 `dryRun` 升级为系统级硬阻断，并补充 `confirmationSource / confirmedAssistantMessageId / skipReasonDetailed / uiTransitionGuard` 等调试字段
+  - 新增 `CHAT_CHANGED / CHAT_CREATED` 触发的 UI 过渡守卫，降低打开旧对话、聊天信息窗口、消息详情窗口时的宿主副作用误触发风险
+
 - 🐛 **打开宿主聊天信息窗口时的自动工具误触发修复** (`modules/tool-trigger.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - `MESSAGE_RECEIVED` 兜底链现在要求“存在明确消息身份”或“当前确实处于生成中”才允许继续回退到最新消息推断，避免打开聊天信息窗口等宿主 UI 操作时被误当成有效回复事件
   - 对无消息身份且非生成期的 `MESSAGE_RECEIVED` 事件统一标记为 `unrelated_ui_event` 并直接忽略，不再触发工具请求
