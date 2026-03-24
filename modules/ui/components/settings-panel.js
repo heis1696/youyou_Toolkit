@@ -512,15 +512,15 @@ export const SettingsPanel = {
         display: flex;
         flex-direction: column;
         height: 100%;
-        gap: 14px;
+        gap: 10px;
       }
 
       .yyt-settings-hero {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 16px;
-        padding: 18px;
+        gap: 12px;
+        padding: 12px 14px;
         border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
@@ -529,28 +529,28 @@ export const SettingsPanel = {
       .yyt-settings-hero-copy {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
         min-width: 0;
       }
 
       .yyt-settings-hero-title {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 800;
         color: var(--yyt-text);
         line-height: 1.15;
       }
 
       .yyt-settings-hero-desc {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--yyt-text-secondary);
-        line-height: 1.7;
+        line-height: 1.55;
         max-width: 72ch;
       }
 
       .yyt-settings-hero-status {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         flex-wrap: wrap;
         justify-content: flex-end;
       }
@@ -559,9 +559,9 @@ export const SettingsPanel = {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 8px 12px;
+        padding: 6px 10px;
         border-radius: 999px;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.3px;
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -585,7 +585,7 @@ export const SettingsPanel = {
       .yyt-settings-tabs {
         display: flex;
         gap: 4px;
-        padding: 8px;
+        padding: 6px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 14px;
@@ -593,7 +593,7 @@ export const SettingsPanel = {
       }
       
       .yyt-settings-tab {
-        padding: 10px 16px;
+        padding: 8px 12px;
         background: transparent;
         border: 1px solid transparent;
         border-radius: 8px;
@@ -632,8 +632,8 @@ export const SettingsPanel = {
       }
       
       .yyt-settings-section {
-        margin-bottom: 24px;
-        padding: 18px;
+        margin-bottom: 14px;
+        padding: 14px;
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
@@ -687,7 +687,7 @@ export const SettingsPanel = {
         display: flex;
         justify-content: flex-end;
         gap: 12px;
-        padding: 16px 0 0;
+        padding: 10px 0 0;
         background: rgba(255, 255, 255, 0.02);
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         flex-shrink: 0;

@@ -89,6 +89,13 @@
 
 ### 修复
 
+- 🐛 **工作台可视区过小与内容区不可滚动/拖拽修复** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/settings-panel.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 收紧 popup 顶部概览、侧栏与主内容说明区的高度与间距，把更多垂直空间让给实际配置区
+  - 为主内容区、激活页签区、子面板区和侧栏导航补齐高度继承、最小宽高约束与 `overscroll-behavior`，恢复稳定滚动
+  - 新增基于鼠标拖拽的滚动支持：可直接在侧栏导航、次级导航和主内容区按住拖动滚动，不再只能依赖细滚动条
+  - 同步收紧工具配置页 hero、工具管理页 hero、设置页 hero 的密度，扩大可操作区域
+  - 执行 `npm run build` 构建验证通过
+
 - 🐛 **主工具箱工作台布局错乱与样式注入回退修复** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 调整主工具箱工作台 topbar / sidebar / main workspace 的栅格比例、当前页面信息卡与响应式断点，避免导航区过宽、内容区被严重压缩
   - 收紧侧栏宽度并增强主内容区高度继承与滚动约束，修复页面信息堆叠成“纯文本块”后可读性极差的问题

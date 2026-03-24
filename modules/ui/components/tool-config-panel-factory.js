@@ -28,15 +28,15 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
   }
 
   .yyt-tool-panel-hero {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 16px;
+    gap: 12px;
     align-items: stretch;
-    padding: 16px 18px;
+    padding: 12px 14px;
     border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
@@ -45,27 +45,27 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel-hero-copy {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
   }
 
   .yyt-tool-panel-hero-title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 800;
     line-height: 1.15;
     color: var(--yyt-text);
   }
 
   .yyt-tool-panel-hero-desc {
-    font-size: 13px;
-    line-height: 1.7;
+    font-size: 12px;
+    line-height: 1.55;
     color: var(--yyt-text-secondary);
   }
 
   .yyt-tool-panel-hero-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     align-items: flex-start;
     justify-content: flex-end;
   }
@@ -74,9 +74,9 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     border: 1px solid rgba(255, 255, 255, 0.08);
     letter-spacing: 0.3px;
@@ -102,11 +102,11 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     background: rgba(0, 0, 0, 0.2);
     border-color: rgba(255, 255, 255, 0.1);
     resize: vertical;
-    min-height: 220px;
+    min-height: 180px;
   }
 
   .yyt-code-textarea-small {
-    min-height: 120px;
+    min-height: 96px;
   }
 
   .yyt-code-textarea:focus {
@@ -140,15 +140,15 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-manual-area {
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
-    gap: 16px;
+    gap: 12px;
     align-items: start;
   }
 
   .yyt-tool-runtime-card {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
+    gap: 10px;
+    padding: 12px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
@@ -210,9 +210,9 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-manual-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
-    padding: 16px;
+    padding: 12px;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
@@ -263,7 +263,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     font-size: 12px;
     color: var(--yyt-text-muted);
     line-height: 1.7;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-radius: 14px;
     border: 1px dashed rgba(123, 183, 255, 0.25);
     background: rgba(123, 183, 255, 0.06);
@@ -290,7 +290,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-debug-panel {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
-    padding: 14px 16px;
+    padding: 12px 14px;
     background: rgba(255, 255, 255, 0.02);
   }
 

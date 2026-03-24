@@ -606,6 +606,29 @@
 - 状态：
   - 成功
 
+## 2026-03-24 18:08
+
+- 阶段：阶段后修复（二次 UI 可用性收紧）
+- 修改文件：
+  - `modules/app/popup-shell.js`
+  - `styles/main.css`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `modules/ui/components/tool-manage-panel.js`
+  - `modules/ui/components/settings-panel.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 继续压缩工作台 topbar、当前页面卡片、侧栏说明区和页面 hero 区的高度与间距，把更多空间还给表单与配置内容
+  - 为 `yyt-content / yyt-tab-content / yyt-sub-content` 等主内容容器补齐 `min-width/min-height/flex` 约束，恢复稳定滚动
+  - 新增内容区拖拽滚动：侧栏导航、次级导航和主内容区都支持按住鼠标左键直接拖动滚动，同时避免与表单控件交互冲突
+  - 执行 `npm run build`，确认构建通过
+- 修改原因：
+  - 用户继续反馈“功能区域小，而且具体内容区域没办法滚动或拖拽”，说明第一轮修复仅解决了整体错位，但没有完全解决可用性问题，因此继续把重点放在“给内容区腾空间”和“补可操作滚动能力”上
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
 ---
 
 ## 六、待处理问题 / 阻塞清单
@@ -635,6 +658,7 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - [x] 自动触发链已补齐事件级调试快照，写回链已补齐分层结果与最终校验信息
 - [x] 主工具箱与高频页面已完成一轮整体 UI / HTML 美化收口，并通过构建验证
 - [x] 主工具箱工作台布局错乱与样式注入回退问题已修复，并通过 `npm run build` 验证
+- [x] 主工具箱工作台可视区过小与内容区不可滚动/拖拽问题已修复，并通过 `npm run build` 验证
 
 ### 尚未登记为最新一次完成结果的项
 

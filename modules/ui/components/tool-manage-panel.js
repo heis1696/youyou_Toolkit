@@ -451,28 +451,29 @@ export const ToolManagePanel = {
       .yyt-tool-manager {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 14px;
+        min-height: 100%;
       }
 
       .yyt-tool-manage-hero {
-        gap: 18px;
+        gap: 12px;
       }
 
       .yyt-tool-manage-hero-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
+        gap: 12px;
         align-items: stretch;
       }
 
       .yyt-tool-manage-copy {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
       }
 
       .yyt-tool-manage-lead {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 800;
         line-height: 1.2;
         color: var(--yyt-text);
@@ -482,15 +483,15 @@ export const ToolManagePanel = {
         display: flex;
         flex-direction: column;
         gap: 10px;
-        max-height: 420px;
+        min-height: 0;
         overflow-y: auto;
         padding-right: 4px;
       }
 
       .yyt-tool-manage-hint {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--yyt-text-secondary);
-        line-height: 1.7;
+        line-height: 1.55;
       }
 
       .yyt-tool-manage-stats {
@@ -504,7 +505,7 @@ export const ToolManagePanel = {
         flex-direction: column;
         justify-content: center;
         gap: 6px;
-        padding: 14px;
+        padding: 10px 12px;
         border-radius: 14px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -517,14 +518,14 @@ export const ToolManagePanel = {
       }
 
       .yyt-tool-manage-stat-value {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 800;
         color: var(--yyt-text);
         line-height: 1;
       }
       
       .yyt-tool-item {
-        padding: 16px;
+        padding: 12px;
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 14px;

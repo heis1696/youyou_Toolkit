@@ -9,6 +9,9 @@ export function createPopupShell(context) {
   const popupDragState = {
     cleanup: null
   };
+  const scrollSurfaceState = {
+    cleanups: []
+  };
 
   function log(...args) {
     console.log(`[${SCRIPT_ID}]`, ...args);
@@ -120,6 +123,154 @@ export function createPopupShell(context) {
     }
   }
 
+  function cleanupScrollableSurfaces() {
+    if (!Array.isArray(scrollSurfaceState.cleanups)) return;
+
+    scrollSurfaceState.cleanups.forEach((cleanup) => {
+      if (typeof cleanup === 'function') {
+        cleanup();
+      }
+    });
+
+    scrollSurfaceState.cleanups = [];
+  }
+
+  function isInteractiveScrollTarget(target) {
+    return Boolean(target?.closest?.([
+      'input',
+      'textarea',
+      'select',
+      'button',
+      'a',
+      'label',
+      'summary',
+      'details',
+      '[contenteditable="true"]',
+      '.yyt-dialog',
+      '.yyt-select-dropdown'
+    ].join(',')));
+  }
+
+  function bindDragScroll(container) {
+    const targetDoc = getTargetDocument();
+    if (!container || !targetDoc) return;
+
+    container.classList.add('yyt-scrollable-surface');
+
+    let isPointerDown = false;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
+    let canScrollX = false;
+    let canScrollY = false;
+
+    const stopDragging = () => {
+      isPointerDown = false;
+      isDragging = false;
+      container.classList.remove('yyt-scroll-dragging');
+    };
+
+    const onMouseDown = (event) => {
+      if (event.button !== 0) return;
+      if (isInteractiveScrollTarget(event.target)) return;
+
+      canScrollX = container.scrollWidth > container.clientWidth + 2;
+      canScrollY = container.scrollHeight > container.clientHeight + 2;
+
+      if (!canScrollX && !canScrollY) {
+        return;
+      }
+
+      event.stopPropagation();
+
+      isPointerDown = true;
+      isDragging = false;
+      startX = event.clientX;
+      startY = event.clientY;
+      startScrollLeft = container.scrollLeft;
+      startScrollTop = container.scrollTop;
+    };
+
+    const onMouseMove = (event) => {
+      if (!isPointerDown) return;
+
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      const movedEnough = Math.abs(dx) > 4 || Math.abs(dy) > 4;
+
+      if (!movedEnough && !isDragging) {
+        return;
+      }
+
+      isDragging = true;
+      container.classList.add('yyt-scroll-dragging');
+
+      if (canScrollX) {
+        container.scrollLeft = startScrollLeft - dx;
+      }
+
+      if (canScrollY) {
+        container.scrollTop = startScrollTop - dy;
+      }
+
+      event.preventDefault();
+    };
+
+    const onMouseUp = () => {
+      stopDragging();
+    };
+
+    const onWheel = (event) => {
+      const hasScrollableOverflow = container.scrollHeight > container.clientHeight + 2
+        || container.scrollWidth > container.clientWidth + 2;
+
+      if (hasScrollableOverflow) {
+        event.stopPropagation();
+      }
+    };
+
+    const onDragStart = (event) => {
+      if (isDragging) {
+        event.preventDefault();
+      }
+    };
+
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('wheel', onWheel, { passive: true });
+    container.addEventListener('dragstart', onDragStart);
+    targetDoc.addEventListener('mousemove', onMouseMove);
+    targetDoc.addEventListener('mouseup', onMouseUp);
+
+    scrollSurfaceState.cleanups.push(() => {
+      stopDragging();
+      container.classList.remove('yyt-scrollable-surface');
+      container.removeEventListener('mousedown', onMouseDown);
+      container.removeEventListener('wheel', onWheel);
+      container.removeEventListener('dragstart', onDragStart);
+      targetDoc.removeEventListener('mousemove', onMouseMove);
+      targetDoc.removeEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  function refreshScrollableSurfaces() {
+    const popup = uiState.currentPopup;
+    if (!popup) return;
+
+    cleanupScrollableSurfaces();
+
+    const surfaces = [
+      ...popup.querySelectorAll('.yyt-shell-sidebar .yyt-main-nav'),
+      ...popup.querySelectorAll('.yyt-sub-nav'),
+      ...popup.querySelectorAll('.yyt-content'),
+      ...popup.querySelectorAll('.yyt-tab-content.active'),
+      ...popup.querySelectorAll('.yyt-tab-content.active .yyt-sub-content')
+    ];
+
+    [...new Set(surfaces)].forEach(bindDragScroll);
+  }
+
   function enablePopupDrag() {
     const targetDoc = getTargetDocument();
     const popup = uiState.currentPopup;
@@ -210,6 +361,7 @@ export function createPopupShell(context) {
 
   function closePopup() {
     cleanupPopupDrag();
+    cleanupScrollableSurfaces();
 
     if (uiState.currentPopup) {
       uiState.currentPopup.remove();
@@ -246,6 +398,7 @@ export function createPopupShell(context) {
 
     renderTabContent(tabName);
     updatePopupStatus();
+    refreshScrollableSurfaces();
   }
 
   function switchSubTab(mainTab, subTab) {
@@ -259,6 +412,7 @@ export function createPopupShell(context) {
 
     renderSubTabContent(mainTab, subTab);
     updatePopupStatus();
+    refreshScrollableSurfaces();
   }
 
   function renderSubNav(mainTab, subTabs) {
@@ -279,6 +433,8 @@ export function createPopupShell(context) {
       const subTab = $(this).data('subtab');
       switchSubTab(mainTab, subTab);
     });
+
+    refreshScrollableSurfaces();
   }
 
   async function renderTabContent(tabName) {
@@ -344,6 +500,8 @@ export function createPopupShell(context) {
         renderToolWindow(tabName, $content);
         break;
     }
+
+    refreshScrollableSurfaces();
   }
 
   function renderSubTabContent(mainTab, subTab) {
@@ -423,6 +581,8 @@ export function createPopupShell(context) {
       default:
         $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>');
     }
+
+    refreshScrollableSurfaces();
   }
 
   async function renderGenericToolConfigPanel(subToolConfig, $container) {
@@ -453,6 +613,7 @@ export function createPopupShell(context) {
       }
 
       panel.renderTo($container);
+      refreshScrollableSurfaces();
     } catch (error) {
       console.error(`[${SCRIPT_ID}] 自定义工具面板加载失败:`, error);
       $container.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>自定义工具面板加载失败</span></div>');
@@ -807,6 +968,7 @@ export function createPopupShell(context) {
     }
 
     updatePopupStatus();
+    refreshScrollableSurfaces();
 
     log('弹窗已打开');
   }
