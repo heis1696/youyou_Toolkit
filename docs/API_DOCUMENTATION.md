@@ -231,6 +231,20 @@ const trigger = YouYouToolkit.getToolTrigger();
 // trigger.runToolManually(toolId)
 // trigger.previewToolExtraction(toolId)
 // trigger.getToolTriggerManagerState()
+
+const state = trigger.getToolTriggerManagerState();
+// state.activeSessions
+// state.eventBridge
+// state.gateState
+
+const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 });
+// diagnostics.summary
+// diagnostics.activeSessions
+// diagnostics.recentSessionHistory
+// diagnostics.lastEventDebugSnapshot
+// diagnostics.lastAutoTriggerSnapshot
+// diagnostics.summary.phaseCounts
+// diagnostics.summary.consistency
 ```
 
 > `tool-trigger.js` 是当前自动工具链的入口层，负责宿主事件监听、门控判断、上下文构建与执行路径选择。
@@ -240,6 +254,10 @@ const trigger = YouYouToolkit.getToolTrigger();
 > 从当前修复开始，`getToolTriggerManagerState()` 还会额外返回 `lastEventDebugSnapshot`，用于定位“宿主事件有没有收到、有没有被调度、是不是在设置门控、消息角色判定或消息读取阶段被提前跳过”。
 
 > 从当前 Phase 6 收口开始，`getToolTriggerManagerState()` 还会额外返回 `activeSessionCount` 与 `recentSessionHistory`，用于观察“同一条消息被哪些宿主事件命中、最后进入了什么 phase、是否被跳过或完成”。
+
+> 从当前宿主回归准备阶段开始，还额外提供 `YouYouToolkit.getAutoTriggerDiagnostics(options)`：它会把 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot` 聚合成一份更适合宿主实机验收的只读诊断对象。
+
+> 从当前这轮 N1 验收辅助增强开始，`getToolTriggerManagerState()` 还会额外暴露 `activeSessions / registeredEvents / pendingTimerCount / listenerSettings / eventBridge / gateState`；`getAutoTriggerDiagnostics().summary` 也会同步补齐 `phaseCounts / consistency`，用于快速判断“当前 session 冻结字段”和“当前 generation 状态”之间是否已经发生漂移。
 
 > 从当前这轮宿主误触发系统性修复开始，自动链进一步区分 **speculative session（观察态）** 与 **confirmed trigger（确认态）**：
 >
@@ -255,6 +273,9 @@ const trigger = YouYouToolkit.getToolTrigger();
   initialized: boolean,
   listenersCount: number,
   activeSessionCount: number,
+  activeSessions: Array<{
+    // 与 recentSessionHistory 近似的 session 诊断结构
+  }>,
   recentSessionHistory: Array<{
     id: string,
     at: number,
@@ -268,6 +289,19 @@ const trigger = YouYouToolkit.getToolTrigger();
     confirmedAssistantMessageId: string,
     confirmationSource: string,
     isSpeculativeSession: boolean,
+    baselineResolved: boolean,
+    baselineResolutionAt: number,
+    provisionalBaseline: boolean,
+    generationStartedByUserIntent: boolean,
+    generationUserIntentSource: string,
+    generationUserIntentDetail: string,
+    lastUserIntentSource: string,
+    driftDetected: boolean,
+    generationTraceDrifted: boolean,
+    generationUserIntentDrifted: boolean,
+    baselineResolvedStateChanged: boolean,
+    baselineResolutionAdvancedSinceSessionCreation: boolean,
+    driftReasons: string[],
     skipReason: string,
     skipReasonDetailed: string,
     candidateToolIds: string[],
@@ -275,9 +309,104 @@ const trigger = YouYouToolkit.getToolTrigger();
   }>,
   lastExecutionContext: object | null,
   lastAutoTriggerSnapshot: object | null,
-  lastEventDebugSnapshot: object | null
+  lastEventDebugSnapshot: object | null,
+  registeredEvents: string[],
+  pendingTimerCount: number,
+  lastHandledMessageKey: string,
+  listenerSettings: object,
+  eventBridge: {
+    source: string,
+    ready: boolean,
+    hasImportedScriptModule: boolean,
+    importError: string
+  },
+  gateState: object
 }
 ```
+
+其中新增字段主要用于回答两类问题：
+
+- 当前工具触发管理器到底注册了哪些事件、是否还有待执行 timer、当前事件桥接是否已经就绪
+- 当前 session 在创建时冻结下来的 generation 字段，与现在全局 generation 状态相比，是否已经发生 trace / 用户意图 / baseline 解析状态漂移
+
+### `getAutoTriggerDiagnostics(options)`
+
+获取当前自动触发链的聚合诊断快照，便于在宿主环境中直接做 A10 / A11 / A12 / A13 回归观察。
+
+```javascript
+const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 });
+```
+
+典型返回结构可理解为：
+
+```javascript
+{
+  summary: {
+    generationTraceId: string,
+    generationType: string,
+    generationDryRun: boolean,
+    generationStartedAt: number,
+    generationEndedAt: number,
+    isGenerating: boolean,
+    baselineMessageCount: number,
+    baselineAssistantId: string,
+    uiTransitionGuardActive: boolean,
+    uiTransitionGuardUntil: number,
+    lastUiTransitionSource: string,
+    activeSessionCount: number,
+    pendingTimerCount: number,
+    lastHandledMessageKey: string,
+    lastDuplicateMessageKey: string,
+    registeredEvents: string[],
+    listenerSettings: object,
+    eventBridge: object,
+    gateState: object,
+    phaseCounts: {
+      activeSessions: Record<string, number>,
+      recentSessionHistory: Record<string, number>
+    },
+    consistency: {
+      activeSessions: {
+        entryCount: number,
+        driftDetectedCount: number,
+        generationTraceDriftCount: number,
+        generationUserIntentDriftCount: number,
+        baselineResolvedStateChangedCount: number,
+        baselineResolutionAdvancedCount: number
+      },
+      recentSessionHistory: {
+        entryCount: number,
+        driftDetectedCount: number,
+        generationTraceDriftCount: number,
+        generationUserIntentDriftCount: number,
+        baselineResolvedStateChangedCount: number,
+        baselineResolutionAdvancedCount: number
+      }
+    },
+    baselineResolved: boolean,
+    baselineResolutionAt: number,
+    provisionalBaseline: boolean,
+    generationStartedByUserIntent: boolean,
+    generationUserIntentSource: string,
+    generationUserIntentDetail: string,
+    lastUserIntentSource: string
+  },
+  activeSessions: Array<object>,
+  recentSessionHistory: Array<object>,
+  lastEventDebugSnapshot: object | null,
+  lastAutoTriggerSnapshot: object | null
+}
+```
+
+其中：
+
+- `summary`：适合快速看“当前 generation 和 UI 守卫状态”
+- `activeSessions`：适合看当前仍在窗口期内、尚未过期的 message session
+- `recentSessionHistory`：适合逐 phase 回看最近若干条 session 历史
+- `lastEventDebugSnapshot / lastAutoTriggerSnapshot`：适合对照最近一次事件级与自动调度级快照
+- `summary.phaseCounts`：适合快速看当前 active/history 中各个 phase 的分布是否符合预期
+- `summary.consistency`：适合快速看 session 冻结字段与当前 generation 状态之间是否出现批量漂移
+- `summary.eventBridge / summary.gateState`：适合判断当前事件桥接是否就绪，以及全局门控状态当前停在哪一层
 
 ### `getBypassManager()`
 
@@ -551,7 +680,34 @@ tool-trigger
 其中：
 
 - `messageSessions`：表示当前仍在窗口期内的消息级自动触发会话
-- `recentSessionHistory`：表示最近若干次消息级 session 的 phase 演进记录；现在还会显式标出该 session 是否只是 speculative 观察态、最终由哪个事件确认，以及更细的跳过细节
+- `recentSessionHistory`：表示最近若干次消息级 session 的 phase 演进记录；现在还会显式标出该 session 是否只是 speculative 观察态、最终由哪个事件确认、是否属于当前 generation，以及该 session 记录时对应的 baseline / 用户意图诊断字段
+
+从当前这轮宿主回归准备工作开始，消息级 session 历史本身也会同步保留以下诊断字段：
+
+- `baselineResolved`
+- `baselineResolutionAt`
+- `provisionalBaseline`
+- `generationStartedByUserIntent`
+- `generationUserIntentSource`
+- `generationUserIntentDetail`
+- `lastUserIntentSource`
+- `driftDetected`
+- `generationTraceDrifted`
+- `generationUserIntentDrifted`
+- `baselineResolvedStateChanged`
+- `baselineResolutionAdvancedSinceSessionCreation`
+- `driftReasons`
+
+这样在宿主中排查 A12 / A13 时，不仅能看最近一次全局快照，还能回看**每个 session 在进入 received / scheduled / handling / skipped / completed 时，对应看到的 generation 意图判定是什么**。
+
+其中新增的 drift 字段表示：
+
+- `driftDetected`：当前这条 session 记录里，冻结字段与当前 generation 字段至少存在一种差异
+- `generationTraceDrifted`：session 创建时 trace 与当前 trace 已不同
+- `generationUserIntentDrifted`：session 创建时的用户意图结果与当前 generation 用户意图字段已不同
+- `baselineResolvedStateChanged`：session 创建时看到的 baselineResolved 与当前状态已不同
+- `baselineResolutionAdvancedSinceSessionCreation`：当前 baselineResolutionAt 已晚于 session 创建时记录的时间点
+- `driftReasons`：上述差异的标准化原因列表，便于宿主直接判案
 
 ### generation baseline / confirmation source 语义
 
@@ -562,9 +718,31 @@ tool-trigger
 - `generationBaselineMessageCount`
 - `generationBaselineAssistantId`
 - `generationStartedByUserIntent`
+- `generationUserIntentSource`
+- `generationUserIntentDetail`
 - `generationDryRun`
 
+从本轮专项补修开始，generation baseline 还会区分：
+
+- `baselineResolved`：当前 baseline 是否已经完成正式解析
+- `baselineResolutionAt`：baseline 正式解析完成时间
+- `provisionalBaseline`：当前 baseline 是否仍处于 provisional 占位态
+
+当前 `startedByUserIntent` 的判定语义已经进一步收敛为：
+
+- 存在最近用户发送 / 用户消息意图窗口
+- 或命中了宿主明确的用户 generation 动作（当前至少包含 `regenerate`、`swipe`）
+
+因此，用户点击重新生成这类**不会新增用户楼层**的动作，也会被视为合法用户意图，不再因为“最近没有新的用户消息”而被误判成自动触发。
+
+其中：
+
+- `generationUserIntentSource`：记录本轮 generation 的用户意图来源，例如 `recent_user_trigger_intent`、`explicit_generation_action:regenerate`
+- `generationUserIntentDetail`：记录更细的判定细节，例如 `recent_user_send_or_message`、`generation_type_regenerate`
+
 后续所有 fallback 事件都必须围绕这份 baseline 判断“本轮是否真的新增了一条 assistant 楼层”，而不再允许简单回退到“当前聊天里最后一条 assistant 消息”。
+
+当前实现中，`GENERATION_STARTED` 会先同步写入一份 provisional baseline，随后再异步补全正式 baseline；这样即使宿主后续事件到得很快，也不会因为 baseline 尚未落库而直接丢失 trace 上下文。
 
 当前 `confirmationSource` 的标准值为：
 
@@ -584,10 +762,12 @@ tool-trigger
 | `listener_disabled` | 自动工具监听已关闭 |
 | `quiet_generation` | 当前生成属于 quiet / dryRun / 后台生成 |
 | `dry_run_generation` | 当前事件对应 generation 明确为 dryRun，已被硬阻断 |
-| `ignored_auto_trigger` | 判定为缺少最近用户发送意图，疑似插件/脚本自动触发生成 |
+| `ignored_auto_trigger` | 监听器设置启用了 `ignoreAutoTrigger`，且当前 generation 未被确认为用户意图 |
 | `ui_side_effect_event` | 判定为宿主 UI 打开历史 / 信息窗口 / 切换聊天导致的副作用事件 |
 | `speculative_generation_after_commands` | `GENERATION_AFTER_COMMANDS` 仅记录观察态 session，不进入执行 |
 | `no_confirmed_assistant_message` | 本轮未能确认 baseline 之后新增 assistant 楼层 |
+| `historical_replay_message_received` | 带 `messageId` 的旧 assistant 楼层重放事件，被判定为历史 replay |
+| `message_received_outside_active_generation` | `MESSAGE_RECEIVED` 到达时不处于合法生成窗口内，已被阻断 |
 | `non_assistant_message` | `MESSAGE_RECEIVED` 命中的并非 AI 楼层，已在事件级直接忽略 |
 | `missing_ai_message` | 未读取到可供处理的有效 AI 回复 |
 | `duplicate_message` | 命中自动去重，避免同一消息重复执行 |
@@ -602,9 +782,9 @@ tool-trigger
 |------|------|
 | `listenGenerationEnded` | 自动监听总开关。关闭后，自动工具链不会再响应 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` |
 | `useGenerationAfterCommandsFallback` | 是否允许 `GENERATION_AFTER_COMMANDS` 参与消息级 session 观察；即使开启，缺少确认消息身份时也不会直接执行 |
-| `useMessageReceivedFallback` | 是否允许 `MESSAGE_RECEIVED` 参与确认链；只有带 `messageId` 且最终确认命中 assistant 新楼层时才会执行 |
+| `useMessageReceivedFallback` | 是否允许 `MESSAGE_RECEIVED` 参与确认链；只有带 `messageId`、属于合法 generation 窗口、且最终确认命中 assistant 新楼层时才会执行 |
 | `ignoreQuietGeneration` | 是否跳过 quiet / 后台生成；`dryRun` 已升级为系统级硬阻断，不再受此开关影响 |
-| `ignoreAutoTrigger` | 是否尽量跳过“没有最近用户发送意图”的生成，减少其他插件/脚本引发的误执行 |
+| `ignoreAutoTrigger` | 是否跳过未被判定为用户意图的 generation；最近用户发送、用户消息窗口，以及 `regenerate / swipe` 这类显式用户 generation 动作都可视为合法用户意图 |
 | `debounceMs` | `GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 这类兜底事件的延迟调度与去抖时间 |
 | `messageSessionWindowMs` | 同一条消息在多事件并发命中时的 session 聚合窗口 |
 | `historyRetentionLimit` | 单工具触发/写回历史与消息级 session 历史的保留条数 |
@@ -988,8 +1168,9 @@ interface ToolConfig {
 - 工具输出在按提取规则写回楼层时，会尽量保留命中的完整标签块（如 `<boo_FM>...</boo_FM>`、`<status_block>...</status_block>`、`<youyou>...</youyou>`），避免把模板里明确要求输出的外层提取标签剥掉
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 - 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
-- 自动监听会记录用户发送意图，并跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
+- 自动监听会记录用户发送意图，并把 `regenerate / swipe` 这类显式用户 generation 动作也视为合法用户意图；同时继续跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
 - 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底确认来源；但 `MESSAGE_RECEIVED` 现在必须带明确 `messageId`，并最终确认命中的楼层确实是 baseline 之后新增的 assistant 回复，避免把用户消息或宿主 UI 副作用事件误当成可执行事件
+- `MESSAGE_RECEIVED` 现在还会额外阻断“带 `messageId` 的历史 assistant 消息重放事件”；如果事件不属于当前 active generation，或超出合法的 generation 完成窗口，会被记录为 `historical_replay_message_received` 或 `message_received_outside_active_generation`
 - 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，但它默认只作为 speculative 观察事件记录 session；只有宿主真的提供了可确认的消息身份时，才可能升级为确认来源
 - 多条兜底事件同时命中同一条回复时，自动链仍会按 `chatId + 最新 AI 消息ID` 去重；同一消息短时间内重复命中去重时，也会抑制重复的调试噪声日志
 - 构建工具执行上下文时会对“确认后的 assistant 楼层”做短暂重试读取，并以 generation baseline 限制目标范围，避免再从当前聊天快照里回退吸收旧 assistant 消息

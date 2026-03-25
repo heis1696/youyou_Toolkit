@@ -67,6 +67,16 @@
 
 ### 文档
 
+- 📝 **自动触发链下一阶段施工编排正式收口** (`docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 将下一阶段正式收口为 `N1 宿主自动触发链验收 ->（若失败）第三轮自动触发定向补修 ->（若通过）N2 写回链宿主专项`
+  - 在专项文档中补齐 N1 的执行顺序、通过标准、失败回退点，以及 N1 失败后的补修边界，避免继续口头约定推进
+  - 在进度文档中同步固化当前执行口径，明确未完成 N1 前不继续扩大自动触发判断面
+
+- 📝 **新增自动触发链残余风险专项施工文档** (`docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`, `docs/OPTIMIZATION_EXECUTION_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 新增独立专项文档，用于承载自动触发链主问题修复后剩余的 baseline 竞态、历史 replay 风险与后续宿主回归矩阵
+  - 在总施工方案文档中补充“后续专项补修建议”，避免继续把残余风险零散塞回主 Phase 方案
+  - 在施工进程文档中补记专项文档已建立，并说明后续若继续施工应以该专项文档为准
+
 - 📝 **优化施工文档完成度复核** (`docs/OPTIMIZATION_EXECUTION_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`, `docs/ARCHITECTURE_ANALYSIS.md`)
   - 为施工方案文档补充 2026-03-24 完成度复核，明确 5 个 Phase 与 11 项实施清单均已在代码中找到落点
   - 更新施工进程文档中的最后更新时间、当前状态、施工日志与回归结论，正式将“文档施工状态”收口为已完成
@@ -89,12 +99,45 @@
 
 ### 修复
 
+- 🐛 **宿主回归辅助能力增强：补齐 session 漂移摘要与门控/事件桥接诊断概览** (`modules/tool-trigger.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - `getToolTriggerManagerState()` 现已补齐 `activeSessions / registeredEvents / pendingTimerCount / eventBridge / gateState`，用于直接查看当前事件注册、桥接状态、待执行定时器与门控状态
+  - `getAutoTriggerDiagnostics().summary` 现已补齐 `phaseCounts / consistency`，可快速统计 active/history 中各 phase 数量，并汇总 session 冻结字段与当前 generation 状态之间的漂移次数
+  - `activeSessions / recentSessionHistory` 条目现已新增 `driftDetected / generationTraceDrifted / generationUserIntentDrifted / baselineResolvedStateChanged / baselineResolutionAdvancedSinceSessionCreation / driftReasons`，用于区分“baseline 正常补全”与“session 归属真的漂移”
+
+- 🐛 **宿主回归辅助能力增强：新增自动触发诊断聚合 API** (`modules/tool-trigger.js`, `modules/app/public-api.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 新增 `getAutoTriggerDiagnostics(options)`，统一聚合 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot`
+  - 对外 API 已增加 `YouYouToolkit.getAutoTriggerDiagnostics()` 入口，方便宿主环境直接调用
+  - 回归清单与 API 文档同步补充该诊断入口的使用方式，减少宿主验收时手工拼装状态的成本
+
+- 🐛 **宿主回归准备：消息级 session 历史补齐 generation 意图诊断字段** (`modules/tool-trigger.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - `messageSessions / recentSessionHistory` 现在会同步记录 `baselineResolved / provisionalBaseline / generationStartedByUserIntent / generationUserIntentSource / generationUserIntentDetail / lastUserIntentSource`
+  - 这样在宿主里排查 A12 / A13 时，可以直接对照每个 session 在 `received / scheduled / handling / skipped / completed` 各阶段看到的 generation 意图状态，而不是只能依赖最近一次全局快照
+  - 宿主回归清单与 API 文档同步补充了这些字段的观测方式与预期结果
+
+- 🐛 **自动触发专项补修第二轮：恢复用户主动 `regenerate / swipe` 的合法确认路径** (`modules/tool-trigger.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - `GENERATION_STARTED` 的用户意图判定不再只依赖“最近是否出现新的用户楼层”，而是同时支持显式用户 generation 动作识别；当前已将 `regenerate`、`swipe` 视为合法用户意图来源
+  - `getGenerationConfirmationEligibility()` 不再把 `startedByUserIntent = false` 当成系统级硬阻断，`ignoreAutoTrigger` 重新回归监听器设置层控制，避免合法用户重新生成被误打成 `ignored_auto_trigger`
+  - 调试快照新增 `generationUserIntentSource / generationUserIntentDetail / lastUserIntentSource` 等字段，用于区分“最近用户发送”“显式 regenerate/swipe”与“确实无用户意图”三类来源
+  - 工具诊断面板、API 文档与宿主回归清单同步更新，新增对用户主动 regenerate/swipe 与非用户意图 generation 的区分说明
+
+- 🐛 **自动触发链专项补修：baseline 竞态与历史 replay 防线增强** (`modules/tool-trigger.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - `GENERATION_STARTED` 改为先同步写入 provisional baseline，再异步补全正式 baseline，降低宿主高时序下因 baseline 尚未就绪而误跳过真实回复的风险
+  - `MESSAGE_RECEIVED` 新增历史 replay 防线：即使事件携带 `messageId`，若不属于当前 active generation 或超出合法确认窗口，也会被拦截
+  - 调试快照新增 `baselineResolved / baselineResolutionAt / provisionalBaseline / historicalReplayBlocked / historicalReplayReason` 等字段
+  - 工具配置面板的跳过原因文案同步补齐 `historical_replay_message_received / message_received_outside_active_generation / dry_run_generation` 等新分支
+
+- 🐛 **移除误做的壳层“保存当前工具”按钮** (`modules/app/popup-shell.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 删除 popup shell 主内容头部额外补上的“保存当前工具”按钮入口
+  - 保留工具配置面板内部原有的保存按钮，不影响正常保存逻辑
+  - 避免继续保留这类壳层级误做入口，减少界面歧义
+
 - 🐛 **自动触发链状态机收口，修复旧对话 / 聊天信息窗口误触发工具** (`modules/tool-trigger.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 在 `GENERATION_STARTED` 时记录 generation baseline，后续只允许 baseline 之后新增的 assistant 楼层成为本轮确认目标，不再回退吸收“当前聊天里最后一条 assistant 消息”
   - 将 `GENERATION_AFTER_COMMANDS` 默认降级为 speculative 观察事件；缺少明确消息身份时只记录 session，不再直接进入执行调度
   - 将 `MESSAGE_RECEIVED` 收紧为“必须带 `messageId` 且最终确认命中 assistant 新楼层”才允许执行；无身份事件统一视为宿主 UI 副作用
   - 将 `dryRun` 升级为系统级硬阻断，并补充 `confirmationSource / confirmedAssistantMessageId / skipReasonDetailed / uiTransitionGuard` 等调试字段
   - 新增 `CHAT_CHANGED / CHAT_CREATED` 触发的 UI 过渡守卫，降低打开旧对话、聊天信息窗口、消息详情窗口时的宿主副作用误触发风险
+  - 用户已在宿主环境确认：打开旧对话 / 聊天信息窗口不再误触发工具，正常回复链保持可用
 
 - 🐛 **打开宿主聊天信息窗口时的自动工具误触发修复** (`modules/tool-trigger.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - `MESSAGE_RECEIVED` 兜底链现在要求“存在明确消息身份”或“当前确实处于生成中”才允许继续回退到最新消息推断，避免打开聊天信息窗口等宿主 UI 操作时被误当成有效回复事件

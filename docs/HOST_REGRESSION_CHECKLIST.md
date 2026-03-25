@@ -1,7 +1,7 @@
 # 宿主环境回归清单
 
 > 适用范围：SillyTavern / TavernHelper 宿主环境下的自动触发链、写回链与调试链回归验证
-> 最后更新：2026-03-24
+> 最后更新：2026-03-25
 > 关联模块：`modules/tool-trigger.js`、`modules/tool-output-service.js`、`modules/context-injector.js`
 
 ## 一、目的
@@ -139,6 +139,64 @@
 2. 额外的 `GENERATION_AFTER_COMMANDS` 应只收敛进同一 session 历史
 3. 若其中某次没有可确认消息身份，应仅保留 speculative 记录，不应创建新的执行定时器
 
+### A10. `GENERATION_STARTED` 高时序场景下不会丢 baseline
+
+验证步骤：
+
+1. 在宿主环境中触发一条响应非常快的正常回复
+2. 关注 `GENERATION_STARTED -> GENERATION_ENDED` 之间是否几乎无延迟
+3. 检查控制台与 `getToolTriggerManagerState()`
+
+预期结果：
+
+1. 不应因为 `missing_generation_baseline` 导致真实回复被跳过
+2. 应能看到 `baselineResolved` 从 `false` 过渡到 `true`，或等价诊断字段
+3. 回复完成后仍能正常确认到 assistant 新楼层
+
+### A11. 历史 assistant 消息 replay 不会被误当成新回复
+
+验证步骤：
+
+1. 在包含历史 assistant 楼层的聊天中，触发宿主重绘 / 热重载 / 历史消息回放场景
+2. 重点观察是否会重新抛出带 `messageId` 的旧 assistant 事件
+3. 观察控制台与 `recentSessionHistory`
+
+预期结果：
+
+1. 不应发起任何旧消息工具执行
+2. 若命中历史 replay，应出现 `historical_replay_message_received` 或 `message_received_outside_active_generation`
+3. 调试快照中应可看到 `historicalReplayBlocked` 或等价诊断字段
+
+### A12. 用户主动 `regenerate / swipe` 不会再被误判为自动触发
+
+验证步骤：
+
+1. 打开 `ignoreAutoTrigger`
+2. 在已有对话中点击一次 `regenerate`，或执行一次 `swipe` 切换生成
+3. 观察控制台、`lastEventDebugSnapshot` 与最终工具执行结果
+
+预期结果：
+
+1. `GENERATION_STARTED` 不应再因为“最近没有新的用户消息”而被判定为无用户意图
+2. 调试快照中应能看到 `generationStartedByUserIntent = true`
+3. 调试快照中应能看到 `generationUserIntentSource = explicit_generation_action:regenerate`、`explicit_generation_action:swipe` 或等价诊断字段
+4. 只要 baseline 后确实新增 assistant 楼层，就应允许正常进入自动工具执行链
+
+### A13. `ignoreAutoTrigger` 仍能拦住非用户意图 generation
+
+验证步骤：
+
+1. 保持 `ignoreAutoTrigger = true`
+2. 触发一次宿主内部的自动 generation / 插件 generation（非 `regenerate / swipe`，也不伴随最近用户发送）
+3. 观察控制台与 `recentSessionHistory`
+
+预期结果：
+
+1. 该 generation 不应进入工具执行链
+2. 应出现 `ignored_auto_trigger` 或等价跳过原因
+3. 调试快照中 `generationStartedByUserIntent` 应为 `false`
+4. 若调试字段可见，应能看到 `generationUserIntentSource = none` 或等价诊断字段
+
 ---
 
 ## 三、写回链回归
@@ -206,9 +264,15 @@
 预期结果：
 
 1. 可看到 `activeSessionCount`
+2. 可看到 `activeSessions`
 2. 可看到 `recentSessionHistory`
 3. 可看到最近一次 `lastAutoTriggerSnapshot / lastEventDebugSnapshot`
 4. `recentSessionHistory` / `lastEventDebugSnapshot` 中应可看到 `confirmedAssistantMessageId`、`confirmationSource`、`isSpeculativeSession`、`skipReasonDetailed`
+5. 本轮补修后还应可看到 `baselineResolved`、`baselineResolutionAt`、`historicalReplayBlocked`、`historicalReplayReason`
+6. 针对第二轮专项补修，`recentSessionHistory` / `lastEventDebugSnapshot` 中还应可看到 `generationStartedByUserIntent`、`generationUserIntentSource`、`generationUserIntentDetail`、`lastUserIntentSource`
+7. 针对本轮 N1 验收辅助增强，`activeSessions / recentSessionHistory` 中还应可看到 `driftDetected`、`generationTraceDrifted`、`generationUserIntentDrifted`、`baselineResolvedStateChanged`、`baselineResolutionAdvancedSinceSessionCreation`、`driftReasons`
+8. `getToolTriggerManagerState()` 还应额外提供 `registeredEvents`、`pendingTimerCount`、`eventBridge`、`gateState`
+9. `YouYouToolkit.getAutoTriggerDiagnostics().summary` 还应额外提供 `phaseCounts` 与 `consistency`
 
 ### D3. generation baseline / UI guard 诊断可读
 
@@ -250,3 +314,110 @@
 - 写回链结果：通过 / 不通过
 - 调试链结果：通过 / 不通过
 - 备注：
+
+---
+
+## 六、宿主侧执行建议（A10 ~ A13 专用）
+
+### 6.1 建议先打开的控制台观测点
+
+进入宿主后，建议至少同时观察：
+
+1. `[youyou_trigger]` 控制台日志
+2. `YouYouToolkit.getToolTrigger().getToolTriggerManagerState()`
+3. `YouYouToolkit.getAutoTriggerDiagnostics()`
+3. 工具配置页中的“最近触发诊断”折叠区
+
+### 6.2 建议使用的控制台辅助命令
+
+可直接在宿主控制台执行：
+
+```javascript
+const trigger = YouYouToolkit.getToolTrigger();
+
+function dumpAutoTriggerState() {
+  const state = trigger.getToolTriggerManagerState();
+  const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 });
+  console.log('lastEventDebugSnapshot', state.lastEventDebugSnapshot);
+  console.log('lastAutoTriggerSnapshot', state.lastAutoTriggerSnapshot);
+  console.log('eventBridge', state.eventBridge);
+  console.log('gateState', state.gateState);
+  console.log('diagnostics.summary', diagnostics.summary);
+  console.log('diagnostics.phaseCounts', diagnostics.summary?.phaseCounts);
+  console.log('diagnostics.consistency', diagnostics.summary?.consistency);
+  console.table(diagnostics.activeSessions || []);
+  console.table(diagnostics.recentSessionHistory || []);
+  return { state, diagnostics };
+}
+
+dumpAutoTriggerState();
+```
+
+若要重点观察第二轮专项补修结果，可关注以下字段：
+
+- `generationStartedByUserIntent`
+- `generationUserIntentSource`
+- `generationUserIntentDetail`
+- `baselineResolved`
+- `historicalReplayBlocked`
+- `historicalReplayReason`
+- `confirmationSource`
+- `driftDetected`
+- `generationTraceDrifted`
+- `generationUserIntentDrifted`
+- `baselineResolvedStateChanged`
+- `baselineResolutionAdvancedSinceSessionCreation`
+- `driftReasons`
+
+若宿主里同一条消息被多个 fallback 事件连续命中，建议优先看：
+
+- `diagnostics.summary`
+- `diagnostics.summary.phaseCounts`
+- `diagnostics.summary.consistency`
+- `diagnostics.activeSessions`
+- `diagnostics.recentSessionHistory`
+- `state.eventBridge`
+- `state.gateState`
+
+其中 `diagnostics.activeSessions / recentSessionHistory` 更适合直接比对“冻结版 session generation 字段”和“当前 generation 字段”是否一致。
+
+如果 `diagnostics.summary.consistency` 中的 drift 计数明显增加，建议进一步对照：
+
+- `sessionGenerationTraceId` vs `generationTraceId`
+- `sessionGenerationUserIntentSource` vs `generationUserIntentSource`
+- `sessionBaselineResolvedAtCreation` vs `baselineResolved`
+- `sessionBaselineResolutionAtCreation` vs `baselineResolutionAt`
+
+用于判断这到底是“baseline 正常从 provisional 进入 resolved”，还是 session 归属真的漂到了别的 generation 上。
+
+### 6.3 A12 / A13 的重点判读方式
+
+#### A12：用户主动 `regenerate / swipe`
+
+重点确认：
+
+1. `GENERATION_STARTED` 后，`generationStartedByUserIntent` 应为 `true`
+2. `generationUserIntentSource` 应出现 `explicit_generation_action:regenerate` 或 `explicit_generation_action:swipe`
+3. 若后续确实新增 assistant 楼层，不应再被 `ignored_auto_trigger` 拦住
+
+#### A13：非用户意图 generation
+
+重点确认：
+
+1. `generationStartedByUserIntent` 应保持 `false`
+2. `generationUserIntentSource` 应为 `none` 或等价诊断
+3. 在 `ignoreAutoTrigger = true` 时，最终应落到 `ignored_auto_trigger`
+
+### 6.4 建议的登记模板
+
+完成 A10 ~ A13 后，建议至少记录：
+
+```text
+- 测试场景：A10 / A11 / A12 / A13
+- 宿主操作：
+- 控制台关键日志：
+- lastEventDebugSnapshot 摘要：
+- recentSessionHistory 结论：
+- 是否符合预期：通过 / 不通过
+- 备注：
+```

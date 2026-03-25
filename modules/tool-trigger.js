@@ -69,6 +69,7 @@ const triggerState = {
   // 门控状态
   gateState: {
     lastUserSendIntentAt: 0,
+    lastUserIntentSource: '',
     lastUserMessageId: null,
     lastUserMessageText: '',
     lastUserMessageAt: 0,
@@ -110,6 +111,8 @@ export const AUTO_TRIGGER_SKIP_REASONS = {
   UNRELATED_UI_EVENT: 'ui_side_effect_event',
   SPECULATIVE_FALLBACK_WITHOUT_MESSAGE: 'speculative_generation_after_commands',
   NO_CONFIRMED_ASSISTANT_MESSAGE: 'no_confirmed_assistant_message',
+  HISTORICAL_REPLAY_MESSAGE_RECEIVED: 'historical_replay_message_received',
+  MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION: 'message_received_outside_active_generation',
   NON_ASSISTANT_MESSAGE: 'non_assistant_message',
   MISSING_AI_MESSAGE: 'missing_ai_message',
   DUPLICATE_MESSAGE: 'duplicate_message',
@@ -136,6 +139,11 @@ const MESSAGE_SESSION_PHASES = {
 const AUTO_TRIGGER_USER_INTENT_TTL_MS = 15000;
 const DUPLICATE_SKIP_LOG_WINDOW_MS = 1500;
 const UI_TRANSITION_GUARD_MS = 1800;
+const AUTO_TRIGGER_GENERATION_CONFIRM_WINDOW_MS = 5000;
+const EXPLICIT_USER_GENERATION_TYPES = new Set([
+  'regenerate',
+  'swipe'
+]);
 
 // ============================================================
 // 工具函数
@@ -348,10 +356,15 @@ async function getConversationSnapshot(options = {}) {
 /**
  * 标记用户发送意图
  */
-function markUserSendIntent() {
+function markUserTriggerIntent(source = 'user_trigger_intent') {
   updateGateState({
-    lastUserSendIntentAt: Date.now()
+    lastUserSendIntentAt: Date.now(),
+    lastUserIntentSource: source || 'user_trigger_intent'
   });
+}
+
+function markUserSendIntent() {
+  markUserTriggerIntent('send_button_or_enter');
 }
 
 /**
@@ -440,6 +453,25 @@ function getSillyTavernAPI() {
 function getTavernHelperAPI() {
   const topWindow = getTopWindow();
   return topWindow.TavernHelper || null;
+}
+
+function getImmediateRawChatMessages() {
+  const api = getSillyTavernAPI();
+
+  try {
+    const context = api?.getContext?.() || null;
+    if (Array.isArray(context?.chat)) {
+      return context.chat;
+    }
+  } catch (error) {
+    // 忽略同步读取上下文失败，继续回退
+  }
+
+  if (Array.isArray(api?.chat)) {
+    return api.chat;
+  }
+
+  return [];
 }
 
 function shouldTreatScalarEventPayloadAsMessageId(eventType = '') {
@@ -756,13 +788,52 @@ function shouldLockToEventMessageId(triggerEvent, eventData, preferredMessageId)
   ));
 }
 
-function hasRecentUserTriggerIntent(now = Date.now()) {
+function getLatestUserTriggerIntentTimestamp() {
   const candidates = [
     triggerState.gateState.lastUserSendIntentAt,
     triggerState.gateState.lastUserMessageAt
   ].filter(value => Number(value) > 0);
 
-  return candidates.some(timestamp => (now - timestamp) <= AUTO_TRIGGER_USER_INTENT_TTL_MS);
+  return candidates.length > 0 ? Math.max(...candidates) : 0;
+}
+
+function hasRecentUserTriggerIntent(now = Date.now()) {
+  const latestIntentAt = getLatestUserTriggerIntentTimestamp();
+  return latestIntentAt > 0 && (now - latestIntentAt) <= AUTO_TRIGGER_USER_INTENT_TTL_MS;
+}
+
+function normalizeGenerationType(type = '', params = null) {
+  return String(type || params?.type || '').trim().toLowerCase();
+}
+
+function resolveGenerationUserIntent(type, params = null, now = Date.now()) {
+  const latestIntentAt = getLatestUserTriggerIntentTimestamp();
+  const normalizedGenerationType = normalizeGenerationType(type, params);
+
+  if (latestIntentAt > 0 && (now - latestIntentAt) <= AUTO_TRIGGER_USER_INTENT_TTL_MS) {
+    return {
+      startedByUserIntent: true,
+      userIntentDetectedAt: latestIntentAt,
+      userIntentSource: 'recent_user_trigger_intent',
+      userIntentDetail: 'recent_user_send_or_message'
+    };
+  }
+
+  if (EXPLICIT_USER_GENERATION_TYPES.has(normalizedGenerationType)) {
+    return {
+      startedByUserIntent: true,
+      userIntentDetectedAt: now,
+      userIntentSource: `explicit_generation_action:${normalizedGenerationType}`,
+      userIntentDetail: `generation_type_${normalizedGenerationType}`
+    };
+  }
+
+  return {
+    startedByUserIntent: false,
+    userIntentDetectedAt: latestIntentAt,
+    userIntentSource: 'none',
+    userIntentDetail: 'no_recent_user_intent_or_explicit_generation_action'
+  };
 }
 
 function getCurrentGenerationBaseline(chatId = resolveCurrentChatIdForSession()) {
@@ -786,8 +857,8 @@ function hasConfirmedUserTriggerIntent(now = Date.now()) {
   return !!getCurrentGenerationBaseline()?.startedByUserIntent;
 }
 
-function getGenerationConfirmationEligibility() {
-  const baseline = getCurrentGenerationBaseline();
+function getGenerationConfirmationEligibility(baselineCandidate = null) {
+  const baseline = baselineCandidate || getCurrentGenerationBaseline();
 
   if (!baseline) {
     return {
@@ -804,15 +875,6 @@ function getGenerationConfirmationEligibility() {
       baseline,
       reason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
       detail: 'dry_run_generation'
-    };
-  }
-
-  if (!baseline.startedByUserIntent) {
-    return {
-      eligible: false,
-      baseline,
-      reason: AUTO_TRIGGER_SKIP_REASONS.IGNORED_AUTO_TRIGGER,
-      detail: 'generation_started_without_recent_user_intent'
     };
   }
 
@@ -881,13 +943,193 @@ function buildGenerationBaseline(rawMessages = [], metadata = {}) {
     generationType: metadata.type || '',
     generationParams: metadata.params || null,
     startedByUserIntent: !!metadata.startedByUserIntent,
-    userIntentDetectedAt: Number(metadata.userIntentDetectedAt) || 0
+    userIntentDetectedAt: Number(metadata.userIntentDetectedAt) || 0,
+    userIntentSource: metadata.userIntentSource || '',
+    userIntentDetail: metadata.userIntentDetail || '',
+    baselineResolved: metadata.baselineResolved !== undefined ? !!metadata.baselineResolved : true,
+    baselineResolutionAt: Number(metadata.baselineResolutionAt) || 0,
+    provisional: !!metadata.provisional,
+    baselineSource: metadata.baselineSource || ''
   };
 }
 
 async function captureGenerationBaseline(metadata = {}) {
   const rawMessages = await getRawChatMessages();
-  return buildGenerationBaseline(rawMessages, metadata);
+  return buildGenerationBaseline(rawMessages, {
+    ...metadata,
+    baselineResolved: metadata.baselineResolved !== undefined ? metadata.baselineResolved : true,
+    baselineResolutionAt: Number(metadata.baselineResolutionAt) || Date.now(),
+    provisional: metadata.provisional === true ? true : false,
+    baselineSource: metadata.baselineSource || 'captured_chat_snapshot'
+  });
+}
+
+function createProvisionalGenerationBaseline(metadata = {}) {
+  return buildGenerationBaseline(getImmediateRawChatMessages(), {
+    ...metadata,
+    baselineResolved: false,
+    baselineResolutionAt: 0,
+    provisional: true,
+    baselineSource: metadata.baselineSource || 'provisional_immediate_snapshot'
+  });
+}
+
+async function waitForResolvedGenerationBaseline(options = {}) {
+  const {
+    chatId = resolveCurrentChatIdForSession(),
+    traceId = '',
+    retries = 4,
+    retryDelayMs = 80
+  } = options;
+
+  let baseline = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    baseline = getCurrentGenerationBaseline(chatId);
+
+    const matchesTrace = !traceId || !baseline?.traceId || baseline.traceId === traceId;
+    if (baseline && matchesTrace && baseline.baselineResolved !== false) {
+      return baseline;
+    }
+
+    if (attempt < retries) {
+      await wait(retryDelayMs);
+    }
+  }
+
+  if (!baseline) {
+    return null;
+  }
+
+  const matchesTrace = !traceId || !baseline?.traceId || baseline.traceId === traceId;
+  return matchesTrace ? baseline : null;
+}
+
+function isWithinGenerationConfirmationWindow(now = Date.now(), baseline = getCurrentGenerationBaseline()) {
+  if (triggerState.gateState.isGenerating) {
+    return true;
+  }
+
+  if (!baseline) {
+    return false;
+  }
+
+  const lastGenerationAt = Number(triggerState.gateState.lastGenerationAt) || 0;
+  if (lastGenerationAt <= 0) {
+    return false;
+  }
+
+  return (now - lastGenerationAt) <= AUTO_TRIGGER_GENERATION_CONFIRM_WINDOW_MS;
+}
+
+function normalizeResolvedMessageEntry(entry) {
+  if (!entry?.message) {
+    return null;
+  }
+
+  return {
+    role: normalizeMessageRole(entry.message),
+    content: getMessageContent(entry.message),
+    chatIndex: entry.index,
+    sourceId: normalizeMessageIdentityValue(getMessageIdentity(entry.message, entry.index))
+  };
+}
+
+async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry, options = {}) {
+  const now = Date.now();
+  const traceId = options?.traceId || triggerState.gateState.lastGenerationTraceId || '';
+  const messageEntry = normalizeResolvedMessageEntry(resolvedMessageEntry);
+  const baseline = await waitForResolvedGenerationBaseline({
+    traceId,
+    retries: 4,
+    retryDelayMs: 80
+  }) || getCurrentGenerationBaseline();
+  const withinGenerationWindow = isWithinGenerationConfirmationWindow(now, baseline);
+  const eventBelongsToCurrentGeneration = !!(messageEntry && baseline && isAssistantMessageAfterBaseline(messageEntry, baseline));
+  const traceMatches = !traceId || !baseline?.traceId || baseline.traceId === traceId;
+
+  if (!messageEntry) {
+    return {
+      allowed: false,
+      baseline,
+      eventBelongsToCurrentGeneration: false,
+      historicalReplayBlocked: false,
+      historicalReplayReason: '',
+      reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+      detail: 'message_received_identity_not_resolved'
+    };
+  }
+
+  if (!baseline) {
+    return {
+      allowed: false,
+      baseline: null,
+      eventBelongsToCurrentGeneration: false,
+      historicalReplayBlocked: true,
+      historicalReplayReason: 'message_received_without_generation_baseline',
+      reason: AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION,
+      detail: 'message_received_without_generation_baseline'
+    };
+  }
+
+  if (baseline.baselineResolved === false) {
+    return {
+      allowed: false,
+      baseline,
+      eventBelongsToCurrentGeneration: false,
+      historicalReplayBlocked: false,
+      historicalReplayReason: '',
+      reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+      detail: 'generation_baseline_pending_resolution'
+    };
+  }
+
+  if (!traceMatches) {
+    return {
+      allowed: false,
+      baseline,
+      eventBelongsToCurrentGeneration: false,
+      historicalReplayBlocked: true,
+      historicalReplayReason: 'message_received_trace_mismatch',
+      reason: AUTO_TRIGGER_SKIP_REASONS.HISTORICAL_REPLAY_MESSAGE_RECEIVED,
+      detail: 'message_received_trace_mismatch'
+    };
+  }
+
+  if (!triggerState.gateState.isGenerating && !withinGenerationWindow) {
+    return {
+      allowed: false,
+      baseline,
+      eventBelongsToCurrentGeneration,
+      historicalReplayBlocked: true,
+      historicalReplayReason: 'message_received_outside_active_generation',
+      reason: AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION,
+      detail: 'message_received_outside_active_generation'
+    };
+  }
+
+  if (!eventBelongsToCurrentGeneration) {
+    return {
+      allowed: false,
+      baseline,
+      eventBelongsToCurrentGeneration: false,
+      historicalReplayBlocked: true,
+      historicalReplayReason: 'message_received_before_generation_baseline',
+      reason: AUTO_TRIGGER_SKIP_REASONS.HISTORICAL_REPLAY_MESSAGE_RECEIVED,
+      detail: 'message_received_before_generation_baseline'
+    };
+  }
+
+  return {
+    allowed: true,
+    baseline,
+    eventBelongsToCurrentGeneration: true,
+    historicalReplayBlocked: false,
+    historicalReplayReason: '',
+    reason: '',
+    detail: '',
+    messageEntry
+  };
 }
 
 function isAssistantMessageAfterBaseline(message, baseline) {
@@ -975,7 +1217,40 @@ async function getConfirmedAssistantMessageWithRetries(preferredMessageId = '', 
   return null;
 }
 
+function getCurrentGenerationDiagnosticFields() {
+  const baseline = triggerState.gateState.lastGenerationBaseline;
+
+  return {
+    baselineResolved: baseline?.baselineResolved ?? false,
+    baselineResolutionAt: baseline?.baselineResolutionAt || 0,
+    provisionalBaseline: !!baseline?.provisional,
+    generationStartedByUserIntent: !!baseline?.startedByUserIntent,
+    generationUserIntentSource: baseline?.userIntentSource || '',
+    generationUserIntentDetail: baseline?.userIntentDetail || '',
+    lastUserIntentSource: triggerState.gateState.lastUserIntentSource || ''
+  };
+}
+
+function getCurrentSessionGenerationFrozenFields() {
+  const baseline = triggerState.gateState.lastGenerationBaseline;
+
+  return {
+    sessionGenerationTraceId: triggerState.gateState.lastGenerationTraceId || '',
+    sessionGenerationStartedAt: baseline?.startedAt || 0,
+    sessionBaselineResolvedAtCreation: baseline?.baselineResolved ?? false,
+    sessionBaselineResolutionAtCreation: baseline?.baselineResolutionAt || 0,
+    sessionProvisionalBaselineAtCreation: !!baseline?.provisional,
+    sessionGenerationStartedByUserIntent: !!baseline?.startedByUserIntent,
+    sessionGenerationUserIntentSource: baseline?.userIntentSource || '',
+    sessionGenerationUserIntentDetail: baseline?.userIntentDetail || '',
+    sessionLastUserIntentSourceAtCreation: triggerState.gateState.lastUserIntentSource || '',
+    sessionGenerationCapturedAt: Date.now()
+  };
+}
+
 function createEventDebugSnapshot(snapshot = {}) {
+  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
+
   return {
     stage: '',
     eventType: '',
@@ -1003,11 +1278,14 @@ function createEventDebugSnapshot(snapshot = {}) {
     generationBaselineAssistantId: triggerState.gateState.lastGenerationBaseline?.lastAssistantMessageId || '',
     confirmationSource: '',
     isSpeculativeSession: false,
+    eventBelongsToCurrentGeneration: false,
+    historicalReplayBlocked: false,
+    historicalReplayReason: '',
     registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
     listenerSettings: getResolvedListenerSettings(),
     hasRecentUserTriggerIntent: hasRecentUserTriggerIntent(),
     hasConfirmedUserTriggerIntent: hasConfirmedUserTriggerIntent(),
-    generationStartedByUserIntent: !!triggerState.gateState.lastGenerationBaseline?.startedByUserIntent,
+    ...generationDiagnosticFields,
     ...snapshot
   };
 }
@@ -1046,6 +1324,8 @@ function shouldSkipAutoTriggerByListenerSettings() {
 }
 
 function createAutoTriggerSnapshot(snapshot = {}) {
+  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
+
   return {
     triggerEvent: '',
     traceId: '',
@@ -1058,7 +1338,11 @@ function createAutoTriggerSnapshot(snapshot = {}) {
     lockedAiMessageId: '',
     confirmedAssistantMessageId: '',
     confirmationSource: '',
+    eventBelongsToCurrentGeneration: false,
+    historicalReplayBlocked: false,
+    historicalReplayReason: '',
     generationTraceId: triggerState.gateState.lastGenerationTraceId || '',
+    ...generationDiagnosticFields,
     triggeredAt: Date.now(),
     ...snapshot
   };
@@ -1340,6 +1624,7 @@ export function updateGateState(update) {
 export function resetGateState() {
   triggerState.gateState = {
     lastUserSendIntentAt: 0,
+    lastUserIntentSource: '',
     lastUserMessageId: null,
     lastUserMessageText: '',
     lastUserMessageAt: 0,
@@ -1733,6 +2018,8 @@ function createMessageSession(eventType, data, snapshot = {}) {
   const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
   const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, messageId, eventType);
   const now = Date.now();
+  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
+  const generationFrozenFields = getCurrentSessionGenerationFrozenFields();
 
   return {
     sessionKey,
@@ -1744,6 +2031,9 @@ function createMessageSession(eventType, data, snapshot = {}) {
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || '',
     isSpeculativeSession: !!snapshot?.isSpeculativeSession,
+    eventBelongsToCurrentGeneration: !!snapshot?.eventBelongsToCurrentGeneration,
+    historicalReplayBlocked: !!snapshot?.historicalReplayBlocked,
+    historicalReplayReason: snapshot?.historicalReplayReason || '',
     skipReasonDetailed: snapshot?.skipReasonDetailed || '',
     firstEventType: snapshot?.eventType || eventType || '',
     receivedEvents: eventType ? [eventType] : [],
@@ -1755,6 +2045,23 @@ function createMessageSession(eventType, data, snapshot = {}) {
     candidateToolIds: Array.isArray(snapshot?.candidateToolIds) ? [...snapshot.candidateToolIds] : [],
     executionPathIds: Array.isArray(snapshot?.executionPathIds) ? [...snapshot.executionPathIds] : [],
     sourceMessageLocked: !!messageId,
+    baselineResolved: snapshot?.baselineResolved ?? generationDiagnosticFields.baselineResolved,
+    baselineResolutionAt: snapshot?.baselineResolutionAt ?? generationDiagnosticFields.baselineResolutionAt,
+    provisionalBaseline: snapshot?.provisionalBaseline ?? generationDiagnosticFields.provisionalBaseline,
+    generationStartedByUserIntent: snapshot?.generationStartedByUserIntent ?? generationDiagnosticFields.generationStartedByUserIntent,
+    generationUserIntentSource: snapshot?.generationUserIntentSource || generationDiagnosticFields.generationUserIntentSource,
+    generationUserIntentDetail: snapshot?.generationUserIntentDetail || generationDiagnosticFields.generationUserIntentDetail,
+    lastUserIntentSource: snapshot?.lastUserIntentSource || generationDiagnosticFields.lastUserIntentSource,
+    sessionGenerationTraceId: snapshot?.sessionGenerationTraceId || generationFrozenFields.sessionGenerationTraceId,
+    sessionGenerationStartedAt: snapshot?.sessionGenerationStartedAt ?? generationFrozenFields.sessionGenerationStartedAt,
+    sessionBaselineResolvedAtCreation: snapshot?.sessionBaselineResolvedAtCreation ?? generationFrozenFields.sessionBaselineResolvedAtCreation,
+    sessionBaselineResolutionAtCreation: snapshot?.sessionBaselineResolutionAtCreation ?? generationFrozenFields.sessionBaselineResolutionAtCreation,
+    sessionProvisionalBaselineAtCreation: snapshot?.sessionProvisionalBaselineAtCreation ?? generationFrozenFields.sessionProvisionalBaselineAtCreation,
+    sessionGenerationStartedByUserIntent: snapshot?.sessionGenerationStartedByUserIntent ?? generationFrozenFields.sessionGenerationStartedByUserIntent,
+    sessionGenerationUserIntentSource: snapshot?.sessionGenerationUserIntentSource || generationFrozenFields.sessionGenerationUserIntentSource,
+    sessionGenerationUserIntentDetail: snapshot?.sessionGenerationUserIntentDetail || generationFrozenFields.sessionGenerationUserIntentDetail,
+    sessionLastUserIntentSourceAtCreation: snapshot?.sessionLastUserIntentSourceAtCreation || generationFrozenFields.sessionLastUserIntentSourceAtCreation,
+    sessionGenerationCapturedAt: snapshot?.sessionGenerationCapturedAt ?? generationFrozenFields.sessionGenerationCapturedAt,
     createdAt: now,
     updatedAt: now
   };
@@ -1814,6 +2121,18 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
     session.skipReasonDetailed = snapshot.skipReasonDetailed;
   }
 
+  if (snapshot?.eventBelongsToCurrentGeneration !== undefined) {
+    session.eventBelongsToCurrentGeneration = !!snapshot.eventBelongsToCurrentGeneration;
+  }
+
+  if (snapshot?.historicalReplayBlocked !== undefined) {
+    session.historicalReplayBlocked = !!snapshot.historicalReplayBlocked;
+  }
+
+  if (snapshot?.historicalReplayReason) {
+    session.historicalReplayReason = snapshot.historicalReplayReason;
+  }
+
   if (snapshot?.isSpeculativeSession !== undefined) {
     session.isSpeculativeSession = !!snapshot.isSpeculativeSession;
   }
@@ -1822,14 +2141,15 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
     session.candidateToolIds = [...snapshot.candidateToolIds];
   }
 
-  session.updatedAt = Date.now();
-  return session;
+  return updateMessageSession(session, {});
 }
 
 function updateMessageSession(session, partial = {}) {
   if (!session) return null;
 
-  Object.assign(session, partial, {
+  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
+
+  Object.assign(session, generationDiagnosticFields, partial, {
     updatedAt: Date.now()
   });
 
@@ -1852,6 +2172,7 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
   if (!session) return null;
 
   const { historyRetentionLimit } = getResolvedListenerSettings();
+  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
   const entry = {
     id: historyPartial?.id || createTraceId('session_hist'),
     at: historyPartial?.at || Date.now(),
@@ -1865,6 +2186,29 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
     confirmedAssistantMessageId: historyPartial?.confirmedAssistantMessageId || session.confirmedAssistantMessageId || '',
     confirmationSource: historyPartial?.confirmationSource || session.confirmationSource || '',
     isSpeculativeSession: historyPartial?.isSpeculativeSession ?? session.isSpeculativeSession ?? false,
+    eventBelongsToCurrentGeneration: historyPartial?.eventBelongsToCurrentGeneration ?? session.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: historyPartial?.historicalReplayBlocked ?? session.historicalReplayBlocked ?? false,
+    historicalReplayReason: historyPartial?.historicalReplayReason || session.historicalReplayReason || '',
+    generationTraceId: historyPartial?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
+    generationStartedAt: historyPartial?.generationStartedAt || triggerState.gateState.lastGenerationBaseline?.startedAt || 0,
+    generationDryRun: historyPartial?.generationDryRun ?? !!triggerState.gateState.lastGenerationDryRun,
+    baselineResolved: historyPartial?.baselineResolved ?? session.baselineResolved ?? generationDiagnosticFields.baselineResolved,
+    baselineResolutionAt: historyPartial?.baselineResolutionAt ?? session.baselineResolutionAt ?? generationDiagnosticFields.baselineResolutionAt,
+    provisionalBaseline: historyPartial?.provisionalBaseline ?? session.provisionalBaseline ?? generationDiagnosticFields.provisionalBaseline,
+    generationStartedByUserIntent: historyPartial?.generationStartedByUserIntent ?? session.generationStartedByUserIntent ?? generationDiagnosticFields.generationStartedByUserIntent,
+    generationUserIntentSource: historyPartial?.generationUserIntentSource || session.generationUserIntentSource || generationDiagnosticFields.generationUserIntentSource,
+    generationUserIntentDetail: historyPartial?.generationUserIntentDetail || session.generationUserIntentDetail || generationDiagnosticFields.generationUserIntentDetail,
+    lastUserIntentSource: historyPartial?.lastUserIntentSource || session.lastUserIntentSource || generationDiagnosticFields.lastUserIntentSource,
+    sessionGenerationTraceId: historyPartial?.sessionGenerationTraceId || session.sessionGenerationTraceId || '',
+    sessionGenerationStartedAt: historyPartial?.sessionGenerationStartedAt ?? session.sessionGenerationStartedAt ?? 0,
+    sessionBaselineResolvedAtCreation: historyPartial?.sessionBaselineResolvedAtCreation ?? session.sessionBaselineResolvedAtCreation ?? false,
+    sessionBaselineResolutionAtCreation: historyPartial?.sessionBaselineResolutionAtCreation ?? session.sessionBaselineResolutionAtCreation ?? 0,
+    sessionProvisionalBaselineAtCreation: historyPartial?.sessionProvisionalBaselineAtCreation ?? session.sessionProvisionalBaselineAtCreation ?? false,
+    sessionGenerationStartedByUserIntent: historyPartial?.sessionGenerationStartedByUserIntent ?? session.sessionGenerationStartedByUserIntent ?? false,
+    sessionGenerationUserIntentSource: historyPartial?.sessionGenerationUserIntentSource || session.sessionGenerationUserIntentSource || '',
+    sessionGenerationUserIntentDetail: historyPartial?.sessionGenerationUserIntentDetail || session.sessionGenerationUserIntentDetail || '',
+    sessionLastUserIntentSourceAtCreation: historyPartial?.sessionLastUserIntentSourceAtCreation || session.sessionLastUserIntentSourceAtCreation || '',
+    sessionGenerationCapturedAt: historyPartial?.sessionGenerationCapturedAt ?? session.sessionGenerationCapturedAt ?? Date.now(),
     skipReason: historyPartial?.skipReason || session.skipReason || '',
     skipReasonDetailed: historyPartial?.skipReasonDetailed || session.skipReasonDetailed || '',
     candidateToolIds: Array.isArray(historyPartial?.candidateToolIds)
@@ -1906,6 +2250,186 @@ function appendWritebackHistoryForTool(toolId, historyEntry = {}) {
   });
 }
 
+function cloneDiagnosticEntryForOutput(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+
+  const driftFlags = buildDiagnosticEntryDriftFlags(entry);
+
+  return {
+    ...entry,
+    ...driftFlags,
+    receivedEvents: Array.isArray(entry.receivedEvents) ? [...entry.receivedEvents] : undefined,
+    candidateToolIds: Array.isArray(entry.candidateToolIds) ? [...entry.candidateToolIds] : undefined,
+    executionPathIds: Array.isArray(entry.executionPathIds) ? [...entry.executionPathIds] : undefined,
+    driftReasons: Array.isArray(driftFlags.driftReasons) ? [...driftFlags.driftReasons] : []
+  };
+}
+
+function normalizeDiagnosticString(value) {
+  return String(value || '').trim();
+}
+
+function buildDiagnosticEntryDriftFlags(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return {
+      driftDetected: false,
+      generationTraceDrifted: false,
+      generationUserIntentDrifted: false,
+      baselineResolvedStateChanged: false,
+      baselineResolutionAdvancedSinceSessionCreation: false,
+      driftReasons: []
+    };
+  }
+
+  const hasSessionFrozenFields = entry.sessionGenerationCapturedAt !== undefined
+    || entry.sessionGenerationTraceId !== undefined
+    || entry.sessionBaselineResolvedAtCreation !== undefined
+    || entry.sessionGenerationStartedByUserIntent !== undefined
+    || entry.sessionGenerationUserIntentSource !== undefined
+    || entry.sessionGenerationUserIntentDetail !== undefined;
+
+  if (!hasSessionFrozenFields) {
+    return {
+      driftDetected: false,
+      generationTraceDrifted: false,
+      generationUserIntentDrifted: false,
+      baselineResolvedStateChanged: false,
+      baselineResolutionAdvancedSinceSessionCreation: false,
+      driftReasons: []
+    };
+  }
+
+  const sessionGenerationTraceId = normalizeDiagnosticString(entry.sessionGenerationTraceId);
+  const generationTraceId = normalizeDiagnosticString(entry.generationTraceId);
+  const sessionGenerationUserIntentSource = normalizeDiagnosticString(entry.sessionGenerationUserIntentSource);
+  const generationUserIntentSource = normalizeDiagnosticString(entry.generationUserIntentSource);
+  const sessionGenerationUserIntentDetail = normalizeDiagnosticString(entry.sessionGenerationUserIntentDetail);
+  const generationUserIntentDetail = normalizeDiagnosticString(entry.generationUserIntentDetail);
+
+  const generationTraceDrifted = !!sessionGenerationTraceId
+    && !!generationTraceId
+    && sessionGenerationTraceId !== generationTraceId;
+
+  const generationUserIntentDrifted = Boolean(entry.sessionGenerationStartedByUserIntent) !== Boolean(entry.generationStartedByUserIntent)
+    || ((sessionGenerationUserIntentSource || generationUserIntentSource)
+      ? sessionGenerationUserIntentSource !== generationUserIntentSource
+      : false)
+    || ((sessionGenerationUserIntentDetail || generationUserIntentDetail)
+      ? sessionGenerationUserIntentDetail !== generationUserIntentDetail
+      : false);
+
+  const baselineResolvedStateChanged = Boolean(entry.sessionBaselineResolvedAtCreation) !== Boolean(entry.baselineResolved);
+  const baselineResolutionAdvancedSinceSessionCreation = (Number(entry.baselineResolutionAt) || 0)
+    > (Number(entry.sessionBaselineResolutionAtCreation) || 0);
+
+  const driftReasons = [];
+
+  if (generationTraceDrifted) {
+    driftReasons.push('generation_trace_changed');
+  }
+
+  if (generationUserIntentDrifted) {
+    driftReasons.push('generation_user_intent_changed');
+  }
+
+  if (baselineResolvedStateChanged) {
+    driftReasons.push('baseline_resolved_state_changed');
+  }
+
+  if (baselineResolutionAdvancedSinceSessionCreation) {
+    driftReasons.push('baseline_resolution_advanced');
+  }
+
+  return {
+    driftDetected: driftReasons.length > 0,
+    generationTraceDrifted,
+    generationUserIntentDrifted,
+    baselineResolvedStateChanged,
+    baselineResolutionAdvancedSinceSessionCreation,
+    driftReasons
+  };
+}
+
+function buildDiagnosticPhaseCounts(entries = []) {
+  return (Array.isArray(entries) ? entries : []).reduce((accumulator, entry) => {
+    const phase = normalizeDiagnosticString(entry?.phase) || 'unknown';
+    accumulator[phase] = (accumulator[phase] || 0) + 1;
+    return accumulator;
+  }, {});
+}
+
+function buildDiagnosticDriftSummary(entries = []) {
+  const summary = {
+    entryCount: 0,
+    driftDetectedCount: 0,
+    generationTraceDriftCount: 0,
+    generationUserIntentDriftCount: 0,
+    baselineResolvedStateChangedCount: 0,
+    baselineResolutionAdvancedCount: 0
+  };
+
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const driftFlags = buildDiagnosticEntryDriftFlags(entry);
+    summary.entryCount += 1;
+
+    if (driftFlags.driftDetected) {
+      summary.driftDetectedCount += 1;
+    }
+
+    if (driftFlags.generationTraceDrifted) {
+      summary.generationTraceDriftCount += 1;
+    }
+
+    if (driftFlags.generationUserIntentDrifted) {
+      summary.generationUserIntentDriftCount += 1;
+    }
+
+    if (driftFlags.baselineResolvedStateChanged) {
+      summary.baselineResolvedStateChangedCount += 1;
+    }
+
+    if (driftFlags.baselineResolutionAdvancedSinceSessionCreation) {
+      summary.baselineResolutionAdvancedCount += 1;
+    }
+  }
+
+  return summary;
+}
+
+function buildEventBridgeDiagnosticSummary() {
+  const directBridge = resolveDirectEventBridge();
+  const resolvedEventSource = directBridge.eventSource || eventBridgeState.eventSource || null;
+
+  return {
+    source: directBridge.source || eventBridgeState.source || '',
+    ready: isValidEventSource(resolvedEventSource),
+    hasImportedScriptModule: !!eventBridgeState.scriptModule,
+    importError: eventBridgeState.importError?.message || ''
+  };
+}
+
+function buildGateStateDiagnosticSummary() {
+  const baseline = triggerState.gateState.lastGenerationBaseline;
+
+  return {
+    lastUserSendIntentAt: triggerState.gateState.lastUserSendIntentAt || 0,
+    lastUserIntentSource: triggerState.gateState.lastUserIntentSource || '',
+    lastUserMessageId: normalizeMessageIdentityValue(triggerState.gateState.lastUserMessageId),
+    lastUserMessageAt: triggerState.gateState.lastUserMessageAt || 0,
+    lastGenerationTraceId: triggerState.gateState.lastGenerationTraceId || '',
+    lastGenerationType: triggerState.gateState.lastGenerationType || '',
+    lastGenerationDryRun: !!triggerState.gateState.lastGenerationDryRun,
+    lastGenerationAt: triggerState.gateState.lastGenerationAt || 0,
+    isGenerating: !!triggerState.gateState.isGenerating,
+    uiTransitionGuardUntil: triggerState.gateState.uiTransitionGuardUntil || 0,
+    lastUiTransitionAt: triggerState.gateState.lastUiTransitionAt || 0,
+    lastUiTransitionSource: triggerState.gateState.lastUiTransitionSource || '',
+    baselineMessageCount: baseline?.messageCount || 0,
+    baselineAssistantId: baseline?.lastAssistantMessageId || '',
+    ...getCurrentGenerationDiagnosticFields()
+  };
+}
+
 function shouldReportDuplicateSkip(messageKey) {
   const now = Date.now();
   if (
@@ -1935,6 +2459,9 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || 'none',
     skipReasonDetailed: snapshot?.skipReasonDetailed || 'speculative_session_only',
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || '',
     isSpeculativeSession: true
   });
   const reason = snapshot?.reason || AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE;
@@ -1960,6 +2487,9 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || 'none',
     isSpeculativeSession: true,
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || '',
     handledAt: Date.now()
   });
 
@@ -1969,6 +2499,9 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     skipReasonDetailed: detail,
     confirmationSource: snapshot?.confirmationSource || 'none',
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || '',
     isSpeculativeSession: true,
     completedAt: Date.now()
   });
@@ -1980,6 +2513,9 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     skipReasonDetailed: detail,
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || 'none',
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || '',
     isSpeculativeSession: true
   });
 
@@ -2007,12 +2543,18 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         ...data,
         messageId: confirmedAssistantMessageId,
         confirmedAssistantMessageId,
-        confirmationSource: snapshot?.confirmationSource || data?.confirmationSource || ''
+        confirmationSource: snapshot?.confirmationSource || data?.confirmationSource || '',
+        eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? data?.eventBelongsToCurrentGeneration ?? false,
+        historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? data?.historicalReplayBlocked ?? false,
+        historicalReplayReason: snapshot?.historicalReplayReason || data?.historicalReplayReason || ''
       }
     : {
         messageId: confirmedAssistantMessageId,
         confirmedAssistantMessageId,
-        confirmationSource: snapshot?.confirmationSource || ''
+        confirmationSource: snapshot?.confirmationSource || '',
+        eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
+        historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
+        historicalReplayReason: snapshot?.historicalReplayReason || ''
       };
 
   const session = getOrCreateMessageSession(eventType, enrichedData, {
@@ -2021,6 +2563,9 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
     isSpeculativeSession: false
   });
   const resolvedDelayMs = Number.isFinite(delayMs)
@@ -2037,6 +2582,9 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
     isSpeculativeSession: false,
     scheduledAt: Date.now()
   });
@@ -2046,6 +2594,9 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
     isSpeculativeSession: false
   });
 
@@ -2058,6 +2609,9 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
     isSpeculativeSession: false,
+    eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
+    historicalReplayReason: snapshot?.historicalReplayReason || '',
     scheduledDelayMs: resolvedDelayMs
   });
   traceAlways('info', '已调度确认后的自动触发', {
@@ -2092,6 +2646,9 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
       confirmedAssistantMessageId,
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
       isSpeculativeSession: false,
+      eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
+      historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
+      historicalReplayReason: snapshot?.historicalReplayReason || '',
       scheduledDelayMs: resolvedDelayMs
     });
     await handleAutoTrigger(eventType, enrichedData);
@@ -2145,6 +2702,11 @@ async function handleAutoTrigger(eventType, data) {
   const candidateToolIds = candidateTools.map(tool => tool.id);
   const listenerDecision = shouldSkipAutoTriggerByListenerSettings();
   const incomingMessageId = extractEventMessageId(data, eventType);
+  const eventBelongsToCurrentGeneration = !!(typeof data === 'object' && data ? data?.eventBelongsToCurrentGeneration : false);
+  const historicalReplayBlocked = !!(typeof data === 'object' && data ? data?.historicalReplayBlocked : false);
+  const historicalReplayReason = typeof data === 'object' && data
+    ? String(data?.historicalReplayReason || '').trim()
+    : '';
   const confirmedAssistantMessageId = normalizeMessageIdentityValue(
     (typeof data === 'object' && data ? data?.confirmedAssistantMessageId : '')
     || incomingMessageId
@@ -2154,6 +2716,9 @@ async function handleAutoTrigger(eventType, data) {
     messageId: incomingMessageId,
     confirmedAssistantMessageId,
     confirmationSource,
+    eventBelongsToCurrentGeneration,
+    historicalReplayBlocked,
+    historicalReplayReason,
     candidateToolIds
   });
 
@@ -2163,6 +2728,9 @@ async function handleAutoTrigger(eventType, data) {
     confirmedAssistantMessageId,
     confirmationSource,
     isSpeculativeSession: false,
+    eventBelongsToCurrentGeneration,
+    historicalReplayBlocked,
+    historicalReplayReason,
     candidateToolIds
   });
   appendMessageSessionHistory(session, {
@@ -2172,6 +2740,9 @@ async function handleAutoTrigger(eventType, data) {
     confirmedAssistantMessageId,
     confirmationSource,
     isSpeculativeSession: false,
+    eventBelongsToCurrentGeneration,
+    historicalReplayBlocked,
+    historicalReplayReason,
     candidateToolIds
   });
 
@@ -2184,6 +2755,9 @@ async function handleAutoTrigger(eventType, data) {
     confirmedAssistantMessageId,
     confirmationSource,
     isSpeculativeSession: false,
+    eventBelongsToCurrentGeneration,
+    historicalReplayBlocked,
+    historicalReplayReason,
     candidateToolIds,
     handledAt: Date.now()
   });
@@ -2875,6 +3449,7 @@ export function initToolTriggerManager() {
 function registerGenerationEndedListener() {
   const generationEndedListener = registerEventListener(EVENT_TYPES.GENERATION_ENDED, async (data) => {
     const incomingMessageId = extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED);
+    const activeGenerationTraceId = triggerState.gateState.lastGenerationTraceId || '';
     const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_ENDED, data, {
       eventType: EVENT_TYPES.GENERATION_ENDED,
       messageId: incomingMessageId
@@ -2893,7 +3468,12 @@ function registerGenerationEndedListener() {
       messageId: incomingMessageId
     });
 
-    const eligibility = getGenerationConfirmationEligibility();
+    const resolvedBaseline = await waitForResolvedGenerationBaseline({
+      traceId: activeGenerationTraceId,
+      retries: 6,
+      retryDelayMs: 80
+    });
+    const eligibility = getGenerationConfirmationEligibility(resolvedBaseline);
     if (!eligibility.eligible) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_ENDED, data, {
         messageId: incomingMessageId,
@@ -2915,7 +3495,10 @@ function registerGenerationEndedListener() {
         messageId: incomingMessageId,
         reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
         skipReasonDetailed: 'missing_new_assistant_message_after_generation',
-        confirmationSource: 'none'
+        confirmationSource: 'none',
+        eventBelongsToCurrentGeneration: !!resolvedBaseline,
+        historicalReplayBlocked: false,
+        historicalReplayReason: ''
       });
       return;
     }
@@ -2924,12 +3507,16 @@ function registerGenerationEndedListener() {
       ...(typeof data === 'object' && data ? data : {}),
       messageId: confirmedAssistantMessageId,
       confirmedAssistantMessageId,
-      confirmationSource: 'generation_ended'
+      confirmationSource: 'generation_ended',
+      eventBelongsToCurrentGeneration: true,
+      historicalReplayBlocked: false,
+      historicalReplayReason: ''
     });
   });
 
   const generationAfterCommandsListener = registerEventListener(EVENT_TYPES.GENERATION_AFTER_COMMANDS, async (data) => {
     const incomingMessageId = extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS);
+    const activeGenerationTraceId = triggerState.gateState.lastGenerationTraceId || '';
     const { debounceMs } = getResolvedListenerSettings();
     const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
       eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
@@ -2964,7 +3551,12 @@ function registerGenerationEndedListener() {
       return;
     }
 
-    const eligibility = getGenerationConfirmationEligibility();
+    const resolvedBaseline = await waitForResolvedGenerationBaseline({
+      traceId: activeGenerationTraceId,
+      retries: 6,
+      retryDelayMs: 80
+    });
+    const eligibility = getGenerationConfirmationEligibility(resolvedBaseline);
     if (!incomingMessageId) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
         reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
@@ -2997,7 +3589,10 @@ function registerGenerationEndedListener() {
         messageId: incomingMessageId,
         reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
         skipReasonDetailed: 'generation_after_commands_message_not_confirmed',
-        confirmationSource: 'none'
+        confirmationSource: 'none',
+        eventBelongsToCurrentGeneration: !!resolvedBaseline,
+        historicalReplayBlocked: false,
+        historicalReplayReason: ''
       });
       return;
     }
@@ -3005,7 +3600,10 @@ function registerGenerationEndedListener() {
     scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, debounceMs, {
       messageId: incomingMessageId,
       confirmedAssistantMessageId,
-      confirmationSource: 'generation_after_commands'
+      confirmationSource: 'generation_after_commands',
+      eventBelongsToCurrentGeneration: true,
+      historicalReplayBlocked: false,
+      historicalReplayReason: ''
     });
   });
 
@@ -3135,6 +3733,23 @@ function registerGenerationEndedListener() {
       return;
     }
 
+    const confirmationCandidate = await evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry, {
+      traceId: triggerState.gateState.lastGenerationTraceId || ''
+    });
+
+    if (!confirmationCandidate.allowed) {
+      scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
+        messageId: effectiveMessageId,
+        reason: confirmationCandidate.reason,
+        skipReasonDetailed: confirmationCandidate.detail,
+        confirmationSource: 'none',
+        eventBelongsToCurrentGeneration: confirmationCandidate.eventBelongsToCurrentGeneration,
+        historicalReplayBlocked: confirmationCandidate.historicalReplayBlocked,
+        historicalReplayReason: confirmationCandidate.historicalReplayReason
+      });
+      return;
+    }
+
     const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(effectiveMessageId, {
       retries: 3,
       retryDelayMs: 120
@@ -3146,7 +3761,10 @@ function registerGenerationEndedListener() {
         messageId: effectiveMessageId,
         reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
         skipReasonDetailed: 'message_received_not_confirmed_as_new_assistant',
-        confirmationSource: 'none'
+        confirmationSource: 'none',
+        eventBelongsToCurrentGeneration: true,
+        historicalReplayBlocked: false,
+        historicalReplayReason: ''
       });
       return;
     }
@@ -3154,7 +3772,10 @@ function registerGenerationEndedListener() {
     scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, debounceMs, {
       messageId: effectiveMessageId,
       confirmedAssistantMessageId,
-      confirmationSource: 'message_received'
+      confirmationSource: 'message_received',
+      eventBelongsToCurrentGeneration: true,
+      historicalReplayBlocked: false,
+      historicalReplayReason: ''
     });
   });
   
@@ -3520,14 +4141,87 @@ export function destroyToolTriggerManager() {
  * @returns {Object} 状态对象
  */
 export function getToolTriggerManagerState() {
+  const activeSessions = Array.from(toolTriggerManagerState.messageSessions.values())
+    .map(cloneDiagnosticEntryForOutput)
+    .filter(Boolean)
+    .sort((left, right) => (Number(left?.updatedAt) || 0) - (Number(right?.updatedAt) || 0));
+  const recentSessionHistory = [...toolTriggerManagerState.recentSessionHistory]
+    .map(cloneDiagnosticEntryForOutput)
+    .filter(Boolean);
+
   return {
     initialized: toolTriggerManagerState.initialized,
     listenersCount: toolTriggerManagerState.listeners.size,
     activeSessionCount: toolTriggerManagerState.messageSessions.size,
-    recentSessionHistory: [...toolTriggerManagerState.recentSessionHistory],
+    activeSessions,
+    recentSessionHistory,
     lastExecutionContext: toolTriggerManagerState.lastExecutionContext,
     lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot,
-    lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot
+    lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot,
+    registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
+    pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
+    lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey,
+    listenerSettings: getResolvedListenerSettings(),
+    eventBridge: buildEventBridgeDiagnosticSummary(),
+    gateState: buildGateStateDiagnosticSummary()
+  };
+}
+
+export function getAutoTriggerDiagnostics(options = {}) {
+  const parsedHistoryLimit = parseInt(options?.historyLimit, 10);
+  const historyLimit = Number.isFinite(parsedHistoryLimit)
+    ? Math.max(1, Math.min(50, parsedHistoryLimit))
+    : 8;
+  const baseline = triggerState.gateState.lastGenerationBaseline;
+
+  const activeSessions = Array.from(toolTriggerManagerState.messageSessions.values())
+    .map(cloneDiagnosticEntryForOutput)
+    .filter(Boolean)
+    .sort((left, right) => (Number(left?.updatedAt) || 0) - (Number(right?.updatedAt) || 0));
+
+  const recentSessionHistory = trimManagerHistoryEntries([
+    ...toolTriggerManagerState.recentSessionHistory
+  ], historyLimit).map(cloneDiagnosticEntryForOutput);
+
+  const phaseCounts = {
+    activeSessions: buildDiagnosticPhaseCounts(activeSessions),
+    recentSessionHistory: buildDiagnosticPhaseCounts(recentSessionHistory)
+  };
+
+  const consistency = {
+    activeSessions: buildDiagnosticDriftSummary(activeSessions),
+    recentSessionHistory: buildDiagnosticDriftSummary(recentSessionHistory)
+  };
+
+  return {
+    summary: {
+      generationTraceId: triggerState.gateState.lastGenerationTraceId || '',
+      generationType: triggerState.gateState.lastGenerationType || '',
+      generationDryRun: !!triggerState.gateState.lastGenerationDryRun,
+      generationStartedAt: baseline?.startedAt || 0,
+      generationEndedAt: triggerState.gateState.lastGenerationAt || 0,
+      isGenerating: !!triggerState.gateState.isGenerating,
+      baselineMessageCount: baseline?.messageCount || 0,
+      baselineAssistantId: baseline?.lastAssistantMessageId || '',
+      uiTransitionGuardActive: isUiTransitionGuardActive(),
+      uiTransitionGuardUntil: triggerState.gateState.uiTransitionGuardUntil || 0,
+      lastUiTransitionSource: triggerState.gateState.lastUiTransitionSource || '',
+      activeSessionCount: toolTriggerManagerState.messageSessions.size,
+      pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
+      lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey || '',
+      lastDuplicateMessageKey: toolTriggerManagerState.lastDuplicateMessageKey || '',
+      registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
+      listenerSettings: getResolvedListenerSettings(),
+      eventBridge: buildEventBridgeDiagnosticSummary(),
+      gateState: buildGateStateDiagnosticSummary(),
+      phaseCounts,
+      consistency,
+      ...getCurrentGenerationDiagnosticFields()
+    },
+    activeSessions,
+    recentSessionHistory,
+    lastEventDebugSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastEventDebugSnapshot),
+    lastAutoTriggerSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastAutoTriggerSnapshot)
   };
 }
 
@@ -3598,6 +4292,7 @@ export async function initTriggerModule() {
 
       updateGateState({
         lastUserSendIntentAt: Date.now(),
+        lastUserIntentSource: 'message_sent',
         lastUserMessageId: messageId,
         lastUserMessageAt: Date.now(),
         lastUserMessageText: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || ''
@@ -3613,19 +4308,24 @@ export async function initTriggerModule() {
   registerEventListener(EVENT_TYPES.GENERATION_STARTED, async (type, params, dryRun) => {
       const startedAt = Date.now();
       const traceId = createTraceId('generation');
-      const startedByUserIntent = hasRecentUserTriggerIntent(startedAt);
-      const userIntentDetectedAt = Math.max(
-        Number(triggerState.gateState.lastUserSendIntentAt) || 0,
-        Number(triggerState.gateState.lastUserMessageAt) || 0
-      );
-      const baseline = await captureGenerationBaseline({
+      const generationUserIntent = resolveGenerationUserIntent(type, params || null, startedAt);
+      const startedByUserIntent = generationUserIntent.startedByUserIntent;
+      const userIntentDetectedAt = generationUserIntent.userIntentDetectedAt;
+      const userIntentSource = generationUserIntent.userIntentSource;
+      const userIntentDetail = generationUserIntent.userIntentDetail;
+      const provisionalBaseline = createProvisionalGenerationBaseline({
         traceId,
         startedAt,
         type,
         params: params || null,
         dryRun: !!dryRun,
         startedByUserIntent,
-        userIntentDetectedAt
+        userIntentDetectedAt,
+        userIntentSource,
+        userIntentDetail,
+        baselineResolved: false,
+        provisional: true,
+        baselineSource: 'generation_started_sync_provisional'
       });
 
       updateGateState({
@@ -3634,7 +4334,7 @@ export async function initTriggerModule() {
         lastGenerationParams: params || null,
         lastGenerationDryRun: !!dryRun,
         isGenerating: true,
-        lastGenerationBaseline: baseline
+        lastGenerationBaseline: provisionalBaseline
       });
       log(`生成开始: ${type}`);
       traceAlways('info', '收到生成开始事件', {
@@ -3643,7 +4343,64 @@ export async function initTriggerModule() {
         params: params || null,
         traceId,
         startedByUserIntent,
-        baseline
+        userIntentSource,
+        userIntentDetail,
+        baseline: provisionalBaseline
+      });
+
+      captureGenerationBaseline({
+        traceId,
+        startedAt,
+        type,
+        params: params || null,
+        dryRun: !!dryRun,
+        startedByUserIntent,
+        userIntentDetectedAt,
+        userIntentSource,
+        userIntentDetail,
+        baselineResolved: true,
+        provisional: false,
+        baselineResolutionAt: Date.now(),
+        baselineSource: 'generation_started_async_resolved'
+      }).then((resolvedBaseline) => {
+        const currentBaseline = triggerState.gateState.lastGenerationBaseline;
+        if (!currentBaseline || currentBaseline.traceId !== traceId) {
+          traceAlways('info', 'generation baseline 已过期，放弃回填', {
+            traceId,
+            currentTraceId: currentBaseline?.traceId || ''
+          });
+          return;
+        }
+
+        updateGateState({
+          lastGenerationBaseline: resolvedBaseline
+        });
+        traceAlways('info', 'generation baseline 已完成解析', {
+          traceId,
+          baseline: resolvedBaseline
+        });
+      }).catch((error) => {
+        const currentBaseline = triggerState.gateState.lastGenerationBaseline;
+        if (!currentBaseline || currentBaseline.traceId !== traceId) {
+          return;
+        }
+
+        const fallbackBaseline = {
+          ...currentBaseline,
+          baselineResolved: true,
+          baselineResolutionAt: Date.now(),
+          provisional: false,
+          baselineSource: 'generation_started_async_failed_fallback'
+        };
+
+        updateGateState({
+          lastGenerationBaseline: fallbackBaseline
+        });
+        traceAlways('warn', 'generation baseline 解析失败，已回退到 provisional baseline', {
+          traceId,
+          error: error?.message || String(error),
+          baseline: fallbackBaseline
+        });
       });
     });
   

@@ -114,22 +114,6 @@ export function createPopupShell(context) {
     if (currentPageDesc) {
       currentPageDesc.textContent = description;
     }
-
-    syncShellActions();
-  }
-
-  function syncShellActions() {
-    const popup = uiState.currentPopup;
-    if (!popup) return;
-
-    const shellSaveButton = popup.querySelector(`#${SCRIPT_ID}-shell-save-btn`);
-    if (!shellSaveButton) return;
-
-    const activeTabContent = popup.querySelector('.yyt-tab-content.active');
-    const targetSaveButton = activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save-top`)
-      || activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save`);
-
-    shellSaveButton.hidden = !targetSaveButton;
   }
 
   function cleanupPopupDrag() {
@@ -487,7 +471,6 @@ export function createPopupShell(context) {
     renderTabContent(tabName);
     updatePopupStatus();
     refreshScrollableSurfaces();
-    syncShellActions();
   }
 
   function switchSubTab(mainTab, subTab) {
@@ -998,10 +981,6 @@ export function createPopupShell(context) {
                       <i class="fa-solid fa-circle-info"></i>
                       <span>保存后自动监听与写回链会使用最新配置</span>
                     </div>
-                    <button class="yyt-btn yyt-btn-primary yyt-btn-small yyt-shell-main-save-btn" id="${SCRIPT_ID}-shell-save-btn" hidden>
-                      <i class="fa-solid fa-save"></i>
-                      <span>保存当前工具</span>
-                    </button>
                   </div>
                 </div>
 
@@ -1045,15 +1024,6 @@ export function createPopupShell(context) {
 
     $(uiState.currentPopup).find('.yyt-popup-close').on('click', closePopup);
     $(uiState.currentPopup).find(`#${SCRIPT_ID}-close-btn`).on('click', closePopup);
-    $(uiState.currentPopup).find(`#${SCRIPT_ID}-shell-save-btn`).on('click', () => {
-      const activeTabContent = uiState.currentPopup?.querySelector('.yyt-tab-content.active');
-      const targetSaveButton = activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save-top`)
-        || activeTabContent?.querySelector(`#${SCRIPT_ID}-tool-save`);
-
-      if (targetSaveButton instanceof HTMLElement) {
-        targetSaveButton.click();
-      }
-    });
     $(uiState.currentPopup).find('.yyt-main-nav-item').on('click', function onMainTabClick() {
       const tab = $(this).data('tab');
       if (tab) {

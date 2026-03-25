@@ -1,7 +1,7 @@
 # YouYou Toolkit 优化施工进程文档
 
 > 创建时间：2026-03-21  
-> 最后更新时间：2026-03-24  
+> 最后更新时间：2026-03-25  
 > 关联文档：`docs/ARCHITECTURE_ANALYSIS.md`、`docs/OPTIMIZATION_EXECUTION_PLAN.md`  
 > 当前目标：先建立统一施工记录载体，再按 Phase 推进代码优化
 
@@ -56,6 +56,14 @@
 - `modules/tool-trigger.js` 已进一步补上 `MESSAGE_RECEIVED` 的非 AI 楼层过滤，以及短时间重复去重日志收敛，减少真实宿主环境中的误监听与调试噪声
 - `modules/tool-trigger.js` 已进一步引入 message session 聚合、运行态触发/写回历史与 trace 贯通；`modules/context-injector.js` 已补上块身份与冲突诊断结果
 - `modules/context-injector.js` 已新增 `injectDetailed()` 分层写回结果，`modules/tool-output-service.js` 的 `meta` 现已补充 `writebackDetails`
+- 用户已在宿主环境确认本轮“旧对话 / 聊天信息窗口误触发工具”问题修复生效，自动触发链状态机收口方案已落地并通过实际使用验证
+- popup shell 头部曾临时补上的“保存当前工具”按钮已确认属于误做入口，现已删除，仅保留工具面板内部原有保存按钮
+- 已新增 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`，用于承载下一轮自动触发链残余风险的专项补修方案
+- `modules/tool-trigger.js` 已开始落实专项补修的第一轮施工：补上 provisional baseline、resolved baseline 等待机制与 `MESSAGE_RECEIVED` 历史 replay 防线
+- `modules/tool-trigger.js` 已继续落实专项补修第二轮：恢复用户主动 `regenerate / swipe` 的合法自动触发路径，并把 `ignoreAutoTrigger` 的拦截职责重新收口到监听器设置层
+- `modules/tool-trigger.js` 已进一步为 `messageSessions / recentSessionHistory` 补齐 session 级 generation 意图诊断字段，方便宿主执行 A10 ~ A13 时回看每个 phase 的门控状态
+- `modules/tool-trigger.js` / `modules/app/public-api.js` 已新增 `getAutoTriggerDiagnostics()` 聚合诊断入口，宿主回归时可直接读取 `summary / activeSessions / recentSessionHistory`，不再需要手工拼装多份状态
+- `modules/tool-trigger.js` 已继续补齐 N1 宿主验收辅助摘要：`getAutoTriggerDiagnostics().summary` 现可直接输出 `phaseCounts / consistency / eventBridge / gateState`，`getToolTriggerManagerState()` 也已补上 `activeSessions / registeredEvents / pendingTimerCount`，便于快速判断 session 冻结字段是否与当前 generation 发生漂移
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
 
@@ -64,8 +72,29 @@
 下一步优先执行：
 
 1. 使用新的 `lastEventDebugSnapshot` 与 `writebackDetails` 在真实宿主环境里补一轮自动触发 / 写回链实测
-2. 若实测仍有问题，优先按“事件级 -> 写回级”两层诊断继续排查
-3. 若实测通过，再决定是否继续做额外视觉、调试页或历史面板增强
+2. 若继续补修自动触发链，则优先按 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 处理 baseline 竞态与历史 replay 风险
+3. 在真实宿主中补跑一轮 `regenerate / swipe`、非用户意图 generation、A10/A11/A12/A13 回归矩阵
+4. 若专项补修完成，再决定是否继续做额外视觉、调试页或历史面板增强
+
+### 当前执行建议（可直接照此推进）
+
+建议把下一步施工拆成两段：
+
+1. **先验证，不先扩判断**
+   - 在宿主里跑 A10 / A11 / A12 / A13
+   - 用 `lastEventDebugSnapshot` 与 `recentSessionHistory` 判定当前门控是否正确
+
+2. **再决定是否进入第三轮补修**
+   - 若 A12 失败：继续补“显式用户 generation 动作识别”
+   - 若 A13 失败：回头收紧 `ignoreAutoTrigger` 的非用户意图判定
+   - 若 A10 ~ A13 全通过：切换到写回链宿主专项回归
+
+当前已补齐一个额外抓手：
+
+- `recentSessionHistory` 本身现在也会记录 generation 意图字段，而不只是 `lastEventDebugSnapshot`
+- 因此若同一条回复被 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 多次命中，仍可逐 phase 回看当时的用户意图判定结果
+- 现在还可直接通过 `YouYouToolkit.getAutoTriggerDiagnostics()` 读取聚合诊断对象，降低宿主验收脚本复杂度
+- 现在 `diagnostics.summary.phaseCounts / consistency` 还能直接帮助判断“baseline 只是正常从 provisional 进入 resolved”，还是 session 冻结字段已经真的漂到别的 generation 上
 
 ## 当前风险提醒
 
@@ -75,6 +104,101 @@
 - 当前诊断字段仍以紧凑标量为主，若未来继续扩展调试能力，需要控制存储体积与隐私噪声
 - 当前 `writebackDetails` 已能覆盖“最新 AI 楼层写回”主路径，但尚未扩展成更完整的可视化历史面板
 - 宿主环境下的最终实机回归尚未在本进程文档中登记为最新一次完成结果，因此若进入发布前验收，仍建议补跑一轮真实环境测试
+- 自动触发链虽然主问题已修，但仍存在 baseline 竞态与历史 replay 两类专项加固项，详见 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+- 宿主中的 `regenerate` 并不会新增用户楼层，因此若后续继续收紧“用户意图”语义，必须始终验证它不会再次被误判为 `ignored_auto_trigger`
+
+## 当前实现检查结论（2026-03-25）
+
+截至当前，自动触发专项补修已经进入“**代码闭环完成、宿主验收未完成**”的状态。
+
+### 已确认完成的实现
+
+1. baseline 竞态补修已落地
+2. 历史 replay 防线已落地
+3. 用户主动 `regenerate / swipe` 的合法确认路径已恢复
+4. `messageSessions / recentSessionHistory` 已补齐实时诊断字段
+5. `messageSessions / recentSessionHistory` 已补齐冻结版 session generation 字段
+6. `YouYouToolkit.getAutoTriggerDiagnostics()` 已提供宿主回归聚合诊断入口
+7. 聚合诊断已补齐 `phaseCounts / consistency / eventBridge / gateState` 等 N1 快速判读摘要
+
+### 当前检查结论
+
+- 当前没有看到新的明显静态实现错误。
+- 当前代码与 API / 回归 / 进度 / 变更文档基本一致。
+- 下一阶段的主要风险不再是“判断没写进去”，而是“真实宿主时序下是否仍存在边界回归”。
+
+## 下一阶段施工方案（2026-03-25）
+
+当前后续施工顺序已经正式收口为：
+
+> **N1 宿主自动触发链验收 ->（若失败）第三轮自动触发定向补修 ->（若通过）N2 写回链宿主专项**
+
+### 推进原则
+
+1. **先验收，不先扩判断**：未完成 N1 前，不继续扩大 `modules/tool-trigger.js` 的自动触发判断面。
+2. **N1 是唯一前置闸门**：只有 A10 ~ A13 全通过，才允许进入写回链宿主专项。
+3. **失败只做定向补修**：若 N1 失败，只围绕失败项进入第三轮自动触发补修，不再泛化扩写。
+4. **通过后切换主战场**：若 N1 通过，后续主施工对象从 `modules/tool-trigger.js` 切换到 `modules/context-injector.js`、`modules/tool-output-service.js`。
+
+### N1：宿主自动触发链验收阶段
+
+优先验证：
+
+1. A10：高时序 baseline
+2. A11：历史 replay
+3. A12：`regenerate / swipe` 合法放行
+4. A13：非用户意图 generation 继续拦截
+
+建议统一采集：
+
+- `[youyou_trigger]` 控制台日志
+- `YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })`
+- `YouYouToolkit.getToolTrigger().getToolTriggerManagerState()`
+- 工具页诊断折叠区
+
+通过标准：
+
+1. A10 ~ A13 全通过
+2. `recentSessionHistory` 与 `lastEventDebugSnapshot` 结论一致
+3. 不存在“行为异常但诊断字段不足以判案”的盲区
+
+### N1 失败时：第三轮自动触发定向补修
+
+进入条件：A10 ~ A13 任一失败。
+
+补修优先级：
+
+1. A10 失败：继续收紧 provisional / resolved baseline 等待与 trace 覆盖保护
+2. A11 失败：继续增强 replay 防线、合法完成窗口与 session 冻结判定
+3. A12 失败：补齐显式用户 generation 动作识别范围
+4. A13 失败：回头收紧 `ignoreAutoTrigger` 与用户意图判定边界
+
+执行约束：
+
+1. 仅修改失败项对应逻辑
+2. 每个新增判断都必须带对应诊断字段或 skip reason
+3. 修改后先重跑失败项，再完整重跑 A10 ~ A13
+
+### N2：写回链宿主专项阶段
+
+前提：N1 通过。
+
+重点执行：
+
+1. W1 ~ W4
+2. D1 ~ D3
+
+通过标准：
+
+1. `writebackStatus / writebackDetails / failureStage` 足以定位主路径问题
+2. 不出现工具块互相覆盖或重复叠加失控
+3. 宿主最终消息正文与诊断结果能互相印证写回成功
+
+### 当前执行口径
+
+1. 未完成 N1 前，不继续扩大自动触发判断面。
+2. N1 结论必须先登记到 `docs/OPTIMIZATION_PROGRESS.md`，再决定是否进入第三轮补修或 N2。
+3. 只有在 N1 全通过后，才将“最新 AI 楼层写回链实机回归”登记为当前主验收项。
 
 ## 当前参考项目启发
 
@@ -758,6 +882,185 @@
 - 状态：
   - 成功
 
+## 2026-03-24 23:18
+
+- 阶段：阶段后收尾（宿主确认与文档总结）
+- 修改文件：
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 根据用户最新反馈，补登记本轮宿主误触发问题已确认修复
+  - 在更新日志中补充“宿主环境已确认旧对话 / 聊天信息窗口不再误触发工具”的结果说明
+  - 在施工进程文档中补充最终总结，并把本轮自动触发误触发专项回归标记为已通过
+- 修改原因：
+  - 用户已明确反馈“好的，已修复”，需要把这次宿主实际确认结果同步沉淀到施工文档与更新日志中，避免后续重复排查同一问题
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-24 23:22
+
+- 阶段：阶段后收尾（误做 UI 入口清理）
+- 修改文件：
+  - `modules/app/popup-shell.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 删除 popup shell 主内容头部额外补上的“保存当前工具”按钮与对应点击桥接逻辑
+  - 保留工具配置面板内部既有的保存按钮，不影响正常工具配置保存流程
+  - 同步在更新日志与施工进程文档中记录这次误做入口清理
+- 修改原因：
+  - 用户确认这个按钮属于之前为了兜底而误做的壳层级入口，希望删除以减少界面歧义，因此本轮将其正式清理
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-24 23:32
+
+- 阶段：专项施工文档规划（自动触发链残余风险）
+- 修改文件：
+  - `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+  - `docs/OPTIMIZATION_EXECUTION_PLAN.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 新增自动触发链专项加固施工文档，集中整理 baseline 竞态、历史 replay 风险与后续宿主回归矩阵
+  - 在总施工方案文档中补充“后续专项补修建议”，把残余风险收口到独立专项文档中
+  - 在施工进程文档中补记专项文档已建立，并明确后续若继续施工应以该文档为准
+- 修改原因：
+  - 用户要求先规划施工文档，因此需要先把“下一轮自动触发链补修”从口头结论沉淀为正式施工方案，避免后续执行阶段再重新梳理上下文
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-25 00:02
+
+- 阶段：专项补修施工（baseline 竞态 / MESSAGE_RECEIVED replay 防线）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - `GENERATION_STARTED` 改为先同步写入 provisional baseline，再异步补全正式 baseline，并在异步失败时回退到可用的 provisional baseline
+  - 为 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 补上 resolved baseline 等待逻辑，减少高时序下的 `missing_generation_baseline` 误跳过
+  - 为 `MESSAGE_RECEIVED` 增加历史 replay 防线，阻断不属于当前 active generation 或超出合法确认窗口的旧 assistant 楼层事件
+  - 扩展调试字段与工具面板跳过原因文案，并同步更新 API 文档与宿主回归清单
+  - 执行 `npm run build 2>&1`，构建通过
+- 修改原因：
+  - 落实 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 中已定义的第一轮专项补修任务，把“baseline 竞态”和“历史 replay 风险”从文档规划推进到代码施工
+- 阻塞项：
+  - 尚未完成宿主环境下针对高时序与 replay 场景的最终实机验证
+- 状态：
+  - 成功
+
+## 2026-03-25 00:45
+
+- 阶段：专项补修施工（用户主动 regenerate / swipe 合法确认路径恢复）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 为 `GENERATION_STARTED` 增加显式用户 generation 动作识别，当前已将 `regenerate / swipe` 视为合法用户意图来源
+  - `getGenerationConfirmationEligibility()` 不再将 `startedByUserIntent = false` 当作系统级硬阻断，恢复由 `ignoreAutoTrigger` 决定是否拦截非用户意图 generation
+  - 扩展调试字段，新增 `generationUserIntentSource / generationUserIntentDetail / lastUserIntentSource`
+  - 更新工具面板文案、API 文档与宿主回归清单，补充 `regenerate / swipe` 与非用户意图 generation 的回归验证项
+- 修改原因：
+  - 第一轮专项补修完成后，用户在真实宿主中发现 `regenerate` 会被误判为 `ignored_auto_trigger`，导致自动触发突然失效；因此需要恢复“合法用户主动重新生成”的确认路径，同时保持 replay / dryRun 防线不回退
+- 阻塞项：
+  - 尚未完成宿主环境下针对 `regenerate / swipe`、非用户意图 generation 与历史 replay 的最终实机验证
+- 状态：
+  - 成功
+
+## 2026-03-25 01:10
+
+- 阶段：宿主回归准备（session 级意图诊断补齐）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 为 `messageSessions / recentSessionHistory` 补齐 session 级 baseline / generation 用户意图诊断字段
+  - 宿主执行 A10 ~ A13 时，现可直接回看每个 session 在 `received / scheduled / handling / skipped / completed` 的意图判定
+  - 同步补充 API 文档与宿主回归清单中的字段说明、执行建议与预期结果
+- 修改原因：
+  - 为即将开始的宿主实机回归提供更细粒度的可观测性，减少“只能看到最后一次快照”的排障盲区
+- 阻塞项：
+  - 尚未完成本轮修改后的构建验证
+- 状态：
+  - 成功
+
+## 2026-03-25 10:53
+
+- 阶段：宿主回归辅助能力增强（自动触发诊断聚合 API）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/app/public-api.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 新增 `getAutoTriggerDiagnostics(options)`，统一输出 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot`
+  - 对外 API 暴露 `YouYouToolkit.getAutoTriggerDiagnostics()`，用于宿主环境回归时直接读取聚合诊断信息
+  - 文档与回归清单同步补齐新 API 的使用示例和建议观测方式
+- 修改原因：
+  - 当前自动触发链已经进入“待宿主验收”阶段，需要降低实机回归时手工拼装多份状态对象的复杂度
+- 阻塞项：
+  - 尚未完成本轮修改后的构建验证
+- 状态：
+  - 成功
+
+## 2026-03-25 11:04
+
+- 阶段：专项施工方案收口（N1 / N1-Fail / N2 编排正式化）
+- 修改文件：
+  - `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 将下一阶段施工顺序正式收口为“先做 N1 宿主自动触发链验收，再按结果分流到第三轮自动触发定向补修或 N2 写回链宿主专项”
+  - 为专项文档补齐 N1 的执行顺序、通过标准、失败回退点，以及 N1 失败后的第三轮补修边界
+  - 在进度文档中同步固化当前执行口径，明确未完成 N1 前不继续扩大自动触发判断面
+- 修改原因：
+  - 当前自动触发链已经进入“代码闭环完成、宿主验收未完成”阶段，需要把后续执行顺序正式文档化，避免继续凭口头约定推进
+- 阻塞项：
+  - 尚未完成宿主环境下 A10 / A11 / A12 / A13 的最新一轮实机验收
+- 状态：
+  - 成功
+
+## 2026-03-25 11:14
+
+- 阶段：宿主回归辅助能力增强（诊断一致性 / phase 摘要补齐）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 为 `getToolTriggerManagerState()` 补齐 `activeSessions / registeredEvents / pendingTimerCount / eventBridge / gateState` 等宿主验收所需状态概览
+  - 为 `getAutoTriggerDiagnostics().summary` 补齐 `phaseCounts / consistency`，并为 session/history 条目新增 drift 标记，用于快速对比“session 创建时冻结字段”和“当前 generation 字段”是否已经发生漂移
+  - 同步更新 API 文档、宿主回归清单、专项文档与施工进度文档，明确 N1 期间如何使用这些新摘要判读 A10 ~ A13
+- 修改原因：
+  - 当前已经进入宿主自动触发链验收阶段前的工具化准备，需要先降低实机判案时的人工比对成本，避免每次都手工逐字段核对 session 与全局 generation 状态
+- 阻塞项：
+  - 尚未完成宿主环境下基于新诊断摘要的 A10 / A11 / A12 / A13 实机验收
+- 状态：
+  - 成功
+
 ---
 
 ## 六、待处理问题 / 阻塞清单
@@ -793,13 +1096,19 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - [x] 工具详情区滚轮命中层级与壳层顶部保存入口已进一步修复，并通过 `npm run build` 验证
 - [x] 打开宿主聊天信息窗口时的自动工具误触发问题已修复，并通过 `npm run build` 验证
 - [x] 自动触发链已进一步完成“speculative 观察态 / confirmed 确认态”收口，并通过 `npm run build` 验证
+- [x] 用户已在宿主环境确认“旧对话 / 聊天信息窗口误触发工具”问题修复有效
+- [x] 误做的壳层“保存当前工具”按钮已移除，保留面板内部原有保存入口
+- [x] 自动触发链残余风险的专项施工文档已建立，可直接作为下一轮补修依据
+- [x] 自动触发链专项补修第一轮（provisional baseline / replay 防线）已完成并通过构建验证
+- [x] 自动触发链专项补修第二轮（用户主动 regenerate / swipe 合法确认路径恢复）已完成代码落地，待宿主实测确认
 
 ### 尚未登记为最新一次完成结果的项
 
-- [ ] SillyTavern / TavernHelper 宿主环境下自动触发链最新一轮实机回归
+- [x] SillyTavern / TavernHelper 宿主环境下自动触发误触发专项回归（旧对话 / 聊天信息窗口）
+- [ ] SillyTavern / TavernHelper 宿主环境下自动触发第二轮专项回归（A10 / A11 / A12 / A13）
 - [ ] SillyTavern / TavernHelper 宿主环境下最新 AI 楼层写回链最新一轮实机回归
 
 ### 回归结论
 
 - 结果：**就“文档施工 + 代码落点”而言，已完成**
-- 备注：当前剩余的是发布级、宿主环境级的最终实机验证建议，而不是本轮施工文档未闭环的问题
+- 备注：本轮针对“旧对话 / 聊天信息窗口误触发工具”的宿主专项验证已确认通过；当前剩余的主要是更广义的发布前写回链实机验证，而不是本轮自动触发问题未闭环
