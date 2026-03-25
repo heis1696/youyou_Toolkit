@@ -712,6 +712,17 @@ export function createToolConfigPanel(options) {
       return mapping[path] || path || '未记录';
     },
 
+    _formatCommitMethod(method) {
+      const mapping = {
+        setChatMessages: 'setChatMessages',
+        setChatMessage: 'setChatMessage',
+        local_only: 'local_only',
+        none: 'none'
+      };
+
+      return mapping[method] || method || '未记录';
+    },
+
     _formatWritebackStatus(status) {
       const mapping = {
         success: '写回成功',
@@ -734,6 +745,20 @@ export function createToolConfigPanel(options) {
       };
 
       return mapping[stage] || stage || '无';
+    },
+
+    _formatBooleanState(value) {
+      return value ? '是' : '否';
+    },
+
+    _formatHandledExecutionKeysText(entries = []) {
+      const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
+      if (!list.length) return '无';
+
+      return list.slice(-3).map((entry) => {
+        const executionKey = String(entry?.executionKey || '').trim();
+        return executionKey || '未记录';
+      }).join(' / ');
     },
 
     _formatHistoryTime(timestamp) {
@@ -811,6 +836,7 @@ export function createToolConfigPanel(options) {
         const mainParts = [
           entry.phase ? `阶段：${entry.phase}` : '',
           entry.messageId ? `消息：${entry.messageId}` : '',
+          entry.executionKey ? `execution：${entry.executionKey}` : '',
           entry.confirmationSource ? `确认：${entry.confirmationSource}` : '',
           entry.reason ? `原因：${this._formatSkipReason(entry.reason)}` : '',
           entry.detail ? `详情：${entry.detail}` : ''
@@ -898,8 +924,9 @@ export function createToolConfigPanel(options) {
         const eventText = this._formatDiagnosticValue(entry.eventType, '未记录');
         const messageText = this._formatDiagnosticValue(entry.messageKey || entry.messageId, '未记录');
         const traceText = this._formatDiagnosticValue(entry.traceId, '无');
+        const executionKeyText = this._formatDiagnosticValue(entry.executionKey, '无');
         const detailText = type === 'writeback'
-          ? `执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)} / 失败阶段：${this._formatFailureStage(entry.failureStage)}`
+          ? `执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)} / 内容提交：${this._formatBooleanState(entry.contentCommitted)} / 宿主提交：${this._formatBooleanState(entry.hostCommitApplied)} / 主提交：${this._formatCommitMethod(entry.preferredCommitMethod)} / 实际提交：${this._formatCommitMethod(entry.appliedCommitMethod)} / 刷新请求：${this._formatBooleanState(entry.refreshRequested)} / 刷新确认：${this._formatBooleanState(entry.refreshConfirmed)} / 刷新通道：${entry.refreshMethodCount ?? 0} / 确认轮数：${entry.refreshConfirmChecks ?? 0} / 失败阶段：${this._formatFailureStage(entry.failureStage)}`
           : `跳过原因：${this._formatSkipReason(entry.skipReason)} / 执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)}`;
 
         return `
@@ -911,6 +938,7 @@ export function createToolConfigPanel(options) {
             <div class="yyt-tool-debug-history-main">
               事件：${eventText}<br>
               消息：${messageText}<br>
+              execution：${executionKeyText}<br>
               ${escapeHtml(detailText)}
             </div>
           </div>
@@ -936,16 +964,23 @@ export function createToolConfigPanel(options) {
         || summary?.activeSessionCount
         || summary?.pendingTimerCount
         || summary?.lastHandledMessageKey
+        || summary?.lastHandledExecutionKey
+        || summary?.handledExecutionKeyCount
         || summary?.eventBridge?.ready
       );
       const hasDiagnostics = Boolean(
         data.lastTriggerAt
         || data.lastTriggerEvent
         || data.lastMessageKey
+        || data.lastExecutionKey
         || data.lastSkipReason
         || data.lastExecutionPath
         || data.lastWritebackStatus
         || data.lastFailureStage
+        || data.lastContentCommitted
+        || data.lastHostCommitApplied
+        || data.lastRefreshRequested
+        || data.lastRefreshConfirmed
         || data.lastTraceId
         || (Array.isArray(data.recentTriggerHistory) && data.recentTriggerHistory.length > 0)
         || (Array.isArray(data.recentWritebackHistory) && data.recentWritebackHistory.length > 0)
@@ -961,10 +996,19 @@ export function createToolConfigPanel(options) {
         ['最近触发事件', this._formatDiagnosticValue(data.lastTriggerEvent)],
         ['最近 Trace', this._formatDiagnosticValue(data.lastTraceId, '无')],
         ['最近消息键', this._formatDiagnosticValue(data.lastMessageKey)],
+        ['最近 execution key', this._formatDiagnosticValue(data.lastExecutionKey)],
         ['最近跳过原因', this._formatDiagnosticValue(this._formatSkipReason(data.lastSkipReason), '无')],
         ['最近执行路径', this._formatDiagnosticValue(this._formatExecutionPath(data.lastExecutionPath))],
         ['最近写回状态', this._formatDiagnosticValue(this._formatWritebackStatus(data.lastWritebackStatus))],
-        ['最近失败阶段', this._formatDiagnosticValue(this._formatFailureStage(data.lastFailureStage), '无')]
+        ['最近失败阶段', this._formatDiagnosticValue(this._formatFailureStage(data.lastFailureStage), '无')],
+        ['最近内容提交', this._formatDiagnosticValue(this._formatBooleanState(data.lastContentCommitted), '否')],
+        ['最近宿主提交', this._formatDiagnosticValue(this._formatBooleanState(data.lastHostCommitApplied), '否')],
+        ['最近主提交策略', this._formatDiagnosticValue(this._formatCommitMethod(data.lastPreferredCommitMethod), '未记录')],
+        ['最近实际提交策略', this._formatDiagnosticValue(this._formatCommitMethod(data.lastAppliedCommitMethod), '未记录')],
+        ['最近刷新请求', this._formatDiagnosticValue(this._formatBooleanState(data.lastRefreshRequested), '否')],
+        ['最近刷新确认', this._formatDiagnosticValue(this._formatBooleanState(data.lastRefreshConfirmed), '否')],
+        ['最近刷新通道数', this._formatDiagnosticValue(String(data.lastRefreshMethodCount ?? 0), '0')],
+        ['最近刷新确认轮数', this._formatDiagnosticValue(String(data.lastRefreshConfirmChecks ?? 0), '0')]
       ];
 
       const triggerHistoryHtml = this._buildHistorySection('最近触发历史', data.recentTriggerHistory || [], 'trigger');
@@ -972,7 +1016,12 @@ export function createToolConfigPanel(options) {
       const globalRows = hasGlobalDiagnostics ? [
         ['当前 active / timers', `${summary.activeSessionCount || 0} / ${summary.pendingTimerCount || 0}`],
         ['事件桥接', this._formatEventBridgeText(summary.eventBridge)],
+        ['当前 generation 动作', this._formatDiagnosticValue(summary.generationAction, '未记录')],
+        ['当前原始 generation type', this._formatDiagnosticValue(summary.rawGenerationType, '未记录')],
         ['最近处理消息键', this._formatDiagnosticValue(summary.lastHandledMessageKey, '未记录')],
+        ['最近处理 execution key', this._formatDiagnosticValue(summary.lastHandledExecutionKey, '未记录')],
+        ['已处理 execution key 数', this._formatDiagnosticValue(String(summary.handledExecutionKeyCount ?? 0), '0')],
+        ['最近 execution key 轨迹', this._formatDiagnosticValue(this._formatHandledExecutionKeysText(summary.recentHandledExecutionKeys), '无')],
         ['Active phase 统计', this._formatDiagnosticValue(this._formatPhaseCountsText(summary.phaseCounts?.activeSessions), '无')],
         ['History phase 统计', this._formatDiagnosticValue(this._formatPhaseCountsText(summary.phaseCounts?.recentSessionHistory), '无')]
       ] : [];

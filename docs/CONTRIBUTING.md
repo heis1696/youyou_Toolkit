@@ -117,7 +117,7 @@ youyou_Toolkit/
 │   │       ├── status-block-panel.js
 │   │       ├── tool-manage-panel.js
 │   │       └── youyou-review-panel.js
-│   ├── storage.js              # 存储管理
+│   ├── storage.js              # 旧存储 API 兼容适配层
 │   ├── api-connection.js       # API连接
 │   ├── preset-manager.js       # 预设管理
 │   ├── regex-extractor.js      # 规则/标签提取
@@ -203,6 +203,8 @@ youyou_Toolkit/
 - `modules/prompt-editor.js`
 - `modules/storage.js`
 - `modules/tool-executor.js` 中的 legacy 执行函数
+
+其中 `modules/storage.js` 当前已经不是 API / 预设 / 规则提取等核心模块的首选依赖；若修改与存储相关的主路径逻辑，请优先评估是否应直接落在 `modules/core/storage-service.js`。
 
 对这些模块做修改时，请优先回答三件事：
 

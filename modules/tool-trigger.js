@@ -76,6 +76,9 @@ const triggerState = {
     lastGenerationTraceId: '',
     lastGenerationType: null,
     lastGenerationParams: null,
+    lastNormalizedGenerationType: '',
+    lastGenerationAction: '',
+    lastGenerationActionSource: '',
     lastGenerationDryRun: false,
     lastGenerationAt: 0,
     isGenerating: false,
@@ -140,10 +143,30 @@ const AUTO_TRIGGER_USER_INTENT_TTL_MS = 15000;
 const DUPLICATE_SKIP_LOG_WINDOW_MS = 1500;
 const UI_TRANSITION_GUARD_MS = 1800;
 const AUTO_TRIGGER_GENERATION_CONFIRM_WINDOW_MS = 5000;
-const EXPLICIT_USER_GENERATION_TYPES = new Set([
+const AUTO_TRIGGER_HANDLED_EXECUTION_RETENTION_MS = 60000;
+const EXPLICIT_USER_GENERATION_ACTIONS = new Set([
+  'reroll',
   'regenerate',
   'swipe'
 ]);
+
+const GENERATION_ACTION_PARAM_KEYS = [
+  'type',
+  'action',
+  'name',
+  'mode',
+  'source',
+  'reason',
+  'kind',
+  'command',
+  'operation',
+  'event',
+  'trigger',
+  'generationType',
+  'generation_type',
+  'regenType',
+  'regen_type'
+];
 
 let toolExecutorCompatibilityModulePromise = null;
 
@@ -808,9 +831,114 @@ function normalizeGenerationType(type = '', params = null) {
   return String(type || params?.type || '').trim().toLowerCase();
 }
 
+function normalizeGenerationActionHint(value) {
+  const normalizedValue = String(value || '').trim().toLowerCase();
+  if (!normalizedValue) {
+    return '';
+  }
+
+  if (/re\s*-?\s*roll|reroll|重\s*roll/.test(normalizedValue)) {
+    return 'reroll';
+  }
+
+  if (/regenerat|\bregen\b|重新生成/.test(normalizedValue)) {
+    return 'regenerate';
+  }
+
+  if (/\bswipe\b|swipe[_-]?id/.test(normalizedValue)) {
+    return 'swipe';
+  }
+
+  if (/\bquiet\b/.test(normalizedValue)) {
+    return 'quiet';
+  }
+
+  return '';
+}
+
+function resolveGenerationAction(type = '', params = null) {
+  const rawGenerationType = typeof type === 'string'
+    ? type.trim()
+    : String(type || '').trim();
+  const rawGenerationParams = params ?? null;
+  const normalizedGenerationType = normalizeGenerationType(type, params);
+
+  if (params?.swipeId !== undefined || params?.swipe_id !== undefined || params?.swipe === true || params?.isSwipe === true) {
+    return {
+      rawGenerationType,
+      rawGenerationParams,
+      normalizedGenerationType,
+      generationAction: 'swipe',
+      generationActionSource: 'params.swipe',
+      explicitGenerationAction: 'swipe'
+    };
+  }
+
+  const candidates = [
+    {
+      source: 'type',
+      value: rawGenerationType
+    }
+  ];
+
+  for (const key of GENERATION_ACTION_PARAM_KEYS) {
+    const value = params?.[key];
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+
+    candidates.push({
+      source: `params.${key}`,
+      value: String(value)
+    });
+  }
+
+  for (const candidate of candidates) {
+    const action = normalizeGenerationActionHint(candidate.value);
+    if (!action) {
+      continue;
+    }
+
+    return {
+      rawGenerationType,
+      rawGenerationParams,
+      normalizedGenerationType,
+      generationAction: action,
+      generationActionSource: candidate.source,
+      explicitGenerationAction: EXPLICIT_USER_GENERATION_ACTIONS.has(action) ? action : ''
+    };
+  }
+
+  return {
+    rawGenerationType,
+    rawGenerationParams,
+    normalizedGenerationType,
+    generationAction: normalizedGenerationType || '',
+    generationActionSource: normalizedGenerationType ? 'normalized_generation_type' : '',
+    explicitGenerationAction: EXPLICIT_USER_GENERATION_ACTIONS.has(normalizedGenerationType)
+      ? normalizedGenerationType
+      : ''
+  };
+}
+
+function buildAssistantContentFingerprint(content = '') {
+  const normalizedContent = String(content || '').trim();
+  if (!normalizedContent) {
+    return '';
+  }
+
+  let hash = 0;
+  for (let index = 0; index < normalizedContent.length; index += 1) {
+    hash = ((hash << 5) - hash) + normalizedContent.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return Math.abs(hash).toString(36);
+}
+
 function resolveGenerationUserIntent(type, params = null, now = Date.now()) {
   const latestIntentAt = getLatestUserTriggerIntentTimestamp();
-  const normalizedGenerationType = normalizeGenerationType(type, params);
+  const generationAction = resolveGenerationAction(type, params);
 
   if (latestIntentAt > 0 && (now - latestIntentAt) <= AUTO_TRIGGER_USER_INTENT_TTL_MS) {
     return {
@@ -821,12 +949,12 @@ function resolveGenerationUserIntent(type, params = null, now = Date.now()) {
     };
   }
 
-  if (EXPLICIT_USER_GENERATION_TYPES.has(normalizedGenerationType)) {
+  if (generationAction.explicitGenerationAction) {
     return {
       startedByUserIntent: true,
       userIntentDetectedAt: now,
-      userIntentSource: `explicit_generation_action:${normalizedGenerationType}`,
-      userIntentDetail: `generation_type_${normalizedGenerationType}`
+      userIntentSource: `explicit_generation_action:${generationAction.explicitGenerationAction}`,
+      userIntentDetail: `generation_action_${generationAction.explicitGenerationAction}`
     };
   }
 
@@ -942,8 +1070,14 @@ function buildGenerationBaseline(rawMessages = [], metadata = {}) {
     lastAssistantMessageId: normalizeMessageIdentityValue(lastAssistantMessage?.sourceId),
     lastAssistantPreview: String(lastAssistantMessage?.content || '').slice(0, 160),
     dryRun: !!metadata.dryRun,
-    generationType: metadata.type || '',
-    generationParams: metadata.params || null,
+    generationType: metadata.rawGenerationType || metadata.type || '',
+    generationParams: metadata.rawGenerationParams || metadata.params || null,
+    rawGenerationType: metadata.rawGenerationType || metadata.type || '',
+    rawGenerationParams: metadata.rawGenerationParams || metadata.params || null,
+    normalizedGenerationType: metadata.normalizedGenerationType || normalizeGenerationType(metadata.type, metadata.params),
+    generationAction: metadata.generationAction || '',
+    generationActionSource: metadata.generationActionSource || '',
+    explicitGenerationAction: metadata.explicitGenerationAction || '',
     startedByUserIntent: !!metadata.startedByUserIntent,
     userIntentDetectedAt: Number(metadata.userIntentDetectedAt) || 0,
     userIntentSource: metadata.userIntentSource || '',
@@ -1229,6 +1363,12 @@ function getCurrentGenerationDiagnosticFields() {
     generationStartedByUserIntent: !!baseline?.startedByUserIntent,
     generationUserIntentSource: baseline?.userIntentSource || '',
     generationUserIntentDetail: baseline?.userIntentDetail || '',
+    rawGenerationType: baseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
+    rawGenerationParams: baseline?.rawGenerationParams ?? triggerState.gateState.lastGenerationParams ?? null,
+    normalizedGenerationType: baseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
+    generationAction: baseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
+    generationActionSource: baseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+    explicitGenerationAction: baseline?.explicitGenerationAction || '',
     lastUserIntentSource: triggerState.gateState.lastUserIntentSource || ''
   };
 }
@@ -1245,6 +1385,11 @@ function getCurrentSessionGenerationFrozenFields() {
     sessionGenerationStartedByUserIntent: !!baseline?.startedByUserIntent,
     sessionGenerationUserIntentSource: baseline?.userIntentSource || '',
     sessionGenerationUserIntentDetail: baseline?.userIntentDetail || '',
+    sessionGenerationActionAtCreation: baseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
+    sessionGenerationActionSourceAtCreation: baseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+    sessionExplicitGenerationActionAtCreation: baseline?.explicitGenerationAction || '',
+    sessionNormalizedGenerationTypeAtCreation: baseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
+    sessionRawGenerationTypeAtCreation: baseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
     sessionLastUserIntentSourceAtCreation: triggerState.gateState.lastUserIntentSource || '',
     sessionGenerationCapturedAt: Date.now()
   };
@@ -1272,6 +1417,7 @@ function createEventDebugSnapshot(snapshot = {}) {
     sessionKey: '',
     messageId: '',
     messageKey: '',
+    executionKey: '',
     messageRole: '',
     reason: '',
     skipReasonDetailed: '',
@@ -1346,6 +1492,7 @@ function createAutoTriggerSnapshot(snapshot = {}) {
     sessionKey: '',
     messageId: '',
     messageKey: '',
+    executionKey: '',
     selectedToolIds: [],
     skipReason: '',
     skipReasonDetailed: '',
@@ -1377,6 +1524,15 @@ function patchToolsDiagnostics(tools, runtimePartial) {
 
     patchToolRuntime(tool.id, {
       lastTriggerAt: Date.now(),
+      lastExecutionKey: '',
+      lastContentCommitted: false,
+      lastHostCommitApplied: false,
+      lastRefreshRequested: false,
+      lastRefreshConfirmed: false,
+      lastPreferredCommitMethod: '',
+      lastAppliedCommitMethod: '',
+      lastRefreshMethodCount: 0,
+      lastRefreshConfirmChecks: 0,
       ...runtimePartial
     }, {
       touchLastRunAt: false,
@@ -1645,6 +1801,9 @@ export function resetGateState() {
     lastGenerationTraceId: '',
     lastGenerationType: null,
     lastGenerationParams: null,
+    lastNormalizedGenerationType: '',
+    lastGenerationAction: '',
+    lastGenerationActionSource: '',
     lastGenerationDryRun: false,
     lastGenerationAt: 0,
     isGenerating: false,
@@ -1985,14 +2144,17 @@ const toolTriggerManagerState = {
   initialized: false,
   listeners: new Map(),
   messageSessions: new Map(),
+  handledExecutionKeys: new Map(),
   recentSessionHistory: [],
   recentEventTimeline: [],
   lastExecutionContext: null,
   lastHandledMessageKey: '',
+  lastHandledExecutionKey: '',
   pendingMessageTimers: new Map(),
   lastAutoTriggerSnapshot: null,
   lastEventDebugSnapshot: null,
   lastDuplicateMessageKey: '',
+  lastDuplicateExecutionKey: '',
   lastDuplicateMessageAt: 0
 };
 
@@ -2022,16 +2184,38 @@ function resolveCurrentChatIdForSession() {
   return resolveStableChatId(api, context, null);
 }
 
-function buildMessageSessionKey(chatId, messageId, eventType = '') {
+function buildMessageSessionKey(chatId, messageId, eventType = '', generationTraceId = '') {
   const resolvedChatId = chatId || resolveCurrentChatIdForSession();
   const normalizedMessageId = normalizeMessageIdentityValue(messageId);
-  return `${resolvedChatId}::${normalizedMessageId || `event:${eventType || 'unknown'}:latest`}`;
+  const normalizedGenerationTraceId = String(generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
+  return `${resolvedChatId}::${normalizedMessageId || `event:${eventType || 'unknown'}:latest`}::${normalizedGenerationTraceId || 'trace:unknown'}`;
+}
+
+function getAutoTriggerExecutionKey(context = {}) {
+  const chatId = context?.chatId || 'chat_default';
+  const messageId = context?.messageId === undefined || context?.messageId === null || context?.messageId === ''
+    ? 'latest'
+    : String(context.messageId);
+  const generationTraceId = String(
+    context?.generationTraceId
+    || context?.generation?.traceId
+    || triggerState.gateState.lastGenerationTraceId
+    || ''
+  ).trim() || 'trace:unknown';
+  const contentFingerprint = String(
+    context?.assistantContentFingerprint
+    || buildAssistantContentFingerprint(context?.lastAiMessage || context?.input?.lastAiMessage || '')
+    || ''
+  ).trim() || 'content:na';
+
+  return `${chatId}::${messageId}::${generationTraceId}::${contentFingerprint}`;
 }
 
 function createMessageSession(eventType, data, snapshot = {}) {
   const messageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
   const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
-  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, messageId, eventType);
+  const generationTraceId = String(snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
+  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, messageId, eventType, generationTraceId);
   const now = Date.now();
   const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
   const generationFrozenFields = getCurrentSessionGenerationFrozenFields();
@@ -2042,6 +2226,7 @@ function createMessageSession(eventType, data, snapshot = {}) {
     chatId,
     messageId,
     messageKey: snapshot?.messageKey || '',
+    executionKey: snapshot?.executionKey || '',
     messageRole: snapshot?.messageRole || '',
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || '',
@@ -2066,6 +2251,9 @@ function createMessageSession(eventType, data, snapshot = {}) {
     generationStartedByUserIntent: snapshot?.generationStartedByUserIntent ?? generationDiagnosticFields.generationStartedByUserIntent,
     generationUserIntentSource: snapshot?.generationUserIntentSource || generationDiagnosticFields.generationUserIntentSource,
     generationUserIntentDetail: snapshot?.generationUserIntentDetail || generationDiagnosticFields.generationUserIntentDetail,
+    generationAction: snapshot?.generationAction || generationDiagnosticFields.generationAction,
+    generationActionSource: snapshot?.generationActionSource || generationDiagnosticFields.generationActionSource,
+    explicitGenerationAction: snapshot?.explicitGenerationAction || generationDiagnosticFields.explicitGenerationAction,
     lastUserIntentSource: snapshot?.lastUserIntentSource || generationDiagnosticFields.lastUserIntentSource,
     sessionGenerationTraceId: snapshot?.sessionGenerationTraceId || generationFrozenFields.sessionGenerationTraceId,
     sessionGenerationStartedAt: snapshot?.sessionGenerationStartedAt ?? generationFrozenFields.sessionGenerationStartedAt,
@@ -2075,6 +2263,11 @@ function createMessageSession(eventType, data, snapshot = {}) {
     sessionGenerationStartedByUserIntent: snapshot?.sessionGenerationStartedByUserIntent ?? generationFrozenFields.sessionGenerationStartedByUserIntent,
     sessionGenerationUserIntentSource: snapshot?.sessionGenerationUserIntentSource || generationFrozenFields.sessionGenerationUserIntentSource,
     sessionGenerationUserIntentDetail: snapshot?.sessionGenerationUserIntentDetail || generationFrozenFields.sessionGenerationUserIntentDetail,
+    sessionGenerationActionAtCreation: snapshot?.sessionGenerationActionAtCreation || generationFrozenFields.sessionGenerationActionAtCreation,
+    sessionGenerationActionSourceAtCreation: snapshot?.sessionGenerationActionSourceAtCreation || generationFrozenFields.sessionGenerationActionSourceAtCreation,
+    sessionExplicitGenerationActionAtCreation: snapshot?.sessionExplicitGenerationActionAtCreation || generationFrozenFields.sessionExplicitGenerationActionAtCreation,
+    sessionNormalizedGenerationTypeAtCreation: snapshot?.sessionNormalizedGenerationTypeAtCreation || generationFrozenFields.sessionNormalizedGenerationTypeAtCreation,
+    sessionRawGenerationTypeAtCreation: snapshot?.sessionRawGenerationTypeAtCreation || generationFrozenFields.sessionRawGenerationTypeAtCreation,
     sessionLastUserIntentSourceAtCreation: snapshot?.sessionLastUserIntentSourceAtCreation || generationFrozenFields.sessionLastUserIntentSourceAtCreation,
     sessionGenerationCapturedAt: snapshot?.sessionGenerationCapturedAt ?? generationFrozenFields.sessionGenerationCapturedAt,
     createdAt: now,
@@ -2097,13 +2290,15 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
 
   const provisionalMessageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
   const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
-  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, provisionalMessageId, eventType);
+  const generationTraceId = String(snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
+  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, provisionalMessageId, eventType, generationTraceId);
   let session = toolTriggerManagerState.messageSessions.get(sessionKey);
 
   if (!session) {
     session = createMessageSession(eventType, data, {
       ...snapshot,
       chatId,
+      generationTraceId,
       sessionKey,
       messageId: provisionalMessageId
     });
@@ -2122,6 +2317,10 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
 
   if (snapshot?.messageRole) {
     session.messageRole = snapshot.messageRole;
+  }
+
+  if (snapshot?.executionKey) {
+    session.executionKey = snapshot.executionKey;
   }
 
   if (snapshot?.confirmedAssistantMessageId) {
@@ -2197,6 +2396,7 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
     eventType: historyPartial?.eventType || session.firstEventType,
     messageId: historyPartial?.messageId || session.messageId,
     messageKey: historyPartial?.messageKey || session.messageKey,
+    executionKey: historyPartial?.executionKey || session.executionKey || '',
     messageRole: historyPartial?.messageRole || session.messageRole,
     confirmedAssistantMessageId: historyPartial?.confirmedAssistantMessageId || session.confirmedAssistantMessageId || '',
     confirmationSource: historyPartial?.confirmationSource || session.confirmationSource || '',
@@ -2213,6 +2413,9 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
     generationStartedByUserIntent: historyPartial?.generationStartedByUserIntent ?? session.generationStartedByUserIntent ?? generationDiagnosticFields.generationStartedByUserIntent,
     generationUserIntentSource: historyPartial?.generationUserIntentSource || session.generationUserIntentSource || generationDiagnosticFields.generationUserIntentSource,
     generationUserIntentDetail: historyPartial?.generationUserIntentDetail || session.generationUserIntentDetail || generationDiagnosticFields.generationUserIntentDetail,
+    generationAction: historyPartial?.generationAction || session.generationAction || generationDiagnosticFields.generationAction,
+    generationActionSource: historyPartial?.generationActionSource || session.generationActionSource || generationDiagnosticFields.generationActionSource,
+    explicitGenerationAction: historyPartial?.explicitGenerationAction || session.explicitGenerationAction || generationDiagnosticFields.explicitGenerationAction,
     lastUserIntentSource: historyPartial?.lastUserIntentSource || session.lastUserIntentSource || generationDiagnosticFields.lastUserIntentSource,
     sessionGenerationTraceId: historyPartial?.sessionGenerationTraceId || session.sessionGenerationTraceId || '',
     sessionGenerationStartedAt: historyPartial?.sessionGenerationStartedAt ?? session.sessionGenerationStartedAt ?? 0,
@@ -2222,6 +2425,11 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
     sessionGenerationStartedByUserIntent: historyPartial?.sessionGenerationStartedByUserIntent ?? session.sessionGenerationStartedByUserIntent ?? false,
     sessionGenerationUserIntentSource: historyPartial?.sessionGenerationUserIntentSource || session.sessionGenerationUserIntentSource || '',
     sessionGenerationUserIntentDetail: historyPartial?.sessionGenerationUserIntentDetail || session.sessionGenerationUserIntentDetail || '',
+    sessionGenerationActionAtCreation: historyPartial?.sessionGenerationActionAtCreation || session.sessionGenerationActionAtCreation || '',
+    sessionGenerationActionSourceAtCreation: historyPartial?.sessionGenerationActionSourceAtCreation || session.sessionGenerationActionSourceAtCreation || '',
+    sessionExplicitGenerationActionAtCreation: historyPartial?.sessionExplicitGenerationActionAtCreation || session.sessionExplicitGenerationActionAtCreation || '',
+    sessionNormalizedGenerationTypeAtCreation: historyPartial?.sessionNormalizedGenerationTypeAtCreation || session.sessionNormalizedGenerationTypeAtCreation || '',
+    sessionRawGenerationTypeAtCreation: historyPartial?.sessionRawGenerationTypeAtCreation || session.sessionRawGenerationTypeAtCreation || '',
     sessionLastUserIntentSourceAtCreation: historyPartial?.sessionLastUserIntentSourceAtCreation || session.sessionLastUserIntentSourceAtCreation || '',
     sessionGenerationCapturedAt: historyPartial?.sessionGenerationCapturedAt ?? session.sessionGenerationCapturedAt ?? Date.now(),
     skipReason: historyPartial?.skipReason || session.skipReason || '',
@@ -2289,6 +2497,7 @@ function buildDiagnosticEntryDriftFlags(entry) {
     return {
       driftDetected: false,
       generationTraceDrifted: false,
+      generationActionDrifted: false,
       generationUserIntentDrifted: false,
       baselineResolvedStateChanged: false,
       baselineResolutionAdvancedSinceSessionCreation: false,
@@ -2307,6 +2516,7 @@ function buildDiagnosticEntryDriftFlags(entry) {
     return {
       driftDetected: false,
       generationTraceDrifted: false,
+      generationActionDrifted: false,
       generationUserIntentDrifted: false,
       baselineResolvedStateChanged: false,
       baselineResolutionAdvancedSinceSessionCreation: false,
@@ -2320,10 +2530,31 @@ function buildDiagnosticEntryDriftFlags(entry) {
   const generationUserIntentSource = normalizeDiagnosticString(entry.generationUserIntentSource);
   const sessionGenerationUserIntentDetail = normalizeDiagnosticString(entry.sessionGenerationUserIntentDetail);
   const generationUserIntentDetail = normalizeDiagnosticString(entry.generationUserIntentDetail);
+  const sessionGenerationAction = normalizeDiagnosticString(entry.sessionGenerationActionAtCreation);
+  const generationAction = normalizeDiagnosticString(entry.generationAction);
+  const sessionGenerationActionSource = normalizeDiagnosticString(entry.sessionGenerationActionSourceAtCreation);
+  const generationActionSource = normalizeDiagnosticString(entry.generationActionSource);
+  const sessionExplicitGenerationAction = normalizeDiagnosticString(entry.sessionExplicitGenerationActionAtCreation);
+  const explicitGenerationAction = normalizeDiagnosticString(entry.explicitGenerationAction);
+  const sessionNormalizedGenerationType = normalizeDiagnosticString(entry.sessionNormalizedGenerationTypeAtCreation);
+  const normalizedGenerationType = normalizeDiagnosticString(entry.normalizedGenerationType);
 
   const generationTraceDrifted = !!sessionGenerationTraceId
     && !!generationTraceId
     && sessionGenerationTraceId !== generationTraceId;
+
+  const generationActionDrifted = ((sessionGenerationAction || generationAction)
+    ? sessionGenerationAction !== generationAction
+    : false)
+    || ((sessionGenerationActionSource || generationActionSource)
+      ? sessionGenerationActionSource !== generationActionSource
+      : false)
+    || ((sessionExplicitGenerationAction || explicitGenerationAction)
+      ? sessionExplicitGenerationAction !== explicitGenerationAction
+      : false)
+    || ((sessionNormalizedGenerationType || normalizedGenerationType)
+      ? sessionNormalizedGenerationType !== normalizedGenerationType
+      : false);
 
   const generationUserIntentDrifted = Boolean(entry.sessionGenerationStartedByUserIntent) !== Boolean(entry.generationStartedByUserIntent)
     || ((sessionGenerationUserIntentSource || generationUserIntentSource)
@@ -2343,6 +2574,10 @@ function buildDiagnosticEntryDriftFlags(entry) {
     driftReasons.push('generation_trace_changed');
   }
 
+  if (generationActionDrifted) {
+    driftReasons.push('generation_action_changed');
+  }
+
   if (generationUserIntentDrifted) {
     driftReasons.push('generation_user_intent_changed');
   }
@@ -2358,6 +2593,7 @@ function buildDiagnosticEntryDriftFlags(entry) {
   return {
     driftDetected: driftReasons.length > 0,
     generationTraceDrifted,
+    generationActionDrifted,
     generationUserIntentDrifted,
     baselineResolvedStateChanged,
     baselineResolutionAdvancedSinceSessionCreation,
@@ -2378,6 +2614,7 @@ function buildDiagnosticDriftSummary(entries = []) {
     entryCount: 0,
     driftDetectedCount: 0,
     generationTraceDriftCount: 0,
+    generationActionDriftCount: 0,
     generationUserIntentDriftCount: 0,
     baselineResolvedStateChangedCount: 0,
     baselineResolutionAdvancedCount: 0
@@ -2393,6 +2630,10 @@ function buildDiagnosticDriftSummary(entries = []) {
 
     if (driftFlags.generationTraceDrifted) {
       summary.generationTraceDriftCount += 1;
+    }
+
+    if (driftFlags.generationActionDrifted) {
+      summary.generationActionDriftCount += 1;
     }
 
     if (driftFlags.generationUserIntentDrifted) {
@@ -2461,6 +2702,7 @@ function createRecentEventTimelineEntry(partial = {}) {
     traceId: partial?.traceId || '',
     sessionKey: partial?.sessionKey || '',
     messageId: normalizeMessageIdentityValue(partial?.messageId),
+    executionKey: partial?.executionKey || '',
     phase: partial?.phase || '',
     reason: partial?.reason || '',
     detail: partial?.detail || '',
@@ -2587,17 +2829,72 @@ function buildAutoTriggerVerdictHints(payload = {}) {
 }
 
 function shouldReportDuplicateSkip(messageKey) {
+  return shouldReportDuplicateSkipWithExecutionKey(messageKey, messageKey);
+}
+
+function shouldReportDuplicateSkipWithExecutionKey(messageKey, executionKey = '') {
   const now = Date.now();
   if (
-    toolTriggerManagerState.lastDuplicateMessageKey === messageKey
+    toolTriggerManagerState.lastDuplicateExecutionKey === (executionKey || messageKey)
     && (now - toolTriggerManagerState.lastDuplicateMessageAt) < DUPLICATE_SKIP_LOG_WINDOW_MS
   ) {
     return false;
   }
 
   toolTriggerManagerState.lastDuplicateMessageKey = messageKey;
+  toolTriggerManagerState.lastDuplicateExecutionKey = executionKey || messageKey;
   toolTriggerManagerState.lastDuplicateMessageAt = now;
   return true;
+}
+
+function pruneHandledExecutionKeys(now = Date.now()) {
+  for (const [executionKey, entry] of toolTriggerManagerState.handledExecutionKeys.entries()) {
+    const handledAt = Number(entry?.at) || 0;
+    if (handledAt <= 0 || (now - handledAt) > AUTO_TRIGGER_HANDLED_EXECUTION_RETENTION_MS) {
+      toolTriggerManagerState.handledExecutionKeys.delete(executionKey);
+    }
+  }
+}
+
+function hasHandledExecutionKey(executionKey, now = Date.now()) {
+  const normalizedExecutionKey = String(executionKey || '').trim();
+  if (!normalizedExecutionKey) {
+    return false;
+  }
+
+  pruneHandledExecutionKeys(now);
+  return toolTriggerManagerState.handledExecutionKeys.has(normalizedExecutionKey);
+}
+
+function markHandledExecutionKey(executionKey, partial = {}) {
+  const normalizedExecutionKey = String(executionKey || '').trim();
+  if (!normalizedExecutionKey) {
+    return null;
+  }
+
+  const entry = {
+    executionKey: normalizedExecutionKey,
+    at: Number(partial?.at) || Date.now(),
+    messageKey: String(partial?.messageKey || '').trim(),
+    messageId: normalizeMessageIdentityValue(partial?.messageId),
+    generationTraceId: String(partial?.generationTraceId || '').trim(),
+    eventType: String(partial?.eventType || '').trim(),
+    sessionKey: String(partial?.sessionKey || '').trim()
+  };
+
+  toolTriggerManagerState.handledExecutionKeys.set(normalizedExecutionKey, entry);
+  pruneHandledExecutionKeys(entry.at);
+  return entry;
+}
+
+function getRecentHandledExecutionKeys(limit = 8) {
+  pruneHandledExecutionKeys();
+
+  return trimManagerHistoryEntries(
+    Array.from(toolTriggerManagerState.handledExecutionKeys.values())
+      .sort((left, right) => (Number(left?.at) || 0) - (Number(right?.at) || 0)),
+    limit
+  ).map((entry) => ({ ...entry }));
 }
 
 /**
@@ -3218,12 +3515,15 @@ async function handleAutoTrigger(eventType, data) {
 
   context.traceId = session?.traceId || context.traceId || createTraceId('exec');
   context.sessionKey = session?.sessionKey || context.sessionKey || '';
+  const executionKey = context?.executionKey || getAutoTriggerExecutionKey(context || {});
+  context.executionKey = executionKey;
 
-  const resolvedSessionKey = buildMessageSessionKey(context.chatId, context.messageId, eventType);
+  const resolvedSessionKey = buildMessageSessionKey(context.chatId, context.messageId, eventType, context.generationTraceId);
   rekeyMessageSession(session, resolvedSessionKey);
   updateMessageSession(session, {
     messageId: context.messageId || incomingMessageId,
     messageKey: getAutoTriggerMessageKey(context),
+    executionKey,
     confirmedAssistantMessageId: context.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context.confirmationSource || confirmationSource,
     sourceMessageLocked: !!context.messageId
@@ -3243,6 +3543,7 @@ async function handleAutoTrigger(eventType, data) {
       sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || '',
       messageKey,
+      executionKey,
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
@@ -3253,6 +3554,7 @@ async function handleAutoTrigger(eventType, data) {
     patchToolsDiagnostics(candidateTools, {
       lastTriggerEvent: eventType,
       lastMessageKey: messageKey,
+      lastExecutionKey: executionKey,
       lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       lastExecutionPath: '',
       lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
@@ -3265,6 +3567,7 @@ async function handleAutoTrigger(eventType, data) {
       sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || incomingMessageId,
       messageKey,
+      executionKey,
       reason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
       confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -3277,6 +3580,7 @@ async function handleAutoTrigger(eventType, data) {
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
       messageKey,
+      executionKey,
       confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
       confirmationSource: context?.confirmationSource || confirmationSource,
       completedAt: Date.now(),
@@ -3287,6 +3591,7 @@ async function handleAutoTrigger(eventType, data) {
       eventType,
       messageId: context?.messageId || incomingMessageId,
       messageKey,
+      executionKey,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
       confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -3307,12 +3612,13 @@ async function handleAutoTrigger(eventType, data) {
   }
 
   const messageKey = getAutoTriggerMessageKey(context);
-  if (toolTriggerManagerState.lastHandledMessageKey === messageKey) {
-    if (shouldReportDuplicateSkip(messageKey)) {
+  if (hasHandledExecutionKey(executionKey)) {
+    if (shouldReportDuplicateSkipWithExecutionKey(messageKey, executionKey)) {
       log(`检测到重复自动触发，跳过: ${messageKey}`);
       traceAlways('warn', '命中自动去重，跳过执行', {
         eventType,
         messageKey,
+        executionKey,
         candidateToolIds
       });
       saveAutoTriggerSnapshot({
@@ -3321,9 +3627,10 @@ async function handleAutoTrigger(eventType, data) {
         sessionKey: session?.sessionKey || '',
         messageId: context?.messageId || '',
         messageKey,
+        executionKey,
         selectedToolIds: candidateToolIds,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
-        skipReasonDetailed: 'message_key_already_handled',
+        skipReasonDetailed: 'execution_key_already_handled',
         confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
         confirmationSource: context?.confirmationSource || confirmationSource,
         lockedAiMessageId: context?.messageId || ''
@@ -3331,6 +3638,7 @@ async function handleAutoTrigger(eventType, data) {
       patchToolsDiagnostics(candidateTools, {
         lastTriggerEvent: eventType,
         lastMessageKey: messageKey,
+        lastExecutionKey: executionKey,
         lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
         lastExecutionPath: '',
         lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
@@ -3343,8 +3651,9 @@ async function handleAutoTrigger(eventType, data) {
         sessionKey: session?.sessionKey || '',
         messageId: context?.messageId || incomingMessageId,
         messageKey,
+        executionKey,
         reason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
-        skipReasonDetailed: 'message_key_already_handled',
+        skipReasonDetailed: 'execution_key_already_handled',
         confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
         confirmationSource: context?.confirmationSource || confirmationSource,
         candidateToolIds,
@@ -3353,8 +3662,9 @@ async function handleAutoTrigger(eventType, data) {
       updateMessageSession(session, {
         phase: MESSAGE_SESSION_PHASES.SKIPPED,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
-        skipReasonDetailed: 'message_key_already_handled',
+        skipReasonDetailed: 'execution_key_already_handled',
         messageKey,
+        executionKey,
         confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
         confirmationSource: context?.confirmationSource || confirmationSource,
         completedAt: Date.now(),
@@ -3365,8 +3675,9 @@ async function handleAutoTrigger(eventType, data) {
         eventType,
         messageId: context?.messageId || incomingMessageId,
         messageKey,
+        executionKey,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
-        skipReasonDetailed: 'message_key_already_handled',
+        skipReasonDetailed: 'execution_key_already_handled',
         confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
         confirmationSource: context?.confirmationSource || confirmationSource,
         candidateToolIds
@@ -3445,7 +3756,16 @@ async function handleAutoTrigger(eventType, data) {
   }
 
   toolTriggerManagerState.lastHandledMessageKey = messageKey;
+  toolTriggerManagerState.lastHandledExecutionKey = executionKey;
+  markHandledExecutionKey(executionKey, {
+    messageKey,
+    messageId: context?.messageId || incomingMessageId,
+    generationTraceId: context?.generationTraceId || '',
+    eventType,
+    sessionKey: session?.sessionKey || ''
+  });
   toolTriggerManagerState.lastDuplicateMessageKey = '';
+  toolTriggerManagerState.lastDuplicateExecutionKey = '';
   toolTriggerManagerState.lastDuplicateMessageAt = 0;
   context.messageKey = messageKey;
   saveAutoTriggerSnapshot({
@@ -3454,6 +3774,7 @@ async function handleAutoTrigger(eventType, data) {
     sessionKey: session?.sessionKey || '',
     messageId: context?.messageId || '',
     messageKey,
+    executionKey,
     selectedToolIds: toolsToExecute.map(tool => tool.id),
     skipReason: '',
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -3464,6 +3785,7 @@ async function handleAutoTrigger(eventType, data) {
   traceAlways('info', '自动触发命中工具', {
     eventType,
     messageKey,
+    executionKey,
     toolIds: toolsToExecute.map(t => t.id)
   });
   showTopNotice('info', `检测到 AI 回复，开始自动执行 ${toolsToExecute.length} 个工具`, {
@@ -3473,6 +3795,7 @@ async function handleAutoTrigger(eventType, data) {
 
   updateMessageSession(session, {
     messageKey,
+    executionKey,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
     executionPathIds: [],
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -3484,6 +3807,7 @@ async function handleAutoTrigger(eventType, data) {
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
+    executionKey,
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id)
@@ -3493,6 +3817,7 @@ async function handleAutoTrigger(eventType, data) {
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
+    executionKey,
     skipReason: '',
     executionPath: TOOL_EXECUTION_PATHS.AUTO_POST_RESPONSE_API,
     writebackStatus: '',
@@ -3512,9 +3837,18 @@ async function handleAutoTrigger(eventType, data) {
         eventType,
         messageId: context?.messageId || incomingMessageId,
         messageKey,
+        executionKey,
         executionPath: executionPathForTool,
         writebackStatus: result?.result?.meta?.writebackStatus || result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
         failureStage: result?.result?.meta?.failureStage || result?.meta?.failureStage || '',
+        contentCommitted: !!(result?.result?.meta?.writebackDetails?.contentCommitted || result?.meta?.writebackDetails?.contentCommitted),
+        hostCommitApplied: !!(result?.result?.meta?.writebackDetails?.hostCommitApplied || result?.meta?.writebackDetails?.hostCommitApplied),
+        refreshRequested: !!(result?.result?.meta?.writebackDetails?.refreshRequested || result?.meta?.writebackDetails?.refreshRequested),
+        refreshConfirmed: !!(result?.result?.meta?.writebackDetails?.refreshConfirmed || result?.meta?.writebackDetails?.refreshConfirmed),
+        preferredCommitMethod: result?.result?.meta?.writebackDetails?.commit?.preferredMethod || result?.meta?.writebackDetails?.commit?.preferredMethod || '',
+        appliedCommitMethod: result?.result?.meta?.writebackDetails?.commit?.appliedMethod || result?.meta?.writebackDetails?.commit?.appliedMethod || '',
+        refreshMethodCount: (result?.result?.meta?.writebackDetails?.refresh?.requestMethods || result?.meta?.writebackDetails?.refresh?.requestMethods || []).length,
+        refreshConfirmChecks: result?.result?.meta?.writebackDetails?.refresh?.confirmChecks || result?.meta?.writebackDetails?.refresh?.confirmChecks || 0,
         success: !!result?.success
       });
 
@@ -3540,6 +3874,7 @@ async function handleAutoTrigger(eventType, data) {
     sessionKey: session?.sessionKey || '',
     messageId: context?.messageId || incomingMessageId,
     messageKey,
+    executionKey,
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
@@ -3548,6 +3883,7 @@ async function handleAutoTrigger(eventType, data) {
   updateMessageSession(session, {
     phase: MESSAGE_SESSION_PHASES.COMPLETED,
     messageKey,
+    executionKey,
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
     completedAt: Date.now(),
@@ -3558,6 +3894,7 @@ async function handleAutoTrigger(eventType, data) {
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
+    executionKey,
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
@@ -3994,6 +4331,8 @@ async function buildToolExecutionContext(eventData) {
   }
 
   const messageId = targetMessageId || normalizeMessageIdentityValue(lastAiMessage?.sourceId) || '';
+  const generationTraceId = triggerState.gateState.lastGenerationTraceId || '';
+  const assistantContentFingerprint = buildAssistantContentFingerprint(lastAiMessage?.content || '');
   
   return {
     triggeredAt: Date.now(),
@@ -4004,7 +4343,14 @@ async function buildToolExecutionContext(eventData) {
     confirmedAssistantMessageId: messageId,
     chatId: resolveStableChatId(api, stContext, character),
     messageId,
+    generationTraceId,
+    rawGenerationType: triggerState.gateState.lastGenerationBaseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
+    rawGenerationParams: triggerState.gateState.lastGenerationBaseline?.rawGenerationParams ?? triggerState.gateState.lastGenerationParams ?? null,
+    normalizedGenerationType: triggerState.gateState.lastGenerationBaseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
+    generationAction: triggerState.gateState.lastGenerationBaseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
+    generationActionSource: triggerState.gateState.lastGenerationBaseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
     lastAiMessage: lastAiMessage?.content || '',
+    assistantContentFingerprint,
     userMessage: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || '',
     chatMessages: messages,
     input: {
@@ -4018,7 +4364,14 @@ async function buildToolExecutionContext(eventData) {
       }
     },
     config: {},
-    status: 'pending'
+    status: 'pending',
+    executionKey: getAutoTriggerExecutionKey({
+      chatId: resolveStableChatId(api, stContext, character),
+      messageId,
+      generationTraceId,
+      assistantContentFingerprint,
+      lastAiMessage: lastAiMessage?.content || ''
+    })
   };
 }
 
@@ -4065,6 +4418,7 @@ async function executeTriggeredTool(tool, context) {
   const noticeId = `yyt-tool-run-${toolId}`;
   const executionPath = resolveExecutionPath(tool, context);
   const messageKey = context?.messageKey || getAutoTriggerMessageKey(context || {});
+  const executionKey = context?.executionKey || '';
 
   updateRuntime(toolId, {
     lastStatus: 'running',
@@ -4074,10 +4428,19 @@ async function executeTriggeredTool(tool, context) {
     lastTriggerAt: startedAt,
     lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
     lastMessageKey: messageKey,
+    lastExecutionKey: executionKey,
     lastSkipReason: '',
     lastExecutionPath: executionPath,
     lastWritebackStatus: '',
-    lastFailureStage: ''
+    lastFailureStage: '',
+    lastContentCommitted: false,
+    lastHostCommitApplied: false,
+    lastRefreshRequested: false,
+    lastRefreshConfirmed: false,
+    lastPreferredCommitMethod: '',
+    lastAppliedCommitMethod: '',
+    lastRefreshMethodCount: 0,
+    lastRefreshConfirmChecks: 0
   });
 
   eventBus.emit(EVENTS.TOOL_EXECUTION_REQUESTED, {
@@ -4106,6 +4469,7 @@ async function executeTriggeredTool(tool, context) {
 
     if (result?.success) {
       const config = getToolFullConfig(toolId);
+      const writebackDetails = result?.meta?.writebackDetails || {};
       updateRuntime(toolId, {
         lastStatus: 'success',
         lastError: '',
@@ -4115,10 +4479,21 @@ async function executeTriggeredTool(tool, context) {
         lastTriggerAt: startedAt,
         lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
         lastMessageKey: messageKey,
+        lastExecutionKey: executionKey,
         lastSkipReason: '',
         lastExecutionPath: executionPath,
         lastWritebackStatus: result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
-        lastFailureStage: result?.meta?.failureStage || ''
+        lastFailureStage: result?.meta?.failureStage || '',
+        lastContentCommitted: !!writebackDetails.contentCommitted,
+        lastHostCommitApplied: !!writebackDetails.hostCommitApplied,
+        lastRefreshRequested: !!writebackDetails.refreshRequested,
+        lastRefreshConfirmed: !!writebackDetails.refreshConfirmed,
+        lastPreferredCommitMethod: writebackDetails?.commit?.preferredMethod || '',
+        lastAppliedCommitMethod: writebackDetails?.commit?.appliedMethod || '',
+        lastRefreshMethodCount: Array.isArray(writebackDetails?.refresh?.requestMethods)
+          ? writebackDetails.refresh.requestMethods.length
+          : 0,
+        lastRefreshConfirmChecks: Number(writebackDetails?.refresh?.confirmChecks) || 0
       });
 
       const message = isManual
@@ -4142,6 +4517,7 @@ async function executeTriggeredTool(tool, context) {
 
     const config = getToolFullConfig(toolId);
     const errorMessage = result?.error || '工具执行失败';
+    const writebackDetails = result?.meta?.writebackDetails || {};
 
     updateRuntime(toolId, {
       lastStatus: 'error',
@@ -4152,12 +4528,23 @@ async function executeTriggeredTool(tool, context) {
       lastTriggerAt: startedAt,
       lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
       lastMessageKey: messageKey,
+      lastExecutionKey: executionKey,
       lastSkipReason: '',
       lastExecutionPath: executionPath,
       lastWritebackStatus: result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
       lastFailureStage: result?.meta?.failureStage || (executionPath === TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY
         ? TOOL_FAILURE_STAGES.COMPATIBILITY_EXECUTE
-        : TOOL_FAILURE_STAGES.UNKNOWN)
+        : TOOL_FAILURE_STAGES.UNKNOWN),
+      lastContentCommitted: !!writebackDetails.contentCommitted,
+      lastHostCommitApplied: !!writebackDetails.hostCommitApplied,
+      lastRefreshRequested: !!writebackDetails.refreshRequested,
+      lastRefreshConfirmed: !!writebackDetails.refreshConfirmed,
+      lastPreferredCommitMethod: writebackDetails?.commit?.preferredMethod || '',
+      lastAppliedCommitMethod: writebackDetails?.commit?.appliedMethod || '',
+      lastRefreshMethodCount: Array.isArray(writebackDetails?.refresh?.requestMethods)
+        ? writebackDetails.refresh.requestMethods.length
+        : 0,
+      lastRefreshConfirmChecks: Number(writebackDetails?.refresh?.confirmChecks) || 0
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
@@ -4188,12 +4575,21 @@ async function executeTriggeredTool(tool, context) {
       lastTriggerAt: startedAt,
       lastTriggerEvent: context?.triggerEvent || EVENT_TYPES.GENERATION_ENDED,
       lastMessageKey: messageKey,
+      lastExecutionKey: executionKey,
       lastSkipReason: '',
       lastExecutionPath: executionPath,
       lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
       lastFailureStage: executionPath === TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY
         ? TOOL_FAILURE_STAGES.COMPATIBILITY_EXECUTE
-        : TOOL_FAILURE_STAGES.UNKNOWN
+        : TOOL_FAILURE_STAGES.UNKNOWN,
+      lastContentCommitted: false,
+      lastHostCommitApplied: false,
+      lastRefreshRequested: false,
+      lastRefreshConfirmed: false,
+      lastPreferredCommitMethod: '',
+      lastAppliedCommitMethod: '',
+      lastRefreshMethodCount: 0,
+      lastRefreshConfirmChecks: 0
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
@@ -4232,10 +4628,19 @@ export async function runToolManually(toolId) {
       lastTriggerAt: Date.now(),
       lastTriggerEvent: 'MANUAL',
       lastMessageKey: '',
+      lastExecutionKey: '',
       lastSkipReason: AUTO_TRIGGER_SKIP_REASONS.TOOL_DISABLED,
       lastExecutionPath: '',
       lastWritebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
-      lastFailureStage: ''
+      lastFailureStage: '',
+      lastContentCommitted: false,
+      lastHostCommitApplied: false,
+      lastRefreshRequested: false,
+      lastRefreshConfirmed: false,
+      lastPreferredCommitMethod: '',
+      lastAppliedCommitMethod: '',
+      lastRefreshMethodCount: 0,
+      lastRefreshConfirmChecks: 0
     }, {
       touchLastRunAt: false,
       emitEvent: false
@@ -4288,14 +4693,17 @@ export function destroyToolTriggerManager() {
   }
   toolTriggerManagerState.listeners.clear();
   toolTriggerManagerState.messageSessions.clear();
+  toolTriggerManagerState.handledExecutionKeys.clear();
   toolTriggerManagerState.recentSessionHistory = [];
   toolTriggerManagerState.recentEventTimeline = [];
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
   toolTriggerManagerState.lastHandledMessageKey = '';
+  toolTriggerManagerState.lastHandledExecutionKey = '';
   toolTriggerManagerState.lastAutoTriggerSnapshot = null;
   toolTriggerManagerState.lastEventDebugSnapshot = null;
   toolTriggerManagerState.lastDuplicateMessageKey = '';
+  toolTriggerManagerState.lastDuplicateExecutionKey = '';
   toolTriggerManagerState.lastDuplicateMessageAt = 0;
   
   log('工具触发管理器已销毁');
@@ -4306,6 +4714,7 @@ export function destroyToolTriggerManager() {
  * @returns {Object} 状态对象
  */
 export function getToolTriggerManagerState() {
+  const recentHandledExecutionKeys = getRecentHandledExecutionKeys(8);
   const activeSessions = Array.from(toolTriggerManagerState.messageSessions.values())
     .map(cloneDiagnosticEntryForOutput)
     .filter(Boolean)
@@ -4330,6 +4739,10 @@ export function getToolTriggerManagerState() {
     registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
     pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
     lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey,
+    lastHandledExecutionKey: toolTriggerManagerState.lastHandledExecutionKey,
+    lastDuplicateExecutionKey: toolTriggerManagerState.lastDuplicateExecutionKey,
+    handledExecutionKeyCount: toolTriggerManagerState.handledExecutionKeys.size,
+    recentHandledExecutionKeys,
     listenerSettings: getResolvedListenerSettings(),
     eventBridge: buildEventBridgeDiagnosticSummary(),
     gateState: buildGateStateDiagnosticSummary()
@@ -4341,6 +4754,7 @@ export function getAutoTriggerDiagnostics(options = {}) {
   const historyLimit = Number.isFinite(parsedHistoryLimit)
     ? Math.max(1, Math.min(50, parsedHistoryLimit))
     : 8;
+  const recentHandledExecutionKeys = getRecentHandledExecutionKeys(historyLimit);
   const baseline = triggerState.gateState.lastGenerationBaseline;
 
   const activeSessions = Array.from(toolTriggerManagerState.messageSessions.values())
@@ -4391,7 +4805,11 @@ export function getAutoTriggerDiagnostics(options = {}) {
       activeSessionCount: toolTriggerManagerState.messageSessions.size,
       pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
       lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey || '',
+      lastHandledExecutionKey: toolTriggerManagerState.lastHandledExecutionKey || '',
       lastDuplicateMessageKey: toolTriggerManagerState.lastDuplicateMessageKey || '',
+      lastDuplicateExecutionKey: toolTriggerManagerState.lastDuplicateExecutionKey || '',
+      handledExecutionKeyCount: toolTriggerManagerState.handledExecutionKeys.size,
+      recentHandledExecutionKeys,
       registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
       listenerSettings: getResolvedListenerSettings(),
       eventBridge: buildEventBridgeDiagnosticSummary(),
@@ -4404,6 +4822,7 @@ export function getAutoTriggerDiagnostics(options = {}) {
     activeSessions,
     recentSessionHistory,
     recentEventTimeline,
+    recentHandledExecutionKeys,
     verdictHints,
     lastEventDebugSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastEventDebugSnapshot),
     lastAutoTriggerSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastAutoTriggerSnapshot)
@@ -4417,6 +4836,14 @@ export function exportAutoTriggerDiagnostics(options = {}) {
     schemaVersion: 'auto-trigger-diagnostics.v1',
     ...diagnostics
   }));
+}
+
+export function getGenerationTransactionDiagnostics(options = {}) {
+  return getAutoTriggerDiagnostics(options);
+}
+
+export function exportGenerationTransactionDiagnostics(options = {}) {
+  return exportAutoTriggerDiagnostics(options);
 }
 
 // ============================================================
@@ -4509,6 +4936,7 @@ export async function initTriggerModule() {
   registerEventListener(EVENT_TYPES.GENERATION_STARTED, async (type, params, dryRun) => {
       const startedAt = Date.now();
       const traceId = createTraceId('generation');
+      const generationAction = resolveGenerationAction(type, params || null);
       const generationUserIntent = resolveGenerationUserIntent(type, params || null, startedAt);
       const startedByUserIntent = generationUserIntent.startedByUserIntent;
       const userIntentDetectedAt = generationUserIntent.userIntentDetectedAt;
@@ -4519,6 +4947,12 @@ export async function initTriggerModule() {
         startedAt,
         type,
         params: params || null,
+        rawGenerationType: generationAction.rawGenerationType,
+        rawGenerationParams: generationAction.rawGenerationParams,
+        normalizedGenerationType: generationAction.normalizedGenerationType,
+        generationAction: generationAction.generationAction,
+        generationActionSource: generationAction.generationActionSource,
+        explicitGenerationAction: generationAction.explicitGenerationAction,
         dryRun: !!dryRun,
         startedByUserIntent,
         userIntentDetectedAt,
@@ -4531,8 +4965,11 @@ export async function initTriggerModule() {
 
       updateGateState({
         lastGenerationTraceId: traceId,
-        lastGenerationType: type,
+        lastGenerationType: generationAction.rawGenerationType || type,
         lastGenerationParams: params || null,
+        lastNormalizedGenerationType: generationAction.normalizedGenerationType || '',
+        lastGenerationAction: generationAction.generationAction || '',
+        lastGenerationActionSource: generationAction.generationActionSource || '',
         lastGenerationDryRun: !!dryRun,
         isGenerating: true,
         lastGenerationBaseline: provisionalBaseline
@@ -4542,6 +4979,8 @@ export async function initTriggerModule() {
         type,
         dryRun: !!dryRun,
         params: params || null,
+        generationAction: generationAction.generationAction,
+        generationActionSource: generationAction.generationActionSource,
         traceId,
         startedByUserIntent,
         userIntentSource,
@@ -4553,7 +4992,7 @@ export async function initTriggerModule() {
         eventType: EVENT_TYPES.GENERATION_STARTED,
         traceId,
         phase: 'generation_started',
-        detail: normalizeGenerationType(type, params || null),
+        detail: generationAction.generationAction || normalizeGenerationType(type, params || null),
         generationTraceId: traceId,
         baselineResolved: false,
         generationStartedByUserIntent: startedByUserIntent,
@@ -4565,6 +5004,12 @@ export async function initTriggerModule() {
         startedAt,
         type,
         params: params || null,
+        rawGenerationType: generationAction.rawGenerationType,
+        rawGenerationParams: generationAction.rawGenerationParams,
+        normalizedGenerationType: generationAction.normalizedGenerationType,
+        generationAction: generationAction.generationAction,
+        generationActionSource: generationAction.generationActionSource,
+        explicitGenerationAction: generationAction.explicitGenerationAction,
         dryRun: !!dryRun,
         startedByUserIntent,
         userIntentDetectedAt,
@@ -4652,7 +5097,8 @@ export async function initTriggerModule() {
         eventType: EVENT_TYPES.GENERATION_ENDED,
         traceId: triggerState.gateState.lastGenerationTraceId || '',
         phase: 'generation_ended',
-        generationTraceId: triggerState.gateState.lastGenerationTraceId || ''
+        generationTraceId: triggerState.gateState.lastGenerationTraceId || '',
+        detail: triggerState.gateState.lastGenerationAction || triggerState.gateState.lastNormalizedGenerationType || ''
       });
     });
 

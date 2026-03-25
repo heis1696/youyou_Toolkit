@@ -4,6 +4,8 @@
 > 关联文档：`docs/OPTIMIZATION_EXECUTION_PLAN.md`、`docs/OPTIMIZATION_PROGRESS.md`、`docs/API_DOCUMENTATION.md`、`docs/HOST_REGRESSION_CHECKLIST.md`  
 > 当前适用基线：已完成“旧对话 / 聊天信息窗口误触发工具”系统性修复后的主线代码
 
+> 状态说明（2026-03-25 晚）：本文档当前更适合作为**自动触发专项加固历史档案 + N1/N2 宿主验收顺序文档**来阅读，而不再单独代表下一轮主施工计划。最新宿主证据表明：同一用户消息完成一次 AI 回复后，对该楼层执行重 roll / reroll 仍可能不会再次自动触发工具。因此，后续主规划已转入：`docs/MVU_DEEP_ANALYSIS.md` 与 `docs/MVU_TRANSACTION_REWORK_PLAN.md`。文中凡是“`regenerate / swipe` 合法路径已恢复”之类表述，应理解为**代码层阶段性落点**，而不是最新宿主事实的最终验收结论。
+
 ## 一、文档目的
 
 本文件不是重新定义整套优化路线，而是针对自动触发链在主问题修复后仍暴露出的**剩余风险**，补一份可直接进入后续施工的专项方案。
@@ -54,6 +56,20 @@
 
 - `regenerate`
 - `swipe`
+
+### 2.4 2026-03-25 再补记：同楼层 reroll / 重roll 仍未形成宿主闭环
+
+最新宿主实测进一步表明：
+
+1. 新用户消息首次得到 AI 回复时，自动触发仍可工作
+2. 对这条已得到 AI 回复的用户消息执行重 roll / reroll 时，工具不一定会再次自动触发
+
+这说明当前问题已经不再只是“显式用户 generation 动作是否被识别”的问题，还很可能同时涉及：
+
+- reroll 家族动作识别仍未完全贴合真实宿主事件格式
+- 当前 `chatId + messageId` 级去重语义会把“同楼层的新 generation”误判为重复消息
+
+因此，本专项文档后续继续保留 baseline / replay / N1 / N2 的历史背景和验收口径；但若进入下一轮真正施工，应以 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 为主。
 
 ### 2.2 当前剩余风险不再属于“主 bug 未修”
 

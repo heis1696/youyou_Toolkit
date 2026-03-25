@@ -11,6 +11,21 @@
 
 ### 更改
 
+- ♻️ **MVU 事务化收口 Phase T2：generation-aware dedupe 与 execution key 轨迹收口** (`modules/tool-trigger.js`, `modules/tool-registry.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - session key 已收口到 `chatId + messageId + generationTraceId` 语义，避免同楼层新 generation 被继续混进旧 session
+  - 自动去重改为维护最近已处理 execution key 集合，并对外暴露 `handledExecutionKeyCount / recentHandledExecutionKeys`
+  - 单工具 runtime 与工具页诊断同步补齐 execution key 轨迹展示
+
+- ♻️ **MVU 事务化收口 Phase T3 / T4：writeback commit / refresh confirm 分层结果与 UI / 文档同步** (`modules/context-injector.js`, `modules/tool-output-service.js`, `modules/tool-trigger.js`, `modules/tool-registry.js`, `modules/app/public-api.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 写回链新增 `commit` 与 `refresh` 分层结果，显式记录主提交策略、实际提交策略、fallbackUsed、刷新请求通道、确认轮数与 confirmedBy
+  - `tool-output-service` 的 `meta.phases` 已对齐到 `request -> extract -> writeback -> refresh` 四阶段
+  - 工具 runtime、工具页折叠诊断、公共 API 与回归文档已同步补齐 execution key 轨迹、主提交策略 / 实际提交策略与 refresh confirm 展示
+
+- ♻️ **MVU 事务化收口 Phase T1：generation action 识别与诊断出口补齐** (`modules/tool-trigger.js`, `modules/app/public-api.js`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - session 冻结字段、history 条目与 drift 摘要现已补齐 generation action 相关字段，能够直接区分 trace 漂移与 generation action 漂移
+  - 对外 API 新增 `getGenerationTransactionDiagnostics()` / `exportGenerationTransactionDiagnostics()` 事务化别名出口
+  - API 文档同步补充 generation action drift、recent handled execution key 与事务化诊断语义说明
+
 - ♻️ **S2 存储接口收口第一轮** (`modules/api-connection.js`, `modules/preset-manager.js`, `modules/regex-extractor.js`, `README.md`, `docs/API_DOCUMENTATION.md`, `docs/EXTENSION_GUIDE.md`, `docs/CODEBASE_DIET_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - API 配置、API 预设、规则提取模块已优先改用 `core/storage-service.js` 主接口
   - `storage.js` 继续保留为 compatibility adapter，不破坏历史调用
@@ -79,6 +94,12 @@
   - 执行 `npm run build` 构建验证通过，为进入 Phase 2 提供稳定基线
 
 ### 文档
+
+- 📝 **新增 MVU 深度解析与事务化收口施工文档** (`docs/MVU_DEEP_ANALYSIS.md`, `docs/MVU_TRANSACTION_REWORK_PLAN.md`, `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/API_DOCUMENTATION.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 新增 `docs/MVU_DEEP_ANALYSIS.md`，重新梳理当前自动触发、messageId 级去重与写回刷新问题的根因模型
+  - 新增 `docs/MVU_TRANSACTION_REWORK_PLAN.md`，将下一轮主线明确收口为 `generation action 识别 -> generation-aware dedupe -> writeback refresh confirm`
+  - 将 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 收口为历史专项与 N1 / N2 宿主验收档案，不再单独承担本轮主施工文档职责
+  - 宿主回归清单与 API / 进度文档同步补入“同楼层 reroll / 重roll 不再自动触发”的新证据与下一轮规划口径
 
 - 📝 **新增 N1 宿主自动触发链验收记录模板** (`docs/N1_AUTO_TRIGGER_ACCEPTANCE_RECORD.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 新增独立记录模板，用于统一登记 A10 / A11 / A12 / A13 的宿主验收结果

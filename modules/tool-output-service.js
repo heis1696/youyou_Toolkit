@@ -52,6 +52,37 @@ export const TOOL_WRITEBACK_STATUS = {
   NOT_APPLICABLE: 'not_applicable'
 };
 
+function buildToolPipelineMeta(messages = [], outputContent = '', writebackDetails = null) {
+  return {
+    request: {
+      built: Array.isArray(messages) && messages.length > 0,
+      messageCount: Array.isArray(messages) ? messages.length : 0
+    },
+    extract: {
+      completed: true,
+      hasOutput: Boolean(String(outputContent || '').trim())
+    },
+    writeback: {
+      attempted: !!writebackDetails,
+      contentCommitted: !!writebackDetails?.contentCommitted,
+      hostCommitApplied: !!writebackDetails?.hostCommitApplied,
+      writebackStatus: writebackDetails?.writebackStatus || '',
+      preferredCommitMethod: writebackDetails?.commit?.preferredMethod || '',
+      appliedCommitMethod: writebackDetails?.commit?.appliedMethod || '',
+      fallbackUsed: !!writebackDetails?.commit?.fallbackUsed
+    },
+    refresh: {
+      requested: !!writebackDetails?.refreshRequested,
+      confirmed: !!writebackDetails?.refreshConfirmed,
+      requestMethods: Array.isArray(writebackDetails?.refresh?.requestMethods)
+        ? [...writebackDetails.refresh.requestMethods]
+        : [],
+      confirmChecks: Number(writebackDetails?.refresh?.confirmChecks) || 0,
+      confirmedBy: writebackDetails?.refresh?.confirmedBy || ''
+    }
+  };
+}
+
 // ============================================================
 // 工具输出服务类
 // ============================================================
@@ -129,6 +160,7 @@ class ToolOutputService {
     const toolId = toolConfig.id;
     const executionTraceId = rawContext?.traceId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const sessionKey = rawContext?.sessionKey || '';
+    const executionKey = rawContext?.executionKey || '';
     const selectors = this._getExtractionSelectors(toolConfig);
     const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
     let failureStage = '';
@@ -217,12 +249,18 @@ class ToolOutputService {
         meta: {
           traceId: executionTraceId,
           sessionKey,
+          executionKey,
+          generationAction: rawContext?.generationAction || '',
+          generationActionSource: rawContext?.generationActionSource || '',
+          rawGenerationType: rawContext?.rawGenerationType || '',
+          normalizedGenerationType: rawContext?.normalizedGenerationType || '',
           messageCount: messages.length,
           selectors,
           apiPreset,
           writebackStatus,
           failureStage: '',
-          writebackDetails
+          writebackDetails,
+          phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
         }
       };
       
@@ -250,12 +288,18 @@ class ToolOutputService {
         meta: {
           traceId: executionTraceId,
           sessionKey,
+          executionKey,
+          generationAction: rawContext?.generationAction || '',
+          generationActionSource: rawContext?.generationActionSource || '',
+          rawGenerationType: rawContext?.rawGenerationType || '',
+          normalizedGenerationType: rawContext?.normalizedGenerationType || '',
           messageCount: messages.length,
           selectors,
           apiPreset,
           writebackStatus: resolvedWritebackStatus,
           failureStage: resolvedFailureStage,
-          writebackDetails
+          writebackDetails,
+          phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
         }
       };
     }

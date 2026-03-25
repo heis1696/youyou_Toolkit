@@ -62,7 +62,7 @@
 - popup shell 头部曾临时补上的“保存当前工具”按钮已确认属于误做入口，现已删除，仅保留工具面板内部原有保存按钮
 - 已新增 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`，用于承载下一轮自动触发链残余风险的专项补修方案
 - `modules/tool-trigger.js` 已开始落实专项补修的第一轮施工：补上 provisional baseline、resolved baseline 等待机制与 `MESSAGE_RECEIVED` 历史 replay 防线
-- `modules/tool-trigger.js` 已继续落实专项补修第二轮：恢复用户主动 `regenerate / swipe` 的合法自动触发路径，并把 `ignoreAutoTrigger` 的拦截职责重新收口到监听器设置层
+- `modules/tool-trigger.js` 已继续落实专项补修第二轮：代码层尝试恢复用户主动 `regenerate / swipe` 的合法自动触发路径，并把 `ignoreAutoTrigger` 的拦截职责重新收口到监听器设置层
 - `modules/tool-trigger.js` 已进一步为 `messageSessions / recentSessionHistory` 补齐 session 级 generation 意图诊断字段，方便宿主执行 A10 ~ A13 时回看每个 phase 的门控状态
 - `modules/tool-trigger.js` / `modules/app/public-api.js` 已新增 `getAutoTriggerDiagnostics()` 聚合诊断入口，宿主回归时可直接读取 `summary / activeSessions / recentSessionHistory`，不再需要手工拼装多份状态
 - `modules/tool-trigger.js` 已继续补齐 N1 宿主验收辅助摘要：`getAutoTriggerDiagnostics().summary` 现可直接输出 `phaseCounts / consistency / eventBridge / gateState`，`getToolTriggerManagerState()` 也已补上 `activeSessions / registeredEvents / pendingTimerCount`，便于快速判断 session 冻结字段是否与当前 generation 发生漂移
@@ -77,6 +77,8 @@
 - `modules/app/public-api.js` 已新增 `loadLegacyModule(moduleKey)` 对外入口，供旧扩展显式加载 compatibility 模块
 - 本轮代码瘦身收口已完成 `npm run build` 构建验证，说明当前主路径与按需加载调整未破坏 bundle 输出
 - `modules/api-connection.js`、`modules/preset-manager.js`、`modules/regex-extractor.js` 已启动 S2 存储接口收口，优先改用 `core/storage-service.js` 主接口
+- 用户在宿主中进一步确认：首轮新用户消息 -> AI 回复的自动触发可工作，但对同一用户消息的已生成楼层执行重 roll / reroll 时，工具仍可能不会再次自动触发；这说明当前问题已从“是否收到了事件”继续收口到“generation 动作识别 + messageId 级去重语义 + 宿主刷新确认”三条主线
+- 已新增 `docs/MVU_DEEP_ANALYSIS.md` 与 `docs/MVU_TRANSACTION_REWORK_PLAN.md`，作为下一轮“MVU 事务化收口”分析与施工文档；`docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 继续保留为历史专项与 N1 / N2 验收档案
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
 
@@ -86,8 +88,9 @@
 
 1. 使用新的 `lastEventDebugSnapshot` 与 `writebackDetails` 在真实宿主环境里补一轮自动触发 / 写回链实测
 2. 若继续补修自动触发链，则优先按 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 处理 baseline 竞态与历史 replay 风险
-3. 在真实宿主中补跑一轮 `regenerate / swipe`、非用户意图 generation、A10/A11/A12/A13 回归矩阵
+3. 在真实宿主中补跑一轮 `regenerate / reroll / swipe`、非用户意图 generation、A10/A11/A12/A13 回归矩阵
 4. 若专项补修完成，再决定是否继续做额外视觉、调试页或历史面板增强
+5. 若继续推进结构性收口，则以 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 作为下一轮主施工文档，而不再继续把 reroll / dedupe / refresh 问题零散挂在历史专项文档下
 
 ### 当前执行建议（可直接照此推进）
 
@@ -130,7 +133,7 @@
 
 1. baseline 竞态补修已落地
 2. 历史 replay 防线已落地
-3. 用户主动 `regenerate / swipe` 的合法确认路径已恢复
+3. 代码层已尝试恢复用户主动 `regenerate / swipe` 的合法确认路径，但宿主最新实测又暴露出“同一用户消息已得到 AI 回复后，重 roll / reroll 仍不再自动触发”的现象，因此该路径尚不能视为最终闭环
 4. `messageSessions / recentSessionHistory` 已补齐实时诊断字段
 5. `messageSessions / recentSessionHistory` 已补齐冻结版 session generation 字段
 6. `YouYouToolkit.getAutoTriggerDiagnostics()` 已提供宿主回归聚合诊断入口
@@ -144,6 +147,19 @@
 - 下一阶段的主要风险不再是“判断没写进去”，而是“真实宿主时序下是否仍存在边界回归”。
 
 ## 下一阶段施工方案（2026-03-25）
+
+补充说明（2026-03-25 晚）：在继续沿用 `N1 -> N1 失败分支 -> N2` 的宿主验收叙事之外，当前又新增了一条更上层的结构性结论：
+
+- 当前问题已不再只是“自动触发专项残余风险”
+- 而是需要进入“MVU 事务化收口”阶段，重点处理：
+  1. reroll / regenerate / swipe 的合法 generation 动作识别
+  2. generation-aware dedupe
+  3. writeback commit / refresh confirm
+
+因此，从 2026-03-25 晚开始：
+
+- `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 继续负责历史专项与 N1 / N2 验收顺序
+- `docs/MVU_TRANSACTION_REWORK_PLAN.md` 作为下一轮真正主施工文档
 
 当前后续施工顺序已经正式收口为：
 
@@ -1275,15 +1291,102 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - [x] 误做的壳层“保存当前工具”按钮已移除，保留面板内部原有保存入口
 - [x] 自动触发链残余风险的专项施工文档已建立，可直接作为下一轮补修依据
 - [x] 自动触发链专项补修第一轮（provisional baseline / replay 防线）已完成并通过构建验证
-- [x] 自动触发链专项补修第二轮（用户主动 regenerate / swipe 合法确认路径恢复）已完成代码落地，待宿主实测确认
+- [x] 自动触发链专项补修第二轮（用户主动 regenerate / swipe 合法确认路径恢复）已完成代码落地，但宿主最新实测显示“同楼层重 roll / reroll”仍未形成最终闭环
+
+- [x] 已完成一轮更细的 MVU 对照再梳理，并新增分析/施工文档：`docs/MVU_DEEP_ANALYSIS.md`、`docs/MVU_TRANSACTION_REWORK_PLAN.md`
+- [x] 已将旧专项文档、API 文档、宿主回归清单与进度文档重新分层，避免继续把“代码意图”写成“宿主已验收事实”
 
 ### 尚未登记为最新一次完成结果的项
 
 - [x] SillyTavern / TavernHelper 宿主环境下自动触发误触发专项回归（旧对话 / 聊天信息窗口）
 - [ ] SillyTavern / TavernHelper 宿主环境下自动触发第二轮专项回归（A10 / A11 / A12 / A13）
 - [ ] SillyTavern / TavernHelper 宿主环境下最新 AI 楼层写回链最新一轮实机回归
+- [ ] SillyTavern / TavernHelper 宿主环境下“同楼层 reroll / reroll family 再触发”专项回归
 
 ### 回归结论
 
 - 结果：**就“文档施工 + 代码落点”而言，已完成**
 - 备注：本轮针对“旧对话 / 聊天信息窗口误触发工具”的宿主专项验证已确认通过；当前剩余的主要是更广义的发布前写回链实机验证，而不是本轮自动触发问题未闭环
+
+## 2026-03-25 17:45
+
+- 阶段：文档再梳理（MVU 深度解析 / 事务化收口规划）
+- 修改文件：
+  - `docs/MVU_DEEP_ANALYSIS.md`
+  - `docs/MVU_TRANSACTION_REWORK_PLAN.md`
+  - `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 新增 MVU 深度解析文档，重新梳理当前自动触发、dedupe 与写回刷新问题的根因模型
+  - 新增 MVU 事务化收口施工文档，明确下一轮主线从“继续补判断”转向“generation-aware transaction / dedupe / refresh confirm”
+  - 将旧自动触发专项文档收口为历史专项与 N1 / N2 验收档案，并在宿主回归清单中显式补入“同楼层 reroll / 重roll”关注点与下一轮规划验收项
+  - 同步修正 API / 进度 / 变更文档中的口径，避免继续把“代码层已尝试恢复 regenerate / swipe 路径”表述成“宿主已最终验收通过”
+- 修改原因：
+  - 用户要求在进入下一轮执行前，先把 MVU 对照、最新宿主现象和后续施工路径重新梳理成正式文档，避免在错误前提上继续推进
+- 阻塞项：
+  - 尚未基于新事务化规划完成对应代码实现与宿主实测
+- 状态：
+  - 成功
+
+## 2026-03-25 21:40
+
+- 阶段：MVU 事务化收口（Phase T1：generation action 识别与诊断收口）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/app/public-api.js`
+  - `docs/API_DOCUMENTATION.md`
+- 修改摘要：
+  - 为 session 冻结字段、history 条目和 drift 摘要补齐 generation action 相关诊断字段，包括 action/source/explicit action 与 normalized generation type
+  - 新增 `getGenerationTransactionDiagnostics()` / `exportGenerationTransactionDiagnostics()` 对外别名出口，为后续事务化主视图迁移做兼容铺垫
+  - API 文档同步补充 generation action drift 与 execution key 事务语义说明
+- 修改原因：
+  - 落实事务化收口 Phase T1，先让宿主能够稳定看到“本轮 generation 被识别成了什么动作”，并与 session 创建时冻结状态做对比
+- 阻塞项：
+  - generation-aware session key 与 writeback commit / refresh confirm 仍待后续阶段继续收口
+- 状态：
+  - 成功
+
+## 2026-03-25 21:50
+
+- 阶段：MVU 事务化收口（Phase T2：generation-aware dedupe 与 execution key 收口）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/tool-registry.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+- 修改摘要：
+  - 将 session key 收口到 `chatId + messageId + generationTraceId` 语义，避免同楼层多轮 generation 继续挤进同一个旧 session
+  - 将自动去重主判定从“仅看最后一次 execution key”升级为“维护最近已处理 execution key 集合”，并对外暴露 `handledExecutionKeyCount / recentHandledExecutionKeys`
+  - 单工具 runtime 与工具页诊断同步补齐 execution key 轨迹相关展示
+- 修改原因：
+  - 落实事务化收口 Phase T2，确保系统阻断的是“同一轮 generation 重复事件”，而不是“同一 messageId 的所有后续 generation”
+- 阻塞项：
+  - writeback commit / refresh confirm 事务阶段仍待继续收口
+- 状态：
+  - 成功
+
+## 2026-03-25 21:58
+
+- 阶段：MVU 事务化收口（Phase T3 / T4：writeback refresh confirm + 诊断展示同步）
+- 修改文件：
+  - `modules/context-injector.js`
+  - `modules/tool-output-service.js`
+  - `modules/tool-trigger.js`
+  - `modules/tool-registry.js`
+  - `modules/app/public-api.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 为写回链新增 `commit` 与 `refresh` 分层结果，显式记录主提交策略、实际提交策略、刷新请求通道、确认轮数与 confirmedBy
+  - `tool-output-service` 的 `phases` 已对齐到 `request -> extract -> writeback -> refresh` 四阶段
+  - 工具 runtime、工具页折叠诊断、公共 API 与文档已同步补齐 execution key 轨迹、主提交策略 / 实际提交策略与 refresh confirm 展示
+- 修改原因：
+  - 落实事务化收口 Phase T3 / T4，让宿主与 UI 能直接判断“死在 commit 还是 refresh confirm”
+- 阻塞项：
+  - 尚未完成本轮代码修改后的构建与静态验证
+- 状态：
+  - 成功

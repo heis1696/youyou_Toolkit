@@ -34,6 +34,26 @@ const WRITEBACK_METHODS = {
   SET_CHAT_MESSAGE: 'setChatMessage'
 };
 
+const WRITEBACK_REFRESH_CONFIRM_DELAY_MS = 60;
+const WRITEBACK_REFRESH_CONFIRM_RETRIES = 3;
+
+function appendUniqueMethod(list, method) {
+  const normalizedMethod = String(method || '').trim();
+  if (!normalizedMethod) {
+    return list;
+  }
+
+  if (!Array.isArray(list)) {
+    return [normalizedMethod];
+  }
+
+  if (!list.includes(normalizedMethod)) {
+    list.push(normalizedMethod);
+  }
+
+  return list;
+}
+
 // ============================================================
 // 上下文注入器类
 // ============================================================
@@ -372,6 +392,8 @@ class ContextInjector {
    * @private
    */
   _createWritebackResult(toolId, options = {}) {
+    const preferredCommitMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
+
     return {
       success: false,
       toolId,
@@ -383,6 +405,25 @@ class ContextInjector {
       textField: '',
       blockIdentity: null,
       hostUpdateMethod: WRITEBACK_METHODS.NONE,
+      commit: {
+        preferredMethod: preferredCommitMethod,
+        attemptedMethods: [],
+        appliedMethod: WRITEBACK_METHODS.NONE,
+        fallbackUsed: false,
+        contentCommitted: false,
+        hostCommitApplied: false
+      },
+      refresh: {
+        requestMethods: [],
+        requested: false,
+        confirmChecks: 0,
+        confirmed: false,
+        confirmedBy: ''
+      },
+      contentCommitted: false,
+      hostCommitApplied: false,
+      refreshRequested: false,
+      refreshConfirmed: false,
       writebackStatus: WRITEBACK_RESULT_STATUS.FAILED,
       replacedExistingBlock: false,
       insertedNewBlock: false,
@@ -393,19 +434,82 @@ class ContextInjector {
       errors: [],
       steps: {
         foundTargetMessage: false,
+        contentCommitted: false,
         localTextApplied: false,
         runtimeSynced: false,
         hostSetChatMessages: false,
         hostSetChatMessage: false,
+        refreshForceSetChatMessage: false,
         saveChatDebounced: false,
         saveChat: false,
+        refreshRequested: false,
         notifiedMessageUpdated: false,
-        verifiedAfterWrite: false
+        verifiedAfterWrite: false,
+        refreshConfirmed: false
       },
       verification: {
         textIncludesContent: false,
-        mirrorStored: false
+        mirrorStored: false,
+        refreshConfirmed: false
       }
+    };
+  }
+
+  async _wait(ms) {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  _collectWritebackVerification(runtime, chat, messageIndex, toolId, expectedContent, fallbackMessage = null) {
+    const latestMessage = runtime?.contextChat?.[messageIndex]
+      || runtime?.apiChat?.[messageIndex]
+      || chat?.[messageIndex]
+      || fallbackMessage
+      || null;
+    const latestText = this._getWritableMessageField(latestMessage).text || '';
+    const mirroredEntry = latestMessage?.[MESSAGE_TOOL_OUTPUTS_KEY]?.[toolId];
+
+    const textIncludesContent = expectedContent
+      ? latestText.includes(expectedContent)
+      : true;
+    const mirrorStored = Boolean(
+      mirroredEntry
+      && String(mirroredEntry.content || '').trim() === expectedContent
+    );
+
+    return {
+      latestMessage,
+      latestText,
+      textIncludesContent,
+      mirrorStored
+    };
+  }
+
+  async _confirmRefresh(runtime, chat, messageIndex, toolId, expectedContent, fallbackMessage = null) {
+    let confirmChecks = 1;
+    let verification = this._collectWritebackVerification(runtime, chat, messageIndex, toolId, expectedContent, fallbackMessage);
+
+    for (let attempt = 0; attempt < WRITEBACK_REFRESH_CONFIRM_RETRIES; attempt += 1) {
+      if (verification.textIncludesContent && verification.mirrorStored) {
+        return {
+          ...verification,
+          refreshConfirmed: true,
+          confirmChecks,
+          confirmedBy: 'text_and_mirror_present'
+        };
+      }
+
+      await this._wait(WRITEBACK_REFRESH_CONFIRM_DELAY_MS);
+      confirmChecks += 1;
+      verification = this._collectWritebackVerification(runtime, chat, messageIndex, toolId, expectedContent, fallbackMessage);
+    }
+
+    return {
+      ...verification,
+      refreshConfirmed: verification.textIncludesContent && verification.mirrorStored,
+      confirmChecks,
+      confirmedBy: verification.textIncludesContent && verification.mirrorStored
+        ? 'text_and_mirror_present'
+        : ''
     };
   }
 
@@ -782,6 +886,9 @@ class ContextInjector {
       this._applyMessageText(targetMessage, nextText);
       targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = mergedOutputs;
       targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(mergedOutputs);
+      result.contentCommitted = true;
+      result.commit.contentCommitted = true;
+      result.steps.contentCommitted = true;
       result.steps.localTextApplied = true;
 
       this._syncMessageToRuntimeChats(runtime, messageIndex, targetMessage);
@@ -789,9 +896,13 @@ class ContextInjector {
 
       const setChatMessages = context?.setChatMessages || api?.setChatMessages || runtime?.topWindow?.setChatMessages || null;
       const setChatMessage = context?.setChatMessage || api?.setChatMessage || runtime?.topWindow?.setChatMessage || null;
+      result.commit.preferredMethod = typeof setChatMessages === 'function'
+        ? WRITEBACK_METHODS.SET_CHAT_MESSAGES
+        : (typeof setChatMessage === 'function' ? WRITEBACK_METHODS.SET_CHAT_MESSAGE : WRITEBACK_METHODS.LOCAL_ONLY);
       let hostWriteCompleted = false;
 
       if (typeof setChatMessages === 'function') {
+        appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGES);
         try {
           await setChatMessages.call(context || api || runtime?.topWindow, [{
             message_id: messageIndex,
@@ -804,6 +915,9 @@ class ContextInjector {
           });
           result.steps.hostSetChatMessages = true;
           result.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
+          result.hostCommitApplied = true;
+          result.commit.appliedMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
+          result.commit.hostCommitApplied = true;
           hostWriteCompleted = true;
         } catch (error) {
           this._log('setChatMessages 写回失败，回退本地同步', error);
@@ -812,6 +926,7 @@ class ContextInjector {
       }
 
       if (!hostWriteCompleted && typeof setChatMessage === 'function') {
+        appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGE);
         try {
           await setChatMessage.call(context || api || runtime?.topWindow, {
             message: nextText,
@@ -821,6 +936,10 @@ class ContextInjector {
           }, messageIndex);
           result.steps.hostSetChatMessage = true;
           result.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
+          result.hostCommitApplied = true;
+          result.commit.appliedMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
+          result.commit.hostCommitApplied = true;
+          result.commit.fallbackUsed = result.commit.preferredMethod !== WRITEBACK_METHODS.SET_CHAT_MESSAGE;
           hostWriteCompleted = true;
         } catch (error) {
           this._log('setChatMessage 写回失败，回退本地同步', error);
@@ -830,11 +949,17 @@ class ContextInjector {
 
       if (!hostWriteCompleted) {
         result.hostUpdateMethod = WRITEBACK_METHODS.LOCAL_ONLY;
+        appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.LOCAL_ONLY);
+        result.commit.appliedMethod = WRITEBACK_METHODS.LOCAL_ONLY;
+        result.commit.fallbackUsed = result.commit.preferredMethod !== WRITEBACK_METHODS.LOCAL_ONLY;
       }
 
       if (typeof setChatMessage === 'function') {
         try {
           await setChatMessage.call(context || api || runtime?.topWindow, {}, messageIndex);
+          result.steps.refreshForceSetChatMessage = true;
+          result.refreshRequested = true;
+          appendUniqueMethod(result.refresh.requestMethods, 'setChatMessage(force_refresh)');
         } catch (error) {
           this._log('使用空 setChatMessage 强制刷新失败', error);
           result.errors.push(`setChatMessage(refresh): ${error?.message || String(error)}`);
@@ -847,39 +972,54 @@ class ContextInjector {
       if (typeof saveChatDebounced === 'function') {
         saveChatDebounced.call(context || api);
         result.steps.saveChatDebounced = true;
+        result.refreshRequested = true;
+        appendUniqueMethod(result.refresh.requestMethods, 'saveChatDebounced');
       }
 
       if (typeof saveChat === 'function') {
         await saveChat.call(context || api);
         result.steps.saveChat = true;
+        result.refreshRequested = true;
+        appendUniqueMethod(result.refresh.requestMethods, 'saveChat');
       }
 
       this._notifyMessageUpdated(runtime, messageIndex);
       result.steps.notifiedMessageUpdated = true;
-
-      const latestMessage = runtime?.contextChat?.[messageIndex]
-        || runtime?.apiChat?.[messageIndex]
-        || chat[messageIndex]
-        || targetMessage;
-      const latestText = this._getWritableMessageField(latestMessage).text || '';
       const expectedContent = String(injectionEntry.content || '').trim();
-      const mirroredEntry = latestMessage?.[MESSAGE_TOOL_OUTPUTS_KEY]?.[toolId];
+      if (result.steps.hostSetChatMessages || result.steps.hostSetChatMessage) {
+        result.refreshRequested = true;
+        appendUniqueMethod(result.refresh.requestMethods, result.hostUpdateMethod);
+      }
+      if (result.steps.notifiedMessageUpdated) {
+        result.refreshRequested = true;
+        appendUniqueMethod(result.refresh.requestMethods, 'MESSAGE_UPDATED');
+      }
+      result.steps.refreshRequested = result.refreshRequested;
+      result.refresh.requested = result.refreshRequested;
 
-      result.verification.textIncludesContent = expectedContent
-        ? latestText.includes(expectedContent)
-        : true;
-      result.verification.mirrorStored = Boolean(
-        mirroredEntry
-        && String(mirroredEntry.content || '').trim() === expectedContent
-      );
+      const refreshVerification = await this._confirmRefresh(runtime, chat, messageIndex, toolId, expectedContent, targetMessage);
+
+      result.verification.textIncludesContent = refreshVerification.textIncludesContent;
+      result.verification.mirrorStored = refreshVerification.mirrorStored;
+      result.verification.refreshConfirmed = refreshVerification.refreshConfirmed;
       result.steps.verifiedAfterWrite = result.verification.textIncludesContent && result.verification.mirrorStored;
-      result.success = result.steps.localTextApplied && result.steps.runtimeSynced && result.steps.verifiedAfterWrite;
+      result.refreshConfirmed = result.verification.refreshConfirmed && result.refreshRequested;
+      result.refresh.confirmChecks = Number(refreshVerification.confirmChecks) || 0;
+      result.refresh.confirmedBy = refreshVerification.confirmedBy || '';
+      result.refresh.confirmed = result.refreshConfirmed;
+      result.steps.refreshConfirmed = result.refreshConfirmed;
+      result.success = result.steps.localTextApplied
+        && result.steps.runtimeSynced
+        && result.steps.verifiedAfterWrite
+        && result.refreshConfirmed;
       result.writebackStatus = result.success
         ? WRITEBACK_RESULT_STATUS.SUCCESS
         : WRITEBACK_RESULT_STATUS.FAILED;
 
       if (!result.success && !result.error) {
-        result.error = '工具结果已尝试写回，但最终校验未通过';
+        result.error = result.refreshRequested
+          ? '工具结果已提交，但宿主刷新确认未通过'
+          : '工具结果已尝试写回，但最终校验未通过';
       }
 
       if (result.conflictDetected && !result.error) {

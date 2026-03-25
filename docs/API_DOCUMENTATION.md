@@ -2,6 +2,11 @@
 
 本文档说明当前仓库代码基线（`0.6.2 + Unreleased`）下的公开 API 接口。
 
+补充关联文档：
+
+- [MVU 深度解析](./MVU_DEEP_ANALYSIS.md)
+- [MVU 事务化收口施工文档](./MVU_TRANSACTION_REWORK_PLAN.md)
+
 ## 模块导入
 
 ### ES Module 方式
@@ -287,6 +292,8 @@ const state = trigger.getToolTriggerManagerState();
 // state.activeSessions
 // state.eventBridge
 // state.gateState
+// state.handledExecutionKeyCount
+// state.recentHandledExecutionKeys
 
 const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 });
 // diagnostics.summary
@@ -299,10 +306,18 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
 // diagnostics.summary.phaseCounts
 // diagnostics.summary.consistency
 
+const transactionDiagnostics = YouYouToolkit.getGenerationTransactionDiagnostics({ historyLimit: 8 });
+// transactionDiagnostics.summary
+// transactionDiagnostics.recentHandledExecutionKeys
+
 const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 });
 // exported.schemaVersion
 // exported.exportedAt
 // exported.recentEventTimeline
+
+const exportedTransaction = YouYouToolkit.exportGenerationTransactionDiagnostics({ historyLimit: 8 });
+// exportedTransaction.schemaVersion
+// exportedTransaction.recentHandledExecutionKeys
 ```
 
 > `tool-trigger.js` 是当前自动工具链的入口层，负责宿主事件监听、门控判断、上下文构建与执行路径选择。
@@ -314,6 +329,8 @@ const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 })
 > 从当前 Phase 6 收口开始，`getToolTriggerManagerState()` 还会额外返回 `activeSessionCount` 与 `recentSessionHistory`，用于观察“同一条消息被哪些宿主事件命中、最后进入了什么 phase、是否被跳过或完成”。
 
 > 从当前宿主回归准备阶段开始，还额外提供 `YouYouToolkit.getAutoTriggerDiagnostics(options)`：它会把 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot` 聚合成一份更适合宿主实机验收的只读诊断对象。
+
+> 补充说明：当前对外诊断对象仍以 session / gate / snapshot 为主，还没有正式暴露“generation-aware execution key”这一层事务视图；该能力属于下一轮 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 规划内容，而不是当前代码基线已落地能力。
 
 > 从当前这轮 N1 验收辅助增强开始，`getToolTriggerManagerState()` 还会额外暴露 `activeSessions / recentEventTimeline / registeredEvents / pendingTimerCount / listenerSettings / eventBridge / gateState`；`getAutoTriggerDiagnostics().summary` 也会同步补齐 `phaseCounts / consistency / verdictHints`，用于快速判断“当前 session 冻结字段”和“当前 generation 状态”之间是否已经发生漂移，以及 A10 / A11 / A12 / A13 哪一类风险更值得优先排查。
 
@@ -367,9 +384,17 @@ const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 })
     generationStartedByUserIntent: boolean,
     generationUserIntentSource: string,
     generationUserIntentDetail: string,
+    generationAction: string,
+    generationActionSource: string,
+    explicitGenerationAction: string,
     lastUserIntentSource: string,
+    sessionGenerationActionAtCreation: string,
+    sessionGenerationActionSourceAtCreation: string,
+    sessionExplicitGenerationActionAtCreation: string,
+    sessionNormalizedGenerationTypeAtCreation: string,
     driftDetected: boolean,
     generationTraceDrifted: boolean,
+    generationActionDrifted: boolean,
     generationUserIntentDrifted: boolean,
     baselineResolvedStateChanged: boolean,
     baselineResolutionAdvancedSinceSessionCreation: boolean,
@@ -385,6 +410,16 @@ const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 })
   registeredEvents: string[],
   pendingTimerCount: number,
   lastHandledMessageKey: string,
+  handledExecutionKeyCount: number,
+  recentHandledExecutionKeys: Array<{
+    executionKey: string,
+    at: number,
+    messageKey: string,
+    messageId: string,
+    generationTraceId: string,
+    eventType: string,
+    sessionKey: string
+  }>,
   listenerSettings: object,
   eventBridge: {
     source: string,
@@ -442,6 +477,7 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
         entryCount: number,
         driftDetectedCount: number,
         generationTraceDriftCount: number,
+        generationActionDriftCount: number,
         generationUserIntentDriftCount: number,
         baselineResolvedStateChangedCount: number,
         baselineResolutionAdvancedCount: number
@@ -450,6 +486,7 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
         entryCount: number,
         driftDetectedCount: number,
         generationTraceDriftCount: number,
+        generationActionDriftCount: number,
         generationUserIntentDriftCount: number,
         baselineResolvedStateChangedCount: number,
         baselineResolutionAdvancedCount: number
@@ -477,6 +514,8 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
         relatedSessionKeys: string[]
       }
     },
+    handledExecutionKeyCount: number,
+    recentHandledExecutionKeys: Array<object>,
     baselineResolved: boolean,
     baselineResolutionAt: number,
     provisionalBaseline: boolean,
@@ -531,6 +570,25 @@ const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 })
 ```
 
 它的用途不是新增诊断语义，而是把当前聚合诊断结果稳定导出为**可序列化快照**，方便宿主回归时直接留档。
+
+### `getGenerationTransactionDiagnostics(options)`
+
+这是当前事务化诊断的对外别名出口，返回结构与 `getAutoTriggerDiagnostics()` 一致，但语义上强调：
+
+- 当前 generation action 是什么
+- 当前 execution key 是否已被处理
+- 最近被处理过的 execution key 有哪些
+
+```javascript
+const transactionDiagnostics = YouYouToolkit.getGenerationTransactionDiagnostics({ historyLimit: 8 });
+// transactionDiagnostics.summary.lastHandledExecutionKey
+// transactionDiagnostics.summary.handledExecutionKeyCount
+// transactionDiagnostics.recentHandledExecutionKeys
+```
+
+### `exportGenerationTransactionDiagnostics(options)`
+
+导出事务化诊断 JSON 快照；当前结构与 `exportAutoTriggerDiagnostics()` 保持一致。
 
 ### `getBypassManager()`
 
@@ -687,6 +745,21 @@ const outputService = YouYouToolkit.getToolOutputService();
   textField,
   blockIdentity,
   hostUpdateMethod,
+  commit: {
+    preferredMethod,
+    attemptedMethods,
+    appliedMethod,
+    fallbackUsed,
+    contentCommitted,
+    hostCommitApplied
+  },
+  refresh: {
+    requestMethods,
+    requested,
+    confirmChecks,
+    confirmed,
+    confirmedBy
+  },
   writebackStatus,
   replacedExistingBlock,
   insertedNewBlock,
@@ -707,7 +780,33 @@ const outputService = YouYouToolkit.getToolOutputService();
   },
   verification: {
     textIncludesContent,
-    mirrorStored
+    mirrorStored,
+    refreshConfirmed
+  }
+}
+```
+
+`meta.phases` 现在也已显式收口为四阶段：
+
+```javascript
+{
+  request: { built, messageCount },
+  extract: { completed, hasOutput },
+  writeback: {
+    attempted,
+    contentCommitted,
+    hostCommitApplied,
+    writebackStatus,
+    preferredCommitMethod,
+    appliedCommitMethod,
+    fallbackUsed
+  },
+  refresh: {
+    requested,
+    confirmed,
+    requestMethods,
+    confirmChecks,
+    confirmedBy
   }
 }
 ```
@@ -859,7 +958,7 @@ tool-trigger
 - 存在最近用户发送 / 用户消息意图窗口
 - 或命中了宿主明确的用户 generation 动作（当前至少包含 `regenerate`、`swipe`）
 
-因此，用户点击重新生成这类**不会新增用户楼层**的动作，也会被视为合法用户意图，不再因为“最近没有新的用户消息”而被误判成自动触发。
+当前代码意图是将“用户点击重新生成这类**不会新增用户楼层**的动作”也视为合法用户意图来源；但最新宿主实测显示：同一用户消息完成一次 AI 回复后，对该楼层执行重 roll / reroll 仍可能不会再次自动触发工具。因此这里应理解为**当前代码的目标语义**，而不是已经在所有宿主环境中完成最终验收的既定事实。相关背景与下一轮方案，请结合 `docs/MVU_DEEP_ANALYSIS.md` 与 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 阅读。
 
 其中：
 
@@ -869,6 +968,8 @@ tool-trigger
 后续所有 fallback 事件都必须围绕这份 baseline 判断“本轮是否真的新增了一条 assistant 楼层”，而不再允许简单回退到“当前聊天里最后一条 assistant 消息”。
 
 当前实现中，`GENERATION_STARTED` 会先同步写入一份 provisional baseline，随后再异步补全正式 baseline；这样即使宿主后续事件到得很快，也不会因为 baseline 尚未落库而直接丢失 trace 上下文。
+
+> 从当前这轮事务化收口第一阶段开始，聚合诊断还会额外保留 generation action 相关冻结字段与 drift 摘要，例如 `generationAction`、`generationActionSource`、`explicitGenerationAction`、`sessionGenerationActionAtCreation`、`sessionGenerationActionSourceAtCreation`、`sessionExplicitGenerationActionAtCreation`、`sessionNormalizedGenerationTypeAtCreation`。这使宿主排查时可以直接区分“trace 漂了”与“generation action 识别漂了”。
 
 当前 `confirmationSource` 的标准值为：
 
@@ -1326,7 +1427,7 @@ interface ToolConfig {
 - 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底确认来源；但 `MESSAGE_RECEIVED` 现在必须带明确 `messageId`，并最终确认命中的楼层确实是 baseline 之后新增的 assistant 回复，避免把用户消息或宿主 UI 副作用事件误当成可执行事件
 - `MESSAGE_RECEIVED` 现在还会额外阻断“带 `messageId` 的历史 assistant 消息重放事件”；如果事件不属于当前 active generation，或超出合法的 generation 完成窗口，会被记录为 `historical_replay_message_received` 或 `message_received_outside_active_generation`
 - 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，但它默认只作为 speculative 观察事件记录 session；只有宿主真的提供了可确认的消息身份时，才可能升级为确认来源
-- 多条兜底事件同时命中同一条回复时，自动链仍会按 `chatId + 最新 AI 消息ID` 去重；同一消息短时间内重复命中去重时，也会抑制重复的调试噪声日志
+- 多条兜底事件同时命中同一条回复时，自动链当前仍会按 `chatId + 最新 AI 消息ID` 去重；同一消息短时间内重复命中去重时，也会抑制重复的调试噪声日志。需要注意的是，这也是当前“同一楼层 reroll / 重roll 可能无法再次触发”的重点排查方向之一，后续计划见 `docs/MVU_TRANSACTION_REWORK_PLAN.md`
 - 构建工具执行上下文时会对“确认后的 assistant 楼层”做短暂重试读取，并以 generation baseline 限制目标范围，避免再从当前聊天快照里回退吸收旧 assistant 消息
 - 在 `CHAT_CHANGED / CHAT_CREATED` 后会进入一小段 UI transition guard 窗口；在窗口内，无消息身份事件会直接被视为宿主 UI 副作用并忽略
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕

@@ -600,7 +600,7 @@ youyou_Toolkit/
 │   │       ├── summary-tool-panel.js
 │   │       ├── status-block-panel.js
 │   │       └── tool-manage-panel.js
-│   ├── storage.js              # 存储管理
+│   ├── storage.js              # 旧存储 API 兼容适配层
 │   ├── api-connection.js       # API连接
 │   ├── preset-manager.js       # 预设管理
 │   ├── regex-extractor.js      # 规则/标签提取

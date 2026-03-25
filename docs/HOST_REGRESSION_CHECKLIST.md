@@ -167,20 +167,24 @@
 2. 若命中历史 replay，应出现 `historical_replay_message_received` 或 `message_received_outside_active_generation`
 3. 调试快照中应可看到 `historicalReplayBlocked` 或等价诊断字段
 
-### A12. 用户主动 `regenerate / swipe` 不会再被误判为自动触发
+### A12. 用户主动 `regenerate / reroll / swipe` 不会再被误判为自动触发
 
 验证步骤：
 
 1. 打开 `ignoreAutoTrigger`
-2. 在已有对话中点击一次 `regenerate`，或执行一次 `swipe` 切换生成
-3. 观察控制台、`lastEventDebugSnapshot` 与最终工具执行结果
+2. 先让一条用户消息完成一次正常 AI 回复
+3. 对同一条已生成 assistant 楼层执行一次 `regenerate` / `reroll`
+4. 再执行一次 `swipe` 切换生成
+5. 观察控制台、`lastEventDebugSnapshot`、`lastAutoTriggerSnapshot` 与最终工具执行结果
 
 预期结果：
 
 1. `GENERATION_STARTED` 不应再因为“最近没有新的用户消息”而被判定为无用户意图
 2. 调试快照中应能看到 `generationStartedByUserIntent = true`
 3. 调试快照中应能看到 `generationUserIntentSource = explicit_generation_action:regenerate`、`explicit_generation_action:swipe` 或等价诊断字段
-4. 只要 baseline 后确实新增 assistant 楼层，就应允许正常进入自动工具执行链
+4. 对同一楼层执行 `regenerate / reroll` 时，不应仅因为“没有新的 `MESSAGE_SENT`”而被拦截
+5. 若宿主复用了同一个 `messageId`，也不应仅因为 `duplicate_message` 就阻断新的合法 generation
+6. 只要 baseline 后确实新增 assistant 楼层，就应允许正常进入自动工具执行链
 
 ### A13. `ignoreAutoTrigger` 仍能拦住非用户意图 generation
 
@@ -253,6 +257,57 @@
 
 ---
 
+## 三点五、下一轮事务化收口后拟新增的回归项
+
+以下项目用于承接 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 中的新主线。当前它们首先作为**规划中的回归项**存在；待对应代码真正落地后，再升级为发布前必跑项。
+
+### A14. generation-aware dedupe 不会再误杀同楼层新 generation
+
+验证步骤：
+
+1. 先让某条用户消息完成一次正常 AI 回复并成功触发工具
+2. 对同一 assistant 楼层连续执行一次 `regenerate / reroll`
+3. 观察诊断中的 execution key、skip reason 与最终执行结果
+
+规划预期：
+
+1. 去重应阻断“同一轮 generation 的重复事件”，而不是阻断“同一 `messageId` 的所有后续 generation”
+2. 诊断中应能直接看出本次命中的 generation-aware execution key
+3. 诊断中还应能看到最近已处理 execution key 列表或等价轨迹，用于判断是否真命中同轮 generation 幂等保护
+4. 若被拦截，应能明确区分“旧式 duplicate gate”还是“新 execution key 判定”
+
+### W5. 工具写回后 UI 即时可见，无需手动刷新
+
+验证步骤：
+
+1. 触发一个 `post_response_api` 工具正常执行
+2. 在不手动刷新页面的前提下观察最新 AI 楼层
+3. 对照 `writebackDetails` 与后续 refresh 相关诊断字段
+
+规划预期：
+
+1. 工具输出写回后应立即在 UI 中可见
+2. 诊断中应能区分“内容已提交”“宿主写回已执行”“刷新已确认”三个层次
+3. 诊断中应能直接看到主提交策略与实际提交策略
+4. 若失败，应能直接定位失败发生在 commit 还是 refresh confirm 阶段
+
+### D4. raw generation action / execution key / refresh confirm 可读
+
+验证步骤：
+
+1. 分别触发一次新消息首轮生成、同楼层 reroll、swipe
+2. 查看聚合诊断对象与工具页折叠区
+
+规划预期：
+
+1. 可直接读取宿主原始 generation 动作信息
+2. 可直接读取 generation-aware execution key
+3. 可直接读取最近已处理 execution key 轨迹
+4. 可直接读取 refresh confirm 结果，而不再只看到写回文本校验
+5. 可直接读取主提交策略 / 实际提交策略，而不再只看到 hostUpdateMethod
+
+---
+
 ## 四、调试链回归
 
 ### D1. 全局状态可读
@@ -265,16 +320,17 @@
 
 1. 可看到 `activeSessionCount`
 2. 可看到 `activeSessions`
-2. 可看到 `recentSessionHistory`
-3. 可看到最近一次 `lastAutoTriggerSnapshot / lastEventDebugSnapshot`
-4. `recentSessionHistory` / `lastEventDebugSnapshot` 中应可看到 `confirmedAssistantMessageId`、`confirmationSource`、`isSpeculativeSession`、`skipReasonDetailed`
-5. 本轮补修后还应可看到 `baselineResolved`、`baselineResolutionAt`、`historicalReplayBlocked`、`historicalReplayReason`
-6. 针对第二轮专项补修，`recentSessionHistory` / `lastEventDebugSnapshot` 中还应可看到 `generationStartedByUserIntent`、`generationUserIntentSource`、`generationUserIntentDetail`、`lastUserIntentSource`
-7. 针对本轮 N1 验收辅助增强，`activeSessions / recentSessionHistory` 中还应可看到 `driftDetected`、`generationTraceDrifted`、`generationUserIntentDrifted`、`baselineResolvedStateChanged`、`baselineResolutionAdvancedSinceSessionCreation`、`driftReasons`
-8. `getToolTriggerManagerState()` 还应额外提供 `registeredEvents`、`pendingTimerCount`、`eventBridge`、`gateState`
-9. `YouYouToolkit.getAutoTriggerDiagnostics().summary` 还应额外提供 `phaseCounts` 与 `consistency`
-10. `getToolTriggerManagerState()` / `getAutoTriggerDiagnostics()` 还应可看到 `recentEventTimeline`
-11. `YouYouToolkit.getAutoTriggerDiagnostics()` 还应提供 `verdictHints`
+3. 可看到 `recentSessionHistory`
+4. 可看到最近一次 `lastAutoTriggerSnapshot / lastEventDebugSnapshot`
+5. `recentSessionHistory` / `lastEventDebugSnapshot` 中应可看到 `confirmedAssistantMessageId`、`confirmationSource`、`isSpeculativeSession`、`skipReasonDetailed`
+6. 本轮补修后还应可看到 `baselineResolved`、`baselineResolutionAt`、`historicalReplayBlocked`、`historicalReplayReason`
+7. 针对第二轮专项补修，`recentSessionHistory` / `lastEventDebugSnapshot` 中还应可看到 `generationStartedByUserIntent`、`generationUserIntentSource`、`generationUserIntentDetail`、`lastUserIntentSource`
+8. 针对本轮 N1 验收辅助增强，`activeSessions / recentSessionHistory` 中还应可看到 `driftDetected`、`generationTraceDrifted`、`generationUserIntentDrifted`、`baselineResolvedStateChanged`、`baselineResolutionAdvancedSinceSessionCreation`、`driftReasons`
+9. `getToolTriggerManagerState()` 还应额外提供 `registeredEvents`、`pendingTimerCount`、`eventBridge`、`gateState`
+10. `YouYouToolkit.getAutoTriggerDiagnostics().summary` 还应额外提供 `phaseCounts` 与 `consistency`
+11. `getToolTriggerManagerState()` / `getAutoTriggerDiagnostics()` 还应可看到 `recentEventTimeline`
+12. `YouYouToolkit.getAutoTriggerDiagnostics()` 还应提供 `verdictHints`
+13. `getToolTriggerManagerState()` / `getAutoTriggerDiagnostics()` 还应可看到 `handledExecutionKeyCount / recentHandledExecutionKeys`
 
 ### D3. generation baseline / UI guard 诊断可读
 
@@ -414,13 +470,14 @@ copy(JSON.stringify(YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8
 
 ### 6.3 A12 / A13 的重点判读方式
 
-#### A12：用户主动 `regenerate / swipe`
+#### A12：用户主动 `regenerate / reroll / swipe`
 
 重点确认：
 
 1. `GENERATION_STARTED` 后，`generationStartedByUserIntent` 应为 `true`
 2. `generationUserIntentSource` 应出现 `explicit_generation_action:regenerate` 或 `explicit_generation_action:swipe`
-3. 若后续确实新增 assistant 楼层，不应再被 `ignored_auto_trigger` 拦住
+3. 对同一楼层执行 `regenerate / reroll` 时，不应仅因为缺少新的 `MESSAGE_SENT` 或命中 `duplicate_message` 就被提前挡住
+4. 若后续确实新增 assistant 楼层，不应再被 `ignored_auto_trigger` 拦住
 
 #### A13：非用户意图 generation
 
