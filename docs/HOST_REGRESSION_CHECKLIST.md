@@ -183,8 +183,9 @@
 2. 调试快照中应能看到 `generationStartedByUserIntent = true`
 3. 调试快照中应能看到 `generationUserIntentSource = explicit_generation_action:regenerate`、`explicit_generation_action:swipe` 或等价诊断字段
 4. 对同一楼层执行 `regenerate / reroll` 时，不应仅因为“没有新的 `MESSAGE_SENT`”而被拦截
-5. 若宿主复用了同一个 `messageId`，也不应仅因为 `duplicate_message` 就阻断新的合法 generation
-6. 只要 baseline 后确实新增 assistant 楼层，就应允许正常进入自动工具执行链
+5. 若宿主复用了同一个 `messageId` / `chatIndex`，也不应仅因为旧的“必须新增 assistant 楼层”模型而阻断新的合法 generation
+6. 调试对象中应能看到 `confirmationMode = same_slot_revision`、或至少看到 `sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource` 这组字段
+7. 只要当前 generation 属于合法 `reroll / regenerate / swipe`，即使宿主是**同楼层重写**而不是新增楼层，也应允许进入自动工具执行链
 
 ### A13. `ignoreAutoTrigger` 仍能拦住非用户意图 generation
 
@@ -476,8 +477,9 @@ copy(JSON.stringify(YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8
 
 1. `GENERATION_STARTED` 后，`generationStartedByUserIntent` 应为 `true`
 2. `generationUserIntentSource` 应出现 `explicit_generation_action:regenerate` 或 `explicit_generation_action:swipe`
-3. 对同一楼层执行 `regenerate / reroll` 时，不应仅因为缺少新的 `MESSAGE_SENT` 或命中 `duplicate_message` 就被提前挡住
-4. 若后续确实新增 assistant 楼层，不应再被 `ignored_auto_trigger` 拦住
+3. 对同一楼层执行 `regenerate / reroll` 时，不应仅因为缺少新的 `MESSAGE_SENT` 或“未新增 assistant 楼层”就被提前挡住
+4. 若宿主复用了同一 `messageId / chatIndex` 并原位重写楼层，应看到 `confirmationMode = same_slot_revision` 或等价 same-slot revision 诊断字段
+5. 若后续确实新增 assistant 楼层或确认到 same-slot revision，不应再被 `ignored_auto_trigger` 拦住
 
 #### A13：非用户意图 generation
 

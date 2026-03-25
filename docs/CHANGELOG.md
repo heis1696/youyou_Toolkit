@@ -11,6 +11,12 @@
 
 ### 更改
 
+- 🐛 **reroll 定向补修：支持同楼层 same-slot revision 确认** (`modules/tool-trigger.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - assistant 确认模型不再只接受“baseline 后新增 assistant 楼层”，现在也支持显式 `reroll / regenerate / swipe` 对同一 assistant 楼层的合法重写结果
+  - generation baseline 新增 assistant 内容指纹、`swipe_id` 与 swipe 数量快照，用于识别宿主复用同一 `messageId / chatIndex` 时的 same-slot revision
+  - `MESSAGE_RECEIVED` 会在观察到正文 / swipe 变化时确认 same-slot revision；`GENERATION_ENDED` 还会为 same-text reroll 提供兜底确认
+  - 工具页诊断折叠区、API 文档与宿主回归清单已同步补入 `confirmationMode / sameSlotRevision*` 字段，方便直接判断 reroll 是否真正进入了同楼层确认通道
+
 - ♻️ **MVU 事务化收口 Phase T2：generation-aware dedupe 与 execution key 轨迹收口** (`modules/tool-trigger.js`, `modules/tool-registry.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - session key 已收口到 `chatId + messageId + generationTraceId` 语义，避免同楼层新 generation 被继续混进旧 session
   - 自动去重改为维护最近已处理 execution key 集合，并对外暴露 `handledExecutionKeyCount / recentHandledExecutionKeys`

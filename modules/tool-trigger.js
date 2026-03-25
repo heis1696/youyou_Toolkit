@@ -149,6 +149,11 @@ const EXPLICIT_USER_GENERATION_ACTIONS = new Set([
   'regenerate',
   'swipe'
 ]);
+const SAME_SLOT_REVISION_ACTIONS = new Set([
+  'reroll',
+  'regenerate',
+  'swipe'
+]);
 
 const GENERATION_ACTION_PARAM_KEYS = [
   'type',
@@ -273,6 +278,14 @@ function normalizeChatMessages(rawMessages = []) {
     isSystem: !!message?.is_system,
     isUser: !!message?.is_user,
     sourceId: getMessageIdentity(message, index),
+    swipeId: normalizeMessageIdentityValue(
+      message?.swipe_id
+      ?? message?.swipeId
+      ?? message?.swipeID
+    ),
+    swipeCount: Array.isArray(message?.swipes) && message.swipes.length > 0
+      ? message.swipes.length
+      : 1,
     chatIndex: index,
     originalMessage: message
   }));
@@ -1068,6 +1081,11 @@ function buildGenerationBaseline(rawMessages = [], metadata = {}) {
     messageCount: normalizedMessages.length,
     lastAssistantIndex: lastAssistantMessage?.chatIndex ?? -1,
     lastAssistantMessageId: normalizeMessageIdentityValue(lastAssistantMessage?.sourceId),
+    lastAssistantContentFingerprint: buildAssistantContentFingerprint(lastAssistantMessage?.content || ''),
+    lastAssistantSwipeId: normalizeMessageIdentityValue(lastAssistantMessage?.swipeId),
+    lastAssistantSwipeCount: Number.isFinite(lastAssistantMessage?.swipeCount)
+      ? Math.max(0, Number(lastAssistantMessage.swipeCount))
+      : 0,
     lastAssistantPreview: String(lastAssistantMessage?.content || '').slice(0, 160),
     dryRun: !!metadata.dryRun,
     generationType: metadata.rawGenerationType || metadata.type || '',
@@ -1158,6 +1176,232 @@ function isWithinGenerationConfirmationWindow(now = Date.now(), baseline = getCu
   return (now - lastGenerationAt) <= AUTO_TRIGGER_GENERATION_CONFIRM_WINDOW_MS;
 }
 
+function resolveSameSlotRevisionAction(baseline = getCurrentGenerationBaseline()) {
+  const candidates = [
+    baseline?.explicitGenerationAction,
+    baseline?.generationAction,
+    triggerState.gateState.lastGenerationAction
+  ];
+
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeGenerationActionHint(candidate)
+      || String(candidate || '').trim().toLowerCase();
+
+    if (SAME_SLOT_REVISION_ACTIONS.has(normalizedCandidate)) {
+      return normalizedCandidate;
+    }
+  }
+
+  return '';
+}
+
+function isSameAssistantMessageSlot(message, baseline) {
+  if (!message || !baseline) {
+    return false;
+  }
+
+  const baselineMessageId = normalizeMessageIdentityValue(baseline.lastAssistantMessageId);
+  const messageId = normalizeMessageIdentityValue(message.sourceId);
+  const sameMessageId = !!baselineMessageId && !!messageId && baselineMessageId === messageId;
+  const sameChatIndex = Number.isInteger(baseline.lastAssistantIndex)
+    && baseline.lastAssistantIndex >= 0
+    && message.chatIndex === baseline.lastAssistantIndex;
+
+  if (sameMessageId) {
+    return true;
+  }
+
+  if (!baselineMessageId && sameChatIndex) {
+    return true;
+  }
+
+  return sameChatIndex;
+}
+
+function getSameSlotRevisionEvidence(message, baseline) {
+  const baselineFingerprint = String(baseline?.lastAssistantContentFingerprint || '').trim();
+  const messageFingerprint = buildAssistantContentFingerprint(message?.content || '');
+  const baselineSwipeId = normalizeMessageIdentityValue(baseline?.lastAssistantSwipeId);
+  const currentSwipeId = normalizeMessageIdentityValue(message?.swipeId);
+  const baselineSwipeCount = Number.isFinite(baseline?.lastAssistantSwipeCount)
+    ? Math.max(0, Number(baseline.lastAssistantSwipeCount))
+    : 0;
+  const currentSwipeCount = Number.isFinite(message?.swipeCount)
+    ? Math.max(0, Number(message.swipeCount))
+    : 0;
+
+  const fingerprintChanged = !!baselineFingerprint && !!messageFingerprint && baselineFingerprint !== messageFingerprint;
+  const swipeIdChanged = !!baselineSwipeId && !!currentSwipeId && baselineSwipeId !== currentSwipeId;
+  const swipeCountChanged = baselineSwipeCount > 0 && currentSwipeCount > 0 && baselineSwipeCount !== currentSwipeCount;
+
+  return {
+    baselineFingerprint,
+    messageFingerprint,
+    baselineSwipeId,
+    currentSwipeId,
+    baselineSwipeCount,
+    currentSwipeCount,
+    fingerprintChanged,
+    swipeIdChanged,
+    swipeCountChanged,
+    observedRevision: fingerprintChanged || swipeIdChanged || swipeCountChanged
+  };
+}
+
+function buildSameSlotRevisionSource(evidence = {}, fallback = 'same_slot_revision') {
+  const sources = [];
+
+  if (evidence.fingerprintChanged) {
+    sources.push('content_fingerprint_changed');
+  }
+
+  if (evidence.swipeIdChanged) {
+    sources.push('swipe_id_changed');
+  }
+
+  if (evidence.swipeCountChanged) {
+    sources.push('swipe_count_changed');
+  }
+
+  return sources.length > 0 ? sources.join('+') : fallback;
+}
+
+function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
+  const {
+    allowSameSlotRevision = false,
+    requireObservedSameSlotRevision = true
+  } = options;
+
+  if (!message || message.role !== 'assistant' || !isMeaningfulAssistantContent(message.content)) {
+    return {
+      allowed: false,
+      confirmationMode: 'none',
+      reason: 'invalid_assistant_message',
+      sameSlotRevisionAction: '',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: '',
+      observedSameSlotRevision: false,
+      baselineAssistantContentFingerprint: '',
+      confirmedAssistantContentFingerprint: '',
+      baselineAssistantSwipeId: '',
+      confirmedAssistantSwipeId: '',
+      baselineAssistantSwipeCount: 0,
+      confirmedAssistantSwipeCount: 0
+    };
+  }
+
+  if (!baseline) {
+    return {
+      allowed: true,
+      confirmationMode: 'no_baseline',
+      reason: '',
+      sameSlotRevisionAction: '',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: '',
+      observedSameSlotRevision: false,
+      baselineAssistantContentFingerprint: '',
+      confirmedAssistantContentFingerprint: buildAssistantContentFingerprint(message.content || ''),
+      baselineAssistantSwipeId: '',
+      confirmedAssistantSwipeId: normalizeMessageIdentityValue(message.swipeId),
+      baselineAssistantSwipeCount: 0,
+      confirmedAssistantSwipeCount: Number.isFinite(message?.swipeCount)
+        ? Math.max(0, Number(message.swipeCount))
+        : 0
+    };
+  }
+
+  if (isAssistantMessageAfterBaseline(message, baseline)) {
+    return {
+      allowed: true,
+      confirmationMode: 'new_message',
+      reason: '',
+      sameSlotRevisionAction: '',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: '',
+      observedSameSlotRevision: false,
+      baselineAssistantContentFingerprint: String(baseline.lastAssistantContentFingerprint || '').trim(),
+      confirmedAssistantContentFingerprint: buildAssistantContentFingerprint(message.content || ''),
+      baselineAssistantSwipeId: normalizeMessageIdentityValue(baseline.lastAssistantSwipeId),
+      confirmedAssistantSwipeId: normalizeMessageIdentityValue(message.swipeId),
+      baselineAssistantSwipeCount: Number.isFinite(baseline.lastAssistantSwipeCount)
+        ? Math.max(0, Number(baseline.lastAssistantSwipeCount))
+        : 0,
+      confirmedAssistantSwipeCount: Number.isFinite(message?.swipeCount)
+        ? Math.max(0, Number(message.swipeCount))
+        : 0
+    };
+  }
+
+  const sameSlotRevisionAction = resolveSameSlotRevisionAction(baseline);
+  const sameSlotRevisionCandidate = isSameAssistantMessageSlot(message, baseline);
+  const sameSlotRevisionEvidence = getSameSlotRevisionEvidence(message, baseline);
+
+  if (!allowSameSlotRevision || !sameSlotRevisionAction || !sameSlotRevisionCandidate) {
+    return {
+      allowed: false,
+      confirmationMode: 'none',
+      reason: sameSlotRevisionCandidate
+        ? 'same_slot_revision_action_unavailable'
+        : 'message_before_generation_baseline',
+      sameSlotRevisionAction,
+      sameSlotRevisionCandidate,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: '',
+      observedSameSlotRevision: sameSlotRevisionEvidence.observedRevision,
+      baselineAssistantContentFingerprint: sameSlotRevisionEvidence.baselineFingerprint,
+      confirmedAssistantContentFingerprint: sameSlotRevisionEvidence.messageFingerprint,
+      baselineAssistantSwipeId: sameSlotRevisionEvidence.baselineSwipeId,
+      confirmedAssistantSwipeId: sameSlotRevisionEvidence.currentSwipeId,
+      baselineAssistantSwipeCount: sameSlotRevisionEvidence.baselineSwipeCount,
+      confirmedAssistantSwipeCount: sameSlotRevisionEvidence.currentSwipeCount
+    };
+  }
+
+  if (requireObservedSameSlotRevision && !sameSlotRevisionEvidence.observedRevision) {
+    return {
+      allowed: false,
+      confirmationMode: 'none',
+      reason: 'same_slot_revision_not_observed',
+      sameSlotRevisionAction,
+      sameSlotRevisionCandidate: true,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: '',
+      observedSameSlotRevision: false,
+      baselineAssistantContentFingerprint: sameSlotRevisionEvidence.baselineFingerprint,
+      confirmedAssistantContentFingerprint: sameSlotRevisionEvidence.messageFingerprint,
+      baselineAssistantSwipeId: sameSlotRevisionEvidence.baselineSwipeId,
+      confirmedAssistantSwipeId: sameSlotRevisionEvidence.currentSwipeId,
+      baselineAssistantSwipeCount: sameSlotRevisionEvidence.baselineSwipeCount,
+      confirmedAssistantSwipeCount: sameSlotRevisionEvidence.currentSwipeCount
+    };
+  }
+
+  return {
+    allowed: true,
+    confirmationMode: 'same_slot_revision',
+    reason: '',
+    sameSlotRevisionAction,
+    sameSlotRevisionCandidate: true,
+    sameSlotRevisionConfirmed: true,
+    sameSlotRevisionSource: buildSameSlotRevisionSource(
+      sameSlotRevisionEvidence,
+      requireObservedSameSlotRevision
+        ? 'same_slot_observed_revision'
+        : 'same_slot_generation_confirmed'
+    ),
+    observedSameSlotRevision: sameSlotRevisionEvidence.observedRevision,
+    baselineAssistantContentFingerprint: sameSlotRevisionEvidence.baselineFingerprint,
+    confirmedAssistantContentFingerprint: sameSlotRevisionEvidence.messageFingerprint,
+    baselineAssistantSwipeId: sameSlotRevisionEvidence.baselineSwipeId,
+    confirmedAssistantSwipeId: sameSlotRevisionEvidence.currentSwipeId,
+    baselineAssistantSwipeCount: sameSlotRevisionEvidence.baselineSwipeCount,
+    confirmedAssistantSwipeCount: sameSlotRevisionEvidence.currentSwipeCount
+  };
+}
+
 function normalizeResolvedMessageEntry(entry) {
   if (!entry?.message) {
     return null;
@@ -1167,7 +1411,15 @@ function normalizeResolvedMessageEntry(entry) {
     role: normalizeMessageRole(entry.message),
     content: getMessageContent(entry.message),
     chatIndex: entry.index,
-    sourceId: normalizeMessageIdentityValue(getMessageIdentity(entry.message, entry.index))
+    sourceId: normalizeMessageIdentityValue(getMessageIdentity(entry.message, entry.index)),
+    swipeId: normalizeMessageIdentityValue(
+      entry.message?.swipe_id
+      ?? entry.message?.swipeId
+      ?? entry.message?.swipeID
+    ),
+    swipeCount: Array.isArray(entry.message?.swipes) && entry.message.swipes.length > 0
+      ? entry.message.swipes.length
+      : 1
   };
 }
 
@@ -1181,7 +1433,11 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
     retryDelayMs: 80
   }) || getCurrentGenerationBaseline();
   const withinGenerationWindow = isWithinGenerationConfirmationWindow(now, baseline);
-  const eventBelongsToCurrentGeneration = !!(messageEntry && baseline && isAssistantMessageAfterBaseline(messageEntry, baseline));
+  const confirmation = evaluateAssistantMessageConfirmation(messageEntry, baseline, {
+    allowSameSlotRevision: true,
+    requireObservedSameSlotRevision: true
+  });
+  const eventBelongsToCurrentGeneration = !!(messageEntry && baseline && confirmation.allowed);
   const traceMatches = !traceId || !baseline?.traceId || baseline.traceId === traceId;
 
   if (!messageEntry) {
@@ -1192,7 +1448,11 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
       historicalReplayBlocked: false,
       historicalReplayReason: '',
       reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-      detail: 'message_received_identity_not_resolved'
+      detail: 'message_received_identity_not_resolved',
+      confirmationMode: 'none',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: ''
     };
   }
 
@@ -1204,7 +1464,11 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
       historicalReplayBlocked: true,
       historicalReplayReason: 'message_received_without_generation_baseline',
       reason: AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION,
-      detail: 'message_received_without_generation_baseline'
+      detail: 'message_received_without_generation_baseline',
+      confirmationMode: 'none',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: ''
     };
   }
 
@@ -1216,7 +1480,11 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
       historicalReplayBlocked: false,
       historicalReplayReason: '',
       reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-      detail: 'generation_baseline_pending_resolution'
+      detail: 'generation_baseline_pending_resolution',
+      confirmationMode: 'none',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: ''
     };
   }
 
@@ -1228,7 +1496,11 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
       historicalReplayBlocked: true,
       historicalReplayReason: 'message_received_trace_mismatch',
       reason: AUTO_TRIGGER_SKIP_REASONS.HISTORICAL_REPLAY_MESSAGE_RECEIVED,
-      detail: 'message_received_trace_mismatch'
+      detail: 'message_received_trace_mismatch',
+      confirmationMode: 'none',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: ''
     };
   }
 
@@ -1240,19 +1512,47 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
       historicalReplayBlocked: true,
       historicalReplayReason: 'message_received_outside_active_generation',
       reason: AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION,
-      detail: 'message_received_outside_active_generation'
+      detail: 'message_received_outside_active_generation',
+      confirmationMode: 'none',
+      sameSlotRevisionCandidate: false,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: ''
     };
   }
 
-  if (!eventBelongsToCurrentGeneration) {
+  if (!confirmation.allowed) {
+    const sameSlotWaitingForRevision = confirmation.sameSlotRevisionCandidate
+      && confirmation.reason === 'same_slot_revision_not_observed';
+
     return {
       allowed: false,
       baseline,
       eventBelongsToCurrentGeneration: false,
-      historicalReplayBlocked: true,
-      historicalReplayReason: 'message_received_before_generation_baseline',
-      reason: AUTO_TRIGGER_SKIP_REASONS.HISTORICAL_REPLAY_MESSAGE_RECEIVED,
-      detail: 'message_received_before_generation_baseline'
+      historicalReplayBlocked: !sameSlotWaitingForRevision,
+      historicalReplayReason: sameSlotWaitingForRevision
+        ? ''
+        : (confirmation.sameSlotRevisionCandidate
+          ? 'message_received_same_slot_without_confirmed_revision'
+          : 'message_received_before_generation_baseline'),
+      reason: sameSlotWaitingForRevision
+        ? AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE
+        : AUTO_TRIGGER_SKIP_REASONS.HISTORICAL_REPLAY_MESSAGE_RECEIVED,
+      detail: sameSlotWaitingForRevision
+        ? 'same_slot_revision_not_observed_yet'
+        : (confirmation.sameSlotRevisionCandidate
+          ? 'message_received_same_slot_without_confirmed_revision'
+          : 'message_received_before_generation_baseline'),
+      confirmationMode: confirmation.confirmationMode,
+      sameSlotRevisionCandidate: confirmation.sameSlotRevisionCandidate,
+      sameSlotRevisionConfirmed: false,
+      sameSlotRevisionSource: confirmation.sameSlotRevisionSource,
+      sameSlotRevisionAction: confirmation.sameSlotRevisionAction,
+      baselineAssistantContentFingerprint: confirmation.baselineAssistantContentFingerprint,
+      confirmedAssistantContentFingerprint: confirmation.confirmedAssistantContentFingerprint,
+      baselineAssistantSwipeId: confirmation.baselineAssistantSwipeId,
+      confirmedAssistantSwipeId: confirmation.confirmedAssistantSwipeId,
+      baselineAssistantSwipeCount: confirmation.baselineAssistantSwipeCount,
+      confirmedAssistantSwipeCount: confirmation.confirmedAssistantSwipeCount
     };
   }
 
@@ -1264,7 +1564,18 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
     historicalReplayReason: '',
     reason: '',
     detail: '',
-    messageEntry
+    messageEntry,
+    confirmationMode: confirmation.confirmationMode,
+    sameSlotRevisionCandidate: confirmation.sameSlotRevisionCandidate,
+    sameSlotRevisionConfirmed: confirmation.sameSlotRevisionConfirmed,
+    sameSlotRevisionSource: confirmation.sameSlotRevisionSource,
+    sameSlotRevisionAction: confirmation.sameSlotRevisionAction,
+    baselineAssistantContentFingerprint: confirmation.baselineAssistantContentFingerprint,
+    confirmedAssistantContentFingerprint: confirmation.confirmedAssistantContentFingerprint,
+    baselineAssistantSwipeId: confirmation.baselineAssistantSwipeId,
+    confirmedAssistantSwipeId: confirmation.confirmedAssistantSwipeId,
+    baselineAssistantSwipeCount: confirmation.baselineAssistantSwipeCount,
+    confirmedAssistantSwipeCount: confirmation.confirmedAssistantSwipeCount
   };
 }
 
@@ -1288,7 +1599,11 @@ function isAssistantMessageAfterBaseline(message, baseline) {
   return message.chatIndex >= baselineMessageCount;
 }
 
-async function resolveConfirmedAssistantMessage(preferredMessageId = '') {
+async function resolveConfirmedAssistantMessage(preferredMessageId = '', options = {}) {
+  const {
+    allowSameSlotRevision = false,
+    requireObservedSameSlotRevision = true
+  } = options;
   const normalizedPreferredMessageId = normalizeMessageIdentityValue(preferredMessageId);
   const api = getSillyTavernAPI();
   const context = api?.getContext?.() || null;
@@ -1310,10 +1625,26 @@ async function resolveConfirmedAssistantMessage(preferredMessageId = '') {
       return null;
     }
 
-    return isMeaningfulAssistantContent(matched.content)
-      && matched.role === 'assistant'
-      && (!baseline || isAssistantMessageAfterBaseline(matched, baseline))
-      ? matched
+    const confirmation = evaluateAssistantMessageConfirmation(matched, baseline, {
+      allowSameSlotRevision,
+      requireObservedSameSlotRevision
+    });
+
+    return confirmation.allowed
+      ? {
+          ...matched,
+          confirmationMode: confirmation.confirmationMode,
+          sameSlotRevisionCandidate: confirmation.sameSlotRevisionCandidate,
+          sameSlotRevisionConfirmed: confirmation.sameSlotRevisionConfirmed,
+          sameSlotRevisionSource: confirmation.sameSlotRevisionSource,
+          sameSlotRevisionAction: confirmation.sameSlotRevisionAction,
+          baselineAssistantContentFingerprint: confirmation.baselineAssistantContentFingerprint,
+          confirmedAssistantContentFingerprint: confirmation.confirmedAssistantContentFingerprint,
+          baselineAssistantSwipeId: confirmation.baselineAssistantSwipeId,
+          confirmedAssistantSwipeId: confirmation.confirmedAssistantSwipeId,
+          baselineAssistantSwipeCount: confirmation.baselineAssistantSwipeCount,
+          confirmedAssistantSwipeCount: confirmation.confirmedAssistantSwipeCount
+        }
       : null;
   }
 
@@ -1323,8 +1654,26 @@ async function resolveConfirmedAssistantMessage(preferredMessageId = '') {
 
   for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
     const message = normalizedMessages[index];
-    if (isAssistantMessageAfterBaseline(message, baseline)) {
-      return message;
+    const confirmation = evaluateAssistantMessageConfirmation(message, baseline, {
+      allowSameSlotRevision,
+      requireObservedSameSlotRevision
+    });
+
+    if (confirmation.allowed) {
+      return {
+        ...message,
+        confirmationMode: confirmation.confirmationMode,
+        sameSlotRevisionCandidate: confirmation.sameSlotRevisionCandidate,
+        sameSlotRevisionConfirmed: confirmation.sameSlotRevisionConfirmed,
+        sameSlotRevisionSource: confirmation.sameSlotRevisionSource,
+        sameSlotRevisionAction: confirmation.sameSlotRevisionAction,
+        baselineAssistantContentFingerprint: confirmation.baselineAssistantContentFingerprint,
+        confirmedAssistantContentFingerprint: confirmation.confirmedAssistantContentFingerprint,
+        baselineAssistantSwipeId: confirmation.baselineAssistantSwipeId,
+        confirmedAssistantSwipeId: confirmation.confirmedAssistantSwipeId,
+        baselineAssistantSwipeCount: confirmation.baselineAssistantSwipeCount,
+        confirmedAssistantSwipeCount: confirmation.confirmedAssistantSwipeCount
+      };
     }
   }
 
@@ -1334,13 +1683,18 @@ async function resolveConfirmedAssistantMessage(preferredMessageId = '') {
 async function getConfirmedAssistantMessageWithRetries(preferredMessageId = '', options = {}) {
   const {
     retries = 0,
-    retryDelayMs = 250
+    retryDelayMs = 250,
+    allowSameSlotRevision = false,
+    requireObservedSameSlotRevision = true
   } = options;
 
   let confirmedMessage = null;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
-    confirmedMessage = await resolveConfirmedAssistantMessage(preferredMessageId);
+    confirmedMessage = await resolveConfirmedAssistantMessage(preferredMessageId, {
+      allowSameSlotRevision,
+      requireObservedSameSlotRevision
+    });
     if (confirmedMessage) {
       return confirmedMessage;
     }
@@ -1369,6 +1723,11 @@ function getCurrentGenerationDiagnosticFields() {
     generationAction: baseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
     generationActionSource: baseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
     explicitGenerationAction: baseline?.explicitGenerationAction || '',
+    baselineAssistantContentFingerprint: baseline?.lastAssistantContentFingerprint || '',
+    baselineAssistantSwipeId: normalizeMessageIdentityValue(baseline?.lastAssistantSwipeId),
+    baselineAssistantSwipeCount: Number.isFinite(baseline?.lastAssistantSwipeCount)
+      ? Math.max(0, Number(baseline.lastAssistantSwipeCount))
+      : 0,
     lastUserIntentSource: triggerState.gateState.lastUserIntentSource || ''
   };
 }
@@ -1422,6 +1781,10 @@ function createEventDebugSnapshot(snapshot = {}) {
     reason: '',
     skipReasonDetailed: '',
     confirmedAssistantMessageId: '',
+    confirmationMode: '',
+    sameSlotRevisionCandidate: false,
+    sameSlotRevisionConfirmed: false,
+    sameSlotRevisionSource: '',
     scheduledDelayMs: 0,
     candidateToolIds: [],
     receivedAt: Date.now(),
@@ -1493,6 +1856,10 @@ function createAutoTriggerSnapshot(snapshot = {}) {
     messageId: '',
     messageKey: '',
     executionKey: '',
+    confirmationMode: '',
+    sameSlotRevisionCandidate: false,
+    sameSlotRevisionConfirmed: false,
+    sameSlotRevisionSource: '',
     selectedToolIds: [],
     skipReason: '',
     skipReasonDetailed: '',
@@ -2230,6 +2597,10 @@ function createMessageSession(eventType, data, snapshot = {}) {
     messageRole: snapshot?.messageRole || '',
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || '',
+    confirmationMode: snapshot?.confirmationMode || '',
+    sameSlotRevisionCandidate: !!snapshot?.sameSlotRevisionCandidate,
+    sameSlotRevisionConfirmed: !!snapshot?.sameSlotRevisionConfirmed,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
     isSpeculativeSession: !!snapshot?.isSpeculativeSession,
     eventBelongsToCurrentGeneration: !!snapshot?.eventBelongsToCurrentGeneration,
     historicalReplayBlocked: !!snapshot?.historicalReplayBlocked,
@@ -2331,6 +2702,22 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
     session.confirmationSource = snapshot.confirmationSource;
   }
 
+  if (snapshot?.confirmationMode) {
+    session.confirmationMode = snapshot.confirmationMode;
+  }
+
+  if (snapshot?.sameSlotRevisionCandidate !== undefined) {
+    session.sameSlotRevisionCandidate = !!snapshot.sameSlotRevisionCandidate;
+  }
+
+  if (snapshot?.sameSlotRevisionConfirmed !== undefined) {
+    session.sameSlotRevisionConfirmed = !!snapshot.sameSlotRevisionConfirmed;
+  }
+
+  if (snapshot?.sameSlotRevisionSource) {
+    session.sameSlotRevisionSource = snapshot.sameSlotRevisionSource;
+  }
+
   if (snapshot?.skipReasonDetailed) {
     session.skipReasonDetailed = snapshot.skipReasonDetailed;
   }
@@ -2400,6 +2787,10 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
     messageRole: historyPartial?.messageRole || session.messageRole,
     confirmedAssistantMessageId: historyPartial?.confirmedAssistantMessageId || session.confirmedAssistantMessageId || '',
     confirmationSource: historyPartial?.confirmationSource || session.confirmationSource || '',
+    confirmationMode: historyPartial?.confirmationMode || session.confirmationMode || '',
+    sameSlotRevisionCandidate: historyPartial?.sameSlotRevisionCandidate ?? session.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: historyPartial?.sameSlotRevisionConfirmed ?? session.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: historyPartial?.sameSlotRevisionSource || session.sameSlotRevisionSource || '',
     isSpeculativeSession: historyPartial?.isSpeculativeSession ?? session.isSpeculativeSession ?? false,
     eventBelongsToCurrentGeneration: historyPartial?.eventBelongsToCurrentGeneration ?? session.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: historyPartial?.historicalReplayBlocked ?? session.historicalReplayBlocked ?? false,
@@ -2911,6 +3302,10 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     messageId,
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || 'none',
+    confirmationMode: snapshot?.confirmationMode || '',
+    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
     skipReasonDetailed: snapshot?.skipReasonDetailed || 'speculative_session_only',
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
@@ -2939,6 +3334,10 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     skipReasonDetailed: detail,
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     confirmationSource: snapshot?.confirmationSource || 'none',
+    confirmationMode: snapshot?.confirmationMode || '',
+    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
     isSpeculativeSession: true,
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
@@ -2951,6 +3350,10 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     skipReason: reason,
     skipReasonDetailed: detail,
     confirmationSource: snapshot?.confirmationSource || 'none',
+    confirmationMode: snapshot?.confirmationMode || '',
+    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
@@ -2997,6 +3400,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         messageId: confirmedAssistantMessageId,
         confirmedAssistantMessageId,
         confirmationSource: snapshot?.confirmationSource || data?.confirmationSource || '',
+        confirmationMode: snapshot?.confirmationMode || data?.confirmationMode || '',
+        sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? data?.sameSlotRevisionCandidate ?? false,
+        sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? data?.sameSlotRevisionConfirmed ?? false,
+        sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || data?.sameSlotRevisionSource || '',
         eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? data?.eventBelongsToCurrentGeneration ?? false,
         historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? data?.historicalReplayBlocked ?? false,
         historicalReplayReason: snapshot?.historicalReplayReason || data?.historicalReplayReason || ''
@@ -3005,6 +3412,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         messageId: confirmedAssistantMessageId,
         confirmedAssistantMessageId,
         confirmationSource: snapshot?.confirmationSource || '',
+        confirmationMode: snapshot?.confirmationMode || '',
+        sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
+        sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
+        sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
         eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
         historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
         historicalReplayReason: snapshot?.historicalReplayReason || ''
@@ -3016,6 +3427,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
@@ -3035,6 +3450,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
@@ -3061,6 +3480,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+    confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
     isSpeculativeSession: false,
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
@@ -3079,6 +3502,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     updateMessageSession(session, {
       phase: MESSAGE_SESSION_PHASES.DISPATCHING,
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+      confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+      sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
+      sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
+      sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
       confirmedAssistantMessageId,
       isSpeculativeSession: false
     });
@@ -3088,6 +3515,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
       messageId: confirmedAssistantMessageId,
       confirmedAssistantMessageId,
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
+      confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+      sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
+      sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
+      sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
       isSpeculativeSession: false
     });
     saveEventDebugSnapshot({
@@ -3099,6 +3530,10 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
       confirmedAssistantMessageId,
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
       isSpeculativeSession: false,
+    confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
       eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
       historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
       historicalReplayReason: snapshot?.historicalReplayReason || '',
@@ -3145,6 +3580,14 @@ async function handleAutoTrigger(eventType, data) {
   const confirmationSource = typeof data === 'object' && data
     ? String(data?.confirmationSource || '').trim()
     : '';
+  const confirmationMode = typeof data === 'object' && data
+    ? String(data?.confirmationMode || '').trim()
+    : '';
+  const sameSlotRevisionCandidate = !!(typeof data === 'object' && data ? data?.sameSlotRevisionCandidate : false);
+  const sameSlotRevisionConfirmed = !!(typeof data === 'object' && data ? data?.sameSlotRevisionConfirmed : false);
+  const sameSlotRevisionSource = typeof data === 'object' && data
+    ? String(data?.sameSlotRevisionSource || '').trim()
+    : '';
   traceAlways('info', '开始处理自动触发', {
     eventType,
     incomingMessageId: extractEventMessageId(data, eventType),
@@ -3169,6 +3612,10 @@ async function handleAutoTrigger(eventType, data) {
     messageId: incomingMessageId,
     confirmedAssistantMessageId,
     confirmationSource,
+    confirmationMode,
+    sameSlotRevisionCandidate,
+    sameSlotRevisionConfirmed,
+    sameSlotRevisionSource,
     eventBelongsToCurrentGeneration,
     historicalReplayBlocked,
     historicalReplayReason,
@@ -3180,6 +3627,10 @@ async function handleAutoTrigger(eventType, data) {
     handledAt: Date.now(),
     confirmedAssistantMessageId,
     confirmationSource,
+    confirmationMode,
+    sameSlotRevisionCandidate,
+    sameSlotRevisionConfirmed,
+    sameSlotRevisionSource,
     isSpeculativeSession: false,
     eventBelongsToCurrentGeneration,
     historicalReplayBlocked,
@@ -3192,6 +3643,10 @@ async function handleAutoTrigger(eventType, data) {
     messageId: incomingMessageId,
     confirmedAssistantMessageId,
     confirmationSource,
+    confirmationMode,
+    sameSlotRevisionCandidate,
+    sameSlotRevisionConfirmed,
+    sameSlotRevisionSource,
     isSpeculativeSession: false,
     eventBelongsToCurrentGeneration,
     historicalReplayBlocked,
@@ -3526,6 +3981,10 @@ async function handleAutoTrigger(eventType, data) {
     executionKey,
     confirmedAssistantMessageId: context.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context.confirmationSource || confirmationSource,
+      confirmationMode: context?.confirmationMode || confirmationMode,
+      sameSlotRevisionCandidate: context?.sameSlotRevisionCandidate ?? sameSlotRevisionCandidate,
+      sameSlotRevisionConfirmed: context?.sameSlotRevisionConfirmed ?? sameSlotRevisionConfirmed,
+      sameSlotRevisionSource: context?.sameSlotRevisionSource || sameSlotRevisionSource,
     sourceMessageLocked: !!context.messageId
   });
 
@@ -3980,7 +4439,9 @@ function registerGenerationEndedListener() {
 
     const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(incomingMessageId, {
       retries: incomingMessageId ? 3 : 8,
-      retryDelayMs: incomingMessageId ? 120 : 260
+      retryDelayMs: incomingMessageId ? 120 : 260,
+      allowSameSlotRevision: true,
+      requireObservedSameSlotRevision: false
     });
     const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
 
@@ -4002,6 +4463,10 @@ function registerGenerationEndedListener() {
       messageId: confirmedAssistantMessageId,
       confirmedAssistantMessageId,
       confirmationSource: 'generation_ended',
+      confirmationMode: confirmedAssistantMessage?.confirmationMode || '',
+      sameSlotRevisionCandidate: !!confirmedAssistantMessage?.sameSlotRevisionCandidate,
+      sameSlotRevisionConfirmed: !!confirmedAssistantMessage?.sameSlotRevisionConfirmed,
+      sameSlotRevisionSource: confirmedAssistantMessage?.sameSlotRevisionSource || '',
       eventBelongsToCurrentGeneration: true,
       historicalReplayBlocked: false,
       historicalReplayReason: ''
@@ -4074,7 +4539,9 @@ function registerGenerationEndedListener() {
 
     const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(incomingMessageId, {
       retries: 2,
-      retryDelayMs: 120
+      retryDelayMs: 120,
+      allowSameSlotRevision: true,
+      requireObservedSameSlotRevision: true
     });
     const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
 
@@ -4095,6 +4562,10 @@ function registerGenerationEndedListener() {
       messageId: incomingMessageId,
       confirmedAssistantMessageId,
       confirmationSource: 'generation_after_commands',
+      confirmationMode: confirmedAssistantMessage?.confirmationMode || '',
+      sameSlotRevisionCandidate: !!confirmedAssistantMessage?.sameSlotRevisionCandidate,
+      sameSlotRevisionConfirmed: !!confirmedAssistantMessage?.sameSlotRevisionConfirmed,
+      sameSlotRevisionSource: confirmedAssistantMessage?.sameSlotRevisionSource || '',
       eventBelongsToCurrentGeneration: true,
       historicalReplayBlocked: false,
       historicalReplayReason: ''
@@ -4237,6 +4708,10 @@ function registerGenerationEndedListener() {
         reason: confirmationCandidate.reason,
         skipReasonDetailed: confirmationCandidate.detail,
         confirmationSource: 'none',
+        confirmationMode: confirmationCandidate.confirmationMode || '',
+        sameSlotRevisionCandidate: !!confirmationCandidate.sameSlotRevisionCandidate,
+        sameSlotRevisionConfirmed: !!confirmationCandidate.sameSlotRevisionConfirmed,
+        sameSlotRevisionSource: confirmationCandidate.sameSlotRevisionSource || '',
         eventBelongsToCurrentGeneration: confirmationCandidate.eventBelongsToCurrentGeneration,
         historicalReplayBlocked: confirmationCandidate.historicalReplayBlocked,
         historicalReplayReason: confirmationCandidate.historicalReplayReason
@@ -4246,7 +4721,9 @@ function registerGenerationEndedListener() {
 
     const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(effectiveMessageId, {
       retries: 3,
-      retryDelayMs: 120
+      retryDelayMs: 120,
+      allowSameSlotRevision: true,
+      requireObservedSameSlotRevision: true
     });
     const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
 
@@ -4267,6 +4744,10 @@ function registerGenerationEndedListener() {
       messageId: effectiveMessageId,
       confirmedAssistantMessageId,
       confirmationSource: 'message_received',
+      confirmationMode: confirmedAssistantMessage?.confirmationMode || confirmationCandidate.confirmationMode || '',
+      sameSlotRevisionCandidate: !!(confirmedAssistantMessage?.sameSlotRevisionCandidate ?? confirmationCandidate.sameSlotRevisionCandidate),
+      sameSlotRevisionConfirmed: !!(confirmedAssistantMessage?.sameSlotRevisionConfirmed ?? confirmationCandidate.sameSlotRevisionConfirmed),
+      sameSlotRevisionSource: confirmedAssistantMessage?.sameSlotRevisionSource || confirmationCandidate.sameSlotRevisionSource || '',
       eventBelongsToCurrentGeneration: true,
       historicalReplayBlocked: false,
       historicalReplayReason: ''
@@ -4300,7 +4781,9 @@ async function buildToolExecutionContext(eventData) {
   if (!isManual) {
     confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(targetMessageId, {
       retries: targetMessageId ? 3 : 8,
-      retryDelayMs: targetMessageId ? 120 : 260
+      retryDelayMs: targetMessageId ? 120 : 260,
+      allowSameSlotRevision: true,
+      requireObservedSameSlotRevision: false
     });
 
     if (confirmedAssistantMessage) {
@@ -4344,6 +4827,10 @@ async function buildToolExecutionContext(eventData) {
     chatId: resolveStableChatId(api, stContext, character),
     messageId,
     generationTraceId,
+    confirmationMode: String(eventData?.confirmationMode || confirmedAssistantMessage?.confirmationMode || '').trim(),
+    sameSlotRevisionCandidate: !!(eventData?.sameSlotRevisionCandidate ?? confirmedAssistantMessage?.sameSlotRevisionCandidate),
+    sameSlotRevisionConfirmed: !!(eventData?.sameSlotRevisionConfirmed ?? confirmedAssistantMessage?.sameSlotRevisionConfirmed),
+    sameSlotRevisionSource: String(eventData?.sameSlotRevisionSource || confirmedAssistantMessage?.sameSlotRevisionSource || '').trim(),
     rawGenerationType: triggerState.gateState.lastGenerationBaseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
     rawGenerationParams: triggerState.gateState.lastGenerationBaseline?.rawGenerationParams ?? triggerState.gateState.lastGenerationParams ?? null,
     normalizedGenerationType: triggerState.gateState.lastGenerationBaseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',

@@ -1,7 +1,7 @@
 # YouYou Toolkit 优化施工进程文档
 
 > 创建时间：2026-03-21  
-> 最后更新时间：2026-03-25  
+> 最后更新时间：2026-03-26  
 > 关联文档：`docs/ARCHITECTURE_ANALYSIS.md`、`docs/OPTIMIZATION_EXECUTION_PLAN.md`  
 > 当前目标：先建立统一施工记录载体，再按 Phase 推进代码优化
 
@@ -79,6 +79,8 @@
 - `modules/api-connection.js`、`modules/preset-manager.js`、`modules/regex-extractor.js` 已启动 S2 存储接口收口，优先改用 `core/storage-service.js` 主接口
 - 用户在宿主中进一步确认：首轮新用户消息 -> AI 回复的自动触发可工作，但对同一用户消息的已生成楼层执行重 roll / reroll 时，工具仍可能不会再次自动触发；这说明当前问题已从“是否收到了事件”继续收口到“generation 动作识别 + messageId 级去重语义 + 宿主刷新确认”三条主线
 - 已新增 `docs/MVU_DEEP_ANALYSIS.md` 与 `docs/MVU_TRANSACTION_REWORK_PLAN.md`，作为下一轮“MVU 事务化收口”分析与施工文档；`docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 继续保留为历史专项与 N1 / N2 验收档案
+- `modules/tool-trigger.js` 已进一步修正 assistant 确认模型：当前除“baseline 后新增 assistant 楼层”外，也支持显式 `reroll / regenerate / swipe` 对**同一 assistant 楼层**的合法重写确认，避免宿主复用同一 `messageId / chatIndex` 时被旧的新楼层模型提前挡住
+- `modules/ui/components/tool-config-panel-factory.js`、`docs/API_DOCUMENTATION.md`、`docs/HOST_REGRESSION_CHECKLIST.md` 已同步补齐 `confirmationMode / sameSlotRevision*` 诊断口径，便于宿主直接判断 reroll 是否走到了 same-slot revision 确认通道
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
 
@@ -1302,6 +1304,27 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - [ ] SillyTavern / TavernHelper 宿主环境下自动触发第二轮专项回归（A10 / A11 / A12 / A13）
 - [ ] SillyTavern / TavernHelper 宿主环境下最新 AI 楼层写回链最新一轮实机回归
 - [ ] SillyTavern / TavernHelper 宿主环境下“同楼层 reroll / reroll family 再触发”专项回归
+
+## 2026-03-26 00:36
+
+- 阶段：reroll 定向补修（同楼层 same-slot revision 确认）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+- 修改摘要：
+  - 将 assistant 确认模型从“只接受 baseline 后新增楼层”升级为“新增楼层 + same-slot revision 双通道”
+  - 为 generation baseline 补齐 assistant 内容指纹、`swipe_id` 与 swipe 数量快照，用于识别同楼层 reroll / regenerate / swipe
+  - `MESSAGE_RECEIVED` 现可在显式 reroll family 下确认同楼层 revision；`GENERATION_ENDED` 则额外支持 same-text reroll 的兜底确认
+  - 聚合诊断、工具页折叠区与宿主回归清单同步补入 `confirmationMode / sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource`
+  - 执行 `npm run build 2>&1`，构建通过
+- 修改原因：
+  - 当前真实故障并不是先卡在 user intent 或 execution key 去重，而是卡在“必须新增 assistant 楼层”这一旧确认模型；宿主对 reroll 常会复用同一楼层，只重写正文，因此需要显式支持 same-slot revision 确认
+- 阻塞项：
+  - 尚未完成真实宿主环境下针对“同楼层 reroll / 同文本 reroll / swipe 切换”的最新一轮实机验证
+- 状态：
+  - 成功
 
 ### 回归结论
 

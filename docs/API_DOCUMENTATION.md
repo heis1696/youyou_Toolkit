@@ -330,7 +330,7 @@ const exportedTransaction = YouYouToolkit.exportGenerationTransactionDiagnostics
 
 > 从当前宿主回归准备阶段开始，还额外提供 `YouYouToolkit.getAutoTriggerDiagnostics(options)`：它会把 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot` 聚合成一份更适合宿主实机验收的只读诊断对象。
 
-> 补充说明：当前对外诊断对象仍以 session / gate / snapshot 为主，还没有正式暴露“generation-aware execution key”这一层事务视图；该能力属于下一轮 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 规划内容，而不是当前代码基线已落地能力。
+> 补充说明：当前对外诊断对象已经可以直接看到 `executionKey / recentHandledExecutionKeys` 这类 generation-aware 幂等信息，以及 `confirmationMode / sameSlotRevision*` 这类同楼层 revision 确认信息；但它仍不是完整的“事务图谱”视图，后续若要继续扩展 transaction 级关系展示，仍以 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 为后续规划入口。
 
 > 从当前这轮 N1 验收辅助增强开始，`getToolTriggerManagerState()` 还会额外暴露 `activeSessions / recentEventTimeline / registeredEvents / pendingTimerCount / listenerSettings / eventBridge / gateState`；`getAutoTriggerDiagnostics().summary` 也会同步补齐 `phaseCounts / consistency / verdictHints`，用于快速判断“当前 session 冻结字段”和“当前 generation 状态”之间是否已经发生漂移，以及 A10 / A11 / A12 / A13 哪一类风险更值得优先排查。
 
@@ -377,6 +377,10 @@ const exportedTransaction = YouYouToolkit.exportGenerationTransactionDiagnostics
     messageRole: string,
     confirmedAssistantMessageId: string,
     confirmationSource: string,
+    confirmationMode: string,
+    sameSlotRevisionCandidate: boolean,
+    sameSlotRevisionConfirmed: boolean,
+    sameSlotRevisionSource: string,
     isSpeculativeSession: boolean,
     baselineResolved: boolean,
     baselineResolutionAt: number,
@@ -980,6 +984,25 @@ tool-trigger
 | `generation_ended` | 由 `GENERATION_ENDED` 基于 baseline 检测到新增 assistant 楼层后确认 |
 | `none` | 当前仅为 speculative 观察态，或最终未获得确认 |
 
+当前 `confirmationMode` 的标准语义为：
+
+| 值 | 说明 |
+|------|------|
+| `new_message` | 由 baseline 之后新增的 assistant 楼层确认 |
+| `same_slot_revision` | 由同一 assistant 楼层的合法重写确认，主要用于 `reroll / regenerate / swipe` 复用同楼层的宿主场景 |
+| `no_baseline` | 无 baseline 时的兼容确认 |
+| `none` | 当前尚未确认 |
+
+其中 `sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource` 用于直接回答：
+
+- 当前候选 assistant 是否属于“与 baseline 同一楼层”的 revision 候选
+- 是否已经被正式确认成合法 reroll family 结果
+- 这次 same-slot 确认是基于 `content_fingerprint_changed`、`swipe_id_changed`、`swipe_count_changed`，还是基于 `generation_ended` 的同楼层兜底确认
+
+这意味着当前自动链已经不再只认“baseline 之后新增 assistant 楼层”，还支持：
+
+> 当宿主对 `reroll / regenerate / swipe` 复用了同一 `messageId / chatIndex`，只重写楼层正文或 swipe 状态时，仍将其视为本轮合法确认结果。
+
 ### 标准跳过原因
 
 当前自动链会把常见跳过原因收敛为以下标准值：
@@ -992,7 +1015,7 @@ tool-trigger
 | `ignored_auto_trigger` | 监听器设置启用了 `ignoreAutoTrigger`，且当前 generation 未被确认为用户意图 |
 | `ui_side_effect_event` | 判定为宿主 UI 打开历史 / 信息窗口 / 切换聊天导致的副作用事件 |
 | `speculative_generation_after_commands` | `GENERATION_AFTER_COMMANDS` 仅记录观察态 session，不进入执行 |
-| `no_confirmed_assistant_message` | 本轮未能确认 baseline 之后新增 assistant 楼层 |
+| `no_confirmed_assistant_message` | 本轮既未确认到 baseline 之后新增 assistant 楼层，也未确认到合法的同楼层 revision |
 | `historical_replay_message_received` | 带 `messageId` 的旧 assistant 楼层重放事件，被判定为历史 replay |
 | `message_received_outside_active_generation` | `MESSAGE_RECEIVED` 到达时不处于合法生成窗口内，已被阻断 |
 | `non_assistant_message` | `MESSAGE_RECEIVED` 命中的并非 AI 楼层，已在事件级直接忽略 |
@@ -1424,10 +1447,10 @@ interface ToolConfig {
 - 最近消息提取优先走 TavernHelper 的 `getChatMessages()` / `getLastMessageId()`，若不可用再回退到 `SillyTavern.getContext().chat` 或 `SillyTavern.chat`
 - 最近消息内容读取现在会同时兼容 `mes`、`message`、`content`、`text` 等字段，避免不同环境下“测试提取”拿不到消息正文
 - 自动监听会记录用户发送意图，并把 `regenerate / swipe` 这类显式用户 generation 动作也视为合法用户意图；同时继续跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
-- 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底确认来源；但 `MESSAGE_RECEIVED` 现在必须带明确 `messageId`，并最终确认命中的楼层确实是 baseline 之后新增的 assistant 回复，避免把用户消息或宿主 UI 副作用事件误当成可执行事件
+- 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底确认来源；但 `MESSAGE_RECEIVED` 现在必须带明确 `messageId`，并最终确认命中的楼层要么是 baseline 之后新增的 assistant 回复，要么是显式 `reroll / regenerate / swipe` 对同一 assistant 楼层的合法重写结果，避免把用户消息或宿主 UI 副作用事件误当成可执行事件
 - `MESSAGE_RECEIVED` 现在还会额外阻断“带 `messageId` 的历史 assistant 消息重放事件”；如果事件不属于当前 active generation，或超出合法的 generation 完成窗口，会被记录为 `historical_replay_message_received` 或 `message_received_outside_active_generation`
 - 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，但它默认只作为 speculative 观察事件记录 session；只有宿主真的提供了可确认的消息身份时，才可能升级为确认来源
-- 多条兜底事件同时命中同一条回复时，自动链当前仍会按 `chatId + 最新 AI 消息ID` 去重；同一消息短时间内重复命中去重时，也会抑制重复的调试噪声日志。需要注意的是，这也是当前“同一楼层 reroll / 重roll 可能无法再次触发”的重点排查方向之一，后续计划见 `docs/MVU_TRANSACTION_REWORK_PLAN.md`
+- 多条兜底事件同时命中同一条回复时，自动链当前会按 `executionKey = chatId + messageId + generationTraceId + assistantContentFingerprint` 做幂等保护；同一轮 generation 的重复事件仍会被收敛，但同一楼层 reroll / regenerate / swipe 只要属于新的 generation trace，就不会再仅因为复用了同一个 `messageId` 而被直接挡掉
 - 构建工具执行上下文时会对“确认后的 assistant 楼层”做短暂重试读取，并以 generation baseline 限制目标范围，避免再从当前聊天快照里回退吸收旧 assistant 消息
 - 在 `CHAT_CHANGED / CHAT_CREATED` 后会进入一小段 UI transition guard 窗口；在窗口内，无消息身份事件会直接被视为宿主 UI 副作用并忽略
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕
