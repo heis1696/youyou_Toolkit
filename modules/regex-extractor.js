@@ -4,7 +4,40 @@
  * @version 2.0.0
  */
 
-import { loadSettings, saveSettings } from './storage.js';
+import { storage } from './core/storage-service.js';
+
+const SETTINGS_STORAGE_KEY = 'settings';
+
+function getDefaultSettingsSnapshot() {
+  return {
+    apiConfig: {
+      url: '',
+      apiKey: '',
+      model: '',
+      useMainApi: true,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    currentPreset: '',
+    uiSettings: {
+      theme: 'dark',
+      lastTab: 'api'
+    },
+    ruleTemplates: [...DEFAULT_RULE_TEMPLATES],
+    tagRules: [],
+    contentBlacklist: [],
+    tagRulePresets: {}
+  };
+}
+
+function loadStoredSettings() {
+  return storage.get(SETTINGS_STORAGE_KEY, getDefaultSettingsSnapshot());
+}
+
+function saveStoredSettings(settings) {
+  storage.set(SETTINGS_STORAGE_KEY, settings);
+}
 
 // ============================================================
 // 常量定义
@@ -70,7 +103,7 @@ let contentBlacklist = [];
 // ============================================================
 
 function init() {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   
   // 加载规则模板
   ruleTemplates = settings.ruleTemplates || [...DEFAULT_RULE_TEMPLATES];
@@ -597,9 +630,9 @@ export function deleteRuleTemplate(id) {
  * 保存规则模板到存储
  */
 function saveRuleTemplates() {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   settings.ruleTemplates = ruleTemplates;
-  saveSettings(settings);
+  saveStoredSettings(settings);
 }
 
 // ============================================================
@@ -623,9 +656,9 @@ export function getTagRules() {
  */
 export function setTagRules(rules) {
   tagRules = rules || [];
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   settings.tagRules = tagRules;
-  saveSettings(settings);
+  saveStoredSettings(settings);
 }
 
 /**
@@ -643,9 +676,9 @@ export function addTagRule(rule) {
   
   tagRules.push(newRule);
   
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   settings.tagRules = tagRules;
-  saveSettings(settings);
+  saveStoredSettings(settings);
   
   return { success: true, rule: newRule, message: '规则添加成功' };
 }
@@ -666,9 +699,9 @@ export function updateTagRule(index, updates) {
     ...updates
   };
   
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   settings.tagRules = tagRules;
-  saveSettings(settings);
+  saveStoredSettings(settings);
   
   return { success: true, rule: tagRules[index], message: '规则更新成功' };
 }
@@ -685,9 +718,9 @@ export function deleteTagRule(index) {
   
   tagRules.splice(index, 1);
   
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   settings.tagRules = tagRules;
-  saveSettings(settings);
+  saveStoredSettings(settings);
   
   return { success: true, message: '规则已删除' };
 }
@@ -713,9 +746,9 @@ export function getContentBlacklist() {
  */
 export function setContentBlacklist(blacklist) {
   contentBlacklist = blacklist || [];
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   settings.contentBlacklist = contentBlacklist;
-  saveSettings(settings);
+  saveStoredSettings(settings);
 }
 
 // ============================================================
@@ -733,7 +766,7 @@ export function saveRulesAsPreset(name, description = '') {
     return { success: false, message: '预设名称不能为空' };
   }
   
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   
   if (!settings.tagRulePresets) {
     settings.tagRulePresets = {};
@@ -749,7 +782,7 @@ export function saveRulesAsPreset(name, description = '') {
     createdAt: new Date().toISOString()
   };
   
-  saveSettings(settings);
+  saveStoredSettings(settings);
   
   return { success: true, preset: settings.tagRulePresets[presetId], message: '预设保存成功' };
 }
@@ -759,7 +792,7 @@ export function saveRulesAsPreset(name, description = '') {
  * @returns {Array} 预设数组
  */
 export function getAllRulePresets() {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   const presets = settings.tagRulePresets || {};
   return Object.values(presets);
 }
@@ -770,7 +803,7 @@ export function getAllRulePresets() {
  * @returns {object} 结果对象
  */
 export function loadRulePreset(presetId) {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   const presets = settings.tagRulePresets || {};
   const preset = presets[presetId];
   
@@ -783,7 +816,7 @@ export function loadRulePreset(presetId) {
   
   settings.tagRules = tagRules;
   settings.contentBlacklist = contentBlacklist;
-  saveSettings(settings);
+  saveStoredSettings(settings);
   
   return { success: true, preset, message: '预设加载成功' };
 }
@@ -794,7 +827,7 @@ export function loadRulePreset(presetId) {
  * @returns {object} 结果对象
  */
 export function deleteRulePreset(presetId) {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   const presets = settings.tagRulePresets || {};
   
   if (!presets[presetId]) {
@@ -803,7 +836,7 @@ export function deleteRulePreset(presetId) {
   
   delete presets[presetId];
   settings.tagRulePresets = presets;
-  saveSettings(settings);
+  saveStoredSettings(settings);
   
   return { success: true, message: '预设已删除' };
 }
@@ -821,7 +854,7 @@ export function exportRulesConfig() {
     tagRules,
     contentBlacklist,
     ruleTemplates,
-    tagRulePresets: loadSettings().tagRulePresets || {}
+    tagRulePresets: loadStoredSettings().tagRulePresets || {}
   }, null, 2);
 }
 
@@ -854,7 +887,7 @@ export function importRulesConfig(json, options = { overwrite: true }) {
       }
     }
     
-    const settings = loadSettings();
+    const settings = loadStoredSettings();
     settings.tagRules = tagRules;
     settings.contentBlacklist = contentBlacklist;
     settings.ruleTemplates = ruleTemplates;
@@ -864,7 +897,7 @@ export function importRulesConfig(json, options = { overwrite: true }) {
         ...imported.tagRulePresets
       };
     }
-    saveSettings(settings);
+    saveStoredSettings(settings);
     
     return { success: true, message: '配置导入成功' };
   } catch (e) {

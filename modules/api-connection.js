@@ -3,7 +3,46 @@
  * @description 处理API连接、请求发送和错误处理
  */
 
-import { loadSettings, saveSettings, loadApiPresets, getCurrentPresetName } from './storage.js';
+import { storage } from './core/storage-service.js';
+
+const SETTINGS_STORAGE_KEY = 'settings';
+const API_PRESETS_STORAGE_KEY = 'api_presets';
+const CURRENT_PRESET_STORAGE_KEY = 'current_preset';
+
+function getDefaultSettingsSnapshot() {
+  return {
+    apiConfig: {
+      url: '',
+      apiKey: '',
+      model: '',
+      useMainApi: true,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    currentPreset: '',
+    uiSettings: {
+      theme: 'dark',
+      lastTab: 'api'
+    }
+  };
+}
+
+function loadStoredSettings() {
+  return storage.get(SETTINGS_STORAGE_KEY, getDefaultSettingsSnapshot());
+}
+
+function saveStoredSettings(settings) {
+  storage.set(SETTINGS_STORAGE_KEY, settings);
+}
+
+function loadStoredApiPresets() {
+  return storage.get(API_PRESETS_STORAGE_KEY, []);
+}
+
+function getStoredCurrentPresetName() {
+  return storage.get(CURRENT_PRESET_STORAGE_KEY, '');
+}
 
 // ============================================================
 // 常量定义
@@ -84,7 +123,7 @@ function normalizeApiBaseUrl(url) {
  * @returns {Object}
  */
 export function getApiConfig() {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   return settings.apiConfig || {};
 }
 
@@ -93,12 +132,12 @@ export function getApiConfig() {
  * @param {Object} config 
  */
 export function updateApiConfig(config) {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   settings.apiConfig = {
     ...settings.apiConfig,
     ...config
   };
-  saveSettings(settings);
+  saveStoredSettings(settings);
 }
 
 /**
@@ -146,12 +185,12 @@ export function validateApiConfig(config) {
  * @returns {Object}
  */
 export function getEffectiveApiConfig(presetName = '') {
-  const settings = loadSettings();
-  const targetPresetName = presetName || getCurrentPresetName() || '';
+  const settings = loadStoredSettings();
+  const targetPresetName = presetName || getStoredCurrentPresetName() || '';
 
   // 如果指定了预设，从预设列表中获取配置
   if (targetPresetName) {
-    const presets = loadApiPresets() || [];
+    const presets = loadStoredApiPresets();
     const preset = presets.find(p => p.name === targetPresetName);
     if (preset && preset.apiConfig) {
       return {
@@ -173,7 +212,7 @@ export function getEffectiveApiConfig(presetName = '') {
 export function hasEffectiveApiPreset(presetName = '') {
   if (!presetName) return false;
 
-  const presets = loadApiPresets() || [];
+  const presets = loadStoredApiPresets();
   return presets.some(p => p?.name === presetName);
 }
 

@@ -5,6 +5,8 @@
 > 关联文档：`docs/ARCHITECTURE_ANALYSIS.md`、`docs/OPTIMIZATION_EXECUTION_PLAN.md`  
 > 当前目标：先建立统一施工记录载体，再按 Phase 推进代码优化
 
+> 补充说明（2026-03-25）：除 Phase 1 ~ Phase 5 外，今日已新增一轮“代码瘦身与结构收口”后续施工，用于减少启动期 legacy 模块装载、继续压缩 popup shell 的 compatibility 感知范围。
+
 ## 一、文档用途
 
 本文档用于记录 **优化方案的实际施工进程**，与其他两份文档分工如下：
@@ -66,6 +68,15 @@
 - `modules/tool-trigger.js` 已继续补齐 N1 宿主验收辅助摘要：`getAutoTriggerDiagnostics().summary` 现可直接输出 `phaseCounts / consistency / eventBridge / gateState`，`getToolTriggerManagerState()` 也已补上 `activeSessions / registeredEvents / pendingTimerCount`，便于快速判断 session 冻结字段是否与当前 generation 发生漂移
 - `modules/tool-trigger.js` / `modules/app/public-api.js` 已继续补上 `recentEventTimeline / verdictHints / exportAutoTriggerDiagnostics()`，宿主在 A10 ~ A13 中既能回看完整时序，也能先用 hint 快速锁定最可疑的失败方向
 - `modules/ui/components/tool-config-panel-factory.js` 已继续接入这批宿主验收辅助信息：工具页“最近触发诊断”折叠区现可直接展示 N1 快速判读 chips、最近自动触发时间线摘要，并支持一键复制 JSON 诊断快照
+- 已完成一轮文档可信度清理：重写 `README.md`、`docs/API_DOCUMENTATION.md`、`docs/EXTENSION_GUIDE.md`、`docs/CONTRIBUTING.md` 中与当前代码不一致的内容，并清理不再属于主文档区的 `docs/SHUJUKU_ARCHITECTURE.md`
+- 已新增 `docs/CODEBASE_DIET_PLAN.md`，用于承载本轮后收口的“启动减载 / compatibility 显式化 / 主路径降噪”方案
+- 已新增 `docs/N1_AUTO_TRIGGER_ACCEPTANCE_RECORD.md`，用于承载下一轮宿主自动触发链验收结果的统一落点
+- `modules/app/bootstrap.js` 已将 `ui-components.js`、`prompt-editor.js` 从启动期常驻装载改为 `loadLegacyModule(moduleKey)` 按需加载
+- `modules/app/popup-shell.js` 已改为仅在 UI 主入口不可用时，再按需加载 `ui-components.js`；旧分段提示词编辑路径也已改为按需加载 `prompt-editor.js`
+- `modules/tool-trigger.js` 已移除对 `tool-executor.js` 的静态依赖，compatibility 执行回退改为惰性加载
+- `modules/app/public-api.js` 已新增 `loadLegacyModule(moduleKey)` 对外入口，供旧扩展显式加载 compatibility 模块
+- 本轮代码瘦身收口已完成 `npm run build` 构建验证，说明当前主路径与按需加载调整未破坏 bundle 输出
+- `modules/api-connection.js`、`modules/preset-manager.js`、`modules/regex-extractor.js` 已启动 S2 存储接口收口，优先改用 `core/storage-service.js` 主接口
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
 
@@ -1106,6 +1117,122 @@
   - 上一轮虽然已经补齐控制台与 API 级诊断抓手，但工具页折叠区仍停留在单工具 runtime 视角；当前继续把宿主验收摘要接入 UI，可进一步降低回归操作门槛
 - 阻塞项：
   - 尚未完成带有 UI 诊断折叠区辅助下的宿主 A10 / A11 / A12 / A13 最新一轮实机验收
+- 状态：
+  - 成功
+
+## 2026-03-25 14:56
+
+- 阶段：文档梳理与无效文档清理
+- 修改文件：
+  - `README.md`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/EXTENSION_GUIDE.md`
+  - `docs/CONTRIBUTING.md`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/SHUJUKU_ARCHITECTURE.md`
+- 修改摘要：
+  - 修正文档中仍沿用旧版 STScript / 消息源生成器语义的“正则提取”说明，统一到当前规则提取面板语义
+  - 修正 API 文档中失真的 regex extractor 接口说明，并补充当前仓库代码基线说明
+  - 同步调整扩展与贡献文档中对 `prompt-editor.js`、扩展入口与文档维护边界的描述
+  - 删除不再属于当前项目正式文档区的 `docs/SHUJUKU_ARCHITECTURE.md`
+- 修改原因：
+  - 用户要求系统性筛查文档可信度、完成度并删除已完成且无实际价值的残留文档，因此需要把本轮文档清理结果正式沉淀到进程记录中
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-25 15:40
+
+- 阶段：阶段后收口（代码瘦身 / compatibility 减载）
+- 修改文件：
+  - `index.js`
+  - `modules/app/bootstrap.js`
+  - `modules/app/popup-shell.js`
+  - `modules/app/public-api.js`
+  - `modules/tool-trigger.js`
+  - `README.md`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/EXTENSION_GUIDE.md`
+  - `docs/CONTRIBUTING.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+  - `docs/CODEBASE_DIET_PLAN.md`
+- 修改摘要：
+  - 新增代码瘦身专项文档，明确本轮目标、范围、非目标与验收标准
+  - 将 `ui-components.js` 与 `prompt-editor.js` 从启动期常驻装载改为按需加载 compatibility 模块
+  - popup shell 改为仅在 UI 主路径不可用时才回退加载 compatibility facade，并把旧提示词编辑路径改为惰性加载
+  - `tool-trigger.js` 移除对 `tool-executor.js` 的静态依赖，兼容执行回退改为按需加载
+  - 对外 API 新增 `loadLegacyModule(moduleKey)`，并同步更新 README / API / 扩展 / 贡献 / 进度 / 变更文档
+  - 执行 `npm run build 2>&1`，构建通过
+- 修改原因：
+  - 在 Phase 1 ~ Phase 5 已完成后，继续减少 legacy 模块对启动路径和主维护心智的干扰，降低后续改造噪声
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-25 15:55
+
+- 阶段：阶段后回顾（实现总结与下一施工方案收口）
+- 修改文件：
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/CODEBASE_DIET_PLAN.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 为 N1 宿主自动触发链验收补充统一登记模板与结果回填要求
+  - 在代码瘦身专项文档中明确下一施工优先级为 `N1 -> S2 -> S3`
+  - 在进度文档中补登记本轮瘦身收口构建已通过，并把这次回顾/规划结论沉淀到正式施工记录中
+- 修改原因：
+  - 用户要求对当前实现做一次总结回顾，并明确下一轮施工顺序，因此需要把“口头计划”收口成可执行文档
+- 阻塞项：
+  - 暂无
+- 状态：
+  - 成功
+
+## 2026-03-25 16:20
+
+- 阶段：下一施工准备（N1 宿主验收记录载体）
+- 修改文件：
+  - `docs/N1_AUTO_TRIGGER_ACCEPTANCE_RECORD.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 新增独立的 N1 宿主自动触发链验收记录模板，方便直接登记 A10 / A11 / A12 / A13 结论
+  - 在宿主回归清单中补充该记录文件的引用，降低后续填写成本
+  - 在进度文档中补记该记录载体已建立，明确下一步等待真实宿主验收结果回填
+- 修改原因：
+  - 用户要求继续推进下一施工方案，而当前最优先的动作是先完成 N1；因此需要先把验收结果沉淀载体准备好
+- 阻塞项：
+  - 尚未获得真实宿主环境中的 A10 / A11 / A12 / A13 验收结果
+- 状态：
+  - 成功
+
+## 2026-03-25 16:30
+
+- 阶段：S2 施工（存储接口收口第一轮）
+- 修改文件：
+  - `modules/api-connection.js`
+  - `modules/preset-manager.js`
+  - `modules/regex-extractor.js`
+  - `README.md`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/EXTENSION_GUIDE.md`
+  - `docs/CODEBASE_DIET_PLAN.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 将 API 配置、API 预设、规则提取三类核心模块从 `storage.js` 旧接口迁移为优先使用 `core/storage-service.js` 主接口
+  - 保留 `storage.js` 作为 compatibility adapter，不破坏旧调用
+  - 同步更新 README / API / 扩展 / 瘦身 / 进度 / 变更文档中的存储主路径说明
+  - 执行 `npm run build 2>&1`，构建通过
+- 修改原因：
+  - 按照上一轮确定的 `N1 -> S2 -> S3` 顺序，在不触碰自动触发主判断面的前提下，先推进风险较可控的存储主路径收口
+- 阻塞项：
+  - 尚未在宿主环境中对这轮存储接口收口做交互级实测
 - 状态：
   - 成功
 

@@ -6,7 +6,7 @@
 export function createPublicApi(context, services = {}) {
   const { constants, modules } = context;
   const { SCRIPT_ID, SCRIPT_VERSION } = constants;
-  const { init, loadModules, addMenuItem, popupShell } = services;
+  const { init, loadModules, loadLegacyModule, addMenuItem, popupShell } = services;
 
   return {
     version: SCRIPT_VERSION,
@@ -43,9 +43,17 @@ export function createPublicApi(context, services = {}) {
     getToolPromptService: () => modules.toolPromptServiceModule,
     getToolOutputService: () => modules.toolOutputServiceModule,
 
+    async loadLegacyModule(moduleKey) {
+      if (typeof loadLegacyModule !== 'function') {
+        return null;
+      }
+
+      return loadLegacyModule(moduleKey);
+    },
+
     async getApiConfig() {
       await loadModules();
-      return modules.storageModule ? modules.storageModule.loadSettings().apiConfig : null;
+      return modules.apiConnectionModule?.getApiConfig?.() || null;
     },
 
     async saveApiConfig(config) {

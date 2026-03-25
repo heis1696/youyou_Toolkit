@@ -11,6 +11,19 @@
 
 ### 更改
 
+- ♻️ **S2 存储接口收口第一轮** (`modules/api-connection.js`, `modules/preset-manager.js`, `modules/regex-extractor.js`, `README.md`, `docs/API_DOCUMENTATION.md`, `docs/EXTENSION_GUIDE.md`, `docs/CODEBASE_DIET_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - API 配置、API 预设、规则提取模块已优先改用 `core/storage-service.js` 主接口
+  - `storage.js` 继续保留为 compatibility adapter，不破坏历史调用
+  - README / API / 扩展 / 瘦身 / 进度文档已同步说明“新代码优先使用 storage-service，storage.js 为旧接口适配层”
+  - 执行 `npm run build 2>&1`，构建通过
+
+- ♻️ **代码瘦身与 compatibility 模块减载收口** (`index.js`, `modules/app/bootstrap.js`, `modules/app/popup-shell.js`, `modules/app/public-api.js`, `modules/tool-trigger.js`, `README.md`, `docs/API_DOCUMENTATION.md`, `docs/EXTENSION_GUIDE.md`, `docs/CONTRIBUTING.md`, `docs/OPTIMIZATION_PROGRESS.md`, `docs/CODEBASE_DIET_PLAN.md`)
+  - `ui-components.js` 与 `prompt-editor.js` 已从启动期常驻装载改为显式按需加载的 compatibility 模块
+  - popup shell 现在优先走 `modules/ui/index.js` 主路径，仅在必要时回退装载 `ui-components.js`；旧分段提示词编辑路径也已改为按需加载 `prompt-editor.js`
+  - `tool-trigger.js` 已移除对 `tool-executor.js` 的静态依赖，compatibility 执行回退改为惰性加载
+  - 新增 `docs/CODEBASE_DIET_PLAN.md`，专门记录本轮后收口减重方案与验收边界
+  - API 文档新增 `loadLegacyModule(moduleKey)` 说明，扩展与贡献文档同步明确 compatibility 模块边界
+
 - 🎨 **主工具箱与高频面板整体 UI / HTML 美化收口** (`modules/app/popup-shell.js`, `styles/main.css`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/settings-panel.js`)
   - 重构主工具箱 popup shell 的 HTML 层级，新增 topbar、workspace、sidebar、main content frame 与更清晰的 footer 信息区
   - 将主导航升级为“图标 + 标题 + 简述”的工作台侧栏样式，补充页面说明、页面统计与当前页面概览区
@@ -66,6 +79,22 @@
   - 执行 `npm run build` 构建验证通过，为进入 Phase 2 提供稳定基线
 
 ### 文档
+
+- 📝 **新增 N1 宿主自动触发链验收记录模板** (`docs/N1_AUTO_TRIGGER_ACCEPTANCE_RECORD.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 新增独立记录模板，用于统一登记 A10 / A11 / A12 / A13 的宿主验收结果
+  - 在宿主回归清单中补充该模板引用，避免后续宿主结论继续零散散落在聊天记录或临时笔记里
+  - 在进度文档中补记“下一步等待 N1 实机结果回填”的状态
+
+- 📝 **实现回顾与下一施工方案收口** (`docs/HOST_REGRESSION_CHECKLIST.md`, `docs/CODEBASE_DIET_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 为 N1 宿主自动触发链验收补充统一登记模板，避免验收结果继续停留在口头结论
+  - 在 `docs/CODEBASE_DIET_PLAN.md` 中明确下一轮优先级为 `N1 宿主验收 -> S2 存储接口收口 -> S3 启动期进一步减载`
+  - 在进度文档中补登记本轮代码瘦身收口已完成构建验证，并同步沉淀这次回顾结论
+
+- 📝 **文档可信度收敛与无效文档清理** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/EXTENSION_GUIDE.md`, `docs/CONTRIBUTING.md`, `docs/SHUJUKU_ARCHITECTURE.md`)
+  - 重写并校正 README 中仍停留在旧版 STScript / 消息源生成器语义上的“正则提取”说明，统一到当前规则提取面板语义
+  - 修正 API 文档中已经失真的 regex extractor 接口描述，改为当前真实的规则模板 / 标签规则 / 规则预设 / 导入导出 API
+  - 同步调整扩展开发指南与贡献指南中的旧入口、旧扩展方式与文档维护边界说明
+  - 删除 `docs/SHUJUKU_ARCHITECTURE.md` 这份不属于当前项目正式文档区的参考残留文档
 
 - 📝 **自动触发链下一阶段施工编排正式收口** (`docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 将下一阶段正式收口为 `N1 宿主自动触发链验收 ->（若失败）第三轮自动触发定向补修 ->（若通过）N2 写回链宿主专项`

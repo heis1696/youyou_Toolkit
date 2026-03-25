@@ -21,6 +21,24 @@ export function createPopupShell(context) {
     console.error(`[${SCRIPT_ID}]`, ...args);
   }
 
+  async function ensureLegacyModule(moduleKey) {
+    if (modules[moduleKey]) {
+      return modules[moduleKey];
+    }
+
+    const loadLegacyModule = context?.services?.loadLegacyModule;
+    if (typeof loadLegacyModule !== 'function') {
+      return null;
+    }
+
+    try {
+      return await loadLegacyModule(moduleKey);
+    } catch (error) {
+      logError(`兼容模块加载失败: ${moduleKey}`, error);
+      return null;
+    }
+  }
+
   function escapeHtml(unsafe) {
     if (typeof unsafe !== 'string') return '';
     return unsafe
@@ -468,7 +486,7 @@ export function createPopupShell(context) {
     $(uiState.currentPopup).find('.yyt-tab-content').removeClass('active');
     $(uiState.currentPopup).find(`.yyt-tab-content[data-tab="${tabName}"]`).addClass('active');
 
-    renderTabContent(tabName);
+    void renderTabContent(tabName);
     updatePopupStatus();
     refreshScrollableSurfaces();
   }
@@ -482,7 +500,7 @@ export function createPopupShell(context) {
     $(uiState.currentPopup).find('.yyt-sub-nav-item').removeClass('active');
     $(uiState.currentPopup).find(`.yyt-sub-nav-item[data-subtab="${subTab}"]`).addClass('active');
 
-    renderSubTabContent(mainTab, subTab);
+    void renderSubTabContent(mainTab, subTab);
     updatePopupStatus();
     refreshScrollableSurfaces();
   }
@@ -522,31 +540,40 @@ export function createPopupShell(context) {
       case 'apiPresets':
         if (modules.uiModule?.renderApiPanel) {
           modules.uiModule.renderApiPanel($content);
-        } else if (modules.uiComponentsModule?.render) {
-          modules.uiComponentsModule.render($content);
+        } else {
+          const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+          if (uiCompatibilityModule?.render) {
+            uiCompatibilityModule.render($content);
+          }
         }
         break;
 
       case 'toolManage':
         if (modules.uiModule?.renderToolPanel) {
           modules.uiModule.renderToolPanel($content);
-        } else if (modules.uiComponentsModule?.renderTool) {
-          modules.uiComponentsModule.renderTool($content);
+        } else {
+          const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+          if (uiCompatibilityModule?.renderTool) {
+            uiCompatibilityModule.renderTool($content);
+          }
         }
         break;
 
       case 'regexExtract':
         if (modules.uiModule?.renderRegexPanel) {
           modules.uiModule.renderRegexPanel($content);
-        } else if (modules.uiComponentsModule?.renderRegex) {
-          modules.uiComponentsModule.renderRegex($content);
+        } else {
+          const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+          if (uiCompatibilityModule?.renderRegex) {
+            uiCompatibilityModule.renderRegex($content);
+          }
         }
         break;
 
       case 'tools':
         if (toolConfig?.hasSubTabs && toolConfig.subTabs?.length > 0) {
           const activeSubTab = uiState.currentSubTab[tabName] || toolConfig.subTabs[0].id;
-          renderSubTabContent(tabName, activeSubTab);
+          await renderSubTabContent(tabName, activeSubTab);
         } else {
           $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置加载失败</span></div>');
         }
@@ -576,7 +603,7 @@ export function createPopupShell(context) {
     refreshScrollableSurfaces();
   }
 
-  function renderSubTabContent(mainTab, subTab) {
+  async function renderSubTabContent(mainTab, subTab) {
     const $ = getJQuery();
     if (!$ || !uiState.currentPopup) return;
 
@@ -598,35 +625,44 @@ export function createPopupShell(context) {
           case 'SummaryToolPanel':
             if (modules.uiModule?.renderSummaryToolPanel) {
               modules.uiModule.renderSummaryToolPanel($subContent);
-            } else if (modules.uiComponentsModule?.SummaryToolPanel) {
-              modules.uiComponentsModule.SummaryToolPanel.renderTo($subContent);
             } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
+              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+              if (uiCompatibilityModule?.SummaryToolPanel) {
+                uiCompatibilityModule.SummaryToolPanel.renderTo($subContent);
+              } else {
+                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
+              }
             }
             break;
 
           case 'StatusBlockPanel':
             if (modules.uiModule?.renderStatusBlockPanel) {
               modules.uiModule.renderStatusBlockPanel($subContent);
-            } else if (modules.uiComponentsModule?.StatusBlockPanel) {
-              modules.uiComponentsModule.StatusBlockPanel.renderTo($subContent);
             } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
+              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+              if (uiCompatibilityModule?.StatusBlockPanel) {
+                uiCompatibilityModule.StatusBlockPanel.renderTo($subContent);
+              } else {
+                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
+              }
             }
             break;
 
           case 'YouyouReviewPanel':
             if (modules.uiModule?.renderYouyouReviewPanel) {
               modules.uiModule.renderYouyouReviewPanel($subContent);
-            } else if (modules.uiComponentsModule?.YouyouReviewPanel) {
-              modules.uiComponentsModule.YouyouReviewPanel.renderTo($subContent);
             } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
+              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+              if (uiCompatibilityModule?.YouyouReviewPanel) {
+                uiCompatibilityModule.YouyouReviewPanel.renderTo($subContent);
+              } else {
+                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
+              }
             }
             break;
 
           case 'GenericToolConfigPanel':
-            renderGenericToolConfigPanel(subToolConfig, $subContent);
+            await renderGenericToolConfigPanel(subToolConfig, $subContent);
             break;
 
           default:
@@ -645,7 +681,7 @@ export function createPopupShell(context) {
         renderToolConfig(mainTab, $content);
         break;
       case 'prompts':
-        renderPromptEditor(mainTab, $content);
+        await renderPromptEditor(mainTab, $content);
         break;
       case 'presets':
         renderToolPresets(mainTab, $content);
@@ -712,7 +748,7 @@ export function createPopupShell(context) {
       </div>
     `);
 
-    renderSubTabContent(toolId, currentSub);
+    void renderSubTabContent(toolId, currentSub);
   }
 
   function renderToolConfig(toolId, $container) {
@@ -775,25 +811,27 @@ export function createPopupShell(context) {
     });
   }
 
-  function renderPromptEditor(toolId, $container) {
+  async function renderPromptEditor(toolId, $container) {
     const $ = getJQuery();
-    if (!$ || !modules.promptEditorModule) {
+    const promptEditorModule = modules.promptEditorModule || await ensureLegacyModule('promptEditorModule');
+
+    if (!$ || !promptEditorModule) {
       $container.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>提示词编辑器模块未加载</span></div>');
       return;
     }
 
     const tool = modules.toolManagerModule?.getTool(toolId);
     const messages = tool?.config?.messages || [];
-    const segments = modules.promptEditorModule.messagesToSegments
-      ? modules.promptEditorModule.messagesToSegments(messages)
-      : modules.promptEditorModule.DEFAULT_PROMPT_SEGMENTS;
+    const segments = promptEditorModule.messagesToSegments
+      ? promptEditorModule.messagesToSegments(messages)
+      : promptEditorModule.DEFAULT_PROMPT_SEGMENTS;
 
-    const editor = new modules.promptEditorModule.PromptEditor({
+    const editor = new promptEditorModule.PromptEditor({
       containerId: `yyt-prompt-editor-${toolId}`,
       segments,
       onChange: (newSegments) => {
-        const newMessages = modules.promptEditorModule.segmentsToMessages
-          ? modules.promptEditorModule.segmentsToMessages(newSegments)
+        const newMessages = promptEditorModule.segmentsToMessages
+          ? promptEditorModule.segmentsToMessages(newSegments)
           : [];
         log('提示词已更新:', newMessages.length, '条消息');
       }
@@ -802,8 +840,8 @@ export function createPopupShell(context) {
     $container.html(`<div id="yyt-prompt-editor-${toolId}" class="yyt-prompt-editor-container"></div>`);
     editor.init($container.find(`#yyt-prompt-editor-${toolId}`));
 
-    const editorStyles = modules.promptEditorModule.getPromptEditorStyles
-      ? modules.promptEditorModule.getPromptEditorStyles()
+    const editorStyles = promptEditorModule.getPromptEditorStyles
+      ? promptEditorModule.getPromptEditorStyles()
       : '';
     if (editorStyles) {
       const styleId = 'yyt-prompt-editor-styles';
@@ -1033,7 +1071,7 @@ export function createPopupShell(context) {
 
     enablePopupDrag();
 
-    renderTabContent(uiState.currentMainTab);
+    void renderTabContent(uiState.currentMainTab);
 
     const currentToolConfig = modules.toolRegistryModule?.getToolConfig(uiState.currentMainTab);
     if (currentToolConfig?.hasSubTabs) {

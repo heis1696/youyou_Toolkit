@@ -1,6 +1,6 @@
 # API 文档
 
-本文档详细说明 YouYou Toolkit v0.6.2 提供的 API 接口。
+本文档说明当前仓库代码基线（`0.6.2 + Unreleased`）下的公开 API 接口。
 
 ## 模块导入
 
@@ -70,6 +70,21 @@ console.log(YouYouToolkit.id); // "youyou_toolkit"
 
 - **类型**: `() => void`
 
+#### `loadLegacyModule(moduleKey)`
+
+按需加载兼容模块。
+
+- **类型**: `(moduleKey: string) => Promise<object|null>`
+- **说明**: 当前主要用于加载已经从启动期常驻装载中移出的 compatibility / legacy 模块，例如 `uiComponentsModule`、`promptEditorModule`。
+
+```javascript
+await YouYouToolkit.loadLegacyModule('uiComponentsModule');
+const uiCompat = YouYouToolkit.getUiComponents();
+
+await YouYouToolkit.loadLegacyModule('promptEditorModule');
+const promptEditor = YouYouToolkit.getPromptEditor();
+```
+
 #### `switchMainTab(pageName)`
 
 切换弹窗内的主标签页。
@@ -99,6 +114,8 @@ const storage = YouYouToolkit.getStorage();
 // storage.loadApiPresets()
 // storage.saveApiPresets(presets)
 ```
+
+> `getStorage()` 返回的是 `modules/storage.js` 对应的**兼容适配层**。从当前存储接口收口开始，`api-connection.js`、`preset-manager.js`、`regex-extractor.js` 已优先改用 `core/storage-service.js` 主接口；如无历史兼容需求，新代码应优先使用 `core/storage-service.js` 的 `storage` 实例或各命名空间实例。
 
 ### `getApiConnection()`
 
@@ -165,24 +182,56 @@ const ui = YouYouToolkit.getUiComponents();
 
 > `getUiComponents()` 对应 `modules/ui-components.js`，当前定位为 **compatibility facade**。旧代码仍可继续调用，但新的 UI 装配逻辑应优先使用 `getUi()` / `getUiModule()` 返回的主入口。
 
+> 从 2026-03-25 起，`ui-components.js` 已不再作为启动期常驻模块装载；如需确保该模块可用，请先调用 `await YouYouToolkit.loadLegacyModule('uiComponentsModule')`。
+
 ### `getRegexExtractor()`
 
-获取正则提取模块。
+获取规则提取 / 标签提取模块。
 
 ```javascript
 const regex = YouYouToolkit.getRegexExtractor();
-// regex.getAllTemplates()
-// regex.getTemplate(id)
-// regex.createTemplate(template)
-// regex.updateTemplate(id, updates)
-// regex.deleteTemplate(id)
+// 核心提取
+// regex.extractTagContent(text, rules, blacklist)
+// regex.extractSimpleTag(text, tag)
+// regex.extractCurlyBraceTag(text, tag)
+// regex.extractComplexTag(text, tag)
+// regex.extractHtmlFormatTag(text, tag)
+
+// 规则模板
+// regex.getAllRuleTemplates()
+// regex.getRuleTemplate(id)
+// regex.createRuleTemplate(template)
+// regex.updateRuleTemplate(id, updates)
+// regex.deleteRuleTemplate(id)
+
+// 当前规则
+// regex.getTagRules()
+// regex.setTagRules(rules)
+// regex.addTagRule(rule)
+// regex.updateTagRule(index, updates)
+// regex.deleteTagRule(index)
+
+// 黑名单
+// regex.getContentBlacklist()
+// regex.setContentBlacklist(blacklist)
+
+// 规则预设
+// regex.saveRulesAsPreset(name, description)
+// regex.getAllRulePresets()
+// regex.loadRulePreset(presetId)
+// regex.deleteRulePreset(presetId)
+
+// 导入/导出
+// regex.exportRulesConfig()
+// regex.importRulesConfig(json, options)
+
+// 扫描与测试
+// regex.scanTextForTags(text, options)
+// regex.generateTagSuggestions(scanResult, limit)
 // regex.testRegex(pattern, text, flags, groupIndex)
-// regex.extractWithTemplate(templateId, text)
-// regex.generateExtractionScript(templateId, source, varName)
-// regex.generateReplaceScript(pattern, replacement, source)
-// regex.exportTemplates()
-// regex.importTemplates(json, options)
 ```
+
+> 当前页面虽然仍叫“正则提取”，但真实实现已经收敛为**规则提取面板**：围绕标签规则、正则规则、黑名单、规则预设与文本测试展开，而不是旧版 STScript 生成器。
 
 ### `getToolManager()`
 
@@ -216,6 +265,8 @@ const executor = YouYouToolkit.getToolExecutor();
 > 从 `Phase 3` 开始，`tool-executor.js` 的定位进一步收敛为：**调度器 / 批处理器 / 中止管理器 / 执行历史管理器 + 少量兼容执行入口**。
 
 > `executeToolWithConfig()` 与 `buildToolMessages()` 仍然保留，但应视为 **compatibility API**，不再代表自动工具主链。
+
+> 从 2026-03-25 起，自动触发主链已不再静态依赖 `tool-executor.js`；只有 compatibility 回退路径才会按需加载该模块。
 
 ### `getToolTrigger()`
 
@@ -933,6 +984,10 @@ const promptEditor = YouYouToolkit.getPromptEditor();
 // promptEditor.getPromptEditorStyles()
 ```
 
+> 说明：`prompt-editor.js` 仍作为**兼容能力**保留；但当前主工具链的首选配置结构已经是 `promptTemplate` 单文本字段，而不是外部 `PromptSegment` 分段编辑工作流。
+
+> 从 2026-03-25 起，`prompt-editor.js` 已不再作为启动期常驻模块装载；如需显式使用，请先调用 `await YouYouToolkit.loadLegacyModule('promptEditorModule')`。
+
 ---
 
 ## 便捷方法
@@ -1099,18 +1154,42 @@ interface ApiPreset {
 }
 ```
 
-### 正则模板对象
+### 规则模板对象
 
 ```typescript
-interface RegexTemplate {
-  id: string;            // 模板ID
-  name: string;          // 模板名称
-  description: string;   // 模板描述
-  pattern: string;       // 正则表达式
-  flags: string;         // 标志位 (g/i/m)
-  groupIndex: number;    // 捕获组索引
-  createdAt?: string;    // 创建时间
-  updatedAt?: string;    // 更新时间
+interface RuleTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: 'include' | 'exclude' | 'regex_include' | 'regex_exclude';
+  value: string;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+```
+
+### 当前标签规则对象
+
+```typescript
+interface TagRule {
+  id?: string;
+  type: 'include' | 'exclude' | 'regex_include' | 'regex_exclude';
+  value: string;
+  enabled: boolean;
+}
+```
+
+### 规则预设对象
+
+```typescript
+interface TagRulePreset {
+  id: string;
+  name: string;
+  description: string;
+  rules: TagRule[];
+  blacklist: string[];
+  createdAt: string;
 }
 ```
 
@@ -1359,7 +1438,7 @@ interface Settings {
 
 ```javascript
 // 正常日志
-[youyou_toolkit] 初始化开始... 版本: 0.4.0
+[youyou_toolkit] 初始化开始... 版本: 0.6.2
 [youyou_toolkit] 所有模块加载成功
 [youyou_toolkit] 样式已注入
 
@@ -1372,12 +1451,16 @@ interface Settings {
 
 ## 版本兼容性
 
-| YouYou Toolkit | SillyTavern | jQuery |
-|----------------|-------------|--------|
-| 0.5.0 | 最新版 | 内置 |
-| 0.4.x | 最新版 | 内置 |
-| 0.3.x | 最新版 | 内置 |
-| 0.2.x | 最新版 | 内置 |
+当前仓库主线主要面向：
+
+- **最新版 SillyTavern / TavernHelper 宿主环境**
+- **宿主内置 jQuery**
+
+其中：
+
+- 当前代码基线为 `0.6.2 + Unreleased` 变更集合
+- 自动触发链与写回链的更细粒度宿主验证，请以 `docs/HOST_REGRESSION_CHECKLIST.md` 为准
+- 若你运行的是更旧的宿主版本，请优先关注事件桥接、消息字段兼容与写回链刷新能力是否满足当前实现假设
 
 ---
 

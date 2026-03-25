@@ -3,7 +3,50 @@
  * @description 管理API预设的创建、加载、保存和删除
  */
 
-import { loadSettings, saveSettings, loadApiPresets, saveApiPresets, getCurrentPresetName, setCurrentPresetName } from './storage.js';
+import { storage } from './core/storage-service.js';
+
+const SETTINGS_STORAGE_KEY = 'settings';
+const API_PRESETS_STORAGE_KEY = 'api_presets';
+const CURRENT_PRESET_STORAGE_KEY = 'current_preset';
+
+function getDefaultSettingsSnapshot() {
+  return {
+    apiConfig: {
+      url: '',
+      apiKey: '',
+      model: '',
+      useMainApi: true,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    currentPreset: '',
+    uiSettings: {
+      theme: 'dark',
+      lastTab: 'api'
+    }
+  };
+}
+
+function loadStoredSettings() {
+  return storage.get(SETTINGS_STORAGE_KEY, getDefaultSettingsSnapshot());
+}
+
+function loadStoredApiPresets() {
+  return storage.get(API_PRESETS_STORAGE_KEY, []);
+}
+
+function saveStoredApiPresets(presets) {
+  storage.set(API_PRESETS_STORAGE_KEY, presets);
+}
+
+function getStoredCurrentPresetName() {
+  return storage.get(CURRENT_PRESET_STORAGE_KEY, '');
+}
+
+function setStoredCurrentPresetName(name) {
+  storage.set(CURRENT_PRESET_STORAGE_KEY, name || '');
+}
 
 // ============================================================
 // 预设结构定义
@@ -35,7 +78,7 @@ import { loadSettings, saveSettings, loadApiPresets, saveApiPresets, getCurrentP
  * @returns {Array<ApiPreset>}
  */
 export function getAllPresets() {
-  return loadApiPresets();
+  return loadStoredApiPresets();
 }
 
 /**
@@ -43,7 +86,7 @@ export function getAllPresets() {
  * @returns {Array<string>}
  */
 export function getPresetNames() {
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   return presets.map(p => p.name);
 }
 
@@ -55,7 +98,7 @@ export function getPresetNames() {
 export function getPreset(name) {
   if (!name || typeof name !== 'string') return null;
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   return presets.find(p => p.name === name) || null;
 }
 
@@ -67,7 +110,7 @@ export function getPreset(name) {
 export function presetExists(name) {
   if (!name || typeof name !== 'string') return false;
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   return presets.some(p => p.name === name);
 }
 
@@ -109,9 +152,9 @@ export function createPreset(presetData) {
   };
   
   // 保存预设
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   presets.push(preset);
-  saveApiPresets(presets);
+  saveStoredApiPresets(presets);
   
   return { success: true, message: `预设 "${trimmedName}" 创建成功`, preset };
 }
@@ -127,7 +170,7 @@ export function updatePreset(name, updates) {
     return { success: false, message: '预设名称不能为空' };
   }
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   const index = presets.findIndex(p => p.name === name);
   
   if (index === -1) {
@@ -157,7 +200,7 @@ export function updatePreset(name, updates) {
   }
   
   presets[index] = updatedPreset;
-  saveApiPresets(presets);
+  saveStoredApiPresets(presets);
   
   return { success: true, message: `预设 "${name}" 更新成功`, preset: updatedPreset };
 }
@@ -172,7 +215,7 @@ export function deletePreset(name) {
     return { success: false, message: '预设名称不能为空' };
   }
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   const index = presets.findIndex(p => p.name === name);
   
   if (index === -1) {
@@ -181,11 +224,11 @@ export function deletePreset(name) {
   
   // 删除预设
   presets.splice(index, 1);
-  saveApiPresets(presets);
+  saveStoredApiPresets(presets);
   
   // 如果删除的是当前使用的预设，清除当前预设
-  if (getCurrentPresetName() === name) {
-    setCurrentPresetName('');
+  if (getStoredCurrentPresetName() === name) {
+    setStoredCurrentPresetName('');
   }
   
   return { success: true, message: `预设 "${name}" 已删除` };
@@ -218,17 +261,17 @@ export function renamePreset(oldName, newName) {
     return { success: false, message: `预设 "${trimmedNewName}" 已存在` };
   }
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   const preset = presets.find(p => p.name === oldName);
   
   if (preset) {
     preset.name = trimmedNewName;
     preset.updatedAt = Date.now();
-    saveApiPresets(presets);
+    saveStoredApiPresets(presets);
     
     // 更新当前预设名称
-    if (getCurrentPresetName() === oldName) {
-      setCurrentPresetName(trimmedNewName);
+    if (getStoredCurrentPresetName() === oldName) {
+      setStoredCurrentPresetName(trimmedNewName);
     }
   }
   
@@ -271,9 +314,9 @@ export function duplicatePreset(sourceName, targetName) {
     updatedAt: Date.now()
   };
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   presets.push(newPreset);
-  saveApiPresets(presets);
+  saveStoredApiPresets(presets);
   
   return { success: true, message: `预设已复制为 "${trimmedTargetName}"`, preset: newPreset };
 }
@@ -292,7 +335,7 @@ export function togglePresetStar(name) {
     return { success: false, message: '预设名称不能为空' };
   }
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   const preset = presets.find(p => p.name === name);
   
   if (!preset) {
@@ -303,7 +346,7 @@ export function togglePresetStar(name) {
   preset.starred = !preset.starred;
   preset.updatedAt = Date.now();
   
-  saveApiPresets(presets);
+  saveStoredApiPresets(presets);
   
   return { 
     success: true, 
@@ -317,7 +360,7 @@ export function togglePresetStar(name) {
  * @returns {Array<ApiPreset>}
  */
 export function getStarredPresets() {
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   return presets.filter(p => p.starred === true);
 }
 
@@ -329,7 +372,7 @@ export function getStarredPresets() {
 export function switchToPreset(name) {
   if (!name) {
     // 切换到当前配置
-    setCurrentPresetName('');
+    setStoredCurrentPresetName('');
     return { success: true, message: '已切换到当前API配置' };
   }
   
@@ -338,7 +381,7 @@ export function switchToPreset(name) {
     return { success: false, message: `预设 "${name}" 不存在` };
   }
   
-  setCurrentPresetName(name);
+  setStoredCurrentPresetName(name);
   
   return {
     success: true,
@@ -352,7 +395,7 @@ export function switchToPreset(name) {
  * @returns {string}
  */
 export function getActivePresetName() {
-  return getCurrentPresetName();
+  return getStoredCurrentPresetName();
 }
 
 /**
@@ -360,7 +403,7 @@ export function getActivePresetName() {
  * @returns {Object} { presetName: string, apiConfig: Object }
  */
 export function getActiveConfig() {
-  const presetName = getCurrentPresetName();
+  const presetName = getStoredCurrentPresetName();
   
   if (presetName) {
     const preset = getPreset(presetName);
@@ -373,7 +416,7 @@ export function getActiveConfig() {
   }
   
   // 使用当前配置
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   return {
     presetName: '',
     apiConfig: settings.apiConfig || {}
@@ -398,7 +441,7 @@ export function exportPresets(name = null) {
     return JSON.stringify(preset, null, 2);
   }
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   return JSON.stringify(presets, null, 2);
 }
 
@@ -425,7 +468,7 @@ export function importPresets(jsonString, options = { overwrite: false }) {
     return { success: false, message: '没有找到有效的预设数据', imported: 0 };
   }
   
-  const existingPresets = loadApiPresets();
+  const existingPresets = loadStoredApiPresets();
   let imported = 0;
   
   for (const preset of presetsToImport) {
@@ -458,7 +501,7 @@ export function importPresets(jsonString, options = { overwrite: false }) {
   }
   
   if (imported > 0) {
-    saveApiPresets(existingPresets);
+    saveStoredApiPresets(existingPresets);
   }
   
   return {
@@ -475,7 +518,7 @@ export function importPresets(jsonString, options = { overwrite: false }) {
  * @returns {Object} { success: boolean, message: string, preset?: ApiPreset }
  */
 export function createPresetFromCurrentConfig(name, description = '') {
-  const settings = loadSettings();
+  const settings = loadStoredSettings();
   
   return createPreset({
     name,
@@ -520,7 +563,7 @@ export function generateUniquePresetName(baseName) {
     baseName = '新预设';
   }
   
-  const presets = loadApiPresets();
+  const presets = loadStoredApiPresets();
   const existingNames = new Set(presets.map(p => p.name));
   
   if (!existingNames.has(baseName)) {

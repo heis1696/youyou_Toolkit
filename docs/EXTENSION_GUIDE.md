@@ -25,7 +25,7 @@ npm install
 
 ### 2. 修改基本信息
 
-编辑 `index.js` 中的常量定义：
+如果你准备把当前仓库 fork 成一个独立插件，可以修改 `index.js` 中的常量定义：
 
 ```javascript
 const SCRIPT_ID = 'your_plugin_id';        // 你的插件ID
@@ -71,14 +71,14 @@ YouYou Toolkit 采用分层模块化架构设计：
 │                    Service Layer (服务层)                        │
 │  api-connection.js     API连接管理                               │
 │  preset-manager.js     预设管理                                   │
-│  regex-extractor.js    正则提取                                   │
+│  regex-extractor.js    规则/标签提取                               │
 │  tool-manager.js       定义层工具管理                             │
 │  tool-registry.js      运行态工具主模型                           │
 │  tool-trigger.js       自动触发入口层                             │
 │  tool-output-service.js 自动工具链直接执行层                      │
 │  tool-prompt-service.js 提示词与消息构建                           │
 │  context-injector.js   最新 AI 楼层写回                           │
-│  tool-executor.js      调度/批处理/兼容执行入口                   │
+│  tool-executor.js      调度/批处理/兼容执行入口（非自动主链直依赖） │
 │  bypass-manager.js     破限词管理                                 │
 │  variable-resolver.js  变量解析                                   │
 │  window-manager.js     独立窗口扩展能力                           │
@@ -88,7 +88,7 @@ YouYou Toolkit 采用分层模块化架构设计：
 │                        UI Layer (UI层)                           │
 │  ui/index.js           UI主装配入口                               │
 │  ui-manager.js         UI生命周期与样式聚合管理器                 │
-│  ui-components.js      UI兼容层                                   │
+│  ui-components.js      UI兼容层（按需加载）                        │
 │  components/           独立UI组件                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -464,147 +464,71 @@ async function init() {
 
 ## 示例项目
 
-### 完整的工具扩展示例
+### 当前推荐扩展路径
+
+当前架构下，不再推荐通过修改 `index.js` 里的 `renderTabContent()` 之类旧入口，把新页面硬插进去。更推荐以下两条路径：
+
+#### 路径 A：先通过 UI 创建自定义工具
+
+适合大多数“模板 + API 预设 + 提取规则 + 手动执行/自动触发”类型的扩展需求。
+
+1. 打开工具箱
+2. 进入 **工具列表**
+3. 新建一个自定义工具
+4. 在 **工具** 页签中继续配置 `promptTemplate`、输出模式、API 预设、破限词与提取规则
+
+这条路径的优点是：
+
+- 不需要手写新的 popup 路由
+- 自动复用统一工具配置面板
+- 自动接入运行态诊断与自动触发链
+
+#### 路径 B：代码级新增服务 + UI 组件
+
+适合需要单独业务面板，而不是统一工具配置面的场景。
+
+建议结构：
+
+1. 在 `modules/` 下新增业务服务模块
+2. 在 `modules/ui/components/` 下新增组件
+3. 在 `modules/ui/index.js` 中注册组件并提供渲染 helper
+4. 如确有必要，再通过 `tool-registry.js` 暴露新的顶层入口
+
+也就是说，当前主路径应优先围绕：
+
+```text
+modules/app/popup-shell.js
+  -> modules/ui/index.js
+    -> modules/ui/components/*
+```
+
+而不是继续把页面装配逻辑写回 `index.js`。
+
+### compatibility / legacy 模块说明
+
+当前以下模块仍然保留，但不建议作为新扩展的首选入口：
+
+- `modules/ui-components.js`
+- `modules/prompt-editor.js`
+- `modules/tool-executor.js` 中的 legacy 执行函数
+- `modules/storage.js`
+
+其中 `modules/storage.js` 当前已经明确降级为**旧存储 API 兼容适配层**；如果你在开发新扩展，请优先使用：
 
 ```javascript
-// 1. 创建服务模块 (modules/note-service.js)
-import { storage } from './core/storage-service.js';
-
-const STORAGE_KEY = 'notes';
-
-export function getNotes() {
-  return storage.get(STORAGE_KEY) || [];
-}
-
-export function addNote(text) {
-  const notes = getNotes();
-  notes.push({
-    id: Date.now(),
-    text,
-    createdAt: new Date().toISOString()
-  });
-  storage.set(STORAGE_KEY, notes);
-  return notes;
-}
-
-export function deleteNote(id) {
-  const notes = getNotes().filter(n => n.id !== id);
-  storage.set(STORAGE_KEY, notes);
-  return notes;
-}
-
-// 2. 创建UI组件 (modules/ui/components/note-panel.js)
-import { SCRIPT_ID, escapeHtml } from '../utils.js';
-import * as noteService from '../../note-service.js';
-
-export const NotePanel = {
-  id: 'notePanel',
-  
-  render(props) {
-    const notes = noteService.getNotes();
-    
-    return `
-      <div class="yyt-note-panel">
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-note-sticky"></i>
-            <span>笔记管理</span>
-          </div>
-          
-          <div class="yyt-form-row">
-            <input type="text" class="yyt-input yyt-flex-1" 
-                   id="${SCRIPT_ID}-note-input" placeholder="输入笔记内容...">
-            <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-note-add">
-              <i class="fa-solid fa-plus"></i> 添加
-            </button>
-          </div>
-          
-          <div class="yyt-note-list">
-            ${notes.map(note => `
-              <div class="yyt-note-item" data-id="${note.id}">
-                <span>${escapeHtml(note.text)}</span>
-                <button class="yyt-btn yyt-btn-small yyt-btn-danger" data-action="delete">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-  },
-  
-  renderTo(container) {
-    const $ = window.jQuery;
-    $(container).html(this.render({}));
-    this.bindEvents($(container));
-  },
-  
-  bindEvents($container) {
-    const $ = window.jQuery;
-    
-    // 添加笔记
-    $container.find(`#${SCRIPT_ID}-note-add`).on('click', () => {
-      const $input = $container.find(`#${SCRIPT_ID}-note-input`);
-      const text = $input.val().trim();
-      if (text) {
-        noteService.addNote(text);
-        $input.val('');
-        this.renderTo($container);
-      }
-    });
-    
-    // 删除笔记
-    $container.on('click', '[data-action="delete"]', function() {
-      const id = $(this).closest('.yyt-note-item').data('id');
-      noteService.deleteNote(id);
-      NotePanel.renderTo($container);
-    });
-  },
-  
-  getStyles() {
-    return `
-      .yyt-note-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 12px;
-      }
-      
-      .yyt-note-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 12px;
-        background: var(--yyt-surface);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-      }
-    `;
-  }
-};
-
-// 3. 注册工具 (在 index.js 中)
-import { registerTool } from './modules/tool-registry.js';
-import { NotePanel } from './modules/ui/components/note-panel.js';
-
-registerTool('notes', {
-  id: 'notes',
-  name: '笔记管理',
-  icon: 'fa-note-sticky',
-  description: '快速笔记管理工具'
-});
-
-// 4. 在 renderTabContent 中添加渲染逻辑
-function renderTabContent(tabName) {
-  switch (tabName) {
-    case 'notes':
-      NotePanel.renderTo($content);
-      break;
-    // ... 其他case
-  }
-}
+import { storage } from './modules/core/storage-service.js';
 ```
+
+而不是继续围绕 `loadSettings()` / `saveSettings()` 之类旧接口构建新功能。
+
+如果你是在维护旧扩展，而不是开发新扩展，建议先显式调用：
+
+```javascript
+await YouYouToolkit.loadLegacyModule('uiComponentsModule');
+await YouYouToolkit.loadLegacyModule('promptEditorModule');
+```
+
+再访问对应 compatibility API，而不是继续假设这些模块一定会在启动期常驻装载。
 
 ---
 
@@ -679,7 +603,7 @@ youyou_Toolkit/
 │   ├── storage.js              # 存储管理
 │   ├── api-connection.js       # API连接
 │   ├── preset-manager.js       # 预设管理
-│   ├── regex-extractor.js      # 正则提取
+│   ├── regex-extractor.js      # 规则/标签提取
 │   ├── tool-manager.js         # 工具管理
 │   ├── tool-executor.js        # 调度/兼容执行
 │   ├── tool-trigger.js         # 事件触发
@@ -690,7 +614,7 @@ youyou_Toolkit/
 │   ├── tool-registry.js        # 工具注册
 │   ├── bypass-manager.js       # 破限词管理
 │   ├── window-manager.js       # 窗口管理
-│   ├── prompt-editor.js        # 提示词编辑器
+│   ├── prompt-editor.js        # 兼容提示词编辑器
 │   └── ui-components.js        # UI兼容层
 ├── styles/
 │   └── main.css                # 主样式文件

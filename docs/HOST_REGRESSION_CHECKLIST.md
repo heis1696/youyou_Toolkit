@@ -443,3 +443,44 @@ copy(JSON.stringify(YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8
 - 是否符合预期：通过 / 不通过
 - 备注：
 ```
+
+---
+
+## 七、N1 宿主自动触发链验收登记模板
+
+为避免 N1 验收结果仍停留在口头结论，建议完成 A10 ~ A13 后至少补一份统一登记。
+
+如需直接填写，可复制：`docs/N1_AUTO_TRIGGER_ACCEPTANCE_RECORD.md`
+
+### 7.1 总结模板
+
+```text
+- 验收日期：
+- 宿主环境版本：
+- 是否启用 TavernHelper：
+- listener 关键开关：
+  - ignoreAutoTrigger =
+  - useGenerationAfterCommandsFallback =
+  - useMessageReceivedFallback =
+- A10：通过 / 不通过
+- A11：通过 / 不通过
+- A12：通过 / 不通过
+- A13：通过 / 不通过
+- 关键诊断结论：
+  - diagnostics.summary.phaseCounts =
+  - diagnostics.summary.consistency =
+  - diagnostics.verdictHints =
+- 是否进入下一阶段：
+  - N1 失败 -> 回到第三轮自动触发定向补修
+  - N1 通过 -> 进入 N2 写回链宿主专项
+- 备注：
+```
+
+### 7.2 登记要求
+
+完成 N1 后，建议至少同步两处：
+
+1. 将验收结果写入 `docs/OPTIMIZATION_PROGRESS.md` 的最新施工日志
+2. 若 N1 失败，将失败项与补修方向补回 `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+
+这样可以避免“宿主已经测过，但结论没有沉淀到正式文档里”的情况再次出现。

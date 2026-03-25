@@ -49,6 +49,7 @@
    - 修改对应模块源码（如 `modules/app/*`、`modules/ui/*`、`modules/tool-*` 等）
    - 运行 `npm run build` 构建测试
    - 更新相关文档（至少同步 `README.md`、`docs/API_DOCUMENTATION.md`、`docs/CHANGELOG.md`；若涉及施工演进，也同步 `docs/OPTIMIZATION_PROGRESS.md`）
+   - 如果修改的是 compatibility / legacy 模块，请明确说明它是否仍属于启动期主路径
 
 6. **提交更改**
 
@@ -119,7 +120,7 @@ youyou_Toolkit/
 │   ├── storage.js              # 存储管理
 │   ├── api-connection.js       # API连接
 │   ├── preset-manager.js       # 预设管理
-│   ├── regex-extractor.js      # 正则提取
+│   ├── regex-extractor.js      # 规则/标签提取
 │   ├── tool-manager.js         # 工具管理
 │   ├── tool-executor.js        # 调度/兼容执行
 │   ├── tool-trigger.js         # 事件触发
@@ -130,7 +131,7 @@ youyou_Toolkit/
 │   ├── tool-registry.js        # 工具注册
 │   ├── bypass-manager.js       # 破限词管理
 │   ├── window-manager.js       # 独立窗口扩展能力
-│   ├── prompt-editor.js        # 提示词编辑器
+│   ├── prompt-editor.js        # 兼容提示词编辑器
 │   └── ui-components.js        # UI组件（兼容层）
 ├── styles/
 │   └── main.css                # 主样式文件
@@ -178,6 +179,36 @@ youyou_Toolkit/
 - `docs/OPTIMIZATION_PROGRESS.md`
 - `docs/OPTIMIZATION_EXECUTION_PLAN.md`
 - `docs/ARCHITECTURE_ANALYSIS.md`（若涉及架构结论变化）
+
+如果你修改的是自动触发链、宿主实机回归口径或诊断字段，请继续同步：
+
+- `docs/HOST_REGRESSION_CHECKLIST.md`
+- `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+
+如果你修改的是“代码瘦身 / 主路径减载 / compatibility 收口”，请继续同步：
+
+- `docs/CODEBASE_DIET_PLAN.md`
+
+如果你确认某份文档已经完成历史使命、且不再服务当前仓库主线，请在删除前先检查：
+
+- 是否仍被 `README.md` 或其他正式文档引用
+- 是否仍承载当前阶段的运维/验收信息
+- 删除动作是否需要登记到 `docs/CHANGELOG.md`
+
+### compatibility 模块修改约束
+
+以下模块当前默认视为 compatibility / legacy 能力，而不是新功能首选入口：
+
+- `modules/ui-components.js`
+- `modules/prompt-editor.js`
+- `modules/storage.js`
+- `modules/tool-executor.js` 中的 legacy 执行函数
+
+对这些模块做修改时，请优先回答三件事：
+
+1. 这次修改是否会把 compatibility 能力重新带回启动期主路径？
+2. 是否应该改为按需加载，而不是继续默认常驻？
+3. 是否需要同步更新 `docs/API_DOCUMENTATION.md` 与 `docs/CODEBASE_DIET_PLAN.md`？
 
 ---
 

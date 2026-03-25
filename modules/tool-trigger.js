@@ -7,11 +7,11 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 import { settingsService } from './core/settings-service.js';
 import {
   getToolFullConfig,
+  getEnabledTools,
   updateToolRuntime,
   patchToolRuntime,
   appendToolRuntimeHistory
 } from './tool-registry.js';
-import { executeToolWithConfig, getToolsForEvent } from './tool-executor.js';
 import {
   toolOutputService,
   OUTPUT_MODES,
@@ -144,6 +144,8 @@ const EXPLICIT_USER_GENERATION_TYPES = new Set([
   'regenerate',
   'swipe'
 ]);
+
+let toolExecutorCompatibilityModulePromise = null;
 
 // ============================================================
 // 工具函数
@@ -1246,6 +1248,18 @@ function getCurrentSessionGenerationFrozenFields() {
     sessionLastUserIntentSourceAtCreation: triggerState.gateState.lastUserIntentSource || '',
     sessionGenerationCapturedAt: Date.now()
   };
+}
+
+async function loadToolExecutorCompatibilityModule() {
+  if (!toolExecutorCompatibilityModulePromise) {
+    toolExecutorCompatibilityModulePromise = import('./tool-executor.js')
+      .catch((error) => {
+        toolExecutorCompatibilityModulePromise = null;
+        throw error;
+      });
+  }
+
+  return toolExecutorCompatibilityModulePromise;
 }
 
 function createEventDebugSnapshot(snapshot = {}) {
@@ -3562,7 +3576,8 @@ async function executeToolByResolvedPath(tool, context, isManual) {
     return toolOutputService.runToolPostResponse(tool, context);
   }
 
-  return executeToolWithConfig(tool.id, context);
+  const compatibilityModule = await loadToolExecutorCompatibilityModule();
+  return compatibilityModule.executeToolWithConfig(tool.id, context);
 }
 
 /**
@@ -4013,8 +4028,15 @@ async function buildToolExecutionContext(eventData) {
  * @returns {Array} 需要执行的工具配置列表
  */
 function getToolsToExecute(eventType) {
-  const tools = getToolsForEvent(eventType);
-  return tools.filter(tool => toolOutputService.shouldRunPostResponse(tool));
+  const enabledTools = getEnabledTools();
+
+  return enabledTools.filter((tool) => {
+    const matchesNewTrigger = tool?.trigger?.enabled && tool?.trigger?.event === eventType;
+    const matchesLegacyTrigger = Array.isArray(tool?.triggerEvents) && tool.triggerEvents.includes(eventType);
+
+    return (matchesNewTrigger || matchesLegacyTrigger)
+      && toolOutputService.shouldRunPostResponse(tool);
+  });
 }
 
 /**

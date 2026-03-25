@@ -1,7 +1,7 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
  * @version 0.6.2
- * @description 一个轻量级的 SillyTavern 工具插件框架，支持API连接、预设管理、正则提取、独立窗口系统、工具提示词、破限词和上下文注入
+ * @description 一个运行在 SillyTavern / TavernHelper 宿主中的可配置工具链平台，支持 API 预设、工具管理、自动触发、楼层写回与统一 UI 装配
  * @author YouYou
  */
 
@@ -49,6 +49,10 @@ const appContext = {
   caches: {
     dynamicToolPanelCache: new Map()
   },
+  services: {
+    loadModules: null,
+    loadLegacyModule: null
+  },
   uiState: {
     currentPopup: null,
     currentOverlay: null,
@@ -62,9 +66,13 @@ const bootstrap = createBootstrap(appContext, {
   openPopup: popupShell.openPopup
 });
 
+appContext.services.loadModules = bootstrap.loadModules;
+appContext.services.loadLegacyModule = bootstrap.loadLegacyModule;
+
 const YouYouToolkit = createPublicApi(appContext, {
   init: bootstrap.init,
   loadModules: bootstrap.loadModules,
+  loadLegacyModule: bootstrap.loadLegacyModule,
   addMenuItem: bootstrap.addMenuItem,
   popupShell
 });
