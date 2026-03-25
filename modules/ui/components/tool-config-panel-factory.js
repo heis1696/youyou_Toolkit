@@ -687,7 +687,7 @@ export function createToolConfigPanel(options) {
         ignored_auto_trigger: '已跳过：监听器设置忽略了非用户意图生成',
         ui_side_effect_event: '已忽略：宿主 UI 副作用事件',
         speculative_generation_after_commands: '已忽略：仅记录 GENERATION_AFTER_COMMANDS 观察态 session',
-        no_confirmed_assistant_message: '已跳过：未确认到本轮 assistant 新楼层或同楼层 revision',
+        no_confirmed_assistant_message: '已跳过：未确认到当前楼层 / 当前 swipe 的可处理 assistant 状态',
         historical_replay_message_received: '已拦截：历史 assistant 消息重放事件',
         message_received_outside_active_generation: '已拦截：MESSAGE_RECEIVED 不属于当前生成窗口',
         non_assistant_message: '已跳过：命中的并非 AI 楼层',
@@ -1020,6 +1020,10 @@ export function createToolConfigPanel(options) {
         ['事件桥接', this._formatEventBridgeText(summary.eventBridge)],
         ['当前 generation 动作', this._formatDiagnosticValue(summary.generationAction, '未记录')],
         ['当前原始 generation type', this._formatDiagnosticValue(summary.rawGenerationType, '未记录')],
+        ['最近楼层绑定来源', this._formatDiagnosticValue(summary.lastGenerationMessageBindingSource, '未记录')],
+        ['最近确认楼层', this._formatDiagnosticValue(summary.lastConfirmedAssistantMessageId, '未记录')],
+        ['最近确认 swipe', this._formatDiagnosticValue(summary.lastConfirmedAssistantSwipeId, '未记录')],
+        ['最近 effective swipe', this._formatDiagnosticValue(summary.lastEffectiveSwipeId, '未记录')],
         ['最近确认模式', this._formatDiagnosticValue(lastEventSnapshot.confirmationMode || lastAutoSnapshot.confirmationMode, '未记录')],
         ['最近同楼层 revision', this._formatDiagnosticValue(
           lastEventSnapshot.sameSlotRevisionConfirmed

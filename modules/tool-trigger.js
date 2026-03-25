@@ -1012,7 +1012,11 @@ function getGenerationConfirmationEligibility(baselineCandidate = null) {
     };
   }
 
-  if (triggerState.gateState.lastGenerationDryRun || baseline.dryRun) {
+  const isDryRunGeneration = baseline
+    ? !!baseline.dryRun
+    : !!triggerState.gateState.lastGenerationDryRun;
+
+  if (isDryRunGeneration) {
     return {
       eligible: false,
       baseline,
@@ -1195,6 +1199,56 @@ function resolveSameSlotRevisionAction(baseline = getCurrentGenerationBaseline()
   return '';
 }
 
+function isSameSlotRevisionActionFamily(action = '') {
+  const normalizedAction = normalizeGenerationActionHint(action)
+    || String(action || '').trim().toLowerCase();
+  return SAME_SLOT_REVISION_ACTIONS.has(normalizedAction);
+}
+
+function getBaselineAssistantBindingId(baseline = null) {
+  const baselineAssistantMessageId = normalizeMessageIdentityValue(baseline?.lastAssistantMessageId);
+  if (baselineAssistantMessageId) {
+    return baselineAssistantMessageId;
+  }
+
+  if (Number.isInteger(baseline?.lastAssistantIndex) && baseline.lastAssistantIndex >= 0) {
+    return String(baseline.lastAssistantIndex);
+  }
+
+  return '';
+}
+
+function resolveGenerationMessageBinding(preferredMessageId = '', baseline = null, options = {}) {
+  const normalizedPreferredMessageId = normalizeMessageIdentityValue(preferredMessageId);
+  if (normalizedPreferredMessageId) {
+    return {
+      preferredMessageId: normalizedPreferredMessageId,
+      bindingSource: 'event_message_id',
+      forceSameSlotRevision: true,
+      forcedSameSlotSource: 'message_id_bound_in_place'
+    };
+  }
+
+  if (options.allowBaselineAssistantSlot) {
+    const baselineAssistantBindingId = getBaselineAssistantBindingId(baseline);
+    if (baselineAssistantBindingId) {
+      return {
+        preferredMessageId: baselineAssistantBindingId,
+        bindingSource: 'baseline_assistant_slot',
+        forceSameSlotRevision: true,
+        forcedSameSlotSource: 'baseline_slot_in_place'
+      };
+    }
+  }
+
+  return {
+    preferredMessageId: '',
+    bindingSource: '',
+    forceSameSlotRevision: false,
+    forcedSameSlotSource: ''
+  };
+}
+
 function isSameAssistantMessageSlot(message, baseline) {
   if (!message || !baseline) {
     return false;
@@ -1269,7 +1323,9 @@ function buildSameSlotRevisionSource(evidence = {}, fallback = 'same_slot_revisi
 function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
   const {
     allowSameSlotRevision = false,
-    requireObservedSameSlotRevision = true
+    requireObservedSameSlotRevision = true,
+    forceSameSlotRevision = false,
+    forcedSameSlotSource = ''
   } = options;
 
   if (!message || message.role !== 'assistant' || !isMeaningfulAssistantContent(message.content)) {
@@ -1335,11 +1391,14 @@ function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
     };
   }
 
-  const sameSlotRevisionAction = resolveSameSlotRevisionAction(baseline);
+  const resolvedSameSlotRevisionAction = resolveSameSlotRevisionAction(baseline);
+  const sameSlotRevisionAction = forceSameSlotRevision
+    ? (resolvedSameSlotRevisionAction || 'same_slot_in_place')
+    : resolvedSameSlotRevisionAction;
   const sameSlotRevisionCandidate = isSameAssistantMessageSlot(message, baseline);
   const sameSlotRevisionEvidence = getSameSlotRevisionEvidence(message, baseline);
 
-  if (!allowSameSlotRevision || !sameSlotRevisionAction || !sameSlotRevisionCandidate) {
+  if (!allowSameSlotRevision || !sameSlotRevisionCandidate || (!forceSameSlotRevision && !sameSlotRevisionAction)) {
     return {
       allowed: false,
       confirmationMode: 'none',
@@ -1360,7 +1419,7 @@ function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
     };
   }
 
-  if (requireObservedSameSlotRevision && !sameSlotRevisionEvidence.observedRevision) {
+  if (!forceSameSlotRevision && requireObservedSameSlotRevision && !sameSlotRevisionEvidence.observedRevision) {
     return {
       allowed: false,
       confirmationMode: 'none',
@@ -1379,6 +1438,18 @@ function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
     };
   }
 
+  const sameSlotRevisionSource = forceSameSlotRevision
+    ? buildSameSlotRevisionSource(
+        sameSlotRevisionEvidence,
+        forcedSameSlotSource || 'same_slot_in_place'
+      )
+    : buildSameSlotRevisionSource(
+        sameSlotRevisionEvidence,
+        requireObservedSameSlotRevision
+          ? 'same_slot_observed_revision'
+          : 'same_slot_generation_confirmed'
+      );
+
   return {
     allowed: true,
     confirmationMode: 'same_slot_revision',
@@ -1386,12 +1457,7 @@ function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
     sameSlotRevisionAction,
     sameSlotRevisionCandidate: true,
     sameSlotRevisionConfirmed: true,
-    sameSlotRevisionSource: buildSameSlotRevisionSource(
-      sameSlotRevisionEvidence,
-      requireObservedSameSlotRevision
-        ? 'same_slot_observed_revision'
-        : 'same_slot_generation_confirmed'
-    ),
+    sameSlotRevisionSource,
     observedSameSlotRevision: sameSlotRevisionEvidence.observedRevision,
     baselineAssistantContentFingerprint: sameSlotRevisionEvidence.baselineFingerprint,
     confirmedAssistantContentFingerprint: sameSlotRevisionEvidence.messageFingerprint,
@@ -1427,6 +1493,7 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
   const now = Date.now();
   const traceId = options?.traceId || triggerState.gateState.lastGenerationTraceId || '';
   const messageEntry = normalizeResolvedMessageEntry(resolvedMessageEntry);
+  const boundMessageId = normalizeMessageIdentityValue(options?.messageId || messageEntry?.sourceId);
   const baseline = await waitForResolvedGenerationBaseline({
     traceId,
     retries: 4,
@@ -1435,7 +1502,9 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
   const withinGenerationWindow = isWithinGenerationConfirmationWindow(now, baseline);
   const confirmation = evaluateAssistantMessageConfirmation(messageEntry, baseline, {
     allowSameSlotRevision: true,
-    requireObservedSameSlotRevision: true
+    requireObservedSameSlotRevision: !boundMessageId,
+    forceSameSlotRevision: !!boundMessageId,
+    forcedSameSlotSource: boundMessageId ? 'message_id_bound_in_place' : ''
   });
   const eventBelongsToCurrentGeneration = !!(messageEntry && baseline && confirmation.allowed);
   const traceMatches = !traceId || !baseline?.traceId || baseline.traceId === traceId;
@@ -1602,7 +1671,9 @@ function isAssistantMessageAfterBaseline(message, baseline) {
 async function resolveConfirmedAssistantMessage(preferredMessageId = '', options = {}) {
   const {
     allowSameSlotRevision = false,
-    requireObservedSameSlotRevision = true
+    requireObservedSameSlotRevision = true,
+    forceSameSlotRevision = false,
+    forcedSameSlotSource = ''
   } = options;
   const normalizedPreferredMessageId = normalizeMessageIdentityValue(preferredMessageId);
   const api = getSillyTavernAPI();
@@ -1627,7 +1698,9 @@ async function resolveConfirmedAssistantMessage(preferredMessageId = '', options
 
     const confirmation = evaluateAssistantMessageConfirmation(matched, baseline, {
       allowSameSlotRevision,
-      requireObservedSameSlotRevision
+      requireObservedSameSlotRevision,
+      forceSameSlotRevision: allowSameSlotRevision && (forceSameSlotRevision || Boolean(normalizedPreferredMessageId)),
+      forcedSameSlotSource: forcedSameSlotSource || (normalizedPreferredMessageId ? 'message_id_bound_in_place' : '')
     });
 
     return confirmation.allowed
@@ -1685,7 +1758,9 @@ async function getConfirmedAssistantMessageWithRetries(preferredMessageId = '', 
     retries = 0,
     retryDelayMs = 250,
     allowSameSlotRevision = false,
-    requireObservedSameSlotRevision = true
+    requireObservedSameSlotRevision = true,
+    forceSameSlotRevision = false,
+    forcedSameSlotSource = ''
   } = options;
 
   let confirmedMessage = null;
@@ -1693,7 +1768,9 @@ async function getConfirmedAssistantMessageWithRetries(preferredMessageId = '', 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     confirmedMessage = await resolveConfirmedAssistantMessage(preferredMessageId, {
       allowSameSlotRevision,
-      requireObservedSameSlotRevision
+      requireObservedSameSlotRevision,
+      forceSameSlotRevision,
+      forcedSameSlotSource
     });
     if (confirmedMessage) {
       return confirmedMessage;
@@ -1782,6 +1859,9 @@ function createEventDebugSnapshot(snapshot = {}) {
     skipReasonDetailed: '',
     confirmedAssistantMessageId: '',
     confirmationMode: '',
+    generationMessageBindingSource: '',
+    confirmedAssistantSwipeId: '',
+    effectiveSwipeId: '',
     sameSlotRevisionCandidate: false,
     sameSlotRevisionConfirmed: false,
     sameSlotRevisionSource: '',
@@ -1857,6 +1937,9 @@ function createAutoTriggerSnapshot(snapshot = {}) {
     messageKey: '',
     executionKey: '',
     confirmationMode: '',
+    generationMessageBindingSource: '',
+    confirmedAssistantSwipeId: '',
+    effectiveSwipeId: '',
     sameSlotRevisionCandidate: false,
     sameSlotRevisionConfirmed: false,
     sameSlotRevisionSource: '',
@@ -2574,8 +2657,13 @@ function getAutoTriggerExecutionKey(context = {}) {
     || buildAssistantContentFingerprint(context?.lastAiMessage || context?.input?.lastAiMessage || '')
     || ''
   ).trim() || 'content:na';
+  const effectiveSwipeId = normalizeMessageIdentityValue(
+    context?.effectiveSwipeId
+    || context?.confirmedAssistantSwipeId
+    || context?.lastAiMessageSwipeId
+  ) || 'swipe:current';
 
-  return `${chatId}::${messageId}::${generationTraceId}::${contentFingerprint}`;
+  return `${chatId}::${messageId}::${generationTraceId}::${effectiveSwipeId}::${contentFingerprint}`;
 }
 
 function createMessageSession(eventType, data, snapshot = {}) {
@@ -3306,6 +3394,7 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
     sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
+    generationTraceId: snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
     skipReasonDetailed: snapshot?.skipReasonDetailed || 'speculative_session_only',
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
@@ -3397,6 +3486,7 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
   const enrichedData = typeof data === 'object' && data
     ? {
         ...data,
+        generationTraceId: snapshot?.generationTraceId || data?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
         messageId: confirmedAssistantMessageId,
         confirmedAssistantMessageId,
         confirmationSource: snapshot?.confirmationSource || data?.confirmationSource || '',
@@ -3409,6 +3499,7 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         historicalReplayReason: snapshot?.historicalReplayReason || data?.historicalReplayReason || ''
       }
     : {
+        generationTraceId: snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
         messageId: confirmedAssistantMessageId,
         confirmedAssistantMessageId,
         confirmationSource: snapshot?.confirmationSource || '',
@@ -3577,6 +3668,23 @@ function resolveExecutionPath(tool, context) {
  */
 async function handleAutoTrigger(eventType, data) {
   log(`${eventType}触发:`, data);
+  const currentGenerationTraceId = typeof data === 'object' && data
+    ? String(data?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim()
+    : String(triggerState.gateState.lastGenerationTraceId || '').trim();
+  const currentGenerationBaseline = await waitForResolvedGenerationBaseline({
+    traceId: currentGenerationTraceId,
+    retries: 2,
+    retryDelayMs: 40
+  }) || getCurrentGenerationBaseline();
+  const currentGenerationType = currentGenerationBaseline?.rawGenerationType
+    || currentGenerationBaseline?.generationType
+    || triggerState.gateState.lastGenerationType
+    || '';
+  const currentGenerationParams = currentGenerationBaseline?.rawGenerationParams
+    ?? currentGenerationBaseline?.generationParams
+    ?? triggerState.gateState.lastGenerationParams
+    ?? null;
+  const isCurrentGenerationDryRun = !!currentGenerationBaseline?.dryRun;
   const confirmationSource = typeof data === 'object' && data
     ? String(data?.confirmationSource || '').trim()
     : '';
@@ -3742,11 +3850,11 @@ async function handleAutoTrigger(eventType, data) {
     return;
   }
 
-  if (triggerState.gateState.lastGenerationDryRun) {
+  if (isCurrentGenerationDryRun) {
     traceAlways('warn', '当前 generation 为 dryRun，自动触发直接阻断', {
       eventType,
       candidateToolIds,
-      generationTraceId: triggerState.gateState.lastGenerationTraceId || ''
+      generationTraceId: currentGenerationTraceId || ''
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
@@ -3886,9 +3994,9 @@ async function handleAutoTrigger(eventType, data) {
   }
 
   if (listenerDecision.listenerSettings.ignoreQuietGeneration && isQuietLikeGeneration(
-    triggerState.gateState.lastGenerationType,
-    triggerState.gateState.lastGenerationParams,
-    triggerState.gateState.lastGenerationDryRun
+    currentGenerationType,
+    currentGenerationParams,
+    isCurrentGenerationDryRun
   )) {
     log('检测到 quiet / dryRun 生成，跳过工具自动执行');
     traceAlways('warn', '检测到 quiet/dryRun，跳过自动触发', {
@@ -4003,6 +4111,9 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || '',
       messageKey,
       executionKey,
+      generationMessageBindingSource: context?.generationMessageBindingSource || '',
+      confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+      effectiveSwipeId: context?.effectiveSwipeId || '',
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
@@ -4027,6 +4138,9 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       executionKey,
+      generationMessageBindingSource: context?.generationMessageBindingSource || '',
+      confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+      effectiveSwipeId: context?.effectiveSwipeId || '',
       reason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
       confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -4087,6 +4201,9 @@ async function handleAutoTrigger(eventType, data) {
         messageId: context?.messageId || '',
         messageKey,
         executionKey,
+        generationMessageBindingSource: context?.generationMessageBindingSource || '',
+        confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+        effectiveSwipeId: context?.effectiveSwipeId || '',
         selectedToolIds: candidateToolIds,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
         skipReasonDetailed: 'execution_key_already_handled',
@@ -4111,6 +4228,9 @@ async function handleAutoTrigger(eventType, data) {
         messageId: context?.messageId || incomingMessageId,
         messageKey,
         executionKey,
+        generationMessageBindingSource: context?.generationMessageBindingSource || '',
+        confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+        effectiveSwipeId: context?.effectiveSwipeId || '',
         reason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
         skipReasonDetailed: 'execution_key_already_handled',
         confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -4169,6 +4289,9 @@ async function handleAutoTrigger(eventType, data) {
       sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || '',
       messageKey,
+      generationMessageBindingSource: context?.generationMessageBindingSource || '',
+      confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+      effectiveSwipeId: context?.effectiveSwipeId || '',
       selectedToolIds: [],
       skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
       skipReasonDetailed: 'no_tools_configured_for_auto_post_response',
@@ -4183,6 +4306,9 @@ async function handleAutoTrigger(eventType, data) {
       sessionKey: session?.sessionKey || '',
       messageId: context?.messageId || incomingMessageId,
       messageKey,
+      generationMessageBindingSource: context?.generationMessageBindingSource || '',
+      confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+      effectiveSwipeId: context?.effectiveSwipeId || '',
       reason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
       skipReasonDetailed: 'no_tools_configured_for_auto_post_response',
       confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -4234,6 +4360,9 @@ async function handleAutoTrigger(eventType, data) {
     messageId: context?.messageId || '',
     messageKey,
     executionKey,
+    generationMessageBindingSource: context?.generationMessageBindingSource || '',
+    confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+    effectiveSwipeId: context?.effectiveSwipeId || '',
     selectedToolIds: toolsToExecute.map(tool => tool.id),
     skipReason: '',
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -4334,6 +4463,9 @@ async function handleAutoTrigger(eventType, data) {
     messageId: context?.messageId || incomingMessageId,
     messageKey,
     executionKey,
+    generationMessageBindingSource: context?.generationMessageBindingSource || '',
+    confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
+    effectiveSwipeId: context?.effectiveSwipeId || '',
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
@@ -4430,6 +4562,7 @@ function registerGenerationEndedListener() {
     if (!eligibility.eligible) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_ENDED, data, {
         messageId: incomingMessageId,
+        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
         reason: eligibility.reason,
         skipReasonDetailed: eligibility.detail,
         confirmationSource: 'none'
@@ -4437,19 +4570,28 @@ function registerGenerationEndedListener() {
       return;
     }
 
-    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(incomingMessageId, {
-      retries: incomingMessageId ? 3 : 8,
-      retryDelayMs: incomingMessageId ? 120 : 260,
+    const messageBinding = resolveGenerationMessageBinding(incomingMessageId, resolvedBaseline, {
+      allowBaselineAssistantSlot: isSameSlotRevisionActionFamily(resolveSameSlotRevisionAction(resolvedBaseline))
+    });
+
+    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(messageBinding.preferredMessageId, {
+      retries: messageBinding.preferredMessageId ? 3 : 8,
+      retryDelayMs: messageBinding.preferredMessageId ? 120 : 260,
       allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: false
+      requireObservedSameSlotRevision: !messageBinding.forceSameSlotRevision,
+      forceSameSlotRevision: messageBinding.forceSameSlotRevision,
+      forcedSameSlotSource: messageBinding.forcedSameSlotSource
     });
     const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
 
     if (!confirmedAssistantMessageId) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_ENDED, data, {
         messageId: incomingMessageId,
+        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
         reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-        skipReasonDetailed: 'missing_new_assistant_message_after_generation',
+        skipReasonDetailed: messageBinding.preferredMessageId
+          ? 'message_id_or_same_slot_not_confirmed_after_generation'
+          : 'missing_new_assistant_message_after_generation',
         confirmationSource: 'none',
         eventBelongsToCurrentGeneration: !!resolvedBaseline,
         historicalReplayBlocked: false,
@@ -4460,6 +4602,7 @@ function registerGenerationEndedListener() {
 
     await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, {
       ...(typeof data === 'object' && data ? data : {}),
+      generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
       messageId: confirmedAssistantMessageId,
       confirmedAssistantMessageId,
       confirmationSource: 'generation_ended',
@@ -4516,8 +4659,13 @@ function registerGenerationEndedListener() {
       retryDelayMs: 80
     });
     const eligibility = getGenerationConfirmationEligibility(resolvedBaseline);
-    if (!incomingMessageId) {
+    const messageBinding = resolveGenerationMessageBinding(incomingMessageId, resolvedBaseline, {
+      allowBaselineAssistantSlot: isSameSlotRevisionActionFamily(resolveSameSlotRevisionAction(resolvedBaseline))
+    });
+
+    if (!messageBinding.preferredMessageId) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
+        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
         reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
         skipReasonDetailed: eligibility.eligible
           ? 'generation_after_commands_without_message_identity'
@@ -4530,6 +4678,7 @@ function registerGenerationEndedListener() {
     if (!eligibility.eligible) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
         messageId: incomingMessageId,
+        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
         reason: eligibility.reason,
         skipReasonDetailed: eligibility.detail,
         confirmationSource: 'none'
@@ -4537,19 +4686,24 @@ function registerGenerationEndedListener() {
       return;
     }
 
-    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(incomingMessageId, {
-      retries: 2,
+    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(messageBinding.preferredMessageId, {
+      retries: messageBinding.preferredMessageId ? 3 : 2,
       retryDelayMs: 120,
       allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: true
+      requireObservedSameSlotRevision: !messageBinding.forceSameSlotRevision,
+      forceSameSlotRevision: messageBinding.forceSameSlotRevision,
+      forcedSameSlotSource: messageBinding.forcedSameSlotSource
     });
     const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
 
     if (!confirmedAssistantMessageId) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
         messageId: incomingMessageId,
+        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
         reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
-        skipReasonDetailed: 'generation_after_commands_message_not_confirmed',
+        skipReasonDetailed: messageBinding.preferredMessageId
+          ? 'generation_after_commands_same_slot_not_confirmed'
+          : 'generation_after_commands_message_not_confirmed',
         confirmationSource: 'none',
         eventBelongsToCurrentGeneration: !!resolvedBaseline,
         historicalReplayBlocked: false,
@@ -4559,6 +4713,7 @@ function registerGenerationEndedListener() {
     }
 
     scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, debounceMs, {
+      generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
       messageId: incomingMessageId,
       confirmedAssistantMessageId,
       confirmationSource: 'generation_after_commands',
@@ -4660,6 +4815,7 @@ function registerGenerationEndedListener() {
     if (!resolvedMessageEntry) {
       scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
         messageId,
+        generationTraceId: triggerState.gateState.lastGenerationTraceId || '',
         reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
         skipReasonDetailed: 'message_received_identity_not_resolved',
         confirmationSource: 'none'
@@ -4699,12 +4855,14 @@ function registerGenerationEndedListener() {
     }
 
     const confirmationCandidate = await evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry, {
-      traceId: triggerState.gateState.lastGenerationTraceId || ''
+      traceId: triggerState.gateState.lastGenerationTraceId || '',
+      messageId: effectiveMessageId
     });
 
     if (!confirmationCandidate.allowed) {
       scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
         messageId: effectiveMessageId,
+        generationTraceId: confirmationCandidate?.baseline?.traceId || triggerState.gateState.lastGenerationTraceId || '',
         reason: confirmationCandidate.reason,
         skipReasonDetailed: confirmationCandidate.detail,
         confirmationSource: 'none',
@@ -4723,13 +4881,16 @@ function registerGenerationEndedListener() {
       retries: 3,
       retryDelayMs: 120,
       allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: true
+      requireObservedSameSlotRevision: false,
+      forceSameSlotRevision: true,
+      forcedSameSlotSource: 'message_id_bound_in_place'
     });
     const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
 
     if (!confirmedAssistantMessageId) {
       scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
         messageId: effectiveMessageId,
+        generationTraceId: confirmationCandidate?.baseline?.traceId || triggerState.gateState.lastGenerationTraceId || '',
         reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
         skipReasonDetailed: 'message_received_not_confirmed_as_new_assistant',
         confirmationSource: 'none',
@@ -4741,6 +4902,7 @@ function registerGenerationEndedListener() {
     }
 
     scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, debounceMs, {
+      generationTraceId: confirmationCandidate?.baseline?.traceId || triggerState.gateState.lastGenerationTraceId || '',
       messageId: effectiveMessageId,
       confirmedAssistantMessageId,
       confirmationSource: 'message_received',
@@ -4774,16 +4936,33 @@ async function buildToolExecutionContext(eventData) {
   );
   const confirmationSource = String(eventData?.confirmationSource || '').trim();
   const isManual = triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW';
+  const generationTraceId = String(
+    eventData?.generationTraceId
+    || triggerState.gateState.lastGenerationTraceId
+    || ''
+  ).trim();
+  const resolvedBaseline = !isManual
+    ? (await waitForResolvedGenerationBaseline({
+        traceId: generationTraceId,
+        retries: 2,
+        retryDelayMs: 40
+      }) || getCurrentGenerationBaseline())
+    : getCurrentGenerationBaseline();
+  const messageBinding = resolveGenerationMessageBinding(preferredMessageId, resolvedBaseline, {
+    allowBaselineAssistantSlot: !isManual && isSameSlotRevisionActionFamily(resolveSameSlotRevisionAction(resolvedBaseline))
+  });
 
   let confirmedAssistantMessage = null;
-  let targetMessageId = normalizeMessageIdentityValue(preferredMessageId);
+  let targetMessageId = normalizeMessageIdentityValue(messageBinding.preferredMessageId);
 
   if (!isManual) {
     confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(targetMessageId, {
       retries: targetMessageId ? 3 : 8,
       retryDelayMs: targetMessageId ? 120 : 260,
       allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: false
+      requireObservedSameSlotRevision: !messageBinding.forceSameSlotRevision,
+      forceSameSlotRevision: messageBinding.forceSameSlotRevision,
+      forcedSameSlotSource: messageBinding.forcedSameSlotSource
     });
 
     if (confirmedAssistantMessage) {
@@ -4814,8 +4993,11 @@ async function buildToolExecutionContext(eventData) {
   }
 
   const messageId = targetMessageId || normalizeMessageIdentityValue(lastAiMessage?.sourceId) || '';
-  const generationTraceId = triggerState.gateState.lastGenerationTraceId || '';
   const assistantContentFingerprint = buildAssistantContentFingerprint(lastAiMessage?.content || '');
+  const confirmedAssistantSwipeId = normalizeMessageIdentityValue(
+    confirmedAssistantMessage?.swipeId
+    || lastAiMessage?.swipeId
+  );
   
   return {
     triggeredAt: Date.now(),
@@ -4836,8 +5018,11 @@ async function buildToolExecutionContext(eventData) {
     normalizedGenerationType: triggerState.gateState.lastGenerationBaseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
     generationAction: triggerState.gateState.lastGenerationBaseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
     generationActionSource: triggerState.gateState.lastGenerationBaseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+    generationMessageBindingSource: messageBinding.bindingSource || '',
     lastAiMessage: lastAiMessage?.content || '',
     assistantContentFingerprint,
+    confirmedAssistantSwipeId,
+    effectiveSwipeId: confirmedAssistantSwipeId,
     userMessage: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || '',
     chatMessages: messages,
     input: {
@@ -4857,6 +5042,7 @@ async function buildToolExecutionContext(eventData) {
       messageId,
       generationTraceId,
       assistantContentFingerprint,
+      effectiveSwipeId: confirmedAssistantSwipeId,
       lastAiMessage: lastAiMessage?.content || ''
     })
   };
@@ -5297,6 +5483,10 @@ export function getAutoTriggerDiagnostics(options = {}) {
       lastDuplicateExecutionKey: toolTriggerManagerState.lastDuplicateExecutionKey || '',
       handledExecutionKeyCount: toolTriggerManagerState.handledExecutionKeys.size,
       recentHandledExecutionKeys,
+      lastGenerationMessageBindingSource: toolTriggerManagerState.lastExecutionContext?.generationMessageBindingSource || '',
+      lastConfirmedAssistantSwipeId: toolTriggerManagerState.lastExecutionContext?.confirmedAssistantSwipeId || '',
+      lastEffectiveSwipeId: toolTriggerManagerState.lastExecutionContext?.effectiveSwipeId || '',
+      lastConfirmedAssistantMessageId: toolTriggerManagerState.lastExecutionContext?.confirmedAssistantMessageId || '',
       registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
       listenerSettings: getResolvedListenerSettings(),
       eventBridge: buildEventBridgeDiagnosticSummary(),

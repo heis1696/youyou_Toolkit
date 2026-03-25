@@ -81,6 +81,8 @@
 - 已新增 `docs/MVU_DEEP_ANALYSIS.md` 与 `docs/MVU_TRANSACTION_REWORK_PLAN.md`，作为下一轮“MVU 事务化收口”分析与施工文档；`docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md` 继续保留为历史专项与 N1 / N2 验收档案
 - `modules/tool-trigger.js` 已进一步修正 assistant 确认模型：当前除“baseline 后新增 assistant 楼层”外，也支持显式 `reroll / regenerate / swipe` 对**同一 assistant 楼层**的合法重写确认，避免宿主复用同一 `messageId / chatIndex` 时被旧的新楼层模型提前挡住
 - `modules/ui/components/tool-config-panel-factory.js`、`docs/API_DOCUMENTATION.md`、`docs/HOST_REGRESSION_CHECKLIST.md` 已同步补齐 `confirmationMode / sameSlotRevision*` 诊断口径，便于宿主直接判断 reroll 是否走到了 same-slot revision 确认通道
+- `modules/tool-trigger.js` 已继续按 MVU / Amily 语义收口确认链：宿主一旦给出 `messageId`，就直接按该楼层 / 当前槽位处理；`GENERATION_AFTER_COMMANDS` 在 reroll family 下也可直接绑定 baseline assistant 槽位当前状态，不再只停留在 speculative
+- `modules/context-injector.js` / `modules/tool-output-service.js` 已同步收紧写回目标与透传字段：写回固定优先绑定 `confirmedAssistantMessageId`，并补齐 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId` 诊断口径
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
 
@@ -1323,6 +1325,29 @@ Phase 5 完成后，如需继续增强，可进一步评估：
   - 当前真实故障并不是先卡在 user intent 或 execution key 去重，而是卡在“必须新增 assistant 楼层”这一旧确认模型；宿主对 reroll 常会复用同一楼层，只重写正文，因此需要显式支持 same-slot revision 确认
 - 阻塞项：
   - 尚未完成真实宿主环境下针对“同楼层 reroll / 同文本 reroll / swipe 切换”的最新一轮实机验证
+- 状态：
+  - 成功
+
+## 2026-03-26 01:40
+
+- 阶段：MVU / Amily 语义直抄收口（当前楼层 / 当前 swipe 原位确认）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/context-injector.js`
+  - `modules/tool-output-service.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 确认链改为“宿主给出 `messageId` 就直接按该楼层处理”，不再把“baseline 后新增 assistant 楼层”当作唯一放行条件
+  - `GENERATION_AFTER_COMMANDS` 在 `reroll / regenerate / swipe` family 下可直接绑定 baseline assistant 槽位当前状态，不再只保留 speculative 观察态
+  - 自动去重键进一步收口到 `chatId + messageId + generationTraceId + effectiveSwipeId + assistantContentFingerprint`
+  - 写回目标固定优先绑定 `confirmedAssistantMessageId`，并同步更新当前 swipe 文本；UI 与聚合诊断补齐 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId`
+- 修改原因：
+  - 用户已明确要求不再继续猜测 baseline / 新楼层分支，而是直接抄 MVU / Amily 的“按当前楼层 / 当前 swipe 原位处理”语义
+- 阻塞项：
+  - 尚未完成本轮修改后的 `npm run build` 与宿主实机回归验证
 - 状态：
   - 成功
 

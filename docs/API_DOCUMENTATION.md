@@ -330,15 +330,15 @@ const exportedTransaction = YouYouToolkit.exportGenerationTransactionDiagnostics
 
 > 从当前宿主回归准备阶段开始，还额外提供 `YouYouToolkit.getAutoTriggerDiagnostics(options)`：它会把 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot` 聚合成一份更适合宿主实机验收的只读诊断对象。
 
-> 补充说明：当前对外诊断对象已经可以直接看到 `executionKey / recentHandledExecutionKeys` 这类 generation-aware 幂等信息，以及 `confirmationMode / sameSlotRevision*` 这类同楼层 revision 确认信息；但它仍不是完整的“事务图谱”视图，后续若要继续扩展 transaction 级关系展示，仍以 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 为后续规划入口。
+> 补充说明：当前对外诊断对象已经可以直接看到 `executionKey / recentHandledExecutionKeys` 这类 generation-aware 幂等信息，以及 `confirmationMode / sameSlotRevision* / generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId` 这类“当前楼层 / 当前 swipe / same-slot 原位确认”信息；但它仍不是完整的“事务图谱”视图，后续若要继续扩展 transaction 级关系展示，仍以 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 为后续规划入口。
 
 > 从当前这轮 N1 验收辅助增强开始，`getToolTriggerManagerState()` 还会额外暴露 `activeSessions / recentEventTimeline / registeredEvents / pendingTimerCount / listenerSettings / eventBridge / gateState`；`getAutoTriggerDiagnostics().summary` 也会同步补齐 `phaseCounts / consistency / verdictHints`，用于快速判断“当前 session 冻结字段”和“当前 generation 状态”之间是否已经发生漂移，以及 A10 / A11 / A12 / A13 哪一类风险更值得优先排查。
 
 > 从当前这轮宿主误触发系统性修复开始，自动链进一步区分 **speculative session（观察态）** 与 **confirmed trigger（确认态）**：
 >
-> - `GENERATION_AFTER_COMMANDS` 默认只作为观察事件记录 session，不再因为“没有 messageId 的宿主副作用事件”直接进入执行
-> - `MESSAGE_RECEIVED` 只有在带明确 `messageId` 且最终确认命中 assistant 新楼层时，才会进入执行调度
-> - `GENERATION_ENDED` 只在存在有效 generation baseline、非 dryRun、且 baseline 之后确实新增 assistant 楼层时，才会作为兜底确认事件放行
+> - `GENERATION_AFTER_COMMANDS` 在普通场景下仍主要是观察事件；但当宿主已给出 `messageId`，或当前 generation 属于 `reroll / regenerate / swipe` family 时，它也可以直接按 baseline assistant 槽位当前状态进入正式确认
+> - `MESSAGE_RECEIVED` 现在只要宿主给出明确 `messageId`，就会优先按这条楼层 / 当前槽位处理，而不再要求“必须是 baseline 之后新增 assistant 楼层”；新增楼层与 same-slot 原位更新都属于合法确认结果
+> - `GENERATION_ENDED` 现在除“baseline 后新增 assistant 楼层”外，也支持在 reroll family 下直接回到 baseline assistant 槽位的当前状态做原位确认
 > - `dryRun` 与宿主 UI 切换窗口期事件现在都会被视为硬跳过条件，而不是仅依赖用户偏好开关
 
 典型结构可理解为：
@@ -435,10 +435,11 @@ const exportedTransaction = YouYouToolkit.exportGenerationTransactionDiagnostics
 }
 ```
 
-其中新增字段主要用于回答两类问题：
+其中新增字段主要用于回答三类问题：
 
 - 当前工具触发管理器到底注册了哪些事件、是否还有待执行 timer、当前事件桥接是否已经就绪
 - 当前 session 在创建时冻结下来的 generation 字段，与现在全局 generation 状态相比，是否已经发生 trace / 用户意图 / baseline 解析状态漂移
+- 当前这次确认到底绑定到了哪一层、哪一个 swipe，以及它是“新楼层”还是“同槽位原位确认”
 
 ### `getAutoTriggerDiagnostics(options)`
 
@@ -520,6 +521,10 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
     },
     handledExecutionKeyCount: number,
     recentHandledExecutionKeys: Array<object>,
+    lastGenerationMessageBindingSource: string,
+    lastConfirmedAssistantSwipeId: string,
+    lastEffectiveSwipeId: string,
+    lastConfirmedAssistantMessageId: string,
     baselineResolved: boolean,
     baselineResolutionAt: number,
     provisionalBaseline: boolean,
@@ -980,8 +985,8 @@ tool-trigger
 | 值 | 说明 |
 |------|------|
 | `message_received` | 由带明确消息身份的 `MESSAGE_RECEIVED` 确认 |
-| `generation_after_commands` | 仅当宿主真的提供了可确认消息身份时，才可能由 `GENERATION_AFTER_COMMANDS` 确认 |
-| `generation_ended` | 由 `GENERATION_ENDED` 基于 baseline 检测到新增 assistant 楼层后确认 |
+| `generation_after_commands` | 由 `GENERATION_AFTER_COMMANDS` 确认；既可能直接绑定宿主给出的 `messageId`，也可能在 reroll family 下绑定 baseline assistant 槽位当前状态 |
+| `generation_ended` | 由 `GENERATION_ENDED` 确认；既可能是 baseline 后新增 assistant 楼层，也可能是 reroll family 下对 baseline assistant 槽位的原位确认 |
 | `none` | 当前仅为 speculative 观察态，或最终未获得确认 |
 
 当前 `confirmationMode` 的标准语义为：
@@ -989,15 +994,16 @@ tool-trigger
 | 值 | 说明 |
 |------|------|
 | `new_message` | 由 baseline 之后新增的 assistant 楼层确认 |
-| `same_slot_revision` | 由同一 assistant 楼层的合法重写确认，主要用于 `reroll / regenerate / swipe` 复用同楼层的宿主场景 |
+| `same_slot_revision` | 由同一 assistant 楼层 / 当前 swipe 的合法原位重写确认，主要用于 `reroll / regenerate / swipe` 复用同楼层的宿主场景 |
 | `no_baseline` | 无 baseline 时的兼容确认 |
 | `none` | 当前尚未确认 |
 
-其中 `sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource` 用于直接回答：
+其中 `sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource / generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId` 用于直接回答：
 
 - 当前候选 assistant 是否属于“与 baseline 同一楼层”的 revision 候选
 - 是否已经被正式确认成合法 reroll family 结果
-- 这次 same-slot 确认是基于 `content_fingerprint_changed`、`swipe_id_changed`、`swipe_count_changed`，还是基于 `generation_ended` 的同楼层兜底确认
+- 这次 same-slot 确认是基于 `content_fingerprint_changed`、`swipe_id_changed`、`swipe_count_changed`，还是基于 `message_id / baseline assistant slot` 的原位绑定确认
+- 这次执行最终绑定到的是哪一个 assistant 楼层、哪一个 swipe
 
 这意味着当前自动链已经不再只认“baseline 之后新增 assistant 楼层”，还支持：
 
@@ -1014,8 +1020,8 @@ tool-trigger
 | `dry_run_generation` | 当前事件对应 generation 明确为 dryRun，已被硬阻断 |
 | `ignored_auto_trigger` | 监听器设置启用了 `ignoreAutoTrigger`，且当前 generation 未被确认为用户意图 |
 | `ui_side_effect_event` | 判定为宿主 UI 打开历史 / 信息窗口 / 切换聊天导致的副作用事件 |
-| `speculative_generation_after_commands` | `GENERATION_AFTER_COMMANDS` 仅记录观察态 session，不进入执行 |
-| `no_confirmed_assistant_message` | 本轮既未确认到 baseline 之后新增 assistant 楼层，也未确认到合法的同楼层 revision |
+| `speculative_generation_after_commands` | `GENERATION_AFTER_COMMANDS` 在无法绑定到合法楼层 / 当前槽位时，仅记录观察态 session，不进入执行 |
+| `no_confirmed_assistant_message` | 本轮未确认到“当前楼层 / 当前 swipe”的可处理 assistant 状态；可能既不是新增楼层，也没有成功绑定到 same-slot 原位结果 |
 | `historical_replay_message_received` | 带 `messageId` 的旧 assistant 楼层重放事件，被判定为历史 replay |
 | `message_received_outside_active_generation` | `MESSAGE_RECEIVED` 到达时不处于合法生成窗口内，已被阻断 |
 | `non_assistant_message` | `MESSAGE_RECEIVED` 命中的并非 AI 楼层，已在事件级直接忽略 |
@@ -1031,8 +1037,8 @@ tool-trigger
 | 字段 | 当前语义 |
 |------|------|
 | `listenGenerationEnded` | 自动监听总开关。关闭后，自动工具链不会再响应 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` |
-| `useGenerationAfterCommandsFallback` | 是否允许 `GENERATION_AFTER_COMMANDS` 参与消息级 session 观察；即使开启，缺少确认消息身份时也不会直接执行 |
-| `useMessageReceivedFallback` | 是否允许 `MESSAGE_RECEIVED` 参与确认链；只有带 `messageId`、属于合法 generation 窗口、且最终确认命中 assistant 新楼层时才会执行 |
+| `useGenerationAfterCommandsFallback` | 是否允许 `GENERATION_AFTER_COMMANDS` 参与确认链；普通场景下它仍多用于观察态，但在 host 已给出 `messageId` 或 reroll family 场景下，也可直接确认当前楼层 / 当前槽位 |
+| `useMessageReceivedFallback` | 是否允许 `MESSAGE_RECEIVED` 参与确认链；只要 host 给出 `messageId` 且属于合法 generation 窗口，就会优先按当前楼层 / 当前槽位确认，而不再只接受“新增 assistant 楼层” |
 | `ignoreQuietGeneration` | 是否跳过 quiet / 后台生成；`dryRun` 已升级为系统级硬阻断，不再受此开关影响 |
 | `ignoreAutoTrigger` | 是否跳过未被判定为用户意图的 generation；最近用户发送、用户消息窗口，以及 `regenerate / swipe` 这类显式用户 generation 动作都可视为合法用户意图 |
 | `debounceMs` | `GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 这类兜底事件的延迟调度与去抖时间 |
@@ -1449,8 +1455,8 @@ interface ToolConfig {
 - 自动监听会记录用户发送意图，并把 `regenerate / swipe` 这类显式用户 generation 动作也视为合法用户意图；同时继续跳过 `quiet` / `dryRun` 等静默生成，减少未真正产生回复时的误触发
 - 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底确认来源；但 `MESSAGE_RECEIVED` 现在必须带明确 `messageId`，并最终确认命中的楼层要么是 baseline 之后新增的 assistant 回复，要么是显式 `reroll / regenerate / swipe` 对同一 assistant 楼层的合法重写结果，避免把用户消息或宿主 UI 副作用事件误当成可执行事件
 - `MESSAGE_RECEIVED` 现在还会额外阻断“带 `messageId` 的历史 assistant 消息重放事件”；如果事件不属于当前 active generation，或超出合法的 generation 完成窗口，会被记录为 `historical_replay_message_received` 或 `message_received_outside_active_generation`
-- 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`，但它默认只作为 speculative 观察事件记录 session；只有宿主真的提供了可确认的消息身份时，才可能升级为确认来源
-- 多条兜底事件同时命中同一条回复时，自动链当前会按 `executionKey = chatId + messageId + generationTraceId + assistantContentFingerprint` 做幂等保护；同一轮 generation 的重复事件仍会被收敛，但同一楼层 reroll / regenerate / swipe 只要属于新的 generation trace，就不会再仅因为复用了同一个 `messageId` 而被直接挡掉
+- 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`；普通场景下它仍可能只留下 speculative 记录，但在 host 已给出 `messageId` 或 reroll family 场景下，也可以直接按当前楼层 / 当前槽位进入确认
+- 多条兜底事件同时命中同一条回复时，自动链当前会按 `executionKey = chatId + messageId + generationTraceId + effectiveSwipeId + assistantContentFingerprint` 做幂等保护；同一轮 generation 的重复事件仍会被收敛，但同一楼层 reroll / regenerate / swipe 只要属于新的 generation trace 或新的当前 swipe，就不会再仅因为复用了同一个 `messageId` 而被直接挡掉
 - 构建工具执行上下文时会对“确认后的 assistant 楼层”做短暂重试读取，并以 generation baseline 限制目标范围，避免再从当前聊天快照里回退吸收旧 assistant 消息
 - 在 `CHAT_CHANGED / CHAT_CREATED` 后会进入一小段 UI transition guard 窗口；在窗口内，无消息身份事件会直接被视为宿主 UI 副作用并忽略
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕

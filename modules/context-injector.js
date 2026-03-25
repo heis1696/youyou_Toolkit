@@ -627,6 +627,7 @@ class ContextInjector {
   _findAssistantMessageIndex(chatMessages, sourceMessageId) {
     const chat = Array.isArray(chatMessages) ? chatMessages : [];
     if (!chat.length) return -1;
+    const hasExplicitSourceMessageId = sourceMessageId !== undefined && sourceMessageId !== null && sourceMessageId !== '';
 
     const matchBySourceId = (message, index) => {
       if (!this._isAssistantMessage(message)) return false;
@@ -641,7 +642,6 @@ class ContextInjector {
         message.id,
         message.messageId,
         message.mes_id,
-        message.swipe_id,
         index
       ].map(value => value === undefined || value === null ? '' : String(value).trim());
 
@@ -652,6 +652,10 @@ class ContextInjector {
       if (matchBySourceId(chat[index], index)) {
         return index;
       }
+    }
+
+    if (hasExplicitSourceMessageId) {
+      return -1;
     }
 
     for (let index = chat.length - 1; index >= 0; index -= 1) {
@@ -724,6 +728,16 @@ class ContextInjector {
     if (!applied) {
       target.mes = nextText;
       target.message = nextText;
+    }
+
+    if (Array.isArray(target.swipes)) {
+      const currentSwipeIndex = Number.isInteger(target.swipe_id)
+        ? target.swipe_id
+        : (Number.isInteger(target.swipeId) ? target.swipeId : 0);
+
+      if (currentSwipeIndex >= 0 && currentSwipeIndex < target.swipes.length) {
+        target.swipes[currentSwipeIndex] = nextText;
+      }
     }
 
     return target;

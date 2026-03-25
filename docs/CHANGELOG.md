@@ -11,6 +11,12 @@
 
 ### 更改
 
+- 🐛 **确认链改抄 MVU / Amily 语义：按当前楼层 / 当前 swipe 原位处理** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-output-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 宿主一旦给出 `messageId`，确认链就直接按这层处理，不再把“baseline 后新增 assistant 楼层”当作唯一放行条件
+  - `GENERATION_AFTER_COMMANDS` 在 `reroll / regenerate / swipe` family 下，不再只保留 speculative 观察态；若没有新楼层，也会直接回到 baseline assistant 槽位当前状态做原位确认
+  - 自动去重键进一步收口到 `chatId + messageId + generationTraceId + effectiveSwipeId + assistantContentFingerprint`，保证“同一轮 generation 不重复、同一楼层新 reroll 可再次执行”
+  - 写回目标固定优先绑定 `confirmedAssistantMessageId`，并同步更新当前 swipe 文本；工具页与聚合诊断新增 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId`
+
 - 🐛 **reroll 定向补修：支持同楼层 same-slot revision 确认** (`modules/tool-trigger.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - assistant 确认模型不再只接受“baseline 后新增 assistant 楼层”，现在也支持显式 `reroll / regenerate / swipe` 对同一 assistant 楼层的合法重写结果
   - generation baseline 新增 assistant 内容指纹、`swipe_id` 与 swipe 数量快照，用于识别宿主复用同一 `messageId / chatIndex` 时的 same-slot revision

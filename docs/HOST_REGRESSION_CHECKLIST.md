@@ -122,10 +122,10 @@
 
 预期结果：
 
-1. 没有新增 assistant 楼层时，不应执行工具
-2. `GENERATION_ENDED` 若未确认到 baseline 之后的新 assistant 楼层，应显示 `no_confirmed_assistant_message`
+1. 没有新增 assistant 楼层，且也没有确认到当前楼层 / 当前槽位的合法原位更新时，不应执行工具
+2. `GENERATION_ENDED` 若既未确认到 baseline 之后的新 assistant 楼层，也未确认到当前楼层 / 当前槽位的合法结果，应显示 `no_confirmed_assistant_message`
 
-### A9. `GENERATION_AFTER_COMMANDS` 多次命中只作为同一 session 观察事件
+### A9. `GENERATION_AFTER_COMMANDS` 多次命中时，只有无法绑定楼层 / 槽位的事件才保持观察态
 
 验证步骤：
 
@@ -136,8 +136,9 @@
 预期结果：
 
 1. 同一条回复最终只允许执行一次工具链
-2. 额外的 `GENERATION_AFTER_COMMANDS` 应只收敛进同一 session 历史
-3. 若其中某次没有可确认消息身份，应仅保留 speculative 记录，不应创建新的执行定时器
+2. 额外的 `GENERATION_AFTER_COMMANDS` 应收敛进同一 session 历史
+3. 若宿主给出 `messageId`，或当前 generation 属于 `reroll / regenerate / swipe` family，应允许它直接绑定当前楼层 / baseline assistant 槽位进入正式确认
+4. 只有在既没有 `messageId`、也无法绑定到当前楼层 / 当前槽位时，才应保留 speculative 记录，不应创建新的执行定时器
 
 ### A10. `GENERATION_STARTED` 高时序场景下不会丢 baseline
 
@@ -151,7 +152,7 @@
 
 1. 不应因为 `missing_generation_baseline` 导致真实回复被跳过
 2. 应能看到 `baselineResolved` 从 `false` 过渡到 `true`，或等价诊断字段
-3. 回复完成后仍能正常确认到 assistant 新楼层
+3. 回复完成后仍能正常确认到 assistant 新楼层，或在 reroll family 下正常确认到当前楼层 / 当前槽位
 
 ### A11. 历史 assistant 消息 replay 不会被误当成新回复
 
@@ -183,9 +184,12 @@
 2. 调试快照中应能看到 `generationStartedByUserIntent = true`
 3. 调试快照中应能看到 `generationUserIntentSource = explicit_generation_action:regenerate`、`explicit_generation_action:swipe` 或等价诊断字段
 4. 对同一楼层执行 `regenerate / reroll` 时，不应仅因为“没有新的 `MESSAGE_SENT`”而被拦截
-5. 若宿主复用了同一个 `messageId` / `chatIndex`，也不应仅因为旧的“必须新增 assistant 楼层”模型而阻断新的合法 generation
-6. 调试对象中应能看到 `confirmationMode = same_slot_revision`、或至少看到 `sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource` 这组字段
-7. 只要当前 generation 属于合法 `reroll / regenerate / swipe`，即使宿主是**同楼层重写**而不是新增楼层，也应允许进入自动工具执行链
+5. 若宿主复用了同一个 `messageId / chatIndex`，也不应仅因为旧的“必须新增 assistant 楼层”模型而阻断新的合法 generation
+6. 若宿主给出了 `messageId`，确认链应直接按这层处理，而不是继续要求“必须看到 baseline 后新增 assistant 楼层”
+7. 若宿主没有给出新楼层，但当前 generation 属于 reroll family，也应允许直接绑定 baseline assistant 槽位的当前状态
+8. 调试对象中应能看到 `confirmationMode = same_slot_revision`、或至少看到 `sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource` 这组字段
+9. 诊断对象中还应能看到 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId`
+10. 只要当前 generation 属于合法 `reroll / regenerate / swipe`，即使宿主是**同楼层重写**而不是新增楼层，也应允许进入自动工具执行链
 
 ### A13. `ignoreAutoTrigger` 仍能拦住非用户意图 generation
 
@@ -274,8 +278,9 @@
 
 1. 去重应阻断“同一轮 generation 的重复事件”，而不是阻断“同一 `messageId` 的所有后续 generation”
 2. 诊断中应能直接看出本次命中的 generation-aware execution key
-3. 诊断中还应能看到最近已处理 execution key 列表或等价轨迹，用于判断是否真命中同轮 generation 幂等保护
-4. 若被拦截，应能明确区分“旧式 duplicate gate”还是“新 execution key 判定”
+3. execution key 应至少体现 `messageId + generationTraceId + effectiveSwipeId` 的原位模型，而不再只是旧的 message 级语义
+4. 诊断中还应能看到最近已处理 execution key 列表或等价轨迹，用于判断是否真命中同轮 generation 幂等保护
+5. 若被拦截，应能明确区分“旧式 duplicate gate”还是“新 execution key 判定”
 
 ### W5. 工具写回后 UI 即时可见，无需手动刷新
 
@@ -304,8 +309,9 @@
 1. 可直接读取宿主原始 generation 动作信息
 2. 可直接读取 generation-aware execution key
 3. 可直接读取最近已处理 execution key 轨迹
-4. 可直接读取 refresh confirm 结果，而不再只看到写回文本校验
-5. 可直接读取主提交策略 / 实际提交策略，而不再只看到 hostUpdateMethod
+4. 可直接读取 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId`
+5. 可直接读取 refresh confirm 结果，而不再只看到写回文本校验
+6. 可直接读取主提交策略 / 实际提交策略，而不再只看到 hostUpdateMethod
 
 ---
 

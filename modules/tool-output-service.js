@@ -209,7 +209,7 @@ class ToolOutputService {
         failureStage = TOOL_FAILURE_STAGES.INJECT_CONTEXT;
         writebackDetails = await contextInjector.injectDetailed(toolId, outputContent, {
           overwrite: toolConfig.output?.overwrite !== false,
-          sourceMessageId: rawContext.messageId || '',
+          sourceMessageId: rawContext.confirmedAssistantMessageId || rawContext.messageId || '',
           extractionSelectors: selectors,
           traceId: executionTraceId,
           sessionKey
@@ -254,6 +254,9 @@ class ToolOutputService {
           generationActionSource: rawContext?.generationActionSource || '',
           rawGenerationType: rawContext?.rawGenerationType || '',
           normalizedGenerationType: rawContext?.normalizedGenerationType || '',
+          generationMessageBindingSource: rawContext?.generationMessageBindingSource || '',
+          confirmedAssistantSwipeId: rawContext?.confirmedAssistantSwipeId || '',
+          effectiveSwipeId: rawContext?.effectiveSwipeId || '',
           messageCount: messages.length,
           selectors,
           apiPreset,
@@ -293,6 +296,9 @@ class ToolOutputService {
           generationActionSource: rawContext?.generationActionSource || '',
           rawGenerationType: rawContext?.rawGenerationType || '',
           normalizedGenerationType: rawContext?.normalizedGenerationType || '',
+          generationMessageBindingSource: rawContext?.generationMessageBindingSource || '',
+          confirmedAssistantSwipeId: rawContext?.confirmedAssistantSwipeId || '',
+          effectiveSwipeId: rawContext?.effectiveSwipeId || '',
           messageCount: messages.length,
           selectors,
           apiPreset,
