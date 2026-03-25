@@ -104,6 +104,16 @@
   - `getAutoTriggerDiagnostics().summary` 现已补齐 `phaseCounts / consistency`，可快速统计 active/history 中各 phase 数量，并汇总 session 冻结字段与当前 generation 状态之间的漂移次数
   - `activeSessions / recentSessionHistory` 条目现已新增 `driftDetected / generationTraceDrifted / generationUserIntentDrifted / baselineResolvedStateChanged / baselineResolutionAdvancedSinceSessionCreation / driftReasons`，用于区分“baseline 正常补全”与“session 归属真的漂移”
 
+- 🐛 **宿主回归辅助能力增强：补齐事件时间线、A10~A13 verdict hints 与诊断导出入口** (`modules/tool-trigger.js`, `modules/app/public-api.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 自动触发诊断现已新增 `recentEventTimeline`，可按时间顺序回看 generation、baseline、session phase、UI guard 的关键事件轨迹
+  - 新增 `verdictHints`，对 A10 / A11 / A12 / A13 提供第一层快速可疑项提示，降低宿主判案起手成本
+  - 对外 API 新增 `YouYouToolkit.exportAutoTriggerDiagnostics()`，可直接导出一份纯 JSON 诊断快照，用于宿主回归留档或 issue 附件
+
+- 🐛 **宿主回归辅助能力增强：工具页诊断折叠区接入 verdict hints / timeline / 诊断导出按钮** (`modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 工具配置页中的“最近触发诊断”折叠区已不再只显示单工具 runtime，还会同步显示 N1 快速判读 chips、active/timer/phase 摘要与最近自动触发时间线
+  - 新增“复制自动触发诊断 JSON”按钮，直接复用 `exportAutoTriggerDiagnostics()` 导出当前快照，便于宿主实机回归留档
+  - 这样宿主侧除了控制台外，也可直接在 UI 内完成第一轮排查与快照复制
+
 - 🐛 **宿主回归辅助能力增强：新增自动触发诊断聚合 API** (`modules/tool-trigger.js`, `modules/app/public-api.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 新增 `getAutoTriggerDiagnostics(options)`，统一聚合 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot`
   - 对外 API 已增加 `YouYouToolkit.getAutoTriggerDiagnostics()` 入口，方便宿主环境直接调用

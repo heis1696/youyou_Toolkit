@@ -64,6 +64,8 @@
 - `modules/tool-trigger.js` 已进一步为 `messageSessions / recentSessionHistory` 补齐 session 级 generation 意图诊断字段，方便宿主执行 A10 ~ A13 时回看每个 phase 的门控状态
 - `modules/tool-trigger.js` / `modules/app/public-api.js` 已新增 `getAutoTriggerDiagnostics()` 聚合诊断入口，宿主回归时可直接读取 `summary / activeSessions / recentSessionHistory`，不再需要手工拼装多份状态
 - `modules/tool-trigger.js` 已继续补齐 N1 宿主验收辅助摘要：`getAutoTriggerDiagnostics().summary` 现可直接输出 `phaseCounts / consistency / eventBridge / gateState`，`getToolTriggerManagerState()` 也已补上 `activeSessions / registeredEvents / pendingTimerCount`，便于快速判断 session 冻结字段是否与当前 generation 发生漂移
+- `modules/tool-trigger.js` / `modules/app/public-api.js` 已继续补上 `recentEventTimeline / verdictHints / exportAutoTriggerDiagnostics()`，宿主在 A10 ~ A13 中既能回看完整时序，也能先用 hint 快速锁定最可疑的失败方向
+- `modules/ui/components/tool-config-panel-factory.js` 已继续接入这批宿主验收辅助信息：工具页“最近触发诊断”折叠区现可直接展示 N1 快速判读 chips、最近自动触发时间线摘要，并支持一键复制 JSON 诊断快照
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
 
@@ -95,6 +97,8 @@
 - 因此若同一条回复被 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 多次命中，仍可逐 phase 回看当时的用户意图判定结果
 - 现在还可直接通过 `YouYouToolkit.getAutoTriggerDiagnostics()` 读取聚合诊断对象，降低宿主验收脚本复杂度
 - 现在 `diagnostics.summary.phaseCounts / consistency` 还能直接帮助判断“baseline 只是正常从 provisional 进入 resolved”，还是 session 冻结字段已经真的漂到别的 generation 上
+- 现在 `recentEventTimeline` 还能把 generation、baseline、session phase、UI guard 的先后顺序直接铺开；`verdictHints` 则可先给出 A10 / A11 / A12 / A13 的快速可疑方向
+- 现在工具页中的“最近触发诊断”折叠区也能直接承接这些摘要，不必只依赖控制台
 
 ## 当前风险提醒
 
@@ -120,6 +124,7 @@
 5. `messageSessions / recentSessionHistory` 已补齐冻结版 session generation 字段
 6. `YouYouToolkit.getAutoTriggerDiagnostics()` 已提供宿主回归聚合诊断入口
 7. 聚合诊断已补齐 `phaseCounts / consistency / eventBridge / gateState` 等 N1 快速判读摘要
+8. 聚合诊断已补齐 `recentEventTimeline / verdictHints / exportAutoTriggerDiagnostics()`，方便宿主时序回看与留档
 
 ### 当前检查结论
 
@@ -1058,6 +1063,49 @@
   - 当前已经进入宿主自动触发链验收阶段前的工具化准备，需要先降低实机判案时的人工比对成本，避免每次都手工逐字段核对 session 与全局 generation 状态
 - 阻塞项：
   - 尚未完成宿主环境下基于新诊断摘要的 A10 / A11 / A12 / A13 实机验收
+- 状态：
+  - 成功
+
+## 2026-03-25 11:42
+
+- 阶段：宿主回归辅助能力增强（事件时间线 / verdict hints / 诊断导出）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/app/public-api.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 为自动触发诊断新增 `recentEventTimeline`，按时间顺序记录 generation、baseline、session phase、UI guard 等关键节点
+  - 新增 `verdictHints`，对 A10 / A11 / A12 / A13 提供快速可疑项摘要
+  - 新增 `exportAutoTriggerDiagnostics()` 对外导出入口，便于宿主回归时直接留档一份 JSON 快照
+- 修改原因：
+  - 当前已进入 N1 宿主自动触发链验收阶段，继续降低“人工还原时序”和“人工判断优先排查方向”的成本，比继续盲目扩判断更有收益
+- 阻塞项：
+  - 尚未完成基于 `recentEventTimeline / verdictHints` 的宿主 A10 / A11 / A12 / A13 最新一轮实机验收
+- 状态：
+  - 成功
+
+## 2026-03-25 11:47
+
+- 阶段：宿主回归辅助能力增强（工具页诊断折叠区接线）
+- 修改文件：
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/AUTO_TRIGGER_CHAIN_HARDENING_PLAN.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 工具配置页“最近触发诊断”折叠区现已同步展示 N1 快速判读 chips、全局 active/timer/phase 摘要、最近自动触发时间线
+  - 折叠区新增“复制自动触发诊断 JSON”按钮，可直接导出 `exportAutoTriggerDiagnostics()` 快照，减少宿主回归时的手工复制成本
+  - 文档同步补充工具页诊断折叠区在 N1 中的使用方式与定位
+- 修改原因：
+  - 上一轮虽然已经补齐控制台与 API 级诊断抓手，但工具页折叠区仍停留在单工具 runtime 视角；当前继续把宿主验收摘要接入 UI，可进一步降低回归操作门槛
+- 阻塞项：
+  - 尚未完成带有 UI 诊断折叠区辅助下的宿主 A10 / A11 / A12 / A13 最新一轮实机验收
 - 状态：
   - 成功
 

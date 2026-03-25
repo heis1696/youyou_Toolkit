@@ -22,7 +22,12 @@ import {
 
 import { getAllPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
-import { runToolManually, previewToolExtraction } from '../../tool-trigger.js';
+import {
+  runToolManually,
+  previewToolExtraction,
+  getAutoTriggerDiagnostics,
+  exportAutoTriggerDiagnostics
+} from '../../tool-trigger.js';
 
 export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel {
@@ -389,6 +394,44 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     color: var(--yyt-text-muted);
   }
 
+  .yyt-tool-debug-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .yyt-tool-debug-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .yyt-tool-debug-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--yyt-text-secondary);
+  }
+
+  .yyt-tool-debug-chip-warning {
+    color: var(--yyt-warning, #fbbf24);
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.28);
+  }
+
+  .yyt-tool-debug-chip-ok {
+    color: var(--yyt-success);
+    background: rgba(74, 222, 128, 0.12);
+    border-color: rgba(74, 222, 128, 0.28);
+  }
+
   .yyt-tool-debug-content .yyt-tool-runtime-line {
     padding-top: 0;
   }
@@ -449,7 +492,8 @@ export function createToolConfigPanel(options) {
       const modeText = outputMode === 'post_response_api'
         ? postResponseHint
         : '随 AI 输出不会自动调用额外模型，但仍然支持手动执行与测试提取。';
-      const diagnosticsHtml = this._buildDiagnosticsHtml(config.runtime || {});
+      const autoTriggerDiagnostics = getAutoTriggerDiagnostics({ historyLimit: 8 });
+      const diagnosticsHtml = this._buildDiagnosticsHtml(config.runtime || {}, autoTriggerDiagnostics);
       const outputModeLabel = outputMode === 'post_response_api' ? '额外解析' : '随 AI 输出';
       const apiPresetLabel = selectedApiPreset || '当前配置';
 
@@ -696,6 +740,148 @@ export function createToolConfigPanel(options) {
       return this._formatDiagnosticTime(timestamp);
     },
 
+    _formatPhaseCountsText(phaseCounts = {}) {
+      const entries = Object.entries(phaseCounts || {}).filter(([, count]) => Number(count) > 0);
+      if (!entries.length) return '无';
+      return entries.map(([phase, count]) => `${phase}:${count}`).join(' / ');
+    },
+
+    _formatEventBridgeText(eventBridge = {}) {
+      if (!eventBridge || eventBridge.ready !== true) {
+        return '未就绪';
+      }
+
+      const source = String(eventBridge.source || '').trim();
+      return source ? `已就绪（${source}）` : '已就绪';
+    },
+
+    _formatVerdictHintLabel(key = '') {
+      const mapping = {
+        a10BaselineRaceSuspicious: 'A10 baseline',
+        a11ReplaySuspicious: 'A11 replay',
+        a12UserIntentSuspicious: 'A12 user intent',
+        a13AutoTriggerLeakSuspicious: 'A13 auto trigger'
+      };
+
+      return mapping[key] || key || '未知项';
+    },
+
+    _buildVerdictHintsHtml(verdictHints = {}) {
+      const entries = Object.entries(verdictHints || {});
+      if (!entries.length) {
+        return '';
+      }
+
+      return `
+        <div class="yyt-tool-debug-history">
+          <div class="yyt-tool-debug-history-title">N1 快速判读</div>
+          <div class="yyt-tool-debug-chip-list">
+            ${entries.map(([key, hint]) => {
+              const flagged = !!hint?.flagged;
+              const reasons = Array.isArray(hint?.reasons) ? hint.reasons.filter(Boolean) : [];
+              const title = reasons.length ? escapeHtml(reasons.join(' | ')) : '未见明显可疑信号';
+              return `
+                <span class="yyt-tool-debug-chip ${flagged ? 'yyt-tool-debug-chip-warning' : 'yyt-tool-debug-chip-ok'}" title="${title}">
+                  ${escapeHtml(this._formatVerdictHintLabel(key))}
+                  <strong>${flagged ? '可疑' : '正常'}</strong>
+                </span>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    },
+
+    _buildTimelineSection(title, entries = []) {
+      const list = Array.isArray(entries) ? entries.filter(Boolean).slice().reverse() : [];
+
+      if (!list.length) {
+        return `
+          <div class="yyt-tool-debug-history">
+            <div class="yyt-tool-debug-history-title">${escapeHtml(title)}</div>
+            <div class="yyt-tool-debug-history-empty">暂无记录</div>
+          </div>
+        `;
+      }
+
+      const itemsHtml = list.map((entry) => {
+        const eventText = this._formatDiagnosticValue(entry.eventType || entry.kind, '未记录');
+        const traceText = this._formatDiagnosticValue(entry.traceId, '无');
+        const sessionText = this._formatDiagnosticValue(entry.sessionKey, '无');
+        const mainParts = [
+          entry.phase ? `阶段：${entry.phase}` : '',
+          entry.messageId ? `消息：${entry.messageId}` : '',
+          entry.confirmationSource ? `确认：${entry.confirmationSource}` : '',
+          entry.reason ? `原因：${this._formatSkipReason(entry.reason)}` : '',
+          entry.detail ? `详情：${entry.detail}` : ''
+        ].filter(Boolean);
+
+        return `
+          <div class="yyt-tool-debug-history-item">
+            <div class="yyt-tool-debug-history-meta">
+              <span>${escapeHtml(this._formatHistoryTime(entry.at))}</span>
+              <span>${eventText}</span>
+            </div>
+            <div class="yyt-tool-debug-history-main">
+              trace：${traceText}<br>
+              session：${sessionText}<br>
+              ${escapeHtml(mainParts.join(' / ') || '无附加详情')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="yyt-tool-debug-history">
+          <div class="yyt-tool-debug-history-title">${escapeHtml(title)}</div>
+          <div class="yyt-tool-debug-history-list">${itemsHtml}</div>
+        </div>
+      `;
+    },
+
+    _copyText(text) {
+      const value = String(text || '');
+      if (!value) return false;
+
+      try {
+        if (navigator?.clipboard?.writeText) {
+          navigator.clipboard.writeText(value);
+          return true;
+        }
+      } catch (error) {
+        // fallback below
+      }
+
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.setAttribute('readonly', 'readonly');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return copied;
+      } catch (error) {
+        return false;
+      }
+    },
+
+    _copyAutoTriggerDiagnostics() {
+      try {
+        const payload = exportAutoTriggerDiagnostics({ historyLimit: 8 });
+        const copied = this._copyText(JSON.stringify(payload, null, 2));
+        if (copied) {
+          showToast('success', '自动触发诊断已复制');
+        } else {
+          showToast('warning', '复制失败，请手动在控制台导出');
+        }
+      } catch (error) {
+        showToast('error', error?.message || '导出自动触发诊断失败');
+      }
+    },
+
     _buildHistorySection(title, entries = [], type = 'trigger') {
       const list = Array.isArray(entries) ? entries.filter(Boolean).slice().reverse() : [];
 
@@ -739,8 +925,19 @@ export function createToolConfigPanel(options) {
       `;
     },
 
-    _buildDiagnosticsHtml(runtime) {
+    _buildDiagnosticsHtml(runtime, autoTriggerDiagnostics = null) {
       const data = runtime || {};
+      const diagnostics = autoTriggerDiagnostics || null;
+      const summary = diagnostics?.summary || {};
+      const hasGlobalDiagnostics = Boolean(
+        (Array.isArray(diagnostics?.activeSessions) && diagnostics.activeSessions.length > 0)
+        || (Array.isArray(diagnostics?.recentSessionHistory) && diagnostics.recentSessionHistory.length > 0)
+        || (Array.isArray(diagnostics?.recentEventTimeline) && diagnostics.recentEventTimeline.length > 0)
+        || summary?.activeSessionCount
+        || summary?.pendingTimerCount
+        || summary?.lastHandledMessageKey
+        || summary?.eventBridge?.ready
+      );
       const hasDiagnostics = Boolean(
         data.lastTriggerAt
         || data.lastTriggerEvent
@@ -752,6 +949,7 @@ export function createToolConfigPanel(options) {
         || data.lastTraceId
         || (Array.isArray(data.recentTriggerHistory) && data.recentTriggerHistory.length > 0)
         || (Array.isArray(data.recentWritebackHistory) && data.recentWritebackHistory.length > 0)
+        || hasGlobalDiagnostics
       );
 
       if (!hasDiagnostics) {
@@ -771,6 +969,15 @@ export function createToolConfigPanel(options) {
 
       const triggerHistoryHtml = this._buildHistorySection('最近触发历史', data.recentTriggerHistory || [], 'trigger');
       const writebackHistoryHtml = this._buildHistorySection('最近写回历史', data.recentWritebackHistory || [], 'writeback');
+      const globalRows = hasGlobalDiagnostics ? [
+        ['当前 active / timers', `${summary.activeSessionCount || 0} / ${summary.pendingTimerCount || 0}`],
+        ['事件桥接', this._formatEventBridgeText(summary.eventBridge)],
+        ['最近处理消息键', this._formatDiagnosticValue(summary.lastHandledMessageKey, '未记录')],
+        ['Active phase 统计', this._formatDiagnosticValue(this._formatPhaseCountsText(summary.phaseCounts?.activeSessions), '无')],
+        ['History phase 统计', this._formatDiagnosticValue(this._formatPhaseCountsText(summary.phaseCounts?.recentSessionHistory), '无')]
+      ] : [];
+      const verdictHintsHtml = hasGlobalDiagnostics ? this._buildVerdictHintsHtml(diagnostics?.verdictHints || summary?.verdictHints || {}) : '';
+      const timelineHtml = hasGlobalDiagnostics ? this._buildTimelineSection('最近自动触发时间线', (diagnostics?.recentEventTimeline || []).slice(-6)) : '';
 
       return `
         <details class="yyt-tool-debug-panel">
@@ -782,8 +989,21 @@ export function createToolConfigPanel(options) {
                 <span class="yyt-tool-runtime-value">${value}</span>
               </div>
             `).join('')}
+            ${globalRows.map(([label, value]) => `
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">${label}</span>
+                <span class="yyt-tool-runtime-value">${value}</span>
+              </div>
+            `).join('')}
+            <div class="yyt-tool-debug-actions">
+              <button class="yyt-btn yyt-btn-secondary yyt-btn-small" id="${SCRIPT_ID}-tool-copy-auto-trigger-diagnostics">
+                <i class="fa-solid fa-copy"></i> 复制自动触发诊断 JSON
+              </button>
+            </div>
+            ${verdictHintsHtml}
             ${triggerHistoryHtml}
             ${writebackHistoryHtml}
+            ${timelineHtml}
           </div>
         </details>
       `;
@@ -975,6 +1195,10 @@ export function createToolConfigPanel(options) {
         } catch (error) {
           showToast('error', error?.message || '测试提取失败');
         }
+      });
+
+      $container.find(`#${SCRIPT_ID}-tool-copy-auto-trigger-diagnostics`).on('click', () => {
+        this._copyAutoTriggerDiagnostics();
       });
     },
 

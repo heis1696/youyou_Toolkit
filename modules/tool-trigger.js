@@ -1972,6 +1972,7 @@ const toolTriggerManagerState = {
   listeners: new Map(),
   messageSessions: new Map(),
   recentSessionHistory: [],
+  recentEventTimeline: [],
   lastExecutionContext: null,
   lastHandledMessageKey: '',
   pendingMessageTimers: new Map(),
@@ -2427,6 +2428,147 @@ function buildGateStateDiagnosticSummary() {
     baselineMessageCount: baseline?.messageCount || 0,
     baselineAssistantId: baseline?.lastAssistantMessageId || '',
     ...getCurrentGenerationDiagnosticFields()
+  };
+}
+
+function getResolvedEventTimelineLimit() {
+  const { historyRetentionLimit } = getResolvedListenerSettings();
+  return Math.max(20, Math.min(200, Number(historyRetentionLimit || 0) * 4 || 40));
+}
+
+function createRecentEventTimelineEntry(partial = {}) {
+  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
+
+  return {
+    id: partial?.id || createTraceId('timeline'),
+    at: Number(partial?.at) || Date.now(),
+    kind: partial?.kind || 'event',
+    eventType: partial?.eventType || '',
+    traceId: partial?.traceId || '',
+    sessionKey: partial?.sessionKey || '',
+    messageId: normalizeMessageIdentityValue(partial?.messageId),
+    phase: partial?.phase || '',
+    reason: partial?.reason || '',
+    detail: partial?.detail || '',
+    confirmationSource: partial?.confirmationSource || '',
+    candidateToolIds: Array.isArray(partial?.candidateToolIds) ? [...partial.candidateToolIds] : [],
+    generationTraceId: partial?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
+    baselineResolved: partial?.baselineResolved ?? generationDiagnosticFields.baselineResolved,
+    generationStartedByUserIntent: partial?.generationStartedByUserIntent ?? generationDiagnosticFields.generationStartedByUserIntent,
+    generationUserIntentSource: partial?.generationUserIntentSource || generationDiagnosticFields.generationUserIntentSource,
+    historicalReplayBlocked: partial?.historicalReplayBlocked ?? false
+  };
+}
+
+function appendRecentEventTimeline(partial = {}) {
+  const entry = createRecentEventTimelineEntry(partial);
+  toolTriggerManagerState.recentEventTimeline = trimManagerHistoryEntries([
+    ...toolTriggerManagerState.recentEventTimeline,
+    entry
+  ], getResolvedEventTimelineLimit());
+  return entry;
+}
+
+function cloneTimelineEntryForOutput(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+
+  return {
+    ...entry,
+    candidateToolIds: Array.isArray(entry.candidateToolIds) ? [...entry.candidateToolIds] : []
+  };
+}
+
+function buildAutoTriggerVerdictHint(flagged = false, reasons = [], relatedSessionKeys = []) {
+  return {
+    flagged: !!flagged,
+    reasons: [...new Set((Array.isArray(reasons) ? reasons : []).filter(Boolean))],
+    relatedSessionKeys: [...new Set((Array.isArray(relatedSessionKeys) ? relatedSessionKeys : []).filter(Boolean))]
+  };
+}
+
+function buildAutoTriggerVerdictHints(payload = {}) {
+  const summary = payload?.summary || {};
+  const entries = [
+    ...(Array.isArray(payload?.activeSessions) ? payload.activeSessions : []),
+    ...(Array.isArray(payload?.recentSessionHistory) ? payload.recentSessionHistory : []),
+    payload?.lastEventDebugSnapshot,
+    payload?.lastAutoTriggerSnapshot
+  ].filter(Boolean);
+
+  const a10Reasons = [];
+  const a10SessionKeys = [];
+  const a11Reasons = [];
+  const a11SessionKeys = [];
+  const a12Reasons = [];
+  const a12SessionKeys = [];
+  const a13Reasons = [];
+  const a13SessionKeys = [];
+
+  for (const entry of entries) {
+    const reason = String(entry?.reason || entry?.skipReason || '').trim();
+    const detail = String(entry?.detail || entry?.skipReasonDetailed || '').trim();
+    const sessionKey = String(entry?.sessionKey || '').trim();
+    const phase = String(entry?.phase || entry?.stage || '').trim();
+    const confirmationSource = String(entry?.confirmationSource || '').trim();
+    const generationUserIntentSource = String(entry?.generationUserIntentSource || '').trim();
+    const generationStartedByUserIntent = !!entry?.generationStartedByUserIntent;
+
+    if (
+      detail === 'missing_generation_baseline'
+      || detail === 'generation_baseline_pending_resolution'
+    ) {
+      a10Reasons.push(detail);
+      a10SessionKeys.push(sessionKey);
+    }
+
+    if (
+      reason === AUTO_TRIGGER_SKIP_REASONS.HISTORICAL_REPLAY_MESSAGE_RECEIVED
+      || reason === AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION
+      || !!entry?.historicalReplayBlocked
+    ) {
+      a11Reasons.push(
+        entry?.historicalReplayReason
+        || reason
+        || detail
+        || 'historical_replay_signal_detected'
+      );
+      a11SessionKeys.push(sessionKey);
+    }
+
+    if (
+      reason === AUTO_TRIGGER_SKIP_REASONS.IGNORED_AUTO_TRIGGER
+      && (
+        generationStartedByUserIntent
+        || generationUserIntentSource.startsWith('explicit_generation_action:')
+      )
+    ) {
+      a12Reasons.push(`ignored_auto_trigger_with_${generationUserIntentSource || 'user_intent'}`);
+      a12SessionKeys.push(sessionKey);
+    }
+
+    if (
+      summary?.listenerSettings?.ignoreAutoTrigger
+      && !generationStartedByUserIntent
+      && !entry?.isSpeculativeSession
+      && (
+        phase === MESSAGE_SESSION_PHASES.COMPLETED
+        || phase === MESSAGE_SESSION_PHASES.HANDLING
+        || phase === MESSAGE_SESSION_PHASES.DISPATCHING
+        || confirmationSource === 'generation_ended'
+        || confirmationSource === 'message_received'
+        || confirmationSource === 'generation_after_commands'
+      )
+    ) {
+      a13Reasons.push('non_user_intent_generation_reached_execution_path');
+      a13SessionKeys.push(sessionKey);
+    }
+  }
+
+  return {
+    a10BaselineRaceSuspicious: buildAutoTriggerVerdictHint(a10Reasons.length > 0, a10Reasons, a10SessionKeys),
+    a11ReplaySuspicious: buildAutoTriggerVerdictHint(a11Reasons.length > 0, a11Reasons, a11SessionKeys),
+    a12UserIntentSuspicious: buildAutoTriggerVerdictHint(a12Reasons.length > 0, a12Reasons, a12SessionKeys),
+    a13AutoTriggerLeakSuspicious: buildAutoTriggerVerdictHint(a13Reasons.length > 0, a13Reasons, a13SessionKeys)
   };
 }
 
@@ -4125,6 +4267,7 @@ export function destroyToolTriggerManager() {
   toolTriggerManagerState.listeners.clear();
   toolTriggerManagerState.messageSessions.clear();
   toolTriggerManagerState.recentSessionHistory = [];
+  toolTriggerManagerState.recentEventTimeline = [];
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
   toolTriggerManagerState.lastHandledMessageKey = '';
@@ -4148,6 +4291,9 @@ export function getToolTriggerManagerState() {
   const recentSessionHistory = [...toolTriggerManagerState.recentSessionHistory]
     .map(cloneDiagnosticEntryForOutput)
     .filter(Boolean);
+  const recentEventTimeline = [...toolTriggerManagerState.recentEventTimeline]
+    .map(cloneTimelineEntryForOutput)
+    .filter(Boolean);
 
   return {
     initialized: toolTriggerManagerState.initialized,
@@ -4155,6 +4301,7 @@ export function getToolTriggerManagerState() {
     activeSessionCount: toolTriggerManagerState.messageSessions.size,
     activeSessions,
     recentSessionHistory,
+    recentEventTimeline,
     lastExecutionContext: toolTriggerManagerState.lastExecutionContext,
     lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot,
     lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot,
@@ -4182,6 +4329,9 @@ export function getAutoTriggerDiagnostics(options = {}) {
   const recentSessionHistory = trimManagerHistoryEntries([
     ...toolTriggerManagerState.recentSessionHistory
   ], historyLimit).map(cloneDiagnosticEntryForOutput);
+  const recentEventTimeline = trimManagerHistoryEntries([
+    ...toolTriggerManagerState.recentEventTimeline
+  ], Math.max(historyLimit * 3, historyLimit)).map(cloneTimelineEntryForOutput);
 
   const phaseCounts = {
     activeSessions: buildDiagnosticPhaseCounts(activeSessions),
@@ -4192,6 +4342,16 @@ export function getAutoTriggerDiagnostics(options = {}) {
     activeSessions: buildDiagnosticDriftSummary(activeSessions),
     recentSessionHistory: buildDiagnosticDriftSummary(recentSessionHistory)
   };
+
+  const verdictHints = buildAutoTriggerVerdictHints({
+    summary: {
+      listenerSettings: getResolvedListenerSettings()
+    },
+    activeSessions,
+    recentSessionHistory,
+    lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot,
+    lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot
+  });
 
   return {
     summary: {
@@ -4216,13 +4376,25 @@ export function getAutoTriggerDiagnostics(options = {}) {
       gateState: buildGateStateDiagnosticSummary(),
       phaseCounts,
       consistency,
+      verdictHints,
       ...getCurrentGenerationDiagnosticFields()
     },
     activeSessions,
     recentSessionHistory,
+    recentEventTimeline,
+    verdictHints,
     lastEventDebugSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastEventDebugSnapshot),
     lastAutoTriggerSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastAutoTriggerSnapshot)
   };
+}
+
+export function exportAutoTriggerDiagnostics(options = {}) {
+  const diagnostics = getAutoTriggerDiagnostics(options);
+  return JSON.parse(JSON.stringify({
+    exportedAt: Date.now(),
+    schemaVersion: 'auto-trigger-diagnostics.v1',
+    ...diagnostics
+  }));
 }
 
 // ============================================================
@@ -4302,6 +4474,13 @@ export async function initTriggerModule() {
         messageId,
         lastUserMessage: lastUserMessage?.content || ''
       });
+      appendRecentEventTimeline({
+        kind: 'gate_event',
+        eventType: EVENT_TYPES.MESSAGE_SENT,
+        messageId,
+        phase: 'user_intent_recorded',
+        detail: 'message_sent'
+      });
     });
   
   // 监听生成开始事件
@@ -4347,6 +4526,17 @@ export async function initTriggerModule() {
         userIntentDetail,
         baseline: provisionalBaseline
       });
+      appendRecentEventTimeline({
+        kind: 'generation_event',
+        eventType: EVENT_TYPES.GENERATION_STARTED,
+        traceId,
+        phase: 'generation_started',
+        detail: normalizeGenerationType(type, params || null),
+        generationTraceId: traceId,
+        baselineResolved: false,
+        generationStartedByUserIntent: startedByUserIntent,
+        generationUserIntentSource: userIntentSource
+      });
 
       captureGenerationBaseline({
         traceId,
@@ -4379,6 +4569,17 @@ export async function initTriggerModule() {
           traceId,
           baseline: resolvedBaseline
         });
+        appendRecentEventTimeline({
+          kind: 'generation_baseline',
+          eventType: EVENT_TYPES.GENERATION_STARTED,
+          traceId,
+          phase: 'baseline_resolved',
+          detail: resolvedBaseline?.baselineSource || 'generation_started_async_resolved',
+          generationTraceId: traceId,
+          baselineResolved: true,
+          generationStartedByUserIntent: resolvedBaseline?.startedByUserIntent,
+          generationUserIntentSource: resolvedBaseline?.userIntentSource || ''
+        });
       }).catch((error) => {
         const currentBaseline = triggerState.gateState.lastGenerationBaseline;
         if (!currentBaseline || currentBaseline.traceId !== traceId) {
@@ -4401,6 +4602,18 @@ export async function initTriggerModule() {
           error: error?.message || String(error),
           baseline: fallbackBaseline
         });
+        appendRecentEventTimeline({
+          kind: 'generation_baseline',
+          eventType: EVENT_TYPES.GENERATION_STARTED,
+          traceId,
+          phase: 'baseline_fallback',
+          reason: 'generation_baseline_async_failed',
+          detail: error?.message || String(error),
+          generationTraceId: traceId,
+          baselineResolved: true,
+          generationStartedByUserIntent: fallbackBaseline?.startedByUserIntent,
+          generationUserIntentSource: fallbackBaseline?.userIntentSource || ''
+        });
       });
     });
   
@@ -4412,6 +4625,13 @@ export async function initTriggerModule() {
       });
       log('生成结束');
       traceAlways('info', '收到生成结束事件');
+      appendRecentEventTimeline({
+        kind: 'generation_event',
+        eventType: EVENT_TYPES.GENERATION_ENDED,
+        traceId: triggerState.gateState.lastGenerationTraceId || '',
+        phase: 'generation_ended',
+        generationTraceId: triggerState.gateState.lastGenerationTraceId || ''
+      });
     });
 
   registerEventListener(EVENT_TYPES.CHAT_CHANGED, (data) => {
@@ -4420,6 +4640,12 @@ export async function initTriggerModule() {
       traceAlways('info', '收到聊天切换事件', {
         data: data ?? null
       });
+      appendRecentEventTimeline({
+        kind: 'ui_guard',
+        eventType: EVENT_TYPES.CHAT_CHANGED,
+        phase: 'ui_transition_guard_entered',
+        detail: 'chat_changed'
+      });
     });
 
   registerEventListener(EVENT_TYPES.CHAT_CREATED, (data) => {
@@ -4427,6 +4653,12 @@ export async function initTriggerModule() {
       clearPendingAutoTriggerTimers('chat_created');
       traceAlways('info', '收到聊天创建事件', {
         data: data ?? null
+      });
+      appendRecentEventTimeline({
+        kind: 'ui_guard',
+        eventType: EVENT_TYPES.CHAT_CREATED,
+        phase: 'ui_transition_guard_entered',
+        detail: 'chat_created'
       });
     });
   

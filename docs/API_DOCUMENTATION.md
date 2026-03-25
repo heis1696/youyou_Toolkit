@@ -241,10 +241,17 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
 // diagnostics.summary
 // diagnostics.activeSessions
 // diagnostics.recentSessionHistory
+// diagnostics.recentEventTimeline
+// diagnostics.verdictHints
 // diagnostics.lastEventDebugSnapshot
 // diagnostics.lastAutoTriggerSnapshot
 // diagnostics.summary.phaseCounts
 // diagnostics.summary.consistency
+
+const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 });
+// exported.schemaVersion
+// exported.exportedAt
+// exported.recentEventTimeline
 ```
 
 > `tool-trigger.js` 是当前自动工具链的入口层，负责宿主事件监听、门控判断、上下文构建与执行路径选择。
@@ -257,7 +264,7 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
 
 > 从当前宿主回归准备阶段开始，还额外提供 `YouYouToolkit.getAutoTriggerDiagnostics(options)`：它会把 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot` 聚合成一份更适合宿主实机验收的只读诊断对象。
 
-> 从当前这轮 N1 验收辅助增强开始，`getToolTriggerManagerState()` 还会额外暴露 `activeSessions / registeredEvents / pendingTimerCount / listenerSettings / eventBridge / gateState`；`getAutoTriggerDiagnostics().summary` 也会同步补齐 `phaseCounts / consistency`，用于快速判断“当前 session 冻结字段”和“当前 generation 状态”之间是否已经发生漂移。
+> 从当前这轮 N1 验收辅助增强开始，`getToolTriggerManagerState()` 还会额外暴露 `activeSessions / recentEventTimeline / registeredEvents / pendingTimerCount / listenerSettings / eventBridge / gateState`；`getAutoTriggerDiagnostics().summary` 也会同步补齐 `phaseCounts / consistency / verdictHints`，用于快速判断“当前 session 冻结字段”和“当前 generation 状态”之间是否已经发生漂移，以及 A10 / A11 / A12 / A13 哪一类风险更值得优先排查。
 
 > 从当前这轮宿主误触发系统性修复开始，自动链进一步区分 **speculative session（观察态）** 与 **confirmed trigger（确认态）**：
 >
@@ -275,6 +282,20 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
   activeSessionCount: number,
   activeSessions: Array<{
     // 与 recentSessionHistory 近似的 session 诊断结构
+  }>,
+  recentEventTimeline: Array<{
+    id: string,
+    at: number,
+    kind: string,
+    eventType: string,
+    traceId: string,
+    sessionKey: string,
+    messageId: string,
+    phase: string,
+    reason: string,
+    detail: string,
+    confirmationSource: string,
+    candidateToolIds: string[]
   }>,
   recentSessionHistory: Array<{
     id: string,
@@ -383,6 +404,28 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
         baselineResolutionAdvancedCount: number
       }
     },
+    verdictHints: {
+      a10BaselineRaceSuspicious: {
+        flagged: boolean,
+        reasons: string[],
+        relatedSessionKeys: string[]
+      },
+      a11ReplaySuspicious: {
+        flagged: boolean,
+        reasons: string[],
+        relatedSessionKeys: string[]
+      },
+      a12UserIntentSuspicious: {
+        flagged: boolean,
+        reasons: string[],
+        relatedSessionKeys: string[]
+      },
+      a13AutoTriggerLeakSuspicious: {
+        flagged: boolean,
+        reasons: string[],
+        relatedSessionKeys: string[]
+      }
+    },
     baselineResolved: boolean,
     baselineResolutionAt: number,
     provisionalBaseline: boolean,
@@ -393,6 +436,8 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
   },
   activeSessions: Array<object>,
   recentSessionHistory: Array<object>,
+  recentEventTimeline: Array<object>,
+  verdictHints: object,
   lastEventDebugSnapshot: object | null,
   lastAutoTriggerSnapshot: object | null
 }
@@ -403,10 +448,38 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
 - `summary`：适合快速看“当前 generation 和 UI 守卫状态”
 - `activeSessions`：适合看当前仍在窗口期内、尚未过期的 message session
 - `recentSessionHistory`：适合逐 phase 回看最近若干条 session 历史
+- `recentEventTimeline`：适合按时间顺序回看“收到事件 -> session 进入哪个 phase -> baseline 何时 resolved / fallback -> UI guard 何时进入”的全局流水
+- `verdictHints`：适合快速看 A10 / A11 / A12 / A13 哪类问题最可疑，作为宿主判案的第一层入口
 - `lastEventDebugSnapshot / lastAutoTriggerSnapshot`：适合对照最近一次事件级与自动调度级快照
 - `summary.phaseCounts`：适合快速看当前 active/history 中各个 phase 的分布是否符合预期
 - `summary.consistency`：适合快速看 session 冻结字段与当前 generation 状态之间是否出现批量漂移
 - `summary.eventBridge / summary.gateState`：适合判断当前事件桥接是否就绪，以及全局门控状态当前停在哪一层
+
+### `exportAutoTriggerDiagnostics(options)`
+
+导出一份适合复制到 issue、日志或宿主验收记录中的纯 JSON 诊断对象。
+
+```javascript
+const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 });
+```
+
+典型返回结构可理解为：
+
+```javascript
+{
+  schemaVersion: 'auto-trigger-diagnostics.v1',
+  exportedAt: number,
+  summary: object,
+  activeSessions: Array<object>,
+  recentSessionHistory: Array<object>,
+  recentEventTimeline: Array<object>,
+  verdictHints: object,
+  lastEventDebugSnapshot: object | null,
+  lastAutoTriggerSnapshot: object | null
+}
+```
+
+它的用途不是新增诊断语义，而是把当前聚合诊断结果稳定导出为**可序列化快照**，方便宿主回归时直接留档。
 
 ### `getBypassManager()`
 
@@ -675,12 +748,14 @@ tool-registry.runtime
 tool-trigger
   -> messageSessions（运行中消息级 session）
   -> recentSessionHistory（最近 N 次 session 事件历史）
+  -> recentEventTimeline（最近 N 条全局事件时间线）
 ```
 
 其中：
 
 - `messageSessions`：表示当前仍在窗口期内的消息级自动触发会话
 - `recentSessionHistory`：表示最近若干次消息级 session 的 phase 演进记录；现在还会显式标出该 session 是否只是 speculative 观察态、最终由哪个事件确认、是否属于当前 generation，以及该 session 记录时对应的 baseline / 用户意图诊断字段
+- `recentEventTimeline`：表示最近若干条全局事件时间线，重点解决“多个对象都有信息，但还原不出先后顺序”的问题；适合直接观察 generation started / ended、baseline resolved / fallback、session phase 迁移、UI guard 进入等时序节点
 
 从当前这轮宿主回归准备工作开始，消息级 session 历史本身也会同步保留以下诊断字段：
 
@@ -1223,6 +1298,8 @@ interface ToolConfig {
 > 在部分酒馆 / TavernHelper 环境中，最新 AI 回复写入聊天记录与 `GENERATION_ENDED` 的时序可能不稳定，因此当前版本会同时监听 `MESSAGE_RECEIVED` 作为补充兜底，并自动去重；同时也会先过滤掉命中的非 AI 楼层，避免把用户消息误判成回复事件。
 
 > 当前版本会把 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 命中的同一条楼层，尽量收敛到同一个 message session；因此 fallback 事件的意义不再是“多执行一次”，而是“补足同一条消息的生命周期信号”。
+
+> 当前工具配置页中的“最近触发诊断”折叠区，也已同步接入这批宿主验收辅助信息：除单工具 runtime 之外，还会额外显示 N1 快速判读 chips、最近自动触发时间线摘要，并提供一键复制 `exportAutoTriggerDiagnostics()` JSON 快照的按钮。
 
 ### ~~提示词段落对象~~ (v0.6 已弃用)
 

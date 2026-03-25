@@ -389,6 +389,18 @@
 6. **N1 比对辅助摘要已继续补齐**  
    `getAutoTriggerDiagnostics().summary` 现还会额外给出 `phaseCounts / consistency / eventBridge / gateState`，`getToolTriggerManagerState()` 也会直接暴露 `activeSessions / registeredEvents / pendingTimerCount`，便于宿主在 A10 ~ A13 中快速判断“当前事件桥接是否就绪”“session 冻结字段与当前 generation 状态是否发生漂移”。
 
+7. **宿主时序回看与导出抓手已补上**  
+   当前还额外提供：
+   - `recentEventTimeline`：按时间顺序回看 generation、baseline、session phase、UI guard 的最近事件时间线
+   - `verdictHints`：对 A10 / A11 / A12 / A13 的快速可疑项提示
+   - `YouYouToolkit.exportAutoTriggerDiagnostics(options)`：可直接导出一份 JSON 验收快照，便于留档与对比
+
+8. **工具页诊断入口已同步承接 N1 辅助信息**  
+   当前工具配置页中的“最近触发诊断”折叠区，也已能直接展示：
+   - N1 快速判读 chips
+   - 最近自动触发时间线摘要
+   - 一键复制诊断 JSON 的导出按钮
+
 ### 当前检查结论
 
 - 从代码结构看，当前未发现新的明显静态阻塞错误。
@@ -444,6 +456,9 @@
    - `YouYouToolkit.getToolTrigger().getToolTriggerManagerState()`
    - 工具配置页中的“最近触发诊断”折叠区
    - 重点比对 `diagnostics.summary.phaseCounts / consistency` 与 `state.eventBridge / gateState`
+   - 若需要还原完整时序，再看 `diagnostics.recentEventTimeline`
+   - 若需要快速预判优先排查方向，先看 `diagnostics.verdictHints`
+   - 若需要快速导出当前快照，直接使用工具页折叠区中的复制按钮，或调用 `YouYouToolkit.exportAutoTriggerDiagnostics()`
 3. 执行 A10，确认 `GENERATION_STARTED -> GENERATION_ENDED` 高时序路径下不会因 `missing_generation_baseline` 丢掉真实回复。
 4. 执行 A11，确认历史 assistant replay / 热重载 / 重绘不会吸收旧楼层。
 5. 执行 A12，确认 `ignoreAutoTrigger = true` 时用户主动 `regenerate / swipe` 仍会被识别为合法用户意图。

@@ -273,6 +273,8 @@
 7. 针对本轮 N1 验收辅助增强，`activeSessions / recentSessionHistory` 中还应可看到 `driftDetected`、`generationTraceDrifted`、`generationUserIntentDrifted`、`baselineResolvedStateChanged`、`baselineResolutionAdvancedSinceSessionCreation`、`driftReasons`
 8. `getToolTriggerManagerState()` 还应额外提供 `registeredEvents`、`pendingTimerCount`、`eventBridge`、`gateState`
 9. `YouYouToolkit.getAutoTriggerDiagnostics().summary` 还应额外提供 `phaseCounts` 与 `consistency`
+10. `getToolTriggerManagerState()` / `getAutoTriggerDiagnostics()` 还应可看到 `recentEventTimeline`
+11. `YouYouToolkit.getAutoTriggerDiagnostics()` 还应提供 `verdictHints`
 
 ### D3. generation baseline / UI guard 诊断可读
 
@@ -326,7 +328,7 @@
 1. `[youyou_trigger]` 控制台日志
 2. `YouYouToolkit.getToolTrigger().getToolTriggerManagerState()`
 3. `YouYouToolkit.getAutoTriggerDiagnostics()`
-3. 工具配置页中的“最近触发诊断”折叠区
+4. 工具配置页中的“最近触发诊断”折叠区（现已可直接看到 N1 快速判读 chips、最近自动触发时间线摘要，并可一键复制诊断 JSON）
 
 ### 6.2 建议使用的控制台辅助命令
 
@@ -345,8 +347,10 @@ function dumpAutoTriggerState() {
   console.log('diagnostics.summary', diagnostics.summary);
   console.log('diagnostics.phaseCounts', diagnostics.summary?.phaseCounts);
   console.log('diagnostics.consistency', diagnostics.summary?.consistency);
+  console.log('diagnostics.verdictHints', diagnostics.verdictHints);
   console.table(diagnostics.activeSessions || []);
   console.table(diagnostics.recentSessionHistory || []);
+  console.table(diagnostics.recentEventTimeline || []);
   return { state, diagnostics };
 }
 
@@ -374,8 +378,10 @@ dumpAutoTriggerState();
 - `diagnostics.summary`
 - `diagnostics.summary.phaseCounts`
 - `diagnostics.summary.consistency`
+- `diagnostics.verdictHints`
 - `diagnostics.activeSessions`
 - `diagnostics.recentSessionHistory`
+- `diagnostics.recentEventTimeline`
 - `state.eventBridge`
 - `state.gateState`
 
@@ -389,6 +395,22 @@ dumpAutoTriggerState();
 - `sessionBaselineResolutionAtCreation` vs `baselineResolutionAt`
 
 用于判断这到底是“baseline 正常从 provisional 进入 resolved”，还是 session 归属真的漂到了别的 generation 上。
+
+若还原单次异常时序困难，建议再看：
+
+- `diagnostics.recentEventTimeline`
+
+它更适合直接回答：
+
+- baseline 是在确认前还是确认后才 resolved
+- 某次 session 先进入了 `scheduled` 还是先被 `ignored/skipped`
+- UI guard 与 generation 事件是否发生了时序交叠
+
+若需要复制一份完整快照给日志或 issue，可直接执行：
+
+```javascript
+copy(JSON.stringify(YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 }), null, 2));
+```
 
 ### 6.3 A12 / A13 的重点判读方式
 

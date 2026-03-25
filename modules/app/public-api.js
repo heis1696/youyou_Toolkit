@@ -32,6 +32,7 @@ export function createPublicApi(context, services = {}) {
     getToolExecutor: () => modules.toolExecutorModule,
     getToolTrigger: () => modules.toolTriggerModule,
     getAutoTriggerDiagnostics: (options) => modules.toolTriggerModule?.getAutoTriggerDiagnostics?.(options) || null,
+    exportAutoTriggerDiagnostics: (options) => modules.toolTriggerModule?.exportAutoTriggerDiagnostics?.(options) || null,
     getWindowManager: () => modules.windowManagerModule,
     getToolRegistry: () => modules.toolRegistryModule,
     getPromptEditor: () => modules.promptEditorModule,
