@@ -22,6 +22,18 @@ const DEFAULT_INJECTION_OPTIONS = {
   enabled: true
 };
 
+function normalizeIdentityValue(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+
+  return '';
+}
+
 const WRITEBACK_RESULT_STATUS = {
   SUCCESS: 'success',
   FAILED: 'failed'
@@ -96,6 +108,13 @@ class ContextInjector {
       writebackResult.error = '注入失败: 参数无效';
       return writebackResult;
     }
+
+    if (!normalizeIdentityValue(mergedOptions.sourceMessageId)) {
+      this._log('注入失败: 缺少 sourceMessageId');
+      writebackResult.error = '注入失败: 缺少 sourceMessageId';
+      return writebackResult;
+    }
+
     const chatId = writebackResult.chatId;
     
     // 创建注入条目
@@ -103,7 +122,8 @@ class ContextInjector {
       toolId,
       content: String(content),
       updatedAt: Date.now(),
-      sourceMessageId: options.sourceMessageId || null,
+      sourceMessageId: mergedOptions.sourceMessageId || null,
+      sourceSwipeId: mergedOptions.sourceSwipeId || mergedOptions.effectiveSwipeId || null,
       options: mergedOptions
     };
     
@@ -112,10 +132,18 @@ class ContextInjector {
       toolId,
       chatId,
       content: injectionEntry.content,
+      sourceMessageId: injectionEntry.sourceMessageId,
+      sourceSwipeId: injectionEntry.sourceSwipeId,
+      effectiveSwipeId: injectionEntry.sourceSwipeId,
+      slotBindingKey: mergedOptions.slotBindingKey || '',
+      slotRevisionKey: mergedOptions.slotRevisionKey || '',
+      slotTransactionId: mergedOptions.slotTransactionId || '',
+      traceId: mergedOptions.traceId || '',
+      sessionKey: mergedOptions.sessionKey || '',
       options: mergedOptions
     });
 
-    const inserted = await this._insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, mergedOptions, writebackResult);
+    const inserted = await this._insertToolOutputToBoundAssistantSlot(toolId, injectionEntry, mergedOptions, writebackResult);
     
     if (inserted.success) {
       this._log(`注入成功: ${toolId} -> ${chatId}`, inserted);
@@ -392,7 +420,7 @@ class ContextInjector {
    * @private
    */
   _createWritebackResult(toolId, options = {}) {
-    const preferredCommitMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
+    const preferredCommitMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
 
     return {
       success: false,
@@ -401,6 +429,11 @@ class ContextInjector {
       traceId: options.traceId || '',
       sessionKey: options.sessionKey || '',
       sourceMessageId: options.sourceMessageId || null,
+      sourceSwipeId: options.sourceSwipeId || options.effectiveSwipeId || null,
+      effectiveSwipeId: options.effectiveSwipeId || options.sourceSwipeId || null,
+      slotBindingKey: options.slotBindingKey || '',
+      slotRevisionKey: options.slotRevisionKey || '',
+      slotTransactionId: options.slotTransactionId || '',
       messageIndex: -1,
       textField: '',
       blockIdentity: null,
@@ -713,7 +746,7 @@ class ContextInjector {
    * 同步更新消息上的所有常见正文字段，尽量兼容不同前端渲染路径
    * @private
    */
-  _applyMessageText(message, nextText) {
+  _applyMessageText(message, nextText, options = {}) {
     const target = message && typeof message === 'object' ? message : {};
     const candidates = ['mes', 'message', 'content', 'text'];
     let applied = false;
@@ -731,12 +764,20 @@ class ContextInjector {
     }
 
     if (Array.isArray(target.swipes)) {
-      const currentSwipeIndex = Number.isInteger(target.swipe_id)
-        ? target.swipe_id
-        : (Number.isInteger(target.swipeId) ? target.swipeId : 0);
+      const preferredSwipeIndex = Number.parseInt(
+        normalizeIdentityValue(options?.sourceSwipeId || options?.effectiveSwipeId),
+        10
+      );
+      const currentSwipeIndex = Number.isInteger(preferredSwipeIndex)
+        ? preferredSwipeIndex
+        : (Number.isInteger(target.swipe_id)
+          ? target.swipe_id
+          : (Number.isInteger(target.swipeId) ? target.swipeId : 0));
 
       if (currentSwipeIndex >= 0 && currentSwipeIndex < target.swipes.length) {
         target.swipes[currentSwipeIndex] = nextText;
+        target.swipe_id = currentSwipeIndex;
+        target.swipeId = currentSwipeIndex;
       }
     }
 
@@ -793,7 +834,7 @@ class ContextInjector {
    * 将工具输出直接插入最新 AI 楼层原文
    * @private
    */
-  async _insertToolOutputToLatestAssistantMessage(toolId, injectionEntry, options = {}, writebackResult = null) {
+  async _insertToolOutputToBoundAssistantSlot(toolId, injectionEntry, options = {}, writebackResult = null) {
     const result = writebackResult || this._createWritebackResult(toolId, options);
 
     try {
@@ -897,7 +938,7 @@ class ContextInjector {
       };
 
       targetMessage[key] = nextText;
-      this._applyMessageText(targetMessage, nextText);
+      this._applyMessageText(targetMessage, nextText, options);
       targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = mergedOutputs;
       targetMessage[MESSAGE_TOOL_CONTEXT_KEY] = this._buildMessageInjectedContext(mergedOutputs);
       result.contentCommitted = true;
@@ -910,12 +951,36 @@ class ContextInjector {
 
       const setChatMessages = context?.setChatMessages || api?.setChatMessages || runtime?.topWindow?.setChatMessages || null;
       const setChatMessage = context?.setChatMessage || api?.setChatMessage || runtime?.topWindow?.setChatMessage || null;
-      result.commit.preferredMethod = typeof setChatMessages === 'function'
-        ? WRITEBACK_METHODS.SET_CHAT_MESSAGES
-        : (typeof setChatMessage === 'function' ? WRITEBACK_METHODS.SET_CHAT_MESSAGE : WRITEBACK_METHODS.LOCAL_ONLY);
+      result.commit.preferredMethod = typeof setChatMessage === 'function'
+        ? WRITEBACK_METHODS.SET_CHAT_MESSAGE
+        : (typeof setChatMessages === 'function' ? WRITEBACK_METHODS.SET_CHAT_MESSAGES : WRITEBACK_METHODS.LOCAL_ONLY);
       let hostWriteCompleted = false;
 
-      if (typeof setChatMessages === 'function') {
+      if (typeof setChatMessage === 'function') {
+        appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGE);
+        try {
+          await setChatMessage.call(context || api || runtime?.topWindow, {
+            message: nextText,
+            mes: nextText,
+            content: nextText,
+            text: nextText
+          }, messageIndex, {
+            swipe_id: normalizeIdentityValue(options.sourceSwipeId || options.effectiveSwipeId) || 'current',
+            refresh: 'display_and_render_current'
+          });
+          result.steps.hostSetChatMessage = true;
+          result.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
+          result.hostCommitApplied = true;
+          result.commit.appliedMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
+          result.commit.hostCommitApplied = true;
+          hostWriteCompleted = true;
+        } catch (error) {
+          this._log('setChatMessage 写回失败，回退本地同步', error);
+          result.errors.push(`setChatMessage: ${error?.message || String(error)}`);
+        }
+      }
+
+      if (!hostWriteCompleted && typeof setChatMessages === 'function') {
         appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGES);
         try {
           await setChatMessages.call(context || api || runtime?.topWindow, [{
@@ -932,6 +997,7 @@ class ContextInjector {
           result.hostCommitApplied = true;
           result.commit.appliedMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
           result.commit.hostCommitApplied = true;
+          result.commit.fallbackUsed = true;
           hostWriteCompleted = true;
         } catch (error) {
           this._log('setChatMessages 写回失败，回退本地同步', error);
@@ -939,34 +1005,13 @@ class ContextInjector {
         }
       }
 
-      if (!hostWriteCompleted && typeof setChatMessage === 'function') {
-        appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGE);
-        try {
-          await setChatMessage.call(context || api || runtime?.topWindow, {
-            message: nextText,
-            mes: nextText,
-            content: nextText,
-            text: nextText
-          }, messageIndex);
-          result.steps.hostSetChatMessage = true;
-          result.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
-          result.hostCommitApplied = true;
-          result.commit.appliedMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
-          result.commit.hostCommitApplied = true;
-          result.commit.fallbackUsed = result.commit.preferredMethod !== WRITEBACK_METHODS.SET_CHAT_MESSAGE;
-          hostWriteCompleted = true;
-        } catch (error) {
-          this._log('setChatMessage 写回失败，回退本地同步', error);
-          result.errors.push(`setChatMessage: ${error?.message || String(error)}`);
-        }
-      }
-
       if (!hostWriteCompleted) {
-        result.hostUpdateMethod = WRITEBACK_METHODS.LOCAL_ONLY;
         appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.LOCAL_ONLY);
         result.commit.appliedMethod = WRITEBACK_METHODS.LOCAL_ONLY;
         result.commit.fallbackUsed = result.commit.preferredMethod !== WRITEBACK_METHODS.LOCAL_ONLY;
       }
+
+      result.hostUpdateMethod = result.commit.appliedMethod;
 
       if (typeof setChatMessage === 'function') {
         try {
@@ -1040,7 +1085,7 @@ class ContextInjector {
         result.error = `工具结果已写回，但检测到块冲突：${result.conflictReason}`;
       }
 
-      this._log(`已将工具输出插入最新 AI 回复原文: ${toolId} -> #${messageIndex}`);
+      this._log(`已将工具输出写入绑定 assistant 槽位: ${toolId} -> #${messageIndex}`);
       return result;
     } catch (error) {
       this._log('插入最新 AI 回复原文失败', error);

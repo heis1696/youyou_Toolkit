@@ -1,7 +1,7 @@
 # 宿主环境回归清单
 
 > 适用范围：SillyTavern / TavernHelper 宿主环境下的自动触发链、写回链与调试链回归验证
-> 最后更新：2026-03-25
+> 最后更新：2026-03-26
 > 关联模块：`modules/tool-trigger.js`、`modules/tool-output-service.js`、`modules/context-injector.js`
 
 ## 一、目的
@@ -49,7 +49,7 @@
 
 验证步骤：
 
-1. 保持 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 监听开启
+1. 保持 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED` 监听开启
 2. 发送一条用户消息并等待 AI 回复
 
 预期结果：
@@ -137,8 +137,8 @@
 
 1. 同一条回复最终只允许执行一次工具链
 2. 额外的 `GENERATION_AFTER_COMMANDS` 应收敛进同一 session 历史
-3. 若宿主给出 `messageId`，或当前 generation 属于 `reroll / regenerate / swipe` family，应允许它直接绑定当前楼层 / baseline assistant 槽位进入正式确认
-4. 只有在既没有 `messageId`、也无法绑定到当前楼层 / 当前槽位时，才应保留 speculative 记录，不应创建新的执行定时器
+3. 若宿主给出 `messageId`，应允许它直接绑定当前楼层 / 当前 swipe 进入正式确认
+4. 缺少 `messageId` 的 `GENERATION_AFTER_COMMANDS` 不应再回退到 baseline assistant 槽位或“最新 assistant”执行；此时只允许保留观察态 / 跳过记录
 
 ### A10. `GENERATION_STARTED` 高时序场景下不会丢 baseline
 
@@ -189,7 +189,9 @@
 7. 若宿主没有给出新楼层，但当前 generation 属于 reroll family，也应允许直接绑定 baseline assistant 槽位的当前状态
 8. 调试对象中应能看到 `confirmationMode = same_slot_revision`、或至少看到 `sameSlotRevisionCandidate / sameSlotRevisionConfirmed / sameSlotRevisionSource` 这组字段
 9. 诊断对象中还应能看到 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId`
-10. 只要当前 generation 属于合法 `reroll / regenerate / swipe`，即使宿主是**同楼层重写**而不是新增楼层，也应允许进入自动工具执行链
+10. 诊断对象中还应能看到 `slotBindingKey / slotRevisionKey / slotTransactionId / lastHandledSlotRevisionKey`
+11. 诊断对象中还应能看到 `sourceMessageId / sourceSwipeId`
+12. 只要当前 generation 属于合法 `reroll / regenerate / swipe`，即使宿主是**同楼层重写**而不是新增楼层，也应允许进入自动工具执行链
 
 ### A13. `ignoreAutoTrigger` 仍能拦住非用户意图 generation
 
@@ -278,7 +280,7 @@
 
 1. 去重应阻断“同一轮 generation 的重复事件”，而不是阻断“同一 `messageId` 的所有后续 generation”
 2. 诊断中应能直接看出本次命中的 generation-aware execution key
-3. execution key 应至少体现 `messageId + generationTraceId + effectiveSwipeId` 的原位模型，而不再只是旧的 message 级语义
+3. execution key 现在应直接等价于 `slotRevisionKey`，体现 `chatId + messageId + effectiveSwipeId + assistantContentFingerprint` 的原位模型，而不再继续绑定 generationTrace
 4. 诊断中还应能看到最近已处理 execution key 列表或等价轨迹，用于判断是否真命中同轮 generation 幂等保护
 5. 若被拦截，应能明确区分“旧式 duplicate gate”还是“新 execution key 判定”
 
@@ -295,7 +297,8 @@
 1. 工具输出写回后应立即在 UI 中可见
 2. 诊断中应能区分“内容已提交”“宿主写回已执行”“刷新已确认”三个层次
 3. 诊断中应能直接看到主提交策略与实际提交策略
-4. 若失败，应能直接定位失败发生在 commit 还是 refresh confirm 阶段
+4. 诊断中应能直接看到 `refresh.requestMethods` 与 `refresh.confirmedBy`
+5. 若失败，应能直接定位失败发生在 commit 还是 refresh confirm 阶段
 
 ### D4. raw generation action / execution key / refresh confirm 可读
 
@@ -309,9 +312,11 @@
 1. 可直接读取宿主原始 generation 动作信息
 2. 可直接读取 generation-aware execution key
 3. 可直接读取最近已处理 execution key 轨迹
-4. 可直接读取 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId`
-5. 可直接读取 refresh confirm 结果，而不再只看到写回文本校验
-6. 可直接读取主提交策略 / 实际提交策略，而不再只看到 hostUpdateMethod
+4. 可直接读取 `slotBindingKey / slotRevisionKey / slotTransactionId / generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId`
+5. 可直接读取 `sourceMessageId / sourceSwipeId`
+6. 可直接读取 refresh confirm 结果，而不再只看到写回文本校验
+7. 可直接读取主提交策略 / 实际提交策略，而不再只看到 hostUpdateMethod
+8. 可直接读取 `refresh.requestMethods / refresh.confirmedBy`
 
 ---
 
@@ -338,6 +343,7 @@
 11. `getToolTriggerManagerState()` / `getAutoTriggerDiagnostics()` 还应可看到 `recentEventTimeline`
 12. `YouYouToolkit.getAutoTriggerDiagnostics()` 还应提供 `verdictHints`
 13. `getToolTriggerManagerState()` / `getAutoTriggerDiagnostics()` 还应可看到 `handledExecutionKeyCount / recentHandledExecutionKeys`
+14. `getToolTriggerManagerState()` / `getAutoTriggerDiagnostics()` 还应可看到 `lastHandledSlotRevisionKey / writebackGuardCount / lastSlotRevisionKey`
 
 ### D3. generation baseline / UI guard 诊断可读
 
@@ -429,6 +435,13 @@ dumpAutoTriggerState();
 - `historicalReplayBlocked`
 - `historicalReplayReason`
 - `confirmationSource`
+- `slotRevisionKey`
+- `lastHandledSlotRevisionKey`
+- `slotBindingKey`
+- `slotTransactionId`
+- `sourceMessageId`
+- `sourceSwipeId`
+- `writebackGuardCount`
 - `driftDetected`
 - `generationTraceDrifted`
 - `generationUserIntentDrifted`

@@ -330,13 +330,15 @@ const exportedTransaction = YouYouToolkit.exportGenerationTransactionDiagnostics
 
 > 从当前宿主回归准备阶段开始，还额外提供 `YouYouToolkit.getAutoTriggerDiagnostics(options)`：它会把 `summary / activeSessions / recentSessionHistory / lastEventDebugSnapshot / lastAutoTriggerSnapshot` 聚合成一份更适合宿主实机验收的只读诊断对象。
 
-> 补充说明：当前对外诊断对象已经可以直接看到 `executionKey / recentHandledExecutionKeys` 这类 generation-aware 幂等信息，以及 `confirmationMode / sameSlotRevision* / generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId` 这类“当前楼层 / 当前 swipe / same-slot 原位确认”信息；但它仍不是完整的“事务图谱”视图，后续若要继续扩展 transaction 级关系展示，仍以 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 为后续规划入口。
+> 补充说明：当前对外诊断对象已经可以直接看到 `executionKey / recentHandledExecutionKeys` 这类**slot-revision-first** 幂等信息，以及 `slotBindingKey / slotRevisionKey / slotTransactionId / sourceMessageId / sourceSwipeId / generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId` 这类“当前楼层 / 当前 swipe / 绑定来源 / 写回目标”信息；`generationTraceId` 现在主要保留为诊断字段，而不再作为自动链主去重锚点。若后续还要继续扩展更完整的 transaction 图谱，仍以 `docs/MVU_TRANSACTION_REWORK_PLAN.md` 为规划入口。
 
 > 从当前这轮 N1 验收辅助增强开始，`getToolTriggerManagerState()` 还会额外暴露 `activeSessions / recentEventTimeline / registeredEvents / pendingTimerCount / listenerSettings / eventBridge / gateState`；`getAutoTriggerDiagnostics().summary` 也会同步补齐 `phaseCounts / consistency / verdictHints`，用于快速判断“当前 session 冻结字段”和“当前 generation 状态”之间是否已经发生漂移，以及 A10 / A11 / A12 / A13 哪一类风险更值得优先排查。
 
 > 从当前这轮宿主误触发系统性修复开始，自动链进一步区分 **speculative session（观察态）** 与 **confirmed trigger（确认态）**：
 >
-> - `GENERATION_AFTER_COMMANDS` 在普通场景下仍主要是观察事件；但当宿主已给出 `messageId`，或当前 generation 属于 `reroll / regenerate / swipe` family 时，它也可以直接按 baseline assistant 槽位当前状态进入正式确认
+> - 当前主路径已经进一步切到 **楼层槽位驱动**：`MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED / GENERATION_AFTER_COMMANDS / GENERATION_ENDED` 只要能解析出 `messageId`，都会优先按这条楼层 + 当前 swipe 生成 `slotRevisionKey` 再决定是否执行
+> - `GENERATION_AFTER_COMMANDS` 现在只在**宿主已给出明确 `messageId`** 时参与当前楼层确认；缺少消息身份时会保留为观察态 / 跳过记录，而不再偷偷回退到“baseline assistant 槽位”或“最新 assistant”
+> - 当前自动链中的 `executionKey` 已收口为 `slotRevisionKey` 语义，即 `chatId + messageId + effectiveSwipeId + assistantContentFingerprint`；同一楼层 / 同一页 swipe / 同一内容不会重复执行，但同楼层新 swipe 或新正文会再次触发
 > - `MESSAGE_RECEIVED` 现在只要宿主给出明确 `messageId`，就会优先按这条楼层 / 当前槽位处理，而不再要求“必须是 baseline 之后新增 assistant 楼层”；新增楼层与 same-slot 原位更新都属于合法确认结果
 > - `GENERATION_ENDED` 现在除“baseline 后新增 assistant 楼层”外，也支持在 reroll family 下直接回到 baseline assistant 槽位的当前状态做原位确认
 > - `dryRun` 与宿主 UI 切换窗口期事件现在都会被视为硬跳过条件，而不是仅依赖用户偏好开关
@@ -414,6 +416,8 @@ const exportedTransaction = YouYouToolkit.exportGenerationTransactionDiagnostics
   registeredEvents: string[],
   pendingTimerCount: number,
   lastHandledMessageKey: string,
+  lastHandledSlotRevisionKey: string,
+  writebackGuardCount: number,
   handledExecutionKeyCount: number,
   recentHandledExecutionKeys: Array<{
     executionKey: string,
@@ -521,6 +525,9 @@ const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 })
     },
     handledExecutionKeyCount: number,
     recentHandledExecutionKeys: Array<object>,
+    lastHandledSlotRevisionKey: string,
+    writebackGuardCount: number,
+    lastSlotRevisionKey: string,
     lastGenerationMessageBindingSource: string,
     lastConfirmedAssistantSwipeId: string,
     lastEffectiveSwipeId: string,
@@ -682,6 +689,10 @@ const injector = YouYouToolkit.getContextInjector();
 
 > 当前主链路中，`inject()` 的职责已经收敛为：**把工具结果直接插入最新 AI 楼层原文**，并同步更新消息对象上的 `YouYouToolkit_toolOutputs` 与 `YouYouToolkit_injectedContext` 字段，然后触发 `MESSAGE_UPDATED` 刷新界面。
 
+> 从本轮楼层槽位驱动收口开始，自动链调用 `injectDetailed()` 时**必须**提供 `sourceMessageId`；如需精确写当前 swipe，还会同时透传 `sourceSwipeId / effectiveSwipeId`。若缺少 `sourceMessageId`，自动写回会直接失败，而不再静默回退到“最新 assistant 楼层”。
+
+> 当前写回结果也会继续透传 `slotBindingKey / slotRevisionKey / slotTransactionId`，用于直接回答“这次工具结果到底绑定到了哪一层、哪一页 swipe、哪一次槽位事务”。
+
 > 从当前优化开始，额外提供 `injectDetailed()`：在保留 `inject()` 布尔值兼容接口的同时，返回一份分层写回结果，至少包含目标消息索引、宿主写回方式、分步执行状态以及最终校验结果，便于定位“到底是没找到消息、宿主写回失败，还是写完后校验失败”。
 
 > 从当前修复开始，写回流程会尽量同时同步 `SillyTavern.getContext().chat` 与 `SillyTavern.chat` 中对应消息对象，并额外补发一次 `MESSAGE_UPDATED`，以提高插入上下文后界面即时刷新的稳定性。
@@ -727,6 +738,8 @@ const outputService = YouYouToolkit.getToolOutputService();
 
 > `tool-output-service.js` 是当前自动工具链的**直接执行层**：负责收集最近消息、构造工具请求、调用额外模型、提取输出，并经由 `context-injector` 写回最新 AI 楼层。
 
+> 当前 `runToolPostResponse()` 返回的 `meta` 已补齐楼层槽位事务字段：`slotBindingKey / slotRevisionKey / slotTransactionId / sourceMessageId / sourceSwipeId`。其中 `executionKey` 现在与 `slotRevisionKey` 对齐，用于表示“这次 assistant 当前楼层 / 当前 swipe / 当前内容版本”。
+
 > 从 `Phase 5` 开始，`runToolPostResponse()` 的返回结果会额外附带 `meta` 诊断信息，至少包含：
 
 ```javascript
@@ -753,7 +766,7 @@ const outputService = YouYouToolkit.getToolOutputService();
   messageIndex,
   textField,
   blockIdentity,
-  hostUpdateMethod,
+  hostUpdateMethod, // 兼容别名，等价于 commit.appliedMethod
   commit: {
     preferredMethod,
     attemptedMethods,
@@ -794,6 +807,12 @@ const outputService = YouYouToolkit.getToolOutputService();
   }
 }
 ```
+
+对外判读时应优先使用分层字段：
+
+- commit 是否成功：看 `commit.appliedMethod`、`commit.hostCommitApplied`
+- refresh 是否成功：看 `refresh.requestMethods`、`refresh.confirmed`、`refresh.confirmedBy`
+- `hostUpdateMethod` 仅作为兼容别名保留，不再是首选判读字段
 
 `meta.phases` 现在也已显式收口为四阶段：
 
@@ -1020,6 +1039,8 @@ tool-trigger
 | `dry_run_generation` | 当前事件对应 generation 明确为 dryRun，已被硬阻断 |
 | `ignored_auto_trigger` | 监听器设置启用了 `ignoreAutoTrigger`，且当前 generation 未被确认为用户意图 |
 | `ui_side_effect_event` | 判定为宿主 UI 打开历史 / 信息窗口 / 切换聊天导致的副作用事件 |
+| `writeback_echo_event` | 判定为工具写回后宿主抛出的 `MESSAGE_UPDATED` 回响事件 |
+| `slot_event_outside_window` | `MESSAGE_UPDATED / MESSAGE_SWIPED` 不处于最近 generation / 用户意图窗口内 |
 | `speculative_generation_after_commands` | `GENERATION_AFTER_COMMANDS` 在无法绑定到合法楼层 / 当前槽位时，仅记录观察态 session，不进入执行 |
 | `no_confirmed_assistant_message` | 本轮未确认到“当前楼层 / 当前 swipe”的可处理 assistant 状态；可能既不是新增楼层，也没有成功绑定到 same-slot 原位结果 |
 | `historical_replay_message_received` | 带 `messageId` 的旧 assistant 楼层重放事件，被判定为历史 replay |
@@ -1456,7 +1477,7 @@ interface ToolConfig {
 - 自动监听除 `GENERATION_ENDED` 外，还会以 `MESSAGE_RECEIVED` 作为兜底确认来源；但 `MESSAGE_RECEIVED` 现在必须带明确 `messageId`，并最终确认命中的楼层要么是 baseline 之后新增的 assistant 回复，要么是显式 `reroll / regenerate / swipe` 对同一 assistant 楼层的合法重写结果，避免把用户消息或宿主 UI 副作用事件误当成可执行事件
 - `MESSAGE_RECEIVED` 现在还会额外阻断“带 `messageId` 的历史 assistant 消息重放事件”；如果事件不属于当前 active generation，或超出合法的 generation 完成窗口，会被记录为 `historical_replay_message_received` 或 `message_received_outside_active_generation`
 - 自动监听现还会额外参考 `GENERATION_AFTER_COMMANDS`；普通场景下它仍可能只留下 speculative 记录，但在 host 已给出 `messageId` 或 reroll family 场景下，也可以直接按当前楼层 / 当前槽位进入确认
-- 多条兜底事件同时命中同一条回复时，自动链当前会按 `executionKey = chatId + messageId + generationTraceId + effectiveSwipeId + assistantContentFingerprint` 做幂等保护；同一轮 generation 的重复事件仍会被收敛，但同一楼层 reroll / regenerate / swipe 只要属于新的 generation trace 或新的当前 swipe，就不会再仅因为复用了同一个 `messageId` 而被直接挡掉
+- 多条兜底事件同时命中同一条回复时，自动链当前会按 `executionKey = slotRevisionKey = chatId + messageId + effectiveSwipeId + assistantContentFingerprint` 做幂等保护；也就是说，同一楼层 / 同一页 swipe / 同一内容不会重复执行，而当前楼层的 swipe 或正文一旦变化，就会视为新的 slot revision 再次执行
 - 构建工具执行上下文时会对“确认后的 assistant 楼层”做短暂重试读取，并以 generation baseline 限制目标范围，避免再从当前聊天快照里回退吸收旧 assistant 消息
 - 在 `CHAT_CHANGED / CHAT_CREATED` 后会进入一小段 UI transition guard 窗口；在窗口内，无消息身份事件会直接被视为宿主 UI 副作用并忽略
 - 测试提取弹窗已限制最大高度，并为正文区域提供独立滚动；当逐条消息预览内容很长时不会再超出屏幕

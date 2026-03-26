@@ -83,6 +83,10 @@
 - `modules/ui/components/tool-config-panel-factory.js`、`docs/API_DOCUMENTATION.md`、`docs/HOST_REGRESSION_CHECKLIST.md` 已同步补齐 `confirmationMode / sameSlotRevision*` 诊断口径，便于宿主直接判断 reroll 是否走到了 same-slot revision 确认通道
 - `modules/tool-trigger.js` 已继续按 MVU / Amily 语义收口确认链：宿主一旦给出 `messageId`，就直接按该楼层 / 当前槽位处理；`GENERATION_AFTER_COMMANDS` 在 reroll family 下也可直接绑定 baseline assistant 槽位当前状态，不再只停留在 speculative
 - `modules/context-injector.js` / `modules/tool-output-service.js` 已同步收紧写回目标与透传字段：写回固定优先绑定 `confirmedAssistantMessageId`，并补齐 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId` 诊断口径
+- `modules/tool-trigger.js` 本轮已进一步真正切到楼层槽位驱动主路径：`GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED` 只要能解析 `messageId`，都会优先按该楼层生成 `slotRevisionKey`
+- `modules/context-injector.js` 本轮已进一步收紧为自动写回必须提供 `sourceMessageId`，并优先按 `sourceSwipeId / effectiveSwipeId` 写当前 swipe；`MESSAGE_UPDATED` 回响则通过 `writeback_echo_event` 守卫拦截
+- `modules/tool-trigger.js` / `modules/tool-output-service.js` / `modules/context-injector.js` / `modules/tool-registry.js` 已继续补齐 `slotBindingKey / slotTransactionId / sourceMessageId / sourceSwipeId` 事务元数据，execution key 现正式与 `slotRevisionKey` 对齐
+- 本轮已再次执行 `npm run build 2>&1`，构建通过
 
 换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
 
@@ -1351,6 +1355,57 @@ Phase 5 完成后，如需继续增强，可进一步评估：
 - 状态：
   - 成功
 
+## 2026-03-26 02:52
+
+- 阶段：MVU / Amily 语义落地补完（楼层槽位驱动主路径激活）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/context-injector.js`
+  - `modules/tool-output-service.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - `initToolTriggerManager()` 已实际切换为楼层槽位驱动监听注册，主路径优先消费 `MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED / GENERATION_AFTER_COMMANDS / GENERATION_ENDED`
+  - 自动执行上下文改为优先按事件命中的 assistant 楼层直接构建，并补齐 `slotRevisionKey` / `lastHandledSlotRevisionKey / writebackGuardCount`
+  - 自动写回进一步收紧为必须提供 `sourceMessageId`，并优先按 `sourceSwipeId / effectiveSwipeId` 写当前 swipe；新增 `writeback_echo_event` 守卫，避免写回回响重触发
+  - 工具页诊断、API 文档、宿主回归清单与变更日志已同步切换到“当前楼层 / 当前 swipe / slotRevisionKey”口径
+  - 执行 `npm run build 2>&1`，构建通过
+- 修改原因：
+  - 上一轮虽然已把语义往 MVU / Amily 靠拢，但主路径仍混杂旧 confirmation 链与新楼层绑定语义；本轮目标是让楼层槽位驱动模型真正成为生效主链
+- 阻塞项：
+  - 尚未完成宿主环境下针对 `MESSAGE_UPDATED / MESSAGE_SWIPED`、`writeback_echo_event` 与同楼层 reroll family 的最新一轮实机回归
+- 状态：
+  - 成功
+
+## 2026-03-26 11:49
+
+- 阶段：楼层槽位事务元数据补齐（slot transaction metadata finish）
+- 修改文件：
+  - `modules/tool-trigger.js`
+  - `modules/tool-output-service.js`
+  - `modules/context-injector.js`
+  - `modules/tool-registry.js`
+  - `modules/ui/components/tool-config-panel-factory.js`
+  - `docs/API_DOCUMENTATION.md`
+  - `docs/HOST_REGRESSION_CHECKLIST.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+  - `docs/CHANGELOG.md`
+- 修改摘要：
+  - 自动链上下文、消息级 session、全局快照、工具 runtime 与写回事件现已统一补齐 `slotBindingKey / slotRevisionKey / slotTransactionId / sourceMessageId / sourceSwipeId`
+  - `executionKey` 已正式与 `slotRevisionKey` 对齐，自动去重完全按“当前楼层 + 当前 swipe + 当前内容版本”收口
+  - `tool-output-service` 与 `context-injector` 已继续收口到“只写绑定楼层 / 当前 swipe”的事务语义
+  - 工具页折叠诊断与文档同步补齐 slot transaction 口径
+  - 执行 `npm run build 2>&1`，构建通过，且无警告
+- 修改原因：
+  - 前一轮虽然已切到楼层槽位主链，但事务元数据仍不完整；本轮目标是把“触发、执行、写回、诊断”全部统一到同一套 slot transaction 语义上
+- 阻塞项：
+  - 尚未完成宿主环境下围绕 `slotBindingKey / slotTransactionId / sourceMessageId / sourceSwipeId` 的最新一轮实机回归
+- 状态：
+  - 成功
+
 ### 回归结论
 
 - 结果：**就“文档施工 + 代码落点”而言，已完成**
@@ -1430,11 +1485,13 @@ Phase 5 完成后，如需继续增强，可进一步评估：
   - `docs/CHANGELOG.md`
 - 修改摘要：
   - 为写回链新增 `commit` 与 `refresh` 分层结果，显式记录主提交策略、实际提交策略、刷新请求通道、确认轮数与 confirmedBy
+  - `hostUpdateMethod` 已明确降级为兼容别名，语义直接等价于 `commit.appliedMethod`
+  - 工具 runtime、工具页折叠诊断与写回历史已补齐 `refresh.requestMethods` 与 `refresh.confirmedBy` 的直接展示，而不再只显示数量
   - `tool-output-service` 的 `phases` 已对齐到 `request -> extract -> writeback -> refresh` 四阶段
   - 工具 runtime、工具页折叠诊断、公共 API 与文档已同步补齐 execution key 轨迹、主提交策略 / 实际提交策略与 refresh confirm 展示
 - 修改原因：
   - 落实事务化收口 Phase T3 / T4，让宿主与 UI 能直接判断“死在 commit 还是 refresh confirm”
 - 阻塞项：
-  - 尚未完成本轮代码修改后的构建与静态验证
+  - 本轮仍需以宿主环境回归确认 UI 即时刷新与 refresh confirm 诊断是否完全符合预期
 - 状态：
   - 成功

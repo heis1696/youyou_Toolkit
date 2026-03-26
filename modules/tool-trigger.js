@@ -32,6 +32,7 @@ const EVENT_TYPES = {
   MESSAGE_RECEIVED: 'MESSAGE_RECEIVED',
   MESSAGE_SENT: 'MESSAGE_SENT',
   MESSAGE_UPDATED: 'MESSAGE_UPDATED',
+  MESSAGE_SWIPED: 'MESSAGE_SWIPED',
   MESSAGE_DELETED: 'MESSAGE_DELETED',
   
   // 生成相关
@@ -112,6 +113,8 @@ export const AUTO_TRIGGER_SKIP_REASONS = {
   DRY_RUN_GENERATION: 'dry_run_generation',
   IGNORED_AUTO_TRIGGER: 'ignored_auto_trigger',
   UNRELATED_UI_EVENT: 'ui_side_effect_event',
+  WRITEBACK_ECHO_EVENT: 'writeback_echo_event',
+  SLOT_EVENT_OUTSIDE_WINDOW: 'slot_event_outside_window',
   SPECULATIVE_FALLBACK_WITHOUT_MESSAGE: 'speculative_generation_after_commands',
   NO_CONFIRMED_ASSISTANT_MESSAGE: 'no_confirmed_assistant_message',
   HISTORICAL_REPLAY_MESSAGE_RECEIVED: 'historical_replay_message_received',
@@ -144,6 +147,8 @@ const DUPLICATE_SKIP_LOG_WINDOW_MS = 1500;
 const UI_TRANSITION_GUARD_MS = 1800;
 const AUTO_TRIGGER_GENERATION_CONFIRM_WINDOW_MS = 5000;
 const AUTO_TRIGGER_HANDLED_EXECUTION_RETENTION_MS = 60000;
+const SLOT_EVENT_ACCEPT_WINDOW_MS = 12000;
+const SLOT_WRITEBACK_GUARD_MS = 2500;
 const EXPLICIT_USER_GENERATION_ACTIONS = new Set([
   'reroll',
   'regenerate',
@@ -516,6 +521,7 @@ function shouldTreatScalarEventPayloadAsMessageId(eventType = '') {
   return eventType === EVENT_TYPES.MESSAGE_RECEIVED
     || eventType === EVENT_TYPES.MESSAGE_SENT
     || eventType === EVENT_TYPES.MESSAGE_UPDATED
+    || eventType === EVENT_TYPES.MESSAGE_SWIPED
     || eventType === EVENT_TYPES.MESSAGE_DELETED;
 }
 
@@ -814,7 +820,11 @@ function shouldLockToEventMessageId(triggerEvent, eventData, preferredMessageId)
     return false;
   }
 
-  if (triggerEvent === EVENT_TYPES.MESSAGE_RECEIVED || triggerEvent === EVENT_TYPES.MESSAGE_UPDATED) {
+  if (
+    triggerEvent === EVENT_TYPES.MESSAGE_RECEIVED
+    || triggerEvent === EVENT_TYPES.MESSAGE_UPDATED
+    || triggerEvent === EVENT_TYPES.MESSAGE_SWIPED
+  ) {
     return true;
   }
 
@@ -1000,39 +1010,6 @@ function hasConfirmedUserTriggerIntent(now = Date.now()) {
   return !!getCurrentGenerationBaseline()?.startedByUserIntent;
 }
 
-function getGenerationConfirmationEligibility(baselineCandidate = null) {
-  const baseline = baselineCandidate || getCurrentGenerationBaseline();
-
-  if (!baseline) {
-    return {
-      eligible: false,
-      baseline: null,
-      reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-      detail: 'missing_generation_baseline'
-    };
-  }
-
-  const isDryRunGeneration = baseline
-    ? !!baseline.dryRun
-    : !!triggerState.gateState.lastGenerationDryRun;
-
-  if (isDryRunGeneration) {
-    return {
-      eligible: false,
-      baseline,
-      reason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
-      detail: 'dry_run_generation'
-    };
-  }
-
-  return {
-    eligible: true,
-    baseline,
-    reason: '',
-    detail: ''
-  };
-}
-
 function isUiTransitionGuardActive(now = Date.now()) {
   return Number(triggerState.gateState.uiTransitionGuardUntil) > now;
 }
@@ -1205,20 +1182,7 @@ function isSameSlotRevisionActionFamily(action = '') {
   return SAME_SLOT_REVISION_ACTIONS.has(normalizedAction);
 }
 
-function getBaselineAssistantBindingId(baseline = null) {
-  const baselineAssistantMessageId = normalizeMessageIdentityValue(baseline?.lastAssistantMessageId);
-  if (baselineAssistantMessageId) {
-    return baselineAssistantMessageId;
-  }
-
-  if (Number.isInteger(baseline?.lastAssistantIndex) && baseline.lastAssistantIndex >= 0) {
-    return String(baseline.lastAssistantIndex);
-  }
-
-  return '';
-}
-
-function resolveGenerationMessageBinding(preferredMessageId = '', baseline = null, options = {}) {
+function resolveGenerationMessageBinding(preferredMessageId = '') {
   const normalizedPreferredMessageId = normalizeMessageIdentityValue(preferredMessageId);
   if (normalizedPreferredMessageId) {
     return {
@@ -1227,18 +1191,6 @@ function resolveGenerationMessageBinding(preferredMessageId = '', baseline = nul
       forceSameSlotRevision: true,
       forcedSameSlotSource: 'message_id_bound_in_place'
     };
-  }
-
-  if (options.allowBaselineAssistantSlot) {
-    const baselineAssistantBindingId = getBaselineAssistantBindingId(baseline);
-    if (baselineAssistantBindingId) {
-      return {
-        preferredMessageId: baselineAssistantBindingId,
-        bindingSource: 'baseline_assistant_slot',
-        forceSameSlotRevision: true,
-        forcedSameSlotSource: 'baseline_slot_in_place'
-      };
-    }
   }
 
   return {
@@ -1368,10 +1320,10 @@ function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
     };
   }
 
-  if (isAssistantMessageAfterBaseline(message, baseline)) {
+  if (isAssistantMessageConfirmedForCurrentGeneration(message, baseline)) {
     return {
       allowed: true,
-      confirmationMode: 'new_message',
+      confirmationMode: 'slot_revision',
       reason: '',
       sameSlotRevisionAction: '',
       sameSlotRevisionCandidate: false,
@@ -1404,7 +1356,7 @@ function evaluateAssistantMessageConfirmation(message, baseline, options = {}) {
       confirmationMode: 'none',
       reason: sameSlotRevisionCandidate
         ? 'same_slot_revision_action_unavailable'
-        : 'message_before_generation_baseline',
+        : 'assistant_slot_not_confirmed_for_generation',
       sameSlotRevisionAction,
       sameSlotRevisionCandidate,
       sameSlotRevisionConfirmed: false,
@@ -1602,7 +1554,7 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
         ? ''
         : (confirmation.sameSlotRevisionCandidate
           ? 'message_received_same_slot_without_confirmed_revision'
-          : 'message_received_before_generation_baseline'),
+          : 'message_received_not_confirmed_for_generation_slot'),
       reason: sameSlotWaitingForRevision
         ? AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE
         : AUTO_TRIGGER_SKIP_REASONS.HISTORICAL_REPLAY_MESSAGE_RECEIVED,
@@ -1610,7 +1562,7 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
         ? 'same_slot_revision_not_observed_yet'
         : (confirmation.sameSlotRevisionCandidate
           ? 'message_received_same_slot_without_confirmed_revision'
-          : 'message_received_before_generation_baseline'),
+          : 'message_received_not_confirmed_for_generation_slot'),
       confirmationMode: confirmation.confirmationMode,
       sameSlotRevisionCandidate: confirmation.sameSlotRevisionCandidate,
       sameSlotRevisionConfirmed: false,
@@ -1648,7 +1600,7 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
   };
 }
 
-function isAssistantMessageAfterBaseline(message, baseline) {
+function isAssistantMessageConfirmedForCurrentGeneration(message, baseline) {
   if (!message || message.role !== 'assistant' || !isMeaningfulAssistantContent(message.content)) {
     return false;
   }
@@ -1657,15 +1609,14 @@ function isAssistantMessageAfterBaseline(message, baseline) {
     return true;
   }
 
-  if (Number.isInteger(baseline.lastAssistantIndex) && baseline.lastAssistantIndex >= 0) {
-    return message.chatIndex > baseline.lastAssistantIndex;
+  const messageId = normalizeMessageIdentityValue(message.sourceId);
+  const baselineMessageId = normalizeMessageIdentityValue(baseline.lastAssistantMessageId);
+
+  if (messageId) {
+    return !baselineMessageId || messageId !== baselineMessageId;
   }
 
-  const baselineMessageCount = Number.isFinite(baseline.messageCount)
-    ? baseline.messageCount
-    : 0;
-
-  return message.chatIndex >= baselineMessageCount;
+  return false;
 }
 
 async function resolveConfirmedAssistantMessage(preferredMessageId = '', options = {}) {
@@ -1685,56 +1636,30 @@ async function resolveConfirmedAssistantMessage(preferredMessageId = '', options
     ? triggerState.gateState.lastGenerationBaseline
     : null;
 
-  if (normalizedPreferredMessageId) {
-    const matched = normalizedMessages.find((message) => {
-      const sourceId = normalizeMessageIdentityValue(message.sourceId);
-      return sourceId === normalizedPreferredMessageId
-        || String(message.chatIndex) === normalizedPreferredMessageId;
-    });
-
-    if (!matched) {
-      return null;
-    }
-
-    const confirmation = evaluateAssistantMessageConfirmation(matched, baseline, {
-      allowSameSlotRevision,
-      requireObservedSameSlotRevision,
-      forceSameSlotRevision: allowSameSlotRevision && (forceSameSlotRevision || Boolean(normalizedPreferredMessageId)),
-      forcedSameSlotSource: forcedSameSlotSource || (normalizedPreferredMessageId ? 'message_id_bound_in_place' : '')
-    });
-
-    return confirmation.allowed
-      ? {
-          ...matched,
-          confirmationMode: confirmation.confirmationMode,
-          sameSlotRevisionCandidate: confirmation.sameSlotRevisionCandidate,
-          sameSlotRevisionConfirmed: confirmation.sameSlotRevisionConfirmed,
-          sameSlotRevisionSource: confirmation.sameSlotRevisionSource,
-          sameSlotRevisionAction: confirmation.sameSlotRevisionAction,
-          baselineAssistantContentFingerprint: confirmation.baselineAssistantContentFingerprint,
-          confirmedAssistantContentFingerprint: confirmation.confirmedAssistantContentFingerprint,
-          baselineAssistantSwipeId: confirmation.baselineAssistantSwipeId,
-          confirmedAssistantSwipeId: confirmation.confirmedAssistantSwipeId,
-          baselineAssistantSwipeCount: confirmation.baselineAssistantSwipeCount,
-          confirmedAssistantSwipeCount: confirmation.confirmedAssistantSwipeCount
-        }
-      : null;
-  }
-
-  if (!baseline) {
+  if (!normalizedPreferredMessageId) {
     return null;
   }
 
-  for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
-    const message = normalizedMessages[index];
-    const confirmation = evaluateAssistantMessageConfirmation(message, baseline, {
-      allowSameSlotRevision,
-      requireObservedSameSlotRevision
-    });
+  const matched = normalizedMessages.find((message) => {
+    const sourceId = normalizeMessageIdentityValue(message.sourceId);
+    return sourceId === normalizedPreferredMessageId
+      || String(message.chatIndex) === normalizedPreferredMessageId;
+  });
 
-    if (confirmation.allowed) {
-      return {
-        ...message,
+  if (!matched) {
+    return null;
+  }
+
+  const confirmation = evaluateAssistantMessageConfirmation(matched, baseline, {
+    allowSameSlotRevision,
+    requireObservedSameSlotRevision,
+    forceSameSlotRevision: allowSameSlotRevision && (forceSameSlotRevision || Boolean(normalizedPreferredMessageId)),
+    forcedSameSlotSource: forcedSameSlotSource || (normalizedPreferredMessageId ? 'message_id_bound_in_place' : '')
+  });
+
+  return confirmation.allowed
+    ? {
+        ...matched,
         confirmationMode: confirmation.confirmationMode,
         sameSlotRevisionCandidate: confirmation.sameSlotRevisionCandidate,
         sameSlotRevisionConfirmed: confirmation.sameSlotRevisionConfirmed,
@@ -1746,11 +1671,8 @@ async function resolveConfirmedAssistantMessage(preferredMessageId = '', options
         confirmedAssistantSwipeId: confirmation.confirmedAssistantSwipeId,
         baselineAssistantSwipeCount: confirmation.baselineAssistantSwipeCount,
         confirmedAssistantSwipeCount: confirmation.confirmedAssistantSwipeCount
-      };
-    }
-  }
-
-  return null;
+      }
+    : null;
 }
 
 async function getConfirmedAssistantMessageWithRetries(preferredMessageId = '', options = {}) {
@@ -1854,12 +1776,17 @@ function createEventDebugSnapshot(snapshot = {}) {
     messageId: '',
     messageKey: '',
     executionKey: '',
+    slotBindingKey: '',
+    slotRevisionKey: '',
+    slotTransactionId: '',
     messageRole: '',
     reason: '',
     skipReasonDetailed: '',
     confirmedAssistantMessageId: '',
+    sourceMessageId: '',
     confirmationMode: '',
     generationMessageBindingSource: '',
+    sourceSwipeId: '',
     confirmedAssistantSwipeId: '',
     effectiveSwipeId: '',
     sameSlotRevisionCandidate: false,
@@ -1936,8 +1863,13 @@ function createAutoTriggerSnapshot(snapshot = {}) {
     messageId: '',
     messageKey: '',
     executionKey: '',
+    slotBindingKey: '',
+    slotRevisionKey: '',
+    slotTransactionId: '',
     confirmationMode: '',
     generationMessageBindingSource: '',
+    sourceMessageId: '',
+    sourceSwipeId: '',
     confirmedAssistantSwipeId: '',
     effectiveSwipeId: '',
     sameSlotRevisionCandidate: false,
@@ -1982,7 +1914,9 @@ function patchToolsDiagnostics(tools, runtimePartial) {
       lastPreferredCommitMethod: '',
       lastAppliedCommitMethod: '',
       lastRefreshMethodCount: 0,
+      lastRefreshMethods: [],
       lastRefreshConfirmChecks: 0,
+      lastRefreshConfirmedBy: '',
       ...runtimePartial
     }, {
       touchLastRunAt: false,
@@ -2595,17 +2529,20 @@ const toolTriggerManagerState = {
   listeners: new Map(),
   messageSessions: new Map(),
   handledExecutionKeys: new Map(),
+  writebackGuards: new Map(),
   recentSessionHistory: [],
   recentEventTimeline: [],
   lastExecutionContext: null,
   lastHandledMessageKey: '',
   lastHandledExecutionKey: '',
+  lastHandledSlotRevisionKey: '',
   pendingMessageTimers: new Map(),
   lastAutoTriggerSnapshot: null,
   lastEventDebugSnapshot: null,
   lastDuplicateMessageKey: '',
   lastDuplicateExecutionKey: '',
-  lastDuplicateMessageAt: 0
+  lastDuplicateMessageAt: 0,
+  internalSubscriptions: []
 };
 
 function createTraceId(prefix = 'trace') {
@@ -2634,43 +2571,61 @@ function resolveCurrentChatIdForSession() {
   return resolveStableChatId(api, context, null);
 }
 
-function buildMessageSessionKey(chatId, messageId, eventType = '', generationTraceId = '') {
+function buildMessageSessionKey(chatId, messageId, eventType = '', generationTraceId = '', slotRevisionKey = '') {
   const resolvedChatId = chatId || resolveCurrentChatIdForSession();
+  const normalizedSlotRevisionKey = String(slotRevisionKey || '').trim();
+  if (normalizedSlotRevisionKey) {
+    return `slot::${normalizedSlotRevisionKey}`;
+  }
+
   const normalizedMessageId = normalizeMessageIdentityValue(messageId);
-  const normalizedGenerationTraceId = String(generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
-  return `${resolvedChatId}::${normalizedMessageId || `event:${eventType || 'unknown'}:latest`}::${normalizedGenerationTraceId || 'trace:unknown'}`;
+  const normalizedGenerationTraceId = String(generationTraceId || '').trim();
+
+  if (normalizedMessageId) {
+    return [
+      resolvedChatId,
+      normalizedMessageId,
+      normalizedGenerationTraceId || 'trace:pending',
+      'slot_revision:pending'
+    ].join('::');
+  }
+
+  return [
+    resolvedChatId,
+    normalizedGenerationTraceId || `event:${eventType || 'unknown'}:trace_pending`,
+    'message:no_message',
+    'slot_revision:pending'
+  ].join('::');
 }
 
 function getAutoTriggerExecutionKey(context = {}) {
-  const chatId = context?.chatId || 'chat_default';
-  const messageId = context?.messageId === undefined || context?.messageId === null || context?.messageId === ''
-    ? 'latest'
-    : String(context.messageId);
-  const generationTraceId = String(
-    context?.generationTraceId
-    || context?.generation?.traceId
-    || triggerState.gateState.lastGenerationTraceId
-    || ''
-  ).trim() || 'trace:unknown';
-  const contentFingerprint = String(
-    context?.assistantContentFingerprint
-    || buildAssistantContentFingerprint(context?.lastAiMessage || context?.input?.lastAiMessage || '')
-    || ''
-  ).trim() || 'content:na';
-  const effectiveSwipeId = normalizeMessageIdentityValue(
-    context?.effectiveSwipeId
-    || context?.confirmedAssistantSwipeId
-    || context?.lastAiMessageSwipeId
-  ) || 'swipe:current';
+  const explicitSlotRevisionKey = String(context?.slotRevisionKey || '').trim();
+  if (explicitSlotRevisionKey) {
+    return explicitSlotRevisionKey;
+  }
 
-  return `${chatId}::${messageId}::${generationTraceId}::${effectiveSwipeId}::${contentFingerprint}`;
+  return buildSlotRevisionKey({
+    chatId: context?.chatId,
+    messageId: context?.messageId,
+    effectiveSwipeId: context?.effectiveSwipeId
+      || context?.confirmedAssistantSwipeId
+      || context?.lastAiMessageSwipeId,
+    assistantContentFingerprint: context?.assistantContentFingerprint
+      || buildAssistantContentFingerprint(context?.lastAiMessage || context?.input?.lastAiMessage || '')
+  });
 }
 
 function createMessageSession(eventType, data, snapshot = {}) {
   const messageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
   const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
   const generationTraceId = String(snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
-  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, messageId, eventType, generationTraceId);
+  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(
+    chatId,
+    messageId,
+    eventType,
+    generationTraceId,
+    snapshot?.slotRevisionKey || snapshot?.executionKey || ''
+  );
   const now = Date.now();
   const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
   const generationFrozenFields = getCurrentSessionGenerationFrozenFields();
@@ -2682,10 +2637,15 @@ function createMessageSession(eventType, data, snapshot = {}) {
     messageId,
     messageKey: snapshot?.messageKey || '',
     executionKey: snapshot?.executionKey || '',
+    slotBindingKey: snapshot?.slotBindingKey || '',
+    slotRevisionKey: snapshot?.slotRevisionKey || '',
+    slotTransactionId: snapshot?.slotTransactionId || '',
     messageRole: snapshot?.messageRole || '',
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
+    sourceMessageId: snapshot?.sourceMessageId || '',
     confirmationSource: snapshot?.confirmationSource || '',
     confirmationMode: snapshot?.confirmationMode || '',
+    sourceSwipeId: snapshot?.sourceSwipeId || '',
     sameSlotRevisionCandidate: !!snapshot?.sameSlotRevisionCandidate,
     sameSlotRevisionConfirmed: !!snapshot?.sameSlotRevisionConfirmed,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
@@ -2750,7 +2710,13 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
   const provisionalMessageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
   const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
   const generationTraceId = String(snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
-  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(chatId, provisionalMessageId, eventType, generationTraceId);
+  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(
+    chatId,
+    provisionalMessageId,
+    eventType,
+    generationTraceId,
+    snapshot?.slotRevisionKey || snapshot?.executionKey || ''
+  );
   let session = toolTriggerManagerState.messageSessions.get(sessionKey);
 
   if (!session) {
@@ -2782,8 +2748,28 @@ function getOrCreateMessageSession(eventType, data, snapshot = {}) {
     session.executionKey = snapshot.executionKey;
   }
 
+  if (snapshot?.slotBindingKey) {
+    session.slotBindingKey = snapshot.slotBindingKey;
+  }
+
+  if (snapshot?.slotRevisionKey) {
+    session.slotRevisionKey = snapshot.slotRevisionKey;
+  }
+
+  if (snapshot?.slotTransactionId) {
+    session.slotTransactionId = snapshot.slotTransactionId;
+  }
+
   if (snapshot?.confirmedAssistantMessageId) {
     session.confirmedAssistantMessageId = snapshot.confirmedAssistantMessageId;
+  }
+
+  if (snapshot?.sourceMessageId) {
+    session.sourceMessageId = snapshot.sourceMessageId;
+  }
+
+  if (snapshot?.sourceSwipeId) {
+    session.sourceSwipeId = snapshot.sourceSwipeId;
   }
 
   if (snapshot?.confirmationSource) {
@@ -2872,10 +2858,15 @@ function appendMessageSessionHistory(session, historyPartial = {}) {
     messageId: historyPartial?.messageId || session.messageId,
     messageKey: historyPartial?.messageKey || session.messageKey,
     executionKey: historyPartial?.executionKey || session.executionKey || '',
+    slotBindingKey: historyPartial?.slotBindingKey || session.slotBindingKey || '',
+    slotRevisionKey: historyPartial?.slotRevisionKey || session.slotRevisionKey || '',
+    slotTransactionId: historyPartial?.slotTransactionId || session.slotTransactionId || '',
     messageRole: historyPartial?.messageRole || session.messageRole,
     confirmedAssistantMessageId: historyPartial?.confirmedAssistantMessageId || session.confirmedAssistantMessageId || '',
+    sourceMessageId: historyPartial?.sourceMessageId || session.sourceMessageId || '',
     confirmationSource: historyPartial?.confirmationSource || session.confirmationSource || '',
     confirmationMode: historyPartial?.confirmationMode || session.confirmationMode || '',
+    sourceSwipeId: historyPartial?.sourceSwipeId || session.sourceSwipeId || '',
     sameSlotRevisionCandidate: historyPartial?.sameSlotRevisionCandidate ?? session.sameSlotRevisionCandidate ?? false,
     sameSlotRevisionConfirmed: historyPartial?.sameSlotRevisionConfirmed ?? session.sameSlotRevisionConfirmed ?? false,
     sameSlotRevisionSource: historyPartial?.sameSlotRevisionSource || session.sameSlotRevisionSource || '',
@@ -3182,10 +3173,15 @@ function createRecentEventTimelineEntry(partial = {}) {
     sessionKey: partial?.sessionKey || '',
     messageId: normalizeMessageIdentityValue(partial?.messageId),
     executionKey: partial?.executionKey || '',
+    slotBindingKey: partial?.slotBindingKey || '',
+    slotRevisionKey: partial?.slotRevisionKey || '',
+    slotTransactionId: partial?.slotTransactionId || '',
     phase: partial?.phase || '',
     reason: partial?.reason || '',
     detail: partial?.detail || '',
+    sourceMessageId: normalizeMessageIdentityValue(partial?.sourceMessageId),
     confirmationSource: partial?.confirmationSource || '',
+    sourceSwipeId: partial?.sourceSwipeId || '',
     candidateToolIds: Array.isArray(partial?.candidateToolIds) ? [...partial.candidateToolIds] : [],
     generationTraceId: partial?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
     baselineResolved: partial?.baselineResolved ?? generationDiagnosticFields.baselineResolved,
@@ -3376,6 +3372,476 @@ function getRecentHandledExecutionKeys(limit = 8) {
   ).map((entry) => ({ ...entry }));
 }
 
+function buildWritebackGuardKey(chatId = '', messageId = '', swipeId = '') {
+  return [
+    String(chatId || 'chat_default').trim() || 'chat_default',
+    normalizeMessageIdentityValue(messageId) || 'message:unknown',
+    normalizeMessageIdentityValue(swipeId) || 'swipe:current'
+  ].join('::');
+}
+
+function pruneWritebackGuards(now = Date.now()) {
+  for (const [guardKey, guard] of toolTriggerManagerState.writebackGuards.entries()) {
+    const createdAt = Number(guard?.at) || 0;
+    if (createdAt <= 0 || (now - createdAt) > SLOT_WRITEBACK_GUARD_MS) {
+      toolTriggerManagerState.writebackGuards.delete(guardKey);
+    }
+  }
+}
+
+function markWritebackGuard(partial = {}) {
+  const guardKey = buildWritebackGuardKey(
+    partial?.chatId,
+    partial?.messageId,
+    partial?.effectiveSwipeId || partial?.swipeId
+  );
+
+  const entry = {
+    guardKey,
+    at: Date.now(),
+    chatId: String(partial?.chatId || '').trim() || 'chat_default',
+    messageId: normalizeMessageIdentityValue(partial?.messageId),
+    effectiveSwipeId: normalizeMessageIdentityValue(partial?.effectiveSwipeId || partial?.swipeId),
+    traceId: String(partial?.traceId || '').trim(),
+    toolId: String(partial?.toolId || '').trim()
+  };
+
+  toolTriggerManagerState.writebackGuards.set(guardKey, entry);
+  pruneWritebackGuards(entry.at);
+  return entry;
+}
+
+function hasActiveWritebackGuard(chatId = '', messageId = '', swipeId = '', now = Date.now()) {
+  pruneWritebackGuards(now);
+  return toolTriggerManagerState.writebackGuards.has(buildWritebackGuardKey(chatId, messageId, swipeId));
+}
+
+function getMessageSwipeId(message) {
+  return normalizeMessageIdentityValue(
+    message?.swipe_id
+    ?? message?.swipeId
+    ?? message?.swipeID
+  );
+}
+
+function getMessageSwipeCount(message) {
+  return Array.isArray(message?.swipes) && message.swipes.length > 0
+    ? message.swipes.length
+    : 1;
+}
+
+function buildSlotRevisionKey(slot = {}) {
+  return [
+    String(slot?.chatId || 'chat_default').trim() || 'chat_default',
+    normalizeMessageIdentityValue(slot?.messageId) || 'message:unknown',
+    normalizeMessageIdentityValue(slot?.effectiveSwipeId || slot?.swipeId) || 'swipe:current',
+    String(slot?.assistantContentFingerprint || '').trim() || 'content:na'
+  ].join('::');
+}
+
+function buildSlotBindingKey(slot = {}) {
+  return [
+    String(slot?.chatId || 'chat_default').trim() || 'chat_default',
+    normalizeMessageIdentityValue(slot?.messageId) || 'message:unknown'
+  ].join('::');
+}
+
+function buildSlotTransactionId(slot = {}) {
+  return [
+    buildSlotRevisionKey(slot),
+    String(slot?.eventType || 'slot_event').trim() || 'slot_event',
+    String(slot?.traceId || slot?.generationTraceId || createTraceId('slot_tx')).trim() || createTraceId('slot_tx')
+  ].join('::');
+}
+
+function buildSlotExecutionKey(slot = {}) {
+  return buildSlotRevisionKey(slot);
+}
+
+function hasRecentGenerationActivity(now = Date.now()) {
+  if (triggerState.gateState.isGenerating) {
+    return true;
+  }
+
+  const lastGenerationAt = Number(triggerState.gateState.lastGenerationAt) || 0;
+  return lastGenerationAt > 0 && (now - lastGenerationAt) <= SLOT_EVENT_ACCEPT_WINDOW_MS;
+}
+
+function buildAssistantSlotFromEntry(entry, eventType = '', data = {}, options = {}) {
+  if (!entry?.message) {
+    return null;
+  }
+
+  const api = getSillyTavernAPI();
+  const context = api?.getContext?.() || null;
+  const message = entry.message;
+  const messageId = normalizeMessageIdentityValue(getMessageIdentity(message, entry.index));
+  const content = getMessageContent(message);
+  const swipeId = normalizeMessageIdentityValue(
+    options?.effectiveSwipeId
+    || data?.effectiveSwipeId
+    || data?.sourceSwipeId
+    || data?.swipeId
+    || data?.swipe_id
+    || getMessageSwipeId(message)
+  );
+  const generationTraceId = String(
+    options?.generationTraceId
+    || data?.generationTraceId
+    || triggerState.gateState.lastGenerationTraceId
+    || ''
+  ).trim();
+  const baseline = getCurrentGenerationBaseline(resolveStableChatId(api, context, null));
+
+  const slot = {
+    eventType,
+    chatId: resolveStableChatId(api, context, null),
+    messageId,
+    messageIndex: entry.index,
+    role: normalizeMessageRole(message),
+    content,
+    assistantContentFingerprint: buildAssistantContentFingerprint(content),
+    swipeId,
+    effectiveSwipeId: swipeId,
+    swipeCount: getMessageSwipeCount(message),
+    generationTraceId,
+    generationAction: baseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
+    generationActionSource: baseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+    generationStartedByUserIntent: !!(baseline?.startedByUserIntent || hasRecentUserTriggerIntent()),
+    dryRun: !!(baseline?.dryRun || triggerState.gateState.lastGenerationDryRun),
+    bindingSource: options?.bindingSource || '',
+    baselineAssistantMessageId: normalizeMessageIdentityValue(baseline?.lastAssistantMessageId),
+    baselineAssistantSwipeId: normalizeMessageIdentityValue(baseline?.lastAssistantSwipeId),
+    rawMessage: message
+  };
+
+  return {
+    ...slot,
+    slotBindingKey: buildSlotBindingKey(slot),
+    slotRevisionKey: buildSlotRevisionKey(slot),
+    slotTransactionId: buildSlotTransactionId({
+      ...slot,
+      traceId: options?.traceId || data?.traceId || ''
+    })
+  };
+}
+
+async function resolveAssistantSlotFromEvent(eventType, data, options = {}) {
+  const incomingMessageId = normalizeMessageIdentityValue(
+    options?.messageId || extractEventMessageId(data, eventType)
+  );
+  const generationTraceId = String(
+    options?.generationTraceId
+    || data?.generationTraceId
+    || triggerState.gateState.lastGenerationTraceId
+    || ''
+  ).trim();
+  const baseline = await waitForResolvedGenerationBaseline({
+    traceId: generationTraceId,
+    retries: 2,
+    retryDelayMs: 50
+  }) || getCurrentGenerationBaseline();
+
+  if (!incomingMessageId) {
+    return null;
+  }
+
+  const resolvedEntry = await findRawChatMessageByIdentityWithRetries(incomingMessageId, {
+    retries: 3,
+    retryDelayMs: 80
+  });
+
+  if (resolvedEntry) {
+    return buildAssistantSlotFromEntry(resolvedEntry, eventType, data, {
+      generationTraceId,
+      bindingSource: 'event_message_id',
+      traceId: options?.traceId || data?.traceId || ''
+    });
+  }
+
+  return null;
+}
+
+function evaluateAssistantSlotEvent(slot, eventType = '', data = {}) {
+  const now = Date.now();
+
+  if (!slot) {
+    return {
+      allowed: false,
+      reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
+      detail: 'assistant_slot_not_resolved'
+    };
+  }
+
+  if (slot.role !== 'assistant') {
+    return {
+      allowed: false,
+      reason: AUTO_TRIGGER_SKIP_REASONS.NON_ASSISTANT_MESSAGE,
+      detail: 'resolved_slot_not_assistant'
+    };
+  }
+
+  if (!isMeaningfulAssistantContent(slot.content)) {
+    return {
+      allowed: false,
+      reason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
+      detail: 'assistant_slot_content_not_meaningful'
+    };
+  }
+
+  if (slot.dryRun) {
+    return {
+      allowed: false,
+      reason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
+      detail: 'slot_event_dry_run_generation'
+    };
+  }
+
+  if (isUiTransitionGuardActive(now) && !hasConfirmedUserTriggerIntent(now)) {
+    return {
+      allowed: false,
+      reason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
+      detail: 'ui_transition_guard_active'
+    };
+  }
+
+  if (eventType === EVENT_TYPES.MESSAGE_UPDATED || eventType === EVENT_TYPES.MESSAGE_SWIPED) {
+    if (hasActiveWritebackGuard(slot.chatId, slot.messageId, slot.effectiveSwipeId, now)) {
+      return {
+        allowed: false,
+        reason: AUTO_TRIGGER_SKIP_REASONS.WRITEBACK_ECHO_EVENT,
+        detail: 'message_update_caused_by_tool_writeback'
+      };
+    }
+  }
+
+  if (eventType === EVENT_TYPES.MESSAGE_SWIPED) {
+    return {
+      allowed: true,
+      reason: '',
+      detail: ''
+    };
+  }
+
+  if (
+    eventType === EVENT_TYPES.MESSAGE_RECEIVED
+    || eventType === EVENT_TYPES.MESSAGE_UPDATED
+  ) {
+    if (!hasRecentGenerationActivity(now) && !hasConfirmedUserTriggerIntent(now)) {
+      return {
+        allowed: false,
+        reason: eventType === EVENT_TYPES.MESSAGE_RECEIVED
+          ? AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION
+          : AUTO_TRIGGER_SKIP_REASONS.SLOT_EVENT_OUTSIDE_WINDOW,
+        detail: 'slot_event_without_recent_generation_activity'
+      };
+    }
+  }
+
+  return {
+    allowed: true,
+    reason: '',
+    detail: ''
+  };
+}
+
+async function routeAssistantSlotEvent(eventType, data, options = {}) {
+  const slot = await resolveAssistantSlotFromEvent(eventType, data, options);
+  const evaluation = evaluateAssistantSlotEvent(slot, eventType, data);
+
+  if (!evaluation.allowed) {
+    const session = scheduleSpeculativeSession(eventType, data, {
+      messageId: slot?.messageId || options?.messageId || extractEventMessageId(data, eventType),
+      generationTraceId: slot?.generationTraceId || options?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
+      reason: evaluation.reason,
+      skipReasonDetailed: evaluation.detail,
+      confirmationSource: 'none',
+      confirmationMode: 'none',
+      eventBelongsToCurrentGeneration: false,
+      historicalReplayBlocked: evaluation.reason === AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION,
+      historicalReplayReason: evaluation.reason === AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION
+        ? 'slot_event_without_recent_generation_activity'
+        : ''
+    });
+
+    saveAutoTriggerSnapshot({
+      triggerEvent: eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId: slot?.messageId || '',
+      generationMessageBindingSource: slot?.bindingSource || '',
+      confirmedAssistantSwipeId: slot?.swipeId || '',
+      effectiveSwipeId: slot?.effectiveSwipeId || '',
+      skipReason: evaluation.reason,
+      skipReasonDetailed: evaluation.detail,
+      confirmedAssistantMessageId: slot?.messageId || '',
+      confirmationSource: 'none',
+      slotRevisionKey: slot ? buildSlotRevisionKey(slot) : ''
+    });
+    return false;
+  }
+
+  const snapshot = {
+    generationTraceId: slot.generationTraceId,
+    messageId: slot.messageId,
+    confirmedAssistantMessageId: slot.messageId,
+    confirmationSource: slot.bindingSource || eventType.toLowerCase(),
+    confirmationMode: 'slot_revision',
+    generationMessageBindingSource: slot.bindingSource || '',
+    slotBindingKey: slot.slotBindingKey || buildSlotBindingKey(slot),
+    confirmedAssistantSwipeId: slot.swipeId || '',
+    effectiveSwipeId: slot.effectiveSwipeId || '',
+    sourceMessageId: slot.messageId,
+    sourceSwipeId: slot.effectiveSwipeId || '',
+    slotRevisionKey: buildSlotRevisionKey(slot),
+    slotTransactionId: slot.slotTransactionId || buildSlotTransactionId(slot),
+    sameSlotRevisionCandidate: isSameSlotRevisionActionFamily(slot.generationAction),
+    sameSlotRevisionConfirmed: isSameSlotRevisionActionFamily(slot.generationAction),
+    sameSlotRevisionSource: isSameSlotRevisionActionFamily(slot.generationAction)
+      ? (slot.bindingSource || 'slot_revision')
+      : '',
+    eventBelongsToCurrentGeneration: true,
+    historicalReplayBlocked: false,
+    historicalReplayReason: ''
+  };
+
+  const delayMs = eventType === EVENT_TYPES.GENERATION_ENDED
+    ? 0
+    : getResolvedListenerSettings().debounceMs;
+
+  if (delayMs > 0) {
+    scheduleAutoTrigger(eventType, data, delayMs, snapshot);
+  } else {
+    await handleAutoTrigger(eventType, {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...snapshot,
+      messageId: slot.messageId,
+      confirmedAssistantMessageId: slot.messageId
+    });
+  }
+
+  return true;
+}
+
+function installInternalTriggerSubscriptions() {
+  if (toolTriggerManagerState.internalSubscriptions.length > 0) {
+    return;
+  }
+
+  const unsubscribeInjected = eventBus.on(EVENTS.TOOL_CONTEXT_INJECTED, (payload = {}) => {
+    const sourceMessageId = normalizeMessageIdentityValue(payload?.sourceMessageId || payload?.options?.sourceMessageId);
+    if (!sourceMessageId) {
+      return;
+    }
+
+    markWritebackGuard({
+      chatId: payload?.chatId || resolveCurrentChatIdForSession(),
+      messageId: sourceMessageId,
+      effectiveSwipeId: payload?.effectiveSwipeId || payload?.sourceSwipeId || payload?.options?.sourceSwipeId || '',
+      traceId: payload?.traceId || payload?.options?.traceId || '',
+      toolId: payload?.toolId || ''
+    });
+  });
+
+  toolTriggerManagerState.internalSubscriptions.push(unsubscribeInjected);
+}
+
+async function buildToolExecutionContextFromMessageEntry(entry, options = {}) {
+  const character = await getCurrentCharacter();
+  const api = getSillyTavernAPI();
+  const stContext = api?.getContext?.() || null;
+  const resolvedMessage = entry?.message || null;
+  const resolvedIndex = Number.isInteger(entry?.index) ? entry.index : -1;
+  const messageId = normalizeMessageIdentityValue(getMessageIdentity(resolvedMessage, resolvedIndex));
+  const content = getMessageContent(resolvedMessage);
+  const effectiveSwipeId = normalizeMessageIdentityValue(
+    options?.effectiveSwipeId
+    || options?.confirmedAssistantSwipeId
+    || getMessageSwipeId(resolvedMessage)
+  );
+  const generationTraceId = String(
+    options?.generationTraceId
+    || triggerState.gateState.lastGenerationTraceId
+    || ''
+  ).trim();
+  const chatId = resolveStableChatId(api, stContext, character);
+  const assistantContentFingerprint = buildAssistantContentFingerprint(content);
+  const slotBindingKey = buildSlotBindingKey({
+    chatId,
+    messageId
+  });
+  const slotRevisionKey = buildSlotRevisionKey({
+    chatId,
+    messageId,
+    effectiveSwipeId,
+    assistantContentFingerprint
+  });
+  const slotTransactionId = buildSlotTransactionId({
+    chatId,
+    messageId,
+    effectiveSwipeId,
+    assistantContentFingerprint,
+    eventType: options?.triggerEvent || '',
+    generationTraceId,
+    traceId: options?.traceId || ''
+  });
+  const conversation = await getConversationSnapshot({
+    preferredMessageId: messageId || null,
+    retries: Number.isFinite(options?.retries) ? options.retries : 2,
+    retryDelayMs: Number.isFinite(options?.retryDelayMs) ? options.retryDelayMs : 120,
+    lockToMessageId: true
+  });
+  const messages = conversation.messages || [];
+  const lastUserMessage = conversation.lastUserMessage;
+
+  return {
+    triggeredAt: Date.now(),
+    triggerEvent: options?.triggerEvent || '',
+    traceId: options?.traceId || '',
+    sessionKey: options?.sessionKey || '',
+    confirmationSource: String(options?.confirmationSource || '').trim(),
+    confirmedAssistantMessageId: messageId,
+    chatId,
+    messageId,
+    generationTraceId,
+    confirmationMode: String(options?.confirmationMode || 'slot_revision').trim(),
+    sameSlotRevisionCandidate: !!options?.sameSlotRevisionCandidate,
+    sameSlotRevisionConfirmed: !!options?.sameSlotRevisionConfirmed,
+    sameSlotRevisionSource: String(options?.sameSlotRevisionSource || '').trim(),
+    rawGenerationType: triggerState.gateState.lastGenerationBaseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
+    rawGenerationParams: triggerState.gateState.lastGenerationBaseline?.rawGenerationParams ?? triggerState.gateState.lastGenerationParams ?? null,
+    normalizedGenerationType: triggerState.gateState.lastGenerationBaseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
+    generationAction: triggerState.gateState.lastGenerationBaseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
+    generationActionSource: triggerState.gateState.lastGenerationBaseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+    generationMessageBindingSource: String(options?.generationMessageBindingSource || '').trim(),
+    slotBindingKey,
+    slotRevisionKey,
+    slotTransactionId,
+    lastAiMessage: content,
+    assistantContentFingerprint,
+    lastAiMessageSwipeId: effectiveSwipeId,
+    confirmedAssistantSwipeId: effectiveSwipeId,
+    effectiveSwipeId,
+    sourceMessageId: messageId,
+    sourceSwipeId: effectiveSwipeId,
+    userMessage: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || '',
+    chatMessages: messages,
+    input: {
+      userMessage: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || '',
+      lastAiMessage: content,
+      extractedContent: '',
+      previousToolOutput: '',
+      context: {
+        character: character?.name || '',
+        chatLength: messages.length || 0
+      }
+    },
+    config: {},
+    status: 'pending',
+    executionKey: slotRevisionKey
+  };
+}
+
 /**
  * 自动工具主链说明：
  * 1. tool-trigger 负责监听宿主事件、门控、上下文构建
@@ -3491,6 +3957,11 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         confirmedAssistantMessageId,
         confirmationSource: snapshot?.confirmationSource || data?.confirmationSource || '',
         confirmationMode: snapshot?.confirmationMode || data?.confirmationMode || '',
+        slotBindingKey: snapshot?.slotBindingKey || data?.slotBindingKey || '',
+        slotRevisionKey: snapshot?.slotRevisionKey || data?.slotRevisionKey || '',
+        slotTransactionId: snapshot?.slotTransactionId || data?.slotTransactionId || '',
+        sourceMessageId: snapshot?.sourceMessageId || data?.sourceMessageId || confirmedAssistantMessageId,
+        sourceSwipeId: snapshot?.sourceSwipeId || data?.sourceSwipeId || data?.effectiveSwipeId || '',
         sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? data?.sameSlotRevisionCandidate ?? false,
         sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? data?.sameSlotRevisionConfirmed ?? false,
         sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || data?.sameSlotRevisionSource || '',
@@ -3504,6 +3975,11 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         confirmedAssistantMessageId,
         confirmationSource: snapshot?.confirmationSource || '',
         confirmationMode: snapshot?.confirmationMode || '',
+        slotBindingKey: snapshot?.slotBindingKey || '',
+        slotRevisionKey: snapshot?.slotRevisionKey || '',
+        slotTransactionId: snapshot?.slotTransactionId || '',
+        sourceMessageId: snapshot?.sourceMessageId || confirmedAssistantMessageId,
+        sourceSwipeId: snapshot?.sourceSwipeId || snapshot?.effectiveSwipeId || '',
         sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
         sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
         sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
@@ -3569,9 +4045,14 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     traceId: session?.traceId || '',
     sessionKey: session?.sessionKey || '',
     messageId: confirmedAssistantMessageId,
+    slotBindingKey: snapshot?.slotBindingKey || enrichedData.slotBindingKey || '',
+    slotRevisionKey: snapshot?.slotRevisionKey || enrichedData.slotRevisionKey || '',
+    slotTransactionId: snapshot?.slotTransactionId || enrichedData.slotTransactionId || '',
+    sourceMessageId: snapshot?.sourceMessageId || enrichedData.sourceMessageId || confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
     confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+    sourceSwipeId: snapshot?.sourceSwipeId || enrichedData.sourceSwipeId || '',
     sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
     sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
@@ -3618,10 +4099,15 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
       traceId: session?.traceId || '',
       sessionKey: session?.sessionKey || '',
       messageId: confirmedAssistantMessageId,
+      slotBindingKey: snapshot?.slotBindingKey || enrichedData.slotBindingKey || '',
+      slotRevisionKey: snapshot?.slotRevisionKey || enrichedData.slotRevisionKey || '',
+      slotTransactionId: snapshot?.slotTransactionId || enrichedData.slotTransactionId || '',
+      sourceMessageId: snapshot?.sourceMessageId || enrichedData.sourceMessageId || confirmedAssistantMessageId,
       confirmedAssistantMessageId,
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
       isSpeculativeSession: false,
     confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+    sourceSwipeId: snapshot?.sourceSwipeId || enrichedData.sourceSwipeId || '',
     sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
     sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
@@ -4088,6 +4574,9 @@ async function handleAutoTrigger(eventType, data) {
     messageKey: getAutoTriggerMessageKey(context),
     executionKey,
     confirmedAssistantMessageId: context.confirmedAssistantMessageId || confirmedAssistantMessageId,
+    slotBindingKey: context.slotBindingKey || '',
+    slotRevisionKey: context.slotRevisionKey || '',
+    slotTransactionId: context.slotTransactionId || '',
     confirmationSource: context.confirmationSource || confirmationSource,
       confirmationMode: context?.confirmationMode || confirmationMode,
       sameSlotRevisionCandidate: context?.sameSlotRevisionCandidate ?? sameSlotRevisionCandidate,
@@ -4111,9 +4600,14 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || '',
       messageKey,
       executionKey,
+      slotBindingKey: context?.slotBindingKey || '',
       generationMessageBindingSource: context?.generationMessageBindingSource || '',
+      sourceMessageId: context?.sourceMessageId || context?.messageId || '',
+      sourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
       confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
       effectiveSwipeId: context?.effectiveSwipeId || '',
+      slotRevisionKey: context?.slotRevisionKey || '',
+      slotTransactionId: context?.slotTransactionId || '',
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
@@ -4138,9 +4632,14 @@ async function handleAutoTrigger(eventType, data) {
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       executionKey,
+      slotBindingKey: context?.slotBindingKey || '',
       generationMessageBindingSource: context?.generationMessageBindingSource || '',
+      sourceMessageId: context?.sourceMessageId || context?.messageId || '',
+      sourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
       confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
       effectiveSwipeId: context?.effectiveSwipeId || '',
+      slotRevisionKey: context?.slotRevisionKey || '',
+      slotTransactionId: context?.slotTransactionId || '',
       reason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
       confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -4201,9 +4700,14 @@ async function handleAutoTrigger(eventType, data) {
         messageId: context?.messageId || '',
         messageKey,
         executionKey,
+        slotBindingKey: context?.slotBindingKey || '',
         generationMessageBindingSource: context?.generationMessageBindingSource || '',
+        sourceMessageId: context?.sourceMessageId || context?.messageId || '',
+        sourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
         confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
         effectiveSwipeId: context?.effectiveSwipeId || '',
+        slotRevisionKey: context?.slotRevisionKey || '',
+        slotTransactionId: context?.slotTransactionId || '',
         selectedToolIds: candidateToolIds,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
         skipReasonDetailed: 'execution_key_already_handled',
@@ -4228,9 +4732,14 @@ async function handleAutoTrigger(eventType, data) {
         messageId: context?.messageId || incomingMessageId,
         messageKey,
         executionKey,
+        slotBindingKey: context?.slotBindingKey || '',
         generationMessageBindingSource: context?.generationMessageBindingSource || '',
+        sourceMessageId: context?.sourceMessageId || context?.messageId || '',
+        sourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
         confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
         effectiveSwipeId: context?.effectiveSwipeId || '',
+        slotRevisionKey: context?.slotRevisionKey || '',
+        slotTransactionId: context?.slotTransactionId || '',
         reason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
         skipReasonDetailed: 'execution_key_already_handled',
         confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -4342,6 +4851,7 @@ async function handleAutoTrigger(eventType, data) {
 
   toolTriggerManagerState.lastHandledMessageKey = messageKey;
   toolTriggerManagerState.lastHandledExecutionKey = executionKey;
+  toolTriggerManagerState.lastHandledSlotRevisionKey = context?.slotRevisionKey || executionKey;
   markHandledExecutionKey(executionKey, {
     messageKey,
     messageId: context?.messageId || incomingMessageId,
@@ -4360,9 +4870,14 @@ async function handleAutoTrigger(eventType, data) {
     messageId: context?.messageId || '',
     messageKey,
     executionKey,
+    slotBindingKey: context?.slotBindingKey || '',
     generationMessageBindingSource: context?.generationMessageBindingSource || '',
+    sourceMessageId: context?.sourceMessageId || context?.messageId || '',
+    sourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
     confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
     effectiveSwipeId: context?.effectiveSwipeId || '',
+    slotRevisionKey: context?.slotRevisionKey || '',
+    slotTransactionId: context?.slotTransactionId || '',
     selectedToolIds: toolsToExecute.map(tool => tool.id),
     skipReason: '',
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -4436,7 +4951,9 @@ async function handleAutoTrigger(eventType, data) {
         preferredCommitMethod: result?.result?.meta?.writebackDetails?.commit?.preferredMethod || result?.meta?.writebackDetails?.commit?.preferredMethod || '',
         appliedCommitMethod: result?.result?.meta?.writebackDetails?.commit?.appliedMethod || result?.meta?.writebackDetails?.commit?.appliedMethod || '',
         refreshMethodCount: (result?.result?.meta?.writebackDetails?.refresh?.requestMethods || result?.meta?.writebackDetails?.refresh?.requestMethods || []).length,
+        refreshMethods: [...(result?.result?.meta?.writebackDetails?.refresh?.requestMethods || result?.meta?.writebackDetails?.refresh?.requestMethods || [])],
         refreshConfirmChecks: result?.result?.meta?.writebackDetails?.refresh?.confirmChecks || result?.meta?.writebackDetails?.refresh?.confirmChecks || 0,
+        refreshConfirmedBy: result?.result?.meta?.writebackDetails?.refresh?.confirmedBy || result?.meta?.writebackDetails?.refresh?.confirmedBy || '',
         success: !!result?.success
       });
 
@@ -4463,9 +4980,14 @@ async function handleAutoTrigger(eventType, data) {
     messageId: context?.messageId || incomingMessageId,
     messageKey,
     executionKey,
+    slotBindingKey: context?.slotBindingKey || '',
     generationMessageBindingSource: context?.generationMessageBindingSource || '',
+    sourceMessageId: context?.sourceMessageId || context?.messageId || '',
+    sourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
     confirmedAssistantSwipeId: context?.confirmedAssistantSwipeId || '',
     effectiveSwipeId: context?.effectiveSwipeId || '',
+    slotRevisionKey: context?.slotRevisionKey || '',
+    slotTransactionId: context?.slotTransactionId || '',
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
@@ -4518,14 +5040,93 @@ export function initToolTriggerManager() {
     return;
   }
   
-  // 注册GENERATION_ENDED事件监听
-  registerGenerationEndedListener();
+  registerSlotDrivenListeners();
+  installInternalTriggerSubscriptions();
   
   toolTriggerManagerState.initialized = true;
   log('工具触发管理器已初始化');
   
   // 发送事件
   eventBus.emit(EVENTS.TOOL_TRIGGER_INITIALIZED);
+}
+
+function registerSlotDrivenListeners() {
+  const registerIgnoredFallback = (eventType, messageId, reason) => {
+    const session = getOrCreateMessageSession(eventType, { messageId }, {
+      eventType,
+      messageId
+    });
+    updateMessageSession(session, {
+      phase: MESSAGE_SESSION_PHASES.IGNORED,
+      skipReason: reason,
+      completedAt: Date.now()
+    });
+    appendMessageSessionHistory(session, {
+      phase: MESSAGE_SESSION_PHASES.IGNORED,
+      eventType,
+      messageId,
+      skipReason: reason
+    });
+    saveEventDebugSnapshot({
+      stage: 'ignored',
+      eventType,
+      traceId: session?.traceId || '',
+      sessionKey: session?.sessionKey || '',
+      messageId,
+      reason,
+      handledAt: Date.now()
+    });
+  };
+
+  const generationEndedListener = registerEventListener(EVENT_TYPES.GENERATION_ENDED, async (data) => {
+    await routeAssistantSlotEvent(EVENT_TYPES.GENERATION_ENDED, data);
+  });
+
+  const generationAfterCommandsListener = registerEventListener(EVENT_TYPES.GENERATION_AFTER_COMMANDS, async (data) => {
+    const messageId = extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS);
+    if (!getResolvedListenerSettings().useGenerationAfterCommandsFallback) {
+      registerIgnoredFallback(EVENT_TYPES.GENERATION_AFTER_COMMANDS, messageId, 'generation_after_commands_fallback_disabled');
+      return;
+    }
+
+    await routeAssistantSlotEvent(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data);
+  });
+
+  const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
+    const messageId = extractEventMessageId(data, EVENT_TYPES.MESSAGE_RECEIVED);
+    if (!getResolvedListenerSettings().useMessageReceivedFallback) {
+      registerIgnoredFallback(EVENT_TYPES.MESSAGE_RECEIVED, messageId, 'message_received_fallback_disabled');
+      return;
+    }
+
+    await routeAssistantSlotEvent(EVENT_TYPES.MESSAGE_RECEIVED, data);
+  });
+
+  const messageUpdatedListener = registerEventListener(EVENT_TYPES.MESSAGE_UPDATED, async (data) => {
+    const messageId = extractEventMessageId(data, EVENT_TYPES.MESSAGE_UPDATED);
+    if (!getResolvedListenerSettings().useMessageReceivedFallback) {
+      registerIgnoredFallback(EVENT_TYPES.MESSAGE_UPDATED, messageId, 'message_received_fallback_disabled');
+      return;
+    }
+
+    await routeAssistantSlotEvent(EVENT_TYPES.MESSAGE_UPDATED, data);
+  });
+
+  const messageSwipedListener = registerEventListener(EVENT_TYPES.MESSAGE_SWIPED, async (data) => {
+    const messageId = extractEventMessageId(data, EVENT_TYPES.MESSAGE_SWIPED);
+    if (!getResolvedListenerSettings().useMessageReceivedFallback) {
+      registerIgnoredFallback(EVENT_TYPES.MESSAGE_SWIPED, messageId, 'message_received_fallback_disabled');
+      return;
+    }
+
+    await routeAssistantSlotEvent(EVENT_TYPES.MESSAGE_SWIPED, data);
+  });
+
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_ENDED, generationEndedListener);
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_AFTER_COMMANDS, generationAfterCommandsListener);
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.MESSAGE_RECEIVED, messageReceivedListener);
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.MESSAGE_UPDATED, messageUpdatedListener);
+  toolTriggerManagerState.listeners.set(EVENT_TYPES.MESSAGE_SWIPED, messageSwipedListener);
 }
 
 /**
@@ -4570,9 +5171,7 @@ function registerGenerationEndedListener() {
       return;
     }
 
-    const messageBinding = resolveGenerationMessageBinding(incomingMessageId, resolvedBaseline, {
-      allowBaselineAssistantSlot: isSameSlotRevisionActionFamily(resolveSameSlotRevisionAction(resolvedBaseline))
-    });
+    const messageBinding = resolveGenerationMessageBinding(incomingMessageId);
 
     const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(messageBinding.preferredMessageId, {
       retries: messageBinding.preferredMessageId ? 3 : 8,
@@ -4591,7 +5190,7 @@ function registerGenerationEndedListener() {
         reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
         skipReasonDetailed: messageBinding.preferredMessageId
           ? 'message_id_or_same_slot_not_confirmed_after_generation'
-          : 'missing_new_assistant_message_after_generation',
+          : 'assistant_slot_not_confirmed_after_generation',
         confirmationSource: 'none',
         eventBelongsToCurrentGeneration: !!resolvedBaseline,
         historicalReplayBlocked: false,
@@ -4659,9 +5258,7 @@ function registerGenerationEndedListener() {
       retryDelayMs: 80
     });
     const eligibility = getGenerationConfirmationEligibility(resolvedBaseline);
-    const messageBinding = resolveGenerationMessageBinding(incomingMessageId, resolvedBaseline, {
-      allowBaselineAssistantSlot: isSameSlotRevisionActionFamily(resolveSameSlotRevisionAction(resolvedBaseline))
-    });
+    const messageBinding = resolveGenerationMessageBinding(incomingMessageId);
 
     if (!messageBinding.preferredMessageId) {
       scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
@@ -4892,7 +5489,7 @@ function registerGenerationEndedListener() {
         messageId: effectiveMessageId,
         generationTraceId: confirmationCandidate?.baseline?.traceId || triggerState.gateState.lastGenerationTraceId || '',
         reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-        skipReasonDetailed: 'message_received_not_confirmed_as_new_assistant',
+        skipReasonDetailed: 'message_received_not_confirmed_for_slot_revision',
         confirmationSource: 'none',
         eventBelongsToCurrentGeneration: true,
         historicalReplayBlocked: false,
@@ -4927,15 +5524,123 @@ function registerGenerationEndedListener() {
  * @returns {Promise<Object>} 执行上下文
  */
 async function buildToolExecutionContext(eventData) {
+  const triggerEvent = eventData?.triggerEvent || 'GENERATION_ENDED';
+  const explicitMessageId = normalizeMessageIdentityValue(
+    eventData?.confirmedAssistantMessageId
+    || eventData?.messageId
+    || extractEventMessageId(eventData, triggerEvent)
+  );
+  const isManual = triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW';
+
+  if (!isManual && explicitMessageId) {
+    const directEntry = await findRawChatMessageByIdentityWithRetries(explicitMessageId, {
+      retries: 3,
+      retryDelayMs: 80
+    });
+
+    if (
+      directEntry?.message
+      && normalizeMessageRole(directEntry.message) === 'assistant'
+      && isMeaningfulAssistantContent(getMessageContent(directEntry.message))
+    ) {
+      return buildToolExecutionContextFromMessageEntry(directEntry, {
+        triggerEvent,
+        traceId: eventData?.traceId || '',
+        sessionKey: eventData?.sessionKey || '',
+        confirmationSource: eventData?.confirmationSource || '',
+        confirmationMode: eventData?.confirmationMode || 'slot_revision',
+        generationTraceId: eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
+        sameSlotRevisionCandidate: eventData?.sameSlotRevisionCandidate,
+        sameSlotRevisionConfirmed: eventData?.sameSlotRevisionConfirmed,
+        sameSlotRevisionSource: eventData?.sameSlotRevisionSource || '',
+        generationMessageBindingSource: eventData?.generationMessageBindingSource || eventData?.confirmationSource || '',
+        confirmedAssistantSwipeId: eventData?.confirmedAssistantSwipeId || eventData?.effectiveSwipeId || '',
+        effectiveSwipeId: eventData?.effectiveSwipeId || eventData?.confirmedAssistantSwipeId || '',
+        retries: 2,
+        retryDelayMs: 120
+      });
+    }
+
+    const character = await getCurrentCharacter();
+    const api = getSillyTavernAPI();
+    const stContext = api?.getContext?.() || null;
+    const chatId = resolveStableChatId(api, stContext, character);
+    const effectiveSwipeId = normalizeMessageIdentityValue(
+      eventData?.effectiveSwipeId
+      || eventData?.confirmedAssistantSwipeId
+      || eventData?.sourceSwipeId
+    ) || 'swipe:current';
+    const slotBindingKey = buildSlotBindingKey({ chatId, messageId: explicitMessageId });
+    const slotRevisionKey = buildSlotRevisionKey({
+      chatId,
+      messageId: explicitMessageId,
+      effectiveSwipeId,
+      assistantContentFingerprint: ''
+    });
+
+    return {
+      triggeredAt: Date.now(),
+      triggerEvent,
+      traceId: eventData?.traceId || '',
+      sessionKey: eventData?.sessionKey || '',
+      confirmationSource: String(eventData?.confirmationSource || '').trim(),
+      confirmedAssistantMessageId: explicitMessageId,
+      chatId,
+      messageId: explicitMessageId,
+      generationTraceId: String(eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim(),
+      confirmationMode: String(eventData?.confirmationMode || 'slot_revision').trim(),
+      sameSlotRevisionCandidate: !!eventData?.sameSlotRevisionCandidate,
+      sameSlotRevisionConfirmed: !!eventData?.sameSlotRevisionConfirmed,
+      sameSlotRevisionSource: String(eventData?.sameSlotRevisionSource || '').trim(),
+      rawGenerationType: triggerState.gateState.lastGenerationBaseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
+      rawGenerationParams: triggerState.gateState.lastGenerationBaseline?.rawGenerationParams ?? triggerState.gateState.lastGenerationParams ?? null,
+      normalizedGenerationType: triggerState.gateState.lastGenerationBaseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
+      generationAction: triggerState.gateState.lastGenerationBaseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
+      generationActionSource: triggerState.gateState.lastGenerationBaseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+      generationMessageBindingSource: String(eventData?.generationMessageBindingSource || eventData?.confirmationSource || 'event_message_id').trim(),
+      slotBindingKey,
+      slotRevisionKey,
+      slotTransactionId: buildSlotTransactionId({
+        chatId,
+        messageId: explicitMessageId,
+        effectiveSwipeId,
+        assistantContentFingerprint: '',
+        eventType: triggerEvent,
+        generationTraceId: String(eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim(),
+        traceId: eventData?.traceId || ''
+      }),
+      lastAiMessage: '',
+      assistantContentFingerprint: '',
+      lastAiMessageSwipeId: effectiveSwipeId,
+      confirmedAssistantSwipeId: effectiveSwipeId,
+      effectiveSwipeId,
+      sourceMessageId: explicitMessageId,
+      sourceSwipeId: effectiveSwipeId,
+      userMessage: triggerState.gateState.lastUserMessageText || '',
+      chatMessages: [],
+      input: {
+        userMessage: triggerState.gateState.lastUserMessageText || '',
+        lastAiMessage: '',
+        extractedContent: '',
+        previousToolOutput: '',
+        context: {
+          character: character?.name || '',
+          chatLength: 0
+        }
+      },
+      config: {},
+      status: 'pending',
+      executionKey: slotRevisionKey
+    };
+  }
+
   const character = await getCurrentCharacter();
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
-  const triggerEvent = eventData?.triggerEvent || 'GENERATION_ENDED';
   const preferredMessageId = normalizeMessageIdentityValue(
     eventData?.confirmedAssistantMessageId || extractEventMessageId(eventData, triggerEvent)
   );
   const confirmationSource = String(eventData?.confirmationSource || '').trim();
-  const isManual = triggerEvent === 'MANUAL' || triggerEvent === 'MANUAL_PREVIEW';
   const generationTraceId = String(
     eventData?.generationTraceId
     || triggerState.gateState.lastGenerationTraceId
@@ -4948,9 +5653,7 @@ async function buildToolExecutionContext(eventData) {
         retryDelayMs: 40
       }) || getCurrentGenerationBaseline())
     : getCurrentGenerationBaseline();
-  const messageBinding = resolveGenerationMessageBinding(preferredMessageId, resolvedBaseline, {
-    allowBaselineAssistantSlot: !isManual && isSameSlotRevisionActionFamily(resolveSameSlotRevisionAction(resolvedBaseline))
-  });
+  const messageBinding = resolveGenerationMessageBinding(preferredMessageId);
 
   let confirmedAssistantMessage = null;
   let targetMessageId = normalizeMessageIdentityValue(messageBinding.preferredMessageId);
@@ -4998,6 +5701,25 @@ async function buildToolExecutionContext(eventData) {
     confirmedAssistantMessage?.swipeId
     || lastAiMessage?.swipeId
   );
+  const slotBindingKey = buildSlotBindingKey({
+    chatId: resolveStableChatId(api, stContext, character),
+    messageId
+  });
+  const slotRevisionKey = buildSlotRevisionKey({
+    chatId: resolveStableChatId(api, stContext, character),
+    messageId,
+    effectiveSwipeId: confirmedAssistantSwipeId,
+    assistantContentFingerprint
+  });
+  const slotTransactionId = buildSlotTransactionId({
+    chatId: resolveStableChatId(api, stContext, character),
+    messageId,
+    effectiveSwipeId: confirmedAssistantSwipeId,
+    assistantContentFingerprint,
+    eventType: triggerEvent,
+    generationTraceId,
+    traceId: eventData?.traceId || ''
+  });
   
   return {
     triggeredAt: Date.now(),
@@ -5019,10 +5741,16 @@ async function buildToolExecutionContext(eventData) {
     generationAction: triggerState.gateState.lastGenerationBaseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
     generationActionSource: triggerState.gateState.lastGenerationBaseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
     generationMessageBindingSource: messageBinding.bindingSource || '',
+    slotBindingKey,
+    slotRevisionKey,
+    slotTransactionId,
     lastAiMessage: lastAiMessage?.content || '',
     assistantContentFingerprint,
+    lastAiMessageSwipeId: confirmedAssistantSwipeId,
     confirmedAssistantSwipeId,
     effectiveSwipeId: confirmedAssistantSwipeId,
+    sourceMessageId: messageId,
+    sourceSwipeId: confirmedAssistantSwipeId,
     userMessage: lastUserMessage?.content || triggerState.gateState.lastUserMessageText || '',
     chatMessages: messages,
     input: {
@@ -5037,14 +5765,7 @@ async function buildToolExecutionContext(eventData) {
     },
     config: {},
     status: 'pending',
-    executionKey: getAutoTriggerExecutionKey({
-      chatId: resolveStableChatId(api, stContext, character),
-      messageId,
-      generationTraceId,
-      assistantContentFingerprint,
-      effectiveSwipeId: confirmedAssistantSwipeId,
-      lastAiMessage: lastAiMessage?.content || ''
-    })
+    executionKey: slotRevisionKey
   };
 }
 
@@ -5106,6 +5827,11 @@ async function executeTriggeredTool(tool, context) {
     lastExecutionPath: executionPath,
     lastWritebackStatus: '',
     lastFailureStage: '',
+    lastSlotBindingKey: context?.slotBindingKey || '',
+    lastSlotRevisionKey: context?.slotRevisionKey || '',
+    lastSlotTransactionId: context?.slotTransactionId || '',
+    lastSourceMessageId: context?.sourceMessageId || context?.messageId || '',
+    lastSourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
     lastContentCommitted: false,
     lastHostCommitApplied: false,
     lastRefreshRequested: false,
@@ -5113,7 +5839,9 @@ async function executeTriggeredTool(tool, context) {
     lastPreferredCommitMethod: '',
     lastAppliedCommitMethod: '',
     lastRefreshMethodCount: 0,
-    lastRefreshConfirmChecks: 0
+    lastRefreshMethods: [],
+    lastRefreshConfirmChecks: 0,
+    lastRefreshConfirmedBy: ''
   });
 
   eventBus.emit(EVENTS.TOOL_EXECUTION_REQUESTED, {
@@ -5157,6 +5885,11 @@ async function executeTriggeredTool(tool, context) {
         lastExecutionPath: executionPath,
         lastWritebackStatus: result?.meta?.writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
         lastFailureStage: result?.meta?.failureStage || '',
+        lastSlotBindingKey: context?.slotBindingKey || '',
+        lastSlotRevisionKey: context?.slotRevisionKey || '',
+        lastSlotTransactionId: context?.slotTransactionId || '',
+        lastSourceMessageId: context?.sourceMessageId || context?.messageId || '',
+        lastSourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
         lastContentCommitted: !!writebackDetails.contentCommitted,
         lastHostCommitApplied: !!writebackDetails.hostCommitApplied,
         lastRefreshRequested: !!writebackDetails.refreshRequested,
@@ -5166,7 +5899,11 @@ async function executeTriggeredTool(tool, context) {
         lastRefreshMethodCount: Array.isArray(writebackDetails?.refresh?.requestMethods)
           ? writebackDetails.refresh.requestMethods.length
           : 0,
-        lastRefreshConfirmChecks: Number(writebackDetails?.refresh?.confirmChecks) || 0
+        lastRefreshMethods: Array.isArray(writebackDetails?.refresh?.requestMethods)
+          ? [...writebackDetails.refresh.requestMethods]
+          : [],
+        lastRefreshConfirmChecks: Number(writebackDetails?.refresh?.confirmChecks) || 0,
+        lastRefreshConfirmedBy: writebackDetails?.refresh?.confirmedBy || ''
       });
 
       const message = isManual
@@ -5208,6 +5945,11 @@ async function executeTriggeredTool(tool, context) {
       lastFailureStage: result?.meta?.failureStage || (executionPath === TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY
         ? TOOL_FAILURE_STAGES.COMPATIBILITY_EXECUTE
         : TOOL_FAILURE_STAGES.UNKNOWN),
+      lastSlotBindingKey: context?.slotBindingKey || '',
+      lastSlotRevisionKey: context?.slotRevisionKey || '',
+      lastSlotTransactionId: context?.slotTransactionId || '',
+      lastSourceMessageId: context?.sourceMessageId || context?.messageId || '',
+      lastSourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
       lastContentCommitted: !!writebackDetails.contentCommitted,
       lastHostCommitApplied: !!writebackDetails.hostCommitApplied,
       lastRefreshRequested: !!writebackDetails.refreshRequested,
@@ -5217,7 +5959,11 @@ async function executeTriggeredTool(tool, context) {
       lastRefreshMethodCount: Array.isArray(writebackDetails?.refresh?.requestMethods)
         ? writebackDetails.refresh.requestMethods.length
         : 0,
-      lastRefreshConfirmChecks: Number(writebackDetails?.refresh?.confirmChecks) || 0
+      lastRefreshMethods: Array.isArray(writebackDetails?.refresh?.requestMethods)
+        ? [...writebackDetails.refresh.requestMethods]
+        : [],
+      lastRefreshConfirmChecks: Number(writebackDetails?.refresh?.confirmChecks) || 0,
+      lastRefreshConfirmedBy: writebackDetails?.refresh?.confirmedBy || ''
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
@@ -5255,6 +6001,11 @@ async function executeTriggeredTool(tool, context) {
       lastFailureStage: executionPath === TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY
         ? TOOL_FAILURE_STAGES.COMPATIBILITY_EXECUTE
         : TOOL_FAILURE_STAGES.UNKNOWN,
+      lastSlotBindingKey: context?.slotBindingKey || '',
+      lastSlotRevisionKey: context?.slotRevisionKey || '',
+      lastSlotTransactionId: context?.slotTransactionId || '',
+      lastSourceMessageId: context?.sourceMessageId || context?.messageId || '',
+      lastSourceSwipeId: context?.sourceSwipeId || context?.effectiveSwipeId || '',
       lastContentCommitted: false,
       lastHostCommitApplied: false,
       lastRefreshRequested: false,
@@ -5262,7 +6013,9 @@ async function executeTriggeredTool(tool, context) {
       lastPreferredCommitMethod: '',
       lastAppliedCommitMethod: '',
       lastRefreshMethodCount: 0,
-      lastRefreshConfirmChecks: 0
+      lastRefreshMethods: [],
+      lastRefreshConfirmChecks: 0,
+      lastRefreshConfirmedBy: ''
     });
 
     showToast('error', `${tool.name} 执行失败：${errorMessage}`);
@@ -5313,7 +6066,9 @@ export async function runToolManually(toolId) {
       lastPreferredCommitMethod: '',
       lastAppliedCommitMethod: '',
       lastRefreshMethodCount: 0,
-      lastRefreshConfirmChecks: 0
+      lastRefreshMethods: [],
+      lastRefreshConfirmChecks: 0,
+      lastRefreshConfirmedBy: ''
     }, {
       touchLastRunAt: false,
       emitEvent: false
@@ -5365,14 +6120,22 @@ export function destroyToolTriggerManager() {
     }
   }
   toolTriggerManagerState.listeners.clear();
+  for (const unsubscribe of toolTriggerManagerState.internalSubscriptions) {
+    if (typeof unsubscribe === 'function') {
+      unsubscribe();
+    }
+  }
+  toolTriggerManagerState.internalSubscriptions = [];
   toolTriggerManagerState.messageSessions.clear();
   toolTriggerManagerState.handledExecutionKeys.clear();
+  toolTriggerManagerState.writebackGuards.clear();
   toolTriggerManagerState.recentSessionHistory = [];
   toolTriggerManagerState.recentEventTimeline = [];
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
   toolTriggerManagerState.lastHandledMessageKey = '';
   toolTriggerManagerState.lastHandledExecutionKey = '';
+  toolTriggerManagerState.lastHandledSlotRevisionKey = '';
   toolTriggerManagerState.lastAutoTriggerSnapshot = null;
   toolTriggerManagerState.lastEventDebugSnapshot = null;
   toolTriggerManagerState.lastDuplicateMessageKey = '';
@@ -5413,9 +6176,15 @@ export function getToolTriggerManagerState() {
     pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
     lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey,
     lastHandledExecutionKey: toolTriggerManagerState.lastHandledExecutionKey,
+    lastHandledSlotRevisionKey: toolTriggerManagerState.lastHandledSlotRevisionKey,
     lastDuplicateExecutionKey: toolTriggerManagerState.lastDuplicateExecutionKey,
+    writebackGuardCount: toolTriggerManagerState.writebackGuards.size,
     handledExecutionKeyCount: toolTriggerManagerState.handledExecutionKeys.size,
     recentHandledExecutionKeys,
+    lastSlotBindingKey: toolTriggerManagerState.lastExecutionContext?.slotBindingKey || '',
+    lastSlotTransactionId: toolTriggerManagerState.lastExecutionContext?.slotTransactionId || '',
+    lastSourceMessageId: toolTriggerManagerState.lastExecutionContext?.sourceMessageId || '',
+    lastSourceSwipeId: toolTriggerManagerState.lastExecutionContext?.sourceSwipeId || '',
     listenerSettings: getResolvedListenerSettings(),
     eventBridge: buildEventBridgeDiagnosticSummary(),
     gateState: buildGateStateDiagnosticSummary()
@@ -5479,11 +6248,18 @@ export function getAutoTriggerDiagnostics(options = {}) {
       pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
       lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey || '',
       lastHandledExecutionKey: toolTriggerManagerState.lastHandledExecutionKey || '',
+      lastHandledSlotRevisionKey: toolTriggerManagerState.lastHandledSlotRevisionKey || '',
       lastDuplicateMessageKey: toolTriggerManagerState.lastDuplicateMessageKey || '',
       lastDuplicateExecutionKey: toolTriggerManagerState.lastDuplicateExecutionKey || '',
       handledExecutionKeyCount: toolTriggerManagerState.handledExecutionKeys.size,
       recentHandledExecutionKeys,
+      writebackGuardCount: toolTriggerManagerState.writebackGuards.size,
+      lastSlotBindingKey: toolTriggerManagerState.lastExecutionContext?.slotBindingKey || '',
+      lastSlotRevisionKey: toolTriggerManagerState.lastExecutionContext?.slotRevisionKey || '',
+      lastSlotTransactionId: toolTriggerManagerState.lastExecutionContext?.slotTransactionId || '',
       lastGenerationMessageBindingSource: toolTriggerManagerState.lastExecutionContext?.generationMessageBindingSource || '',
+      lastSourceMessageId: toolTriggerManagerState.lastExecutionContext?.sourceMessageId || '',
+      lastSourceSwipeId: toolTriggerManagerState.lastExecutionContext?.sourceSwipeId || '',
       lastConfirmedAssistantSwipeId: toolTriggerManagerState.lastExecutionContext?.confirmedAssistantSwipeId || '',
       lastEffectiveSwipeId: toolTriggerManagerState.lastExecutionContext?.effectiveSwipeId || '',
       lastConfirmedAssistantMessageId: toolTriggerManagerState.lastExecutionContext?.confirmedAssistantMessageId || '',

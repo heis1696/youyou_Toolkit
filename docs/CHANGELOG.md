@@ -11,6 +11,20 @@
 
 ### 更改
 
+- ♻️ **楼层槽位事务元数据补齐：统一 slot binding / revision / transaction / source 写回语义** (`modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `modules/tool-registry.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 自动执行上下文、消息级 session、全局诊断快照、工具 runtime 与写回事件现已统一补齐 `slotBindingKey / slotRevisionKey / slotTransactionId / sourceMessageId / sourceSwipeId`
+  - `executionKey` 现正式与 `slotRevisionKey` 对齐，自动去重完全按“当前楼层 + 当前 swipe + 当前内容版本”收口，不再继续依赖 generationTrace 作为主锚点
+  - `tool-output-service` 与 `context-injector` 现会把 slot transaction 元数据继续透传到写回结果与工具 runtime 中，方便直接定位“写到了哪层、哪页 swipe、哪次槽位事务”
+  - 工具页折叠诊断、API 文档、宿主回归清单与进度文档已同步补齐新的 slot transaction 口径
+  - 执行 `npm run build 2>&1`，构建通过且无警告
+
+- ♻️ **自动触发主链真正切到楼层槽位驱动模型** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-output-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - `initToolTriggerManager()` 现直接注册 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED` 槽位监听；宿主只要给出 `messageId`，主链就优先按该楼层处理
+  - 自动执行上下文现优先按事件命中的 assistant 楼层构建，不再把旧 baseline 确认链作为主路径前提；新增 `slotRevisionKey = chatId + messageId + effectiveSwipeId + assistantContentFingerprint`
+  - 写回链新增 `writeback_echo_event` 守卫，避免工具自身写回触发的 `MESSAGE_UPDATED` 被再次当成有效回复重跑工具
+  - `context-injector` 的自动写回已收紧为必须提供 `sourceMessageId`，并优先按 `sourceSwipeId / effectiveSwipeId` 写当前 swipe 文本
+  - 执行 `npm run build 2>&1`，构建通过
+
 - 🐛 **确认链改抄 MVU / Amily 语义：按当前楼层 / 当前 swipe 原位处理** (`modules/tool-trigger.js`, `modules/context-injector.js`, `modules/tool-output-service.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 宿主一旦给出 `messageId`，确认链就直接按这层处理，不再把“baseline 后新增 assistant 楼层”当作唯一放行条件
   - `GENERATION_AFTER_COMMANDS` 在 `reroll / regenerate / swipe` family 下，不再只保留 speculative 观察态；若没有新楼层，也会直接回到 baseline assistant 槽位当前状态做原位确认
@@ -30,6 +44,8 @@
 
 - ♻️ **MVU 事务化收口 Phase T3 / T4：writeback commit / refresh confirm 分层结果与 UI / 文档同步** (`modules/context-injector.js`, `modules/tool-output-service.js`, `modules/tool-trigger.js`, `modules/tool-registry.js`, `modules/app/public-api.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 写回链新增 `commit` 与 `refresh` 分层结果，显式记录主提交策略、实际提交策略、fallbackUsed、刷新请求通道、确认轮数与 confirmedBy
+  - `hostUpdateMethod` 已明确收口为兼容别名，语义直接等价于 `commit.appliedMethod`
+  - 工具 runtime、工具页折叠诊断与写回历史现可直接展示 refresh 通道列表与 confirmedBy，而不再只显示计数
   - `tool-output-service` 的 `meta.phases` 已对齐到 `request -> extract -> writeback -> refresh` 四阶段
   - 工具 runtime、工具页折叠诊断、公共 API 与回归文档已同步补齐 execution key 轨迹、主提交策略 / 实际提交策略与 refresh confirm 展示
 

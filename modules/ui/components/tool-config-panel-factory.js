@@ -686,6 +686,8 @@ export function createToolConfigPanel(options) {
         dry_run_generation: '已跳过：当前 generation 为 dryRun',
         ignored_auto_trigger: '已跳过：监听器设置忽略了非用户意图生成',
         ui_side_effect_event: '已忽略：宿主 UI 副作用事件',
+        writeback_echo_event: '已忽略：本次 MESSAGE_UPDATED 来自工具写回回响',
+        slot_event_outside_window: '已忽略：楼层事件不在最近 generation / 用户意图窗口内',
         speculative_generation_after_commands: '已忽略：仅记录 GENERATION_AFTER_COMMANDS 观察态 session',
         no_confirmed_assistant_message: '已跳过：未确认到当前楼层 / 当前 swipe 的可处理 assistant 状态',
         historical_replay_message_received: '已拦截：历史 assistant 消息重放事件',
@@ -926,7 +928,7 @@ export function createToolConfigPanel(options) {
         const traceText = this._formatDiagnosticValue(entry.traceId, '无');
         const executionKeyText = this._formatDiagnosticValue(entry.executionKey, '无');
         const detailText = type === 'writeback'
-          ? `执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)} / 内容提交：${this._formatBooleanState(entry.contentCommitted)} / 宿主提交：${this._formatBooleanState(entry.hostCommitApplied)} / 主提交：${this._formatCommitMethod(entry.preferredCommitMethod)} / 实际提交：${this._formatCommitMethod(entry.appliedCommitMethod)} / 刷新请求：${this._formatBooleanState(entry.refreshRequested)} / 刷新确认：${this._formatBooleanState(entry.refreshConfirmed)} / 刷新通道：${entry.refreshMethodCount ?? 0} / 确认轮数：${entry.refreshConfirmChecks ?? 0} / 失败阶段：${this._formatFailureStage(entry.failureStage)}`
+          ? `执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)} / 内容提交：${this._formatBooleanState(entry.contentCommitted)} / 宿主提交：${this._formatBooleanState(entry.hostCommitApplied)} / 主提交：${this._formatCommitMethod(entry.preferredCommitMethod)} / 实际提交：${this._formatCommitMethod(entry.appliedCommitMethod)} / 刷新请求：${this._formatBooleanState(entry.refreshRequested)} / 刷新确认：${this._formatBooleanState(entry.refreshConfirmed)} / 刷新通道：${Array.isArray(entry.refreshMethods) && entry.refreshMethods.length ? entry.refreshMethods.join(', ') : (entry.refreshMethodCount ?? 0)} / 确认轮数：${entry.refreshConfirmChecks ?? 0} / 确认来源：${this._formatDiagnosticValue(entry.refreshConfirmedBy, '无')} / 失败阶段：${this._formatFailureStage(entry.failureStage)}`
           : `跳过原因：${this._formatSkipReason(entry.skipReason)} / 执行路径：${this._formatExecutionPath(entry.executionPath)} / 写回：${this._formatWritebackStatus(entry.writebackStatus)}`;
 
         return `
@@ -999,6 +1001,11 @@ export function createToolConfigPanel(options) {
         ['最近 Trace', this._formatDiagnosticValue(data.lastTraceId, '无')],
         ['最近消息键', this._formatDiagnosticValue(data.lastMessageKey)],
         ['最近 execution key', this._formatDiagnosticValue(data.lastExecutionKey)],
+        ['最近 slot binding', this._formatDiagnosticValue(data.lastSlotBindingKey, '未记录')],
+        ['最近 slot revision', this._formatDiagnosticValue(data.lastSlotRevisionKey, '未记录')],
+        ['最近 slot transaction', this._formatDiagnosticValue(data.lastSlotTransactionId, '未记录')],
+        ['最近 sourceMessageId', this._formatDiagnosticValue(data.lastSourceMessageId, '未记录')],
+        ['最近 sourceSwipeId', this._formatDiagnosticValue(data.lastSourceSwipeId, '未记录')],
         ['最近跳过原因', this._formatDiagnosticValue(this._formatSkipReason(data.lastSkipReason), '无')],
         ['最近执行路径', this._formatDiagnosticValue(this._formatExecutionPath(data.lastExecutionPath))],
         ['最近写回状态', this._formatDiagnosticValue(this._formatWritebackStatus(data.lastWritebackStatus))],
@@ -1009,8 +1016,9 @@ export function createToolConfigPanel(options) {
         ['最近实际提交策略', this._formatDiagnosticValue(this._formatCommitMethod(data.lastAppliedCommitMethod), '未记录')],
         ['最近刷新请求', this._formatDiagnosticValue(this._formatBooleanState(data.lastRefreshRequested), '否')],
         ['最近刷新确认', this._formatDiagnosticValue(this._formatBooleanState(data.lastRefreshConfirmed), '否')],
-        ['最近刷新通道数', this._formatDiagnosticValue(String(data.lastRefreshMethodCount ?? 0), '0')],
-        ['最近刷新确认轮数', this._formatDiagnosticValue(String(data.lastRefreshConfirmChecks ?? 0), '0')]
+        ['最近刷新通道', this._formatDiagnosticValue(Array.isArray(data.lastRefreshMethods) && data.lastRefreshMethods.length ? data.lastRefreshMethods.join(', ') : String(data.lastRefreshMethodCount ?? 0), '0')],
+        ['最近刷新确认轮数', this._formatDiagnosticValue(String(data.lastRefreshConfirmChecks ?? 0), '0')],
+        ['最近刷新确认来源', this._formatDiagnosticValue(data.lastRefreshConfirmedBy, '无')]
       ];
 
       const triggerHistoryHtml = this._buildHistorySection('最近触发历史', data.recentTriggerHistory || [], 'trigger');
@@ -1020,10 +1028,17 @@ export function createToolConfigPanel(options) {
         ['事件桥接', this._formatEventBridgeText(summary.eventBridge)],
         ['当前 generation 动作', this._formatDiagnosticValue(summary.generationAction, '未记录')],
         ['当前原始 generation type', this._formatDiagnosticValue(summary.rawGenerationType, '未记录')],
+        ['最近 slot binding', this._formatDiagnosticValue(summary.lastSlotBindingKey, '未记录')],
+        ['最近 slot revision', this._formatDiagnosticValue(summary.lastSlotRevisionKey, '未记录')],
+        ['最近 slot transaction', this._formatDiagnosticValue(summary.lastSlotTransactionId, '未记录')],
+        ['最近已处理 slot revision', this._formatDiagnosticValue(summary.lastHandledSlotRevisionKey, '未记录')],
         ['最近楼层绑定来源', this._formatDiagnosticValue(summary.lastGenerationMessageBindingSource, '未记录')],
+        ['最近 sourceMessageId', this._formatDiagnosticValue(summary.lastSourceMessageId, '未记录')],
+        ['最近 sourceSwipeId', this._formatDiagnosticValue(summary.lastSourceSwipeId, '未记录')],
         ['最近确认楼层', this._formatDiagnosticValue(summary.lastConfirmedAssistantMessageId, '未记录')],
         ['最近确认 swipe', this._formatDiagnosticValue(summary.lastConfirmedAssistantSwipeId, '未记录')],
         ['最近 effective swipe', this._formatDiagnosticValue(summary.lastEffectiveSwipeId, '未记录')],
+        ['写回守卫数', this._formatDiagnosticValue(String(summary.writebackGuardCount ?? 0), '0')],
         ['最近确认模式', this._formatDiagnosticValue(lastEventSnapshot.confirmationMode || lastAutoSnapshot.confirmationMode, '未记录')],
         ['最近同楼层 revision', this._formatDiagnosticValue(
           lastEventSnapshot.sameSlotRevisionConfirmed
