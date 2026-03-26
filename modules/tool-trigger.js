@@ -132,7 +132,7 @@ export const TOOL_EXECUTION_PATHS = {
   MANUAL_COMPATIBILITY: 'manual_compatibility'
 };
 
-const MESSAGE_SESSION_PHASES = {
+const TRANSACTION_PHASES = {
   RECEIVED: 'received',
   SCHEDULED: 'scheduled',
   DISPATCHING: 'dispatching',
@@ -989,7 +989,7 @@ function resolveGenerationUserIntent(type, params = null, now = Date.now()) {
   };
 }
 
-function getCurrentGenerationBaseline(chatId = resolveCurrentChatIdForSession()) {
+function getCurrentGenerationBaseline(chatId = resolveCurrentChatIdForTransaction()) {
   const baseline = triggerState.gateState.lastGenerationBaseline;
   if (!baseline) {
     return null;
@@ -1029,18 +1029,18 @@ function enterUiTransitionGuard(source = '') {
 }
 
 function clearPendingAutoTriggerTimers(reason = '') {
-  for (const timer of toolTriggerManagerState.pendingMessageTimers.values()) {
+  for (const timer of toolTriggerManagerState.pendingTransactionTimers.values()) {
     clearTimeout(timer);
   }
 
-  toolTriggerManagerState.pendingMessageTimers.clear();
+  toolTriggerManagerState.pendingTransactionTimers.clear();
 
   if (reason) {
     traceAlways('info', '已清理待执行自动触发定时器', { reason });
   }
 }
 
-function buildGenerationBaseline(rawMessages = [], metadata = {}) {
+function buildGenerationTransactionBaseline(rawMessages = [], metadata = {}) {
   const api = getSillyTavernAPI();
   const context = api?.getContext?.() || null;
   const normalizedMessages = normalizeChatMessages(rawMessages);
@@ -1088,9 +1088,9 @@ function buildGenerationBaseline(rawMessages = [], metadata = {}) {
   };
 }
 
-async function captureGenerationBaseline(metadata = {}) {
+async function captureGenerationTransactionBaseline(metadata = {}) {
   const rawMessages = await getRawChatMessages();
-  return buildGenerationBaseline(rawMessages, {
+  return buildGenerationTransactionBaseline(rawMessages, {
     ...metadata,
     baselineResolved: metadata.baselineResolved !== undefined ? metadata.baselineResolved : true,
     baselineResolutionAt: Number(metadata.baselineResolutionAt) || Date.now(),
@@ -1099,8 +1099,8 @@ async function captureGenerationBaseline(metadata = {}) {
   });
 }
 
-function createProvisionalGenerationBaseline(metadata = {}) {
-  return buildGenerationBaseline(getImmediateRawChatMessages(), {
+function createProvisionalTransactionBaseline(metadata = {}) {
+  return buildGenerationTransactionBaseline(getImmediateRawChatMessages(), {
     ...metadata,
     baselineResolved: false,
     baselineResolutionAt: 0,
@@ -1109,9 +1109,9 @@ function createProvisionalGenerationBaseline(metadata = {}) {
   });
 }
 
-async function waitForResolvedGenerationBaseline(options = {}) {
+async function waitForResolvedTransactionBaseline(options = {}) {
   const {
-    chatId = resolveCurrentChatIdForSession(),
+    chatId = resolveCurrentChatIdForTransaction(),
     traceId = '',
     retries = 4,
     retryDelayMs = 80
@@ -1446,7 +1446,7 @@ async function evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry
   const traceId = options?.traceId || triggerState.gateState.lastGenerationTraceId || '';
   const messageEntry = normalizeResolvedMessageEntry(resolvedMessageEntry);
   const boundMessageId = normalizeMessageIdentityValue(options?.messageId || messageEntry?.sourceId);
-  const baseline = await waitForResolvedGenerationBaseline({
+  const baseline = await waitForResolvedTransactionBaseline({
     traceId,
     retries: 4,
     retryDelayMs: 80
@@ -1731,25 +1731,25 @@ function getCurrentGenerationDiagnosticFields() {
   };
 }
 
-function getCurrentSessionGenerationFrozenFields() {
+function getCurrentTransactionFrozenGenerationFields() {
   const baseline = triggerState.gateState.lastGenerationBaseline;
 
   return {
-    sessionGenerationTraceId: triggerState.gateState.lastGenerationTraceId || '',
-    sessionGenerationStartedAt: baseline?.startedAt || 0,
-    sessionBaselineResolvedAtCreation: baseline?.baselineResolved ?? false,
-    sessionBaselineResolutionAtCreation: baseline?.baselineResolutionAt || 0,
-    sessionProvisionalBaselineAtCreation: !!baseline?.provisional,
-    sessionGenerationStartedByUserIntent: !!baseline?.startedByUserIntent,
-    sessionGenerationUserIntentSource: baseline?.userIntentSource || '',
-    sessionGenerationUserIntentDetail: baseline?.userIntentDetail || '',
-    sessionGenerationActionAtCreation: baseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
-    sessionGenerationActionSourceAtCreation: baseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
-    sessionExplicitGenerationActionAtCreation: baseline?.explicitGenerationAction || '',
-    sessionNormalizedGenerationTypeAtCreation: baseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
-    sessionRawGenerationTypeAtCreation: baseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
-    sessionLastUserIntentSourceAtCreation: triggerState.gateState.lastUserIntentSource || '',
-    sessionGenerationCapturedAt: Date.now()
+    frozenGenerationTraceId: triggerState.gateState.lastGenerationTraceId || '',
+    frozenGenerationStartedAt: baseline?.startedAt || 0,
+    frozenBaselineResolvedAtCreation: baseline?.baselineResolved ?? false,
+    frozenBaselineResolutionAtCreation: baseline?.baselineResolutionAt || 0,
+    frozenProvisionalBaselineAtCreation: !!baseline?.provisional,
+    frozenGenerationStartedByUserIntent: !!baseline?.startedByUserIntent,
+    frozenGenerationUserIntentSource: baseline?.userIntentSource || '',
+    frozenGenerationUserIntentDetail: baseline?.userIntentDetail || '',
+    frozenGenerationActionAtCreation: baseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
+    frozenGenerationActionSourceAtCreation: baseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+    frozenExplicitGenerationActionAtCreation: baseline?.explicitGenerationAction || '',
+    frozenNormalizedGenerationTypeAtCreation: baseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
+    frozenRawGenerationTypeAtCreation: baseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
+    frozenLastUserIntentSourceAtCreation: triggerState.gateState.lastUserIntentSource || '',
+    frozenGenerationCapturedAt: Date.now()
   };
 }
 
@@ -1772,7 +1772,7 @@ function createEventDebugSnapshot(snapshot = {}) {
     stage: '',
     eventType: '',
     traceId: '',
-    sessionKey: '',
+    transactionKey: '',
     messageId: '',
     messageKey: '',
     executionKey: '',
@@ -1807,7 +1807,7 @@ function createEventDebugSnapshot(snapshot = {}) {
     generationBaselineMessageCount: triggerState.gateState.lastGenerationBaseline?.messageCount || 0,
     generationBaselineAssistantId: triggerState.gateState.lastGenerationBaseline?.lastAssistantMessageId || '',
     confirmationSource: '',
-    isSpeculativeSession: false,
+    isSpeculativeTransaction: false,
     eventBelongsToCurrentGeneration: false,
     historicalReplayBlocked: false,
     historicalReplayReason: '',
@@ -1859,7 +1859,7 @@ function createAutoTriggerSnapshot(snapshot = {}) {
   return {
     triggerEvent: '',
     traceId: '',
-    sessionKey: '',
+    transactionKey: '',
     messageId: '',
     messageKey: '',
     executionKey: '',
@@ -2527,16 +2527,16 @@ export function removeAllTriggerHandlers() {
 const toolTriggerManagerState = {
   initialized: false,
   listeners: new Map(),
-  messageSessions: new Map(),
+  activeTransactions: new Map(),
   handledExecutionKeys: new Map(),
   writebackGuards: new Map(),
-  recentSessionHistory: [],
+  recentTransactionHistory: [],
   recentEventTimeline: [],
   lastExecutionContext: null,
   lastHandledMessageKey: '',
   lastHandledExecutionKey: '',
   lastHandledSlotRevisionKey: '',
-  pendingMessageTimers: new Map(),
+  pendingTransactionTimers: new Map(),
   lastAutoTriggerSnapshot: null,
   lastEventDebugSnapshot: null,
   lastDuplicateMessageKey: '',
@@ -2544,6 +2544,8 @@ const toolTriggerManagerState = {
   lastDuplicateMessageAt: 0,
   internalSubscriptions: []
 };
+
+
 
 function createTraceId(prefix = 'trace') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -2565,14 +2567,14 @@ function trimManagerHistoryEntries(entries, limit = 10) {
   return entries.slice(entries.length - normalizedLimit);
 }
 
-function resolveCurrentChatIdForSession() {
+function resolveCurrentChatIdForTransaction() {
   const api = getSillyTavernAPI();
   const context = api?.getContext?.() || null;
   return resolveStableChatId(api, context, null);
 }
 
-function buildMessageSessionKey(chatId, messageId, eventType = '', generationTraceId = '', slotRevisionKey = '') {
-  const resolvedChatId = chatId || resolveCurrentChatIdForSession();
+function buildTransactionStateKey(chatId, messageId, eventType = '', generationTraceId = '', slotRevisionKey = '') {
+  const resolvedChatId = chatId || resolveCurrentChatIdForTransaction();
   const normalizedSlotRevisionKey = String(slotRevisionKey || '').trim();
   if (normalizedSlotRevisionKey) {
     return `slot::${normalizedSlotRevisionKey}`;
@@ -2598,6 +2600,10 @@ function buildMessageSessionKey(chatId, messageId, eventType = '', generationTra
   ].join('::');
 }
 
+function buildResolvedTransactionKey(chatId, messageId, eventType = '', generationTraceId = '', slotRevisionKey = '') {
+  return buildTransactionStateKey(chatId, messageId, eventType, generationTraceId, slotRevisionKey);
+}
+
 function getAutoTriggerExecutionKey(context = {}) {
   const explicitSlotRevisionKey = String(context?.slotRevisionKey || '').trim();
   if (explicitSlotRevisionKey) {
@@ -2615,31 +2621,92 @@ function getAutoTriggerExecutionKey(context = {}) {
   });
 }
 
-function createMessageSession(eventType, data, snapshot = {}) {
+function buildTransactionKey({
+  chatId = '',
+  messageId = '',
+  eventType = '',
+  generationTraceId = '',
+  slotRevisionKey = '',
+  executionKey = ''
+} = {}) {
+  const normalizedExecutionKey = String(executionKey || slotRevisionKey || '').trim();
+  if (normalizedExecutionKey) {
+    return `txn::${normalizedExecutionKey}`;
+  }
+
+  return buildTransactionStateKey(chatId, messageId, eventType, generationTraceId, slotRevisionKey);
+}
+
+function resolveTransactionIdentity(eventType, data, snapshot = {}) {
   const messageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
-  const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
+  const chatId = snapshot?.chatId || resolveCurrentChatIdForTransaction();
   const generationTraceId = String(snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
-  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(
+  const slotRevisionKey = String(snapshot?.slotRevisionKey || '').trim();
+  const executionKey = String(snapshot?.executionKey || slotRevisionKey || '').trim();
+  const transactionKey = snapshot?.transactionKey || buildTransactionKey({
     chatId,
     messageId,
     eventType,
     generationTraceId,
-    snapshot?.slotRevisionKey || snapshot?.executionKey || ''
-  );
-  const now = Date.now();
-  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
-  const generationFrozenFields = getCurrentSessionGenerationFrozenFields();
+    slotRevisionKey,
+    executionKey
+  });
 
   return {
-    sessionKey,
-    traceId: snapshot?.traceId || createTraceId('session'),
+    messageId,
+    chatId,
+    generationTraceId,
+    slotRevisionKey,
+    executionKey,
+    transactionKey,
+    transactionId: String(snapshot?.slotTransactionId || '').trim()
+  };
+}
+
+function buildTransactionDiagnostics(activeTransactions = [], recentTransactionHistory = []) {
+  const normalizedActiveTransactions = Array.isArray(activeTransactions)
+    ? activeTransactions.map(cloneDiagnosticEntryForOutput).filter(Boolean)
+    : [];
+  const normalizedRecentTransactionHistory = Array.isArray(recentTransactionHistory)
+    ? recentTransactionHistory.map(cloneDiagnosticEntryForOutput).filter(Boolean)
+    : [];
+
+  return {
+    activeTransactionCount: toolTriggerManagerState.activeTransactions.size,
+    activeTransactions: normalizedActiveTransactions,
+    recentTransactionHistory: normalizedRecentTransactionHistory,
+    lastHandledExecutionKey: toolTriggerManagerState.lastHandledExecutionKey || '',
+    lastHandledSlotRevisionKey: toolTriggerManagerState.lastHandledSlotRevisionKey || '',
+    handledExecutionKeyCount: toolTriggerManagerState.handledExecutionKeys.size,
+    pendingTransactionCount: toolTriggerManagerState.pendingTransactionTimers.size,
+    lastExecutionContext: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastExecutionContext),
+    lastEventDebugSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastEventDebugSnapshot),
+    lastAutoTriggerSnapshot: cloneDiagnosticEntryForOutput(toolTriggerManagerState.lastAutoTriggerSnapshot),
+    recentHandledExecutionKeys: getRecentHandledExecutionKeys(8)
+  };
+}
+
+function createTransactionRecord(eventType, data, snapshot = {}) {
+  const identity = resolveTransactionIdentity(eventType, data, snapshot);
+  const messageId = identity.messageId;
+  const chatId = identity.chatId;
+  const generationTraceId = identity.generationTraceId;
+  const transactionKey = identity.transactionKey;
+  const now = Date.now();
+  const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
+  const frozenGenerationFields = getCurrentTransactionFrozenGenerationFields();
+
+  return {
+    transactionKey,
+    transactionId: snapshot?.transactionId || identity.transactionId || snapshot?.slotTransactionId || '',
+    traceId: snapshot?.traceId || createTraceId('txn'),
     chatId,
     messageId,
     messageKey: snapshot?.messageKey || '',
-    executionKey: snapshot?.executionKey || '',
+    executionKey: snapshot?.executionKey || identity.executionKey || identity.slotRevisionKey || '',
     slotBindingKey: snapshot?.slotBindingKey || '',
-    slotRevisionKey: snapshot?.slotRevisionKey || '',
-    slotTransactionId: snapshot?.slotTransactionId || '',
+    slotRevisionKey: snapshot?.slotRevisionKey || identity.slotRevisionKey || '',
+    slotTransactionId: snapshot?.slotTransactionId || identity.transactionId || '',
     messageRole: snapshot?.messageRole || '',
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
     sourceMessageId: snapshot?.sourceMessageId || '',
@@ -2649,14 +2716,14 @@ function createMessageSession(eventType, data, snapshot = {}) {
     sameSlotRevisionCandidate: !!snapshot?.sameSlotRevisionCandidate,
     sameSlotRevisionConfirmed: !!snapshot?.sameSlotRevisionConfirmed,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
-    isSpeculativeSession: !!snapshot?.isSpeculativeSession,
+    isSpeculativeTransaction: !!snapshot?.isSpeculativeTransaction,
     eventBelongsToCurrentGeneration: !!snapshot?.eventBelongsToCurrentGeneration,
     historicalReplayBlocked: !!snapshot?.historicalReplayBlocked,
     historicalReplayReason: snapshot?.historicalReplayReason || '',
     skipReasonDetailed: snapshot?.skipReasonDetailed || '',
     firstEventType: snapshot?.eventType || eventType || '',
     receivedEvents: eventType ? [eventType] : [],
-    phase: snapshot?.phase || MESSAGE_SESSION_PHASES.RECEIVED,
+    phase: snapshot?.phase || TRANSACTION_PHASES.RECEIVED,
     skipReason: snapshot?.skipReason || '',
     scheduledAt: 0,
     handledAt: 0,
@@ -2674,246 +2741,255 @@ function createMessageSession(eventType, data, snapshot = {}) {
     generationActionSource: snapshot?.generationActionSource || generationDiagnosticFields.generationActionSource,
     explicitGenerationAction: snapshot?.explicitGenerationAction || generationDiagnosticFields.explicitGenerationAction,
     lastUserIntentSource: snapshot?.lastUserIntentSource || generationDiagnosticFields.lastUserIntentSource,
-    sessionGenerationTraceId: snapshot?.sessionGenerationTraceId || generationFrozenFields.sessionGenerationTraceId,
-    sessionGenerationStartedAt: snapshot?.sessionGenerationStartedAt ?? generationFrozenFields.sessionGenerationStartedAt,
-    sessionBaselineResolvedAtCreation: snapshot?.sessionBaselineResolvedAtCreation ?? generationFrozenFields.sessionBaselineResolvedAtCreation,
-    sessionBaselineResolutionAtCreation: snapshot?.sessionBaselineResolutionAtCreation ?? generationFrozenFields.sessionBaselineResolutionAtCreation,
-    sessionProvisionalBaselineAtCreation: snapshot?.sessionProvisionalBaselineAtCreation ?? generationFrozenFields.sessionProvisionalBaselineAtCreation,
-    sessionGenerationStartedByUserIntent: snapshot?.sessionGenerationStartedByUserIntent ?? generationFrozenFields.sessionGenerationStartedByUserIntent,
-    sessionGenerationUserIntentSource: snapshot?.sessionGenerationUserIntentSource || generationFrozenFields.sessionGenerationUserIntentSource,
-    sessionGenerationUserIntentDetail: snapshot?.sessionGenerationUserIntentDetail || generationFrozenFields.sessionGenerationUserIntentDetail,
-    sessionGenerationActionAtCreation: snapshot?.sessionGenerationActionAtCreation || generationFrozenFields.sessionGenerationActionAtCreation,
-    sessionGenerationActionSourceAtCreation: snapshot?.sessionGenerationActionSourceAtCreation || generationFrozenFields.sessionGenerationActionSourceAtCreation,
-    sessionExplicitGenerationActionAtCreation: snapshot?.sessionExplicitGenerationActionAtCreation || generationFrozenFields.sessionExplicitGenerationActionAtCreation,
-    sessionNormalizedGenerationTypeAtCreation: snapshot?.sessionNormalizedGenerationTypeAtCreation || generationFrozenFields.sessionNormalizedGenerationTypeAtCreation,
-    sessionRawGenerationTypeAtCreation: snapshot?.sessionRawGenerationTypeAtCreation || generationFrozenFields.sessionRawGenerationTypeAtCreation,
-    sessionLastUserIntentSourceAtCreation: snapshot?.sessionLastUserIntentSourceAtCreation || generationFrozenFields.sessionLastUserIntentSourceAtCreation,
-    sessionGenerationCapturedAt: snapshot?.sessionGenerationCapturedAt ?? generationFrozenFields.sessionGenerationCapturedAt,
+    frozenGenerationTraceId: snapshot?.frozenGenerationTraceId || frozenGenerationFields.frozenGenerationTraceId,
+    frozenGenerationStartedAt: snapshot?.frozenGenerationStartedAt ?? frozenGenerationFields.frozenGenerationStartedAt,
+    frozenBaselineResolvedAtCreation: snapshot?.frozenBaselineResolvedAtCreation ?? frozenGenerationFields.frozenBaselineResolvedAtCreation,
+    frozenBaselineResolutionAtCreation: snapshot?.frozenBaselineResolutionAtCreation ?? frozenGenerationFields.frozenBaselineResolutionAtCreation,
+    frozenProvisionalBaselineAtCreation: snapshot?.frozenProvisionalBaselineAtCreation ?? frozenGenerationFields.frozenProvisionalBaselineAtCreation,
+    frozenGenerationStartedByUserIntent: snapshot?.frozenGenerationStartedByUserIntent ?? frozenGenerationFields.frozenGenerationStartedByUserIntent,
+    frozenGenerationUserIntentSource: snapshot?.frozenGenerationUserIntentSource || frozenGenerationFields.frozenGenerationUserIntentSource,
+    frozenGenerationUserIntentDetail: snapshot?.frozenGenerationUserIntentDetail || frozenGenerationFields.frozenGenerationUserIntentDetail,
+    frozenGenerationActionAtCreation: snapshot?.frozenGenerationActionAtCreation || frozenGenerationFields.frozenGenerationActionAtCreation,
+    frozenGenerationActionSourceAtCreation: snapshot?.frozenGenerationActionSourceAtCreation || frozenGenerationFields.frozenGenerationActionSourceAtCreation,
+    frozenExplicitGenerationActionAtCreation: snapshot?.frozenExplicitGenerationActionAtCreation || frozenGenerationFields.frozenExplicitGenerationActionAtCreation,
+    frozenNormalizedGenerationTypeAtCreation: snapshot?.frozenNormalizedGenerationTypeAtCreation || frozenGenerationFields.frozenNormalizedGenerationTypeAtCreation,
+    frozenRawGenerationTypeAtCreation: snapshot?.frozenRawGenerationTypeAtCreation || frozenGenerationFields.frozenRawGenerationTypeAtCreation,
+    frozenLastUserIntentSourceAtCreation: snapshot?.frozenLastUserIntentSourceAtCreation || frozenGenerationFields.frozenLastUserIntentSourceAtCreation,
+    frozenGenerationCapturedAt: snapshot?.frozenGenerationCapturedAt ?? frozenGenerationFields.frozenGenerationCapturedAt,
     createdAt: now,
     updatedAt: now
   };
 }
 
-function pruneExpiredMessageSessions(now = Date.now()) {
-  const { messageSessionWindowMs } = getResolvedListenerSettings();
-  for (const [sessionKey, session] of toolTriggerManagerState.messageSessions.entries()) {
-    const anchor = session?.completedAt || session?.handledAt || session?.updatedAt || session?.createdAt || 0;
-    if (anchor > 0 && (now - anchor) > messageSessionWindowMs) {
-      toolTriggerManagerState.messageSessions.delete(sessionKey);
+function pruneExpiredTransactions(now = Date.now()) {
+
+  const identity = resolveTransactionIdentity(eventType, data, snapshot);
+  const provisionalMessageId = identity.messageId;
+  const chatId = identity.chatId;
+  const generationTraceId = identity.generationTraceId;
+  const transactionKey = identity.transactionKey;
+  let transaction = toolTriggerManagerState.activeTransactions.get(transactionKey);
+
+  if (!transaction && identity.executionKey) {
+    transaction = Array.from(toolTriggerManagerState.activeTransactions.values()).find((entry) => entry?.executionKey === identity.executionKey) || null;
+    if (transaction && transaction.transactionKey !== transactionKey) {
+      rekeyTransactionRecord(transaction, transactionKey);
     }
   }
-}
 
-function getOrCreateMessageSession(eventType, data, snapshot = {}) {
-  pruneExpiredMessageSessions();
+  if (!transaction && provisionalMessageId) {
+    transaction = Array.from(toolTriggerManagerState.activeTransactions.values()).find((entry) => {
+      if (!entry) return false;
+      if (entry.chatId !== chatId) return false;
+      if (normalizeMessageIdentityValue(entry.messageId) !== provisionalMessageId) return false;
+      if (generationTraceId && entry.frozenGenerationTraceId && entry.frozenGenerationTraceId !== generationTraceId) {
+        return false;
+      }
+      return true;
+    }) || null;
+    if (transaction && transaction.transactionKey !== transactionKey) {
+      rekeyTransactionRecord(transaction, transactionKey);
+    }
+  }
 
-  const provisionalMessageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
-  const chatId = snapshot?.chatId || resolveCurrentChatIdForSession();
-  const generationTraceId = String(snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim();
-  const sessionKey = snapshot?.sessionKey || buildMessageSessionKey(
-    chatId,
-    provisionalMessageId,
-    eventType,
-    generationTraceId,
-    snapshot?.slotRevisionKey || snapshot?.executionKey || ''
-  );
-  let session = toolTriggerManagerState.messageSessions.get(sessionKey);
-
-  if (!session) {
-    session = createMessageSession(eventType, data, {
+  if (!transaction) {
+    transaction = createTransactionRecord(eventType, data, {
       ...snapshot,
       chatId,
       generationTraceId,
-      sessionKey,
-      messageId: provisionalMessageId
+      transactionKey,
+      messageId: provisionalMessageId,
+      executionKey: snapshot?.executionKey || identity.executionKey || identity.slotRevisionKey || '',
+      slotRevisionKey: snapshot?.slotRevisionKey || identity.slotRevisionKey || ''
     });
-    toolTriggerManagerState.messageSessions.set(sessionKey, session);
-    return session;
+    toolTriggerManagerState.activeTransactions.set(transactionKey, transaction);
+    return transaction;
   }
 
-  if (eventType && !session.receivedEvents.includes(eventType)) {
-    session.receivedEvents.push(eventType);
+  if (eventType && !transaction.receivedEvents.includes(eventType)) {
+    transaction.receivedEvents.push(eventType);
   }
 
-  if (provisionalMessageId && !session.messageId) {
-    session.messageId = provisionalMessageId;
-    session.sourceMessageLocked = true;
+  if (provisionalMessageId && !transaction.messageId) {
+    transaction.messageId = provisionalMessageId;
+    transaction.sourceMessageLocked = true;
   }
 
   if (snapshot?.messageRole) {
-    session.messageRole = snapshot.messageRole;
+    transaction.messageRole = snapshot.messageRole;
   }
 
-  if (snapshot?.executionKey) {
-    session.executionKey = snapshot.executionKey;
+  if (identity.executionKey) {
+    transaction.executionKey = identity.executionKey;
   }
 
   if (snapshot?.slotBindingKey) {
-    session.slotBindingKey = snapshot.slotBindingKey;
+    transaction.slotBindingKey = snapshot.slotBindingKey;
   }
 
-  if (snapshot?.slotRevisionKey) {
-    session.slotRevisionKey = snapshot.slotRevisionKey;
+  if (snapshot?.slotRevisionKey || identity.slotRevisionKey) {
+    transaction.slotRevisionKey = snapshot?.slotRevisionKey || identity.slotRevisionKey;
   }
 
-  if (snapshot?.slotTransactionId) {
-    session.slotTransactionId = snapshot.slotTransactionId;
+  if (snapshot?.slotTransactionId || identity.transactionId) {
+    transaction.slotTransactionId = snapshot?.slotTransactionId || identity.transactionId;
+    transaction.transactionId = snapshot?.transactionId || snapshot?.slotTransactionId || identity.transactionId;
   }
 
   if (snapshot?.confirmedAssistantMessageId) {
-    session.confirmedAssistantMessageId = snapshot.confirmedAssistantMessageId;
+    transaction.confirmedAssistantMessageId = snapshot.confirmedAssistantMessageId;
   }
 
   if (snapshot?.sourceMessageId) {
-    session.sourceMessageId = snapshot.sourceMessageId;
+    transaction.sourceMessageId = snapshot.sourceMessageId;
   }
 
   if (snapshot?.sourceSwipeId) {
-    session.sourceSwipeId = snapshot.sourceSwipeId;
+    transaction.sourceSwipeId = snapshot.sourceSwipeId;
   }
 
   if (snapshot?.confirmationSource) {
-    session.confirmationSource = snapshot.confirmationSource;
+    transaction.confirmationSource = snapshot.confirmationSource;
   }
 
   if (snapshot?.confirmationMode) {
-    session.confirmationMode = snapshot.confirmationMode;
+    transaction.confirmationMode = snapshot.confirmationMode;
   }
 
   if (snapshot?.sameSlotRevisionCandidate !== undefined) {
-    session.sameSlotRevisionCandidate = !!snapshot.sameSlotRevisionCandidate;
+    transaction.sameSlotRevisionCandidate = !!snapshot.sameSlotRevisionCandidate;
   }
 
   if (snapshot?.sameSlotRevisionConfirmed !== undefined) {
-    session.sameSlotRevisionConfirmed = !!snapshot.sameSlotRevisionConfirmed;
+    transaction.sameSlotRevisionConfirmed = !!snapshot.sameSlotRevisionConfirmed;
   }
 
   if (snapshot?.sameSlotRevisionSource) {
-    session.sameSlotRevisionSource = snapshot.sameSlotRevisionSource;
+    transaction.sameSlotRevisionSource = snapshot.sameSlotRevisionSource;
   }
 
   if (snapshot?.skipReasonDetailed) {
-    session.skipReasonDetailed = snapshot.skipReasonDetailed;
+    transaction.skipReasonDetailed = snapshot.skipReasonDetailed;
   }
 
   if (snapshot?.eventBelongsToCurrentGeneration !== undefined) {
-    session.eventBelongsToCurrentGeneration = !!snapshot.eventBelongsToCurrentGeneration;
+    transaction.eventBelongsToCurrentGeneration = !!snapshot.eventBelongsToCurrentGeneration;
   }
 
   if (snapshot?.historicalReplayBlocked !== undefined) {
-    session.historicalReplayBlocked = !!snapshot.historicalReplayBlocked;
+    transaction.historicalReplayBlocked = !!snapshot.historicalReplayBlocked;
   }
 
   if (snapshot?.historicalReplayReason) {
-    session.historicalReplayReason = snapshot.historicalReplayReason;
+    transaction.historicalReplayReason = snapshot.historicalReplayReason;
   }
 
-  if (snapshot?.isSpeculativeSession !== undefined) {
-    session.isSpeculativeSession = !!snapshot.isSpeculativeSession;
+  if (snapshot?.isSpeculativeTransaction !== undefined) {
+    transaction.isSpeculativeTransaction = !!snapshot.isSpeculativeTransaction;
   }
 
-  if (snapshot?.candidateToolIds) {
-    session.candidateToolIds = [...snapshot.candidateToolIds];
-  }
-
-  return updateMessageSession(session, {});
+  return updateTransactionRecord(transaction, {});
 }
 
-function updateMessageSession(session, partial = {}) {
-  if (!session) return null;
+function updateTransactionRecord(transaction, partial = {}) {
+  if (!transaction) return null;
 
   const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
 
-  Object.assign(session, generationDiagnosticFields, partial, {
+  Object.assign(transaction, generationDiagnosticFields, partial, {
     updatedAt: Date.now()
   });
 
-  return session;
+  transaction.transactionId = transaction.transactionId || transaction.slotTransactionId || '';
+  transaction.executionKey = String(transaction.executionKey || transaction.slotRevisionKey || '').trim();
+
+  return transaction;
 }
 
-function rekeyMessageSession(session, nextSessionKey) {
-  if (!session || !nextSessionKey || session.sessionKey === nextSessionKey) {
-    return session;
+function rekeyTransactionRecord(transaction, nextTransactionKey) {
+  if (!transaction || !nextTransactionKey || transaction.transactionKey === nextTransactionKey) {
+    return transaction;
   }
 
-  toolTriggerManagerState.messageSessions.delete(session.sessionKey);
-  session.sessionKey = nextSessionKey;
-  session.updatedAt = Date.now();
-  toolTriggerManagerState.messageSessions.set(nextSessionKey, session);
-  return session;
+  toolTriggerManagerState.activeTransactions.delete(transaction.transactionKey);
+  transaction.transactionKey = nextTransactionKey;
+  transaction.updatedAt = Date.now();
+  toolTriggerManagerState.activeTransactions.set(nextTransactionKey, transaction);
+  return transaction;
 }
 
-function appendMessageSessionHistory(session, historyPartial = {}) {
-  if (!session) return null;
+function appendTransactionHistory(transaction, historyPartial = {}) {
+  if (!transaction) return null;
 
   const { historyRetentionLimit } = getResolvedListenerSettings();
   const generationDiagnosticFields = getCurrentGenerationDiagnosticFields();
   const entry = {
-    id: historyPartial?.id || createTraceId('session_hist'),
+    id: historyPartial?.id || createTraceId('txn_hist'),
     at: historyPartial?.at || Date.now(),
-    traceId: session.traceId,
-    sessionKey: session.sessionKey,
-    phase: historyPartial?.phase || session.phase,
-    eventType: historyPartial?.eventType || session.firstEventType,
-    messageId: historyPartial?.messageId || session.messageId,
-    messageKey: historyPartial?.messageKey || session.messageKey,
-    executionKey: historyPartial?.executionKey || session.executionKey || '',
-    slotBindingKey: historyPartial?.slotBindingKey || session.slotBindingKey || '',
-    slotRevisionKey: historyPartial?.slotRevisionKey || session.slotRevisionKey || '',
-    slotTransactionId: historyPartial?.slotTransactionId || session.slotTransactionId || '',
-    messageRole: historyPartial?.messageRole || session.messageRole,
-    confirmedAssistantMessageId: historyPartial?.confirmedAssistantMessageId || session.confirmedAssistantMessageId || '',
-    sourceMessageId: historyPartial?.sourceMessageId || session.sourceMessageId || '',
-    confirmationSource: historyPartial?.confirmationSource || session.confirmationSource || '',
-    confirmationMode: historyPartial?.confirmationMode || session.confirmationMode || '',
-    sourceSwipeId: historyPartial?.sourceSwipeId || session.sourceSwipeId || '',
-    sameSlotRevisionCandidate: historyPartial?.sameSlotRevisionCandidate ?? session.sameSlotRevisionCandidate ?? false,
-    sameSlotRevisionConfirmed: historyPartial?.sameSlotRevisionConfirmed ?? session.sameSlotRevisionConfirmed ?? false,
-    sameSlotRevisionSource: historyPartial?.sameSlotRevisionSource || session.sameSlotRevisionSource || '',
-    isSpeculativeSession: historyPartial?.isSpeculativeSession ?? session.isSpeculativeSession ?? false,
-    eventBelongsToCurrentGeneration: historyPartial?.eventBelongsToCurrentGeneration ?? session.eventBelongsToCurrentGeneration ?? false,
-    historicalReplayBlocked: historyPartial?.historicalReplayBlocked ?? session.historicalReplayBlocked ?? false,
-    historicalReplayReason: historyPartial?.historicalReplayReason || session.historicalReplayReason || '',
+    traceId: transaction.traceId,
+    transactionKey: historyPartial?.transactionKey || transaction.transactionKey,
+    transactionId: historyPartial?.transactionId || transaction.transactionId || transaction.slotTransactionId || '',
+    phase: historyPartial?.phase || transaction.phase,
+    eventType: historyPartial?.eventType || transaction.firstEventType,
+    messageId: historyPartial?.messageId || transaction.messageId,
+    messageKey: historyPartial?.messageKey || transaction.messageKey,
+    executionKey: historyPartial?.executionKey || transaction.executionKey || '',
+    slotBindingKey: historyPartial?.slotBindingKey || transaction.slotBindingKey || '',
+    slotRevisionKey: historyPartial?.slotRevisionKey || transaction.slotRevisionKey || '',
+    slotTransactionId: historyPartial?.slotTransactionId || transaction.slotTransactionId || '',
+    messageRole: historyPartial?.messageRole || transaction.messageRole,
+    confirmedAssistantMessageId: historyPartial?.confirmedAssistantMessageId || transaction.confirmedAssistantMessageId || '',
+    sourceMessageId: historyPartial?.sourceMessageId || transaction.sourceMessageId || '',
+    confirmationSource: historyPartial?.confirmationSource || transaction.confirmationSource || '',
+    confirmationMode: historyPartial?.confirmationMode || transaction.confirmationMode || '',
+    sourceSwipeId: historyPartial?.sourceSwipeId || transaction.sourceSwipeId || '',
+    sameSlotRevisionCandidate: historyPartial?.sameSlotRevisionCandidate ?? transaction.sameSlotRevisionCandidate ?? false,
+    sameSlotRevisionConfirmed: historyPartial?.sameSlotRevisionConfirmed ?? transaction.sameSlotRevisionConfirmed ?? false,
+    sameSlotRevisionSource: historyPartial?.sameSlotRevisionSource || transaction.sameSlotRevisionSource || '',
+    isSpeculativeTransaction: historyPartial?.isSpeculativeTransaction ?? transaction.isSpeculativeTransaction ?? false,
+    eventBelongsToCurrentGeneration: historyPartial?.eventBelongsToCurrentGeneration ?? transaction.eventBelongsToCurrentGeneration ?? false,
+    historicalReplayBlocked: historyPartial?.historicalReplayBlocked ?? transaction.historicalReplayBlocked ?? false,
+    historicalReplayReason: historyPartial?.historicalReplayReason || transaction.historicalReplayReason || '',
     generationTraceId: historyPartial?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
     generationStartedAt: historyPartial?.generationStartedAt || triggerState.gateState.lastGenerationBaseline?.startedAt || 0,
     generationDryRun: historyPartial?.generationDryRun ?? !!triggerState.gateState.lastGenerationDryRun,
-    baselineResolved: historyPartial?.baselineResolved ?? session.baselineResolved ?? generationDiagnosticFields.baselineResolved,
-    baselineResolutionAt: historyPartial?.baselineResolutionAt ?? session.baselineResolutionAt ?? generationDiagnosticFields.baselineResolutionAt,
-    provisionalBaseline: historyPartial?.provisionalBaseline ?? session.provisionalBaseline ?? generationDiagnosticFields.provisionalBaseline,
-    generationStartedByUserIntent: historyPartial?.generationStartedByUserIntent ?? session.generationStartedByUserIntent ?? generationDiagnosticFields.generationStartedByUserIntent,
-    generationUserIntentSource: historyPartial?.generationUserIntentSource || session.generationUserIntentSource || generationDiagnosticFields.generationUserIntentSource,
-    generationUserIntentDetail: historyPartial?.generationUserIntentDetail || session.generationUserIntentDetail || generationDiagnosticFields.generationUserIntentDetail,
-    generationAction: historyPartial?.generationAction || session.generationAction || generationDiagnosticFields.generationAction,
-    generationActionSource: historyPartial?.generationActionSource || session.generationActionSource || generationDiagnosticFields.generationActionSource,
-    explicitGenerationAction: historyPartial?.explicitGenerationAction || session.explicitGenerationAction || generationDiagnosticFields.explicitGenerationAction,
-    lastUserIntentSource: historyPartial?.lastUserIntentSource || session.lastUserIntentSource || generationDiagnosticFields.lastUserIntentSource,
-    sessionGenerationTraceId: historyPartial?.sessionGenerationTraceId || session.sessionGenerationTraceId || '',
-    sessionGenerationStartedAt: historyPartial?.sessionGenerationStartedAt ?? session.sessionGenerationStartedAt ?? 0,
-    sessionBaselineResolvedAtCreation: historyPartial?.sessionBaselineResolvedAtCreation ?? session.sessionBaselineResolvedAtCreation ?? false,
-    sessionBaselineResolutionAtCreation: historyPartial?.sessionBaselineResolutionAtCreation ?? session.sessionBaselineResolutionAtCreation ?? 0,
-    sessionProvisionalBaselineAtCreation: historyPartial?.sessionProvisionalBaselineAtCreation ?? session.sessionProvisionalBaselineAtCreation ?? false,
-    sessionGenerationStartedByUserIntent: historyPartial?.sessionGenerationStartedByUserIntent ?? session.sessionGenerationStartedByUserIntent ?? false,
-    sessionGenerationUserIntentSource: historyPartial?.sessionGenerationUserIntentSource || session.sessionGenerationUserIntentSource || '',
-    sessionGenerationUserIntentDetail: historyPartial?.sessionGenerationUserIntentDetail || session.sessionGenerationUserIntentDetail || '',
-    sessionGenerationActionAtCreation: historyPartial?.sessionGenerationActionAtCreation || session.sessionGenerationActionAtCreation || '',
-    sessionGenerationActionSourceAtCreation: historyPartial?.sessionGenerationActionSourceAtCreation || session.sessionGenerationActionSourceAtCreation || '',
-    sessionExplicitGenerationActionAtCreation: historyPartial?.sessionExplicitGenerationActionAtCreation || session.sessionExplicitGenerationActionAtCreation || '',
-    sessionNormalizedGenerationTypeAtCreation: historyPartial?.sessionNormalizedGenerationTypeAtCreation || session.sessionNormalizedGenerationTypeAtCreation || '',
-    sessionRawGenerationTypeAtCreation: historyPartial?.sessionRawGenerationTypeAtCreation || session.sessionRawGenerationTypeAtCreation || '',
-    sessionLastUserIntentSourceAtCreation: historyPartial?.sessionLastUserIntentSourceAtCreation || session.sessionLastUserIntentSourceAtCreation || '',
-    sessionGenerationCapturedAt: historyPartial?.sessionGenerationCapturedAt ?? session.sessionGenerationCapturedAt ?? Date.now(),
-    skipReason: historyPartial?.skipReason || session.skipReason || '',
-    skipReasonDetailed: historyPartial?.skipReasonDetailed || session.skipReasonDetailed || '',
+    baselineResolved: historyPartial?.baselineResolved ?? transaction.baselineResolved ?? generationDiagnosticFields.baselineResolved,
+    baselineResolutionAt: historyPartial?.baselineResolutionAt ?? transaction.baselineResolutionAt ?? generationDiagnosticFields.baselineResolutionAt,
+    provisionalBaseline: historyPartial?.provisionalBaseline ?? transaction.provisionalBaseline ?? generationDiagnosticFields.provisionalBaseline,
+    generationStartedByUserIntent: historyPartial?.generationStartedByUserIntent ?? transaction.generationStartedByUserIntent ?? generationDiagnosticFields.generationStartedByUserIntent,
+    generationUserIntentSource: historyPartial?.generationUserIntentSource || transaction.generationUserIntentSource || generationDiagnosticFields.generationUserIntentSource,
+    generationUserIntentDetail: historyPartial?.generationUserIntentDetail || transaction.generationUserIntentDetail || generationDiagnosticFields.generationUserIntentDetail,
+    generationAction: historyPartial?.generationAction || transaction.generationAction || generationDiagnosticFields.generationAction,
+    generationActionSource: historyPartial?.generationActionSource || transaction.generationActionSource || generationDiagnosticFields.generationActionSource,
+    explicitGenerationAction: historyPartial?.explicitGenerationAction || transaction.explicitGenerationAction || generationDiagnosticFields.explicitGenerationAction,
+    lastUserIntentSource: historyPartial?.lastUserIntentSource || transaction.lastUserIntentSource || generationDiagnosticFields.lastUserIntentSource,
+    frozenGenerationTraceId: historyPartial?.frozenGenerationTraceId || transaction.frozenGenerationTraceId || '',
+    frozenGenerationStartedAt: historyPartial?.frozenGenerationStartedAt ?? transaction.frozenGenerationStartedAt ?? 0,
+    frozenBaselineResolvedAtCreation: historyPartial?.frozenBaselineResolvedAtCreation ?? transaction.frozenBaselineResolvedAtCreation ?? false,
+    frozenBaselineResolutionAtCreation: historyPartial?.frozenBaselineResolutionAtCreation ?? transaction.frozenBaselineResolutionAtCreation ?? 0,
+    frozenProvisionalBaselineAtCreation: historyPartial?.frozenProvisionalBaselineAtCreation ?? transaction.frozenProvisionalBaselineAtCreation ?? false,
+    frozenGenerationStartedByUserIntent: historyPartial?.frozenGenerationStartedByUserIntent ?? transaction.frozenGenerationStartedByUserIntent ?? false,
+    frozenGenerationUserIntentSource: historyPartial?.frozenGenerationUserIntentSource || transaction.frozenGenerationUserIntentSource || '',
+    frozenGenerationUserIntentDetail: historyPartial?.frozenGenerationUserIntentDetail || transaction.frozenGenerationUserIntentDetail || '',
+    frozenGenerationActionAtCreation: historyPartial?.frozenGenerationActionAtCreation || transaction.frozenGenerationActionAtCreation || '',
+    frozenGenerationActionSourceAtCreation: historyPartial?.frozenGenerationActionSourceAtCreation || transaction.frozenGenerationActionSourceAtCreation || '',
+    frozenExplicitGenerationActionAtCreation: historyPartial?.frozenExplicitGenerationActionAtCreation || transaction.frozenExplicitGenerationActionAtCreation || '',
+    frozenNormalizedGenerationTypeAtCreation: historyPartial?.frozenNormalizedGenerationTypeAtCreation || transaction.frozenNormalizedGenerationTypeAtCreation || '',
+    frozenRawGenerationTypeAtCreation: historyPartial?.frozenRawGenerationTypeAtCreation || transaction.frozenRawGenerationTypeAtCreation || '',
+    frozenLastUserIntentSourceAtCreation: historyPartial?.frozenLastUserIntentSourceAtCreation || transaction.frozenLastUserIntentSourceAtCreation || '',
+    frozenGenerationCapturedAt: historyPartial?.frozenGenerationCapturedAt ?? transaction.frozenGenerationCapturedAt ?? Date.now(),
+    skipReason: historyPartial?.skipReason || transaction.skipReason || '',
+    skipReasonDetailed: historyPartial?.skipReasonDetailed || transaction.skipReasonDetailed || '',
     candidateToolIds: Array.isArray(historyPartial?.candidateToolIds)
       ? [...historyPartial.candidateToolIds]
-      : [...(session.candidateToolIds || [])],
+      : [...(transaction.candidateToolIds || [])],
     executionPathIds: Array.isArray(historyPartial?.executionPathIds)
       ? [...historyPartial.executionPathIds]
-      : [...(session.executionPathIds || [])]
+      : [...(transaction.executionPathIds || [])]
   };
 
-  toolTriggerManagerState.recentSessionHistory = trimManagerHistoryEntries([
-    ...toolTriggerManagerState.recentSessionHistory,
+  toolTriggerManagerState.recentTransactionHistory = trimManagerHistoryEntries([
+    ...toolTriggerManagerState.recentTransactionHistory,
     entry
   ], historyRetentionLimit);
 
@@ -2970,73 +3046,73 @@ function buildDiagnosticEntryDriftFlags(entry) {
       generationActionDrifted: false,
       generationUserIntentDrifted: false,
       baselineResolvedStateChanged: false,
-      baselineResolutionAdvancedSinceSessionCreation: false,
+      baselineResolutionAdvancedSinceTransactionCreation: false,
       driftReasons: []
     };
   }
 
-  const hasSessionFrozenFields = entry.sessionGenerationCapturedAt !== undefined
-    || entry.sessionGenerationTraceId !== undefined
-    || entry.sessionBaselineResolvedAtCreation !== undefined
-    || entry.sessionGenerationStartedByUserIntent !== undefined
-    || entry.sessionGenerationUserIntentSource !== undefined
-    || entry.sessionGenerationUserIntentDetail !== undefined;
+  const hasFrozenGenerationFields = entry.frozenGenerationCapturedAt !== undefined
+    || entry.frozenGenerationTraceId !== undefined
+    || entry.frozenBaselineResolvedAtCreation !== undefined
+    || entry.frozenGenerationStartedByUserIntent !== undefined
+    || entry.frozenGenerationUserIntentSource !== undefined
+    || entry.frozenGenerationUserIntentDetail !== undefined;
 
-  if (!hasSessionFrozenFields) {
+  if (!hasFrozenGenerationFields) {
     return {
       driftDetected: false,
       generationTraceDrifted: false,
       generationActionDrifted: false,
       generationUserIntentDrifted: false,
       baselineResolvedStateChanged: false,
-      baselineResolutionAdvancedSinceSessionCreation: false,
+      baselineResolutionAdvancedSinceTransactionCreation: false,
       driftReasons: []
     };
   }
 
-  const sessionGenerationTraceId = normalizeDiagnosticString(entry.sessionGenerationTraceId);
+  const frozenGenerationTraceId = normalizeDiagnosticString(entry.frozenGenerationTraceId);
   const generationTraceId = normalizeDiagnosticString(entry.generationTraceId);
-  const sessionGenerationUserIntentSource = normalizeDiagnosticString(entry.sessionGenerationUserIntentSource);
+  const frozenGenerationUserIntentSource = normalizeDiagnosticString(entry.frozenGenerationUserIntentSource);
   const generationUserIntentSource = normalizeDiagnosticString(entry.generationUserIntentSource);
-  const sessionGenerationUserIntentDetail = normalizeDiagnosticString(entry.sessionGenerationUserIntentDetail);
+  const frozenGenerationUserIntentDetail = normalizeDiagnosticString(entry.frozenGenerationUserIntentDetail);
   const generationUserIntentDetail = normalizeDiagnosticString(entry.generationUserIntentDetail);
-  const sessionGenerationAction = normalizeDiagnosticString(entry.sessionGenerationActionAtCreation);
+  const frozenGenerationAction = normalizeDiagnosticString(entry.frozenGenerationActionAtCreation);
   const generationAction = normalizeDiagnosticString(entry.generationAction);
-  const sessionGenerationActionSource = normalizeDiagnosticString(entry.sessionGenerationActionSourceAtCreation);
+  const frozenGenerationActionSource = normalizeDiagnosticString(entry.frozenGenerationActionSourceAtCreation);
   const generationActionSource = normalizeDiagnosticString(entry.generationActionSource);
-  const sessionExplicitGenerationAction = normalizeDiagnosticString(entry.sessionExplicitGenerationActionAtCreation);
+  const frozenExplicitGenerationAction = normalizeDiagnosticString(entry.frozenExplicitGenerationActionAtCreation);
   const explicitGenerationAction = normalizeDiagnosticString(entry.explicitGenerationAction);
-  const sessionNormalizedGenerationType = normalizeDiagnosticString(entry.sessionNormalizedGenerationTypeAtCreation);
+  const frozenNormalizedGenerationType = normalizeDiagnosticString(entry.frozenNormalizedGenerationTypeAtCreation);
   const normalizedGenerationType = normalizeDiagnosticString(entry.normalizedGenerationType);
 
-  const generationTraceDrifted = !!sessionGenerationTraceId
+  const generationTraceDrifted = !!frozenGenerationTraceId
     && !!generationTraceId
-    && sessionGenerationTraceId !== generationTraceId;
+    && frozenGenerationTraceId !== generationTraceId;
 
-  const generationActionDrifted = ((sessionGenerationAction || generationAction)
-    ? sessionGenerationAction !== generationAction
+  const generationActionDrifted = ((frozenGenerationAction || generationAction)
+    ? frozenGenerationAction !== generationAction
     : false)
-    || ((sessionGenerationActionSource || generationActionSource)
-      ? sessionGenerationActionSource !== generationActionSource
+    || ((frozenGenerationActionSource || generationActionSource)
+      ? frozenGenerationActionSource !== generationActionSource
       : false)
-    || ((sessionExplicitGenerationAction || explicitGenerationAction)
-      ? sessionExplicitGenerationAction !== explicitGenerationAction
+    || ((frozenExplicitGenerationAction || explicitGenerationAction)
+      ? frozenExplicitGenerationAction !== explicitGenerationAction
       : false)
-    || ((sessionNormalizedGenerationType || normalizedGenerationType)
-      ? sessionNormalizedGenerationType !== normalizedGenerationType
+    || ((frozenNormalizedGenerationType || normalizedGenerationType)
+      ? frozenNormalizedGenerationType !== normalizedGenerationType
       : false);
 
-  const generationUserIntentDrifted = Boolean(entry.sessionGenerationStartedByUserIntent) !== Boolean(entry.generationStartedByUserIntent)
-    || ((sessionGenerationUserIntentSource || generationUserIntentSource)
-      ? sessionGenerationUserIntentSource !== generationUserIntentSource
+  const generationUserIntentDrifted = Boolean(entry.frozenGenerationStartedByUserIntent) !== Boolean(entry.generationStartedByUserIntent)
+    || ((frozenGenerationUserIntentSource || generationUserIntentSource)
+      ? frozenGenerationUserIntentSource !== generationUserIntentSource
       : false)
-    || ((sessionGenerationUserIntentDetail || generationUserIntentDetail)
-      ? sessionGenerationUserIntentDetail !== generationUserIntentDetail
+    || ((frozenGenerationUserIntentDetail || generationUserIntentDetail)
+      ? frozenGenerationUserIntentDetail !== generationUserIntentDetail
       : false);
 
-  const baselineResolvedStateChanged = Boolean(entry.sessionBaselineResolvedAtCreation) !== Boolean(entry.baselineResolved);
-  const baselineResolutionAdvancedSinceSessionCreation = (Number(entry.baselineResolutionAt) || 0)
-    > (Number(entry.sessionBaselineResolutionAtCreation) || 0);
+  const baselineResolvedStateChanged = Boolean(entry.frozenBaselineResolvedAtCreation) !== Boolean(entry.baselineResolved);
+  const baselineResolutionAdvancedSinceTransactionCreation = (Number(entry.baselineResolutionAt) || 0)
+    > (Number(entry.frozenBaselineResolutionAtCreation) || 0);
 
   const driftReasons = [];
 
@@ -3056,7 +3132,7 @@ function buildDiagnosticEntryDriftFlags(entry) {
     driftReasons.push('baseline_resolved_state_changed');
   }
 
-  if (baselineResolutionAdvancedSinceSessionCreation) {
+  if (baselineResolutionAdvancedSinceTransactionCreation) {
     driftReasons.push('baseline_resolution_advanced');
   }
 
@@ -3066,7 +3142,7 @@ function buildDiagnosticEntryDriftFlags(entry) {
     generationActionDrifted,
     generationUserIntentDrifted,
     baselineResolvedStateChanged,
-    baselineResolutionAdvancedSinceSessionCreation,
+    baselineResolutionAdvancedSinceTransactionCreation,
     driftReasons
   };
 }
@@ -3114,7 +3190,7 @@ function buildDiagnosticDriftSummary(entries = []) {
       summary.baselineResolvedStateChangedCount += 1;
     }
 
-    if (driftFlags.baselineResolutionAdvancedSinceSessionCreation) {
+    if (driftFlags.baselineResolutionAdvancedSinceTransactionCreation) {
       summary.baselineResolutionAdvancedCount += 1;
     }
   }
@@ -3170,7 +3246,7 @@ function createRecentEventTimelineEntry(partial = {}) {
     kind: partial?.kind || 'event',
     eventType: partial?.eventType || '',
     traceId: partial?.traceId || '',
-    sessionKey: partial?.sessionKey || '',
+    transactionKey: partial?.transactionKey || '',
     messageId: normalizeMessageIdentityValue(partial?.messageId),
     executionKey: partial?.executionKey || '',
     slotBindingKey: partial?.slotBindingKey || '',
@@ -3209,36 +3285,36 @@ function cloneTimelineEntryForOutput(entry) {
   };
 }
 
-function buildAutoTriggerVerdictHint(flagged = false, reasons = [], relatedSessionKeys = []) {
+function buildAutoTriggerVerdictHint(flagged = false, reasons = [], relatedTransactionKeys = []) {
   return {
     flagged: !!flagged,
     reasons: [...new Set((Array.isArray(reasons) ? reasons : []).filter(Boolean))],
-    relatedSessionKeys: [...new Set((Array.isArray(relatedSessionKeys) ? relatedSessionKeys : []).filter(Boolean))]
+    relatedTransactionKeys: [...new Set((Array.isArray(relatedTransactionKeys) ? relatedTransactionKeys : []).filter(Boolean))]
   };
 }
 
 function buildAutoTriggerVerdictHints(payload = {}) {
   const summary = payload?.summary || {};
   const entries = [
-    ...(Array.isArray(payload?.activeSessions) ? payload.activeSessions : []),
-    ...(Array.isArray(payload?.recentSessionHistory) ? payload.recentSessionHistory : []),
+    ...(Array.isArray(payload?.activeTransactions) ? payload.activeTransactions : []),
+    ...(Array.isArray(payload?.recentTransactionHistory) ? payload.recentTransactionHistory : []),
     payload?.lastEventDebugSnapshot,
     payload?.lastAutoTriggerSnapshot
   ].filter(Boolean);
 
   const a10Reasons = [];
-  const a10SessionKeys = [];
+  const a10TransactionKeys = [];
   const a11Reasons = [];
-  const a11SessionKeys = [];
+  const a11TransactionKeys = [];
   const a12Reasons = [];
-  const a12SessionKeys = [];
+  const a12TransactionKeys = [];
   const a13Reasons = [];
-  const a13SessionKeys = [];
+  const a13TransactionKeys = [];
 
   for (const entry of entries) {
     const reason = String(entry?.reason || entry?.skipReason || '').trim();
     const detail = String(entry?.detail || entry?.skipReasonDetailed || '').trim();
-    const sessionKey = String(entry?.sessionKey || '').trim();
+    const transactionKey = String(entry?.transactionKey || '').trim();
     const phase = String(entry?.phase || entry?.stage || '').trim();
     const confirmationSource = String(entry?.confirmationSource || '').trim();
     const generationUserIntentSource = String(entry?.generationUserIntentSource || '').trim();
@@ -3249,7 +3325,7 @@ function buildAutoTriggerVerdictHints(payload = {}) {
       || detail === 'generation_baseline_pending_resolution'
     ) {
       a10Reasons.push(detail);
-      a10SessionKeys.push(sessionKey);
+      a10TransactionKeys.push(transactionKey);
     }
 
     if (
@@ -3263,7 +3339,7 @@ function buildAutoTriggerVerdictHints(payload = {}) {
         || detail
         || 'historical_replay_signal_detected'
       );
-      a11SessionKeys.push(sessionKey);
+      a11TransactionKeys.push(transactionKey);
     }
 
     if (
@@ -3274,32 +3350,32 @@ function buildAutoTriggerVerdictHints(payload = {}) {
       )
     ) {
       a12Reasons.push(`ignored_auto_trigger_with_${generationUserIntentSource || 'user_intent'}`);
-      a12SessionKeys.push(sessionKey);
+      a12TransactionKeys.push(transactionKey);
     }
 
     if (
       summary?.listenerSettings?.ignoreAutoTrigger
       && !generationStartedByUserIntent
-      && !entry?.isSpeculativeSession
+      && !entry?.isSpeculativeTransaction
       && (
-        phase === MESSAGE_SESSION_PHASES.COMPLETED
-        || phase === MESSAGE_SESSION_PHASES.HANDLING
-        || phase === MESSAGE_SESSION_PHASES.DISPATCHING
+        phase === TRANSACTION_PHASES.COMPLETED
+        || phase === TRANSACTION_PHASES.HANDLING
+        || phase === TRANSACTION_PHASES.DISPATCHING
         || confirmationSource === 'generation_ended'
         || confirmationSource === 'message_received'
         || confirmationSource === 'generation_after_commands'
       )
     ) {
       a13Reasons.push('non_user_intent_generation_reached_execution_path');
-      a13SessionKeys.push(sessionKey);
+      a13TransactionKeys.push(transactionKey);
     }
   }
 
   return {
-    a10BaselineRaceSuspicious: buildAutoTriggerVerdictHint(a10Reasons.length > 0, a10Reasons, a10SessionKeys),
-    a11ReplaySuspicious: buildAutoTriggerVerdictHint(a11Reasons.length > 0, a11Reasons, a11SessionKeys),
-    a12UserIntentSuspicious: buildAutoTriggerVerdictHint(a12Reasons.length > 0, a12Reasons, a12SessionKeys),
-    a13AutoTriggerLeakSuspicious: buildAutoTriggerVerdictHint(a13Reasons.length > 0, a13Reasons, a13SessionKeys)
+    a10BaselineRaceSuspicious: buildAutoTriggerVerdictHint(a10Reasons.length > 0, a10Reasons, a10TransactionKeys),
+    a11ReplaySuspicious: buildAutoTriggerVerdictHint(a11Reasons.length > 0, a11Reasons, a11TransactionKeys),
+    a12UserIntentSuspicious: buildAutoTriggerVerdictHint(a12Reasons.length > 0, a12Reasons, a12TransactionKeys),
+    a13AutoTriggerLeakSuspicious: buildAutoTriggerVerdictHint(a13Reasons.length > 0, a13Reasons, a13TransactionKeys)
   };
 }
 
@@ -3354,7 +3430,7 @@ function markHandledExecutionKey(executionKey, partial = {}) {
     messageId: normalizeMessageIdentityValue(partial?.messageId),
     generationTraceId: String(partial?.generationTraceId || '').trim(),
     eventType: String(partial?.eventType || '').trim(),
-    sessionKey: String(partial?.sessionKey || '').trim()
+    transactionKey: String(partial?.transactionKey || '').trim()
   };
 
   toolTriggerManagerState.handledExecutionKeys.set(normalizedExecutionKey, entry);
@@ -3536,7 +3612,7 @@ async function resolveAssistantSlotFromEvent(eventType, data, options = {}) {
     || triggerState.gateState.lastGenerationTraceId
     || ''
   ).trim();
-  const baseline = await waitForResolvedGenerationBaseline({
+  const baseline = await waitForResolvedTransactionBaseline({
     traceId: generationTraceId,
     retries: 2,
     retryDelayMs: 50
@@ -3650,7 +3726,7 @@ async function routeAssistantSlotEvent(eventType, data, options = {}) {
   const evaluation = evaluateAssistantSlotEvent(slot, eventType, data);
 
   if (!evaluation.allowed) {
-    const session = scheduleSpeculativeSession(eventType, data, {
+    const transaction = scheduleSpeculativeTransaction(eventType, data, {
       messageId: slot?.messageId || options?.messageId || extractEventMessageId(data, eventType),
       generationTraceId: slot?.generationTraceId || options?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
       reason: evaluation.reason,
@@ -3666,8 +3742,8 @@ async function routeAssistantSlotEvent(eventType, data, options = {}) {
 
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: slot?.messageId || '',
       generationMessageBindingSource: slot?.bindingSource || '',
       confirmedAssistantSwipeId: slot?.swipeId || '',
@@ -3735,7 +3811,7 @@ function installInternalTriggerSubscriptions() {
     }
 
     markWritebackGuard({
-      chatId: payload?.chatId || resolveCurrentChatIdForSession(),
+      chatId: payload?.chatId || resolveCurrentChatIdForTransaction(),
       messageId: sourceMessageId,
       effectiveSwipeId: payload?.effectiveSwipeId || payload?.sourceSwipeId || payload?.options?.sourceSwipeId || '',
       traceId: payload?.traceId || payload?.options?.traceId || '',
@@ -3798,7 +3874,7 @@ async function buildToolExecutionContextFromMessageEntry(entry, options = {}) {
     triggeredAt: Date.now(),
     triggerEvent: options?.triggerEvent || '',
     traceId: options?.traceId || '',
-    sessionKey: options?.sessionKey || '',
+    transactionKey: options?.transactionKey || '',
     confirmationSource: String(options?.confirmationSource || '').trim(),
     confirmedAssistantMessageId: messageId,
     chatId,
@@ -3849,9 +3925,9 @@ async function buildToolExecutionContextFromMessageEntry(entry, options = {}) {
  * 3. executeToolWithConfig 仅保留为兼容执行回退路径，主要用于非 post_response_api 的 legacy/manual 场景
  */
 
-function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
+function scheduleSpeculativeTransaction(eventType, data, snapshot = {}) {
   const messageId = normalizeMessageIdentityValue(snapshot?.messageId || extractEventMessageId(data, eventType));
-  const session = getOrCreateMessageSession(eventType, data, {
+  const transaction = getOrCreateTransactionRecord(eventType, data, {
     eventType,
     messageId,
     confirmedAssistantMessageId: snapshot?.confirmedAssistantMessageId || '',
@@ -3861,19 +3937,19 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
     generationTraceId: snapshot?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
-    skipReasonDetailed: snapshot?.skipReasonDetailed || 'speculative_session_only',
+    skipReasonDetailed: snapshot?.skipReasonDetailed || 'speculative_transaction_only',
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || '',
-    isSpeculativeSession: true
+    isSpeculativeTransaction: true
   });
   const reason = snapshot?.reason || AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE;
-  const detail = snapshot?.skipReasonDetailed || 'speculative_session_only';
+  const detail = snapshot?.skipReasonDetailed || 'speculative_transaction_only';
 
-  traceAlways('info', '记录 speculative session，未进入执行调度', {
+  traceAlways('info', '记录 speculative transaction，未进入执行调度', {
     eventType,
-    traceId: session?.traceId || '',
-    sessionKey: session?.sessionKey || '',
+    traceId: transaction?.traceId || '',
+    transactionKey: transaction?.transactionKey || '',
     messageId,
     reason,
     detail
@@ -3882,8 +3958,8 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
   saveEventDebugSnapshot({
     stage: 'speculative_observed',
     eventType,
-    traceId: session?.traceId || '',
-    sessionKey: session?.sessionKey || '',
+    traceId: transaction?.traceId || '',
+    transactionKey: transaction?.transactionKey || '',
     messageId,
     reason,
     skipReasonDetailed: detail,
@@ -3893,15 +3969,15 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
     sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? false,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || '',
-    isSpeculativeSession: true,
+    isSpeculativeTransaction: true,
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || '',
     handledAt: Date.now()
   });
 
-  updateMessageSession(session, {
-    phase: MESSAGE_SESSION_PHASES.IGNORED,
+  updateTransactionRecord(transaction, {
+    phase: TRANSACTION_PHASES.IGNORED,
     skipReason: reason,
     skipReasonDetailed: detail,
     confirmationSource: snapshot?.confirmationSource || 'none',
@@ -3913,11 +3989,11 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || '',
-    isSpeculativeSession: true,
+    isSpeculativeTransaction: true,
     completedAt: Date.now()
   });
-  appendMessageSessionHistory(session, {
-    phase: MESSAGE_SESSION_PHASES.IGNORED,
+  appendTransactionHistory(transaction, {
+    phase: TRANSACTION_PHASES.IGNORED,
     eventType,
     messageId,
     skipReason: reason,
@@ -3927,10 +4003,38 @@ function scheduleSpeculativeSession(eventType, data, snapshot = {}) {
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || '',
-    isSpeculativeSession: true
+    isSpeculativeTransaction: true
   });
 
-  return session;
+  return transaction;
+}
+
+function buildPendingTransactionTimerKey(transaction, snapshot = {}, confirmedAssistantMessageId = '') {
+  const explicitExecutionKey = String(
+    snapshot?.executionKey
+    || snapshot?.slotRevisionKey
+    || transaction?.executionKey
+    || transaction?.slotRevisionKey
+    || ''
+  ).trim();
+
+  if (explicitExecutionKey) {
+    return `txn::${explicitExecutionKey}`;
+  }
+
+  const explicitTransactionId = String(
+    snapshot?.slotTransactionId
+    || snapshot?.transactionId
+    || transaction?.slotTransactionId
+    || transaction?.transactionId
+    || ''
+  ).trim();
+
+  if (explicitTransactionId) {
+    return `txn_id::${explicitTransactionId}`;
+  }
+
+  return transaction?.transactionKey || `message::${confirmedAssistantMessageId}`;
 }
 
 function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
@@ -3941,7 +4045,7 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
   );
 
   if (!confirmedAssistantMessageId) {
-    return scheduleSpeculativeSession(eventType, data, {
+    return scheduleSpeculativeTransaction(eventType, data, {
       ...snapshot,
       reason: snapshot?.reason || AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
       skipReasonDetailed: snapshot?.skipReasonDetailed || 'missing_confirmed_message_identity',
@@ -3960,6 +4064,7 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         slotBindingKey: snapshot?.slotBindingKey || data?.slotBindingKey || '',
         slotRevisionKey: snapshot?.slotRevisionKey || data?.slotRevisionKey || '',
         slotTransactionId: snapshot?.slotTransactionId || data?.slotTransactionId || '',
+        executionKey: snapshot?.executionKey || data?.executionKey || snapshot?.slotRevisionKey || data?.slotRevisionKey || '',
         sourceMessageId: snapshot?.sourceMessageId || data?.sourceMessageId || confirmedAssistantMessageId,
         sourceSwipeId: snapshot?.sourceSwipeId || data?.sourceSwipeId || data?.effectiveSwipeId || '',
         sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? data?.sameSlotRevisionCandidate ?? false,
@@ -3978,6 +4083,7 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         slotBindingKey: snapshot?.slotBindingKey || '',
         slotRevisionKey: snapshot?.slotRevisionKey || '',
         slotTransactionId: snapshot?.slotTransactionId || '',
+        executionKey: snapshot?.executionKey || snapshot?.slotRevisionKey || '',
         sourceMessageId: snapshot?.sourceMessageId || confirmedAssistantMessageId,
         sourceSwipeId: snapshot?.sourceSwipeId || snapshot?.effectiveSwipeId || '',
         sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? false,
@@ -3988,11 +4094,27 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
         historicalReplayReason: snapshot?.historicalReplayReason || ''
       };
 
-  const session = getOrCreateMessageSession(eventType, enrichedData, {
+  const transactionIdentity = resolveTransactionIdentity(eventType, enrichedData, {
     ...snapshot,
+    chatId: snapshot?.chatId || enrichedData.chatId || resolveCurrentChatIdForTransaction(),
+    messageId: confirmedAssistantMessageId,
+    generationTraceId: snapshot?.generationTraceId || enrichedData.generationTraceId || '',
+    slotRevisionKey: snapshot?.slotRevisionKey || enrichedData.slotRevisionKey || '',
+    executionKey: snapshot?.executionKey || enrichedData.executionKey || enrichedData.slotRevisionKey || '',
+    slotTransactionId: snapshot?.slotTransactionId || enrichedData.slotTransactionId || ''
+  });
+
+  const transaction = getOrCreateTransactionRecord(eventType, enrichedData, {
+    ...snapshot,
+    ...transactionIdentity,
     eventType,
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
+    executionKey: transactionIdentity.executionKey || enrichedData.executionKey || enrichedData.slotRevisionKey || '',
+    slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
+    transactionKey: transactionIdentity.transactionKey,
+    transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+    slotTransactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
     confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
     sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
@@ -4001,19 +4123,30 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
-    isSpeculativeSession: false
+    isSpeculativeTransaction: false
   });
   const resolvedDelayMs = Number.isFinite(delayMs)
     ? Math.max(0, delayMs)
     : getResolvedListenerSettings().debounceMs;
-  const timerKey = session?.sessionKey || `message::${confirmedAssistantMessageId}`;
-  const existingTimer = toolTriggerManagerState.pendingMessageTimers.get(timerKey);
+  const timerKey = buildPendingTransactionTimerKey(transaction, {
+    ...snapshot,
+    executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
+    slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
+    slotTransactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+    transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || ''
+  }, confirmedAssistantMessageId);
+  const existingTimer = toolTriggerManagerState.pendingTransactionTimers.get(timerKey);
   if (existingTimer) {
     clearTimeout(existingTimer);
   }
 
-  updateMessageSession(session, {
-    phase: MESSAGE_SESSION_PHASES.SCHEDULED,
+  updateTransactionRecord(transaction, {
+    phase: TRANSACTION_PHASES.SCHEDULED,
+    transactionKey: transactionIdentity.transactionKey,
+    transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+    executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
+    slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
+    slotTransactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
     messageId: confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
@@ -4024,30 +4157,36 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
-    isSpeculativeSession: false,
+    isSpeculativeTransaction: false,
     scheduledAt: Date.now()
   });
-  appendMessageSessionHistory(session, {
-    phase: MESSAGE_SESSION_PHASES.SCHEDULED,
+  appendTransactionHistory(transaction, {
+    phase: TRANSACTION_PHASES.SCHEDULED,
     eventType,
     messageId: confirmedAssistantMessageId,
+    transactionKey: transactionIdentity.transactionKey,
+    transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+    executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
+    slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? enrichedData.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? enrichedData.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || enrichedData.historicalReplayReason || '',
-    isSpeculativeSession: false
+    isSpeculativeTransaction: false
   });
 
   saveEventDebugSnapshot({
     stage: 'scheduled',
     eventType,
-    traceId: session?.traceId || '',
-    sessionKey: session?.sessionKey || '',
+    traceId: transaction?.traceId || '',
+    transactionKey: transactionIdentity.transactionKey || transaction?.transactionKey || '',
+    transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+    executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
     messageId: confirmedAssistantMessageId,
     slotBindingKey: snapshot?.slotBindingKey || enrichedData.slotBindingKey || '',
-    slotRevisionKey: snapshot?.slotRevisionKey || enrichedData.slotRevisionKey || '',
-    slotTransactionId: snapshot?.slotTransactionId || enrichedData.slotTransactionId || '',
+    slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
+    slotTransactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
     sourceMessageId: snapshot?.sourceMessageId || enrichedData.sourceMessageId || confirmedAssistantMessageId,
     confirmedAssistantMessageId,
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
@@ -4056,7 +4195,7 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
     sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
     sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
     sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
-    isSpeculativeSession: false,
+    isSpeculativeTransaction: false,
     eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
     historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
     historicalReplayReason: snapshot?.historicalReplayReason || '',
@@ -4065,63 +4204,84 @@ function scheduleAutoTrigger(eventType, data, delayMs = 0, snapshot = {}) {
   traceAlways('info', '已调度确认后的自动触发', {
     eventType,
     messageId: confirmedAssistantMessageId,
+    executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
+    transactionKey: transactionIdentity.transactionKey || transaction?.transactionKey || '',
     confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
     delayMs: resolvedDelayMs
   });
 
   const timer = setTimeout(async () => {
-    toolTriggerManagerState.pendingMessageTimers.delete(timerKey);
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.DISPATCHING,
+    toolTriggerManagerState.pendingTransactionTimers.delete(timerKey);
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.DISPATCHING,
+      transactionKey: transactionIdentity.transactionKey,
+      transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+      executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
+      slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
+      slotTransactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
       confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
       sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
       sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
       sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
       confirmedAssistantMessageId,
-      isSpeculativeSession: false
+      isSpeculativeTransaction: false
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.DISPATCHING,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.DISPATCHING,
       eventType,
       messageId: confirmedAssistantMessageId,
+      transactionKey: transactionIdentity.transactionKey,
+      transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+      executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
+      slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
       confirmedAssistantMessageId,
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
       confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
       sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
       sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
       sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
-      isSpeculativeSession: false
+      isSpeculativeTransaction: false
     });
     saveEventDebugSnapshot({
       stage: 'dispatching',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transactionIdentity.transactionKey || transaction?.transactionKey || '',
+      transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+      executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
       messageId: confirmedAssistantMessageId,
       slotBindingKey: snapshot?.slotBindingKey || enrichedData.slotBindingKey || '',
-      slotRevisionKey: snapshot?.slotRevisionKey || enrichedData.slotRevisionKey || '',
-      slotTransactionId: snapshot?.slotTransactionId || enrichedData.slotTransactionId || '',
+      slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
+      slotTransactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
       sourceMessageId: snapshot?.sourceMessageId || enrichedData.sourceMessageId || confirmedAssistantMessageId,
       confirmedAssistantMessageId,
       confirmationSource: snapshot?.confirmationSource || enrichedData.confirmationSource || '',
-      isSpeculativeSession: false,
-    confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
-    sourceSwipeId: snapshot?.sourceSwipeId || enrichedData.sourceSwipeId || '',
-    sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
-    sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
-    sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
+      isSpeculativeTransaction: false,
+      confirmationMode: snapshot?.confirmationMode || enrichedData.confirmationMode || '',
+      sourceSwipeId: snapshot?.sourceSwipeId || enrichedData.sourceSwipeId || '',
+      sameSlotRevisionCandidate: snapshot?.sameSlotRevisionCandidate ?? enrichedData.sameSlotRevisionCandidate ?? false,
+      sameSlotRevisionConfirmed: snapshot?.sameSlotRevisionConfirmed ?? enrichedData.sameSlotRevisionConfirmed ?? false,
+      sameSlotRevisionSource: snapshot?.sameSlotRevisionSource || enrichedData.sameSlotRevisionSource || '',
       eventBelongsToCurrentGeneration: snapshot?.eventBelongsToCurrentGeneration ?? false,
       historicalReplayBlocked: snapshot?.historicalReplayBlocked ?? false,
       historicalReplayReason: snapshot?.historicalReplayReason || '',
       scheduledDelayMs: resolvedDelayMs
     });
-    await handleAutoTrigger(eventType, enrichedData);
+    await handleAutoTrigger(eventType, {
+      ...enrichedData,
+      transactionKey: transactionIdentity.transactionKey,
+      transactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || '',
+      executionKey: transactionIdentity.executionKey || enrichedData.executionKey || '',
+      slotRevisionKey: transactionIdentity.slotRevisionKey || enrichedData.slotRevisionKey || '',
+      slotTransactionId: transactionIdentity.transactionId || enrichedData.slotTransactionId || ''
+    });
   }, resolvedDelayMs);
 
-  toolTriggerManagerState.pendingMessageTimers.set(timerKey, timer);
-  return session;
+  toolTriggerManagerState.pendingTransactionTimers.set(timerKey, timer);
+  return transaction;
 }
+
 
 /**
  * 生成自动触发去重键
@@ -4157,7 +4317,7 @@ async function handleAutoTrigger(eventType, data) {
   const currentGenerationTraceId = typeof data === 'object' && data
     ? String(data?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim()
     : String(triggerState.gateState.lastGenerationTraceId || '').trim();
-  const currentGenerationBaseline = await waitForResolvedGenerationBaseline({
+  const currentGenerationBaseline = await waitForResolvedTransactionBaseline({
     traceId: currentGenerationTraceId,
     retries: 2,
     retryDelayMs: 40
@@ -4201,7 +4361,7 @@ async function handleAutoTrigger(eventType, data) {
     (typeof data === 'object' && data ? data?.confirmedAssistantMessageId : '')
     || incomingMessageId
   );
-  const session = getOrCreateMessageSession(eventType, data, {
+  const transaction = getOrCreateTransactionRecord(eventType, data, {
     eventType,
     messageId: incomingMessageId,
     confirmedAssistantMessageId,
@@ -4216,8 +4376,8 @@ async function handleAutoTrigger(eventType, data) {
     candidateToolIds
   });
 
-  updateMessageSession(session, {
-    phase: MESSAGE_SESSION_PHASES.HANDLING,
+  updateTransactionRecord(transaction, {
+    phase: TRANSACTION_PHASES.HANDLING,
     handledAt: Date.now(),
     confirmedAssistantMessageId,
     confirmationSource,
@@ -4225,14 +4385,14 @@ async function handleAutoTrigger(eventType, data) {
     sameSlotRevisionCandidate,
     sameSlotRevisionConfirmed,
     sameSlotRevisionSource,
-    isSpeculativeSession: false,
+    isSpeculativeTransaction: false,
     eventBelongsToCurrentGeneration,
     historicalReplayBlocked,
     historicalReplayReason,
     candidateToolIds
   });
-  appendMessageSessionHistory(session, {
-    phase: MESSAGE_SESSION_PHASES.HANDLING,
+  appendTransactionHistory(transaction, {
+    phase: TRANSACTION_PHASES.HANDLING,
     eventType,
     messageId: incomingMessageId,
     confirmedAssistantMessageId,
@@ -4241,7 +4401,7 @@ async function handleAutoTrigger(eventType, data) {
     sameSlotRevisionCandidate,
     sameSlotRevisionConfirmed,
     sameSlotRevisionSource,
-    isSpeculativeSession: false,
+    isSpeculativeTransaction: false,
     eventBelongsToCurrentGeneration,
     historicalReplayBlocked,
     historicalReplayReason,
@@ -4251,12 +4411,12 @@ async function handleAutoTrigger(eventType, data) {
   saveEventDebugSnapshot({
     stage: 'handling',
     eventType,
-    traceId: session?.traceId || '',
-    sessionKey: session?.sessionKey || '',
+    traceId: transaction?.traceId || '',
+    transactionKey: transaction?.transactionKey || '',
     messageId: incomingMessageId,
     confirmedAssistantMessageId,
     confirmationSource,
-    isSpeculativeSession: false,
+    isSpeculativeTransaction: false,
     eventBelongsToCurrentGeneration,
     historicalReplayBlocked,
     historicalReplayReason,
@@ -4273,8 +4433,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: incomingMessageId,
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
@@ -4294,8 +4454,8 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'ignored_ui_transition_guard',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: incomingMessageId,
       reason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
       skipReasonDetailed: 'ui_transition_guard_active',
@@ -4304,8 +4464,8 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds,
       handledAt: Date.now()
     });
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.IGNORED,
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.IGNORED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
       skipReasonDetailed: 'ui_transition_guard_active',
       confirmedAssistantMessageId,
@@ -4313,8 +4473,8 @@ async function handleAutoTrigger(eventType, data) {
       completedAt: Date.now(),
       candidateToolIds
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.IGNORED,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.IGNORED,
       eventType,
       messageId: incomingMessageId,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
@@ -4324,7 +4484,7 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
-      traceId: session?.traceId || '',
+      traceId: transaction?.traceId || '',
       eventType,
       messageId: incomingMessageId,
       messageKey: '',
@@ -4344,8 +4504,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: incomingMessageId,
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
@@ -4365,8 +4525,8 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: incomingMessageId,
       reason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
       skipReasonDetailed: 'dry_run_generation',
@@ -4375,8 +4535,8 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds,
       handledAt: Date.now()
     });
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
       skipReasonDetailed: 'dry_run_generation',
       confirmedAssistantMessageId,
@@ -4384,8 +4544,8 @@ async function handleAutoTrigger(eventType, data) {
       completedAt: Date.now(),
       candidateToolIds
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       eventType,
       messageId: incomingMessageId,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.DRY_RUN_GENERATION,
@@ -4395,7 +4555,7 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
-      traceId: session?.traceId || '',
+      traceId: transaction?.traceId || '',
       eventType,
       messageId: incomingMessageId,
       messageKey: '',
@@ -4416,8 +4576,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: incomingMessageId,
       selectedToolIds: candidateToolIds,
       skipReason: listenerDecision.reason,
@@ -4437,8 +4597,8 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: incomingMessageId,
       reason: listenerDecision.reason,
       skipReasonDetailed: `listener_setting_${listenerDecision.reason}`,
@@ -4447,8 +4607,8 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds,
       handledAt: Date.now()
     });
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       skipReason: listenerDecision.reason,
       skipReasonDetailed: `listener_setting_${listenerDecision.reason}`,
       confirmedAssistantMessageId,
@@ -4456,8 +4616,8 @@ async function handleAutoTrigger(eventType, data) {
       completedAt: Date.now(),
       candidateToolIds
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       eventType,
       messageId: incomingMessageId,
       skipReason: listenerDecision.reason,
@@ -4467,7 +4627,7 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
-      traceId: session?.traceId || '',
+      traceId: transaction?.traceId || '',
       eventType,
       messageId: incomingMessageId,
       messageKey: '',
@@ -4491,8 +4651,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       selectedToolIds: candidateToolIds,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
       skipReasonDetailed: 'quiet_generation_listener_filter',
@@ -4510,8 +4670,8 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: incomingMessageId,
       reason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
       skipReasonDetailed: 'quiet_generation_listener_filter',
@@ -4520,8 +4680,8 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds,
       handledAt: Date.now()
     });
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
       skipReasonDetailed: 'quiet_generation_listener_filter',
       confirmedAssistantMessageId,
@@ -4529,8 +4689,8 @@ async function handleAutoTrigger(eventType, data) {
       completedAt: Date.now(),
       candidateToolIds
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       eventType,
       messageId: incomingMessageId,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.QUIET_GENERATION,
@@ -4540,7 +4700,7 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
-      traceId: session?.traceId || '',
+      traceId: transaction?.traceId || '',
       eventType,
       messageId: incomingMessageId,
       messageKey: '',
@@ -4558,18 +4718,18 @@ async function handleAutoTrigger(eventType, data) {
     ...(incomingMessageId ? { messageId: incomingMessageId } : {}),
     ...(confirmedAssistantMessageId ? { confirmedAssistantMessageId } : {}),
     ...(confirmationSource ? { confirmationSource } : {}),
-    traceId: session?.traceId || '',
-    sessionKey: session?.sessionKey || ''
+    traceId: transaction?.traceId || '',
+    transactionKey: transaction?.transactionKey || ''
   });
 
-  context.traceId = session?.traceId || context.traceId || createTraceId('exec');
-  context.sessionKey = session?.sessionKey || context.sessionKey || '';
+  context.traceId = transaction?.traceId || context.traceId || createTraceId('exec');
+  context.transactionKey = transaction?.transactionKey || context.transactionKey || '';
   const executionKey = context?.executionKey || getAutoTriggerExecutionKey(context || {});
   context.executionKey = executionKey;
 
-  const resolvedSessionKey = buildMessageSessionKey(context.chatId, context.messageId, eventType, context.generationTraceId);
-  rekeyMessageSession(session, resolvedSessionKey);
-  updateMessageSession(session, {
+  const resolvedTransactionKey = buildResolvedTransactionKey(context.chatId, context.messageId, eventType, context.generationTraceId);
+  rekeyTransactionRecord(transaction, resolvedTransactionKey);
+  updateTransactionRecord(transaction, {
     messageId: context.messageId || incomingMessageId,
     messageKey: getAutoTriggerMessageKey(context),
     executionKey,
@@ -4595,8 +4755,8 @@ async function handleAutoTrigger(eventType, data) {
     const messageKey = getAutoTriggerMessageKey(context || {});
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: context?.messageId || '',
       messageKey,
       executionKey,
@@ -4627,8 +4787,8 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       executionKey,
@@ -4647,8 +4807,8 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds,
       handledAt: Date.now()
     });
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.MISSING_AI_MESSAGE,
       skipReasonDetailed: 'missing_confirmed_assistant_content_in_context',
       messageKey,
@@ -4658,8 +4818,8 @@ async function handleAutoTrigger(eventType, data) {
       completedAt: Date.now(),
       candidateToolIds
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       eventType,
       messageId: context?.messageId || incomingMessageId,
       messageKey,
@@ -4671,7 +4831,7 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds
     });
     appendTriggerHistoryForTools(candidateTools, {
-      traceId: session?.traceId || '',
+      traceId: transaction?.traceId || '',
       eventType,
       messageId: context?.messageId || incomingMessageId,
       messageKey,
@@ -4695,8 +4855,8 @@ async function handleAutoTrigger(eventType, data) {
       });
       saveAutoTriggerSnapshot({
         triggerEvent: eventType,
-        traceId: session?.traceId || '',
-        sessionKey: session?.sessionKey || '',
+        traceId: transaction?.traceId || '',
+        transactionKey: transaction?.transactionKey || '',
         messageId: context?.messageId || '',
         messageKey,
         executionKey,
@@ -4727,8 +4887,8 @@ async function handleAutoTrigger(eventType, data) {
       saveEventDebugSnapshot({
         stage: 'skipped',
         eventType,
-        traceId: session?.traceId || '',
-        sessionKey: session?.sessionKey || '',
+        traceId: transaction?.traceId || '',
+        transactionKey: transaction?.transactionKey || '',
         messageId: context?.messageId || incomingMessageId,
         messageKey,
         executionKey,
@@ -4747,8 +4907,8 @@ async function handleAutoTrigger(eventType, data) {
         candidateToolIds,
         handledAt: Date.now()
       });
-      updateMessageSession(session, {
-        phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      updateTransactionRecord(transaction, {
+        phase: TRANSACTION_PHASES.SKIPPED,
         skipReason: AUTO_TRIGGER_SKIP_REASONS.DUPLICATE_MESSAGE,
         skipReasonDetailed: 'execution_key_already_handled',
         messageKey,
@@ -4758,8 +4918,8 @@ async function handleAutoTrigger(eventType, data) {
         completedAt: Date.now(),
         candidateToolIds
       });
-      appendMessageSessionHistory(session, {
-        phase: MESSAGE_SESSION_PHASES.SKIPPED,
+      appendTransactionHistory(transaction, {
+        phase: TRANSACTION_PHASES.SKIPPED,
         eventType,
         messageId: context?.messageId || incomingMessageId,
         messageKey,
@@ -4771,7 +4931,7 @@ async function handleAutoTrigger(eventType, data) {
         candidateToolIds
       });
       appendTriggerHistoryForTools(candidateTools, {
-        traceId: session?.traceId || '',
+        traceId: transaction?.traceId || '',
         eventType,
         messageId: context?.messageId || incomingMessageId,
         messageKey,
@@ -4794,8 +4954,8 @@ async function handleAutoTrigger(eventType, data) {
     });
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: context?.messageId || '',
       messageKey,
       generationMessageBindingSource: context?.generationMessageBindingSource || '',
@@ -4811,8 +4971,8 @@ async function handleAutoTrigger(eventType, data) {
     saveEventDebugSnapshot({
       stage: 'skipped',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId: context?.messageId || incomingMessageId,
       messageKey,
       generationMessageBindingSource: context?.generationMessageBindingSource || '',
@@ -4825,8 +4985,8 @@ async function handleAutoTrigger(eventType, data) {
       candidateToolIds: [],
       handledAt: Date.now()
     });
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       skipReason: AUTO_TRIGGER_SKIP_REASONS.NO_ELIGIBLE_TOOLS,
       skipReasonDetailed: 'no_tools_configured_for_auto_post_response',
       messageKey,
@@ -4835,8 +4995,8 @@ async function handleAutoTrigger(eventType, data) {
       completedAt: Date.now(),
       candidateToolIds: []
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.SKIPPED,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.SKIPPED,
       eventType,
       messageId: context?.messageId || incomingMessageId,
       messageKey,
@@ -4857,7 +5017,7 @@ async function handleAutoTrigger(eventType, data) {
     messageId: context?.messageId || incomingMessageId,
     generationTraceId: context?.generationTraceId || '',
     eventType,
-    sessionKey: session?.sessionKey || ''
+    transactionKey: transaction?.transactionKey || ''
   });
   toolTriggerManagerState.lastDuplicateMessageKey = '';
   toolTriggerManagerState.lastDuplicateExecutionKey = '';
@@ -4865,8 +5025,8 @@ async function handleAutoTrigger(eventType, data) {
   context.messageKey = messageKey;
   saveAutoTriggerSnapshot({
     triggerEvent: eventType,
-    traceId: session?.traceId || '',
-    sessionKey: session?.sessionKey || '',
+    traceId: transaction?.traceId || '',
+    transactionKey: transaction?.transactionKey || '',
     messageId: context?.messageId || '',
     messageKey,
     executionKey,
@@ -4896,17 +5056,17 @@ async function handleAutoTrigger(eventType, data) {
     noticeId: 'yyt-tool-batch-start'
   });
 
-  updateMessageSession(session, {
+  updateTransactionRecord(transaction, {
     messageKey,
     executionKey,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
     executionPathIds: [],
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
-    phase: MESSAGE_SESSION_PHASES.DISPATCHING
+    phase: TRANSACTION_PHASES.DISPATCHING
   });
-  appendMessageSessionHistory(session, {
-    phase: MESSAGE_SESSION_PHASES.DISPATCHING,
+  appendTransactionHistory(transaction, {
+    phase: TRANSACTION_PHASES.DISPATCHING,
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
@@ -4916,7 +5076,7 @@ async function handleAutoTrigger(eventType, data) {
     candidateToolIds: toolsToExecute.map(tool => tool.id)
   });
   appendTriggerHistoryForTools(toolsToExecute, {
-    traceId: session?.traceId || '',
+    traceId: transaction?.traceId || '',
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
@@ -4932,11 +5092,11 @@ async function handleAutoTrigger(eventType, data) {
       const result = await executeTriggeredTool(tool, context);
 
       const executionPathForTool = resolveExecutionPath(tool, context);
-      if (!session.executionPathIds.includes(executionPathForTool)) {
-        session.executionPathIds.push(executionPathForTool);
+      if (!transaction.executionPathIds.includes(executionPathForTool)) {
+        transaction.executionPathIds.push(executionPathForTool);
       }
       appendWritebackHistoryForTool(tool.id, {
-        traceId: session?.traceId || '',
+        traceId: transaction?.traceId || '',
         eventType,
         messageId: context?.messageId || incomingMessageId,
         messageKey,
@@ -4975,8 +5135,8 @@ async function handleAutoTrigger(eventType, data) {
   saveEventDebugSnapshot({
     stage: 'completed',
     eventType,
-    traceId: session?.traceId || '',
-    sessionKey: session?.sessionKey || '',
+    traceId: transaction?.traceId || '',
+    transactionKey: transaction?.transactionKey || '',
     messageId: context?.messageId || incomingMessageId,
     messageKey,
     executionKey,
@@ -4993,8 +5153,8 @@ async function handleAutoTrigger(eventType, data) {
     candidateToolIds: toolsToExecute.map(tool => tool.id),
     handledAt: Date.now()
   });
-  updateMessageSession(session, {
-    phase: MESSAGE_SESSION_PHASES.COMPLETED,
+  updateTransactionRecord(transaction, {
+    phase: TRANSACTION_PHASES.COMPLETED,
     messageKey,
     executionKey,
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
@@ -5002,8 +5162,8 @@ async function handleAutoTrigger(eventType, data) {
     completedAt: Date.now(),
     candidateToolIds: toolsToExecute.map(tool => tool.id)
   });
-  appendMessageSessionHistory(session, {
-    phase: MESSAGE_SESSION_PHASES.COMPLETED,
+  appendTransactionHistory(transaction, {
+    phase: TRANSACTION_PHASES.COMPLETED,
     eventType,
     messageId: context?.messageId || incomingMessageId,
     messageKey,
@@ -5011,7 +5171,7 @@ async function handleAutoTrigger(eventType, data) {
     confirmedAssistantMessageId: context?.confirmedAssistantMessageId || confirmedAssistantMessageId,
     confirmationSource: context?.confirmationSource || confirmationSource,
     candidateToolIds: toolsToExecute.map(tool => tool.id),
-    executionPathIds: [...(session.executionPathIds || [])]
+    executionPathIds: [...(transaction.executionPathIds || [])]
   });
 }
 
@@ -5052,17 +5212,17 @@ export function initToolTriggerManager() {
 
 function registerSlotDrivenListeners() {
   const registerIgnoredFallback = (eventType, messageId, reason) => {
-    const session = getOrCreateMessageSession(eventType, { messageId }, {
+    const transaction = getOrCreateTransactionRecord(eventType, { messageId }, {
       eventType,
       messageId
     });
-    updateMessageSession(session, {
-      phase: MESSAGE_SESSION_PHASES.IGNORED,
+    updateTransactionRecord(transaction, {
+      phase: TRANSACTION_PHASES.IGNORED,
       skipReason: reason,
       completedAt: Date.now()
     });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.IGNORED,
+    appendTransactionHistory(transaction, {
+      phase: TRANSACTION_PHASES.IGNORED,
       eventType,
       messageId,
       skipReason: reason
@@ -5070,8 +5230,8 @@ function registerSlotDrivenListeners() {
     saveEventDebugSnapshot({
       stage: 'ignored',
       eventType,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
+      traceId: transaction?.traceId || '',
+      transactionKey: transaction?.transactionKey || '',
       messageId,
       reason,
       handledAt: Date.now()
@@ -5132,391 +5292,6 @@ function registerSlotDrivenListeners() {
 /**
  * 注册GENERATION_ENDED事件监听
  */
-function registerGenerationEndedListener() {
-  const generationEndedListener = registerEventListener(EVENT_TYPES.GENERATION_ENDED, async (data) => {
-    const incomingMessageId = extractEventMessageId(data, EVENT_TYPES.GENERATION_ENDED);
-    const activeGenerationTraceId = triggerState.gateState.lastGenerationTraceId || '';
-    const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_ENDED, data, {
-      eventType: EVENT_TYPES.GENERATION_ENDED,
-      messageId: incomingMessageId
-    });
-    saveEventDebugSnapshot({
-      stage: 'received',
-      eventType: EVENT_TYPES.GENERATION_ENDED,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
-      messageId: incomingMessageId,
-      receivedAt: Date.now()
-    });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.RECEIVED,
-      eventType: EVENT_TYPES.GENERATION_ENDED,
-      messageId: incomingMessageId
-    });
-
-    const resolvedBaseline = await waitForResolvedGenerationBaseline({
-      traceId: activeGenerationTraceId,
-      retries: 6,
-      retryDelayMs: 80
-    });
-    const eligibility = getGenerationConfirmationEligibility(resolvedBaseline);
-    if (!eligibility.eligible) {
-      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_ENDED, data, {
-        messageId: incomingMessageId,
-        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
-        reason: eligibility.reason,
-        skipReasonDetailed: eligibility.detail,
-        confirmationSource: 'none'
-      });
-      return;
-    }
-
-    const messageBinding = resolveGenerationMessageBinding(incomingMessageId);
-
-    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(messageBinding.preferredMessageId, {
-      retries: messageBinding.preferredMessageId ? 3 : 8,
-      retryDelayMs: messageBinding.preferredMessageId ? 120 : 260,
-      allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: !messageBinding.forceSameSlotRevision,
-      forceSameSlotRevision: messageBinding.forceSameSlotRevision,
-      forcedSameSlotSource: messageBinding.forcedSameSlotSource
-    });
-    const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
-
-    if (!confirmedAssistantMessageId) {
-      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_ENDED, data, {
-        messageId: incomingMessageId,
-        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
-        reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-        skipReasonDetailed: messageBinding.preferredMessageId
-          ? 'message_id_or_same_slot_not_confirmed_after_generation'
-          : 'assistant_slot_not_confirmed_after_generation',
-        confirmationSource: 'none',
-        eventBelongsToCurrentGeneration: !!resolvedBaseline,
-        historicalReplayBlocked: false,
-        historicalReplayReason: ''
-      });
-      return;
-    }
-
-    await handleAutoTrigger(EVENT_TYPES.GENERATION_ENDED, {
-      ...(typeof data === 'object' && data ? data : {}),
-      generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
-      messageId: confirmedAssistantMessageId,
-      confirmedAssistantMessageId,
-      confirmationSource: 'generation_ended',
-      confirmationMode: confirmedAssistantMessage?.confirmationMode || '',
-      sameSlotRevisionCandidate: !!confirmedAssistantMessage?.sameSlotRevisionCandidate,
-      sameSlotRevisionConfirmed: !!confirmedAssistantMessage?.sameSlotRevisionConfirmed,
-      sameSlotRevisionSource: confirmedAssistantMessage?.sameSlotRevisionSource || '',
-      eventBelongsToCurrentGeneration: true,
-      historicalReplayBlocked: false,
-      historicalReplayReason: ''
-    });
-  });
-
-  const generationAfterCommandsListener = registerEventListener(EVENT_TYPES.GENERATION_AFTER_COMMANDS, async (data) => {
-    const incomingMessageId = extractEventMessageId(data, EVENT_TYPES.GENERATION_AFTER_COMMANDS);
-    const activeGenerationTraceId = triggerState.gateState.lastGenerationTraceId || '';
-    const { debounceMs } = getResolvedListenerSettings();
-    const session = getOrCreateMessageSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
-      eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-      messageId: incomingMessageId
-    });
-    saveEventDebugSnapshot({
-      stage: 'received',
-      eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
-      messageId: incomingMessageId,
-      receivedAt: Date.now(),
-      scheduledDelayMs: debounceMs
-    });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.RECEIVED,
-      eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-      messageId: incomingMessageId
-    });
-    if (!getResolvedListenerSettings().useGenerationAfterCommandsFallback) {
-      updateMessageSession(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        skipReason: 'generation_after_commands_fallback_disabled',
-        completedAt: Date.now()
-      });
-      appendMessageSessionHistory(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        eventType: EVENT_TYPES.GENERATION_AFTER_COMMANDS,
-        messageId: incomingMessageId,
-        skipReason: 'generation_after_commands_fallback_disabled'
-      });
-      return;
-    }
-
-    const resolvedBaseline = await waitForResolvedGenerationBaseline({
-      traceId: activeGenerationTraceId,
-      retries: 6,
-      retryDelayMs: 80
-    });
-    const eligibility = getGenerationConfirmationEligibility(resolvedBaseline);
-    const messageBinding = resolveGenerationMessageBinding(incomingMessageId);
-
-    if (!messageBinding.preferredMessageId) {
-      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
-        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
-        reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
-        skipReasonDetailed: eligibility.eligible
-          ? 'generation_after_commands_without_message_identity'
-          : eligibility.detail,
-        confirmationSource: 'none'
-      });
-      return;
-    }
-
-    if (!eligibility.eligible) {
-      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
-        messageId: incomingMessageId,
-        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
-        reason: eligibility.reason,
-        skipReasonDetailed: eligibility.detail,
-        confirmationSource: 'none'
-      });
-      return;
-    }
-
-    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(messageBinding.preferredMessageId, {
-      retries: messageBinding.preferredMessageId ? 3 : 2,
-      retryDelayMs: 120,
-      allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: !messageBinding.forceSameSlotRevision,
-      forceSameSlotRevision: messageBinding.forceSameSlotRevision,
-      forcedSameSlotSource: messageBinding.forcedSameSlotSource
-    });
-    const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
-
-    if (!confirmedAssistantMessageId) {
-      scheduleSpeculativeSession(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, {
-        messageId: incomingMessageId,
-        generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
-        reason: AUTO_TRIGGER_SKIP_REASONS.SPECULATIVE_FALLBACK_WITHOUT_MESSAGE,
-        skipReasonDetailed: messageBinding.preferredMessageId
-          ? 'generation_after_commands_same_slot_not_confirmed'
-          : 'generation_after_commands_message_not_confirmed',
-        confirmationSource: 'none',
-        eventBelongsToCurrentGeneration: !!resolvedBaseline,
-        historicalReplayBlocked: false,
-        historicalReplayReason: ''
-      });
-      return;
-    }
-
-    scheduleAutoTrigger(EVENT_TYPES.GENERATION_AFTER_COMMANDS, data, debounceMs, {
-      generationTraceId: resolvedBaseline?.traceId || activeGenerationTraceId,
-      messageId: incomingMessageId,
-      confirmedAssistantMessageId,
-      confirmationSource: 'generation_after_commands',
-      confirmationMode: confirmedAssistantMessage?.confirmationMode || '',
-      sameSlotRevisionCandidate: !!confirmedAssistantMessage?.sameSlotRevisionCandidate,
-      sameSlotRevisionConfirmed: !!confirmedAssistantMessage?.sameSlotRevisionConfirmed,
-      sameSlotRevisionSource: confirmedAssistantMessage?.sameSlotRevisionSource || '',
-      eventBelongsToCurrentGeneration: true,
-      historicalReplayBlocked: false,
-      historicalReplayReason: ''
-    });
-  });
-
-  const messageReceivedListener = registerEventListener(EVENT_TYPES.MESSAGE_RECEIVED, async (data) => {
-    const messageId = extractEventMessageId(data, EVENT_TYPES.MESSAGE_RECEIVED);
-    const resolvedMessageEntry = messageId
-      ? await findRawChatMessageByIdentityWithRetries(messageId, {
-          retries: 3,
-          retryDelayMs: 120
-        })
-      : null;
-    const resolvedMessage = resolvedMessageEntry?.message || null;
-    const resolvedRole = resolvedMessage ? normalizeMessageRole(resolvedMessage) : '';
-    const resolvedMessageId = resolvedMessageEntry
-      ? normalizeMessageIdentityValue(getMessageIdentity(resolvedMessage, resolvedMessageEntry.index))
-      : '';
-    const effectiveMessageId = messageId || resolvedMessageId;
-    const { debounceMs } = getResolvedListenerSettings();
-    const session = getOrCreateMessageSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
-      eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-      messageId: effectiveMessageId,
-      messageRole: resolvedRole
-    });
-
-    if (!messageId) {
-      traceAlways('info', 'MESSAGE_RECEIVED 缺少消息身份，判定为宿主 UI 干扰事件，跳过', {
-        rawEventData: data ?? null
-      });
-      saveEventDebugSnapshot({
-        stage: 'ignored_ui_side_effect',
-        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-        traceId: session?.traceId || '',
-        sessionKey: session?.sessionKey || '',
-        messageId: '',
-        messageRole: resolvedRole,
-        reason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
-        handledAt: Date.now()
-      });
-      updateMessageSession(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT,
-        completedAt: Date.now(),
-        messageRole: resolvedRole
-      });
-      appendMessageSessionHistory(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-        messageId: '',
-        messageRole: resolvedRole,
-        skipReason: AUTO_TRIGGER_SKIP_REASONS.UNRELATED_UI_EVENT
-      });
-      return;
-    }
-
-    saveEventDebugSnapshot({
-      stage: 'received',
-      eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-      traceId: session?.traceId || '',
-      sessionKey: session?.sessionKey || '',
-      messageId: effectiveMessageId,
-      messageRole: resolvedRole,
-      receivedAt: Date.now(),
-      scheduledDelayMs: debounceMs
-    });
-    appendMessageSessionHistory(session, {
-      phase: MESSAGE_SESSION_PHASES.RECEIVED,
-      eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-      messageId: effectiveMessageId,
-      messageRole: resolvedRole
-    });
-
-    if (!getResolvedListenerSettings().useMessageReceivedFallback) {
-      updateMessageSession(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        skipReason: 'message_received_fallback_disabled',
-        completedAt: Date.now(),
-        messageRole: resolvedRole
-      });
-      appendMessageSessionHistory(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-        messageId: effectiveMessageId,
-        messageRole: resolvedRole,
-        skipReason: 'message_received_fallback_disabled'
-      });
-      return;
-    }
-
-    if (!resolvedMessageEntry) {
-      scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
-        messageId,
-        generationTraceId: triggerState.gateState.lastGenerationTraceId || '',
-        reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-        skipReasonDetailed: 'message_received_identity_not_resolved',
-        confirmationSource: 'none'
-      });
-      return;
-    }
-
-    if (resolvedMessage && resolvedRole !== 'assistant') {
-      traceAlways('info', 'MESSAGE_RECEIVED 命中非 AI 消息，跳过自动触发调度', {
-        messageId: effectiveMessageId,
-        messageRole: resolvedRole
-      });
-      saveEventDebugSnapshot({
-        stage: 'ignored_non_assistant',
-        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-        traceId: session?.traceId || '',
-        sessionKey: session?.sessionKey || '',
-        messageId: effectiveMessageId,
-        messageRole: resolvedRole,
-        reason: AUTO_TRIGGER_SKIP_REASONS.NON_ASSISTANT_MESSAGE,
-        handledAt: Date.now()
-      });
-      updateMessageSession(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        skipReason: AUTO_TRIGGER_SKIP_REASONS.NON_ASSISTANT_MESSAGE,
-        completedAt: Date.now(),
-        messageRole: resolvedRole
-      });
-      appendMessageSessionHistory(session, {
-        phase: MESSAGE_SESSION_PHASES.IGNORED,
-        eventType: EVENT_TYPES.MESSAGE_RECEIVED,
-        messageId: effectiveMessageId,
-        messageRole: resolvedRole,
-        skipReason: AUTO_TRIGGER_SKIP_REASONS.NON_ASSISTANT_MESSAGE
-      });
-      return;
-    }
-
-    const confirmationCandidate = await evaluateMessageReceivedConfirmationCandidate(resolvedMessageEntry, {
-      traceId: triggerState.gateState.lastGenerationTraceId || '',
-      messageId: effectiveMessageId
-    });
-
-    if (!confirmationCandidate.allowed) {
-      scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
-        messageId: effectiveMessageId,
-        generationTraceId: confirmationCandidate?.baseline?.traceId || triggerState.gateState.lastGenerationTraceId || '',
-        reason: confirmationCandidate.reason,
-        skipReasonDetailed: confirmationCandidate.detail,
-        confirmationSource: 'none',
-        confirmationMode: confirmationCandidate.confirmationMode || '',
-        sameSlotRevisionCandidate: !!confirmationCandidate.sameSlotRevisionCandidate,
-        sameSlotRevisionConfirmed: !!confirmationCandidate.sameSlotRevisionConfirmed,
-        sameSlotRevisionSource: confirmationCandidate.sameSlotRevisionSource || '',
-        eventBelongsToCurrentGeneration: confirmationCandidate.eventBelongsToCurrentGeneration,
-        historicalReplayBlocked: confirmationCandidate.historicalReplayBlocked,
-        historicalReplayReason: confirmationCandidate.historicalReplayReason
-      });
-      return;
-    }
-
-    const confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(effectiveMessageId, {
-      retries: 3,
-      retryDelayMs: 120,
-      allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: false,
-      forceSameSlotRevision: true,
-      forcedSameSlotSource: 'message_id_bound_in_place'
-    });
-    const confirmedAssistantMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage?.sourceId);
-
-    if (!confirmedAssistantMessageId) {
-      scheduleSpeculativeSession(EVENT_TYPES.MESSAGE_RECEIVED, data, {
-        messageId: effectiveMessageId,
-        generationTraceId: confirmationCandidate?.baseline?.traceId || triggerState.gateState.lastGenerationTraceId || '',
-        reason: AUTO_TRIGGER_SKIP_REASONS.NO_CONFIRMED_ASSISTANT_MESSAGE,
-        skipReasonDetailed: 'message_received_not_confirmed_for_slot_revision',
-        confirmationSource: 'none',
-        eventBelongsToCurrentGeneration: true,
-        historicalReplayBlocked: false,
-        historicalReplayReason: ''
-      });
-      return;
-    }
-
-    scheduleAutoTrigger(EVENT_TYPES.MESSAGE_RECEIVED, data, debounceMs, {
-      generationTraceId: confirmationCandidate?.baseline?.traceId || triggerState.gateState.lastGenerationTraceId || '',
-      messageId: effectiveMessageId,
-      confirmedAssistantMessageId,
-      confirmationSource: 'message_received',
-      confirmationMode: confirmedAssistantMessage?.confirmationMode || confirmationCandidate.confirmationMode || '',
-      sameSlotRevisionCandidate: !!(confirmedAssistantMessage?.sameSlotRevisionCandidate ?? confirmationCandidate.sameSlotRevisionCandidate),
-      sameSlotRevisionConfirmed: !!(confirmedAssistantMessage?.sameSlotRevisionConfirmed ?? confirmationCandidate.sameSlotRevisionConfirmed),
-      sameSlotRevisionSource: confirmedAssistantMessage?.sameSlotRevisionSource || confirmationCandidate.sameSlotRevisionSource || '',
-      eventBelongsToCurrentGeneration: true,
-      historicalReplayBlocked: false,
-      historicalReplayReason: ''
-    });
-  });
-  
-  toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_ENDED, generationEndedListener);
-  toolTriggerManagerState.listeners.set(EVENT_TYPES.GENERATION_AFTER_COMMANDS, generationAfterCommandsListener);
-  toolTriggerManagerState.listeners.set(EVENT_TYPES.MESSAGE_RECEIVED, messageReceivedListener);
-}
 
 /**
  * 构建工具执行上下文
@@ -5546,7 +5321,7 @@ async function buildToolExecutionContext(eventData) {
       return buildToolExecutionContextFromMessageEntry(directEntry, {
         triggerEvent,
         traceId: eventData?.traceId || '',
-        sessionKey: eventData?.sessionKey || '',
+        transactionKey: eventData?.transactionKey || '',
         confirmationSource: eventData?.confirmationSource || '',
         confirmationMode: eventData?.confirmationMode || 'slot_revision',
         generationTraceId: eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
@@ -5582,7 +5357,7 @@ async function buildToolExecutionContext(eventData) {
       triggeredAt: Date.now(),
       triggerEvent,
       traceId: eventData?.traceId || '',
-      sessionKey: eventData?.sessionKey || '',
+      transactionKey: eventData?.transactionKey || '',
       confirmationSource: String(eventData?.confirmationSource || '').trim(),
       confirmedAssistantMessageId: explicitMessageId,
       chatId,
@@ -5647,7 +5422,7 @@ async function buildToolExecutionContext(eventData) {
     || ''
   ).trim();
   const resolvedBaseline = !isManual
-    ? (await waitForResolvedGenerationBaseline({
+    ? (await waitForResolvedTransactionBaseline({
         traceId: generationTraceId,
         retries: 2,
         retryDelayMs: 40
@@ -5725,7 +5500,7 @@ async function buildToolExecutionContext(eventData) {
     triggeredAt: Date.now(),
     triggerEvent,
     traceId: eventData?.traceId || '',
-    sessionKey: eventData?.sessionKey || '',
+    transactionKey: eventData?.transactionKey || '',
     confirmationSource,
     confirmedAssistantMessageId: messageId,
     chatId: resolveStableChatId(api, stContext, character),
@@ -6109,10 +5884,10 @@ export async function previewToolExtraction(toolId) {
  * 销毁工具触发管理器
  */
 export function destroyToolTriggerManager() {
-  for (const timer of toolTriggerManagerState.pendingMessageTimers.values()) {
+  for (const timer of toolTriggerManagerState.pendingTransactionTimers.values()) {
     clearTimeout(timer);
   }
-  toolTriggerManagerState.pendingMessageTimers.clear();
+  toolTriggerManagerState.pendingTransactionTimers.clear();
 
   for (const unregister of toolTriggerManagerState.listeners.values()) {
     if (typeof unregister === 'function') {
@@ -6126,10 +5901,10 @@ export function destroyToolTriggerManager() {
     }
   }
   toolTriggerManagerState.internalSubscriptions = [];
-  toolTriggerManagerState.messageSessions.clear();
+  toolTriggerManagerState.activeTransactions.clear();
   toolTriggerManagerState.handledExecutionKeys.clear();
   toolTriggerManagerState.writebackGuards.clear();
-  toolTriggerManagerState.recentSessionHistory = [];
+  toolTriggerManagerState.recentTransactionHistory = [];
   toolTriggerManagerState.recentEventTimeline = [];
   toolTriggerManagerState.initialized = false;
   toolTriggerManagerState.lastExecutionContext = null;
@@ -6141,7 +5916,7 @@ export function destroyToolTriggerManager() {
   toolTriggerManagerState.lastDuplicateMessageKey = '';
   toolTriggerManagerState.lastDuplicateExecutionKey = '';
   toolTriggerManagerState.lastDuplicateMessageAt = 0;
-  
+
   log('工具触发管理器已销毁');
 }
 
@@ -6151,11 +5926,11 @@ export function destroyToolTriggerManager() {
  */
 export function getToolTriggerManagerState() {
   const recentHandledExecutionKeys = getRecentHandledExecutionKeys(8);
-  const activeSessions = Array.from(toolTriggerManagerState.messageSessions.values())
+  const activeTransactions = Array.from(toolTriggerManagerState.activeTransactions.values())
     .map(cloneDiagnosticEntryForOutput)
     .filter(Boolean)
     .sort((left, right) => (Number(left?.updatedAt) || 0) - (Number(right?.updatedAt) || 0));
-  const recentSessionHistory = [...toolTriggerManagerState.recentSessionHistory]
+  const recentTransactionHistory = [...toolTriggerManagerState.recentTransactionHistory]
     .map(cloneDiagnosticEntryForOutput)
     .filter(Boolean);
   const recentEventTimeline = [...toolTriggerManagerState.recentEventTimeline]
@@ -6165,15 +5940,19 @@ export function getToolTriggerManagerState() {
   return {
     initialized: toolTriggerManagerState.initialized,
     listenersCount: toolTriggerManagerState.listeners.size,
-    activeSessionCount: toolTriggerManagerState.messageSessions.size,
-    activeSessions,
-    recentSessionHistory,
+    activeSessionCount: toolTriggerManagerState.activeTransactions.size,
+    activeSessions: activeTransactions,
+    activeTransactionCount: toolTriggerManagerState.activeTransactions.size,
+    activeTransactions,
+    recentSessionHistory: recentTransactionHistory,
+    recentTransactionHistory,
     recentEventTimeline,
     lastExecutionContext: toolTriggerManagerState.lastExecutionContext,
     lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot,
     lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot,
     registeredEvents: Array.from(toolTriggerManagerState.listeners.keys()),
-    pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
+    pendingTimerCount: toolTriggerManagerState.pendingTransactionTimers.size,
+    pendingTransactionCount: toolTriggerManagerState.pendingTransactionTimers.size,
     lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey,
     lastHandledExecutionKey: toolTriggerManagerState.lastHandledExecutionKey,
     lastHandledSlotRevisionKey: toolTriggerManagerState.lastHandledSlotRevisionKey,
@@ -6199,34 +5978,34 @@ export function getAutoTriggerDiagnostics(options = {}) {
   const recentHandledExecutionKeys = getRecentHandledExecutionKeys(historyLimit);
   const baseline = triggerState.gateState.lastGenerationBaseline;
 
-  const activeSessions = Array.from(toolTriggerManagerState.messageSessions.values())
+  const activeTransactions = Array.from(toolTriggerManagerState.activeTransactions.values())
     .map(cloneDiagnosticEntryForOutput)
     .filter(Boolean)
     .sort((left, right) => (Number(left?.updatedAt) || 0) - (Number(right?.updatedAt) || 0));
 
-  const recentSessionHistory = trimManagerHistoryEntries([
-    ...toolTriggerManagerState.recentSessionHistory
+  const recentTransactionHistory = trimManagerHistoryEntries([
+    ...toolTriggerManagerState.recentTransactionHistory
   ], historyLimit).map(cloneDiagnosticEntryForOutput);
   const recentEventTimeline = trimManagerHistoryEntries([
     ...toolTriggerManagerState.recentEventTimeline
   ], Math.max(historyLimit * 3, historyLimit)).map(cloneTimelineEntryForOutput);
 
   const phaseCounts = {
-    activeSessions: buildDiagnosticPhaseCounts(activeSessions),
-    recentSessionHistory: buildDiagnosticPhaseCounts(recentSessionHistory)
+    activeSessions: buildDiagnosticPhaseCounts(activeTransactions),
+    recentSessionHistory: buildDiagnosticPhaseCounts(recentTransactionHistory)
   };
 
   const consistency = {
-    activeSessions: buildDiagnosticDriftSummary(activeSessions),
-    recentSessionHistory: buildDiagnosticDriftSummary(recentSessionHistory)
+    activeSessions: buildDiagnosticDriftSummary(activeTransactions),
+    recentSessionHistory: buildDiagnosticDriftSummary(recentTransactionHistory)
   };
 
   const verdictHints = buildAutoTriggerVerdictHints({
     summary: {
       listenerSettings: getResolvedListenerSettings()
     },
-    activeSessions,
-    recentSessionHistory,
+    activeSessions: activeTransactions,
+    recentSessionHistory: recentTransactionHistory,
     lastEventDebugSnapshot: toolTriggerManagerState.lastEventDebugSnapshot,
     lastAutoTriggerSnapshot: toolTriggerManagerState.lastAutoTriggerSnapshot
   });
@@ -6244,8 +6023,10 @@ export function getAutoTriggerDiagnostics(options = {}) {
       uiTransitionGuardActive: isUiTransitionGuardActive(),
       uiTransitionGuardUntil: triggerState.gateState.uiTransitionGuardUntil || 0,
       lastUiTransitionSource: triggerState.gateState.lastUiTransitionSource || '',
-      activeSessionCount: toolTriggerManagerState.messageSessions.size,
-      pendingTimerCount: toolTriggerManagerState.pendingMessageTimers.size,
+      activeSessionCount: toolTriggerManagerState.activeTransactions.size,
+      activeTransactionCount: toolTriggerManagerState.activeTransactions.size,
+      pendingTimerCount: toolTriggerManagerState.pendingTransactionTimers.size,
+      pendingTransactionCount: toolTriggerManagerState.pendingTransactionTimers.size,
       lastHandledMessageKey: toolTriggerManagerState.lastHandledMessageKey || '',
       lastHandledExecutionKey: toolTriggerManagerState.lastHandledExecutionKey || '',
       lastHandledSlotRevisionKey: toolTriggerManagerState.lastHandledSlotRevisionKey || '',
@@ -6272,8 +6053,10 @@ export function getAutoTriggerDiagnostics(options = {}) {
       verdictHints,
       ...getCurrentGenerationDiagnosticFields()
     },
-    activeSessions,
-    recentSessionHistory,
+    activeSessions: activeTransactions,
+    activeTransactions,
+    recentSessionHistory: recentTransactionHistory,
+    recentTransactionHistory,
     recentEventTimeline,
     recentHandledExecutionKeys,
     verdictHints,
@@ -6292,11 +6075,57 @@ export function exportAutoTriggerDiagnostics(options = {}) {
 }
 
 export function getGenerationTransactionDiagnostics(options = {}) {
-  return getAutoTriggerDiagnostics(options);
+  const autoDiagnostics = getAutoTriggerDiagnostics(options);
+  const transactionDiagnostics = buildTransactionDiagnostics(
+    autoDiagnostics.activeTransactions,
+    autoDiagnostics.recentTransactionHistory
+  );
+
+  return {
+    summary: {
+      generationTraceId: autoDiagnostics.summary?.generationTraceId || '',
+      generationType: autoDiagnostics.summary?.generationType || '',
+      generationDryRun: !!autoDiagnostics.summary?.generationDryRun,
+      isGenerating: !!autoDiagnostics.summary?.isGenerating,
+      activeTransactionCount: transactionDiagnostics.activeTransactionCount,
+      pendingTransactionCount: transactionDiagnostics.pendingTransactionCount,
+      lastHandledExecutionKey: transactionDiagnostics.lastHandledExecutionKey,
+      lastHandledSlotRevisionKey: transactionDiagnostics.lastHandledSlotRevisionKey,
+      handledExecutionKeyCount: transactionDiagnostics.handledExecutionKeyCount,
+      recentHandledExecutionKeys: transactionDiagnostics.recentHandledExecutionKeys,
+      lastExecutionContext: transactionDiagnostics.lastExecutionContext,
+      lastEventDebugSnapshot: transactionDiagnostics.lastEventDebugSnapshot,
+      lastAutoTriggerSnapshot: transactionDiagnostics.lastAutoTriggerSnapshot,
+      listenerSettings: autoDiagnostics.summary?.listenerSettings || getResolvedListenerSettings(),
+      eventBridge: autoDiagnostics.summary?.eventBridge || buildEventBridgeDiagnosticSummary(),
+      gateState: autoDiagnostics.summary?.gateState || buildGateStateDiagnosticSummary(),
+      phaseCounts: autoDiagnostics.summary?.phaseCounts || {},
+      consistency: autoDiagnostics.summary?.consistency || {},
+      verdictHints: autoDiagnostics.verdictHints || autoDiagnostics.summary?.verdictHints || [],
+      ...getCurrentGenerationDiagnosticFields()
+    },
+    activeTransactions: transactionDiagnostics.activeTransactions,
+    recentTransactionHistory: transactionDiagnostics.recentTransactionHistory,
+    recentEventTimeline: autoDiagnostics.recentEventTimeline,
+    recentHandledExecutionKeys: transactionDiagnostics.recentHandledExecutionKeys,
+    verdictHints: autoDiagnostics.verdictHints,
+    lastExecutionContext: transactionDiagnostics.lastExecutionContext,
+    lastEventDebugSnapshot: transactionDiagnostics.lastEventDebugSnapshot,
+    lastAutoTriggerSnapshot: transactionDiagnostics.lastAutoTriggerSnapshot,
+    compatibility: {
+      activeSessions: autoDiagnostics.activeSessions,
+      recentSessionHistory: autoDiagnostics.recentSessionHistory
+    }
+  };
 }
 
 export function exportGenerationTransactionDiagnostics(options = {}) {
-  return exportAutoTriggerDiagnostics(options);
+  const diagnostics = getGenerationTransactionDiagnostics(options);
+  return JSON.parse(JSON.stringify({
+    exportedAt: Date.now(),
+    schemaVersion: 'generation-transaction-diagnostics.v1',
+    ...diagnostics
+  }));
 }
 
 // ============================================================
@@ -6395,7 +6224,7 @@ export async function initTriggerModule() {
       const userIntentDetectedAt = generationUserIntent.userIntentDetectedAt;
       const userIntentSource = generationUserIntent.userIntentSource;
       const userIntentDetail = generationUserIntent.userIntentDetail;
-      const provisionalBaseline = createProvisionalGenerationBaseline({
+      const provisionalBaseline = createProvisionalTransactionBaseline({
         traceId,
         startedAt,
         type,
@@ -6452,7 +6281,7 @@ export async function initTriggerModule() {
         generationUserIntentSource: userIntentSource
       });
 
-      captureGenerationBaseline({
+      captureGenerationTransactionBaseline({
         traceId,
         startedAt,
         type,

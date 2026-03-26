@@ -85,10 +85,11 @@
 - `modules/context-injector.js` / `modules/tool-output-service.js` 已同步收紧写回目标与透传字段：写回固定优先绑定 `confirmedAssistantMessageId`，并补齐 `generationMessageBindingSource / confirmedAssistantSwipeId / effectiveSwipeId` 诊断口径
 - `modules/tool-trigger.js` 本轮已进一步真正切到楼层槽位驱动主路径：`GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED` 只要能解析 `messageId`，都会优先按该楼层生成 `slotRevisionKey`
 - `modules/context-injector.js` 本轮已进一步收紧为自动写回必须提供 `sourceMessageId`，并优先按 `sourceSwipeId / effectiveSwipeId` 写当前 swipe；`MESSAGE_UPDATED` 回响则通过 `writeback_echo_event` 守卫拦截
-- `modules/tool-trigger.js` / `modules/tool-output-service.js` / `modules/context-injector.js` / `modules/tool-registry.js` 已继续补齐 `slotBindingKey / slotTransactionId / sourceMessageId / sourceSwipeId` 事务元数据，execution key 现正式与 `slotRevisionKey` 对齐
-- 本轮已再次执行 `npm run build 2>&1`，构建通过
+- `modules/ui/components/tool-config-panel-factory.js` 已继续把工具页诊断消费面切到 transaction-first：当前优先读取 `getGenerationTransactionDiagnostics()`，折叠区可直接展示 `activeTransactions / recentTransactionHistory / recentHandledExecutionKeys`，复制按钮也已改为导出 `exportGenerationTransactionDiagnostics()`
+- `docs/API_DOCUMENTATION.md`、`docs/HOST_REGRESSION_CHECKLIST.md` 本轮已继续同步 transaction 口径：工具页观测点、控制台辅助命令与诊断导出方式现统一改为 transaction diagnostics 优先，`recentEventTimeline` 则保留为时序辅助视图
+- 本轮继续执行 `npm run build` 构建验证通过，说明 transaction 诊断消费面对齐未破坏 bundle 输出
 
-换句话说，当前需要确认的已不再是“是否还在施工中”，而是“是否还要继续做宿主环境实测或额外体验优化”。
+换句话说，当前需要确认的已不再是“UI 有没有接上 transaction 视图”，而是“宿主环境里这些 transaction 诊断是否足以直接定位 reroll / dedupe / writeback / refresh 的真实卡点”。
 
 ## 当前建议动作
 

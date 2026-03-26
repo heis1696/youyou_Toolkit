@@ -11,6 +11,11 @@
 
 ### 更改
 
+- ♻️ **事务诊断消费面对齐：工具页与文档切到 transaction-first 视图** (`modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 工具配置页中的“最近触发诊断”折叠区现优先读取 `getGenerationTransactionDiagnostics()`，可直接展示 `activeTransactions / recentTransactionHistory / recentHandledExecutionKeys`
+  - 复制按钮现改为导出 `exportGenerationTransactionDiagnostics()`，不再继续以 `exportAutoTriggerDiagnostics()` 作为 UI 主导出口
+  - API 文档与宿主回归清单已同步改写为 transaction-first 口径；`recentEventTimeline` 保留为辅助时序视图，而不是 UI 主语义
+
 - ♻️ **楼层槽位事务元数据补齐：统一 slot binding / revision / transaction / source 写回语义** (`modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `modules/tool-registry.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 自动执行上下文、消息级 session、全局诊断快照、工具 runtime 与写回事件现已统一补齐 `slotBindingKey / slotRevisionKey / slotTransactionId / sourceMessageId / sourceSwipeId`
   - `executionKey` 现正式与 `slotRevisionKey` 对齐，自动去重完全按“当前楼层 + 当前 swipe + 当前内容版本”收口，不再继续依赖 generationTrace 作为主锚点

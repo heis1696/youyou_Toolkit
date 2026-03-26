@@ -589,22 +589,25 @@ const exported = YouYouToolkit.exportAutoTriggerDiagnostics({ historyLimit: 8 })
 
 ### `getGenerationTransactionDiagnostics(options)`
 
-这是当前事务化诊断的对外别名出口，返回结构与 `getAutoTriggerDiagnostics()` 一致，但语义上强调：
+这是当前事务化诊断的主出口。它会在保留 `getAutoTriggerDiagnostics()` 兼容投影的同时，直接强调 transaction / execution-key 视角：
 
 - 当前 generation action 是什么
-- 当前 execution key 是否已被处理
+- 当前 execution key / slot revision key 是否已被处理
 - 最近被处理过的 execution key 有哪些
+- 当前 activeTransactions / recentTransactionHistory 中每条事务停在哪个 phase
 
 ```javascript
 const transactionDiagnostics = YouYouToolkit.getGenerationTransactionDiagnostics({ historyLimit: 8 });
 // transactionDiagnostics.summary.lastHandledExecutionKey
 // transactionDiagnostics.summary.handledExecutionKeyCount
 // transactionDiagnostics.recentHandledExecutionKeys
+// transactionDiagnostics.activeTransactions
+// transactionDiagnostics.recentTransactionHistory
 ```
 
 ### `exportGenerationTransactionDiagnostics(options)`
 
-导出事务化诊断 JSON 快照；当前结构与 `exportAutoTriggerDiagnostics()` 保持一致。
+导出事务化诊断 JSON 快照；当前结构会额外包含 `activeTransactions / recentTransactionHistory / recentHandledExecutionKeys / compatibility` 等 transaction-first 字段，适合直接复制到 issue、日志或宿主验收记录中。
 
 ### `getBypassManager()`
 
@@ -1529,7 +1532,7 @@ interface ToolConfig {
 
 > 当前版本会把 `GENERATION_ENDED / GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED` 命中的同一条楼层，尽量收敛到同一个 message session；因此 fallback 事件的意义不再是“多执行一次”，而是“补足同一条消息的生命周期信号”。
 
-> 当前工具配置页中的“最近触发诊断”折叠区，也已同步接入这批宿主验收辅助信息：除单工具 runtime 之外，还会额外显示 N1 快速判读 chips、最近自动触发时间线摘要，并提供一键复制 `exportAutoTriggerDiagnostics()` JSON 快照的按钮。
+> 当前工具配置页中的“最近触发诊断”折叠区，也已同步接入这批宿主验收辅助信息：除单工具 runtime 之外，还会额外显示 N1 快速判读 chips、最近事务历史、execution key / slot revision 摘要，并提供一键复制 `exportGenerationTransactionDiagnostics()` JSON 快照的按钮；`recentEventTimeline` 仍作为 transaction 视图下的时序辅助信息保留。
 
 ### ~~提示词段落对象~~ (v0.6 已弃用)
 

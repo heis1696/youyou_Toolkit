@@ -26,7 +26,9 @@ import {
   runToolManually,
   previewToolExtraction,
   getAutoTriggerDiagnostics,
-  exportAutoTriggerDiagnostics
+  exportAutoTriggerDiagnostics,
+  getGenerationTransactionDiagnostics,
+  exportGenerationTransactionDiagnostics
 } from '../../tool-trigger.js';
 
 export const TOOL_CONFIG_PANEL_STYLES = `
@@ -493,7 +495,8 @@ export function createToolConfigPanel(options) {
         ? postResponseHint
         : '随 AI 输出不会自动调用额外模型，但仍然支持手动执行与测试提取。';
       const autoTriggerDiagnostics = getAutoTriggerDiagnostics({ historyLimit: 8 });
-      const diagnosticsHtml = this._buildDiagnosticsHtml(config.runtime || {}, autoTriggerDiagnostics);
+      const transactionDiagnostics = getGenerationTransactionDiagnostics({ historyLimit: 8 });
+      const diagnosticsHtml = this._buildDiagnosticsHtml(config.runtime || {}, autoTriggerDiagnostics, transactionDiagnostics);
       const outputModeLabel = outputMode === 'post_response_api' ? '额外解析' : '随 AI 输出';
       const apiPresetLabel = selectedApiPreset || '当前配置';
 
@@ -896,19 +899,20 @@ export function createToolConfigPanel(options) {
       }
     },
 
-    _copyAutoTriggerDiagnostics() {
+    _copyGenerationTransactionDiagnostics() {
       try {
-        const payload = exportAutoTriggerDiagnostics({ historyLimit: 8 });
+        const payload = exportGenerationTransactionDiagnostics({ historyLimit: 8 });
         const copied = this._copyText(JSON.stringify(payload, null, 2));
         if (copied) {
-          showToast('success', '自动触发诊断已复制');
+          showToast('success', '事务诊断已复制');
         } else {
           showToast('warning', '复制失败，请手动在控制台导出');
         }
       } catch (error) {
-        showToast('error', error?.message || '导出自动触发诊断失败');
+        showToast('error', error?.message || '导出事务诊断失败');
       }
     },
+
 
     _buildHistorySection(title, entries = [], type = 'trigger') {
       const list = Array.isArray(entries) ? entries.filter(Boolean).slice().reverse() : [];
@@ -955,16 +959,27 @@ export function createToolConfigPanel(options) {
       `;
     },
 
-    _buildDiagnosticsHtml(runtime, autoTriggerDiagnostics = null) {
+    _buildDiagnosticsHtml(runtime, autoTriggerDiagnostics = null, transactionDiagnostics = null) {
       const data = runtime || {};
-      const diagnostics = autoTriggerDiagnostics || null;
+      const autoDiagnostics = autoTriggerDiagnostics || null;
+      const transactionView = transactionDiagnostics || null;
+      const diagnostics = transactionView || autoDiagnostics || null;
       const summary = diagnostics?.summary || {};
       const lastEventSnapshot = diagnostics?.lastEventDebugSnapshot || {};
       const lastAutoSnapshot = diagnostics?.lastAutoTriggerSnapshot || {};
+      const activeTransactions = Array.isArray(transactionView?.activeTransactions) ? transactionView.activeTransactions : [];
+      const recentTransactionHistory = Array.isArray(transactionView?.recentTransactionHistory) ? transactionView.recentTransactionHistory : [];
+      const activeSessions = Array.isArray(autoDiagnostics?.activeSessions) ? autoDiagnostics.activeSessions : [];
+      const recentSessionHistory = Array.isArray(autoDiagnostics?.recentSessionHistory) ? autoDiagnostics.recentSessionHistory : [];
+      const recentEventTimeline = Array.isArray(diagnostics?.recentEventTimeline) ? diagnostics.recentEventTimeline : [];
       const hasGlobalDiagnostics = Boolean(
-        (Array.isArray(diagnostics?.activeSessions) && diagnostics.activeSessions.length > 0)
-        || (Array.isArray(diagnostics?.recentSessionHistory) && diagnostics.recentSessionHistory.length > 0)
-        || (Array.isArray(diagnostics?.recentEventTimeline) && diagnostics.recentEventTimeline.length > 0)
+        activeTransactions.length > 0
+        || recentTransactionHistory.length > 0
+        || activeSessions.length > 0
+        || recentSessionHistory.length > 0
+        || recentEventTimeline.length > 0
+        || summary?.activeTransactionCount
+        || summary?.pendingTransactionCount
         || summary?.activeSessionCount
         || summary?.pendingTimerCount
         || summary?.lastHandledMessageKey
@@ -1024,7 +1039,7 @@ export function createToolConfigPanel(options) {
       const triggerHistoryHtml = this._buildHistorySection('最近触发历史', data.recentTriggerHistory || [], 'trigger');
       const writebackHistoryHtml = this._buildHistorySection('最近写回历史', data.recentWritebackHistory || [], 'writeback');
       const globalRows = hasGlobalDiagnostics ? [
-        ['当前 active / timers', `${summary.activeSessionCount || 0} / ${summary.pendingTimerCount || 0}`],
+        ['当前 active / timers', `${summary.activeTransactionCount || summary.activeSessionCount || 0} / ${summary.pendingTransactionCount || summary.pendingTimerCount || 0}`],
         ['事件桥接', this._formatEventBridgeText(summary.eventBridge)],
         ['当前 generation 动作', this._formatDiagnosticValue(summary.generationAction, '未记录')],
         ['当前原始 generation type', this._formatDiagnosticValue(summary.rawGenerationType, '未记录')],
@@ -1055,8 +1070,15 @@ export function createToolConfigPanel(options) {
         ['Active phase 统计', this._formatDiagnosticValue(this._formatPhaseCountsText(summary.phaseCounts?.activeSessions), '无')],
         ['History phase 统计', this._formatDiagnosticValue(this._formatPhaseCountsText(summary.phaseCounts?.recentSessionHistory), '无')]
       ] : [];
+      const transactionRows = transactionView ? [
+        ['当前 transaction / pending', `${summary.activeTransactionCount || 0} / ${summary.pendingTransactionCount || 0}`],
+        ['最近事务 execution key', this._formatDiagnosticValue(summary.lastHandledExecutionKey, '未记录')],
+        ['最近事务 slot revision', this._formatDiagnosticValue(summary.lastHandledSlotRevisionKey, '未记录')],
+        ['事务视图 active / history', `${activeTransactions.length} / ${recentTransactionHistory.length}`]
+      ] : [];
       const verdictHintsHtml = hasGlobalDiagnostics ? this._buildVerdictHintsHtml(diagnostics?.verdictHints || summary?.verdictHints || {}) : '';
-      const timelineHtml = hasGlobalDiagnostics ? this._buildTimelineSection('最近自动触发时间线', (diagnostics?.recentEventTimeline || []).slice(-6)) : '';
+      const transactionTimelineHtml = transactionView ? this._buildTimelineSection('最近事务历史', recentTransactionHistory.slice(-6)) : '';
+      const timelineHtml = hasGlobalDiagnostics ? this._buildTimelineSection('最近自动触发时间线', recentEventTimeline.slice(-6)) : '';
 
       return `
         <details class="yyt-tool-debug-panel">
@@ -1074,14 +1096,21 @@ export function createToolConfigPanel(options) {
                 <span class="yyt-tool-runtime-value">${value}</span>
               </div>
             `).join('')}
+            ${transactionRows.map(([label, value]) => `
+              <div class="yyt-tool-runtime-line">
+                <span class="yyt-tool-runtime-label">${label}</span>
+                <span class="yyt-tool-runtime-value">${value}</span>
+              </div>
+            `).join('')}
             <div class="yyt-tool-debug-actions">
               <button class="yyt-btn yyt-btn-secondary yyt-btn-small" id="${SCRIPT_ID}-tool-copy-auto-trigger-diagnostics">
-                <i class="fa-solid fa-copy"></i> 复制自动触发诊断 JSON
+                <i class="fa-solid fa-copy"></i> 复制事务诊断 JSON
               </button>
             </div>
             ${verdictHintsHtml}
             ${triggerHistoryHtml}
             ${writebackHistoryHtml}
+            ${transactionTimelineHtml}
             ${timelineHtml}
           </div>
         </details>
@@ -1277,7 +1306,7 @@ export function createToolConfigPanel(options) {
       });
 
       $container.find(`#${SCRIPT_ID}-tool-copy-auto-trigger-diagnostics`).on('click', () => {
-        this._copyAutoTriggerDiagnostics();
+        this._copyGenerationTransactionDiagnostics();
       });
     },
 

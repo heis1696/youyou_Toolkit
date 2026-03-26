@@ -397,7 +397,7 @@
 1. `[youyou_trigger]` 控制台日志
 2. `YouYouToolkit.getToolTrigger().getToolTriggerManagerState()`
 3. `YouYouToolkit.getAutoTriggerDiagnostics()`
-4. 工具配置页中的“最近触发诊断”折叠区（现已可直接看到 N1 快速判读 chips、最近自动触发时间线摘要，并可一键复制诊断 JSON）
+4. 工具配置页中的“最近触发诊断”折叠区（现已可直接看到 N1 快速判读 chips、最近事务历史、execution key / slot revision 摘要，并可一键复制事务诊断 JSON）
 
 ### 6.2 建议使用的控制台辅助命令
 
@@ -409,18 +409,21 @@ const trigger = YouYouToolkit.getToolTrigger();
 function dumpAutoTriggerState() {
   const state = trigger.getToolTriggerManagerState();
   const diagnostics = YouYouToolkit.getAutoTriggerDiagnostics({ historyLimit: 8 });
+  const transactions = YouYouToolkit.getGenerationTransactionDiagnostics({ historyLimit: 8 });
   console.log('lastEventDebugSnapshot', state.lastEventDebugSnapshot);
   console.log('lastAutoTriggerSnapshot', state.lastAutoTriggerSnapshot);
   console.log('eventBridge', state.eventBridge);
   console.log('gateState', state.gateState);
   console.log('diagnostics.summary', diagnostics.summary);
+  console.log('transactions.summary', transactions.summary);
+  console.log('transactions.recentHandledExecutionKeys', transactions.recentHandledExecutionKeys);
   console.log('diagnostics.phaseCounts', diagnostics.summary?.phaseCounts);
   console.log('diagnostics.consistency', diagnostics.summary?.consistency);
   console.log('diagnostics.verdictHints', diagnostics.verdictHints);
-  console.table(diagnostics.activeSessions || []);
-  console.table(diagnostics.recentSessionHistory || []);
+  console.table(transactions.activeTransactions || []);
+  console.table(transactions.recentTransactionHistory || []);
   console.table(diagnostics.recentEventTimeline || []);
-  return { state, diagnostics };
+  return { state, diagnostics, transactions };
 }
 
 dumpAutoTriggerState();
@@ -451,17 +454,19 @@ dumpAutoTriggerState();
 
 若宿主里同一条消息被多个 fallback 事件连续命中，建议优先看：
 
+- `transactions.summary`
+- `transactions.recentHandledExecutionKeys`
+- `transactions.activeTransactions`
+- `transactions.recentTransactionHistory`
 - `diagnostics.summary`
 - `diagnostics.summary.phaseCounts`
 - `diagnostics.summary.consistency`
 - `diagnostics.verdictHints`
-- `diagnostics.activeSessions`
-- `diagnostics.recentSessionHistory`
 - `diagnostics.recentEventTimeline`
 - `state.eventBridge`
 - `state.gateState`
 
-其中 `diagnostics.activeSessions / recentSessionHistory` 更适合直接比对“冻结版 session generation 字段”和“当前 generation 字段”是否一致。
+其中 `transactions.activeTransactions / recentTransactionHistory` 更适合直接比对“当前事务冻结字段”和“当前 generation 字段”是否一致；`diagnostics.recentEventTimeline` 更适合还原事件时序。
 
 如果 `diagnostics.summary.consistency` 中的 drift 计数明显增加，建议进一步对照：
 
@@ -479,7 +484,7 @@ dumpAutoTriggerState();
 它更适合直接回答：
 
 - baseline 是在确认前还是确认后才 resolved
-- 某次 session 先进入了 `scheduled` 还是先被 `ignored/skipped`
+- 某次 transaction 先进入了 `detected / bound / eligible / executing / writeback_pending / refresh_pending / completed` 的哪一层，还是先被 `ignored/skipped`
 - UI guard 与 generation 事件是否发生了时序交叠
 
 若需要复制一份完整快照给日志或 issue，可直接执行：
