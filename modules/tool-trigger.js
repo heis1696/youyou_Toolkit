@@ -3567,7 +3567,16 @@ function buildAssistantSlotFromEntry(entry, eventType = '', data = {}, options =
     || triggerState.gateState.lastGenerationTraceId
     || ''
   ).trim();
-  const baseline = getCurrentGenerationBaseline(resolveStableChatId(api, context, null));
+  const generationAction = String(
+    data?.generationAction
+    || triggerState.gateState.lastGenerationAction
+    || ''
+  ).trim();
+  const generationActionSource = String(
+    data?.generationActionSource
+    || triggerState.gateState.lastGenerationActionSource
+    || ''
+  ).trim();
 
   const slot = {
     eventType,
@@ -3581,13 +3590,15 @@ function buildAssistantSlotFromEntry(entry, eventType = '', data = {}, options =
     effectiveSwipeId: swipeId,
     swipeCount: getMessageSwipeCount(message),
     generationTraceId,
-    generationAction: baseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
-    generationActionSource: baseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
-    generationStartedByUserIntent: !!(baseline?.startedByUserIntent || hasRecentUserTriggerIntent()),
-    dryRun: !!(baseline?.dryRun || triggerState.gateState.lastGenerationDryRun),
+    generationAction,
+    generationActionSource,
+    generationStartedByUserIntent: !!(
+      data?.generationStartedByUserIntent
+      ?? hasConfirmedUserTriggerIntent()
+      ?? hasRecentUserTriggerIntent()
+    ),
+    dryRun: !!(data?.dryRun || triggerState.gateState.lastGenerationDryRun),
     bindingSource: options?.bindingSource || '',
-    baselineAssistantMessageId: normalizeMessageIdentityValue(baseline?.lastAssistantMessageId),
-    baselineAssistantSwipeId: normalizeMessageIdentityValue(baseline?.lastAssistantSwipeId),
     rawMessage: message
   };
 
@@ -3612,11 +3623,6 @@ async function resolveAssistantSlotFromEvent(eventType, data, options = {}) {
     || triggerState.gateState.lastGenerationTraceId
     || ''
   ).trim();
-  const baseline = await waitForResolvedTransactionBaseline({
-    traceId: generationTraceId,
-    retries: 2,
-    retryDelayMs: 50
-  }) || getCurrentGenerationBaseline();
 
   if (!incomingMessageId) {
     return null;
@@ -3691,27 +3697,19 @@ function evaluateAssistantSlotEvent(slot, eventType = '', data = {}) {
     }
   }
 
-  if (eventType === EVENT_TYPES.MESSAGE_SWIPED) {
-    return {
-      allowed: true,
-      reason: '',
-      detail: ''
-    };
-  }
+  const historicalReplayBlocked = !slot.generationStartedByUserIntent
+    && !hasRecentGenerationActivity(now)
+    && !hasConfirmedUserTriggerIntent(now)
+    && !hasRecentUserTriggerIntent(now);
 
-  if (
-    eventType === EVENT_TYPES.MESSAGE_RECEIVED
-    || eventType === EVENT_TYPES.MESSAGE_UPDATED
-  ) {
-    if (!hasRecentGenerationActivity(now) && !hasConfirmedUserTriggerIntent(now)) {
-      return {
-        allowed: false,
-        reason: eventType === EVENT_TYPES.MESSAGE_RECEIVED
-          ? AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION
-          : AUTO_TRIGGER_SKIP_REASONS.SLOT_EVENT_OUTSIDE_WINDOW,
-        detail: 'slot_event_without_recent_generation_activity'
-      };
-    }
+  if (historicalReplayBlocked) {
+    return {
+      allowed: false,
+      reason: eventType === EVENT_TYPES.MESSAGE_RECEIVED
+        ? AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION
+        : AUTO_TRIGGER_SKIP_REASONS.SLOT_EVENT_OUTSIDE_WINDOW,
+      detail: 'historical_replay_message_received'
+    };
   }
 
   return {
@@ -3726,25 +3724,11 @@ async function routeAssistantSlotEvent(eventType, data, options = {}) {
   const evaluation = evaluateAssistantSlotEvent(slot, eventType, data);
 
   if (!evaluation.allowed) {
-    const transaction = scheduleSpeculativeTransaction(eventType, data, {
-      messageId: slot?.messageId || options?.messageId || extractEventMessageId(data, eventType),
-      generationTraceId: slot?.generationTraceId || options?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
-      reason: evaluation.reason,
-      skipReasonDetailed: evaluation.detail,
-      confirmationSource: 'none',
-      confirmationMode: 'none',
-      eventBelongsToCurrentGeneration: false,
-      historicalReplayBlocked: evaluation.reason === AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION,
-      historicalReplayReason: evaluation.reason === AUTO_TRIGGER_SKIP_REASONS.MESSAGE_RECEIVED_OUTSIDE_ACTIVE_GENERATION
-        ? 'slot_event_without_recent_generation_activity'
-        : ''
-    });
-
     saveAutoTriggerSnapshot({
       triggerEvent: eventType,
-      traceId: transaction?.traceId || '',
-      transactionKey: transaction?.transactionKey || '',
-      messageId: slot?.messageId || '',
+      traceId: String(data?.traceId || '').trim(),
+      transactionKey: '',
+      messageId: slot?.messageId || normalizeMessageIdentityValue(options?.messageId || extractEventMessageId(data, eventType)),
       generationMessageBindingSource: slot?.bindingSource || '',
       confirmedAssistantSwipeId: slot?.swipeId || '',
       effectiveSwipeId: slot?.effectiveSwipeId || '',
@@ -3753,6 +3737,24 @@ async function routeAssistantSlotEvent(eventType, data, options = {}) {
       confirmedAssistantMessageId: slot?.messageId || '',
       confirmationSource: 'none',
       slotRevisionKey: slot ? buildSlotRevisionKey(slot) : ''
+    });
+    saveEventDebugSnapshot({
+      stage: 'slot_event_skipped',
+      eventType,
+      traceId: String(data?.traceId || '').trim(),
+      messageId: slot?.messageId || normalizeMessageIdentityValue(options?.messageId || extractEventMessageId(data, eventType)),
+      reason: evaluation.reason,
+      skipReasonDetailed: evaluation.detail,
+      confirmedAssistantMessageId: slot?.messageId || '',
+      confirmationSource: 'none',
+      slotBindingKey: slot?.slotBindingKey || '',
+      slotRevisionKey: slot?.slotRevisionKey || '',
+      sourceSwipeId: slot?.effectiveSwipeId || '',
+      historicalReplayBlocked: evaluation.detail === 'historical_replay_message_received',
+      historicalReplayReason: evaluation.detail === 'historical_replay_message_received'
+        ? 'slot_event_without_recent_user_intent'
+        : '',
+      handledAt: Date.now()
     });
     return false;
   }
@@ -3763,22 +3765,25 @@ async function routeAssistantSlotEvent(eventType, data, options = {}) {
     confirmedAssistantMessageId: slot.messageId,
     confirmationSource: slot.bindingSource || eventType.toLowerCase(),
     confirmationMode: 'slot_revision',
-    generationMessageBindingSource: slot.bindingSource || '',
+    generationMessageBindingSource: slot.bindingSource || 'event_message_id',
     slotBindingKey: slot.slotBindingKey || buildSlotBindingKey(slot),
     confirmedAssistantSwipeId: slot.swipeId || '',
     effectiveSwipeId: slot.effectiveSwipeId || '',
     sourceMessageId: slot.messageId,
     sourceSwipeId: slot.effectiveSwipeId || '',
-    slotRevisionKey: buildSlotRevisionKey(slot),
+    slotRevisionKey: slot.slotRevisionKey || buildSlotRevisionKey(slot),
     slotTransactionId: slot.slotTransactionId || buildSlotTransactionId(slot),
-    sameSlotRevisionCandidate: isSameSlotRevisionActionFamily(slot.generationAction),
-    sameSlotRevisionConfirmed: isSameSlotRevisionActionFamily(slot.generationAction),
-    sameSlotRevisionSource: isSameSlotRevisionActionFamily(slot.generationAction)
-      ? (slot.bindingSource || 'slot_revision')
-      : '',
+    sameSlotRevisionCandidate: true,
+    sameSlotRevisionConfirmed: true,
+    sameSlotRevisionSource: slot.bindingSource || 'slot_revision',
     eventBelongsToCurrentGeneration: true,
     historicalReplayBlocked: false,
-    historicalReplayReason: ''
+    historicalReplayReason: '',
+    generationStartedByUserIntent: !!slot.generationStartedByUserIntent,
+    generationAction: slot.generationAction || '',
+    generationActionSource: slot.generationActionSource || '',
+    dryRun: !!slot.dryRun,
+    executionKey: slot.slotRevisionKey || buildSlotRevisionKey(slot)
   };
 
   const delayMs = eventType === EVENT_TYPES.GENERATION_ENDED
@@ -5322,13 +5327,13 @@ async function buildToolExecutionContext(eventData) {
         triggerEvent,
         traceId: eventData?.traceId || '',
         transactionKey: eventData?.transactionKey || '',
-        confirmationSource: eventData?.confirmationSource || '',
+        confirmationSource: eventData?.confirmationSource || 'event_message_id',
         confirmationMode: eventData?.confirmationMode || 'slot_revision',
         generationTraceId: eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '',
-        sameSlotRevisionCandidate: eventData?.sameSlotRevisionCandidate,
-        sameSlotRevisionConfirmed: eventData?.sameSlotRevisionConfirmed,
-        sameSlotRevisionSource: eventData?.sameSlotRevisionSource || '',
-        generationMessageBindingSource: eventData?.generationMessageBindingSource || eventData?.confirmationSource || '',
+        sameSlotRevisionCandidate: true,
+        sameSlotRevisionConfirmed: true,
+        sameSlotRevisionSource: eventData?.sameSlotRevisionSource || eventData?.confirmationSource || 'slot_revision',
+        generationMessageBindingSource: eventData?.generationMessageBindingSource || eventData?.confirmationSource || 'event_message_id',
         confirmedAssistantSwipeId: eventData?.confirmedAssistantSwipeId || eventData?.effectiveSwipeId || '',
         effectiveSwipeId: eventData?.effectiveSwipeId || eventData?.confirmedAssistantSwipeId || '',
         retries: 2,
@@ -5358,20 +5363,20 @@ async function buildToolExecutionContext(eventData) {
       triggerEvent,
       traceId: eventData?.traceId || '',
       transactionKey: eventData?.transactionKey || '',
-      confirmationSource: String(eventData?.confirmationSource || '').trim(),
+      confirmationSource: String(eventData?.confirmationSource || 'event_message_id').trim(),
       confirmedAssistantMessageId: explicitMessageId,
       chatId,
       messageId: explicitMessageId,
       generationTraceId: String(eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim(),
       confirmationMode: String(eventData?.confirmationMode || 'slot_revision').trim(),
-      sameSlotRevisionCandidate: !!eventData?.sameSlotRevisionCandidate,
-      sameSlotRevisionConfirmed: !!eventData?.sameSlotRevisionConfirmed,
-      sameSlotRevisionSource: String(eventData?.sameSlotRevisionSource || '').trim(),
+      sameSlotRevisionCandidate: true,
+      sameSlotRevisionConfirmed: true,
+      sameSlotRevisionSource: String(eventData?.sameSlotRevisionSource || eventData?.confirmationSource || 'slot_revision').trim(),
       rawGenerationType: triggerState.gateState.lastGenerationBaseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
       rawGenerationParams: triggerState.gateState.lastGenerationBaseline?.rawGenerationParams ?? triggerState.gateState.lastGenerationParams ?? null,
       normalizedGenerationType: triggerState.gateState.lastGenerationBaseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
-      generationAction: triggerState.gateState.lastGenerationBaseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
-      generationActionSource: triggerState.gateState.lastGenerationBaseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
+      generationAction: String(eventData?.generationAction || triggerState.gateState.lastGenerationAction || '').trim(),
+      generationActionSource: String(eventData?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '').trim(),
       generationMessageBindingSource: String(eventData?.generationMessageBindingSource || eventData?.confirmationSource || 'event_message_id').trim(),
       slotBindingKey,
       slotRevisionKey,
@@ -5412,110 +5417,59 @@ async function buildToolExecutionContext(eventData) {
   const character = await getCurrentCharacter();
   const api = getSillyTavernAPI();
   const stContext = api?.getContext?.() || null;
-  const preferredMessageId = normalizeMessageIdentityValue(
-    eventData?.confirmedAssistantMessageId || extractEventMessageId(eventData, triggerEvent)
-  );
-  const confirmationSource = String(eventData?.confirmationSource || '').trim();
-  const generationTraceId = String(
-    eventData?.generationTraceId
-    || triggerState.gateState.lastGenerationTraceId
-    || ''
-  ).trim();
-  const resolvedBaseline = !isManual
-    ? (await waitForResolvedTransactionBaseline({
-        traceId: generationTraceId,
-        retries: 2,
-        retryDelayMs: 40
-      }) || getCurrentGenerationBaseline())
-    : getCurrentGenerationBaseline();
-  const messageBinding = resolveGenerationMessageBinding(preferredMessageId);
-
-  let confirmedAssistantMessage = null;
-  let targetMessageId = normalizeMessageIdentityValue(messageBinding.preferredMessageId);
-
-  if (!isManual) {
-    confirmedAssistantMessage = await getConfirmedAssistantMessageWithRetries(targetMessageId, {
-      retries: targetMessageId ? 3 : 8,
-      retryDelayMs: targetMessageId ? 120 : 260,
-      allowSameSlotRevision: true,
-      requireObservedSameSlotRevision: !messageBinding.forceSameSlotRevision,
-      forceSameSlotRevision: messageBinding.forceSameSlotRevision,
-      forcedSameSlotSource: messageBinding.forcedSameSlotSource
-    });
-
-    if (confirmedAssistantMessage) {
-      targetMessageId = normalizeMessageIdentityValue(confirmedAssistantMessage.sourceId);
-    }
-  }
-
-  const lockToMessageId = shouldLockToEventMessageId(triggerEvent, eventData, targetMessageId)
-    || Boolean(targetMessageId);
-
   const conversation = await getConversationSnapshot({
-    preferredMessageId: targetMessageId || null,
-    retries: isManual ? 2 : (targetMessageId ? 2 : 0),
-    retryDelayMs: isManual ? 120 : 120,
-    lockToMessageId
+    preferredMessageId: null,
+    retries: isManual ? 2 : 0,
+    retryDelayMs: 120,
+    lockToMessageId: false
   });
-
   const messages = conversation.messages || [];
   const lastUserMessage = conversation.lastUserMessage;
-  let lastAiMessage = conversation.lastAiMessage;
-
-  if (!isManual) {
-    if (!confirmedAssistantMessage) {
-      lastAiMessage = null;
-    } else if (normalizeMessageIdentityValue(lastAiMessage?.sourceId) !== targetMessageId) {
-      lastAiMessage = confirmedAssistantMessage;
-    }
-  }
-
-  const messageId = targetMessageId || normalizeMessageIdentityValue(lastAiMessage?.sourceId) || '';
+  const lastAiMessage = conversation.lastAiMessage;
+  const messageId = normalizeMessageIdentityValue(lastAiMessage?.sourceId) || '';
+  const confirmedAssistantSwipeId = normalizeMessageIdentityValue(lastAiMessage?.swipeId);
   const assistantContentFingerprint = buildAssistantContentFingerprint(lastAiMessage?.content || '');
-  const confirmedAssistantSwipeId = normalizeMessageIdentityValue(
-    confirmedAssistantMessage?.swipeId
-    || lastAiMessage?.swipeId
-  );
+  const chatId = resolveStableChatId(api, stContext, character);
   const slotBindingKey = buildSlotBindingKey({
-    chatId: resolveStableChatId(api, stContext, character),
+    chatId,
     messageId
   });
   const slotRevisionKey = buildSlotRevisionKey({
-    chatId: resolveStableChatId(api, stContext, character),
+    chatId,
     messageId,
     effectiveSwipeId: confirmedAssistantSwipeId,
     assistantContentFingerprint
   });
   const slotTransactionId = buildSlotTransactionId({
-    chatId: resolveStableChatId(api, stContext, character),
+    chatId,
     messageId,
     effectiveSwipeId: confirmedAssistantSwipeId,
     assistantContentFingerprint,
     eventType: triggerEvent,
-    generationTraceId,
+    generationTraceId: String(eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim(),
     traceId: eventData?.traceId || ''
   });
-  
+
   return {
     triggeredAt: Date.now(),
     triggerEvent,
     traceId: eventData?.traceId || '',
     transactionKey: eventData?.transactionKey || '',
-    confirmationSource,
+    confirmationSource: String(eventData?.confirmationSource || '').trim(),
     confirmedAssistantMessageId: messageId,
-    chatId: resolveStableChatId(api, stContext, character),
+    chatId,
     messageId,
-    generationTraceId,
-    confirmationMode: String(eventData?.confirmationMode || confirmedAssistantMessage?.confirmationMode || '').trim(),
-    sameSlotRevisionCandidate: !!(eventData?.sameSlotRevisionCandidate ?? confirmedAssistantMessage?.sameSlotRevisionCandidate),
-    sameSlotRevisionConfirmed: !!(eventData?.sameSlotRevisionConfirmed ?? confirmedAssistantMessage?.sameSlotRevisionConfirmed),
-    sameSlotRevisionSource: String(eventData?.sameSlotRevisionSource || confirmedAssistantMessage?.sameSlotRevisionSource || '').trim(),
+    generationTraceId: String(eventData?.generationTraceId || triggerState.gateState.lastGenerationTraceId || '').trim(),
+    confirmationMode: String(eventData?.confirmationMode || '').trim(),
+    sameSlotRevisionCandidate: !!eventData?.sameSlotRevisionCandidate,
+    sameSlotRevisionConfirmed: !!eventData?.sameSlotRevisionConfirmed,
+    sameSlotRevisionSource: String(eventData?.sameSlotRevisionSource || '').trim(),
     rawGenerationType: triggerState.gateState.lastGenerationBaseline?.rawGenerationType || triggerState.gateState.lastGenerationType || '',
     rawGenerationParams: triggerState.gateState.lastGenerationBaseline?.rawGenerationParams ?? triggerState.gateState.lastGenerationParams ?? null,
     normalizedGenerationType: triggerState.gateState.lastGenerationBaseline?.normalizedGenerationType || triggerState.gateState.lastNormalizedGenerationType || '',
-    generationAction: triggerState.gateState.lastGenerationBaseline?.generationAction || triggerState.gateState.lastGenerationAction || '',
-    generationActionSource: triggerState.gateState.lastGenerationBaseline?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '',
-    generationMessageBindingSource: messageBinding.bindingSource || '',
+    generationAction: String(eventData?.generationAction || triggerState.gateState.lastGenerationAction || '').trim(),
+    generationActionSource: String(eventData?.generationActionSource || triggerState.gateState.lastGenerationActionSource || '').trim(),
+    generationMessageBindingSource: String(eventData?.generationMessageBindingSource || '').trim(),
     slotBindingKey,
     slotRevisionKey,
     slotTransactionId,
