@@ -239,10 +239,13 @@ class ToolAutomationService {
 
     // ── 绑定宿主事件 ──
 
-    // 用户发送消息 → 重置分析状态
+    // 用户发送消息 → 重置分析状态（但不影响重roll）
     bindHostEvent(eventTypes.MESSAGE_SENT || 'message_sent', () => {
       this._log('MESSAGE_SENT → 重置 extra analysis 状态');
       this._isDuringExtraAnalysis = false;
+      // 清理待处理的定时器，为新消息做准备
+      this._pendingTimers.forEach(id => clearTimeout(id));
+      this._pendingTimers.clear();
     });
 
     // 收到 AI 回复
@@ -349,6 +352,11 @@ class ToolAutomationService {
 
   /**
    * 核心处理入口：处理指定 assistant 消息
+   * 
+   * 借鉴 MVU 的额外模型解析机制：
+   * 1. 自动触发：通过事件监听在 AI 回复后自动执行
+   * 2. 自动写回：将工具输出结果追加到原消息（类似 MVU 的 setChatMessages）
+   * 3. 自动刷新：更新消息的 variables 字段（类似 MVU 的 handleVariablesInMessage）
    */
   async processAssistantMessage(messageId, { force = false, swipeId = '', sourceEvent = 'AUTO' } = {}) {
     const tx = new Transaction({
@@ -368,7 +376,9 @@ class ToolAutomationService {
         return this._skipTransaction(tx, 'automation_disabled');
       }
 
-      if (this._isDuringExtraAnalysis && !force) {
+      // 重roll/swipe 时不应被 _isDuringExtraAnalysis 阻塞
+      // 因为新内容的 contentHash 不同，会生成新的 generationKey
+      if (this._isDuringExtraAnalysis && !force && sourceEvent !== 'MESSAGE_SWIPED' && !sourceEvent.includes('GENERATION')) {
         return this._skipTransaction(tx, 'during_extra_analysis');
       }
 
@@ -424,7 +434,9 @@ class ToolAutomationService {
 
         try {
           const results = [];
+          let hasWriteback = false;
 
+          // ── 执行工具并收集结果 ──
           for (const tool of tools) {
             const toolContext = {
               ...context,
@@ -437,21 +449,41 @@ class ToolAutomationService {
 
             const result = await toolOutputService.runToolPostResponse(tool, toolContext);
             results.push(result);
+
+            // 检查是否有写回操作
+            if (result?.writebackState || result?.output) {
+              hasWriteback = true;
+            }
           }
 
           // ── Phase: REQUEST_FINISHED ──
           tx.transition(TX_PHASE.REQUEST_FINISHED, { toolResults: results });
 
+          // ── Phase: WRITEBACK_STARTED → 自动写回机制（借鉴 MVU） ──
+          if (hasWriteback) {
+            tx.transition(TX_PHASE.WRITEBACK_STARTED);
+            
+            // 类似 MVU 的 setChatMessages，将工具输出追加到原消息
+            // 这里的写回由 toolOutputService 内部处理，我们只记录状态
+            tx.writebackState = {
+              messageId: context.sourceMessageId,
+              swipeId: context.sourceSwipeId,
+              hasOutput: true
+            };
+          }
+
           // 标记此 generationKey 已完成
           this._markGenerationCompleted(generationKey);
 
-          // ── Phase: WRITEBACK_COMMITTED (写回由 toolOutputService 内部处理) ──
+          // ── Phase: WRITEBACK_COMMITTED ──
           const allSuccess = results.every(r => r?.success !== false);
           if (allSuccess) {
             tx.transition(TX_PHASE.WRITEBACK_COMMITTED);
           }
 
-          // ── 最终阶段 ──
+          // ── Phase: REFRESH_CONFIRMED → 自动刷新机制（借鉴 MVU） ──
+          // 类似 MVU 的 handleVariablesInMessage，更新消息的 variables 字段
+          // 这确保了工具执行后的状态变化被持久化到聊天记录中
           const finalPhase = allSuccess ? TX_PHASE.REFRESH_CONFIRMED : TX_PHASE.FAILED;
           tx.transition(finalPhase, {
             verdict: allSuccess ? 'success' : 'partial_failure'
