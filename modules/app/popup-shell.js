@@ -878,10 +878,15 @@ export function createPopupShell(context) {
     `);
   }
 
-  function openPopup() {
+  async function openPopup() {
     if (uiState.currentPopup) {
       log('弹窗已存在');
       return;
+    }
+
+    const ensureModulesLoaded = context?.services?.loadModules;
+    if (typeof ensureModulesLoaded === 'function') {
+      await ensureModulesLoaded();
     }
 
     const $ = getJQuery();
