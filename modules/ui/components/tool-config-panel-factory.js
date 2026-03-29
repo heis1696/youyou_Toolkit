@@ -486,7 +486,6 @@ export function createToolConfigPanel(options) {
         : '未运行';
       const lastError = config.runtime?.lastError || '';
       const extraction = config.extraction || {};
-      const automation = config.automation || {};
       const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join('\n') : '';
       const modeText = outputMode === 'post_response_api'
         ? postResponseHint
@@ -571,29 +570,6 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-bolt"></i>
-              <span>自动化</span>
-            </div>
-            <div class="yyt-form-group">
-              <label class="yyt-checkbox-label">
-                <input type="checkbox" id="${SCRIPT_ID}-tool-automation-enabled" ${automation.enabled ? 'checked' : ''}>
-                <span>收到 assistant 新楼层后自动执行</span>
-              </label>
-              <div class="yyt-tool-compact-hint">仅对“额外 AI 模型解析”模式生效，自动链会按同一 assistant 槽位串行写回。</div>
-            </div>
-            <div class="yyt-form-row">
-              <div class="yyt-form-group yyt-flex-1">
-                <label>稳定等待 (ms)</label>
-                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-automation-settleMs" min="0" max="20000" step="100" value="${Number(automation.settleMs) || 1200}">
-              </div>
-              <div class="yyt-form-group yyt-flex-1">
-                <label>冷却时间 (ms)</label>
-                <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-automation-cooldownMs" min="0" max="60000" step="100" value="${Number(automation.cooldownMs) || 5000}">
-              </div>
-            </div>
-          </div>
 
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
@@ -728,11 +704,6 @@ export function createToolConfigPanel(options) {
         bypass: {
           enabled: bypassEnabled,
           presetId: bypassEnabled ? ($container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || '') : ''
-        },
-        automation: {
-          enabled: $container.find(`#${SCRIPT_ID}-tool-automation-enabled`).is(':checked') && postResponseEnabled,
-          settleMs: Math.max(0, parseInt($container.find(`#${SCRIPT_ID}-tool-automation-settleMs`).val(), 10) || 1200),
-          cooldownMs: Math.max(0, parseInt($container.find(`#${SCRIPT_ID}-tool-automation-cooldownMs`).val(), 10) || 5000)
         },
         extraction: {
           enabled: true,

@@ -156,9 +156,6 @@ export const SettingsPanel = {
           <button class="yyt-settings-tab yyt-active" data-tab="executor">
             <i class="fa-solid fa-microchip"></i> 执行器
           </button>
-          <button class="yyt-settings-tab" data-tab="automation">
-            <i class="fa-solid fa-bolt"></i> 自动化
-          </button>
           <button class="yyt-settings-tab" data-tab="debug">
             <i class="fa-solid fa-bug"></i> 调试
           </button>
@@ -169,7 +166,6 @@ export const SettingsPanel = {
 
         <div class="yyt-settings-content">
           ${this._renderExecutorTab(settings.executor)}
-          ${this._renderAutomationTab(settings.automation)}
           ${this._renderDebugTab(settings.debug)}
           ${this._renderUiTab(settings.ui)}
         </div>
@@ -240,53 +236,6 @@ export const SettingsPanel = {
     `;
   },
 
-  _renderAutomationTab(automation = {}) {
-    return `
-      <div class="yyt-settings-tab-content" data-tab="automation">
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">自动触发总开关</div>
-          <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-automationEnabled"
-                     ${automation.enabled ? 'checked' : ''}>
-              <span>启用自动化生命周期</span>
-            </label>
-            <div class="yyt-form-hint">监听宿主 assistant 消息，在命中自动工具时直接进入额外解析与写回链。</div>
-          </div>
-          <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-autoRequestEnabled"
-                     ${automation.autoRequestEnabled !== false ? 'checked' : ''}>
-              <span>允许自动额外请求</span>
-            </label>
-            <div class="yyt-form-hint">关闭后保留自动服务挂载，但不会自动请求额外模型。</div>
-          </div>
-        </div>
-
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">消息稳定与节流</div>
-          <div class="yyt-form-row">
-            <div class="yyt-form-group yyt-flex-1">
-              <label>稳定等待 (ms)</label>
-              <input type="number" class="yyt-input" id="yyt-setting-settleMs"
-                     value="${automation.settleMs ?? 1200}" min="0" max="20000" step="100">
-            </div>
-            <div class="yyt-form-group yyt-flex-1">
-              <label>冷却时间 (ms)</label>
-              <input type="number" class="yyt-input" id="yyt-setting-cooldownMs"
-                     value="${automation.cooldownMs ?? 5000}" min="0" max="60000" step="100">
-            </div>
-          </div>
-          <div class="yyt-form-group">
-            <label>并发槽位上限</label>
-            <input type="number" class="yyt-input" id="yyt-setting-maxConcurrentSlots"
-                   value="${automation.maxConcurrentSlots ?? 1}" min="1" max="8">
-            <div class="yyt-form-hint">当前实现按 assistant 槽位串行；该值预留给后续更细粒度调度控制。</div>
-          </div>
-        </div>
-      </div>
-    `;
-  },
 
   _renderDebugTab(debug) {
     return `
@@ -398,13 +347,6 @@ export const SettingsPanel = {
         retryDelayMs: parseInt($container.find('#yyt-setting-retryDelayMs').val(), 10) || 5000,
         requestTimeoutMs: parseInt($container.find('#yyt-setting-requestTimeoutMs').val(), 10) || 90000,
         queueStrategy: $container.find('#yyt-setting-queueStrategy').val() || 'fifo'
-      },
-      automation: {
-        enabled: $container.find('#yyt-setting-automationEnabled').is(':checked'),
-        autoRequestEnabled: $container.find('#yyt-setting-autoRequestEnabled').is(':checked'),
-        settleMs: parseInt($container.find('#yyt-setting-settleMs').val(), 10) || 1200,
-        cooldownMs: parseInt($container.find('#yyt-setting-cooldownMs').val(), 10) || 5000,
-        maxConcurrentSlots: parseInt($container.find('#yyt-setting-maxConcurrentSlots').val(), 10) || 1
       },
       debug: {
         enableDebugLog: $container.find('#yyt-setting-enableDebugLog').is(':checked'),
