@@ -1,6 +1,13 @@
 /**
- * YouYou Toolkit - 自动化生命周期服务
- * @description 基于楼层槽位 / same-slot revision 语义的自动触发服务
+ * YouYou Toolkit - 自动化生命周期服务 (MVU Transaction Rework)
+ * @description 基于 generation-aware 事务模型的自动触发服务
+ *
+ * 核心改动（相对旧版）：
+ *   1. 引入 Transaction 主模型，每次触发对应一个贯穿全链的事务对象
+ *   2. generationKey = messageId + contentHash，同楼层 reroll/swipe 产生新内容视为新事务
+ *   3. 宿主事件名统一归一化为大写，消除格式不匹配
+ *   4. isEnabled() 增加首次失败诊断
+ *   5. 提交点单一化，明确区分数据提交 vs UI 刷新确认
  */
 
 import { settingsService } from './core/settings-service.js';
@@ -8,6 +15,8 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 import { getAllToolFullConfigs } from './tool-registry.js';
 import { toolOutputService } from './tool-output-service.js';
 import { buildExecutionContextForMessage } from './tool-execution-context.js';
+
+// ─── 工具函数 ───────────────────────────────────────────────
 
 function normalizeIdentityValue(value) {
   if (value === undefined || value === null) return '';
@@ -19,9 +28,7 @@ function getTopWindow() {
     if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
       return window.parent;
     }
-  } catch (error) {
-    // ignore
-  }
+  } catch (_) { /* cross-origin */ }
   return window;
 }
 
@@ -38,43 +45,130 @@ function getHostEventTypes(api) {
 }
 
 function getCurrentChatId(api) {
-  const context = api?.getContext?.() || null;
+  const ctx = api?.getContext?.() || null;
   return normalizeIdentityValue(
-    context?.chatId
-    ?? context?.chat_id
-    ?? api?.chatId
-    ?? api?.chat_id
-    ?? api?.chat_filename
-    ?? api?.this_chid
-    ?? 'chat_default'
+    ctx?.chatId ?? ctx?.chat_id ?? api?.chatId ?? api?.chat_id
+    ?? api?.chat_filename ?? api?.this_chid ?? 'chat_default'
   ) || 'chat_default';
 }
 
-function createResolvedMessageKey(messageId, swipeId = '') {
-  return `${normalizeIdentityValue(messageId) || 'latest'}::${normalizeIdentityValue(swipeId) || 'swipe:current'}`;
+/**
+ * 将任意事件名归一化为 UPPER_SNAKE_CASE
+ * 例：'message_received' → 'MESSAGE_RECEIVED'
+ *     'messageReceived'  → 'MESSAGE_RECEIVED'
+ *     'MESSAGE_RECEIVED' → 'MESSAGE_RECEIVED'
+ */
+function normalizeEventName(raw) {
+  if (!raw) return '';
+  let s = String(raw).trim();
+  // camelCase / PascalCase → UPPER_SNAKE_CASE
+  s = s.replace(/([a-z0-9])([A-Z])/g, '$1_$2');
+  return s.toUpperCase();
 }
 
-function isSameSlotEvent(eventName = '') {
-  return [
-    'MESSAGE_UPDATED',
-    'MESSAGE_SWIPED',
-    'GENERATION_AFTER_COMMANDS',
-    'GENERATION_ENDED'
-  ].includes(String(eventName || '').trim());
+/**
+ * 简易内容哈希（djb2），用于区分同一 messageId 下不同 generation 的内容
+ */
+function quickContentHash(text) {
+  const s = String(text || '');
+  if (s.length === 0) return '0';
+  let hash = 5381;
+  const len = Math.min(s.length, 2000); // 只取前 2000 字符，性能保护
+  for (let i = 0; i < len; i++) {
+    hash = ((hash << 5) + hash + s.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
 }
+
+/**
+ * 生成唯一 traceId
+ */
+function generateTraceId() {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `tx_${ts}_${rand}`;
+}
+
+// ─── 事务生命周期阶段 ──────────────────────────────────────
+
+const TX_PHASE = Object.freeze({
+  RECEIVED: 'received',
+  CONFIRMED: 'confirmed',
+  CONTEXT_BUILT: 'context_built',
+  REQUEST_STARTED: 'request_started',
+  REQUEST_FINISHED: 'request_finished',
+  WRITEBACK_STARTED: 'writeback_started',
+  WRITEBACK_COMMITTED: 'writeback_committed',
+  REFRESH_CONFIRMED: 'refresh_confirmed',
+  SKIPPED: 'skipped',
+  FAILED: 'failed'
+});
+
+// 判断事件是否属于"同楼层可能产生新内容"的类别
+const SAME_SLOT_EVENTS = new Set([
+  'MESSAGE_UPDATED',
+  'MESSAGE_SWIPED',
+  'GENERATION_AFTER_COMMANDS',
+  'GENERATION_ENDED'
+]);
+
+function isSameSlotEvent(eventName) {
+  return SAME_SLOT_EVENTS.has(normalizeEventName(eventName));
+}
+
+// ─── Transaction 事务对象 ───────────────────────────────────
+
+class Transaction {
+  constructor({ chatId, messageId, swipeId, sourceEvent, generationKey }) {
+    this.traceId = generateTraceId();
+    this.chatId = chatId || '';
+    this.messageId = messageId || '';
+    this.swipeId = swipeId || '';
+    this.sourceEvent = sourceEvent || '';
+    this.generationKey = generationKey || '';
+    this.phase = TX_PHASE.RECEIVED;
+    this.createdAt = Date.now();
+    this.updatedAt = Date.now();
+    this.verdict = '';
+    this.error = null;
+    this.toolResults = [];
+    this.writebackState = null;
+    this.refreshState = null;
+  }
+
+  transition(phase, extra = {}) {
+    this.phase = phase;
+    this.updatedAt = Date.now();
+    Object.assign(this, extra);
+    return this;
+  }
+
+  toSnapshot() {
+    return { ...this };
+  }
+}
+
+// ─── 主服务 ─────────────────────────────────────────────────
 
 class ToolAutomationService {
   constructor() {
     this._stopCallbacks = [];
-    this._pendingMessageTimers = new Map();
-    this._recentHandledExecutions = new Map();
+    this._pendingTimers = new Map();
+    this._completedGenerationKeys = new Map(); // generationKey → timestamp
     this._slotQueues = new Map();
     this._currentChatId = '';
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
     this._enabled = false;
+    this._enabledCheckedOnce = false; // 用于首次诊断
     this.debugMode = false;
+
+    // 事务历史（最近 N 条），用于诊断
+    this._transactionHistory = [];
+    this._maxHistorySize = 30;
   }
+
+  // ── 公开方法 ──────────────────────────────────────────────
 
   setDebugMode(enabled) {
     this.debugMode = enabled === true;
@@ -85,12 +179,14 @@ class ToolAutomationService {
 
     const api = getHostApi();
     if (!api) {
+      this._log('初始化失败: 未找到宿主 API (SillyTavern)');
       return false;
     }
 
     this._currentChatId = getCurrentChatId(api);
     const eventSource = getHostEventSource(api);
     const eventTypes = getHostEventTypes(api);
+
     const subscribe = typeof eventSource?.on === 'function'
       ? eventSource.on.bind(eventSource)
       : (typeof eventSource?.addListener === 'function' ? eventSource.addListener.bind(eventSource) : null);
@@ -99,125 +195,141 @@ class ToolAutomationService {
       : (typeof eventSource?.removeListener === 'function' ? eventSource.removeListener.bind(eventSource) : null);
 
     if (!subscribe || !unsubscribe) {
+      this._log('初始化失败: 宿主 eventSource 缺少 on/off 方法');
       return false;
     }
 
-    const bindHostEvent = (eventName, handler) => {
-      if (!eventName || typeof handler !== 'function') return;
-      subscribe(eventName, handler);
+    // 打印宿主事件类型映射，帮助排查
+    this._log('宿主 eventTypes 映射:', JSON.stringify(eventTypes, null, 2));
+
+    const bindHostEvent = (rawEventName, handler) => {
+      if (!rawEventName || typeof handler !== 'function') return;
+      const actualName = rawEventName; // 绑定时使用宿主原始值
+      subscribe(actualName, handler);
       this._stopCallbacks.push(() => {
-        try {
-          unsubscribe(eventName, handler);
-        } catch (error) {
-          this._log('取消宿主事件失败', eventName, error);
-        }
+        try { unsubscribe(actualName, handler); } catch (e) { this._log('取消事件失败', actualName, e); }
       });
+      this._log(`已绑定宿主事件: "${actualName}" (归一化: ${normalizeEventName(actualName)})`);
     };
 
-    const scheduleFromEvent = (eventName, messageId, payload, options = {}) => {
-      const resolvedMessageId = this._resolveIncomingMessageId(messageId, payload);
-      const swipeId = this._resolveIncomingSwipeId(payload);
-      const settleMs = Number.isFinite(options?.settleMs)
-        ? options.settleMs
-        : this._getAutomationSettings().settleMs;
+    // 核心调度入口
+    const scheduleFromEvent = (rawEventName, ...args) => {
+      const normalizedEvent = normalizeEventName(rawEventName);
+      const { messageId, swipeId } = this._extractIdentitiesFromArgs(args);
 
-      this._log('收到宿主事件', eventName, { messageId: resolvedMessageId, swipeId, payload });
+      this._log(`收到宿主事件 "${rawEventName}" → "${normalizedEvent}"`, { messageId, swipeId, argCount: args.length });
 
-      if (resolvedMessageId) {
-        this._scheduleMessageProcessing(resolvedMessageId, swipeId, {
-          settleMs,
-          sourceEvent: eventName
+      if (!this._checkEnabled()) return;
+
+      if (messageId) {
+        this._scheduleMessageProcessing(messageId, swipeId, {
+          settleMs: this._getSettleMs(),
+          sourceEvent: normalizedEvent
         });
-        return;
-      }
-
-      if (isSameSlotEvent(eventName)) {
+      } else if (isSameSlotEvent(normalizedEvent)) {
+        // 事件没有给出明确 messageId，回退到处理当前最新 assistant 楼层
         this._scheduleCurrentAssistantProcessing({
-          settleMs,
-          sourceEvent: eventName
+          settleMs: this._getSettleMs(),
+          sourceEvent: normalizedEvent
         });
+      } else {
+        this._log(`事件 "${normalizedEvent}" 无 messageId 且非 same-slot 类型，跳过`);
       }
     };
 
-    bindHostEvent(eventTypes.MESSAGE_SENT || 'MESSAGE_SENT', (...args) => {
-      this._log('MESSAGE_SENT', args);
+    // ── 绑定宿主事件 ──
+
+    // 用户发送消息 → 重置分析状态
+    bindHostEvent(eventTypes.MESSAGE_SENT || 'message_sent', () => {
+      this._log('MESSAGE_SENT → 重置 extra analysis 状态');
       this._isDuringExtraAnalysis = false;
     });
 
-    bindHostEvent(eventTypes.MESSAGE_RECEIVED || 'MESSAGE_RECEIVED', (messageId, payload) => {
-      scheduleFromEvent(eventTypes.MESSAGE_RECEIVED || 'MESSAGE_RECEIVED', messageId, payload);
+    // 收到 AI 回复
+    bindHostEvent(eventTypes.MESSAGE_RECEIVED || 'message_received', (...args) => {
+      scheduleFromEvent(eventTypes.MESSAGE_RECEIVED || 'message_received', ...args);
     });
 
-    bindHostEvent(eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED', (messageId, payload) => {
-      scheduleFromEvent(eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED', messageId, payload);
+    // 消息更新（含 streaming 结束后的最终更新）
+    bindHostEvent(eventTypes.MESSAGE_UPDATED || 'message_updated', (...args) => {
+      scheduleFromEvent(eventTypes.MESSAGE_UPDATED || 'message_updated', ...args);
     });
 
-    bindHostEvent(eventTypes.MESSAGE_SWIPED || 'MESSAGE_SWIPED', (messageId, payload) => {
-      scheduleFromEvent(eventTypes.MESSAGE_SWIPED || 'MESSAGE_SWIPED', messageId, payload);
+    // Swipe
+    bindHostEvent(eventTypes.MESSAGE_SWIPED || 'message_swiped', (...args) => {
+      scheduleFromEvent(eventTypes.MESSAGE_SWIPED || 'message_swiped', ...args);
     });
 
-    bindHostEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'GENERATION_AFTER_COMMANDS', (messageId, payload) => {
-      scheduleFromEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'GENERATION_AFTER_COMMANDS', messageId, payload);
+    // Generation 结束后命令处理
+    bindHostEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'generation_after_commands', (...args) => {
+      scheduleFromEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'generation_after_commands', ...args);
     });
 
-    bindHostEvent(eventTypes.GENERATION_ENDED || 'GENERATION_ENDED', (messageId, payload) => {
-      scheduleFromEvent(eventTypes.GENERATION_ENDED || 'GENERATION_ENDED', messageId, payload);
+    // Generation 结束
+    bindHostEvent(eventTypes.GENERATION_ENDED || 'generation_ended', (...args) => {
+      scheduleFromEvent(eventTypes.GENERATION_ENDED || 'generation_ended', ...args);
     });
 
-    bindHostEvent(eventTypes.CHAT_CHANGED || 'CHAT_CHANGED', () => {
+    // 聊天切换
+    bindHostEvent(eventTypes.CHAT_CHANGED || 'chat_changed', () => {
       this._resetForChatChange();
     });
 
-    bindHostEvent(eventTypes.MESSAGE_DELETED || 'MESSAGE_DELETED', (messageId) => {
-      this._clearMessageState(messageId);
+    // 消息删除
+    bindHostEvent(eventTypes.MESSAGE_DELETED || 'message_deleted', (messageId) => {
+      this._clearMessageState(normalizeIdentityValue(messageId));
     });
 
+    // 设置变更
     this._stopCallbacks.push(eventBus.on(EVENTS.SETTINGS_UPDATED, () => {
-      this._enabled = this.isEnabled();
+      const wasEnabled = this._enabled;
+      this._enabled = this._evaluateEnabled();
+      if (wasEnabled !== this._enabled) {
+        this._log(`自动化状态变更: ${wasEnabled} → ${this._enabled}`);
+      }
     }));
 
-    this._enabled = this.isEnabled();
-    this._log('自动化生命周期服务已初始化');
+    this._enabled = this._evaluateEnabled();
+    this._enabledCheckedOnce = false;
+    this._log('自动化服务已初始化', { enabled: this._enabled, chatId: this._currentChatId });
     return true;
   }
 
   stop() {
-    this._stopCallbacks.forEach((stop) => {
-      try {
-        stop();
-      } catch (error) {
-        this._log('停止自动服务回调失败', error);
-      }
-    });
+    this._stopCallbacks.forEach(fn => { try { fn(); } catch (e) { this._log('停止回调失败', e); } });
     this._stopCallbacks = [];
-
-    this._pendingMessageTimers.forEach((timerId) => clearTimeout(timerId));
-    this._pendingMessageTimers.clear();
+    this._pendingTimers.forEach(id => clearTimeout(id));
+    this._pendingTimers.clear();
     this._slotQueues.clear();
-    this._recentHandledExecutions.clear();
+    this._completedGenerationKeys.clear();
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
     this._enabled = false;
+    this._enabledCheckedOnce = false;
   }
 
   isEnabled() {
-    const automation = this._getAutomationSettings();
-    return automation.enabled === true && automation.autoRequestEnabled === true;
+    return this._enabled;
   }
 
   getRuntimeSnapshot() {
-    this._pruneRecentHandledExecutions();
+    this._pruneCompletedKeys();
     return {
       currentChatId: this._currentChatId,
+      enabled: this._enabled,
       isDuringExtraAnalysis: this._isDuringExtraAnalysis,
       isProcessingMessage: this._isProcessingMessage,
-      pendingMessageCount: this._pendingMessageTimers.size,
+      pendingTimerCount: this._pendingTimers.size,
       queuedSlotCount: this._slotQueues.size,
-      recentHandledExecutionKeys: Array.from(this._recentHandledExecutions.keys()).slice(-10),
-      enabled: this._enabled
+      completedGenerationKeyCount: this._completedGenerationKeys.size,
+      recentTransactions: this._transactionHistory.slice(-10).map(tx => tx.toSnapshot()),
+      settings: this._getAutomationSettings()
     };
   }
 
+  /**
+   * 手动触发处理当前最新 assistant 楼层
+   */
   async processCurrentAssistantMessage(options = {}) {
     const context = await buildExecutionContextForMessage({
       messageId: '',
@@ -228,258 +340,356 @@ class ToolAutomationService {
     if (!targetMessageId) {
       return { success: false, error: '未找到当前 assistant 楼层' };
     }
-
     return this.processAssistantMessage(targetMessageId, {
       force: options.force === true,
-      swipeId: context?.sourceSwipeId || '',
-      sourceEvent: options.sourceEvent || 'CURRENT_ASSISTANT_FALLBACK'
+      swipeId: normalizeIdentityValue(context?.sourceSwipeId),
+      sourceEvent: options.sourceEvent || 'MANUAL_CURRENT_ASSISTANT'
     });
   }
 
+  /**
+   * 核心处理入口：处理指定 assistant 消息
+   */
   async processAssistantMessage(messageId, { force = false, swipeId = '', sourceEvent = 'AUTO' } = {}) {
-    if (!messageId) {
-      return { success: false, error: '缺少 messageId' };
-    }
-
-    if (!this.isEnabled() && !force) {
-      return { success: false, skipped: true, reason: 'automation_disabled' };
-    }
-
-    if (this._isDuringExtraAnalysis && !force) {
-      return { success: false, skipped: true, reason: 'during_extra_analysis' };
-    }
-
-    const context = await buildExecutionContextForMessage({
+    const tx = new Transaction({
+      chatId: this._currentChatId,
       messageId,
       swipeId,
-      runSource: 'AUTO'
+      sourceEvent
     });
-    const targetMessage = context?.targetAssistantMessage || null;
-    if (!targetMessage || !context?.sourceMessageId) {
-      return { success: false, skipped: true, reason: 'assistant_message_not_found' };
-    }
 
-    const messageText = String(targetMessage.content || '').trim();
-    if (!messageText || messageText.length < 5) {
-      return { success: false, skipped: true, reason: 'assistant_message_too_short' };
-    }
+    try {
+      // ── Phase: RECEIVED ──
+      if (!messageId) {
+        return this._skipTransaction(tx, 'missing_message_id');
+      }
 
-    const executionKey = String(context.executionKey || context.slotRevisionKey || '').trim();
-    if (!force && this._hasRecentlyHandledExecution(executionKey)) {
-      return { success: false, skipped: true, reason: 'duplicate_execution_key', executionKey };
-    }
+      if (!this._checkEnabled() && !force) {
+        return this._skipTransaction(tx, 'automation_disabled');
+      }
 
-    const tools = toolOutputService.filterAutoPostResponseTools(getAllToolFullConfigs());
-    if (!tools.length) {
-      return { success: false, skipped: true, reason: 'no_auto_tools' };
-    }
+      if (this._isDuringExtraAnalysis && !force) {
+        return this._skipTransaction(tx, 'during_extra_analysis');
+      }
 
-    const queueKey = context.slotBindingKey || createResolvedMessageKey(context.sourceMessageId, context.sourceSwipeId);
-    return this._enqueueSlot(queueKey, async () => {
-      this._isProcessingMessage = true;
-      this._isDuringExtraAnalysis = true;
+      // ── Phase: CONFIRMED → 构建上下文 ──
+      tx.transition(TX_PHASE.CONFIRMED);
 
-      const results = [];
+      const context = await buildExecutionContextForMessage({
+        messageId,
+        swipeId,
+        runSource: 'AUTO'
+      });
 
-      try {
-        for (const tool of tools) {
-          const toolContext = {
-            ...context,
-            input: {
-              ...(context.input || {}),
-              lastAiMessage: context.lastAiMessage,
-              assistantBaseText: context.assistantBaseText
-            }
-          };
+      const targetMessage = context?.targetAssistantMessage || null;
+      if (!targetMessage || !context?.sourceMessageId) {
+        return this._skipTransaction(tx, 'assistant_message_not_found');
+      }
 
-          const result = await toolOutputService.runToolPostResponse(tool, toolContext);
-          results.push(result);
+      const messageText = String(targetMessage.content || targetMessage.mes || '').trim();
+      if (!messageText || messageText.length < 5) {
+        return this._skipTransaction(tx, 'assistant_message_too_short');
+      }
+
+      // ── Phase: CONTEXT_BUILT → generation-aware 去重 ──
+      tx.transition(TX_PHASE.CONTEXT_BUILT);
+
+      // 生成 generationKey = messageId::contentHash
+      const contentHash = quickContentHash(messageText);
+      const generationKey = `${normalizeIdentityValue(context.sourceMessageId)}::${contentHash}`;
+      tx.generationKey = generationKey;
+
+      if (!force && this._hasCompletedGeneration(generationKey)) {
+        return this._skipTransaction(tx, 'duplicate_generation', { generationKey });
+      }
+
+      // 获取需要自动运行的工具
+      const tools = toolOutputService.filterAutoPostResponseTools(getAllToolFullConfigs());
+      if (!tools.length) {
+        return this._skipTransaction(tx, 'no_auto_tools');
+      }
+
+      // ── Phase: REQUEST_STARTED → 排队执行 ──
+      const slotKey = `${normalizeIdentityValue(context.sourceMessageId)}::${normalizeIdentityValue(context.sourceSwipeId || swipeId)}`;
+
+      return this._enqueueSlot(slotKey, async () => {
+        // 进入排他执行区域前再次检查（防止排队期间状态变化）
+        if (this._hasCompletedGeneration(generationKey) && !force) {
+          return this._skipTransaction(tx, 'duplicate_generation_after_queue', { generationKey });
         }
 
-        this._rememberHandledExecution(executionKey || `${queueKey}::${Date.now()}`);
-        return {
-          success: results.every(result => result?.success !== false),
-          results,
-          executionKey,
-          sourceEvent,
-          messageId: context.sourceMessageId || ''
-        };
-      } finally {
-        this._isDuringExtraAnalysis = false;
-        this._isProcessingMessage = false;
-      }
-    });
-  }
+        this._isProcessingMessage = true;
+        this._isDuringExtraAnalysis = true;
+        tx.transition(TX_PHASE.REQUEST_STARTED);
 
-  _resolveIncomingMessageId(messageId, payload) {
-    return normalizeIdentityValue(
-      messageId
-      ?? payload?.messageId
-      ?? payload?.message_id
-      ?? payload?.id
-      ?? payload?.message?.messageId
-      ?? payload?.message?.message_id
-      ?? payload?.message?.id
-      ?? payload?.message?.mesid
-      ?? payload?.message?.chat_index
-      ?? payload?.data?.messageId
-      ?? payload?.data?.message_id
-      ?? payload?.data?.id
-      ?? payload?.target?.messageId
-      ?? payload?.target?.message_id
-      ?? payload?.target?.id
-      ?? ''
-    );
-  }
+        try {
+          const results = [];
 
-  _resolveIncomingSwipeId(payload) {
-    return normalizeIdentityValue(
-      payload?.swipeId
-      ?? payload?.swipe_id
-      ?? payload?.swipe
-      ?? payload?.swipeIndex
-      ?? payload?.currentSwipe
-      ?? payload?.message?.swipeId
-      ?? payload?.message?.swipe_id
-      ?? payload?.message?.swipe
-      ?? payload?.message?.swipeIndex
-      ?? payload?.data?.swipeId
-      ?? payload?.data?.swipe_id
-      ?? payload?.data?.swipe
-      ?? payload?.target?.swipeId
-      ?? payload?.target?.swipe_id
-      ?? payload?.target?.swipe
-      ?? ''
-    );
-  }
+          for (const tool of tools) {
+            const toolContext = {
+              ...context,
+              input: {
+                ...(context.input || {}),
+                lastAiMessage: context.lastAiMessage,
+                assistantBaseText: context.assistantBaseText
+              }
+            };
 
-  _scheduleCurrentAssistantProcessing(options = {}) {
-    if (!this.isEnabled()) {
-      return;
-    }
+            const result = await toolOutputService.runToolPostResponse(tool, toolContext);
+            results.push(result);
+          }
 
-    const settleMs = Number.isFinite(options?.settleMs)
-      ? options.settleMs
-      : this._getAutomationSettings().settleMs;
-    const timerKey = `current-assistant::${normalizeIdentityValue(options?.sourceEvent) || 'unknown'}`;
-    const existingTimer = this._pendingMessageTimers.get(timerKey);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
+          // ── Phase: REQUEST_FINISHED ──
+          tx.transition(TX_PHASE.REQUEST_FINISHED, { toolResults: results });
 
-    const timerId = setTimeout(() => {
-      this._pendingMessageTimers.delete(timerKey);
-      this.processCurrentAssistantMessage({
-        sourceEvent: options?.sourceEvent || 'CURRENT_ASSISTANT_FALLBACK'
-      }).catch((error) => {
-        this._log('自动处理当前 assistant 消息失败', error);
+          // 标记此 generationKey 已完成
+          this._markGenerationCompleted(generationKey);
+
+          // ── Phase: WRITEBACK_COMMITTED (写回由 toolOutputService 内部处理) ──
+          const allSuccess = results.every(r => r?.success !== false);
+          if (allSuccess) {
+            tx.transition(TX_PHASE.WRITEBACK_COMMITTED);
+          }
+
+          // ── 最终阶段 ──
+          const finalPhase = allSuccess ? TX_PHASE.REFRESH_CONFIRMED : TX_PHASE.FAILED;
+          tx.transition(finalPhase, {
+            verdict: allSuccess ? 'success' : 'partial_failure'
+          });
+
+          this._recordTransaction(tx);
+
+          return {
+            success: allSuccess,
+            traceId: tx.traceId,
+            generationKey,
+            sourceEvent,
+            messageId: context.sourceMessageId || messageId,
+            phase: tx.phase,
+            results
+          };
+        } finally {
+          this._isDuringExtraAnalysis = false;
+          this._isProcessingMessage = false;
+        }
       });
-    }, Math.max(0, settleMs));
+    } catch (error) {
+      tx.transition(TX_PHASE.FAILED, { error: error?.message || String(error) });
+      this._recordTransaction(tx);
+      this._isDuringExtraAnalysis = false;
+      this._isProcessingMessage = false;
+      this._log('processAssistantMessage 异常', error);
+      return { success: false, traceId: tx.traceId, error: tx.error, phase: tx.phase };
+    }
+  }
 
-    this._pendingMessageTimers.set(timerKey, timerId);
+  // ── 内部方法 ──────────────────────────────────────────────
+
+  /**
+   * 从事件回调参数中提取 messageId 和 swipeId
+   * SillyTavern 事件的参数格式不固定，需要多路径提取
+   */
+  _extractIdentitiesFromArgs(args) {
+    let messageId = '';
+    let swipeId = '';
+
+    for (const arg of args) {
+      if (arg === null || arg === undefined) continue;
+
+      // 直接是数字或字符串 → 可能是 messageId
+      if ((typeof arg === 'number' || typeof arg === 'string') && !messageId) {
+        messageId = normalizeIdentityValue(arg);
+        continue;
+      }
+
+      // 对象 → 尝试从多个字段提取
+      if (typeof arg === 'object') {
+        if (!messageId) {
+          messageId = normalizeIdentityValue(
+            arg.messageId ?? arg.message_id ?? arg.id ?? arg.mesid ?? arg.chat_index
+            ?? arg.message?.messageId ?? arg.message?.message_id ?? arg.message?.id
+            ?? arg.message?.mesid ?? arg.message?.chat_index
+            ?? arg.data?.messageId ?? arg.data?.message_id ?? arg.data?.id
+            ?? arg.target?.messageId ?? arg.target?.message_id ?? arg.target?.id
+          );
+        }
+        if (!swipeId) {
+          swipeId = normalizeIdentityValue(
+            arg.swipeId ?? arg.swipe_id ?? arg.swipe ?? arg.swipeIndex ?? arg.currentSwipe
+            ?? arg.message?.swipeId ?? arg.message?.swipe_id ?? arg.message?.swipe
+            ?? arg.data?.swipeId ?? arg.data?.swipe_id ?? arg.data?.swipe
+            ?? arg.target?.swipeId ?? arg.target?.swipe_id ?? arg.target?.swipe
+          );
+        }
+      }
+    }
+
+    return { messageId, swipeId };
   }
 
   _scheduleMessageProcessing(messageId, swipeId = '', options = {}) {
-    if (!this.isEnabled()) {
-      return;
-    }
+    const settleMs = options.settleMs ?? this._getSettleMs();
+    const timerKey = `msg::${normalizeIdentityValue(messageId)}::${normalizeIdentityValue(swipeId)}`;
 
-    const settleMs = Number.isFinite(options?.settleMs)
-      ? options.settleMs
-      : this._getAutomationSettings().settleMs;
-    const timerKey = createResolvedMessageKey(messageId, swipeId);
-    const existingTimer = this._pendingMessageTimers.get(timerKey);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
+    // 取消同一目标的旧定时器（防抖）
+    const existing = this._pendingTimers.get(timerKey);
+    if (existing) clearTimeout(existing);
 
     const timerId = setTimeout(() => {
-      this._pendingMessageTimers.delete(timerKey);
+      this._pendingTimers.delete(timerKey);
       this.processAssistantMessage(messageId, {
         swipeId,
-        sourceEvent: options?.sourceEvent || 'AUTO'
-      }).catch((error) => {
-        this._log('自动处理 assistant 消息失败', error);
+        sourceEvent: options.sourceEvent || 'AUTO'
+      }).catch(error => {
+        this._log('调度执行失败', { messageId, error });
       });
     }, Math.max(0, settleMs));
 
-    this._pendingMessageTimers.set(timerKey, timerId);
+    this._pendingTimers.set(timerKey, timerId);
+    this._log('已调度消息处理', { timerKey, settleMs, sourceEvent: options.sourceEvent });
   }
 
-  _hasRecentlyHandledExecution(executionKey) {
-    const normalizedKey = String(executionKey || '').trim();
-    if (!normalizedKey) {
-      return false;
+  _scheduleCurrentAssistantProcessing(options = {}) {
+    const settleMs = options.settleMs ?? this._getSettleMs();
+    const sourceEvent = options.sourceEvent || 'CURRENT_ASSISTANT_FALLBACK';
+    const timerKey = `current::${sourceEvent}`;
+
+    const existing = this._pendingTimers.get(timerKey);
+    if (existing) clearTimeout(existing);
+
+    const timerId = setTimeout(() => {
+      this._pendingTimers.delete(timerKey);
+      this.processCurrentAssistantMessage({ sourceEvent }).catch(error => {
+        this._log('当前 assistant 处理失败', error);
+      });
+    }, Math.max(0, settleMs));
+
+    this._pendingTimers.set(timerKey, timerId);
+    this._log('已调度当前 assistant 处理', { timerKey, settleMs, sourceEvent });
+  }
+
+  // ── Generation-Aware 去重 ────────────────────────────────
+
+  _hasCompletedGeneration(generationKey) {
+    if (!generationKey) return false;
+    this._pruneCompletedKeys();
+    const completedAt = this._completedGenerationKeys.get(generationKey);
+    if (!completedAt) return false;
+    return (Date.now() - completedAt) < this._getDedupeWindowMs();
+  }
+
+  _markGenerationCompleted(generationKey) {
+    if (!generationKey) return;
+    this._completedGenerationKeys.set(generationKey, Date.now());
+    this._pruneCompletedKeys();
+  }
+
+  _pruneCompletedKeys() {
+    const cutoff = Date.now() - this._getDedupeWindowMs();
+    for (const [key, ts] of this._completedGenerationKeys) {
+      if (!Number.isFinite(ts) || ts < cutoff) {
+        this._completedGenerationKeys.delete(key);
+      }
     }
+  }
 
-    this._pruneRecentHandledExecutions();
-    const lastHandledAt = this._recentHandledExecutions.get(normalizedKey);
-    if (!lastHandledAt) {
-      return false;
+  // ── 事务历史 ─────────────────────────────────────────────
+
+  _recordTransaction(tx) {
+    this._transactionHistory.push(tx);
+    if (this._transactionHistory.length > this._maxHistorySize) {
+      this._transactionHistory = this._transactionHistory.slice(-this._maxHistorySize);
     }
-
-    return (Date.now() - lastHandledAt) < this._getAutomationSettings().dedupeWindowMs;
-  }
-
-  _rememberHandledExecution(executionKey) {
-    const normalizedKey = String(executionKey || '').trim();
-    if (!normalizedKey) return;
-    this._recentHandledExecutions.set(normalizedKey, Date.now());
-    this._pruneRecentHandledExecutions();
-  }
-
-  _pruneRecentHandledExecutions() {
-    const cutoff = Date.now() - this._getAutomationSettings().dedupeWindowMs;
-    Array.from(this._recentHandledExecutions.entries()).forEach(([key, handledAt]) => {
-      if (!Number.isFinite(handledAt) || handledAt < cutoff) {
-        this._recentHandledExecutions.delete(key);
-      }
+    this._log(`事务 [${tx.traceId}] → ${tx.phase}`, {
+      messageId: tx.messageId,
+      generationKey: tx.generationKey,
+      verdict: tx.verdict,
+      sourceEvent: tx.sourceEvent,
+      error: tx.error
     });
   }
 
-  _resetForChatChange() {
-    const api = getHostApi();
-    this._currentChatId = getCurrentChatId(api);
-    this._pendingMessageTimers.forEach((timerId) => clearTimeout(timerId));
-    this._pendingMessageTimers.clear();
-    this._slotQueues.clear();
-    this._recentHandledExecutions.clear();
-    this._isDuringExtraAnalysis = false;
-    this._isProcessingMessage = false;
+  _skipTransaction(tx, reason, extra = {}) {
+    tx.transition(TX_PHASE.SKIPPED, { verdict: reason, ...extra });
+    this._recordTransaction(tx);
+    return { success: false, skipped: true, reason, traceId: tx.traceId, ...extra };
   }
 
-  _clearMessageState(messageId) {
-    const normalizedMessageId = normalizeIdentityValue(messageId);
-    if (!normalizedMessageId) return;
-
-    Array.from(this._pendingMessageTimers.entries()).forEach(([key, timerId]) => {
-      if (key.startsWith(`${normalizedMessageId}::`)) {
-        clearTimeout(timerId);
-        this._pendingMessageTimers.delete(key);
-      }
-    });
-
-    Array.from(this._recentHandledExecutions.keys()).forEach((executionKey) => {
-      if (executionKey.includes(`::${normalizedMessageId}::`) || executionKey.includes(`${normalizedMessageId}::`)) {
-        this._recentHandledExecutions.delete(executionKey);
-      }
-    });
-  }
+  // ── 槽位队列 ─────────────────────────────────────────────
 
   _enqueueSlot(slotKey, runner) {
     const previous = this._slotQueues.get(slotKey) || Promise.resolve();
     const next = previous
-      .catch(() => {})
+      .catch(() => { })
       .then(runner)
       .finally(() => {
         if (this._slotQueues.get(slotKey) === next) {
           this._slotQueues.delete(slotKey);
         }
       });
-
     this._slotQueues.set(slotKey, next);
     return next;
   }
+
+  // ── 状态管理 ──────────────────────────────────────────────
+
+  _resetForChatChange() {
+    const api = getHostApi();
+    const newChatId = getCurrentChatId(api);
+    this._log('聊天切换', { from: this._currentChatId, to: newChatId });
+    this._currentChatId = newChatId;
+    this._pendingTimers.forEach(id => clearTimeout(id));
+    this._pendingTimers.clear();
+    this._slotQueues.clear();
+    this._completedGenerationKeys.clear();
+    this._isDuringExtraAnalysis = false;
+    this._isProcessingMessage = false;
+  }
+
+  _clearMessageState(messageId) {
+    if (!messageId) return;
+    // 清理与该消息相关的定时器
+    for (const [key, timerId] of this._pendingTimers) {
+      if (key.includes(`::${messageId}::`) || key.startsWith(`msg::${messageId}::`)) {
+        clearTimeout(timerId);
+        this._pendingTimers.delete(key);
+      }
+    }
+    // 清理相关的已完成 generationKey
+    for (const key of this._completedGenerationKeys.keys()) {
+      if (key.startsWith(`${messageId}::`)) {
+        this._completedGenerationKeys.delete(key);
+      }
+    }
+  }
+
+  // ── 启用状态 ──────────────────────────────────────────────
+
+  _evaluateEnabled() {
+    const s = this._getAutomationSettings();
+    return s.enabled === true && s.autoRequestEnabled === true;
+  }
+
+  /**
+   * 检查是否启用，首次失败时输出诊断信息
+   */
+  _checkEnabled() {
+    if (this._enabled) return true;
+
+    if (!this._enabledCheckedOnce) {
+      this._enabledCheckedOnce = true;
+      const s = this._getAutomationSettings();
+      this._log('⚠ 自动化未启用，首次诊断:', {
+        'automation.enabled': s.enabled,
+        'automation.autoRequestEnabled': s.autoRequestEnabled,
+        '完整 automation 设置': s,
+        '提示': '请确保 settings.automation.enabled === true 且 settings.automation.autoRequestEnabled === true'
+      });
+    }
+    return false;
+  }
+
+  // ── 设置读取 ──────────────────────────────────────────────
 
   _getAutomationSettings() {
     const automation = settingsService.getSettings()?.automation || {};
@@ -494,13 +704,23 @@ class ToolAutomationService {
     };
   }
 
+  _getSettleMs() {
+    return this._getAutomationSettings().settleMs;
+  }
+
+  _getDedupeWindowMs() {
+    return this._getAutomationSettings().dedupeWindowMs;
+  }
+
+  // ── 日志 ──────────────────────────────────────────────────
+
   _log(...args) {
-    if (this.debugMode || settingsService.getDebugSettings()?.enableDebugLog) {
-      console.log('[ToolAutomationService]', ...args);
+    if (this.debugMode || settingsService.getDebugSettings?.()?.enableDebugLog) {
+      console.log('[ToolAutomation]', ...args);
     }
   }
 }
 
 export const toolAutomationService = new ToolAutomationService();
-export { ToolAutomationService };
+export { ToolAutomationService, TX_PHASE, Transaction };
 export default toolAutomationService;
