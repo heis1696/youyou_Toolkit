@@ -114,16 +114,42 @@ class ToolAutomationService {
       });
     };
 
+    const scheduleFromEvent = (eventName, messageId, payload, options = {}) => {
+      const resolvedMessageId = this._resolveIncomingMessageId(messageId, payload);
+      const swipeId = this._resolveIncomingSwipeId(payload);
+      const settleMs = Number.isFinite(options?.settleMs)
+        ? options.settleMs
+        : this._getAutomationSettings().settleMs;
+
+      this._log(eventName, { messageId: resolvedMessageId, swipeId, payload });
+      if (!resolvedMessageId) return;
+      this._scheduleMessageProcessing(resolvedMessageId, swipeId, { settleMs });
+    };
+
     bindHostEvent(eventTypes.MESSAGE_SENT || 'MESSAGE_SENT', (...args) => {
       this._log('MESSAGE_SENT', args);
     });
 
     bindHostEvent(eventTypes.MESSAGE_RECEIVED || 'MESSAGE_RECEIVED', (messageId, payload) => {
-      const resolvedMessageId = this._resolveIncomingMessageId(messageId, payload);
-      const swipeId = this._resolveIncomingSwipeId(payload);
-      const settleMs = this._getAutomationSettings().settleMs;
-      if (!resolvedMessageId) return;
-      this._scheduleMessageProcessing(resolvedMessageId, swipeId, { settleMs });
+      scheduleFromEvent(eventTypes.MESSAGE_RECEIVED || 'MESSAGE_RECEIVED', messageId, payload);
+    });
+
+    bindHostEvent(eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED', (messageId, payload) => {
+      scheduleFromEvent(eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED', messageId, payload, {
+        settleMs: Math.max(0, this._getAutomationSettings().settleMs)
+      });
+    });
+
+    bindHostEvent(eventTypes.MESSAGE_SWIPED || 'MESSAGE_SWIPED', (messageId, payload) => {
+      scheduleFromEvent(eventTypes.MESSAGE_SWIPED || 'MESSAGE_SWIPED', messageId, payload);
+    });
+
+    bindHostEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'GENERATION_AFTER_COMMANDS', (messageId, payload) => {
+      scheduleFromEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'GENERATION_AFTER_COMMANDS', messageId, payload);
+    });
+
+    bindHostEvent(eventTypes.GENERATION_ENDED || 'GENERATION_ENDED', (messageId, payload) => {
+      scheduleFromEvent(eventTypes.GENERATION_ENDED || 'GENERATION_ENDED', messageId, payload);
     });
 
     bindHostEvent(eventTypes.CHAT_CHANGED || 'CHAT_CHANGED', () => {
