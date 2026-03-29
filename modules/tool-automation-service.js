@@ -63,11 +63,20 @@ function createResolvedMessageKey(messageId, swipeId = '') {
   return `${normalizeIdentityValue(messageId) || 'latest'}::${normalizeIdentityValue(swipeId) || 'swipe:current'}`;
 }
 
+function isSameSlotEvent(eventName = '') {
+  return [
+    'MESSAGE_UPDATED',
+    'MESSAGE_SWIPED',
+    'GENERATION_AFTER_COMMANDS',
+    'GENERATION_ENDED'
+  ].includes(String(eventName || '').trim());
+}
+
 class ToolAutomationService {
   constructor() {
     this._stopCallbacks = [];
     this._pendingMessageTimers = new Map();
-    this._handledMessageRevisions = new Set();
+    this._handledGenerations = new Set();
     this._slotQueues = new Map();
     this._currentChatId = '';
     this._isDuringExtraAnalysis = false;
@@ -122,8 +131,14 @@ class ToolAutomationService {
         : this._getAutomationSettings().settleMs;
 
       this._log(eventName, { messageId: resolvedMessageId, swipeId, payload });
-      if (!resolvedMessageId) return;
-      this._scheduleMessageProcessing(resolvedMessageId, swipeId, { settleMs });
+      if (resolvedMessageId) {
+        this._scheduleMessageProcessing(resolvedMessageId, swipeId, { settleMs });
+        return;
+      }
+
+      if (isSameSlotEvent(eventName)) {
+        this._scheduleCurrentAssistantProcessing({ settleMs, sourceEvent: eventName });
+      }
     };
 
     bindHostEvent(eventTypes.MESSAGE_SENT || 'MESSAGE_SENT', (...args) => {
@@ -181,7 +196,7 @@ class ToolAutomationService {
     this._pendingMessageTimers.forEach((timerId) => clearTimeout(timerId));
     this._pendingMessageTimers.clear();
     this._slotQueues.clear();
-    this._handledMessageRevisions.clear();
+    this._handledGenerations.clear();
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
     this._enabled = false;
@@ -198,7 +213,7 @@ class ToolAutomationService {
       isDuringExtraAnalysis: this._isDuringExtraAnalysis,
       isProcessingMessage: this._isProcessingMessage,
       pendingMessageCount: this._pendingMessageTimers.size,
-      handledRevisionCount: this._handledMessageRevisions.size,
+      handledGenerationCount: this._handledGenerations.size,
       queuedSlotCount: this._slotQueues.size,
       enabled: this._enabled
     };
@@ -241,9 +256,9 @@ class ToolAutomationService {
       return { success: false, skipped: true, reason: 'assistant_message_too_short' };
     }
 
-    const revisionKey = context.slotRevisionKey || '';
-    if (!force && revisionKey && this._handledMessageRevisions.has(revisionKey)) {
-      return { success: false, skipped: true, reason: 'revision_already_handled' };
+    const generationKey = context.slotRevisionKey || '';
+    if (!force && generationKey && this._handledGenerations.has(generationKey)) {
+      return { success: false, skipped: true, reason: 'generation_already_handled' };
     }
 
     const tools = toolOutputService.filterAutoPostResponseTools(getAllToolFullConfigs());
@@ -302,14 +317,14 @@ class ToolAutomationService {
           }
         }
 
-        if (allSucceeded && revisionKey) {
-          this._handledMessageRevisions.add(revisionKey);
+        if (allSucceeded && generationKey) {
+          this._handledGenerations.add(generationKey);
         }
 
         return {
           success: allSucceeded,
           results,
-          revisionKey,
+          generationKey,
           messageId: context.sourceMessageId || ''
         };
       } finally {
@@ -340,6 +355,17 @@ class ToolAutomationService {
       ?? payload?.messageId
       ?? payload?.message_id
       ?? payload?.id
+      ?? payload?.message?.messageId
+      ?? payload?.message?.message_id
+      ?? payload?.message?.id
+      ?? payload?.message?.mesid
+      ?? payload?.message?.chat_index
+      ?? payload?.data?.messageId
+      ?? payload?.data?.message_id
+      ?? payload?.data?.id
+      ?? payload?.target?.messageId
+      ?? payload?.target?.message_id
+      ?? payload?.target?.id
       ?? ''
     );
   }
@@ -349,8 +375,44 @@ class ToolAutomationService {
       payload?.swipeId
       ?? payload?.swipe_id
       ?? payload?.swipe
+      ?? payload?.swipeIndex
+      ?? payload?.currentSwipe
+      ?? payload?.message?.swipeId
+      ?? payload?.message?.swipe_id
+      ?? payload?.message?.swipe
+      ?? payload?.message?.swipeIndex
+      ?? payload?.data?.swipeId
+      ?? payload?.data?.swipe_id
+      ?? payload?.data?.swipe
+      ?? payload?.target?.swipeId
+      ?? payload?.target?.swipe_id
+      ?? payload?.target?.swipe
       ?? ''
     );
+  }
+
+  _scheduleCurrentAssistantProcessing(options = {}) {
+    if (!this.isEnabled()) {
+      return;
+    }
+
+    const settleMs = Number.isFinite(options?.settleMs)
+      ? options.settleMs
+      : this._getAutomationSettings().settleMs;
+    const timerKey = `current-assistant::${normalizeIdentityValue(options?.sourceEvent) || 'unknown'}`;
+    const existingTimer = this._pendingMessageTimers.get(timerKey);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    const timerId = setTimeout(() => {
+      this._pendingMessageTimers.delete(timerKey);
+      this.processCurrentAssistantMessage().catch((error) => {
+        this._log('自动处理当前 assistant 消息失败', error);
+      });
+    }, Math.max(0, settleMs));
+
+    this._pendingMessageTimers.set(timerKey, timerId);
   }
 
   _scheduleMessageProcessing(messageId, swipeId = '', options = {}) {
@@ -383,7 +445,7 @@ class ToolAutomationService {
     this._pendingMessageTimers.forEach((timerId) => clearTimeout(timerId));
     this._pendingMessageTimers.clear();
     this._slotQueues.clear();
-    this._handledMessageRevisions.clear();
+    this._handledGenerations.clear();
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
   }
@@ -399,9 +461,9 @@ class ToolAutomationService {
       }
     });
 
-    Array.from(this._handledMessageRevisions).forEach((revisionKey) => {
-      if (revisionKey.includes(`::${normalizedMessageId}::`) || revisionKey.includes(`${normalizedMessageId}::`)) {
-        this._handledMessageRevisions.delete(revisionKey);
+    Array.from(this._handledGenerations).forEach((generationKey) => {
+      if (generationKey.includes(`::${normalizedMessageId}::`) || generationKey.includes(`${normalizedMessageId}::`)) {
+        this._handledGenerations.delete(generationKey);
       }
     });
   }
