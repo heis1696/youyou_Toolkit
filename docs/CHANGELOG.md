@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+### 修复
+
+- 🐛 **自动化生命周期服务回退到 same-slot / 多事件事务入口** (`modules/tool-automation-service.js`, `docs/OPTIMIZATION_PROGRESS.md`)
+  - 不再错误地只依赖 `MESSAGE_RECEIVED + MESSAGE_SENT` 的简化版 MVU 入口
+  - 自动服务现重新监听 `MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED / GENERATION_AFTER_COMMANDS / GENERATION_ENDED`
+  - 同楼层 reroll / regenerate / swipe 会优先按 `messageId + swipe + assistant 指纹` 形成的 `executionKey` 调度，而不是被旧的一次性简化节流误杀
+  - 新增按 execution key 的短时间窗口去重：同一轮事件回响不重复执行，但同楼层新 revision 仍可再次进入自动链
+
 ### 更改
 
 - ♻️ **MVU 风格自动生命周期主链落地** (`modules/tool-automation-service.js`, `modules/tool-execution-context.js`, `modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `modules/tool-registry.js`, `modules/tool-manager.js`, `modules/core/settings-service.js`, `modules/app/bootstrap.js`, `modules/app/public-api.js`, `modules/ui/components/settings-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/HOST_REGRESSION_CHECKLIST.md`)

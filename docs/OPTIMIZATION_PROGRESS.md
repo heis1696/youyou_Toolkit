@@ -88,6 +88,7 @@
 - `modules/ui/components/tool-config-panel-factory.js` 已继续把工具页诊断消费面切到 transaction-first：当前优先读取 `getGenerationTransactionDiagnostics()`，折叠区可直接展示 `activeTransactions / recentTransactionHistory / recentHandledExecutionKeys`，复制按钮也已改为导出 `exportGenerationTransactionDiagnostics()`
 - `docs/API_DOCUMENTATION.md`、`docs/HOST_REGRESSION_CHECKLIST.md` 本轮已继续同步 transaction 口径：工具页观测点、控制台辅助命令与诊断导出方式现统一改为 transaction diagnostics 优先，`recentEventTimeline` 则保留为时序辅助视图
 - 本轮继续执行 `npm run build` 构建验证通过，说明 transaction 诊断消费面对齐未破坏 bundle 输出
+- 当前 `modules/tool-automation-service.js` 已撤回之前错误的 `MESSAGE_RECEIVED-only` 简化版实现，重新收口到多事件入口 + slot revision / execution key 时间窗去重语义；后续宿主验证应重点确认 same-slot reroll 是否恢复
 
 换句话说，当前需要确认的已不再是“UI 有没有接上 transaction 视图”，而是“宿主环境里这些 transaction 诊断是否足以直接定位 reroll / dedupe / writeback / refresh 的真实卡点”。
 
@@ -1494,5 +1495,23 @@ Phase 5 完成后，如需继续增强，可进一步评估：
   - 落实事务化收口 Phase T3 / T4，让宿主与 UI 能直接判断“死在 commit 还是 refresh confirm”
 - 阻塞项：
   - 本轮仍需以宿主环境回归确认 UI 即时刷新与 refresh confirm 诊断是否完全符合预期
+- 状态：
+  - 成功
+
+## 2026-03-29 16:14
+
+- 阶段：自动化服务修正（撤回 MESSAGE_RECEIVED-only 简化版，恢复 same-slot 多事件入口）
+- 修改文件：
+  - `modules/tool-automation-service.js`
+  - `docs/CHANGELOG.md`
+  - `docs/OPTIMIZATION_PROGRESS.md`
+- 修改摘要：
+  - 撤回此前错误地只监听 `MESSAGE_RECEIVED` 的简化自动服务实现
+  - 自动服务重新接回 `MESSAGE_RECEIVED / MESSAGE_UPDATED / MESSAGE_SWIPED / GENERATION_AFTER_COMMANDS / GENERATION_ENDED` 多事件入口
+  - 引入基于 `executionKey / slotRevisionKey` 的短时间窗口去重，避免同一轮事件回响重复执行，同时允许同楼层 reroll / regenerate / swipe 形成的新 revision 再次触发
+- 修改原因：
+  - 用户在真实宿主环境中确认：只抄 MVU 表层 `MESSAGE_RECEIVED` 入口无法覆盖同楼层重 roll；需要恢复到适配当前宿主 same-slot revision 的事务入口模型
+- 阻塞项：
+  - 仍需真实宿主环境继续确认：同楼层 reroll 是否已恢复、是否存在 `MESSAGE_UPDATED` / `MESSAGE_SWIPED` 回响导致的重复执行
 - 状态：
   - 成功
