@@ -107,19 +107,11 @@ class ToolOutputService {
    */
   shouldRunPostResponse(toolConfig) {
     if (!toolConfig) return false;
-    
-    // 工具必须启用
     if (!toolConfig.enabled) return false;
-    
-    // 触发器必须启用
-    if (!toolConfig.trigger?.enabled) return false;
-    
-    // 输出必须启用
     if (!toolConfig.output?.enabled) return false;
-    
-    // 必须是 post_response_api 模式
     return toolConfig.output?.mode === OUTPUT_MODES.POST_RESPONSE_API;
   }
+
 
   /**
    * 检查工具是否应该运行 follow_ai 模式
@@ -128,11 +120,10 @@ class ToolOutputService {
    */
   shouldRunFollowAi(toolConfig) {
     if (!toolConfig) return false;
-    
+
     if (!toolConfig.enabled) return false;
-    if (!toolConfig.trigger?.enabled) return false;
     if (!toolConfig.output?.enabled) return false;
-    
+
     const mode = toolConfig.output?.mode;
     // 支持新模式名称和旧模式名称
     return mode === OUTPUT_MODES.FOLLOW_AI || mode === 'inline';
@@ -153,7 +144,7 @@ class ToolOutputService {
    * @param {Object} toolConfig - 工具配置
    * @param {Object} rawContext - 原始上下文
    * @returns {Promise<Object>} 执行结果
-   * @description 当前自动执行与手动 post_response_api 执行的统一主路径
+   * @description 当前手动 post_response_api 执行的统一主路径
    */
   async runToolPostResponse(toolConfig, rawContext) {
     const startTime = Date.now();
@@ -831,6 +822,18 @@ class ToolOutputService {
   filterPostResponseTools(toolConfigs) {
     if (!Array.isArray(toolConfigs)) return [];
     return toolConfigs.filter(config => this.shouldRunPostResponse(config));
+  }
+
+  filterAutoPostResponseTools(toolConfigs) {
+    if (!Array.isArray(toolConfigs)) return [];
+
+    return toolConfigs.filter((config) => {
+      if (!this.shouldRunPostResponse(config)) {
+        return false;
+      }
+
+      return config?.automation?.enabled === true;
+    });
   }
 
   /**

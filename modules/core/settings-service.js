@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - 设置服务
- * @description 全局配置管理，包括执行器、监听器、调试和UI设置
+ * @description 全局配置管理，包括执行器、调试和UI设置
  * @version 1.0.0
  */
 
@@ -19,15 +19,12 @@ const DEFAULT_SETTINGS = {
     requestTimeoutMs: 90000,
     queueStrategy: 'fifo'
   },
-  listener: {
-    listenGenerationEnded: true,
-    ignoreQuietGeneration: true,
-    ignoreAutoTrigger: false,
-    debounceMs: 300,
-    useMessageReceivedFallback: true,
-    useGenerationAfterCommandsFallback: true,
-    messageSessionWindowMs: 1800,
-    historyRetentionLimit: 10
+  automation: {
+    enabled: false,
+    autoRequestEnabled: true,
+    settleMs: 1200,
+    cooldownMs: 5000,
+    maxConcurrentSlots: 1
   },
   debug: {
     enableDebugLog: false,
@@ -103,19 +100,19 @@ class SettingsService {
   }
 
   /**
-   * 获取监听器设置
+   * 获取自动化设置
    * @returns {Object}
    */
-  getListenerSettings() {
-    return this.getSettings().listener;
+  getAutomationSettings() {
+    return this.getSettings().automation;
   }
 
   /**
-   * 更新监听器设置
-   * @param {Object} listenerSettings
+   * 更新自动化设置
+   * @param {Object} automationSettings
    */
-  updateListenerSettings(listenerSettings) {
-    this.updateSettings({ listener: listenerSettings });
+  updateAutomationSettings(automationSettings) {
+    this.updateSettings({ automation: automationSettings });
   }
 
   /**
@@ -191,7 +188,7 @@ class SettingsService {
     const keys = path.split('.');
     let target = settings;
 
-    for (let i = 0; i < keys.length - 1; i++) {
+    for (let i = 0; i < keys.length - 1; i += 1) {
       const key = keys[i];
       if (!(key in target)) {
         target[key] = {};

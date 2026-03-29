@@ -9,7 +9,7 @@ import { createToolConfigPanel } from './tool-config-panel-factory.js';
 export const StatusBlockPanel = createToolConfigPanel({
   id: 'statusBlockPanel',
   toolId: 'statusBlock',
-  postResponseHint: '监听 AI 回复结束后，调用额外模型生成主角状态栏。',
+  postResponseHint: '点击“立即执行一次”后，调用额外模型生成主角状态栏。',
   extractionPlaceholder: '每行一个标签，如 status_block\n或 regex:<status_block>([\\s\\S]*?)</status_block>',
   previewDialogId: 'status-extraction-preview',
   defaultInjectionOrder: 10001,

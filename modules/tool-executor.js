@@ -3,7 +3,7 @@
  * @description 负责工具的调度、并发控制、执行历史，以及少量 legacy 兼容执行入口
  */
 
-import { getToolFullConfig, getEnabledTools } from './tool-registry.js';
+import { getToolFullConfig } from './tool-registry.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
 
 // ============================================================
@@ -597,11 +597,7 @@ export function enhanceMessagesWithBypass(messages, bypassMessages) {
 /**
  * Legacy compatibility helper.
  *
- * 注意：当前自动主链并不依赖本函数构建请求消息；
- * 自动执行的事实主路径已经收敛为：
- * tool-trigger -> tool-output-service -> tool-prompt-service -> api-connection -> context-injector
- *
- * 本函数仅保留给兼容执行路径 / 手动回退路径使用。
+ * 本文件中的 legacy 构建/执行方法仅保留给手动兼容执行路径使用。
  */
 
 /**
@@ -618,7 +614,7 @@ function escapeRegex(string) {
  * @param {Object} config 工具配置
  * @param {Object} context 执行上下文
  * @returns {Array} 消息数组
- * @deprecated 这是 legacy compatibility API，当前自动主链请使用 tool-output-service + tool-prompt-service
+ * @deprecated 这是 legacy compatibility API，仅供手动兼容执行路径使用
  */
 export function buildToolMessages(config, context) {
   const messages = [];
@@ -675,7 +671,7 @@ export function buildToolMessages(config, context) {
  * @param {Object} context 执行上下文
  * @param {Object} options 执行选项
  * @returns {Promise<Object>} 执行结果
- * @deprecated 这是兼容执行入口，不代表当前自动工具主链
+ * @deprecated 这是兼容执行入口，仅供手动回退路径使用
  */
 export async function executeToolWithConfig(toolId, context, options = {}) {
   const config = getToolFullConfig(toolId);
@@ -816,28 +812,6 @@ export async function executeToolsBatch(toolIds, context, options = {}) {
   }
   
   return results;
-}
-
-/**
- * 根据触发事件获取需要执行的工具
- * @param {string} eventType 事件类型
- * @returns {Array} 需要执行的工具配置列表
- * @description 仅负责事件筛选，不代表实际执行一定走本文件中的 legacy 执行入口
- */
-export function getToolsForEvent(eventType) {
-  const allConfigs = [];
-  const enabledTools = getEnabledTools();
-
-  for (const config of enabledTools) {
-    const matchesNewTrigger = config?.trigger?.enabled && config?.trigger?.event === eventType;
-    const matchesLegacyTrigger = Array.isArray(config?.triggerEvents) && config.triggerEvents.includes(eventType);
-
-    if (config && config.enabled && (matchesNewTrigger || matchesLegacyTrigger)) {
-      allConfigs.push(config);
-    }
-  }
-  
-  return allConfigs;
 }
 
 // 导出

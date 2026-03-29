@@ -711,7 +711,7 @@ export function createPopupShell(context) {
         panel = createToolConfigPanel({
           id: `${subToolConfig.id}Panel`,
           toolId: subToolConfig.id,
-          postResponseHint: `监听 AI 回复结束后，调用额外模型执行“${subToolConfig.name || subToolConfig.id}”。`,
+          postResponseHint: `点击“立即执行一次”后，调用额外模型执行“${subToolConfig.name || subToolConfig.id}”。`,
           extractionPlaceholder: '每行一个标签，如 custom_tag\n或 regex:<custom_tag>([\\s\\S]*?)</custom_tag>',
           previewDialogId: `${subToolConfig.id}-extraction-preview`,
           previewTitle: `${subToolConfig.name || subToolConfig.id} 提取预览`
@@ -1002,7 +1002,7 @@ export function createPopupShell(context) {
                     ${mainNavHtml}
                   </div>
                   <div class="yyt-shell-sidebar-note">
-                    保存后，自动监听、手动执行与写回链都会以最新配置为准。
+                    保存后，手动执行与写回链都会以最新配置为准。
                   </div>
                 </div>
               </aside>
@@ -1017,7 +1017,7 @@ export function createPopupShell(context) {
                   <div class="yyt-shell-main-actions">
                     <div class="yyt-shell-main-meta">
                       <i class="fa-solid fa-circle-info"></i>
-                      <span>保存后自动监听与写回链会使用最新配置</span>
+                      <span>保存后手动执行与写回链会使用最新配置</span>
                     </div>
                   </div>
                 </div>

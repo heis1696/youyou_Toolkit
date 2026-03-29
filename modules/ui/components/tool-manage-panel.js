@@ -392,7 +392,6 @@ export const ToolManagePanel = {
         promptTemplate: tool?.promptTemplate || '',
         extractTags: Array.isArray(tool?.extractTags) ? tool.extractTags : [],
         config: {
-          trigger: tool?.config?.trigger || { type: 'manual', events: [] },
           execution: { timeout, retries },
           api: tool?.config?.api || { preset: '', useBypass: false, bypassPreset: '' },
           messages: Array.isArray(tool?.config?.messages) ? tool.config.messages : [],

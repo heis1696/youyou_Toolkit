@@ -102,15 +102,12 @@ function applyTheme(themeName, targetDocument = getTargetDocument()) {
     ...BASE_THEME_TOKENS,
     ...(THEME_CONFIGS[themeName] || THEME_CONFIGS['dark-blue'])
   };
-  
-  // 应用主题变量
+
   Object.entries(theme).forEach(([property, value]) => {
     root.style.setProperty(property, value);
   });
-  
-  // 设置主题属性
+
   root.setAttribute('data-yyt-theme', themeName);
-  
 }
 
 /**
@@ -137,42 +134,30 @@ function applyUiPreferences(uiSettings = {}, targetDocument = getTargetDocument(
 
 export const SettingsPanel = {
   id: 'settingsPanel',
-  
-  // ============================================================
-  // 渲染
-  // ============================================================
-  
-  /**
-   * 渲染组件
-   * @param {Object} props
-   * @returns {string} HTML
-   */
-  render(props) {
+
+  render() {
     const settings = settingsService.getSettings();
-    const listenerEnabled = settings.listener?.listenGenerationEnded !== false;
     const debugEnabled = settings.debug?.enableDebugLog === true;
-    
+
     return `
       <div class="yyt-settings-panel">
         <div class="yyt-settings-hero">
           <div class="yyt-settings-hero-copy">
             <div class="yyt-settings-hero-title">全局偏好与运行策略</div>
-            <div class="yyt-settings-hero-desc">统一管理执行器、监听器、调试与外观设置，让工具链行为与界面体验保持一致。</div>
+            <div class="yyt-settings-hero-desc">统一管理执行器、调试与外观设置，让工具链行为与界面体验保持一致。</div>
           </div>
           <div class="yyt-settings-hero-status">
-            <span class="yyt-settings-status-chip ${listenerEnabled ? 'is-on' : 'is-off'}">监听 ${listenerEnabled ? '开启' : '关闭'}</span>
             <span class="yyt-settings-status-chip ${debugEnabled ? 'is-on' : 'is-off'}">调试 ${debugEnabled ? '开启' : '关闭'}</span>
             <span class="yyt-settings-status-chip is-neutral">主题 ${settings.ui?.theme || 'dark-blue'}</span>
           </div>
         </div>
 
-        <!-- 标签页导航 -->
         <div class="yyt-settings-tabs">
           <button class="yyt-settings-tab yyt-active" data-tab="executor">
             <i class="fa-solid fa-microchip"></i> 执行器
           </button>
-          <button class="yyt-settings-tab" data-tab="listener">
-            <i class="fa-solid fa-ear-listen"></i> 监听器
+          <button class="yyt-settings-tab" data-tab="automation">
+            <i class="fa-solid fa-bolt"></i> 自动化
           </button>
           <button class="yyt-settings-tab" data-tab="debug">
             <i class="fa-solid fa-bug"></i> 调试
@@ -181,16 +166,14 @@ export const SettingsPanel = {
             <i class="fa-solid fa-palette"></i> 外观
           </button>
         </div>
-        
-        <!-- 标签页内容 -->
+
         <div class="yyt-settings-content">
           ${this._renderExecutorTab(settings.executor)}
-          ${this._renderListenerTab(settings.listener)}
+          ${this._renderAutomationTab(settings.automation)}
           ${this._renderDebugTab(settings.debug)}
           ${this._renderUiTab(settings.ui)}
         </div>
-        
-        <!-- 底部操作 -->
+
         <div class="yyt-settings-footer">
           <button class="yyt-btn yyt-btn-secondary" id="yyt-settings-reset">
             <i class="fa-solid fa-undo"></i> 重置为默认
@@ -202,15 +185,7 @@ export const SettingsPanel = {
       </div>
     `;
   },
-  
-  // ============================================================
-  // 私有渲染方法
-  // ============================================================
-  
-  /**
-   * 渲染执行器标签页
-   * @private
-   */
+
   _renderExecutorTab(executor) {
     return `
       <div class="yyt-settings-tab-content yyt-active" data-tab="executor">
@@ -219,37 +194,37 @@ export const SettingsPanel = {
           <div class="yyt-form-group">
             <label>最大并发数</label>
             <div class="yyt-form-hint">同时执行的工具数量上限</div>
-            <input type="number" class="yyt-input" id="yyt-setting-maxConcurrent" 
+            <input type="number" class="yyt-input" id="yyt-setting-maxConcurrent"
                    value="${executor.maxConcurrent}" min="1" max="10">
           </div>
         </div>
-        
+
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">重试策略</div>
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
               <label>最大重试次数</label>
-              <input type="number" class="yyt-input" id="yyt-setting-maxRetries" 
+              <input type="number" class="yyt-input" id="yyt-setting-maxRetries"
                      value="${executor.maxRetries}" min="0" max="10">
             </div>
             <div class="yyt-form-group yyt-flex-1">
               <label>重试间隔 (ms)</label>
-              <input type="number" class="yyt-input" id="yyt-setting-retryDelayMs" 
+              <input type="number" class="yyt-input" id="yyt-setting-retryDelayMs"
                      value="${executor.retryDelayMs}" min="1000" max="60000" step="1000">
             </div>
           </div>
         </div>
-        
+
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">超时设置</div>
           <div class="yyt-form-group">
             <label>请求超时时间 (ms)</label>
             <div class="yyt-form-hint">单个请求的超时时间，超过将自动中断</div>
-            <input type="number" class="yyt-input" id="yyt-setting-requestTimeoutMs" 
+            <input type="number" class="yyt-input" id="yyt-setting-requestTimeoutMs"
                    value="${executor.requestTimeoutMs}" min="10000" max="300000" step="10000">
           </div>
         </div>
-        
+
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">队列策略</div>
           <div class="yyt-form-group">
@@ -264,96 +239,55 @@ export const SettingsPanel = {
       </div>
     `;
   },
-  
-  /**
-   * 渲染监听器标签页
-   * @private
-   */
-  _renderListenerTab(listener) {
+
+  _renderAutomationTab(automation = {}) {
     return `
-      <div class="yyt-settings-tab-content" data-tab="listener">
+      <div class="yyt-settings-tab-content" data-tab="automation">
         <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">事件监听</div>
+          <div class="yyt-settings-section-title">自动触发总开关</div>
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-listenGenerationEnded" 
-                     ${listener.listenGenerationEnded ? 'checked' : ''}>
-              <span>启用自动工具监听</span>
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-automationEnabled"
+                     ${automation.enabled ? 'checked' : ''}>
+              <span>启用自动化生命周期</span>
             </label>
-            <div class="yyt-form-hint">启用后会监听 GENERATION_ENDED，并结合 GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED 作为兜底来源自动触发工具。</div>
+            <div class="yyt-form-hint">监听宿主 assistant 消息，在命中自动工具时直接进入额外解析与写回链。</div>
           </div>
-
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-useGenerationAfterCommandsFallback" 
-                     ${listener.useGenerationAfterCommandsFallback !== false ? 'checked' : ''}>
-              <span>启用 GENERATION_AFTER_COMMANDS 兜底</span>
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-autoRequestEnabled"
+                     ${automation.autoRequestEnabled !== false ? 'checked' : ''}>
+              <span>允许自动额外请求</span>
             </label>
-            <div class="yyt-form-hint">关闭后，自动链不再把 GENERATION_AFTER_COMMANDS 作为消息级 session 的补充事件源。</div>
-          </div>
-
-          <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-useMessageReceivedFallback" 
-                     ${listener.useMessageReceivedFallback !== false ? 'checked' : ''}>
-              <span>启用 MESSAGE_RECEIVED 兜底</span>
-            </label>
-            <div class="yyt-form-hint">关闭后，自动链不再使用 MESSAGE_RECEIVED 兜底；启用时也只会吸收 assistant 楼层进入同一消息 session。</div>
+            <div class="yyt-form-hint">关闭后保留自动服务挂载，但不会自动请求额外模型。</div>
           </div>
         </div>
-        
+
         <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">过滤规则</div>
-          <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-ignoreQuietGeneration" 
-                     ${listener.ignoreQuietGeneration ? 'checked' : ''}>
-              <span>忽略静默生成</span>
-            </label>
-            <div class="yyt-form-hint">启用后会跳过 quiet / dryRun / 后台生成，减少未真正产生回复时的误触发。</div>
-          </div>
-          
-          <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-ignoreAutoTrigger" 
-                     ${listener.ignoreAutoTrigger ? 'checked' : ''}>
-              <span>忽略自动触发</span>
-            </label>
-            <div class="yyt-form-hint">启用后会尽量跳过“没有最近用户发送意图”的生成，减少其他插件/脚本触发生成时的误执行。</div>
-          </div>
-        </div>
-        
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">Session 与防抖</div>
+          <div class="yyt-settings-section-title">消息稳定与节流</div>
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
-              <label>防抖时间 (ms)</label>
-              <div class="yyt-form-hint">用于 GENERATION_AFTER_COMMANDS / MESSAGE_RECEIVED 等兜底事件的延迟调度与去抖。</div>
-              <input type="number" class="yyt-input" id="yyt-setting-debounceMs" 
-                     value="${listener.debounceMs}" min="0" max="5000" step="100">
+              <label>稳定等待 (ms)</label>
+              <input type="number" class="yyt-input" id="yyt-setting-settleMs"
+                     value="${automation.settleMs ?? 1200}" min="0" max="20000" step="100">
             </div>
             <div class="yyt-form-group yyt-flex-1">
-              <label>消息 Session 窗口 (ms)</label>
-              <div class="yyt-form-hint">同一条消息在该窗口内命中的多种宿主事件会被聚合进同一 session。</div>
-              <input type="number" class="yyt-input" id="yyt-setting-messageSessionWindowMs" 
-                     value="${listener.messageSessionWindowMs || 1800}" min="300" max="10000" step="100">
+              <label>冷却时间 (ms)</label>
+              <input type="number" class="yyt-input" id="yyt-setting-cooldownMs"
+                     value="${automation.cooldownMs ?? 5000}" min="0" max="60000" step="100">
             </div>
           </div>
           <div class="yyt-form-group">
-            <label>诊断历史保留条数</label>
-            <div class="yyt-form-hint">控制消息级 session 历史与单工具最近触发 / 写回历史的保留数量，避免诊断信息无限膨胀。</div>
-            <input type="number" class="yyt-input" id="yyt-setting-historyRetentionLimit" 
-                   value="${listener.historyRetentionLimit || 10}" min="1" max="50" step="1">
+            <label>并发槽位上限</label>
+            <input type="number" class="yyt-input" id="yyt-setting-maxConcurrentSlots"
+                   value="${automation.maxConcurrentSlots ?? 1}" min="1" max="8">
+            <div class="yyt-form-hint">当前实现按 assistant 槽位串行；该值预留给后续更细粒度调度控制。</div>
           </div>
         </div>
       </div>
     `;
   },
-  
-  /**
-   * 渲染调试标签页
-   * @private
-   */
+
   _renderDebugTab(debug) {
     return `
       <div class="yyt-settings-tab-content" data-tab="debug">
@@ -361,28 +295,28 @@ export const SettingsPanel = {
           <div class="yyt-settings-section-title">日志设置</div>
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-enableDebugLog" 
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-enableDebugLog"
                      ${debug.enableDebugLog ? 'checked' : ''}>
               <span>启用调试日志</span>
             </label>
             <div class="yyt-form-hint">在控制台输出详细的调试信息</div>
           </div>
-          
+
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-saveExecutionHistory" 
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-saveExecutionHistory"
                      ${debug.saveExecutionHistory ? 'checked' : ''}>
               <span>保存执行历史</span>
             </label>
             <div class="yyt-form-hint">记录工具执行历史，便于问题排查</div>
           </div>
         </div>
-        
+
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">UI 显示</div>
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-showRuntimeBadge" 
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-showRuntimeBadge"
                      ${debug.showRuntimeBadge ? 'checked' : ''}>
               <span>显示运行状态徽章</span>
             </label>
@@ -392,11 +326,7 @@ export const SettingsPanel = {
       </div>
     `;
   },
-  
-  /**
-   * 渲染UI标签页
-   * @private
-   */
+
   _renderUiTab(ui) {
     return `
       <div class="yyt-settings-tab-content" data-tab="ui">
@@ -411,19 +341,19 @@ export const SettingsPanel = {
               <option value="light" ${ui.theme === 'light' ? 'selected' : ''}>浅色</option>
             </select>
           </div>
-          
+
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-compactMode" 
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-compactMode"
                      ${ui.compactMode ? 'checked' : ''}>
               <span>紧凑模式</span>
             </label>
             <div class="yyt-form-hint">减少卡片间距，显示更多内容</div>
           </div>
-          
+
           <div class="yyt-form-group">
             <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-animationEnabled" 
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-animationEnabled"
                      ${ui.animationEnabled ? 'checked' : ''}>
               <span>启用动画效果</span>
             </label>
@@ -433,39 +363,23 @@ export const SettingsPanel = {
       </div>
     `;
   },
-  
-  // ============================================================
-  // 事件绑定
-  // ============================================================
-  
-  /**
-   * 绑定事件
-   * @param {Object} $container
-   * @param {Object} dependencies
-   */
-  bindEvents($container, dependencies) {
+
+  bindEvents($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
-    // 标签页切换
+
     $container.find('.yyt-settings-tab').on('click', (e) => {
       const tabId = $(e.currentTarget).data('tab');
-      
-      // 更新标签页状态
       $container.find('.yyt-settings-tab').removeClass('yyt-active');
       $(e.currentTarget).addClass('yyt-active');
-      
-      // 更新内容显示
       $container.find('.yyt-settings-tab-content').removeClass('yyt-active');
       $container.find(`.yyt-settings-tab-content[data-tab="${tabId}"]`).addClass('yyt-active');
     });
-    
-    // 保存设置
+
     $container.find('#yyt-settings-save').on('click', () => {
-      this._saveSettings($container, $);
+      this._saveSettings($container);
     });
-    
-    // 重置设置
+
     $container.find('#yyt-settings-reset').on('click', () => {
       if (confirm('确定要重置所有设置为默认值吗？')) {
         settingsService.resetSettings();
@@ -475,29 +389,22 @@ export const SettingsPanel = {
       }
     });
   },
-  
-  /**
-   * 保存设置
-   * @private
-   */
-  _saveSettings($container, $) {
+
+  _saveSettings($container) {
     const settings = {
       executor: {
-        maxConcurrent: parseInt($container.find('#yyt-setting-maxConcurrent').val()) || 3,
-        maxRetries: parseInt($container.find('#yyt-setting-maxRetries').val()) || 2,
-        retryDelayMs: parseInt($container.find('#yyt-setting-retryDelayMs').val()) || 5000,
-        requestTimeoutMs: parseInt($container.find('#yyt-setting-requestTimeoutMs').val()) || 90000,
+        maxConcurrent: parseInt($container.find('#yyt-setting-maxConcurrent').val(), 10) || 3,
+        maxRetries: parseInt($container.find('#yyt-setting-maxRetries').val(), 10) || 2,
+        retryDelayMs: parseInt($container.find('#yyt-setting-retryDelayMs').val(), 10) || 5000,
+        requestTimeoutMs: parseInt($container.find('#yyt-setting-requestTimeoutMs').val(), 10) || 90000,
         queueStrategy: $container.find('#yyt-setting-queueStrategy').val() || 'fifo'
       },
-      listener: {
-        listenGenerationEnded: $container.find('#yyt-setting-listenGenerationEnded').is(':checked'),
-        ignoreQuietGeneration: $container.find('#yyt-setting-ignoreQuietGeneration').is(':checked'),
-        ignoreAutoTrigger: $container.find('#yyt-setting-ignoreAutoTrigger').is(':checked'),
-        debounceMs: parseInt($container.find('#yyt-setting-debounceMs').val()) || 300,
-        useGenerationAfterCommandsFallback: $container.find('#yyt-setting-useGenerationAfterCommandsFallback').is(':checked'),
-        useMessageReceivedFallback: $container.find('#yyt-setting-useMessageReceivedFallback').is(':checked'),
-        messageSessionWindowMs: parseInt($container.find('#yyt-setting-messageSessionWindowMs').val()) || 1800,
-        historyRetentionLimit: parseInt($container.find('#yyt-setting-historyRetentionLimit').val()) || 10
+      automation: {
+        enabled: $container.find('#yyt-setting-automationEnabled').is(':checked'),
+        autoRequestEnabled: $container.find('#yyt-setting-autoRequestEnabled').is(':checked'),
+        settleMs: parseInt($container.find('#yyt-setting-settleMs').val(), 10) || 1200,
+        cooldownMs: parseInt($container.find('#yyt-setting-cooldownMs').val(), 10) || 5000,
+        maxConcurrentSlots: parseInt($container.find('#yyt-setting-maxConcurrentSlots').val(), 10) || 1
       },
       debug: {
         enableDebugLog: $container.find('#yyt-setting-enableDebugLog').is(':checked'),
@@ -510,37 +417,18 @@ export const SettingsPanel = {
         animationEnabled: $container.find('#yyt-setting-animationEnabled').is(':checked')
       }
     };
-    
-    settingsService.saveSettings(settings);
 
+    settingsService.saveSettings(settings);
     applyUiPreferences(settings.ui, getTargetDocument());
-    
     showToast('success', '设置已保存');
   },
-  
-  // ============================================================
-  // 销毁
-  // ============================================================
-  
-  /**
-   * 销毁组件
-   * @param {Object} $container
-   */
+
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
     $container.find('*').off();
   },
-  
-  // ============================================================
-  // 样式
-  // ============================================================
-  
-  /**
-   * 获取样式
-   * @returns {string}
-   */
+
   getStyles() {
     return `
       /* 设置面板样式 */
@@ -572,22 +460,20 @@ export const SettingsPanel = {
       .yyt-settings-hero-title {
         font-size: 18px;
         font-weight: 800;
-        color: var(--yyt-text);
         line-height: 1.15;
+        color: var(--yyt-text);
       }
 
       .yyt-settings-hero-desc {
         font-size: 12px;
-        color: var(--yyt-text-secondary);
         line-height: 1.55;
-        max-width: 72ch;
+        color: var(--yyt-text-secondary);
       }
 
       .yyt-settings-hero-status {
         display: flex;
-        align-items: center;
-        gap: 6px;
         flex-wrap: wrap;
+        gap: 6px;
         justify-content: flex-end;
       }
 
@@ -599,167 +485,103 @@ export const SettingsPanel = {
         border-radius: 999px;
         font-size: 10px;
         font-weight: 700;
-        letter-spacing: 0.3px;
         border: 1px solid rgba(255, 255, 255, 0.08);
+        letter-spacing: 0.3px;
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.04);
       }
 
       .yyt-settings-status-chip.is-on {
-        color: var(--yyt-success);
-        background: rgba(74, 222, 128, 0.1);
+        color: #4ade80;
+        border-color: rgba(74, 222, 128, 0.35);
+        background: rgba(74, 222, 128, 0.08);
       }
 
       .yyt-settings-status-chip.is-off {
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.05);
+        color: #f87171;
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(248, 113, 113, 0.08);
       }
 
       .yyt-settings-status-chip.is-neutral {
-        color: var(--yyt-accent);
-        background: rgba(123, 183, 255, 0.1);
+        color: var(--yyt-text-secondary);
       }
-      
+
       .yyt-settings-tabs {
         display: flex;
-        gap: 4px;
-        padding: 6px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        flex-shrink: 0;
+        gap: 8px;
+        padding: 0 2px;
       }
-      
+
       .yyt-settings-tab {
-        padding: 8px 12px;
-        background: transparent;
-        border: 1px solid transparent;
-        border-radius: 8px;
-        color: var(--yyt-text-muted);
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 8px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--yyt-text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
-      
+
       .yyt-settings-tab:hover {
-        background: rgba(255, 255, 255, 0.04);
         color: var(--yyt-text);
+        background: rgba(255, 255, 255, 0.05);
       }
-      
+
       .yyt-settings-tab.yyt-active {
-        background: rgba(123, 183, 255, 0.1);
-        border-color: rgba(123, 183, 255, 0.3);
-        color: var(--yyt-accent);
+        color: var(--yyt-on-accent);
+        background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
+        border-color: transparent;
+        box-shadow: 0 10px 24px var(--yyt-accent-glow);
       }
-      
+
       .yyt-settings-content {
         flex: 1;
         overflow-y: auto;
-        padding: 4px;
+        padding-right: 4px;
       }
-      
+
       .yyt-settings-tab-content {
         display: none;
+        flex-direction: column;
+        gap: 12px;
       }
-      
+
       .yyt-settings-tab-content.yyt-active {
-        display: block;
+        display: flex;
       }
-      
+
       .yyt-settings-section {
-        margin-bottom: 14px;
         padding: 14px;
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+        background: rgba(255, 255, 255, 0.03);
       }
-      
+
       .yyt-settings-section-title {
-        font-size: 13px;
-        font-weight: 600;
+        font-size: 14px;
+        font-weight: 700;
         color: var(--yyt-text);
         margin-bottom: 12px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       }
-      
-      .yyt-form-row {
-        display: flex;
-        gap: 16px;
-      }
-      
-      .yyt-form-group {
-        margin-bottom: 16px;
-      }
-      
-      .yyt-form-group label {
-        display: block;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--yyt-text);
-        margin-bottom: 6px;
-      }
-      
-      .yyt-form-hint {
-        font-size: 11px;
-        color: var(--yyt-text-muted);
-        margin-bottom: 8px;
-      }
-      
-      .yyt-toggle-label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-      }
-      
-      .yyt-toggle-label span {
-        font-size: 13px;
-        color: var(--yyt-text);
-      }
-      
+
       .yyt-settings-footer {
         display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-        padding: 10px 0 0;
-        background: rgba(255, 255, 255, 0.02);
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        flex-shrink: 0;
-      }
-
-      @media screen and (max-width: 768px) {
-        .yyt-settings-hero {
-          flex-direction: column;
-        }
-
-        .yyt-settings-hero-status {
-          justify-content: flex-start;
-        }
-
-        .yyt-form-row {
-          flex-direction: column;
-        }
+        justify-content: space-between;
+        gap: 8px;
+        padding-top: 4px;
       }
     `;
   },
-  
-  // ============================================================
-  // 便捷方法
-  // ============================================================
-  
-  /**
-   * 渲染到容器
-   * @param {Object} $container
-   */
+
   renderTo($container) {
-    const html = this.render({});
-    $container.html(html);
+    $container.html(this.render({}));
     this.bindEvents($container, {});
   }
 };
 
-// 导出主题应用函数供初始化使用
-export { applyTheme, applyUiPreferences, THEME_CONFIGS };
+export { applyTheme, applyUiPreferences };
 export default SettingsPanel;

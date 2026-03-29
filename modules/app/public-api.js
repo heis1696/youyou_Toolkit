@@ -30,11 +30,6 @@ export function createPublicApi(context, services = {}) {
     getRegexExtractor: () => modules.regexExtractorModule,
     getToolManager: () => modules.toolManagerModule,
     getToolExecutor: () => modules.toolExecutorModule,
-    getToolTrigger: () => modules.toolTriggerModule,
-    getAutoTriggerDiagnostics: (options) => modules.toolTriggerModule?.getAutoTriggerDiagnostics?.(options) || null,
-    exportAutoTriggerDiagnostics: (options) => modules.toolTriggerModule?.exportAutoTriggerDiagnostics?.(options) || null,
-    getGenerationTransactionDiagnostics: (options) => modules.toolTriggerModule?.getGenerationTransactionDiagnostics?.(options) || null,
-    exportGenerationTransactionDiagnostics: (options) => modules.toolTriggerModule?.exportGenerationTransactionDiagnostics?.(options) || null,
     getWindowManager: () => modules.windowManagerModule,
     getToolRegistry: () => modules.toolRegistryModule,
     getPromptEditor: () => modules.promptEditorModule,
@@ -44,6 +39,7 @@ export function createPublicApi(context, services = {}) {
     getContextInjector: () => modules.contextInjectorModule,
     getToolPromptService: () => modules.toolPromptServiceModule,
     getToolOutputService: () => modules.toolOutputServiceModule,
+    getToolAutomationService: () => modules.toolAutomationServiceModule,
 
     async loadLegacyModule(moduleKey) {
       if (typeof loadLegacyModule !== 'function') {
@@ -106,6 +102,23 @@ export function createPublicApi(context, services = {}) {
 
     closeWindow(id) {
       modules.windowManagerModule?.closeWindow(id);
+    },
+
+    startAutomation() {
+      return modules.toolAutomationServiceModule?.toolAutomationService?.init?.() || false;
+    },
+
+    stopAutomation() {
+      modules.toolAutomationServiceModule?.toolAutomationService?.stop?.();
+    },
+
+    getAutomationRuntime() {
+      return modules.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.() || null;
+    },
+
+    async processCurrentAssistantMessage(options = {}) {
+      return modules.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(options)
+        || { success: false, error: '自动化服务未加载' };
     }
   };
 }

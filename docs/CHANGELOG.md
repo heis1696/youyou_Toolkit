@@ -11,6 +11,14 @@
 
 ### 更改
 
+- ♻️ **MVU 风格自动生命周期主链落地** (`modules/tool-automation-service.js`, `modules/tool-execution-context.js`, `modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `modules/tool-registry.js`, `modules/tool-manager.js`, `modules/core/settings-service.js`, `modules/app/bootstrap.js`, `modules/app/public-api.js`, `modules/ui/components/settings-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/HOST_REGRESSION_CHECKLIST.md`)
+  - 新增 `tool-automation-service.js` 作为唯一自动入口，直接监听宿主 `MESSAGE_RECEIVED / CHAT_CHANGED / MESSAGE_DELETED`，不再恢复旧 trigger/baseline/replay 状态机
+  - 新增 `tool-execution-context.js`，统一构建手动链与自动链共用的 assistant 槽位上下文，并补齐 assistant base text / base fingerprint，避免把 toolkit 自己追加的块当成新的 assistant 原文
+  - `tool-registry.js` / `tool-manager.js` / 设置面板 / 工具配置页新增 `automation` 配置；runtime 同步新增 `lastAuto*` 诊断字段
+  - `bootstrap.js` 启动时自动挂载自动服务；`public-api.js` 新增自动服务启停、运行态查询与手动触发当前 assistant 楼层处理入口
+  - 自动成功标准收口为：请求成功 + 写回成功 + `refreshConfirmed === true`
+  - 执行 `npm run build`，构建通过
+
 - ♻️ **事务诊断消费面对齐：工具页与文档切到 transaction-first 视图** (`modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/HOST_REGRESSION_CHECKLIST.md`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 工具配置页中的“最近触发诊断”折叠区现优先读取 `getGenerationTransactionDiagnostics()`，可直接展示 `activeTransactions / recentTransactionHistory / recentHandledExecutionKeys`
   - 复制按钮现改为导出 `exportGenerationTransactionDiagnostics()`，不再继续以 `exportAutoTriggerDiagnostics()` 作为 UI 主导出口

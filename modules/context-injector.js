@@ -1095,10 +1095,48 @@ class ContextInjector {
     }
   }
 
+  getAssistantMessageSnapshot(sourceMessageId = null) {
+    try {
+      const runtime = this._getChatRuntime();
+      const { chat } = runtime;
+      const messageIndex = this._findAssistantMessageIndex(chat, sourceMessageId);
+      if (messageIndex < 0) {
+        return null;
+      }
+
+      const message = chat[messageIndex] || null;
+      const messageText = this._getWritableMessageField(message).text || '';
+      const toolOutputs = message?.[MESSAGE_TOOL_OUTPUTS_KEY] && typeof message[MESSAGE_TOOL_OUTPUTS_KEY] === 'object'
+        ? message[MESSAGE_TOOL_OUTPUTS_KEY]
+        : {};
+      const baseText = Object.values(toolOutputs).reduce((currentText, entry) => {
+        const blockText = String(entry?.blockText || entry?.content || '').trim();
+        if (!blockText || !currentText.includes(blockText)) {
+          return currentText;
+        }
+        return currentText.replace(blockText, '').trimEnd();
+      }, String(messageText || '')).trim();
+
+      return {
+        messageIndex,
+        message,
+        messageText,
+        baseText,
+        toolOutputs,
+        injectedContext: typeof message?.[MESSAGE_TOOL_CONTEXT_KEY] === 'string'
+          ? message[MESSAGE_TOOL_CONTEXT_KEY]
+          : this._buildMessageInjectedContext(toolOutputs)
+      };
+    } catch (error) {
+      this._log('读取 assistant 消息快照失败', error);
+      return null;
+    }
+  }
+
   _getCurrentChatId() {
     try {
-      const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window) 
-        ? window.parent 
+      const topWindow = (typeof window.parent !== 'undefined' && window.parent !== window)
+        ? window.parent
         : window;
 
       // 尝试从SillyTavern获取

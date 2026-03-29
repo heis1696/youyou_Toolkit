@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(env)",
+      "Read(//c/Users/16961/.claude/**)",
+      "Read(//c/Users/16961/.claude/plans/**)",
+      "Bash(git:*)"
     ]
   }
 }

@@ -9,7 +9,7 @@ import { createToolConfigPanel } from './tool-config-panel-factory.js';
 export const SummaryToolPanel = createToolConfigPanel({
   id: 'summaryToolPanel',
   toolId: 'summaryTool',
-  postResponseHint: '监听 AI 回复结束后，调用额外模型进行摘要解析。',
+  postResponseHint: '点击“立即执行一次”后，调用额外模型进行摘要解析。',
   extractionPlaceholder: '每行一个标签，如 boo_FM\n或 regex:<boo_FM>([\\s\\S]*?)</boo_FM>',
   previewDialogId: 'summary-extraction-preview',
   defaultInjectionOrder: 10000,

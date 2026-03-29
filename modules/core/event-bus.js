@@ -39,9 +39,6 @@ export const EVENTS = {
   TOOL_ERROR: 'tool:error',
   TOOL_EXECUTION_STARTED: 'tool:executionStarted',
   TOOL_EXECUTION_FAILED: 'tool:executionFailed',
-  TOOL_TRIGGER_INITIALIZED: 'tool:triggerInitialized',
-  
-  // ==================== 正则提取事件 ====================
   REGEX_RULE_ADDED: 'regex:ruleAdded',
   REGEX_RULE_UPDATED: 'regex:ruleUpdated',
   REGEX_RULE_DELETED: 'regex:ruleDeleted',
@@ -58,12 +55,7 @@ export const EVENTS = {
   UI_POPUP_CLOSED: 'ui:popupClosed',
   UI_WINDOW_CREATED: 'ui:windowCreated',
   UI_WINDOW_CLOSED: 'ui:windowClosed',
-  
-  // ==================== 触发器事件 ====================
-  TRIGGER_REGISTERED: 'trigger:registered',
-  TRIGGER_UNREGISTERED: 'trigger:unregistered',
-  TRIGGER_FIRED: 'trigger:fired',
-  
+
   // ==================== 应用事件 ====================
   APP_INITIALIZING: 'app:initializing',
   APP_INITIALIZED: 'app:initialized',
@@ -83,8 +75,6 @@ export const EVENTS = {
   BYPASS_PRESET_DELETED: 'bypass:presetDeleted',
   BYPASS_PRESET_ACTIVATED: 'bypass:presetActivated',
   
-  // 工具执行事件（增强）
-  TOOL_EXECUTION_REQUESTED: 'tool:executionRequested',
   TOOL_OUTPUT_MODE_CHANGED: 'tool:outputModeChanged'
 };
 

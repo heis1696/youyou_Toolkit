@@ -71,7 +71,6 @@ export function createBootstrap(context, options = {}) {
         modules.regexExtractorModule = await import('../regex-extractor.js');
         modules.toolManagerModule = await import('../tool-manager.js');
         modules.toolExecutorModule = await import('../tool-executor.js');
-        modules.toolTriggerModule = await import('../tool-trigger.js');
         modules.windowManagerModule = await import('../window-manager.js');
         modules.toolRegistryModule = await import('../tool-registry.js');
         modules.settingsServiceModule = await import('../core/settings-service.js');
@@ -80,6 +79,7 @@ export function createBootstrap(context, options = {}) {
         modules.contextInjectorModule = await import('../context-injector.js');
         modules.toolPromptServiceModule = await import('../tool-prompt-service.js');
         modules.toolOutputServiceModule = await import('../tool-output-service.js');
+        modules.toolAutomationServiceModule = await import('../tool-automation-service.js');
 
         if (modules.toolOutputServiceModule?.toolOutputService && modules.apiConnectionModule) {
           modules.toolOutputServiceModule.toolOutputService.setApiConnection(modules.apiConnectionModule);
@@ -1254,17 +1254,13 @@ export function createBootstrap(context, options = {}) {
         }
       }
 
-      if (modules.toolTriggerModule?.initTriggerModule) {
-        try {
-          modules.toolTriggerModule.initTriggerModule();
-          log('工具触发模块已初始化');
-        } catch (triggerError) {
-          console.error(`[${SCRIPT_ID}] 工具触发模块初始化失败:`, triggerError);
-        }
-      }
-
       injectComponentStyles();
       await applySavedTheme();
+
+      if (modules.toolAutomationServiceModule?.toolAutomationService) {
+        modules.toolAutomationServiceModule.toolAutomationService.init();
+        log('自动化生命周期服务已初始化');
+      }
     } else {
       log('部分模块加载失败，使用基础功能');
     }

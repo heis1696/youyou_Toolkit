@@ -19,44 +19,46 @@ const TOOL_API_PRESET_BINDING_KEY = 'tool_api_bindings';
 const TOOL_WINDOW_STATE_KEY = 'tool_window_states';
 
 function createToolRuntimeState(runtime = {}) {
-  const recentTriggerHistory = Array.isArray(runtime?.recentTriggerHistory)
-    ? runtime.recentTriggerHistory.filter(Boolean)
-    : [];
   const recentWritebackHistory = Array.isArray(runtime?.recentWritebackHistory)
     ? runtime.recentWritebackHistory.filter(Boolean)
     : [];
 
   return {
-    lastRunAt: 0,
-    lastStatus: 'idle',
-    lastError: '',
-    lastDurationMs: 0,
-    successCount: 0,
-    errorCount: 0,
-    lastTriggerAt: 0,
-    lastTriggerEvent: '',
-    lastMessageKey: '',
-    lastExecutionKey: '',
-    lastSkipReason: '',
-    lastExecutionPath: '',
-    lastWritebackStatus: '',
-    lastFailureStage: '',
-    lastSlotBindingKey: '',
-    lastSlotRevisionKey: '',
-    lastSlotTransactionId: '',
-    lastSourceMessageId: '',
-    lastSourceSwipeId: '',
-    lastContentCommitted: false,
-    lastHostCommitApplied: false,
-    lastRefreshRequested: false,
-    lastRefreshConfirmed: false,
-    lastPreferredCommitMethod: '',
-    lastAppliedCommitMethod: '',
-    lastRefreshMethodCount: 0,
-    lastRefreshConfirmChecks: 0,
-    lastTraceId: '',
-    ...runtime,
-    recentTriggerHistory,
+    lastRunAt: Number.isFinite(runtime?.lastRunAt) ? runtime.lastRunAt : 0,
+    lastStatus: typeof runtime?.lastStatus === 'string' ? runtime.lastStatus : 'idle',
+    lastError: typeof runtime?.lastError === 'string' ? runtime.lastError : '',
+    lastDurationMs: Number.isFinite(runtime?.lastDurationMs) ? runtime.lastDurationMs : 0,
+    successCount: Number.isFinite(runtime?.successCount) ? runtime.successCount : 0,
+    errorCount: Number.isFinite(runtime?.errorCount) ? runtime.errorCount : 0,
+    lastMessageKey: typeof runtime?.lastMessageKey === 'string' ? runtime.lastMessageKey : '',
+    lastExecutionKey: typeof runtime?.lastExecutionKey === 'string' ? runtime.lastExecutionKey : '',
+    lastExecutionPath: typeof runtime?.lastExecutionPath === 'string' ? runtime.lastExecutionPath : '',
+    lastWritebackStatus: typeof runtime?.lastWritebackStatus === 'string' ? runtime.lastWritebackStatus : '',
+    lastFailureStage: typeof runtime?.lastFailureStage === 'string' ? runtime.lastFailureStage : '',
+    lastSlotBindingKey: typeof runtime?.lastSlotBindingKey === 'string' ? runtime.lastSlotBindingKey : '',
+    lastSlotRevisionKey: typeof runtime?.lastSlotRevisionKey === 'string' ? runtime.lastSlotRevisionKey : '',
+    lastSlotTransactionId: typeof runtime?.lastSlotTransactionId === 'string' ? runtime.lastSlotTransactionId : '',
+    lastSourceMessageId: typeof runtime?.lastSourceMessageId === 'string' ? runtime.lastSourceMessageId : '',
+    lastSourceSwipeId: typeof runtime?.lastSourceSwipeId === 'string' ? runtime.lastSourceSwipeId : '',
+    lastContentCommitted: runtime?.lastContentCommitted === true,
+    lastHostCommitApplied: runtime?.lastHostCommitApplied === true,
+    lastRefreshRequested: runtime?.lastRefreshRequested === true,
+    lastRefreshConfirmed: runtime?.lastRefreshConfirmed === true,
+    lastPreferredCommitMethod: typeof runtime?.lastPreferredCommitMethod === 'string' ? runtime.lastPreferredCommitMethod : '',
+    lastAppliedCommitMethod: typeof runtime?.lastAppliedCommitMethod === 'string' ? runtime.lastAppliedCommitMethod : '',
+    lastRefreshMethodCount: Number.isFinite(runtime?.lastRefreshMethodCount) ? runtime.lastRefreshMethodCount : 0,
+    lastRefreshMethods: Array.isArray(runtime?.lastRefreshMethods) ? runtime.lastRefreshMethods.filter(Boolean) : [],
+    lastRefreshConfirmChecks: Number.isFinite(runtime?.lastRefreshConfirmChecks) ? runtime.lastRefreshConfirmChecks : 0,
+    lastRefreshConfirmedBy: typeof runtime?.lastRefreshConfirmedBy === 'string' ? runtime.lastRefreshConfirmedBy : '',
+    lastTraceId: typeof runtime?.lastTraceId === 'string' ? runtime.lastTraceId : '',
+    lastAutoRunAt: Number.isFinite(runtime?.lastAutoRunAt) ? runtime.lastAutoRunAt : 0,
+    lastAutoStatus: typeof runtime?.lastAutoStatus === 'string' ? runtime.lastAutoStatus : 'idle',
+    lastAutoMessageId: typeof runtime?.lastAutoMessageId === 'string' ? runtime.lastAutoMessageId : '',
+    lastAutoSwipeId: typeof runtime?.lastAutoSwipeId === 'string' ? runtime.lastAutoSwipeId : '',
+    lastAutoRevisionKey: typeof runtime?.lastAutoRevisionKey === 'string' ? runtime.lastAutoRevisionKey : '',
+    lastAutoWritebackStatus: typeof runtime?.lastAutoWritebackStatus === 'string' ? runtime.lastAutoWritebackStatus : '',
+    lastAutoRefreshConfirmed: runtime?.lastAutoRefreshConfirmed === true,
+    lastAutoSkipReason: typeof runtime?.lastAutoSkipReason === 'string' ? runtime.lastAutoSkipReason : '',
     recentWritebackHistory
   };
 }
@@ -93,13 +95,7 @@ const DEFAULT_TOOL_CONFIGS = {
     description: '生成剧情摘要块',
     enabled: true,
     order: 3,
-    
-    // 触发配置
-    trigger: {
-      event: 'GENERATION_ENDED',
-      enabled: true
-    },
-    
+
     // 破限词绑定
     bypass: {
       enabled: false,
@@ -112,6 +108,12 @@ const DEFAULT_TOOL_CONFIGS = {
       apiPreset: '',
       overwrite: true,
       enabled: true
+    },
+
+    automation: {
+      enabled: false,
+      settleMs: 1200,
+      cooldownMs: 5000
     },
 
     // 提取配置
@@ -158,13 +160,7 @@ const DEFAULT_TOOL_CONFIGS = {
     description: '生成主角状态代码块',
     enabled: true,
     order: 4,
-    
-    // 触发配置
-    trigger: {
-      event: 'GENERATION_ENDED',
-      enabled: true
-    },
-    
+
     // 破限词绑定
     bypass: {
       enabled: false,
@@ -177,6 +173,12 @@ const DEFAULT_TOOL_CONFIGS = {
       apiPreset: '',
       overwrite: true,
       enabled: true
+    },
+
+    automation: {
+      enabled: false,
+      settleMs: 1200,
+      cooldownMs: 5000
     },
 
     // 提取配置
@@ -221,11 +223,6 @@ const DEFAULT_TOOL_CONFIGS = {
     enabled: true,
     order: 5,
 
-    trigger: {
-      event: 'GENERATION_ENDED',
-      enabled: true
-    },
-
     bypass: {
       enabled: false,
       presetId: ''
@@ -236,6 +233,12 @@ const DEFAULT_TOOL_CONFIGS = {
       apiPreset: '',
       overwrite: true,
       enabled: true
+    },
+
+    automation: {
+      enabled: false,
+      settleMs: 1200,
+      cooldownMs: 5000
     },
 
     extraction: {
@@ -300,7 +303,6 @@ export const TOOL_REGISTRY = {
     component: 'RegexExtractPanel',
     order: 2,
     defaultConfig: {
-      trigger: { type: 'manual', events: [] },
       execution: { timeout: 30000, retries: 1 },
       api: { preset: '' },
       extractRules: [],
@@ -426,7 +428,6 @@ function getBaseToolRuntimeConfig(toolId) {
   if (defaultConfig) {
     return {
       ...defaultConfig,
-      trigger: { ...(defaultConfig.trigger || {}) },
       output: { ...(defaultConfig.output || {}) },
       bypass: { ...(defaultConfig.bypass || {}) },
       extraction: { ...(defaultConfig.extraction || {}) },
@@ -450,8 +451,8 @@ export function getToolBaseConfig(toolId) {
 
   return {
     ...baseConfig,
-    trigger: { ...(baseConfig.trigger || {}) },
     output: { ...(baseConfig.output || {}) },
+    automation: { ...(baseConfig.automation || {}) },
     bypass: { ...(baseConfig.bypass || {}) },
     extraction: {
       ...(baseConfig.extraction || {}),
@@ -473,14 +474,19 @@ function mergeToolRuntimeConfig(baseConfig, userConfig = {}, legacyApiPresetBind
     id: baseConfig.id || userConfig.id
   };
 
-  mergedConfig.trigger = {
-    ...(baseConfig.trigger || {}),
-    ...(userConfig.trigger || {})
-  };
-
   mergedConfig.output = {
     ...(baseConfig.output || {}),
     ...(userConfig.output || {})
+  };
+
+  mergedConfig.automation = {
+    enabled: baseConfig?.automation?.enabled === true || userConfig?.automation?.enabled === true,
+    settleMs: Number.isFinite(userConfig?.automation?.settleMs)
+      ? userConfig.automation.settleMs
+      : (Number.isFinite(baseConfig?.automation?.settleMs) ? baseConfig.automation.settleMs : 1200),
+    cooldownMs: Number.isFinite(userConfig?.automation?.cooldownMs)
+      ? userConfig.automation.cooldownMs
+      : (Number.isFinite(baseConfig?.automation?.cooldownMs) ? baseConfig.automation.cooldownMs : 5000)
   };
 
   mergedConfig.bypass = {
@@ -779,8 +785,8 @@ export function ensureToolRuntimeConfig(toolId) {
     enabled: baseConfig.enabled !== false,
     extractTags: Array.isArray(baseConfig.extractTags) ? [...baseConfig.extractTags] : [],
     apiPreset: baseConfig.apiPreset || '',
-    trigger: { ...(baseConfig.trigger || {}) },
     output: { ...(baseConfig.output || {}) },
+    automation: { ...(baseConfig.automation || {}) },
     bypass: { ...(baseConfig.bypass || {}) },
     extraction: {
       ...(baseConfig.extraction || {}),
@@ -826,9 +832,8 @@ export function saveToolConfig(toolId, config, options = {}) {
     'enabled',             // 启用状态
     'extractTags',         // 提取标签（兼容）
     'apiPreset',           // API预设（兼容）
-    // 新结构
-    'trigger',             // 触发配置
     'output',              // 输出配置（包含 mode, apiPreset, overwrite）
+    'automation',          // 自动化配置
     'bypass',              // 破限词配置
     'extraction',          // 提取配置
     'runtime'              // 运行时状态
@@ -989,7 +994,7 @@ export function patchToolRuntime(toolId, runtimePartial, options = {}) {
 /**
  * 追加工具运行时历史。
  * @param {string} toolId - 工具ID
- * @param {'trigger'|'writeback'} historyType - 历史类型
+ * @param {'writeback'} historyType - 历史类型
  * @param {Object} historyEntry - 历史记录
  * @param {Object} options - 选项
  * @param {number} options.limit - 保留条数
@@ -1006,9 +1011,7 @@ export function appendToolRuntimeHistory(toolId, historyType, historyEntry = {},
   } = options;
 
   const runtime = createToolRuntimeState(config.runtime || {});
-  const fieldName = historyType === 'writeback'
-    ? 'recentWritebackHistory'
-    : 'recentTriggerHistory';
+  const fieldName = 'recentWritebackHistory';
 
   const nextEntry = {
     id: historyEntry?.id || `hist_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
