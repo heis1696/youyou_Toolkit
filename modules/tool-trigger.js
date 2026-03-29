@@ -14,7 +14,10 @@ import {
   TOOL_FAILURE_STAGES,
   TOOL_WRITEBACK_STATUS
 } from './tool-output-service.js';
-import { buildExecutionContextForLatestAssistant } from './tool-execution-context.js';
+import {
+  buildExecutionContextForLatestAssistant,
+  getCurrentCharacter
+} from './tool-execution-context.js';
 import { showToast, showTopNotice } from './ui/utils.js';
 
 export const TOOL_EXECUTION_PATHS = {
