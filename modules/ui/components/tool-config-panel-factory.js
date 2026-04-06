@@ -146,9 +146,16 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-worldbook-dropdown {
+    position: static;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    max-height: none;
+    overflow: visible;
+    opacity: 1;
+    border: none;
+    box-shadow: none;
+    background: transparent;
   }
 
   .yyt-worldbook-search {
@@ -652,7 +659,7 @@ export function createToolConfigPanel(options) {
               <label>选择要注入的世界书（可多选）</label>
               <div class="yyt-worldbook-select" id="${SCRIPT_ID}-tool-worldbook-select">
                 <div class="yyt-worldbook-summary">${escapeHtml(selectedWorldbookSummary)}</div>
-                <div class="yyt-worldbook-dropdown yyt-select-dropdown" id="${SCRIPT_ID}-tool-worldbook-dropdown">
+                <div class="yyt-worldbook-dropdown" id="${SCRIPT_ID}-tool-worldbook-dropdown">
                   <input type="text" class="yyt-input yyt-worldbook-search" id="${SCRIPT_ID}-tool-worldbook-search" placeholder="搜索世界书..." value="${escapeHtml(this.worldbookFilter || '')}">
                   <div class="yyt-worldbook-list" id="${SCRIPT_ID}-tool-worldbooks">
                     ${availableWorldbooks.length > 0 ? (visibleWorldbooks.length > 0 ? visibleWorldbooks.map((bookName) => `
@@ -938,7 +945,7 @@ export function createToolConfigPanel(options) {
             ? selectedWorldbooks.join('、')
             : `已选 ${selectedWorldbooks.length} 项：${selectedWorldbooks.slice(0, 2).join('、')} 等`;
 
-        $container.find('.yyt-worldbook-trigger-text').text(summary);
+        $container.find('.yyt-worldbook-summary').text(summary);
       };
 
       $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).on('input', (event) => {
