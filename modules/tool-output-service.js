@@ -840,13 +840,7 @@ class ToolOutputService {
   filterAutoPostResponseTools(toolConfigs) {
     if (!Array.isArray(toolConfigs)) return [];
 
-    return toolConfigs.filter((config) => {
-      if (!this.shouldRunPostResponse(config)) {
-        return false;
-      }
-
-      return config?.automation?.enabled === true;
-    });
+    return toolConfigs.filter((config) => this.shouldRunPostResponse(config));
   }
 
   /**

@@ -21,7 +21,6 @@ const DEFAULT_SETTINGS = {
   },
   automation: {
     enabled: false,
-    autoRequestEnabled: true,
     settleMs: 1200,
     cooldownMs: 5000,
     maxConcurrentSlots: 1

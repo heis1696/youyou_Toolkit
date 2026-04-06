@@ -143,7 +143,7 @@ export const SettingsPanel = {
   render() {
     const settings = settingsService.getSettings();
     const debugEnabled = settings.debug?.enableDebugLog === true;
-    const automationEnabled = settings.automation?.enabled === true && settings.automation?.autoRequestEnabled !== false;
+    const automationEnabled = settings.automation?.enabled === true;
     const automationRuntime = this._getAutomationRuntime();
 
     return `
@@ -249,7 +249,7 @@ export const SettingsPanel = {
   },
 
   _renderAutomationTab(automation = {}, runtime = null) {
-    const effectiveEnabled = automation.enabled === true && automation.autoRequestEnabled !== false;
+    const effectiveEnabled = automation.enabled === true;
     const recentTransactions = Array.isArray(runtime?.recentTransactions) ? runtime.recentTransactions.slice().reverse() : [];
     const runtimeHtml = recentTransactions.length > 0
       ? recentTransactions.map((tx) => `
@@ -274,15 +274,7 @@ export const SettingsPanel = {
                      ${automation.enabled ? 'checked' : ''}>
               <span>启用工具自动触发</span>
             </label>
-            <div class="yyt-form-hint">只有这里开启后，自动化服务才会响应 AI 回复事件。</div>
-          </div>
-          <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-autoRequestEnabled"
-                     ${automation.autoRequestEnabled !== false ? 'checked' : ''}>
-              <span>允许自动发起额外解析请求</span>
-            </label>
-            <div class="yyt-form-hint">关闭后会保留自动化框架，但不会自动请求额外模型。</div>
+            <div class="yyt-form-hint">这里只保留一个全局开关。开启后，所有处于“额外 AI 模型解析”模式的工具都会参与自动触发。</div>
           </div>
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
@@ -296,7 +288,7 @@ export const SettingsPanel = {
                      value="${automation.cooldownMs || 5000}" min="0" max="60000" step="100">
             </div>
           </div>
-          <div class="yyt-form-hint">当前状态：${effectiveEnabled ? '已启用' : '未启用'}。只有“全局自动化 + 工具自动化”同时开启时，工具才会在 AI 回复后自动执行。</div>
+          <div class="yyt-form-hint">当前状态：${effectiveEnabled ? '已启用' : '未启用'}。开启后，所有“额外 AI 模型解析”工具都会在 AI 回复后自动执行。</div>
         </div>
 
         <div class="yyt-settings-section">
@@ -446,7 +438,6 @@ export const SettingsPanel = {
       },
       automation: {
         enabled: $container.find('#yyt-setting-automationEnabled').is(':checked'),
-        autoRequestEnabled: $container.find('#yyt-setting-autoRequestEnabled').is(':checked'),
         settleMs: parseInt($container.find('#yyt-setting-automationSettleMs').val(), 10) || 1200,
         cooldownMs: parseInt($container.find('#yyt-setting-automationCooldownMs').val(), 10) || 5000,
         maxConcurrentSlots: settingsService.getSettings()?.automation?.maxConcurrentSlots || 1

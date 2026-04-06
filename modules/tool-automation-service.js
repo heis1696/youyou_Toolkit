@@ -528,13 +528,19 @@ class ToolAutomationService {
     for (const arg of args) {
       if (arg === null || arg === undefined) continue;
 
-      // 直接是数字或字符串 → 可能是 messageId
-      if ((typeof arg === 'number' || typeof arg === 'string') && !messageId) {
+      if (typeof arg === 'number' && Number.isFinite(arg) && !messageId) {
         messageId = normalizeIdentityValue(arg);
         continue;
       }
 
-      // 对象 → 尝试从多个字段提取
+      if (typeof arg === 'string') {
+        const normalized = normalizeIdentityValue(arg);
+        if (!messageId && /^\d+$/.test(normalized)) {
+          messageId = normalized;
+        }
+        continue;
+      }
+
       if (typeof arg === 'object') {
         if (!messageId) {
           messageId = normalizeIdentityValue(
@@ -699,7 +705,7 @@ class ToolAutomationService {
 
   _evaluateEnabled() {
     const s = this._getAutomationSettings();
-    return s.enabled === true && s.autoRequestEnabled === true;
+    return s.enabled === true;
   }
 
   /**
@@ -713,9 +719,8 @@ class ToolAutomationService {
       const s = this._getAutomationSettings();
       this._log('⚠ 自动化未启用，首次诊断:', {
         'automation.enabled': s.enabled,
-        'automation.autoRequestEnabled': s.autoRequestEnabled,
         '完整 automation 设置': s,
-        '提示': '请确保 settings.automation.enabled === true 且 settings.automation.autoRequestEnabled === true'
+        '提示': '请确保 settings.automation.enabled === true'
       });
     }
     return false;
@@ -728,7 +733,6 @@ class ToolAutomationService {
     const settleMs = Number.isFinite(automation.settleMs) ? automation.settleMs : 800;
     return {
       enabled: automation.enabled === true,
-      autoRequestEnabled: automation.autoRequestEnabled !== false,
       settleMs,
       dedupeWindowMs: Number.isFinite(automation.dedupeWindowMs)
         ? automation.dedupeWindowMs

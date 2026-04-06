@@ -567,7 +567,7 @@ export function createToolConfigPanel(options) {
         ? postResponseHint
         : '随 AI 输出模式不会额外请求模型，但仍然支持手动执行与测试提取。';
       const outputModeLabel = outputMode === 'post_response_api' ? '额外解析' : '随 AI 输出';
-      const automationEnabled = automation.enabled === true;
+      const autoEligible = outputMode === 'post_response_api';
       const apiPresetLabel = selectedApiPreset || '当前配置';
 
       return `
@@ -600,7 +600,7 @@ export function createToolConfigPanel(options) {
                 <option value="follow_ai" ${outputMode === 'follow_ai' ? 'selected' : ''}>随 AI 输出（支持手动执行）</option>
                 <option value="post_response_api" ${outputMode === 'post_response_api' ? 'selected' : ''}>额外 AI 模型解析</option>
               </select>
-              <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}${automationEnabled && outputMode === 'post_response_api' ? ' 当前工具已开启自动触发，但仍需在全局设置中开启自动化。' : ''}</div>
+              <div class="yyt-tool-compact-hint yyt-tool-mode-hint">${modeText}${autoEligible ? ' 当前模式会参与自动触发，仍需在全局设置中开启自动化。' : ''}</div>
             </div>
           </div>
 
@@ -716,12 +716,6 @@ export function createToolConfigPanel(options) {
               <i class="fa-solid fa-bolt"></i>
               <span>自动触发</span>
             </div>
-            <div class="yyt-form-group">
-              <label class="yyt-checkbox-label">
-                <input type="checkbox" id="${SCRIPT_ID}-tool-automation-enabled" ${automationEnabled ? 'checked' : ''}>
-                <span>为当前工具启用自动触发</span>
-              </label>
-            </div>
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>等待稳定时间 (ms)</label>
@@ -732,7 +726,7 @@ export function createToolConfigPanel(options) {
                 <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-automation-cooldown-ms" min="0" max="60000" step="100" value="${Number(automation.cooldownMs) || 5000}">
               </div>
             </div>
-            <div class="yyt-tool-compact-hint">仅当“全局自动化”与“当前工具自动触发”同时开启时，才会在 AI 回复后自动执行；这里只决定当前工具是否参与自动链路。</div>
+            <div class="yyt-tool-compact-hint">不再单独配置工具级开关。只要当前工具选择“额外 AI 模型解析”，并且全局自动化开启，就会在 AI 回复后自动执行。</div>
           </div>
 
           <div class="yyt-panel-section">
@@ -876,7 +870,7 @@ export function createToolConfigPanel(options) {
           enabled: postResponseEnabled
         },
         automation: {
-          enabled: $container.find(`#${SCRIPT_ID}-tool-automation-enabled`).is(':checked'),
+          enabled: postResponseEnabled,
           settleMs: Math.max(0, parseInt($container.find(`#${SCRIPT_ID}-tool-automation-settle-ms`).val(), 10) || 1200),
           cooldownMs: Math.max(0, parseInt($container.find(`#${SCRIPT_ID}-tool-automation-cooldown-ms`).val(), 10) || 5000)
         },
@@ -1019,15 +1013,10 @@ export function createToolConfigPanel(options) {
 
       $container.find(`#${SCRIPT_ID}-tool-output-mode`).on('change', () => {
         const mode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
-        const automationEnabledNow = $container.find(`#${SCRIPT_ID}-tool-automation-enabled`).is(':checked');
         const modeText = mode === 'post_response_api'
-          ? `${postResponseHint}${automationEnabledNow ? ' 当前工具已允许自动触发，记得同时开启全局自动化。' : ''}`
+          ? `${postResponseHint} 当前模式会参与自动触发，记得同时开启全局自动化。`
           : '随 AI 输出模式不会额外请求模型，但仍然支持手动执行与测试提取。';
         $container.find('.yyt-tool-mode-hint').text(modeText);
-      });
-
-      $container.find(`#${SCRIPT_ID}-tool-automation-enabled`).on('change', () => {
-        $container.find(`#${SCRIPT_ID}-tool-output-mode`).trigger('change');
       });
 
       $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on('change', (event) => {
