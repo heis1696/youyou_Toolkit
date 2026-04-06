@@ -174,7 +174,10 @@ export function createPopupShell(context) {
       'textarea',
       '.yyt-preview-pre',
       '.yyt-select-dropdown',
-      '.yyt-dialog-body'
+      '.yyt-dialog-body',
+      '.yyt-worldbook-list',
+      '.yyt-tool-panel',
+      '.yyt-panel-section'
     ].join(','));
 
     if (!scrollableInner) {
@@ -191,6 +194,22 @@ export function createPopupShell(context) {
 
   function getPreferredWheelContainer(rootContainer, target) {
     if (!rootContainer || !target) return null;
+
+    const nativeScrollable = target.closest?.([
+      '.yyt-worldbook-list',
+      '.yyt-select-dropdown',
+      '.yyt-dialog-body',
+      '.yyt-preview-pre',
+      '.yyt-tool-panel',
+      '.yyt-panel-section'
+    ].join(','));
+
+    if (nativeScrollable
+      && rootContainer.contains(nativeScrollable)
+      && (nativeScrollable.scrollHeight > nativeScrollable.clientHeight + 2
+        || nativeScrollable.scrollWidth > nativeScrollable.clientWidth + 2)) {
+      return nativeScrollable;
+    }
 
     const candidates = [
       target.closest?.('.yyt-tool-list'),

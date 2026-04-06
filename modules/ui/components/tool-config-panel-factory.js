@@ -128,10 +128,80 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     min-height: 120px;
   }
 
+  .yyt-worldbook-select {
+    position: relative;
+  }
+
+  .yyt-worldbook-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--yyt-text);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .yyt-worldbook-trigger:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .yyt-worldbook-trigger-text {
+    min-width: 0;
+    flex: 1;
+    font-size: 13px;
+    color: var(--yyt-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .yyt-worldbook-trigger-icon {
+    flex-shrink: 0;
+    color: var(--yyt-text-secondary);
+    transition: transform 0.18s ease;
+  }
+
+  .yyt-worldbook-select.is-open .yyt-worldbook-trigger-icon {
+    transform: rotate(180deg);
+  }
+
+  .yyt-worldbook-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(18, 22, 30, 0.98);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .yyt-worldbook-select.is-open .yyt-worldbook-dropdown {
+    display: flex;
+  }
+
+  .yyt-worldbook-search {
+    width: 100%;
+  }
+
   .yyt-worldbook-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 8px;
+    max-height: 260px;
+    overflow: auto;
+    padding-right: 2px;
   }
 
   .yyt-worldbook-item {
@@ -139,6 +209,12 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
+  }
+
+  .yyt-worldbook-empty {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
   }
 
   .yyt-code-textarea:focus {
@@ -507,6 +583,15 @@ export function createToolConfigPanel(options) {
       const worldbooks = config.worldbooks || {};
       const selectedWorldbooks = Array.isArray(worldbooks.selected) ? worldbooks.selected : [];
       const availableWorldbooks = Array.isArray(this.availableWorldbooks) ? this.availableWorldbooks : [];
+      const worldbookFilter = String(this.worldbookFilter || '').trim().toLowerCase();
+      const visibleWorldbooks = worldbookFilter
+        ? availableWorldbooks.filter((bookName) => String(bookName || '').toLowerCase().includes(worldbookFilter))
+        : availableWorldbooks;
+      const selectedWorldbookSummary = selectedWorldbooks.length === 0
+        ? '选择要注入的世界书'
+        : selectedWorldbooks.length <= 2
+          ? selectedWorldbooks.join('、')
+          : `已选 ${selectedWorldbooks.length} 项：${selectedWorldbooks.slice(0, 2).join('、')} 等`;
       const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join('\n') : '';
       const modeText = outputMode === 'post_response_api'
         ? postResponseHint
@@ -605,26 +690,35 @@ export function createToolConfigPanel(options) {
             </div>
             <div class="yyt-form-group">
               <label>选择要注入的世界书（可多选）</label>
-              <div class="yyt-worldbook-list" id="${SCRIPT_ID}-tool-worldbooks">
-                ${availableWorldbooks.length > 0 ? availableWorldbooks.map((bookName) => `
-                  <div class="yyt-worldbook-item">
-                    <label class="yyt-checkbox-label">
-                      <input type="checkbox" data-worldbook-name="${escapeHtml(bookName)}" ${selectedWorldbooks.includes(bookName) ? 'checked' : ''}>
-                      <span>${escapeHtml(bookName)}</span>
-                    </label>
+              <div class="yyt-worldbook-select ${this.worldbookDropdownOpen ? 'is-open' : ''}" id="${SCRIPT_ID}-tool-worldbook-select">
+                <button type="button" class="yyt-worldbook-trigger" id="${SCRIPT_ID}-tool-worldbook-trigger" aria-expanded="${this.worldbookDropdownOpen ? 'true' : 'false'}">
+                  <span class="yyt-worldbook-trigger-text">${escapeHtml(selectedWorldbookSummary)}</span>
+                  <i class="fa-solid fa-chevron-down yyt-worldbook-trigger-icon"></i>
+                </button>
+                <div class="yyt-worldbook-dropdown yyt-select-dropdown" id="${SCRIPT_ID}-tool-worldbook-dropdown">
+                  <input type="text" class="yyt-input yyt-worldbook-search" id="${SCRIPT_ID}-tool-worldbook-search" placeholder="搜索世界书..." value="${escapeHtml(this.worldbookFilter || '')}">
+                  <div class="yyt-worldbook-list" id="${SCRIPT_ID}-tool-worldbooks">
+                    ${availableWorldbooks.length > 0 ? (visibleWorldbooks.length > 0 ? visibleWorldbooks.map((bookName) => `
+                      <div class="yyt-worldbook-item">
+                        <label class="yyt-checkbox-label">
+                          <input type="checkbox" data-worldbook-name="${escapeHtml(bookName)}" ${selectedWorldbooks.includes(bookName) ? 'checked' : ''}>
+                          <span>${escapeHtml(bookName)}</span>
+                        </label>
+                      </div>
+                    `).join('') : '<div class="yyt-tool-compact-hint yyt-worldbook-empty">未找到匹配世界书。</div>') : `<div class="yyt-tool-compact-hint yyt-worldbook-empty">${this.worldbookLoadState === 'loading' ? '世界书加载中…' : '当前未读取到可用世界书。'}</div>`}
                   </div>
-                `).join('') : `<div class="yyt-tool-compact-hint">${this.worldbookLoadState === 'loading' ? '世界书加载中…' : '当前未读取到可用世界书。'}</div>`}
+                  ${this.worldbookLoadState !== 'ready' ? `
+                    <details class="yyt-worldbook-diagnostics">
+                      <summary>查看世界书诊断</summary>
+                      <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(JSON.stringify(getLastWorldbookDiagnostics() || {
+                        state: this.worldbookLoadState || 'idle',
+                        message: '尚未生成诊断信息'
+                      }, null, 2))}</pre>
+                    </details>
+                  ` : ''}
+                </div>
               </div>
               <div class="yyt-tool-compact-hint">只有模板里显式写入 <code>{{toolWorldbookContent}}</code> 时，所选世界书内容才会注入。</div>
-              ${this.worldbookLoadState !== 'ready' ? `
-                <details class="yyt-worldbook-diagnostics">
-                  <summary>查看世界书诊断</summary>
-                  <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(JSON.stringify(getLastWorldbookDiagnostics() || {
-                    state: this.worldbookLoadState || 'idle',
-                    message: '尚未生成诊断信息'
-                  }, null, 2))}</pre>
-                </details>
-              ` : ''}
             </div>
           </div>
 
@@ -876,6 +970,57 @@ export function createToolConfigPanel(options) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
 
+      const closeWorldbookDropdown = () => {
+        this.worldbookDropdownOpen = false;
+        $container.find(`#${SCRIPT_ID}-tool-worldbook-select`).removeClass('is-open');
+        $container.find(`#${SCRIPT_ID}-tool-worldbook-trigger`).attr('aria-expanded', 'false');
+      };
+
+      const syncWorldbookSummary = () => {
+        const selectedWorldbooks = $container.find(`[data-worldbook-name]:checked`).map((_, element) =>
+          String($(element).data('worldbook-name') || '').trim()
+        ).get().filter(Boolean);
+
+        const summary = selectedWorldbooks.length === 0
+          ? '选择要注入的世界书'
+          : selectedWorldbooks.length <= 2
+            ? selectedWorldbooks.join('、')
+            : `已选 ${selectedWorldbooks.length} 项：${selectedWorldbooks.slice(0, 2).join('、')} 等`;
+
+        $container.find('.yyt-worldbook-trigger-text').text(summary);
+      };
+
+      $container.find(`#${SCRIPT_ID}-tool-worldbook-trigger`).on('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.worldbookDropdownOpen = !this.worldbookDropdownOpen;
+        $container.find(`#${SCRIPT_ID}-tool-worldbook-select`).toggleClass('is-open', this.worldbookDropdownOpen);
+        $container.find(`#${SCRIPT_ID}-tool-worldbook-trigger`).attr('aria-expanded', this.worldbookDropdownOpen ? 'true' : 'false');
+        if (this.worldbookDropdownOpen) {
+          $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).trigger('focus');
+        }
+      });
+
+      $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).on('input', (event) => {
+        this.worldbookFilter = String($(event.currentTarget).val() || '');
+        this.renderTo($container);
+        $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).trigger('focus');
+      });
+
+      $container.find(`[data-worldbook-name]`).on('change', () => {
+        syncWorldbookSummary();
+      });
+
+      $(document).off(`mousedown.${SCRIPT_ID}-${this.toolId}-worldbooks`).on(`mousedown.${SCRIPT_ID}-${this.toolId}-worldbooks`, (event) => {
+        if (!this.worldbookDropdownOpen) {
+          return;
+        }
+
+        if ($(event.target).closest(`#${SCRIPT_ID}-tool-worldbook-select`).length === 0) {
+          closeWorldbookDropdown();
+        }
+      });
+
       $container.find(`#${SCRIPT_ID}-tool-output-mode`).on('change', () => {
         const mode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
         const modeText = mode === 'post_response_api'
@@ -960,6 +1105,7 @@ export function createToolConfigPanel(options) {
     destroy($container) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
+      $(document).off(`mousedown.${SCRIPT_ID}-${this.toolId}-worldbooks`);
       $container.find('*').off();
     },
 
@@ -968,6 +1114,8 @@ export function createToolConfigPanel(options) {
     },
 
     renderTo($container) {
+      this.worldbookDropdownOpen = this.worldbookDropdownOpen === true;
+      this.worldbookFilter = this.worldbookFilter || '';
       this.worldbookLoadState = 'loading';
       $container.html(this.render({}));
       this.bindEvents($container, {});
