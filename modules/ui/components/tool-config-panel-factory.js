@@ -548,7 +548,9 @@ export function createToolConfigPanel(options) {
       const lastError = config.runtime?.lastError || '';
       const extraction = config.extraction || {};
       const worldbooks = config.worldbooks || {};
-      const selectedWorldbooks = Array.isArray(worldbooks.selected) ? worldbooks.selected : [];
+      const selectedWorldbooks = Array.isArray(this.draftSelectedWorldbooks)
+        ? this.draftSelectedWorldbooks
+        : (Array.isArray(worldbooks.selected) ? worldbooks.selected : []);
       const availableWorldbooks = Array.isArray(this.availableWorldbooks) ? this.availableWorldbooks : [];
       const worldbookFilter = String(this.worldbookFilter || '').trim().toLowerCase();
       const visibleWorldbooks = worldbookFilter
@@ -934,10 +936,12 @@ export function createToolConfigPanel(options) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
 
+      const getSelectedWorldbooks = () => $container.find(`[data-worldbook-name]:checked`).map((_, element) =>
+        String($(element).data('worldbook-name') || '').trim()
+      ).get().filter(Boolean);
+
       const syncWorldbookSummary = () => {
-        const selectedWorldbooks = $container.find(`[data-worldbook-name]:checked`).map((_, element) =>
-          String($(element).data('worldbook-name') || '').trim()
-        ).get().filter(Boolean);
+        const selectedWorldbooks = getSelectedWorldbooks();
 
         const summary = selectedWorldbooks.length === 0
           ? '选择要注入的世界书'
@@ -948,13 +952,37 @@ export function createToolConfigPanel(options) {
         $container.find('.yyt-worldbook-summary').text(summary);
       };
 
+      const syncWorldbookFilter = () => {
+        const filterText = String(this.worldbookFilter || '').trim().toLowerCase();
+        const $list = $container.find(`#${SCRIPT_ID}-tool-worldbooks`);
+        const $items = $list.find('.yyt-worldbook-item');
+        let visibleCount = 0;
+
+        $items.each((_, element) => {
+          const $item = $(element);
+          const bookName = String($item.find('[data-worldbook-name]').data('worldbook-name') || '').toLowerCase();
+          const matched = !filterText || bookName.includes(filterText);
+          $item.toggleClass('yyt-hidden', !matched);
+          if (matched) {
+            visibleCount += 1;
+          }
+        });
+
+        $list.find('.yyt-worldbook-search-empty').remove();
+        if ($items.length > 0 && visibleCount === 0) {
+          $list.append('<div class="yyt-tool-compact-hint yyt-worldbook-empty yyt-worldbook-search-empty">未找到匹配世界书。</div>');
+        }
+      };
+
       $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).on('input', (event) => {
         this.worldbookFilter = String($(event.currentTarget).val() || '');
-        this.renderTo($container);
-        $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).trigger('focus');
+        syncWorldbookFilter();
       });
 
+      syncWorldbookFilter();
+
       $container.find(`[data-worldbook-name]`).on('change', () => {
+        this.draftSelectedWorldbooks = getSelectedWorldbooks();
         syncWorldbookSummary();
       });
 
@@ -1027,6 +1055,11 @@ export function createToolConfigPanel(options) {
       const config = this._getFormData($container);
       const { silent = false } = options;
       const success = saveToolConfig(this.toolId, config);
+      if (success) {
+        this.draftSelectedWorldbooks = Array.isArray(config.worldbooks?.selected)
+          ? [...config.worldbooks.selected]
+          : [];
+      }
 
       if (success) {
         if (!silent) {
@@ -1051,6 +1084,12 @@ export function createToolConfigPanel(options) {
 
     renderTo($container) {
       this.worldbookFilter = this.worldbookFilter || '';
+      if (!Array.isArray(this.draftSelectedWorldbooks)) {
+        const config = getToolFullConfig(this.toolId);
+        this.draftSelectedWorldbooks = Array.isArray(config?.worldbooks?.selected)
+          ? [...config.worldbooks.selected]
+          : [];
+      }
       this.worldbookLoadState = 'loading';
       $container.html(this.render({}));
       this.bindEvents($container, {});
