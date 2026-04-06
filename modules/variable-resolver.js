@@ -21,6 +21,7 @@ import { eventBus, EVENTS } from './core/event-bus.js';
  * - {{toolId}} - 工具ID
  * - {{toolPromptMacro}} - 当前工具模板提示词宏
  * - {{toolContentMacro}} - 当前工具处理后的内容宏
+ * - {{toolWorldbookContent}} - 当前工具选择的世界书注入内容
  * - {{injectedContext}} - 当前已注入的工具上下文汇总
  * - {{extractedContent}} - 工具提取结果
  * - {{recentMessagesText}} - 最近消息正文
@@ -67,6 +68,11 @@ const BUILTIN_VARIABLES = {
   toolContentMacro: {
     name: 'toolContentMacro',
     description: '当前工具处理后的内容宏',
+    category: 'tool'
+  },
+  toolWorldbookContent: {
+    name: 'toolWorldbookContent',
+    description: '当前工具选择的世界书注入内容',
     category: 'tool'
   },
   injectedContext: {
@@ -199,7 +205,8 @@ class VariableResolver {
       toolId: rawContext.toolId || '',
       toolPromptMacro: rawContext.toolPromptMacro || '',
       toolContentMacro: rawContext.toolContentMacro || '',
-      
+      toolWorldbookContent: rawContext.toolWorldbookContent || '',
+
       // 注入上下文
       injectedContext: rawContext.injectedContext || '',
       extractedContent: rawContext.extractedContent || '',
@@ -387,7 +394,11 @@ class VariableResolver {
     // {{toolContentMacro}}
     result = result.replace(/\{\{toolContentMacro\}\}/gi,
       context.toolContentMacro || context.raw?.toolContentMacro || '');
-    
+
+    // {{toolWorldbookContent}}
+    result = result.replace(/\{\{toolWorldbookContent\}\}/gi,
+      context.toolWorldbookContent || context.raw?.toolWorldbookContent || '');
+
     // {{injectedContext}}
     result = result.replace(/\{\{injectedContext\}\}/gi, 
       context.injectedContext || context.raw?.injectedContext || '');

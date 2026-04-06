@@ -7,6 +7,7 @@
 import { eventBus, EVENTS } from './core/event-bus.js';
 import { bypassManager } from './bypass-manager.js';
 import { variableResolver } from './variable-resolver.js';
+import { buildSelectedWorldbookContent } from './tool-worldbook-service.js';
 
 // ============================================================
 // 默认提示词模板
@@ -24,12 +25,16 @@ class ToolPromptService {
     this.debugMode = false;
   }
 
-  _buildVariableContext(toolConfig, context = {}) {
+  async _buildVariableContext(toolConfig, context = {}) {
     const promptTemplate = this._getPromptTemplate(toolConfig);
+    const toolWorldbookContent = String(
+      context?.toolWorldbookContent || context?.input?.toolWorldbookContent || await buildSelectedWorldbookContent(toolConfig)
+    ).trim();
     const baseContext = variableResolver.buildToolContext({
       ...context,
       toolName: toolConfig?.name || context?.toolName || '',
-      toolId: toolConfig?.id || context?.toolId || ''
+      toolId: toolConfig?.id || context?.toolId || '',
+      toolWorldbookContent
     });
 
     const toolPromptMacro = variableResolver.resolveTemplate(promptTemplate, baseContext).trim();
@@ -40,7 +45,8 @@ class ToolPromptService {
       toolName: toolConfig?.name || context?.toolName || '',
       toolId: toolConfig?.id || context?.toolId || '',
       toolPromptMacro,
-      toolContentMacro
+      toolContentMacro,
+      toolWorldbookContent
     });
   }
 
@@ -54,14 +60,14 @@ class ToolPromptService {
    * @param {Object} context - 执行上下文，包含 lastAiMessage 等
    * @returns {Array} OpenAI格式的消息数组
    */
-  buildToolMessages(toolConfig, context) {
+  async buildToolMessages(toolConfig, context) {
     if (!toolConfig) {
       this._log('构建失败: 工具配置为空');
       return [];
     }
 
     const messages = [];
-    const variableContext = this._buildVariableContext(toolConfig, context);
+    const variableContext = await this._buildVariableContext(toolConfig, context);
     
     // 1. 获取破限词消息（如果启用）
     const bypassMessages = this._getBypassMessages(toolConfig);
@@ -96,8 +102,8 @@ class ToolPromptService {
    * @param {Object} context - 执行上下文
    * @returns {string} 提示词文本
    */
-  buildPromptText(toolConfig, context) {
-    const variableContext = this._buildVariableContext(toolConfig, context);
+  async buildPromptText(toolConfig, context) {
+    const variableContext = await this._buildVariableContext(toolConfig, context);
     return variableContext.toolPromptMacro || '';
   }
 

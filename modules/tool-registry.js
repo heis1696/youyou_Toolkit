@@ -116,6 +116,11 @@ const DEFAULT_TOOL_CONFIGS = {
       cooldownMs: 5000
     },
 
+    worldbooks: {
+      enabled: false,
+      selected: []
+    },
+
     // 提取配置
     extraction: {
       enabled: true,
@@ -181,6 +186,11 @@ const DEFAULT_TOOL_CONFIGS = {
       cooldownMs: 5000
     },
 
+    worldbooks: {
+      enabled: false,
+      selected: []
+    },
+
     // 提取配置
     extraction: {
       enabled: true,
@@ -239,6 +249,11 @@ const DEFAULT_TOOL_CONFIGS = {
       enabled: false,
       settleMs: 1200,
       cooldownMs: 5000
+    },
+
+    worldbooks: {
+      enabled: false,
+      selected: []
     },
 
     extraction: {
@@ -430,6 +445,12 @@ function getBaseToolRuntimeConfig(toolId) {
       ...defaultConfig,
       output: { ...(defaultConfig.output || {}) },
       bypass: { ...(defaultConfig.bypass || {}) },
+      worldbooks: {
+        ...(defaultConfig.worldbooks || {}),
+        selected: Array.isArray(defaultConfig?.worldbooks?.selected)
+          ? [...defaultConfig.worldbooks.selected]
+          : []
+      },
       extraction: { ...(defaultConfig.extraction || {}) },
       runtime: createToolRuntimeState(defaultConfig.runtime),
       extractTags: Array.isArray(defaultConfig.extractTags) ? [...defaultConfig.extractTags] : []
@@ -454,6 +475,12 @@ export function getToolBaseConfig(toolId) {
     output: { ...(baseConfig.output || {}) },
     automation: { ...(baseConfig.automation || {}) },
     bypass: { ...(baseConfig.bypass || {}) },
+    worldbooks: {
+      ...(baseConfig.worldbooks || {}),
+      selected: Array.isArray(baseConfig?.worldbooks?.selected)
+        ? [...baseConfig.worldbooks.selected]
+        : []
+    },
     extraction: {
       ...(baseConfig.extraction || {}),
       selectors: Array.isArray(baseConfig?.extraction?.selectors)
@@ -492,6 +519,14 @@ function mergeToolRuntimeConfig(baseConfig, userConfig = {}, legacyApiPresetBind
   mergedConfig.bypass = {
     ...(baseConfig.bypass || {}),
     ...(userConfig.bypass || {})
+  };
+
+  mergedConfig.worldbooks = {
+    ...(baseConfig.worldbooks || {}),
+    ...(userConfig.worldbooks || {}),
+    selected: Array.isArray(userConfig?.worldbooks?.selected)
+      ? [...userConfig.worldbooks.selected]
+      : (Array.isArray(baseConfig?.worldbooks?.selected) ? [...baseConfig.worldbooks.selected] : [])
   };
 
   mergedConfig.runtime = createToolRuntimeState({
@@ -788,6 +823,12 @@ export function ensureToolRuntimeConfig(toolId) {
     output: { ...(baseConfig.output || {}) },
     automation: { ...(baseConfig.automation || {}) },
     bypass: { ...(baseConfig.bypass || {}) },
+    worldbooks: {
+      ...(baseConfig.worldbooks || {}),
+      selected: Array.isArray(baseConfig?.worldbooks?.selected)
+        ? [...baseConfig.worldbooks.selected]
+        : []
+    },
     extraction: {
       ...(baseConfig.extraction || {}),
       selectors: Array.isArray(baseConfig?.extraction?.selectors)
@@ -835,6 +876,7 @@ export function saveToolConfig(toolId, config, options = {}) {
     'output',              // 输出配置（包含 mode, apiPreset, overwrite）
     'automation',          // 自动化配置
     'bypass',              // 破限词配置
+    'worldbooks',          // 世界书配置
     'extraction',          // 提取配置
     'runtime'              // 运行时状态
   ];

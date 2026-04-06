@@ -19,6 +19,7 @@ import {
   saveToolConfig,
   getToolBaseConfig
 } from '../../tool-registry.js';
+import { getAvailableWorldbooks, getCachedAvailableWorldbooks } from '../../tool-worldbook-service.js';
 
 import { getAllPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
@@ -121,6 +122,10 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-code-textarea-small {
     min-height: 96px;
+  }
+
+  .yyt-select-multiple {
+    min-height: 120px;
   }
 
   .yyt-code-textarea:focus {
@@ -486,6 +491,9 @@ export function createToolConfigPanel(options) {
         : '未运行';
       const lastError = config.runtime?.lastError || '';
       const extraction = config.extraction || {};
+      const worldbooks = config.worldbooks || {};
+      const selectedWorldbooks = Array.isArray(worldbooks.selected) ? worldbooks.selected : [];
+      const availableWorldbooks = Array.isArray(this.availableWorldbooks) ? this.availableWorldbooks : [];
       const selectorText = Array.isArray(extraction.selectors) ? extraction.selectors.join('\n') : '';
       const modeText = outputMode === 'post_response_api'
         ? postResponseHint
@@ -573,6 +581,30 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
+              <i class="fa-solid fa-book-open"></i>
+              <span>世界书注入</span>
+            </div>
+            <div class="yyt-form-group">
+              <label class="yyt-checkbox-label">
+                <input type="checkbox" id="${SCRIPT_ID}-tool-worldbooks-enabled" ${worldbooks.enabled ? 'checked' : ''}>
+                <span>启用世界书注入</span>
+              </label>
+            </div>
+            <div class="yyt-form-group">
+              <label>选择要注入的世界书（可多选）</label>
+              <select class="yyt-select yyt-select-multiple" id="${SCRIPT_ID}-tool-worldbooks" multiple>
+                ${availableWorldbooks.map((bookName) => `
+                  <option value="${escapeHtml(bookName)}" ${selectedWorldbooks.includes(bookName) ? 'selected' : ''}>
+                    ${escapeHtml(bookName)}
+                  </option>
+                `).join('')}
+              </select>
+              <div class="yyt-tool-compact-hint">只有模板里显式写入 <code>{{toolWorldbookContent}}</code> 时，所选世界书内容才会注入。</div>
+            </div>
+          </div>
+
+          <div class="yyt-panel-section">
+            <div class="yyt-section-title">
               <i class="fa-solid fa-filter"></i>
               <span>提取配置</span>
             </div>
@@ -607,7 +639,7 @@ export function createToolConfigPanel(options) {
                         id="${SCRIPT_ID}-tool-prompt-template"
                         rows="12"
                         placeholder="输入提示词模板...">${escapeHtml(config.promptTemplate || '')}</textarea>
-              <div class="yyt-tool-compact-hint">这里直接填写发送给额外解析模型的完整模板；可在正文中显式使用 <code>{{toolContentMacro}}</code>、<code>{{lastAiMessage}}</code>、<code>{{userMessage}}</code> 等宏。</div>
+              <div class="yyt-tool-compact-hint">这里直接填写发送给额外解析模型的完整模板；可在正文中显式使用 <code>{{toolContentMacro}}</code>、<code>{{toolWorldbookContent}}</code>、<code>{{lastAiMessage}}</code>、<code>{{userMessage}}</code> 等宏。</div>
             </div>
           </div>
 
@@ -658,7 +690,7 @@ export function createToolConfigPanel(options) {
           </div>
 
           <div class="yyt-tool-macro-hint">
-            说明：工具会把当前模板解析后作为最终用户请求发送给额外模型；若启用了破限词，则会作为前置消息一并发送。可用宏包括 <code>{{toolPromptMacro}}</code>、<code>{{toolContentMacro}}</code>、<code>{{lastAiMessage}}</code>、<code>{{recentMessagesText}}</code>、<code>{{rawRecentMessagesText}}</code>、<code>{{userMessage}}</code>、<code>{{toolName}}</code>、<code>{{toolId}}</code>。
+            说明：工具会把当前模板解析后作为最终用户请求发送给额外模型；若启用了破限词，则会作为前置消息一并发送。可用宏包括 <code>{{toolPromptMacro}}</code>、<code>{{toolContentMacro}}</code>、<code>{{toolWorldbookContent}}</code>、<code>{{lastAiMessage}}</code>、<code>{{recentMessagesText}}</code>、<code>{{rawRecentMessagesText}}</code>、<code>{{userMessage}}</code>、<code>{{toolName}}</code>、<code>{{toolId}}</code>。
           </div>
         </div>
       `;
@@ -680,6 +712,15 @@ export function createToolConfigPanel(options) {
       }
     },
 
+    async _loadWorldbooks() {
+      try {
+        this.availableWorldbooks = await getAvailableWorldbooks();
+      } catch (error) {
+        this.availableWorldbooks = getCachedAvailableWorldbooks();
+      }
+      return this.availableWorldbooks;
+    },
+
     _getFormData($container) {
       const currentConfig = getToolFullConfig(this.toolId);
       const outputMode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
@@ -688,6 +729,10 @@ export function createToolConfigPanel(options) {
       const selectorLines = ($container.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || '')
         .split(/\r?\n/)
         .map(item => item.trim())
+        .filter(Boolean);
+
+      const selectedWorldbooks = ($container.find(`#${SCRIPT_ID}-tool-worldbooks`).val() || [])
+        .map(item => String(item || '').trim())
         .filter(Boolean);
 
       return {
@@ -704,6 +749,10 @@ export function createToolConfigPanel(options) {
         bypass: {
           enabled: bypassEnabled,
           presetId: bypassEnabled ? ($container.find(`#${SCRIPT_ID}-tool-bypass-preset`).val() || '') : ''
+        },
+        worldbooks: {
+          enabled: $container.find(`#${SCRIPT_ID}-tool-worldbooks-enabled`).is(':checked'),
+          selected: selectedWorldbooks
         },
         extraction: {
           enabled: true,
@@ -876,8 +925,13 @@ export function createToolConfigPanel(options) {
     },
 
     renderTo($container) {
-      $container.html(this.render({}));
-      this.bindEvents($container, {});
+      Promise.resolve(this._loadWorldbooks())
+        .catch(() => getCachedAvailableWorldbooks())
+        .then((worldbooks) => {
+          this.availableWorldbooks = Array.isArray(worldbooks) ? worldbooks : [];
+          $container.html(this.render({}));
+          this.bindEvents($container, {});
+        });
     }
   };
 }

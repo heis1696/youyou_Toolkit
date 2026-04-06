@@ -6,6 +6,7 @@
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { settingsService, DEFAULT_SETTINGS } from '../../core/settings-service.js';
+import { variableResolver } from '../../variable-resolver.js';
 import { showToast, getJQuery, isContainerValid } from '../utils.js';
 
 // ============================================================
@@ -309,8 +310,27 @@ export const SettingsPanel = {
             <div class="yyt-form-hint">界面过渡和交互动画</div>
           </div>
         </div>
+
+        <div class="yyt-settings-section">
+          <div class="yyt-settings-section-title">模板宏说明</div>
+          <div class="yyt-form-hint">工具模板里可直接使用下面这些宏。世界书内容只有在模板里显式写入 <code>{{toolWorldbookContent}}</code> 时才会注入。</div>
+          <div class="yyt-settings-macro-list">
+            ${this._renderMacroList()}
+          </div>
+        </div>
       </div>
     `;
+  },
+
+  _renderMacroList() {
+    return variableResolver.getAvailableVariables()
+      .map(variable => `
+        <div class="yyt-settings-macro-item">
+          <code>${variable.name}</code>
+          <span>${variable.description}</span>
+        </div>
+      `)
+      .join('');
   },
 
   bindEvents($container) {
@@ -515,6 +535,35 @@ export const SettingsPanel = {
         justify-content: space-between;
         gap: 8px;
         padding-top: 4px;
+      }
+
+      .yyt-settings-macro-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .yyt-settings-macro-item {
+        display: grid;
+        grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .yyt-settings-macro-item code {
+        color: var(--yyt-accent);
+        word-break: break-word;
+      }
+
+      .yyt-settings-macro-item span {
+        color: var(--yyt-text-secondary);
+        font-size: 12px;
+        line-height: 1.6;
       }
     `;
   },

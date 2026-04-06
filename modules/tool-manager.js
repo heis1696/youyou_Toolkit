@@ -63,6 +63,10 @@ const DEFAULT_TOOL_STRUCTURE = {
       enabled: false,
       settleMs: 1200,
       cooldownMs: 5000
+    },
+    worldbooks: {
+      enabled: false,
+      selected: []
     }
   },
   enabled: true,
@@ -118,6 +122,13 @@ function normalizeAutomationConfig(automation = {}) {
     enabled: automation?.enabled === true,
     settleMs: normalizeNonNegativeInteger(automation?.settleMs, 1200),
     cooldownMs: normalizeNonNegativeInteger(automation?.cooldownMs, 5000)
+  };
+}
+
+function normalizeWorldbookConfig(worldbooks = {}) {
+  return {
+    enabled: worldbooks?.enabled === true,
+    selected: normalizeStringArray(worldbooks?.selected)
   };
 }
 
@@ -194,7 +205,8 @@ export function createDefaultToolDefinition(input = {}) {
         includeTags: normalizeStringArray(config?.context?.includeTags),
         excludeTags: normalizeStringArray(config?.context?.excludeTags)
       },
-      automation: normalizeAutomationConfig(config?.automation)
+      automation: normalizeAutomationConfig(config?.automation),
+      worldbooks: normalizeWorldbookConfig(config?.worldbooks)
     },
     enabled: input?.enabled !== false,
     metadata: {
@@ -247,6 +259,7 @@ export function normalizeToolDefinitionToRuntimeConfig(toolId, toolDef = {}, opt
       enabled: true
     },
     automation: normalizeAutomationConfig(normalizedDefinition?.config?.automation),
+    worldbooks: normalizeWorldbookConfig(normalizedDefinition?.config?.worldbooks),
     extraction: {
       enabled: true,
       maxMessages: normalizePositiveInteger(normalizedDefinition?.config?.context?.depth, 5),

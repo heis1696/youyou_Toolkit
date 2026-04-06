@@ -399,6 +399,10 @@ export const ToolManagePanel = {
             depth: tool?.config?.context?.depth || 3,
             includeTags: Array.isArray(tool?.config?.context?.includeTags) ? tool.config.context.includeTags : [],
             excludeTags: Array.isArray(tool?.config?.context?.excludeTags) ? tool.config.context.excludeTags : []
+          },
+          worldbooks: {
+            enabled: tool?.config?.worldbooks?.enabled === true,
+            selected: Array.isArray(tool?.config?.worldbooks?.selected) ? tool.config.worldbooks.selected : []
           }
         },
         enabled: tool?.enabled !== false
