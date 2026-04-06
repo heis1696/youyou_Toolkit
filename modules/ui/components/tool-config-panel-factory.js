@@ -131,61 +131,24 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-worldbook-select {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-  }
-
-  .yyt-worldbook-trigger {
-    list-style: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 12px;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--yyt-text);
-    cursor: pointer;
-    user-select: none;
+    background: rgba(18, 22, 30, 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  .yyt-worldbook-trigger:hover {
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  .yyt-worldbook-trigger::-webkit-details-marker {
-    display: none;
-  }
-
-  .yyt-worldbook-trigger-text {
-    min-width: 0;
-    flex: 1;
-    font-size: 13px;
-    color: var(--yyt-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .yyt-worldbook-trigger-icon {
-    flex-shrink: 0;
+  .yyt-worldbook-summary {
+    font-size: 12px;
     color: var(--yyt-text-secondary);
-    transition: transform 0.18s ease;
-  }
-
-  .yyt-worldbook-select[open] .yyt-worldbook-trigger-icon {
-    transform: rotate(180deg);
+    line-height: 1.6;
   }
 
   .yyt-worldbook-dropdown {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(18, 22, 30, 0.72);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .yyt-worldbook-search {
@@ -687,11 +650,8 @@ export function createToolConfigPanel(options) {
             </div>
             <div class="yyt-form-group">
               <label>选择要注入的世界书（可多选）</label>
-              <details class="yyt-worldbook-select" id="${SCRIPT_ID}-tool-worldbook-select">
-                <summary class="yyt-worldbook-trigger" id="${SCRIPT_ID}-tool-worldbook-trigger">
-                  <span class="yyt-worldbook-trigger-text">${escapeHtml(selectedWorldbookSummary)}</span>
-                  <i class="fa-solid fa-chevron-down yyt-worldbook-trigger-icon"></i>
-                </summary>
+              <div class="yyt-worldbook-select" id="${SCRIPT_ID}-tool-worldbook-select">
+                <div class="yyt-worldbook-summary">${escapeHtml(selectedWorldbookSummary)}</div>
                 <div class="yyt-worldbook-dropdown yyt-select-dropdown" id="${SCRIPT_ID}-tool-worldbook-dropdown">
                   <input type="text" class="yyt-input yyt-worldbook-search" id="${SCRIPT_ID}-tool-worldbook-search" placeholder="搜索世界书..." value="${escapeHtml(this.worldbookFilter || '')}">
                   <div class="yyt-worldbook-list" id="${SCRIPT_ID}-tool-worldbooks">
@@ -714,7 +674,7 @@ export function createToolConfigPanel(options) {
                     </details>
                   ` : ''}
                 </div>
-              </details>
+              </div>
               <div class="yyt-tool-compact-hint">只有模板里显式写入 <code>{{toolWorldbookContent}}</code> 时，所选世界书内容才会注入。</div>
             </div>
           </div>
@@ -981,21 +941,9 @@ export function createToolConfigPanel(options) {
         $container.find('.yyt-worldbook-trigger-text').text(summary);
       };
 
-      $container.find(`#${SCRIPT_ID}-tool-worldbook-select`).on('toggle', (event) => {
-        if (event.currentTarget?.open) {
-          $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).trigger('focus');
-        }
-      });
-
-      $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).on('click', (event) => {
-        event.stopPropagation();
-      }).on('input', (event) => {
+      $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).on('input', (event) => {
         this.worldbookFilter = String($(event.currentTarget).val() || '');
         this.renderTo($container);
-        const detailsElement = $container.find(`#${SCRIPT_ID}-tool-worldbook-select`).get(0);
-        if (detailsElement) {
-          detailsElement.open = true;
-        }
         $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).trigger('focus');
       });
 
