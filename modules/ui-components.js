@@ -17,6 +17,8 @@ import {
   SummaryToolPanel,
   StatusBlockPanel,
   YouyouReviewPanel,
+  EscapeTransformToolPanel,
+  PunctuationTransformToolPanel,
   registerComponents,
   initUI,
   renderApiPanel,
@@ -147,7 +149,9 @@ export function getToolStyles() {
     ToolManagePanel.getStyles(),
     SummaryToolPanel.getStyles(),
     StatusBlockPanel.getStyles(),
-    YouyouReviewPanel.getStyles()
+    YouyouReviewPanel.getStyles(),
+    EscapeTransformToolPanel.getStyles(),
+    PunctuationTransformToolPanel.getStyles()
   ].join('\n');
 }
 
@@ -183,6 +187,8 @@ export {
   SummaryToolPanel,
   StatusBlockPanel,
   YouyouReviewPanel,
+  EscapeTransformToolPanel,
+  PunctuationTransformToolPanel,
   registerComponents,
   initUI,
   SCRIPT_ID,
@@ -221,6 +227,8 @@ export default {
   SummaryToolPanel,
   StatusBlockPanel,
   YouyouReviewPanel,
+  EscapeTransformToolPanel,
+  PunctuationTransformToolPanel,
   registerComponents,
   initUI,
   

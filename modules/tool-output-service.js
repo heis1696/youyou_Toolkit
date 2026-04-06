@@ -357,16 +357,24 @@ class ToolOutputService {
    * @returns {Promise<Object>}
    */
   async previewExtraction(toolConfig, rawContext) {
-    const messageEntries = this._buildRecentMessageExtractionEntries(toolConfig, rawContext);
-    const sourceText = this._joinMessageBlocks(messageEntries, 'rawText');
-    const filteredSourceText = this._joinMessageBlocks(messageEntries, 'filteredText');
-    const extracted = this._joinMessageBlocks(messageEntries, 'extractedText', { skipEmpty: true });
+    const extraction = this.getExtractionSnapshot(toolConfig, rawContext);
 
     return {
       success: true,
+      ...extraction
+    };
+  }
+
+  getExtractionSnapshot(toolConfig, rawContext) {
+    const messageEntries = this._buildRecentMessageExtractionEntries(toolConfig, rawContext);
+    const sourceText = this._joinMessageBlocks(messageEntries, 'rawText');
+    const filteredSourceText = this._joinMessageBlocks(messageEntries, 'filteredText');
+    const extractedText = this._joinMessageBlocks(messageEntries, 'extractedText', { skipEmpty: true });
+
+    return {
       sourceText,
       filteredSourceText,
-      extractedText: extracted,
+      extractedText,
       messageEntries,
       selectors: this._getExtractionSelectors(toolConfig),
       maxMessages: toolConfig?.extraction?.maxMessages || 5

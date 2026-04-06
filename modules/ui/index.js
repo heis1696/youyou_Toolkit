@@ -11,6 +11,8 @@ import { ToolManagePanel } from './components/tool-manage-panel.js';
 import { SummaryToolPanel } from './components/summary-tool-panel.js';
 import { StatusBlockPanel } from './components/status-block-panel.js';
 import { YouyouReviewPanel } from './components/youyou-review-panel.js';
+import { EscapeTransformToolPanel } from './components/escape-transform-tool-panel.js';
+import { PunctuationTransformToolPanel } from './components/punctuation-transform-tool-panel.js';
 import { BypassPanel } from './components/bypass-panel.js';
 import { SettingsPanel } from './components/settings-panel.js';
 
@@ -36,6 +38,8 @@ export { ToolManagePanel } from './components/tool-manage-panel.js';
 export { SummaryToolPanel } from './components/summary-tool-panel.js';
 export { StatusBlockPanel } from './components/status-block-panel.js';
 export { YouyouReviewPanel } from './components/youyou-review-panel.js';
+export { EscapeTransformToolPanel } from './components/escape-transform-tool-panel.js';
+export { PunctuationTransformToolPanel } from './components/punctuation-transform-tool-panel.js';
 export { BypassPanel } from './components/bypass-panel.js';
 export { SettingsPanel } from './components/settings-panel.js';
 
@@ -53,6 +57,8 @@ export function registerComponents() {
   uiManager.register(SummaryToolPanel.id, SummaryToolPanel);
   uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
   uiManager.register(YouyouReviewPanel.id, YouyouReviewPanel);
+  uiManager.register(EscapeTransformToolPanel.id, EscapeTransformToolPanel);
+  uiManager.register(PunctuationTransformToolPanel.id, PunctuationTransformToolPanel);
   uiManager.register(BypassPanel.id, BypassPanel);
   uiManager.register(SettingsPanel.id, SettingsPanel);
   
@@ -140,6 +146,14 @@ export function renderYouyouReviewPanel(container) {
   renderRegisteredPanel(YouyouReviewPanel.id, container);
 }
 
+export function renderEscapeTransformToolPanel(container) {
+  renderRegisteredPanel(EscapeTransformToolPanel.id, container);
+}
+
+export function renderPunctuationTransformToolPanel(container) {
+  renderRegisteredPanel(PunctuationTransformToolPanel.id, container);
+}
+
 /**
  * 渲染破限词面板
  * @param {Object} container - 容器
@@ -180,6 +194,8 @@ export default {
   SummaryToolPanel,
   StatusBlockPanel,
   YouyouReviewPanel,
+  EscapeTransformToolPanel,
+  PunctuationTransformToolPanel,
   BypassPanel,
   SettingsPanel,
   registerComponents,
@@ -190,6 +206,8 @@ export default {
   renderSummaryToolPanel,
   renderStatusBlockPanel,
   renderYouyouReviewPanel,
+  renderEscapeTransformToolPanel,
+  renderPunctuationTransformToolPanel,
   renderBypassPanel,
   renderSettingsPanel,
   getAllStyles

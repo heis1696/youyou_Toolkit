@@ -288,6 +288,97 @@ const DEFAULT_TOOL_CONFIGS = {
 
     apiPreset: '',
     extractTags: ['youyou']
+  },
+
+  escapeTransformTool: {
+    id: 'escapeTransformTool',
+    name: '转义处理',
+    icon: 'fa-quote-left',
+    description: '对提取内容执行本地转义或去转义',
+    enabled: true,
+    order: 6,
+
+    output: {
+      mode: 'local_transform',
+      apiPreset: '',
+      overwrite: true,
+      enabled: true
+    },
+
+    extraction: {
+      enabled: true,
+      maxMessages: 5,
+      selectors: ['regex:[\\s\\S]+']
+    },
+
+    processor: {
+      type: 'escape_transform',
+      direction: 'escape',
+      options: {
+        doubleQuote: true,
+        singleQuote: false,
+        newline: false
+      }
+    },
+
+    runtime: {
+      lastRunAt: 0,
+      lastStatus: 'idle',
+      lastError: '',
+      lastDurationMs: 0,
+      successCount: 0,
+      errorCount: 0
+    },
+
+    extractTags: ['regex:[\\s\\S]+']
+  },
+
+  punctuationTransformTool: {
+    id: 'punctuationTransformTool',
+    name: '中文标点替换',
+    icon: 'fa-language',
+    description: '将英文标点按勾选项替换为中文标点',
+    enabled: true,
+    order: 7,
+
+    output: {
+      mode: 'local_transform',
+      apiPreset: '',
+      overwrite: true,
+      enabled: true
+    },
+
+    extraction: {
+      enabled: true,
+      maxMessages: 5,
+      selectors: ['regex:[\\s\\S]+']
+    },
+
+    processor: {
+      type: 'punctuation_transform',
+      direction: 'en_to_zh',
+      options: {
+        comma: true,
+        period: true,
+        exclamation: true,
+        question: true,
+        semicolon: false,
+        colon: false,
+        leftParen: false,
+        rightParen: false
+      }
+    },
+
+    runtime: {
+      lastRunAt: 0,
+      lastStatus: 'idle',
+      lastError: '',
+      lastDurationMs: 0,
+      successCount: 0,
+      errorCount: 0
+    },
+
+    extractTags: ['regex:[\\s\\S]+']
   }
 };
 
@@ -343,7 +434,9 @@ export const TOOL_REGISTRY = {
     subTabs: [
       { id: 'summaryTool', name: '摘要工具', icon: 'fa-file-lines', component: 'SummaryToolPanel' },
       { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' },
-      { id: 'youyouReview', name: '小幽点评', icon: 'fa-comment-dots', component: 'YouyouReviewPanel' }
+      { id: 'youyouReview', name: '小幽点评', icon: 'fa-comment-dots', component: 'YouyouReviewPanel' },
+      { id: 'escapeTransformTool', name: '转义处理', icon: 'fa-quote-left', component: 'EscapeTransformToolPanel' },
+      { id: 'punctuationTransformTool', name: '中文标点替换', icon: 'fa-language', component: 'PunctuationTransformToolPanel' }
     ]
   },
   // v0.5 新增页面
@@ -452,6 +545,10 @@ function getBaseToolRuntimeConfig(toolId) {
           : []
       },
       extraction: { ...(defaultConfig.extraction || {}) },
+      processor: {
+        ...(defaultConfig.processor || {}),
+        options: { ...(defaultConfig?.processor?.options || {}) }
+      },
       runtime: createToolRuntimeState(defaultConfig.runtime),
       extractTags: Array.isArray(defaultConfig.extractTags) ? [...defaultConfig.extractTags] : []
     };
@@ -486,6 +583,10 @@ export function getToolBaseConfig(toolId) {
       selectors: Array.isArray(baseConfig?.extraction?.selectors)
         ? [...baseConfig.extraction.selectors]
         : []
+    },
+    processor: {
+      ...(baseConfig.processor || {}),
+      options: { ...(baseConfig?.processor?.options || {}) }
     },
     runtime: { ...(baseConfig.runtime || {}) },
     extractTags: Array.isArray(baseConfig.extractTags) ? [...baseConfig.extractTags] : []
@@ -537,6 +638,15 @@ function mergeToolRuntimeConfig(baseConfig, userConfig = {}, legacyApiPresetBind
   mergedConfig.extraction = {
     ...(baseConfig.extraction || {}),
     ...(userConfig.extraction || {})
+  };
+
+  mergedConfig.processor = {
+    ...(baseConfig.processor || {}),
+    ...(userConfig.processor || {}),
+    options: {
+      ...(baseConfig?.processor?.options || {}),
+      ...(userConfig?.processor?.options || {})
+    }
   };
 
   const resolvedApiPreset = userConfig?.output?.apiPreset
@@ -835,6 +945,10 @@ export function ensureToolRuntimeConfig(toolId) {
         ? [...baseConfig.extraction.selectors]
         : []
     },
+    processor: {
+      ...(baseConfig.processor || {}),
+      options: { ...(baseConfig?.processor?.options || {}) }
+    },
     runtime: { ...(baseConfig.runtime || {}) }
   };
 
@@ -878,6 +992,7 @@ export function saveToolConfig(toolId, config, options = {}) {
     'bypass',              // 破限词配置
     'worldbooks',          // 世界书配置
     'extraction',          // 提取配置
+    'processor',           // 本地处理配置
     'runtime'              // 运行时状态
   ];
   

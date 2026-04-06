@@ -661,6 +661,32 @@ export function createPopupShell(context) {
             }
             break;
 
+          case 'EscapeTransformToolPanel':
+            if (modules.uiModule?.renderEscapeTransformToolPanel) {
+              modules.uiModule.renderEscapeTransformToolPanel($subContent);
+            } else {
+              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+              if (uiCompatibilityModule?.EscapeTransformToolPanel) {
+                uiCompatibilityModule.EscapeTransformToolPanel.renderTo($subContent);
+              } else {
+                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>转义处理工具加载失败</span></div>');
+              }
+            }
+            break;
+
+          case 'PunctuationTransformToolPanel':
+            if (modules.uiModule?.renderPunctuationTransformToolPanel) {
+              modules.uiModule.renderPunctuationTransformToolPanel($subContent);
+            } else {
+              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
+              if (uiCompatibilityModule?.PunctuationTransformToolPanel) {
+                uiCompatibilityModule.PunctuationTransformToolPanel.renderTo($subContent);
+              } else {
+                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>中文标点替换工具加载失败</span></div>');
+              }
+            }
+            break;
+
           case 'GenericToolConfigPanel':
             await renderGenericToolConfigPanel(subToolConfig, $subContent);
             break;

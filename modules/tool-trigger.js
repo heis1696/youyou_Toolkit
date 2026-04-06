@@ -18,10 +18,13 @@ import {
   buildExecutionContextForLatestAssistant,
   getCurrentCharacter
 } from './tool-execution-context.js';
+import { contextInjector } from './context-injector.js';
+import { runLocalTextTransform } from './tool-local-transform-service.js';
 import { showToast, showTopNotice } from './ui/utils.js';
 
 export const TOOL_EXECUTION_PATHS = {
   MANUAL_POST_RESPONSE_API: 'manual_post_response_api',
+  MANUAL_LOCAL_TRANSFORM: 'manual_local_transform',
   MANUAL_COMPATIBILITY: 'manual_compatibility'
 };
 
@@ -50,6 +53,10 @@ function resolveExecutionPath(tool, context) {
     return TOOL_EXECUTION_PATHS.MANUAL_POST_RESPONSE_API;
   }
 
+  if (tool.output?.mode === 'local_transform' || tool.processor?.type) {
+    return TOOL_EXECUTION_PATHS.MANUAL_LOCAL_TRANSFORM;
+  }
+
   return tool.output?.mode === OUTPUT_MODES.POST_RESPONSE_API
     ? TOOL_EXECUTION_PATHS.MANUAL_POST_RESPONSE_API
     : TOOL_EXECUTION_PATHS.MANUAL_COMPATIBILITY;
@@ -61,6 +68,82 @@ function updateRuntime(toolId, runtimePartial) {
   } catch (error) {
     console.warn('[ManualTool] 更新工具运行时状态失败:', toolId, error);
   }
+}
+
+async function runLocalTransformTool(tool, context) {
+  const extraction = toolOutputService.getExtractionSnapshot(tool, context);
+  const extractedText = String(extraction?.extractedText || '').trim();
+  const selectors = Array.isArray(extraction?.selectors) ? extraction.selectors : [];
+  const traceId = context?.traceId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const sessionKey = context?.sessionKey || '';
+
+  if (!extractedText) {
+    return {
+      success: false,
+      error: '未提取到可处理内容，请先检查标签或正则规则',
+      meta: {
+        traceId,
+        sessionKey,
+        selectors,
+        writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+        failureStage: TOOL_FAILURE_STAGES.EXTRACT_OUTPUT,
+        extraction
+      }
+    };
+  }
+
+  const output = String(runLocalTextTransform(tool, extractedText) || '').trim();
+  let writebackDetails = null;
+  let writebackStatus = TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
+
+  if (output) {
+    writebackDetails = await contextInjector.injectDetailed(tool.id, output, {
+      overwrite: tool.output?.overwrite !== false,
+      sourceMessageId: context?.sourceMessageId || context?.confirmedAssistantMessageId || context?.messageId || '',
+      sourceSwipeId: context?.sourceSwipeId || context?.confirmedAssistantSwipeId || context?.effectiveSwipeId || '',
+      effectiveSwipeId: context?.effectiveSwipeId || context?.confirmedAssistantSwipeId || '',
+      slotBindingKey: context?.slotBindingKey || '',
+      slotRevisionKey: context?.slotRevisionKey || '',
+      slotTransactionId: context?.slotTransactionId || '',
+      extractionSelectors: selectors,
+      traceId,
+      sessionKey
+    });
+
+    if (!writebackDetails?.success) {
+      return {
+        success: false,
+        error: writebackDetails?.error || '本地处理完成，但写回失败',
+        meta: {
+          traceId,
+          sessionKey,
+          selectors,
+          writebackStatus: TOOL_WRITEBACK_STATUS.FAILED,
+          failureStage: TOOL_FAILURE_STAGES.INJECT_CONTEXT,
+          writebackDetails,
+          extraction
+        }
+      };
+    }
+
+    writebackStatus = TOOL_WRITEBACK_STATUS.SUCCESS;
+  } else {
+    writebackStatus = TOOL_WRITEBACK_STATUS.SKIPPED_EMPTY_OUTPUT;
+  }
+
+  return {
+    success: true,
+    output,
+    meta: {
+      traceId,
+      sessionKey,
+      selectors,
+      writebackStatus,
+      failureStage: '',
+      writebackDetails,
+      extraction
+    }
+  };
 }
 
 async function executeManualTool(tool, context) {
@@ -103,7 +186,9 @@ async function executeManualTool(tool, context) {
   });
 
   try {
-    const result = await executeToolByResolvedPath(tool, context, true);
+    const result = executionPath === TOOL_EXECUTION_PATHS.MANUAL_LOCAL_TRANSFORM
+      ? await runLocalTransformTool(tool, context)
+      : await executeToolByResolvedPath(tool, context, true);
     const duration = Date.now() - startedAt;
 
     if (result?.success) {
