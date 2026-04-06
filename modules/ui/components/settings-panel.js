@@ -76,16 +76,20 @@ const THEME_CONFIGS = {
   }
 };
 
-function getTargetDocument() {
+function getTargetWindow() {
   try {
     if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
-      return window.parent.document || document;
+      return window.parent;
     }
   } catch (error) {
-    // 忽略跨窗口访问异常，回退到当前文档
+    // 忽略跨窗口访问异常，回退到当前窗口
   }
 
-  return document;
+  return window;
+}
+
+function getTargetDocument() {
+  return getTargetWindow()?.document || document;
 }
 
 function getTargetRoot(targetDocument = getTargetDocument()) {
@@ -139,15 +143,18 @@ export const SettingsPanel = {
   render() {
     const settings = settingsService.getSettings();
     const debugEnabled = settings.debug?.enableDebugLog === true;
+    const automationEnabled = settings.automation?.enabled === true && settings.automation?.autoRequestEnabled !== false;
+    const automationRuntime = this._getAutomationRuntime();
 
     return `
       <div class="yyt-settings-panel">
         <div class="yyt-settings-hero">
           <div class="yyt-settings-hero-copy">
             <div class="yyt-settings-hero-title">全局偏好与运行策略</div>
-            <div class="yyt-settings-hero-desc">统一管理执行器、调试与外观设置，让工具链行为与界面体验保持一致。</div>
+            <div class="yyt-settings-hero-desc">统一管理执行器、自动化、调试与外观设置，让工具链行为与界面体验保持一致。</div>
           </div>
           <div class="yyt-settings-hero-status">
+            <span class="yyt-settings-status-chip ${automationEnabled ? 'is-on' : 'is-off'}">自动化 ${automationEnabled ? '开启' : '关闭'}</span>
             <span class="yyt-settings-status-chip ${debugEnabled ? 'is-on' : 'is-off'}">调试 ${debugEnabled ? '开启' : '关闭'}</span>
             <span class="yyt-settings-status-chip is-neutral">主题 ${settings.ui?.theme || 'dark-blue'}</span>
           </div>
@@ -156,6 +163,9 @@ export const SettingsPanel = {
         <div class="yyt-settings-tabs">
           <button class="yyt-settings-tab yyt-active" data-tab="executor">
             <i class="fa-solid fa-microchip"></i> 执行器
+          </button>
+          <button class="yyt-settings-tab" data-tab="automation">
+            <i class="fa-solid fa-bolt"></i> 自动化
           </button>
           <button class="yyt-settings-tab" data-tab="debug">
             <i class="fa-solid fa-bug"></i> 调试
@@ -167,6 +177,7 @@ export const SettingsPanel = {
 
         <div class="yyt-settings-content">
           ${this._renderExecutorTab(settings.executor)}
+          ${this._renderAutomationTab(settings.automation, automationRuntime)}
           ${this._renderDebugTab(settings.debug)}
           ${this._renderUiTab(settings.ui)}
         </div>
@@ -237,6 +248,71 @@ export const SettingsPanel = {
     `;
   },
 
+  _renderAutomationTab(automation = {}, runtime = null) {
+    const effectiveEnabled = automation.enabled === true && automation.autoRequestEnabled !== false;
+    const recentTransactions = Array.isArray(runtime?.recentTransactions) ? runtime.recentTransactions.slice().reverse() : [];
+    const runtimeHtml = recentTransactions.length > 0
+      ? recentTransactions.map((tx) => `
+          <div class="yyt-settings-runtime-item">
+            <div class="yyt-settings-runtime-meta">
+              <span>${tx?.sourceEvent || 'UNKNOWN_EVENT'}</span>
+              <span>${tx?.phase || 'unknown'}</span>
+              <span>${tx?.messageId || 'no_message_id'}</span>
+            </div>
+            <div class="yyt-settings-runtime-main">${tx?.verdict || tx?.error || tx?.generationKey || '无额外信息'}</div>
+          </div>
+        `).join('')
+      : '<div class="yyt-form-hint">暂无自动化事务记录。</div>';
+
+    return `
+      <div class="yyt-settings-tab-content" data-tab="automation">
+        <div class="yyt-settings-section">
+          <div class="yyt-settings-section-title">自动触发总开关</div>
+          <div class="yyt-form-group">
+            <label class="yyt-toggle-label">
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-automationEnabled"
+                     ${automation.enabled ? 'checked' : ''}>
+              <span>启用工具自动触发</span>
+            </label>
+            <div class="yyt-form-hint">只有这里开启后，自动化服务才会响应 AI 回复事件。</div>
+          </div>
+          <div class="yyt-form-group">
+            <label class="yyt-toggle-label">
+              <input type="checkbox" class="yyt-toggle" id="yyt-setting-autoRequestEnabled"
+                     ${automation.autoRequestEnabled !== false ? 'checked' : ''}>
+              <span>允许自动发起额外解析请求</span>
+            </label>
+            <div class="yyt-form-hint">关闭后会保留自动化框架，但不会自动请求额外模型。</div>
+          </div>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
+              <label>等待稳定时间 (ms)</label>
+              <input type="number" class="yyt-input" id="yyt-setting-automationSettleMs"
+                     value="${automation.settleMs || 1200}" min="0" max="10000" step="100">
+            </div>
+            <div class="yyt-form-group yyt-flex-1">
+              <label>自动化冷却时间 (ms)</label>
+              <input type="number" class="yyt-input" id="yyt-setting-automationCooldownMs"
+                     value="${automation.cooldownMs || 5000}" min="0" max="60000" step="100">
+            </div>
+          </div>
+          <div class="yyt-form-hint">当前状态：${effectiveEnabled ? '已启用' : '未启用'}。只有“全局自动化 + 工具自动化”同时开启时，工具才会在 AI 回复后自动执行。</div>
+        </div>
+
+        <div class="yyt-settings-section">
+          <div class="yyt-settings-section-title">自动化诊断</div>
+          <div class="yyt-settings-runtime-grid">
+            <div class="yyt-settings-runtime-chip ${runtime?.enabled ? 'is-on' : 'is-off'}">服务 ${runtime?.enabled ? '运行中' : '未启用'}</div>
+            <div class="yyt-settings-runtime-chip is-neutral">待处理 ${runtime?.pendingTimerCount || 0}</div>
+            <div class="yyt-settings-runtime-chip is-neutral">排队槽位 ${runtime?.queuedSlotCount || 0}</div>
+            <div class="yyt-settings-runtime-chip is-neutral">事务 ${recentTransactions.length}</div>
+          </div>
+          <div class="yyt-form-hint">若自动触发失败，优先看最近事务的 verdict，例如 <code>automation_disabled</code>、<code>no_auto_tools</code>、<code>assistant_message_not_found</code>。</div>
+          <div class="yyt-settings-runtime-list">${runtimeHtml}</div>
+        </div>
+      </div>
+    `;
+  },
 
   _renderDebugTab(debug) {
     return `
@@ -368,6 +444,13 @@ export const SettingsPanel = {
         requestTimeoutMs: parseInt($container.find('#yyt-setting-requestTimeoutMs').val(), 10) || 90000,
         queueStrategy: $container.find('#yyt-setting-queueStrategy').val() || 'fifo'
       },
+      automation: {
+        enabled: $container.find('#yyt-setting-automationEnabled').is(':checked'),
+        autoRequestEnabled: $container.find('#yyt-setting-autoRequestEnabled').is(':checked'),
+        settleMs: parseInt($container.find('#yyt-setting-automationSettleMs').val(), 10) || 1200,
+        cooldownMs: parseInt($container.find('#yyt-setting-automationCooldownMs').val(), 10) || 5000,
+        maxConcurrentSlots: settingsService.getSettings()?.automation?.maxConcurrentSlots || 1
+      },
       debug: {
         enableDebugLog: $container.find('#yyt-setting-enableDebugLog').is(':checked'),
         saveExecutionHistory: $container.find('#yyt-setting-saveExecutionHistory').is(':checked'),
@@ -383,6 +466,14 @@ export const SettingsPanel = {
     settingsService.saveSettings(settings);
     applyUiPreferences(settings.ui, getTargetDocument());
     showToast('success', '设置已保存');
+  },
+
+  _getAutomationRuntime() {
+    try {
+      return getTargetWindow()?.YouYouToolkit?.getAutomationRuntime?.() || null;
+    } catch (error) {
+      return null;
+    }
   },
 
   destroy($container) {
@@ -564,6 +655,73 @@ export const SettingsPanel = {
         color: var(--yyt-text-secondary);
         font-size: 12px;
         line-height: 1.6;
+      }
+
+      .yyt-settings-runtime-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .yyt-settings-runtime-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--yyt-text-secondary);
+      }
+
+      .yyt-settings-runtime-chip.is-on {
+        color: #4ade80;
+        border-color: rgba(74, 222, 128, 0.35);
+        background: rgba(74, 222, 128, 0.08);
+      }
+
+      .yyt-settings-runtime-chip.is-off {
+        color: #f87171;
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(248, 113, 113, 0.08);
+      }
+
+      .yyt-settings-runtime-chip.is-neutral {
+        color: var(--yyt-text-secondary);
+      }
+
+      .yyt-settings-runtime-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .yyt-settings-runtime-item {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.02);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .yyt-settings-runtime-meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 11px;
+        color: var(--yyt-text-secondary);
+      }
+
+      .yyt-settings-runtime-main {
+        font-size: 12px;
+        color: var(--yyt-text);
+        line-height: 1.6;
+        word-break: break-word;
       }
     `;
   },
