@@ -72,7 +72,7 @@ function updateRuntime(toolId, runtimePartial) {
 
 async function runLocalTransformTool(tool, context) {
   const extraction = toolOutputService.getExtractionSnapshot(tool, context);
-  const extractedText = String(extraction?.extractedText || '').trim();
+  const extractedText = String(extraction?.extractedRawText || extraction?.extractedText || '').trim();
   const selectors = Array.isArray(extraction?.selectors) ? extraction.selectors : [];
   const traceId = context?.traceId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const sessionKey = context?.sessionKey || '';

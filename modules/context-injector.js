@@ -566,26 +566,38 @@ class ContextInjector {
    * 优先按上次保存的完整块文本做精确替换。
    * @private
    */
-  _stripExactStoredBlock(text, storedBlockText) {
+  _stripExactStoredBlock(text, storedBlockText, replacementText = '') {
     const sourceText = String(text || '');
     const targetBlock = String(storedBlockText || '').trim();
+    const nextBlock = String(replacementText || '').trim();
     if (!targetBlock) {
       return {
         text: sourceText,
-        removed: false
+        removed: false,
+        replaced: false
       };
     }
 
     if (!sourceText.includes(targetBlock)) {
       return {
         text: sourceText,
-        removed: false
+        removed: false,
+        replaced: false
+      };
+    }
+
+    if (nextBlock) {
+      return {
+        text: sourceText.replace(targetBlock, nextBlock).trimEnd(),
+        removed: true,
+        replaced: true
       };
     }
 
     return {
       text: sourceText.replace(targetBlock, '').trimEnd(),
-      removed: true
+      removed: true,
+      replaced: false
     };
   }
 
@@ -880,8 +892,8 @@ class ContextInjector {
       result.blockIdentity = blockIdentity;
 
       const exactStripResult = options.overwrite === false
-        ? { text: String(text || ''), removed: false }
-        : this._stripExactStoredBlock(text, previousBlockText);
+        ? { text: String(text || ''), removed: false, replaced: false }
+        : this._stripExactStoredBlock(text, previousBlockText, appendContent);
       let workingText = exactStripResult.text;
       let conflictReason = '';
 
@@ -889,13 +901,13 @@ class ContextInjector {
         conflictReason = 'previous_block_not_found';
       }
 
-      const selectorStrippedText = options.overwrite === false
+      const selectorStrippedText = (options.overwrite === false || exactStripResult.replaced)
         ? workingText
         : this._stripExistingToolOutput(workingText, options.extractionSelectors);
       const removedBySelector = selectorStrippedText !== workingText;
       workingText = selectorStrippedText;
 
-      const contentStrippedText = options.overwrite === false
+      const contentStrippedText = (options.overwrite === false || exactStripResult.replaced)
         ? workingText
         : this._stripPreviousStoredToolContent(workingText, previousToolContent);
       const removedByContent = contentStrippedText !== workingText;
@@ -906,7 +918,9 @@ class ContextInjector {
       const baseText = options.overwrite === false
         ? String(text || '')
         : workingText;
-      const nextText = [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
+      const nextText = exactStripResult.replaced
+        ? workingText.trim()
+        : [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
       result.insertedNewBlock = Boolean(appendContent);
 
       const preservedOtherToolBlocks = otherToolEntries.every((entry) => {

@@ -161,7 +161,7 @@ export function createLocalTransformToolPanel(options) {
                         id="${SCRIPT_ID}-tool-extraction-selectors"
                         rows="5"
                         placeholder="${escapeHtml(extractionPlaceholder)}">${escapeHtml(selectorText)}</textarea>
-              <div class="yyt-tool-compact-hint">每行一个规则。普通文本按标签提取；以 <code>regex:</code> 开头时按正则第一捕获组提取。</div>
+              <div class="yyt-tool-compact-hint">每行一个规则。普通文本按标签提取；以 <code>regex:</code> 开头时按正则第一捕获组提取。手动执行时会直接使用这里命中的纯文本，不会再附带楼层标签。</div>
             </div>
           </div>
 

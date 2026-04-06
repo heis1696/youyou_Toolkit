@@ -370,11 +370,16 @@ class ToolOutputService {
     const sourceText = this._joinMessageBlocks(messageEntries, 'rawText');
     const filteredSourceText = this._joinMessageBlocks(messageEntries, 'filteredText');
     const extractedText = this._joinMessageBlocks(messageEntries, 'extractedText', { skipEmpty: true });
+    const extractedRawText = (Array.isArray(messageEntries) ? messageEntries : [])
+      .map(entry => String(entry?.extractedText || '').trim())
+      .filter(Boolean)
+      .join('\n\n');
 
     return {
       sourceText,
       filteredSourceText,
       extractedText,
+      extractedRawText,
       messageEntries,
       selectors: this._getExtractionSelectors(toolConfig),
       maxMessages: toolConfig?.extraction?.maxMessages || 5

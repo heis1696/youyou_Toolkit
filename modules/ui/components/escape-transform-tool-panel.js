@@ -10,7 +10,7 @@ export const EscapeTransformToolPanel = createLocalTransformToolPanel({
   previewDialogId: 'escape-transform-extraction-preview',
   previewTitle: '转义处理提取预览',
   heroHint: '从最近 AI 消息提取文本后，在本地执行转义或去转义，再按所选方式写回。',
-  extractionPlaceholder: '每行一个标签，如 content\n或 regex:<content>([\\s\\S]*?)</content>',
+  extractionPlaceholder: '每行一个标签或正则，例如：\ncontent\nregex:<content>([\\s\\S]*?)</content>',
   processorDirections: [
     {
       key: 'escape',

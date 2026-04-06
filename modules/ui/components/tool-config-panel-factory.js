@@ -128,6 +128,19 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     min-height: 120px;
   }
 
+  .yyt-worldbook-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+  }
+
+  .yyt-worldbook-item {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
   .yyt-code-textarea:focus {
     border-color: var(--yyt-accent);
     box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
@@ -592,13 +605,16 @@ export function createToolConfigPanel(options) {
             </div>
             <div class="yyt-form-group">
               <label>选择要注入的世界书（可多选）</label>
-              <select class="yyt-select yyt-select-multiple" id="${SCRIPT_ID}-tool-worldbooks" multiple>
-                ${availableWorldbooks.map((bookName) => `
-                  <option value="${escapeHtml(bookName)}" ${selectedWorldbooks.includes(bookName) ? 'selected' : ''}>
-                    ${escapeHtml(bookName)}
-                  </option>
-                `).join('')}
-              </select>
+              <div class="yyt-worldbook-list" id="${SCRIPT_ID}-tool-worldbooks">
+                ${availableWorldbooks.length > 0 ? availableWorldbooks.map((bookName) => `
+                  <div class="yyt-worldbook-item">
+                    <label class="yyt-checkbox-label">
+                      <input type="checkbox" data-worldbook-name="${escapeHtml(bookName)}" ${selectedWorldbooks.includes(bookName) ? 'checked' : ''}>
+                      <span>${escapeHtml(bookName)}</span>
+                    </label>
+                  </div>
+                `).join('') : '<div class="yyt-tool-compact-hint">当前未读取到可用世界书。</div>'}
+              </div>
               <div class="yyt-tool-compact-hint">只有模板里显式写入 <code>{{toolWorldbookContent}}</code> 时，所选世界书内容才会注入。</div>
             </div>
           </div>
@@ -731,9 +747,9 @@ export function createToolConfigPanel(options) {
         .map(item => item.trim())
         .filter(Boolean);
 
-      const selectedWorldbooks = ($container.find(`#${SCRIPT_ID}-tool-worldbooks`).val() || [])
-        .map(item => String(item || '').trim())
-        .filter(Boolean);
+      const selectedWorldbooks = $container.find(`[data-worldbook-name]:checked`).map((_, element) =>
+        String($(element).data('worldbook-name') || '').trim()
+      ).get().filter(Boolean);
 
       return {
         enabled: currentConfig?.enabled !== false,

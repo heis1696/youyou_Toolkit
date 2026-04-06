@@ -308,7 +308,7 @@ const DEFAULT_TOOL_CONFIGS = {
     extraction: {
       enabled: true,
       maxMessages: 5,
-      selectors: ['regex:[\\s\\S]+']
+      selectors: []
     },
 
     processor: {
@@ -330,7 +330,7 @@ const DEFAULT_TOOL_CONFIGS = {
       errorCount: 0
     },
 
-    extractTags: ['regex:[\\s\\S]+']
+    extractTags: []
   },
 
   punctuationTransformTool: {
@@ -351,7 +351,7 @@ const DEFAULT_TOOL_CONFIGS = {
     extraction: {
       enabled: true,
       maxMessages: 5,
-      selectors: ['regex:[\\s\\S]+']
+      selectors: []
     },
 
     processor: {
@@ -378,7 +378,7 @@ const DEFAULT_TOOL_CONFIGS = {
       errorCount: 0
     },
 
-    extractTags: ['regex:[\\s\\S]+']
+    extractTags: []
   }
 };
 
