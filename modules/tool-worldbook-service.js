@@ -3,13 +3,34 @@ import { getTopWindow } from './tool-execution-context.js';
 let cachedWorldbooks = [];
 
 function getTavernHelper() {
+  try {
+    if (typeof TavernHelper !== 'undefined' && TavernHelper) {
+      return TavernHelper;
+    }
+  } catch (error) {
+    // ignore direct global access errors
+  }
+
   const topWindow = getTopWindow();
   return topWindow?.TavernHelper || null;
 }
 
+function getSillyTavernApi() {
+  try {
+    if (typeof SillyTavern !== 'undefined' && SillyTavern) {
+      return SillyTavern;
+    }
+  } catch (error) {
+    // ignore direct global access errors
+  }
+
+  const topWindow = getTopWindow();
+  return topWindow?.SillyTavern || null;
+}
+
 function normalizeBookNameList(value) {
   if (!Array.isArray(value)) return [];
-  return value.map(item => String(item || '').trim()).filter(Boolean);
+  return Array.from(new Set(value.map((item) => String(item || '').trim()).filter(Boolean)));
 }
 
 function getEntryText(entry = {}) {
@@ -29,22 +50,63 @@ export function getCachedAvailableWorldbooks() {
   return Array.isArray(cachedWorldbooks) ? [...cachedWorldbooks] : [];
 }
 
-export async function getAvailableWorldbooks() {
-  const helper = getTavernHelper();
-  if (!helper || typeof helper.getLorebooks !== 'function') {
-    cachedWorldbooks = [];
+async function resolveCharacterWorldbooks(helper) {
+  if (!helper || typeof helper.getCharLorebooks !== 'function') {
     return [];
   }
 
   try {
-    const books = normalizeBookNameList(await Promise.resolve(helper.getLorebooks()));
-    cachedWorldbooks = books;
-    return [...books];
+    const charLorebooks = await Promise.resolve(helper.getCharLorebooks({ type: 'all' }));
+    return normalizeBookNameList([
+      charLorebooks?.primary,
+      charLorebooks?.secondary,
+      ...(Array.isArray(charLorebooks?.additional) ? charLorebooks.additional : [])
+    ]);
   } catch (error) {
-    console.warn('[ToolWorldbookService] 获取世界书列表失败:', error);
-    cachedWorldbooks = [];
+    console.warn('[ToolWorldbookService] 获取角色绑定世界书失败:', error);
     return [];
   }
+}
+
+async function resolveAllWorldbooks(helper, stApi) {
+  if (helper && typeof helper.getLorebooks === 'function') {
+    try {
+      const books = normalizeBookNameList(await Promise.resolve(helper.getLorebooks()));
+      if (books.length > 0) {
+        return books;
+      }
+    } catch (error) {
+      console.warn('[ToolWorldbookService] 获取全部世界书列表失败:', error);
+    }
+  }
+
+  if (stApi && typeof stApi.getWorldBooks === 'function') {
+    try {
+      const books = await Promise.resolve(stApi.getWorldBooks());
+      const names = normalizeBookNameList(Array.isArray(books)
+        ? books.map((book) => book?.name ?? book)
+        : []);
+      if (names.length > 0) {
+        return names;
+      }
+    } catch (error) {
+      console.warn('[ToolWorldbookService] 从 SillyTavern 获取世界书列表失败:', error);
+    }
+  }
+
+  return [];
+}
+
+export async function getAvailableWorldbooks() {
+  const helper = getTavernHelper();
+  const stApi = getSillyTavernApi();
+
+  const characterWorldbooks = await resolveCharacterWorldbooks(helper);
+  const allWorldbooks = await resolveAllWorldbooks(helper, stApi);
+  const books = normalizeBookNameList([...characterWorldbooks, ...allWorldbooks]);
+
+  cachedWorldbooks = books;
+  return [...books];
 }
 
 export async function buildSelectedWorldbookContent(toolConfig) {
@@ -55,6 +117,7 @@ export async function buildSelectedWorldbookContent(toolConfig) {
 
   const helper = getTavernHelper();
   if (!helper || typeof helper.getLorebookEntries !== 'function') {
+    console.warn('[ToolWorldbookService] TavernHelper.getLorebookEntries 不可用，无法读取世界书内容。');
     return '';
   }
 
