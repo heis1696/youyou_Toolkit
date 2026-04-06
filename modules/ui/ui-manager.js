@@ -141,14 +141,21 @@ class UIManager {
     this.destroyInstance(id);
     
     // 渲染
-    const html = component.render({ 
-      ...props, 
-      dependencies: this.dependencies 
-    });
-    $container.html(html);
-    
-    // 绑定事件
-    component.bindEvents($container, this.dependencies);
+    if (typeof component.renderTo === 'function') {
+      component.renderTo($container, {
+        ...props,
+        dependencies: this.dependencies
+      });
+    } else {
+      const html = component.render({
+        ...props,
+        dependencies: this.dependencies
+      });
+      $container.html(html);
+
+      // 绑定事件
+      component.bindEvents($container, this.dependencies);
+    }
     
     // 保存实例
     this.activeInstances.set(id, {
