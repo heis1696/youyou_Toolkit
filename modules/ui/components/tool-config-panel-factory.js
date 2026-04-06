@@ -613,7 +613,7 @@ export function createToolConfigPanel(options) {
                       <span>${escapeHtml(bookName)}</span>
                     </label>
                   </div>
-                `).join('') : '<div class="yyt-tool-compact-hint">当前未读取到可用世界书。</div>'}
+                `).join('') : `<div class="yyt-tool-compact-hint">${this.worldbookLoadState === 'loading' ? '世界书加载中…' : '当前未读取到可用世界书。'}</div>`}
               </div>
               <div class="yyt-tool-compact-hint">只有模板里显式写入 <code>{{toolWorldbookContent}}</code> 时，所选世界书内容才会注入。</div>
             </div>
@@ -729,11 +729,29 @@ export function createToolConfigPanel(options) {
     },
 
     async _loadWorldbooks() {
-      try {
-        this.availableWorldbooks = await getAvailableWorldbooks();
-      } catch (error) {
-        this.availableWorldbooks = getCachedAvailableWorldbooks();
+      const maxAttempts = 10;
+      const retryDelayMs = 400;
+      this.worldbookLoadState = 'loading';
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        try {
+          const worldbooks = await getAvailableWorldbooks();
+          if (Array.isArray(worldbooks) && worldbooks.length > 0) {
+            this.availableWorldbooks = worldbooks;
+            this.worldbookLoadState = 'ready';
+            return this.availableWorldbooks;
+          }
+        } catch (error) {
+          this.availableWorldbooks = getCachedAvailableWorldbooks();
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
       }
+
+      this.availableWorldbooks = getCachedAvailableWorldbooks();
+      this.worldbookLoadState = 'empty';
       return this.availableWorldbooks;
     },
 
@@ -941,8 +959,15 @@ export function createToolConfigPanel(options) {
     },
 
     renderTo($container) {
+      this.worldbookLoadState = 'loading';
+      $container.html(this.render({}));
+      this.bindEvents($container, {});
+
       Promise.resolve(this._loadWorldbooks())
-        .catch(() => getCachedAvailableWorldbooks())
+        .catch(() => {
+          this.worldbookLoadState = 'empty';
+          return getCachedAvailableWorldbooks();
+        })
         .then((worldbooks) => {
           this.availableWorldbooks = Array.isArray(worldbooks) ? worldbooks : [];
           $container.html(this.render({}));
