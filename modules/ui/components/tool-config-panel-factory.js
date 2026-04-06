@@ -172,19 +172,15 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-worldbook-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    right: 0;
-    z-index: 20;
     display: none;
     flex-direction: column;
     gap: 10px;
+    margin-top: 8px;
     padding: 12px;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(18, 22, 30, 0.98);
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    background: rgba(18, 22, 30, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .yyt-worldbook-select.is-open .yyt-worldbook-dropdown {
