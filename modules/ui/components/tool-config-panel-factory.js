@@ -19,7 +19,7 @@ import {
   saveToolConfig,
   getToolBaseConfig
 } from '../../tool-registry.js';
-import { getAvailableWorldbooks, getCachedAvailableWorldbooks } from '../../tool-worldbook-service.js';
+import { getAvailableWorldbooks, getCachedAvailableWorldbooks, getLastWorldbookDiagnostics } from '../../tool-worldbook-service.js';
 
 import { getAllPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
@@ -616,6 +616,15 @@ export function createToolConfigPanel(options) {
                 `).join('') : `<div class="yyt-tool-compact-hint">${this.worldbookLoadState === 'loading' ? '世界书加载中…' : '当前未读取到可用世界书。'}</div>`}
               </div>
               <div class="yyt-tool-compact-hint">只有模板里显式写入 <code>{{toolWorldbookContent}}</code> 时，所选世界书内容才会注入。</div>
+              ${this.worldbookLoadState !== 'ready' ? `
+                <details class="yyt-worldbook-diagnostics">
+                  <summary>查看世界书诊断</summary>
+                  <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(JSON.stringify(getLastWorldbookDiagnostics() || {
+                    state: this.worldbookLoadState || 'idle',
+                    message: '尚未生成诊断信息'
+                  }, null, 2))}</pre>
+                </details>
+              ` : ''}
             </div>
           </div>
 

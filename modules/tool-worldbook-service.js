@@ -1,6 +1,7 @@
 import { getTopWindow } from './tool-execution-context.js';
 
 let cachedWorldbooks = [];
+let lastWorldbookDiagnostics = null;
 
 function getTavernHelper() {
   try {
@@ -33,6 +34,41 @@ function normalizeBookNameList(value) {
   return Array.from(new Set(value.map((item) => String(item || '').trim()).filter(Boolean)));
 }
 
+function summarizeValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') {
+        return item.name || item.id || item.title || JSON.stringify(item);
+      }
+      return String(item ?? '');
+    });
+  }
+
+  if (value && typeof value === 'object') {
+    const summary = {};
+    Object.keys(value).forEach((key) => {
+      const current = value[key];
+      if (Array.isArray(current)) {
+        summary[key] = current.map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object') {
+            return item.name || item.id || item.title || '[object]';
+          }
+          return String(item ?? '');
+        });
+      } else if (current && typeof current === 'object') {
+        summary[key] = '[object]';
+      } else {
+        summary[key] = current;
+      }
+    });
+    return summary;
+  }
+
+  return value;
+}
+
 function getEntryText(entry = {}) {
   const content = typeof entry.content === 'string' ? entry.content.trim() : '';
   if (!content) return '';
@@ -48,6 +84,10 @@ function getEntryText(entry = {}) {
 
 export function getCachedAvailableWorldbooks() {
   return Array.isArray(cachedWorldbooks) ? [...cachedWorldbooks] : [];
+}
+
+export function getLastWorldbookDiagnostics() {
+  return lastWorldbookDiagnostics ? { ...lastWorldbookDiagnostics } : null;
 }
 
 async function resolveCharacterWorldbooks(helper) {
@@ -101,9 +141,69 @@ export async function getAvailableWorldbooks() {
   const helper = getTavernHelper();
   const stApi = getSillyTavernApi();
 
+  const diagnostics = {
+    checkedAt: Date.now(),
+    hasGlobalTavernHelper: (() => {
+      try {
+        return typeof TavernHelper !== 'undefined' && !!TavernHelper;
+      } catch (error) {
+        return false;
+      }
+    })(),
+    hasParentTavernHelper: !!getTopWindow()?.TavernHelper,
+    hasGlobalSillyTavern: (() => {
+      try {
+        return typeof SillyTavern !== 'undefined' && !!SillyTavern;
+      } catch (error) {
+        return false;
+      }
+    })(),
+    hasParentSillyTavern: !!getTopWindow()?.SillyTavern,
+    helperKeys: helper ? Object.keys(helper).sort() : [],
+    stKeys: stApi ? Object.keys(stApi).sort() : [],
+    getLorebooksType: typeof helper?.getLorebooks,
+    getCharLorebooksType: typeof helper?.getCharLorebooks,
+    getLorebookEntriesType: typeof helper?.getLorebookEntries,
+    getWorldBooksType: typeof stApi?.getWorldBooks,
+    characterWorldbooks: [],
+    allWorldbooks: [],
+    combinedWorldbooks: [],
+    rawResults: {},
+    errors: []
+  };
+
+  try {
+    diagnostics.rawResults.getLorebooks = helper && typeof helper.getLorebooks === 'function'
+      ? summarizeValue(await Promise.resolve(helper.getLorebooks()))
+      : '[unavailable]';
+  } catch (error) {
+    diagnostics.errors.push(`getLorebooks: ${error?.message || error}`);
+  }
+
+  try {
+    diagnostics.rawResults.getCharLorebooks = helper && typeof helper.getCharLorebooks === 'function'
+      ? summarizeValue(await Promise.resolve(helper.getCharLorebooks({ type: 'all' })))
+      : '[unavailable]';
+  } catch (error) {
+    diagnostics.errors.push(`getCharLorebooks: ${error?.message || error}`);
+  }
+
+  try {
+    diagnostics.rawResults.getWorldBooks = stApi && typeof stApi.getWorldBooks === 'function'
+      ? summarizeValue(await Promise.resolve(stApi.getWorldBooks()))
+      : '[unavailable]';
+  } catch (error) {
+    diagnostics.errors.push(`getWorldBooks: ${error?.message || error}`);
+  }
+
   const characterWorldbooks = await resolveCharacterWorldbooks(helper);
   const allWorldbooks = await resolveAllWorldbooks(helper, stApi);
   const books = normalizeBookNameList([...characterWorldbooks, ...allWorldbooks]);
+
+  diagnostics.characterWorldbooks = [...characterWorldbooks];
+  diagnostics.allWorldbooks = [...allWorldbooks];
+  diagnostics.combinedWorldbooks = [...books];
+  lastWorldbookDiagnostics = diagnostics;
 
   cachedWorldbooks = books;
   return [...books];
@@ -147,6 +247,7 @@ export async function buildSelectedWorldbookContent(toolConfig) {
 
 export default {
   getCachedAvailableWorldbooks,
+  getLastWorldbookDiagnostics,
   getAvailableWorldbooks,
   buildSelectedWorldbookContent
 };
