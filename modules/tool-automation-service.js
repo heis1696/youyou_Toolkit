@@ -99,6 +99,91 @@ function getCurrentChatId(api) {
   ) || 'chat_default';
 }
 
+function getCurrentChatMessages(api) {
+  const context = getHostContext(api);
+  if (Array.isArray(context?.chat)) {
+    return context.chat;
+  }
+
+  if (Array.isArray(api?.chat)) {
+    return api.chat;
+  }
+
+  return [];
+}
+
+function isAssistantMessage(message) {
+  if (!message) return false;
+  if (message?.is_user === true || message?.is_system === true) return false;
+
+  const role = String(message?.role || '').trim().toLowerCase();
+  if (role === 'user' || role === 'system') return false;
+  return role === 'assistant' || role === 'ai' || !role;
+}
+
+function getChatMessageById(api, messageId) {
+  const normalizedMessageId = normalizeIdentityValue(messageId);
+  if (!normalizedMessageId) return null;
+
+  const messages = getCurrentChatMessages(api);
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    const candidates = [
+      message?.messageId,
+      message?.message_id,
+      message?.id,
+      message?.mesid,
+      message?.mid,
+      message?.chat_index,
+      index
+    ].map((value) => normalizeIdentityValue(value));
+
+    if (candidates.includes(normalizedMessageId)) {
+      return message || null;
+    }
+  }
+
+  return null;
+}
+
+function getLatestAssistantTarget(api) {
+  const messages = getCurrentChatMessages(api);
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return null;
+  }
+
+  const lastIndex = messages.length - 1;
+  const lastMessage = messages[lastIndex] || null;
+  if (!isAssistantMessage(lastMessage)) {
+    return null;
+  }
+
+  const resolvedMessageId = normalizeIdentityValue(
+    lastMessage?.messageId
+    ?? lastMessage?.message_id
+    ?? lastMessage?.id
+    ?? lastMessage?.mesid
+    ?? lastMessage?.mid
+    ?? lastMessage?.chat_index
+    ?? lastIndex
+  );
+
+  if (!resolvedMessageId) {
+    return null;
+  }
+
+  return {
+    messageId: resolvedMessageId,
+    swipeId: normalizeIdentityValue(
+      lastMessage?.swipeId
+      ?? lastMessage?.swipe_id
+      ?? lastMessage?.swipe
+      ?? lastMessage?.swipeIndex
+    ),
+    message: lastMessage
+  };
+}
+
 /**
  * 将任意事件名归一化为 UPPER_SNAKE_CASE
  * 例：'message_received' → 'MESSAGE_RECEIVED'
@@ -153,7 +238,6 @@ const TX_PHASE = Object.freeze({
 
 // 判断事件是否属于"同楼层可能产生新内容"的类别
 const SAME_SLOT_EVENTS = new Set([
-  'MESSAGE_UPDATED',
   'MESSAGE_SWIPED',
   'GENERATION_AFTER_COMMANDS',
   'GENERATION_ENDED'
@@ -328,18 +412,34 @@ class ToolAutomationService {
       if (!this._checkEnabled()) return;
 
       if (messageId) {
+        const targetMessage = getChatMessageById(api, messageId);
+        if (targetMessage && !isAssistantMessage(targetMessage)) {
+          this._log(`事件 "${normalizedEvent}" 命中非 assistant 消息，跳过`, { messageId });
+          return;
+        }
+
         this._scheduleMessageProcessing(messageId, swipeId, {
           settleMs: this._getSettleMs(),
           sourceEvent: normalizedEvent
         });
-      } else if (isSameSlotEvent(normalizedEvent)) {
-        this._scheduleCurrentAssistantProcessing({
-          settleMs: this._getSettleMs(),
-          sourceEvent: normalizedEvent
-        });
-      } else {
-        this._log(`事件 "${normalizedEvent}" 无 messageId 且非 same-slot 类型，跳过`);
+        return;
       }
+
+      if (isSameSlotEvent(normalizedEvent)) {
+        const latestAssistantTarget = getLatestAssistantTarget(api);
+
+        if (latestAssistantTarget?.messageId) {
+          this._scheduleMessageProcessing(latestAssistantTarget.messageId, latestAssistantTarget.swipeId, {
+            settleMs: this._getSettleMs(),
+            sourceEvent: normalizedEvent
+          });
+        } else {
+          this._log(`事件 "${normalizedEvent}" 无 assistant 目标，跳过 fallback`);
+        }
+        return;
+      }
+
+      this._log(`事件 "${normalizedEvent}" 无 messageId 且非 same-slot 类型，跳过`);
     };
 
     bindHostEvent(eventTypes.MESSAGE_SENT || 'message_sent', () => {

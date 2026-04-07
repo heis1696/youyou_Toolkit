@@ -34,6 +34,46 @@ function normalizeIdentityValue(value) {
   return '';
 }
 
+function getTopWindow() {
+  try {
+    if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
+      return window.parent;
+    }
+  } catch (_) {
+    // ignore cross-origin
+  }
+  return window;
+}
+
+function getHostContext(topWindow) {
+  try {
+    return topWindow?.SillyTavern?.getContext?.() || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function resolveHostEventBridge() {
+  const topWindow = getTopWindow();
+  const api = topWindow?.SillyTavern || null;
+  const context = getHostContext(topWindow);
+  const eventSource = api?.eventSource || topWindow?.eventSource || context?.eventSource || null;
+  const eventTypes = api?.eventTypes || api?.event_types || context?.eventTypes || context?.event_types || topWindow?.eventTypes || topWindow?.event_types || {};
+
+  return {
+    topWindow,
+    api,
+    context,
+    eventSource,
+    eventTypes,
+    source: api?.eventSource
+      ? 'SillyTavern.eventSource'
+      : (topWindow?.eventSource
+        ? 'topWindow.eventSource'
+        : (context?.eventSource ? 'SillyTavern.getContext().eventSource' : 'unavailable'))
+  };
+}
+
 const WRITEBACK_RESULT_STATUS = {
   SUCCESS: 'success',
   FAILED: 'failed'
@@ -451,7 +491,9 @@ class ContextInjector {
         requested: false,
         confirmChecks: 0,
         confirmed: false,
-        confirmedBy: ''
+        confirmedBy: '',
+        eventSource: '',
+        eventName: ''
       },
       contentCommitted: false,
       hostCommitApplied: false,
@@ -630,10 +672,11 @@ class ContextInjector {
    */
   _notifyMessageUpdated(runtime, messageIndex) {
     try {
-      const { api, topWindow } = runtime || {};
-      const eventSource = api?.eventSource || null;
-      const eventTypes = api?.eventTypes || {};
-      const messageUpdatedEvent = eventTypes.MESSAGE_UPDATED || 'MESSAGE_UPDATED';
+      const hostBridge = resolveHostEventBridge();
+      const topWindow = hostBridge?.topWindow || runtime?.topWindow;
+      const eventSource = hostBridge?.eventSource || null;
+      const eventTypes = hostBridge?.eventTypes || {};
+      const messageUpdatedEvent = eventTypes.MESSAGE_UPDATED || eventTypes.message_updated || 'MESSAGE_UPDATED';
 
       if (eventSource && typeof eventSource.emit === 'function') {
         eventSource.emit(messageUpdatedEvent, messageIndex);
@@ -647,9 +690,27 @@ class ContextInjector {
             eventSource.emit(messageUpdatedEvent, messageIndex);
           }, 30);
         }
+
+        return {
+          emitted: true,
+          source: hostBridge?.source || 'unavailable',
+          eventName: messageUpdatedEvent
+        };
       }
+
+      return {
+        emitted: false,
+        source: hostBridge?.source || 'unavailable',
+        eventName: messageUpdatedEvent
+      };
     } catch (error) {
       this._log('触发消息刷新事件失败', error);
+      return {
+        emitted: false,
+        source: 'error',
+        eventName: '',
+        error: error?.message || String(error)
+      };
     }
   }
 
@@ -719,6 +780,7 @@ class ContextInjector {
   _buildMessageInjectedContext(toolOutputs) {
     const outputs = toolOutputs && typeof toolOutputs === 'object' ? toolOutputs : {};
     const entries = Object.entries(outputs)
+      .filter(([, entry]) => entry?.blockType !== 'full_message')
       .sort(([, a], [, b]) => (a?.updatedAt || 0) - (b?.updatedAt || 0));
 
     if (!entries.length) return '';
@@ -881,7 +943,8 @@ class ContextInjector {
         .filter(([id]) => id !== toolId)
         .map(([, entry]) => entry || {});
       const appendContent = String(injectionEntry.content || '').trim();
-      const blockType = this._inferBlockType(appendContent);
+      const replaceFullMessage = options.replaceFullMessage === true;
+      const blockType = replaceFullMessage ? 'full_message' : this._inferBlockType(appendContent);
       const blockIdentity = {
         toolId,
         messageId: options.sourceMessageId || targetMessage?.message_id || targetMessage?.messageId || messageIndex,
@@ -891,39 +954,44 @@ class ContextInjector {
       };
       result.blockIdentity = blockIdentity;
 
-      const exactStripResult = options.overwrite === false
+      const exactStripResult = (options.overwrite === false || replaceFullMessage)
         ? { text: String(text || ''), removed: false, replaced: false }
         : this._stripExactStoredBlock(text, previousBlockText, appendContent);
       let workingText = exactStripResult.text;
       let conflictReason = '';
 
-      if (options.overwrite !== false && previousBlockText && !exactStripResult.removed) {
+      if (!replaceFullMessage && options.overwrite !== false && previousBlockText && !exactStripResult.removed) {
         conflictReason = 'previous_block_not_found';
       }
 
-      const selectorStrippedText = (options.overwrite === false || exactStripResult.replaced)
+      const selectorStrippedText = (options.overwrite === false || exactStripResult.replaced || replaceFullMessage)
         ? workingText
         : this._stripExistingToolOutput(workingText, options.extractionSelectors);
       const removedBySelector = selectorStrippedText !== workingText;
       workingText = selectorStrippedText;
 
-      const contentStrippedText = (options.overwrite === false || exactStripResult.replaced)
+      const contentStrippedText = (options.overwrite === false || exactStripResult.replaced || replaceFullMessage)
         ? workingText
         : this._stripPreviousStoredToolContent(workingText, previousToolContent);
       const removedByContent = contentStrippedText !== workingText;
       workingText = contentStrippedText;
 
-      result.replacedExistingBlock = exactStripResult.removed || removedBySelector || removedByContent;
+      result.replacedExistingBlock = replaceFullMessage || exactStripResult.removed || removedBySelector || removedByContent;
 
       const baseText = options.overwrite === false
         ? String(text || '')
         : workingText;
-      const nextText = exactStripResult.replaced
-        ? workingText.trim()
-        : [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim();
+      const nextText = replaceFullMessage
+        ? appendContent
+        : (exactStripResult.replaced
+          ? workingText.trim()
+          : [baseText.trimEnd(), appendContent].filter(Boolean).join('\n\n').trim());
       result.insertedNewBlock = Boolean(appendContent);
 
       const preservedOtherToolBlocks = otherToolEntries.every((entry) => {
+        if (entry?.blockType === 'full_message') {
+          return true;
+        }
         const expectedBlock = String(entry?.blockText || entry?.content || '').trim();
         if (!expectedBlock) return true;
         return nextText.includes(expectedBlock);
@@ -1056,8 +1124,13 @@ class ContextInjector {
         appendUniqueMethod(result.refresh.requestMethods, 'saveChat');
       }
 
-      this._notifyMessageUpdated(runtime, messageIndex);
-      result.steps.notifiedMessageUpdated = true;
+      const notifyResult = this._notifyMessageUpdated(runtime, messageIndex);
+      result.steps.notifiedMessageUpdated = notifyResult?.emitted === true;
+      result.refresh.eventSource = notifyResult?.source || '';
+      result.refresh.eventName = notifyResult?.eventName || '';
+      if (notifyResult?.error) {
+        result.errors.push(`MESSAGE_UPDATED: ${notifyResult.error}`);
+      }
       const expectedContent = String(injectionEntry.content || '').trim();
       if (result.steps.hostSetChatMessages || result.steps.hostSetChatMessage) {
         result.refreshRequested = true;
@@ -1065,7 +1138,7 @@ class ContextInjector {
       }
       if (result.steps.notifiedMessageUpdated) {
         result.refreshRequested = true;
-        appendUniqueMethod(result.refresh.requestMethods, 'MESSAGE_UPDATED');
+        appendUniqueMethod(result.refresh.requestMethods, `MESSAGE_UPDATED:${result.refresh.eventName || 'MESSAGE_UPDATED'}`);
       }
       result.steps.refreshRequested = result.refreshRequested;
       result.refresh.requested = result.refreshRequested;

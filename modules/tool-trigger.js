@@ -70,14 +70,41 @@ function updateRuntime(toolId, runtimePartial) {
   }
 }
 
+function applyLocalTransformToFullMessage(fullMessageText, extractedText, transformedText) {
+  const sourceMessage = String(fullMessageText || '');
+  const sourceExtracted = String(extractedText || '').trim();
+  const nextExtracted = String(transformedText || '').trim();
+
+  if (!sourceMessage.trim() || !sourceExtracted) {
+    return {
+      nextMessageText: '',
+      replaced: false
+    };
+  }
+
+  if (!sourceMessage.includes(sourceExtracted)) {
+    return {
+      nextMessageText: '',
+      replaced: false
+    };
+  }
+
+  return {
+    nextMessageText: sourceMessage.replace(sourceExtracted, nextExtracted).trim(),
+    replaced: true
+  };
+}
+
 async function runLocalTransformTool(tool, context) {
   const extraction = toolOutputService.getExtractionSnapshot(tool, context);
-  const extractedText = String(extraction?.extractedRawText || extraction?.extractedText || '').trim();
+  const primaryEntry = extraction?.primaryEntry || null;
+  const fullMessageText = String(primaryEntry?.fullMessageText || context?.lastAiMessage || '').trim();
+  const extractedText = String(primaryEntry?.extractedText || extraction?.extractedRawText || extraction?.extractedText || '').trim();
   const selectors = Array.isArray(extraction?.selectors) ? extraction.selectors : [];
   const traceId = context?.traceId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const sessionKey = context?.sessionKey || '';
 
-  if (!extractedText) {
+  if (!extractedText || !fullMessageText) {
     return {
       success: false,
       error: '未提取到可处理内容，请先检查标签或正则规则',
@@ -93,19 +120,22 @@ async function runLocalTransformTool(tool, context) {
   }
 
   const output = String(runLocalTextTransform(tool, extractedText) || '').trim();
+  const replacement = applyLocalTransformToFullMessage(fullMessageText, extractedText, output);
+  const writebackContent = replacement.replaced ? replacement.nextMessageText : output;
   let writebackDetails = null;
   let writebackStatus = TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
 
-  if (output) {
-    writebackDetails = await contextInjector.injectDetailed(tool.id, output, {
-      overwrite: tool.output?.overwrite !== false,
+  if (writebackContent) {
+    writebackDetails = await contextInjector.injectDetailed(tool.id, writebackContent, {
+      overwrite: true,
       sourceMessageId: context?.sourceMessageId || context?.confirmedAssistantMessageId || context?.messageId || '',
       sourceSwipeId: context?.sourceSwipeId || context?.confirmedAssistantSwipeId || context?.effectiveSwipeId || '',
       effectiveSwipeId: context?.effectiveSwipeId || context?.confirmedAssistantSwipeId || '',
       slotBindingKey: context?.slotBindingKey || '',
       slotRevisionKey: context?.slotRevisionKey || '',
       slotTransactionId: context?.slotTransactionId || '',
-      extractionSelectors: selectors,
+      extractionSelectors: [],
+      replaceFullMessage: replacement.replaced,
       traceId,
       sessionKey
     });

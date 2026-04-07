@@ -256,7 +256,12 @@ export const SettingsPanel = {
       ? hostBinding.eventBindings.join(' / ')
       : '暂无事件绑定';
     const runtimeHtml = recentTransactions.length > 0
-      ? recentTransactions.map((tx) => `
+      ? recentTransactions.map((tx) => {
+          const refresh = tx?.results?.[0]?.meta?.writebackDetails?.refresh || {};
+          const requestMethods = Array.isArray(refresh?.requestMethods) ? refresh.requestMethods.join(' / ') : '';
+          const refreshHint = refresh?.eventSource || refresh?.eventName || requestMethods || refresh?.confirmedBy;
+
+          return `
           <div class="yyt-settings-runtime-item">
             <div class="yyt-settings-runtime-meta">
               <span>${tx?.sourceEvent || 'UNKNOWN_EVENT'}</span>
@@ -264,8 +269,10 @@ export const SettingsPanel = {
               <span>${tx?.messageId || 'no_message_id'}</span>
             </div>
             <div class="yyt-settings-runtime-main">${tx?.verdict || tx?.error || tx?.generationKey || '无额外信息'}</div>
+            ${refreshHint ? `<div class="yyt-form-hint">刷新：<code>${refresh?.eventSource || 'unavailable'}</code> / <code>${refresh?.eventName || 'MESSAGE_UPDATED'}</code>；请求：<code>${requestMethods || 'none'}</code>；确认：<code>${refresh?.confirmed ? (refresh?.confirmedBy || 'success') : 'pending_or_failed'}</code>；检查：<code>${refresh?.confirmChecks || 0}</code></div>` : ''}
           </div>
-        `).join('')
+        `;
+        }).join('')
       : '<div class="yyt-form-hint">暂无自动化事务记录。</div>';
 
     return `

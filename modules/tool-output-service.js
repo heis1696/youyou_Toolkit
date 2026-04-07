@@ -374,6 +374,7 @@ class ToolOutputService {
       .map(entry => String(entry?.extractedText || '').trim())
       .filter(Boolean)
       .join('\n\n');
+    const primaryEntry = Array.isArray(messageEntries) && messageEntries.length > 0 ? messageEntries[messageEntries.length - 1] : null;
 
     return {
       sourceText,
@@ -381,6 +382,7 @@ class ToolOutputService {
       extractedText,
       extractedRawText,
       messageEntries,
+      primaryEntry,
       selectors: this._getExtractionSelectors(toolConfig),
       maxMessages: toolConfig?.extraction?.maxMessages || 5
     };
@@ -783,7 +785,8 @@ class ToolOutputService {
         order: index + 1,
         rawText,
         filteredText,
-        extractedText
+        extractedText,
+        fullMessageText: rawText
       };
     });
   }
