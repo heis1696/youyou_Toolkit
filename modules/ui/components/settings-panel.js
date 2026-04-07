@@ -251,6 +251,10 @@ export const SettingsPanel = {
   _renderAutomationTab(automation = {}, runtime = null) {
     const effectiveEnabled = automation.enabled === true;
     const recentTransactions = Array.isArray(runtime?.recentTransactions) ? runtime.recentTransactions.slice().reverse() : [];
+    const hostBinding = runtime?.hostBinding || {};
+    const eventBindingText = Array.isArray(hostBinding.eventBindings) && hostBinding.eventBindings.length > 0
+      ? hostBinding.eventBindings.join(' / ')
+      : '暂无事件绑定';
     const runtimeHtml = recentTransactions.length > 0
       ? recentTransactions.map((tx) => `
           <div class="yyt-settings-runtime-item">
@@ -295,10 +299,15 @@ export const SettingsPanel = {
           <div class="yyt-settings-section-title">自动化诊断</div>
           <div class="yyt-settings-runtime-grid">
             <div class="yyt-settings-runtime-chip ${runtime?.enabled ? 'is-on' : 'is-off'}">服务 ${runtime?.enabled ? '运行中' : '未启用'}</div>
+            <div class="yyt-settings-runtime-chip ${hostBinding.initialized ? 'is-on' : 'is-off'}">监听 ${hostBinding.initialized ? '已绑定' : '未绑定'}</div>
             <div class="yyt-settings-runtime-chip is-neutral">待处理 ${runtime?.pendingTimerCount || 0}</div>
             <div class="yyt-settings-runtime-chip is-neutral">排队槽位 ${runtime?.queuedSlotCount || 0}</div>
             <div class="yyt-settings-runtime-chip is-neutral">事务 ${recentTransactions.length}</div>
           </div>
+          <div class="yyt-form-hint">事件源：<code>${hostBinding.source || 'unavailable'}</code>；最近初始化：<code>${hostBinding.lastInitResult || 'idle'}</code>；尝试次数：<code>${hostBinding.initAttempts || 0}</code>。</div>
+          <div class="yyt-form-hint">事件绑定：<code>${eventBindingText}</code></div>
+          ${hostBinding.lastError ? `<div class="yyt-form-hint">最近错误：<code>${hostBinding.lastError}</code></div>` : ''}
+          ${hostBinding.retryScheduled ? `<div class="yyt-form-hint">已安排重试：<code>${hostBinding.retryDelayMs || 0}ms</code></div>` : ''}
           <div class="yyt-form-hint">若自动触发失败，优先看最近事务的 verdict，例如 <code>automation_disabled</code>、<code>no_auto_tools</code>、<code>assistant_message_not_found</code>。</div>
           <div class="yyt-settings-runtime-list">${runtimeHtml}</div>
         </div>

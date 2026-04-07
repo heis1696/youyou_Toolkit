@@ -36,16 +36,63 @@ function getHostApi() {
   return getTopWindow()?.SillyTavern || null;
 }
 
+function getHostContext(api) {
+  try {
+    return api?.getContext?.() || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function describeEventSource(eventSource, label) {
+  if (!eventSource) return null;
+  const hasSubscribe = typeof eventSource?.on === 'function' || typeof eventSource?.addListener === 'function';
+  const hasUnsubscribe = typeof eventSource?.off === 'function' || typeof eventSource?.removeListener === 'function';
+
+  if (!hasSubscribe || !hasUnsubscribe) {
+    return null;
+  }
+
+  return {
+    eventSource,
+    source: label,
+    capabilities: {
+      on: typeof eventSource?.on === 'function',
+      off: typeof eventSource?.off === 'function',
+      addListener: typeof eventSource?.addListener === 'function',
+      removeListener: typeof eventSource?.removeListener === 'function'
+    }
+  };
+}
+
 function getHostEventSource(api) {
-  return api?.eventSource || null;
+  const topWindow = getTopWindow();
+  const context = getHostContext(api);
+  const candidates = [
+    describeEventSource(api?.eventSource, 'SillyTavern.eventSource'),
+    describeEventSource(topWindow?.eventSource, 'topWindow.eventSource'),
+    describeEventSource(context?.eventSource, 'SillyTavern.getContext().eventSource')
+  ].filter(Boolean);
+
+  return candidates[0] || {
+    eventSource: null,
+    source: 'unavailable',
+    capabilities: {
+      on: false,
+      off: false,
+      addListener: false,
+      removeListener: false
+    }
+  };
 }
 
 function getHostEventTypes(api) {
-  return api?.eventTypes || {};
+  const context = getHostContext(api);
+  return api?.eventTypes || context?.eventTypes || getTopWindow()?.event_types || {};
 }
 
 function getCurrentChatId(api) {
-  const ctx = api?.getContext?.() || null;
+  const ctx = getHostContext(api);
   return normalizeIdentityValue(
     ctx?.chatId ?? ctx?.chat_id ?? api?.chatId ?? api?.chat_id
     ?? api?.chat_filename ?? api?.this_chid ?? 'chat_default'
@@ -166,6 +213,20 @@ class ToolAutomationService {
     // 事务历史（最近 N 条），用于诊断
     this._transactionHistory = [];
     this._maxHistorySize = 30;
+    this._hostBindingStatus = {
+      initialized: false,
+      initAttempts: 0,
+      lastInitAt: 0,
+      lastInitResult: 'idle',
+      source: 'unavailable',
+      hasEventSource: false,
+      hasEventTypes: false,
+      eventBindings: [],
+      retryScheduled: false,
+      retryDelayMs: 0,
+      lastError: ''
+    };
+    this._initRetryTimer = null;
   }
 
   // ── 公开方法 ──────────────────────────────────────────────
@@ -174,19 +235,38 @@ class ToolAutomationService {
     this.debugMode = enabled === true;
   }
 
-  init() {
+  init(options = {}) {
     this.stop();
 
     const api = getHostApi();
+    const retryOnFailure = options.retryOnFailure !== false;
+    const retryDelayMs = Number.isFinite(options.retryDelayMs) ? options.retryDelayMs : 1500;
+    const attempt = Number.isFinite(options.attempt) ? options.attempt : 1;
+
+    this._hostBindingStatus.initAttempts = attempt;
+    this._hostBindingStatus.lastInitAt = Date.now();
+
     if (!api) {
+      this._hostBindingStatus = {
+        ...this._hostBindingStatus,
+        initialized: false,
+        lastInitResult: 'missing_api',
+        source: 'unavailable',
+        hasEventSource: false,
+        hasEventTypes: false,
+        eventBindings: [],
+        lastError: '未找到宿主 API (SillyTavern)',
+        retryScheduled: false,
+        retryDelayMs: 0
+      };
       this._log('初始化失败: 未找到宿主 API (SillyTavern)');
       return false;
     }
 
     this._currentChatId = getCurrentChatId(api);
-    const eventSource = getHostEventSource(api);
+    const hostEventSource = getHostEventSource(api);
+    const eventSource = hostEventSource?.eventSource || null;
     const eventTypes = getHostEventTypes(api);
-
     const subscribe = typeof eventSource?.on === 'function'
       ? eventSource.on.bind(eventSource)
       : (typeof eventSource?.addListener === 'function' ? eventSource.addListener.bind(eventSource) : null);
@@ -194,8 +274,31 @@ class ToolAutomationService {
       ? eventSource.off.bind(eventSource)
       : (typeof eventSource?.removeListener === 'function' ? eventSource.removeListener.bind(eventSource) : null);
 
+    const hasEventTypes = !!(eventTypes && Object.keys(eventTypes).length > 0);
+    this._hostBindingStatus = {
+      ...this._hostBindingStatus,
+      source: hostEventSource?.source || 'unavailable',
+      hasEventSource: !!eventSource,
+      hasEventTypes,
+      eventBindings: [],
+      lastError: '',
+      retryScheduled: false,
+      retryDelayMs: 0,
+      initialized: false,
+      lastInitResult: 'binding'
+    };
+
     if (!subscribe || !unsubscribe) {
-      this._log('初始化失败: 宿主 eventSource 缺少 on/off 方法');
+      const lastError = '宿主 eventSource 缺少 on/off 方法';
+      this._hostBindingStatus = {
+        ...this._hostBindingStatus,
+        lastInitResult: 'missing_event_source',
+        lastError
+      };
+      this._log(`初始化失败: ${lastError}`, { source: this._hostBindingStatus.source });
+      if (retryOnFailure) {
+        this._scheduleInitRetry(retryDelayMs, attempt + 1);
+      }
       return false;
     }
 
@@ -204,15 +307,18 @@ class ToolAutomationService {
 
     const bindHostEvent = (rawEventName, handler) => {
       if (!rawEventName || typeof handler !== 'function') return;
-      const actualName = rawEventName; // 绑定时使用宿主原始值
+      const actualName = rawEventName;
       subscribe(actualName, handler);
+      this._hostBindingStatus.eventBindings = [
+        ...this._hostBindingStatus.eventBindings,
+        `${actualName} -> ${normalizeEventName(actualName)}`
+      ];
       this._stopCallbacks.push(() => {
         try { unsubscribe(actualName, handler); } catch (e) { this._log('取消事件失败', actualName, e); }
       });
       this._log(`已绑定宿主事件: "${actualName}" (归一化: ${normalizeEventName(actualName)})`);
     };
 
-    // 核心调度入口
     const scheduleFromEvent = (rawEventName, ...args) => {
       const normalizedEvent = normalizeEventName(rawEventName);
       const { messageId, swipeId } = this._extractIdentitiesFromArgs(args);
@@ -227,7 +333,6 @@ class ToolAutomationService {
           sourceEvent: normalizedEvent
         });
       } else if (isSameSlotEvent(normalizedEvent)) {
-        // 事件没有给出明确 messageId，回退到处理当前最新 assistant 楼层
         this._scheduleCurrentAssistantProcessing({
           settleMs: this._getSettleMs(),
           sourceEvent: normalizedEvent
@@ -237,53 +342,41 @@ class ToolAutomationService {
       }
     };
 
-    // ── 绑定宿主事件 ──
-
-    // 用户发送消息 → 重置分析状态（但不影响重roll）
     bindHostEvent(eventTypes.MESSAGE_SENT || 'message_sent', () => {
       this._log('MESSAGE_SENT → 重置 extra analysis 状态');
       this._isDuringExtraAnalysis = false;
-      // 清理待处理的定时器，为新消息做准备
       this._pendingTimers.forEach(id => clearTimeout(id));
       this._pendingTimers.clear();
     });
 
-    // 收到 AI 回复
     bindHostEvent(eventTypes.MESSAGE_RECEIVED || 'message_received', (...args) => {
       scheduleFromEvent(eventTypes.MESSAGE_RECEIVED || 'message_received', ...args);
     });
 
-    // 消息更新（含 streaming 结束后的最终更新）
     bindHostEvent(eventTypes.MESSAGE_UPDATED || 'message_updated', (...args) => {
       scheduleFromEvent(eventTypes.MESSAGE_UPDATED || 'message_updated', ...args);
     });
 
-    // Swipe
     bindHostEvent(eventTypes.MESSAGE_SWIPED || 'message_swiped', (...args) => {
       scheduleFromEvent(eventTypes.MESSAGE_SWIPED || 'message_swiped', ...args);
     });
 
-    // Generation 结束后命令处理
     bindHostEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'generation_after_commands', (...args) => {
       scheduleFromEvent(eventTypes.GENERATION_AFTER_COMMANDS || 'generation_after_commands', ...args);
     });
 
-    // Generation 结束
     bindHostEvent(eventTypes.GENERATION_ENDED || 'generation_ended', (...args) => {
       scheduleFromEvent(eventTypes.GENERATION_ENDED || 'generation_ended', ...args);
     });
 
-    // 聊天切换
     bindHostEvent(eventTypes.CHAT_CHANGED || 'chat_changed', () => {
       this._resetForChatChange();
     });
 
-    // 消息删除
     bindHostEvent(eventTypes.MESSAGE_DELETED || 'message_deleted', (messageId) => {
       this._clearMessageState(normalizeIdentityValue(messageId));
     });
 
-    // 设置变更
     this._stopCallbacks.push(eventBus.on(EVENTS.SETTINGS_UPDATED, () => {
       const wasEnabled = this._enabled;
       this._enabled = this._evaluateEnabled();
@@ -294,7 +387,19 @@ class ToolAutomationService {
 
     this._enabled = this._evaluateEnabled();
     this._enabledCheckedOnce = false;
-    this._log('自动化服务已初始化', { enabled: this._enabled, chatId: this._currentChatId });
+    this._hostBindingStatus = {
+      ...this._hostBindingStatus,
+      initialized: true,
+      lastInitResult: 'ready',
+      retryScheduled: false,
+      retryDelayMs: 0,
+      lastError: ''
+    };
+    this._log('自动化服务已初始化', {
+      enabled: this._enabled,
+      chatId: this._currentChatId,
+      source: this._hostBindingStatus.source
+    });
     return true;
   }
 
@@ -309,6 +414,23 @@ class ToolAutomationService {
     this._isProcessingMessage = false;
     this._enabled = false;
     this._enabledCheckedOnce = false;
+    if (this._initRetryTimer) {
+      clearTimeout(this._initRetryTimer);
+      this._initRetryTimer = null;
+    }
+    this._hostBindingStatus = {
+      initialized: false,
+      initAttempts: 0,
+      lastInitAt: 0,
+      lastInitResult: 'idle',
+      source: 'unavailable',
+      hasEventSource: false,
+      hasEventTypes: false,
+      eventBindings: [],
+      retryScheduled: false,
+      retryDelayMs: 0,
+      lastError: ''
+    };
   }
 
   isEnabled() {
@@ -326,6 +448,12 @@ class ToolAutomationService {
       queuedSlotCount: this._slotQueues.size,
       completedGenerationKeyCount: this._completedGenerationKeys.size,
       recentTransactions: this._transactionHistory.slice(-10).map(tx => tx.toSnapshot()),
+      hostBinding: {
+        ...this._hostBindingStatus,
+        eventBindings: Array.isArray(this._hostBindingStatus?.eventBindings)
+          ? [...this._hostBindingStatus.eventBindings]
+          : []
+      },
       settings: this._getAutomationSettings()
     };
   }
@@ -682,6 +810,27 @@ class ToolAutomationService {
     this._completedGenerationKeys.clear();
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
+  }
+
+  _scheduleInitRetry(retryDelayMs, attempt) {
+    if (this._initRetryTimer) {
+      clearTimeout(this._initRetryTimer);
+    }
+
+    this._hostBindingStatus = {
+      ...this._hostBindingStatus,
+      retryScheduled: true,
+      retryDelayMs
+    };
+
+    this._initRetryTimer = setTimeout(() => {
+      this._initRetryTimer = null;
+      this.init({
+        retryOnFailure: false,
+        retryDelayMs,
+        attempt
+      });
+    }, Math.max(200, retryDelayMs));
   }
 
   _clearMessageState(messageId) {

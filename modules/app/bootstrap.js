@@ -1258,8 +1258,8 @@ export function createBootstrap(context, options = {}) {
       await applySavedTheme();
 
       if (modules.toolAutomationServiceModule?.toolAutomationService) {
-        modules.toolAutomationServiceModule.toolAutomationService.init();
-        log('自动化生命周期服务已初始化');
+        const initialized = modules.toolAutomationServiceModule.toolAutomationService.init();
+        log(initialized ? '自动化生命周期服务已初始化' : '自动化生命周期服务初始化未完成，等待宿主事件源重试');
       }
     } else {
       log('部分模块加载失败，使用基础功能');
