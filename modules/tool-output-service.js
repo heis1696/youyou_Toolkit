@@ -318,6 +318,101 @@ class ToolOutputService {
   }
 
   /**
+   * 手动执行 follow_ai 工具。
+   * @param {Object} toolConfig - 工具配置
+   * @param {Object} rawContext - 原始上下文
+   * @returns {Promise<Object>}
+   */
+  async runToolFollowAiManual(toolConfig, rawContext) {
+    const startTime = Date.now();
+    const toolId = toolConfig.id;
+    const executionTraceId = rawContext?.traceId || `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const sessionKey = rawContext?.sessionKey || '';
+    const executionKey = rawContext?.executionKey || '';
+    const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
+    let messages = [];
+    let outputContent = '';
+
+    eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, {
+      toolId,
+      traceId: executionTraceId,
+      sessionKey,
+      mode: OUTPUT_MODES.FOLLOW_AI
+    });
+
+    try {
+      messages = await this._buildToolMessages(toolConfig, rawContext);
+
+      if (!messages || messages.length === 0) {
+        throw new Error('未构建出可发送的工具请求消息，请检查提示词模板或破限词配置是否为空。');
+      }
+
+      const timeoutMs = await this._getRequestTimeout();
+      const result = await this._sendApiRequest(apiPreset, messages, {
+        timeoutMs,
+        signal: rawContext.signal
+      });
+
+      outputContent = this._extractOutputContent(result, toolConfig);
+      const duration = Date.now() - startTime;
+
+      eventBus.emit(EVENTS.TOOL_EXECUTED, {
+        toolId,
+        traceId: executionTraceId,
+        sessionKey,
+        success: true,
+        duration,
+        mode: OUTPUT_MODES.FOLLOW_AI
+      });
+
+      return {
+        success: true,
+        toolId,
+        output: outputContent,
+        duration,
+        meta: {
+          traceId: executionTraceId,
+          sessionKey,
+          executionKey,
+          messageCount: messages.length,
+          apiPreset,
+          writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+          failureStage: '',
+          phases: buildToolPipelineMeta(messages, outputContent, null)
+        }
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, {
+        toolId,
+        traceId: executionTraceId,
+        sessionKey,
+        error: error.message || String(error),
+        duration,
+        mode: OUTPUT_MODES.FOLLOW_AI
+      });
+
+      return {
+        success: false,
+        toolId,
+        error: error.message || String(error),
+        duration,
+        meta: {
+          traceId: executionTraceId,
+          sessionKey,
+          executionKey,
+          messageCount: messages.length,
+          apiPreset,
+          writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+          failureStage: TOOL_FAILURE_STAGES.SEND_API_REQUEST,
+          phases: buildToolPipelineMeta(messages, outputContent, null)
+        }
+      };
+    }
+  }
+
+  /**
    * 执行工具的 inline 输出
    * @param {Object} toolConfig - 工具配置
    * @param {Object} rawContext - 原始上下文
@@ -325,29 +420,7 @@ class ToolOutputService {
    * @deprecated 当前主链不再依赖该路径，仅保留兼容语义
    */
   async runToolInline(toolConfig, rawContext) {
-    const startTime = Date.now();
-    const toolId = toolConfig.id;
-    
-    // inline 模式主要用于准备上下文注入内容
-    // 实际的API调用由外部处理
-    
-    try {
-      const messages = await this._buildToolMessages(toolConfig, rawContext);
-      
-      return {
-        success: true,
-        toolId,
-        messages,
-        duration: Date.now() - startTime
-      };
-    } catch (error) {
-      return {
-        success: false,
-        toolId,
-        error: error.message || String(error),
-        duration: Date.now() - startTime
-      };
-    }
+    return this.runToolFollowAiManual(toolConfig, rawContext);
   }
 
   /**

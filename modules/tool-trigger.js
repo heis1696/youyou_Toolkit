@@ -43,6 +43,10 @@ async function executeToolByResolvedPath(tool, context, isManual) {
     return toolOutputService.runToolPostResponse(tool, context);
   }
 
+  if (isManual && tool.output?.mode === OUTPUT_MODES.FOLLOW_AI) {
+    return toolOutputService.runToolFollowAiManual(tool, context);
+  }
+
   const compatibilityModule = await loadToolExecutorCompatibilityModule();
   return compatibilityModule.executeToolWithConfig(tool.id, context);
 }
