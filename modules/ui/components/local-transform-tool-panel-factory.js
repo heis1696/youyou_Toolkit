@@ -324,9 +324,13 @@ export function createLocalTransformToolPanel(options) {
           <div class="yyt-form-group">
             <label>逐条消息预览</label>
             <div class="yyt-preview-message-list">
-              ${messageEntries.map((entry) => `
+              ${messageEntries.map((entry, index) => {
+                const recencyLabel = index === messageEntries.length - 1
+                  ? '最新消息'
+                  : `最近的第 ${messageEntries.length - index} 条消息`;
+                return `
                 <div class="yyt-preview-message-item">
-                  <div class="yyt-preview-message-title">第 ${entry.order} 条 AI 消息</div>
+                  <div class="yyt-preview-message-title">${recencyLabel}</div>
                   <div>
                     <label>原文</label>
                     <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(entry.rawText || '无可用消息')}</pre>
@@ -340,7 +344,8 @@ export function createLocalTransformToolPanel(options) {
                     <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(entry.extractedText || '未提取到内容')}</pre>
                   </div>
                 </div>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
           </div>
         `
@@ -357,7 +362,7 @@ export function createLocalTransformToolPanel(options) {
             <div class="yyt-preview-box">${escapeHtml((result.selectors || []).join('\n') || '无')}</div>
           </div>
           <div class="yyt-form-group">
-            <label>原始内容汇总（最近 ${result.maxMessages} 条 AI 消息）</label>
+            <label>原始内容汇总（按最近消息到更早消息）</label>
             <pre class="yyt-preview-box yyt-preview-pre">${escapeHtml(result.sourceText || '无可用消息')}</pre>
           </div>
           <div class="yyt-form-group">
