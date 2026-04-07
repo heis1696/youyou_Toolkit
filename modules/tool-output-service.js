@@ -330,6 +330,10 @@ class ToolOutputService {
     const sessionKey = rawContext?.sessionKey || '';
     const executionKey = rawContext?.executionKey || '';
     const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
+    const selectors = this._getExtractionSelectors(toolConfig);
+    let failureStage = '';
+    let writebackStatus = TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
+    let writebackDetails = null;
     let messages = [];
     let outputContent = '';
 
@@ -341,6 +345,7 @@ class ToolOutputService {
     });
 
     try {
+      failureStage = TOOL_FAILURE_STAGES.BUILD_MESSAGES;
       messages = await this._buildToolMessages(toolConfig, rawContext);
 
       if (!messages || messages.length === 0) {
@@ -348,12 +353,41 @@ class ToolOutputService {
       }
 
       const timeoutMs = await this._getRequestTimeout();
+      failureStage = TOOL_FAILURE_STAGES.SEND_API_REQUEST;
       const result = await this._sendApiRequest(apiPreset, messages, {
         timeoutMs,
         signal: rawContext.signal
       });
 
+      failureStage = TOOL_FAILURE_STAGES.EXTRACT_OUTPUT;
       outputContent = this._extractOutputContent(result, toolConfig);
+
+      if (outputContent) {
+        failureStage = TOOL_FAILURE_STAGES.INJECT_CONTEXT;
+        writebackDetails = await contextInjector.injectDetailed(toolId, outputContent, {
+          overwrite: toolConfig.output?.overwrite !== false,
+          sourceMessageId: rawContext.sourceMessageId || rawContext.confirmedAssistantMessageId || rawContext.messageId || '',
+          sourceSwipeId: rawContext.sourceSwipeId || rawContext.confirmedAssistantSwipeId || rawContext.effectiveSwipeId || '',
+          effectiveSwipeId: rawContext.effectiveSwipeId || rawContext.confirmedAssistantSwipeId || '',
+          slotBindingKey: rawContext.slotBindingKey || '',
+          slotRevisionKey: rawContext.slotRevisionKey || '',
+          slotTransactionId: rawContext.slotTransactionId || '',
+          extractionSelectors: selectors,
+          traceId: executionTraceId,
+          sessionKey
+        });
+
+        if (!writebackDetails?.success) {
+          writebackStatus = TOOL_WRITEBACK_STATUS.FAILED;
+          throw new Error(writebackDetails?.error || '工具结果已生成，但写入上下文/世界书失败');
+        }
+
+        writebackStatus = TOOL_WRITEBACK_STATUS.SUCCESS;
+      } else {
+        writebackStatus = TOOL_WRITEBACK_STATUS.SKIPPED_EMPTY_OUTPUT;
+      }
+
+      failureStage = '';
       const duration = Date.now() - startTime;
 
       eventBus.emit(EVENTS.TOOL_EXECUTED, {
@@ -374,15 +408,26 @@ class ToolOutputService {
           traceId: executionTraceId,
           sessionKey,
           executionKey,
+          slotBindingKey: rawContext?.slotBindingKey || '',
+          slotTransactionId: rawContext?.slotTransactionId || '',
+          sourceMessageId: rawContext?.sourceMessageId || rawContext?.confirmedAssistantMessageId || rawContext?.messageId || '',
+          sourceSwipeId: rawContext?.sourceSwipeId || rawContext?.confirmedAssistantSwipeId || rawContext?.effectiveSwipeId || '',
+          confirmedAssistantSwipeId: rawContext?.confirmedAssistantSwipeId || '',
+          effectiveSwipeId: rawContext?.effectiveSwipeId || '',
+          slotRevisionKey: rawContext?.slotRevisionKey || '',
           messageCount: messages.length,
+          selectors,
           apiPreset,
-          writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
+          writebackStatus,
           failureStage: '',
-          phases: buildToolPipelineMeta(messages, outputContent, null)
+          writebackDetails,
+          phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
         }
       };
     } catch (error) {
       const duration = Date.now() - startTime;
+      const resolvedFailureStage = failureStage || TOOL_FAILURE_STAGES.UNKNOWN;
+      const resolvedWritebackStatus = writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
 
       eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, {
         toolId,
@@ -402,11 +447,20 @@ class ToolOutputService {
           traceId: executionTraceId,
           sessionKey,
           executionKey,
+          slotBindingKey: rawContext?.slotBindingKey || '',
+          slotTransactionId: rawContext?.slotTransactionId || '',
+          sourceMessageId: rawContext?.sourceMessageId || rawContext?.confirmedAssistantMessageId || rawContext?.messageId || '',
+          sourceSwipeId: rawContext?.sourceSwipeId || rawContext?.confirmedAssistantSwipeId || rawContext?.effectiveSwipeId || '',
+          confirmedAssistantSwipeId: rawContext?.confirmedAssistantSwipeId || '',
+          effectiveSwipeId: rawContext?.effectiveSwipeId || '',
+          slotRevisionKey: rawContext?.slotRevisionKey || '',
           messageCount: messages.length,
+          selectors,
           apiPreset,
-          writebackStatus: TOOL_WRITEBACK_STATUS.NOT_APPLICABLE,
-          failureStage: TOOL_FAILURE_STAGES.SEND_API_REQUEST,
-          phases: buildToolPipelineMeta(messages, outputContent, null)
+          writebackStatus: resolvedWritebackStatus,
+          failureStage: resolvedFailureStage,
+          writebackDetails,
+          phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
         }
       };
     }
