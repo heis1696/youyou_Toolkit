@@ -453,10 +453,6 @@ class ToolAutomationService {
       scheduleFromEvent(eventTypes.MESSAGE_RECEIVED || 'message_received', ...args);
     });
 
-    bindHostEvent(eventTypes.MESSAGE_UPDATED || 'message_updated', (...args) => {
-      scheduleFromEvent(eventTypes.MESSAGE_UPDATED || 'message_updated', ...args);
-    });
-
     bindHostEvent(eventTypes.MESSAGE_SWIPED || 'message_swiped', (...args) => {
       scheduleFromEvent(eventTypes.MESSAGE_SWIPED || 'message_swiped', ...args);
     });
