@@ -1066,7 +1066,8 @@ class ContextInjector {
         appendUniqueMethod(result.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGES);
         try {
           await setChatMessages.call(context || api || runtime?.topWindow, [{
-            message_id: messageIndex,
+            message_id: normalizeIdentityValue(options.sourceMessageId) || messageIndex,
+            chat_index: messageIndex,
             message: nextText,
             mes: nextText,
             content: nextText,
@@ -1094,18 +1095,6 @@ class ContextInjector {
       }
 
       result.hostUpdateMethod = result.commit.appliedMethod;
-
-      if (typeof setChatMessage === 'function') {
-        try {
-          await setChatMessage.call(context || api || runtime?.topWindow, {}, messageIndex);
-          result.steps.refreshForceSetChatMessage = true;
-          result.refreshRequested = true;
-          appendUniqueMethod(result.refresh.requestMethods, 'setChatMessage(force_refresh)');
-        } catch (error) {
-          this._log('使用空 setChatMessage 强制刷新失败', error);
-          result.errors.push(`setChatMessage(refresh): ${error?.message || String(error)}`);
-        }
-      }
 
       const saveChat = context?.saveChat || api?.saveChat || null;
       const saveChatDebounced = context?.saveChatDebounced || api?.saveChatDebounced || null;
