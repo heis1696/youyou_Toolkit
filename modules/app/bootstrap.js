@@ -115,15 +115,29 @@ export function createBootstrap(context, options = {}) {
         --yyt-bg-gradient-1: rgba(123, 183, 255, 0.12);
         --yyt-bg-gradient-2: rgba(155, 123, 255, 0.10);
         --yyt-surface: rgba(255, 255, 255, 0.03);
-        --yyt-surface-hover: rgba(255, 255, 255, 0.06);
-        --yyt-surface-active: rgba(255, 255, 255, 0.08);
+        --yyt-surface-2: rgba(255, 255, 255, 0.05);
+        --yyt-surface-3: rgba(255, 255, 255, 0.075);
+        --yyt-surface-hover: rgba(255, 255, 255, 0.08);
+        --yyt-surface-active: rgba(255, 255, 255, 0.11);
         --yyt-border: rgba(255, 255, 255, 0.08);
-        --yyt-border-strong: rgba(255, 255, 255, 0.15);
+        --yyt-border-soft: rgba(255, 255, 255, 0.05);
+        --yyt-border-strong: rgba(255, 255, 255, 0.16);
         --yyt-text: rgba(255, 255, 255, 0.95);
-        --yyt-text-secondary: rgba(255, 255, 255, 0.7);
-        --yyt-text-muted: rgba(255, 255, 255, 0.45);
-        --yyt-radius: 12px;
-        --yyt-radius-sm: 8px;
+        --yyt-text-secondary: rgba(255, 255, 255, 0.72);
+        --yyt-text-muted: rgba(255, 255, 255, 0.5);
+        --yyt-focus-ring: 0 0 0 3px rgba(123, 183, 255, 0.18);
+        --yyt-radius: 14px;
+        --yyt-radius-sm: 10px;
+        --yyt-radius-lg: 18px;
+        --yyt-radius-xl: 24px;
+        --yyt-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        --yyt-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.18);
+        --yyt-shadow-glow: 0 0 24px var(--yyt-accent-glow);
+        --yyt-shell-sidebar-width: 248px;
+        --yyt-shell-topbar-gap: 14px;
+        --yyt-shell-gap: 12px;
+        --yyt-panel-gap: 16px;
+        --yyt-backdrop: rgba(5, 8, 12, 0.72);
       }
 
       /* 菜单项 */
@@ -149,13 +163,10 @@ export function createBootstrap(context, options = {}) {
       /* 主弹窗遮罩 */
       .yyt-popup-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.55);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
+        inset: 0;
+        background: var(--yyt-backdrop);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         z-index: 9999;
       }
 
@@ -167,18 +178,21 @@ export function createBootstrap(context, options = {}) {
         transform: translate(-50%, -50%);
         display: flex;
         flex-direction: column;
-        width: min(1500px, calc(100vw - 4px));
-        max-width: calc(100vw - 4px);
-        height: min(1120px, calc(100vh - 4px));
-        max-height: calc(100vh - 4px);
+        width: min(1500px, calc(100vw - 12px));
+        max-width: calc(100vw - 12px);
+        height: min(1120px, calc(100vh - 12px));
+        max-height: calc(100vh - 12px);
         background:
           radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1), transparent 60%),
           radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2), transparent 55%),
-          linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 22%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 22%),
           var(--yyt-bg-base);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 16px;
-        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.65), 0 0 60px rgba(123, 183, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 22px;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.05),
+          0 28px 84px rgba(0, 0, 0, 0.58),
+          0 0 80px rgba(123, 183, 255, 0.1);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
         color: var(--yyt-text);
         z-index: 10000;
@@ -189,10 +203,11 @@ export function createBootstrap(context, options = {}) {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 20px;
-        background: var(--yyt-surface-hover);
+        gap: 16px;
+        padding: 16px 22px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.03) 100%);
         border-bottom: 1px solid var(--yyt-border);
-        border-radius: 16px 16px 0 0;
+        border-radius: 22px 22px 0 0;
         flex-shrink: 0;
         cursor: grab;
       }
@@ -279,21 +294,23 @@ export function createBootstrap(context, options = {}) {
       }
 
       .yyt-popup-close {
-        width: 32px;
-        height: 32px;
-        border: none;
-        border-radius: 8px;
-        background: var(--yyt-surface-hover);
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--yyt-border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
         color: var(--yyt-text-secondary);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 14px;
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
       }
 
       .yyt-popup-close:hover {
-        background: rgba(255, 107, 107, 0.25);
+        background: rgba(248, 113, 113, 0.14);
+        border-color: rgba(248, 113, 113, 0.2);
         color: #ff6b6b;
       }
 
@@ -312,15 +329,19 @@ export function createBootstrap(context, options = {}) {
         flex-direction: column;
         min-height: 0;
         flex: 1;
-        gap: 14px;
+        gap: var(--yyt-shell-gap);
       }
 
       .yyt-content-frame {
         flex: 1;
         min-height: 0;
-        padding: 6px;
-        border-radius: 18px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+        min-width: 0;
+        overflow: hidden;
+        padding: 5px;
+        border-radius: var(--yyt-radius-xl);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.018) 100%),
+          rgba(255, 255, 255, 0.01);
         border: 1px solid rgba(255, 255, 255, 0.06);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
@@ -330,11 +351,11 @@ export function createBootstrap(context, options = {}) {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         padding: 14px 20px;
-        background: var(--yyt-surface);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.02) 100%);
         border-top: 1px solid var(--yyt-border);
-        border-radius: 0 0 16px 16px;
+        border-radius: 0 0 22px 22px;
         flex-shrink: 0;
       }
 
@@ -345,6 +366,18 @@ export function createBootstrap(context, options = {}) {
         gap: 10px;
       }
 
+      .yyt-popup-footer-left {
+        min-width: 0;
+      }
+
+      .yyt-popup-status-cluster {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        flex-wrap: wrap;
+      }
+
       .yyt-popup-status {
         display: inline-flex;
         align-items: center;
@@ -353,7 +386,7 @@ export function createBootstrap(context, options = {}) {
         border-radius: 999px;
         font-size: 12px;
         color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
       }
 
@@ -361,17 +394,23 @@ export function createBootstrap(context, options = {}) {
         color: var(--yyt-accent);
       }
 
+      .yyt-popup-footer-note {
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--yyt-text-muted);
+      }
+
       /* 主顶栏 */
       .yyt-shell-topbar {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-        gap: 18px;
-        padding: 18px 20px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+        gap: var(--yyt-shell-topbar-gap);
+        padding: 18px;
+        border-radius: var(--yyt-radius-xl);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         background:
-          radial-gradient(600px 240px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 65%),
-          linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%);
+          radial-gradient(600px 240px at 0% 0%, rgba(123, 183, 255, 0.14), transparent 65%),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
       }
 
@@ -400,22 +439,43 @@ export function createBootstrap(context, options = {}) {
         border: 1px solid rgba(123, 183, 255, 0.18);
         color: var(--yyt-accent);
         font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.4px;
+        font-weight: 800;
+        letter-spacing: 0.42px;
         text-transform: uppercase;
       }
 
+      .yyt-shell-heading-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
       .yyt-shell-heading {
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 800;
         line-height: 1.1;
+        letter-spacing: 0.2px;
         color: var(--yyt-text);
       }
 
-      .yyt-shell-overview-text {
-        font-size: 13px;
-        line-height: 1.7;
+      .yyt-shell-heading-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
         color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .yyt-shell-overview-text {
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--yyt-text-secondary);
+        max-width: 72ch;
       }
 
       .yyt-shell-current-card {
@@ -424,37 +484,39 @@ export function createBootstrap(context, options = {}) {
         gap: 6px;
         min-width: 0;
         padding: 14px 16px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.04);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.045);
         border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
 
       .yyt-shell-current-label {
         font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.4px;
+        font-weight: 800;
+        letter-spacing: 0.42px;
         text-transform: uppercase;
         color: var(--yyt-text-muted);
       }
 
       .yyt-shell-current-page {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 800;
-        line-height: 1.3;
+        line-height: 1.35;
         color: var(--yyt-text);
         word-break: break-word;
       }
 
       .yyt-shell-current-desc {
-        font-size: 12px;
-        line-height: 1.6;
+        font-size: 11px;
+        line-height: 1.5;
         color: var(--yyt-text-secondary);
       }
 
       .yyt-shell-stats {
         display: grid;
-        grid-template-columns: repeat(3, minmax(90px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(3, minmax(78px, 1fr));
+        gap: 8px;
+        align-self: stretch;
       }
 
       .yyt-shell-stat {
@@ -462,20 +524,22 @@ export function createBootstrap(context, options = {}) {
         flex-direction: column;
         justify-content: center;
         gap: 6px;
-        min-width: 92px;
-        padding: 14px 14px 12px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
+        min-width: 78px;
+        padding: 12px 12px 11px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.035);
         border: 1px solid rgba(255, 255, 255, 0.08);
       }
 
       .yyt-shell-stat-label {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--yyt-text-muted);
+        letter-spacing: 0.44px;
+        text-transform: uppercase;
       }
 
       .yyt-shell-stat-value {
-        font-size: 22px;
+        font-size: 19px;
         font-weight: 800;
         line-height: 1;
         color: var(--yyt-text);
@@ -485,8 +549,8 @@ export function createBootstrap(context, options = {}) {
         flex: 1;
         min-height: 0;
         display: grid;
-        grid-template-columns: minmax(220px, 248px) minmax(0, 1fr);
-        gap: 14px;
+        grid-template-columns: minmax(210px, var(--yyt-shell-sidebar-width)) minmax(0, 1fr);
+        gap: var(--yyt-shell-gap);
       }
 
       .yyt-shell-sidebar {
@@ -502,8 +566,8 @@ export function createBootstrap(context, options = {}) {
         flex-direction: column;
         gap: 12px;
         overflow: hidden;
-        padding: 16px;
-        border-radius: 18px;
+        padding: 14px;
+        border-radius: var(--yyt-radius-xl);
         border: 1px solid rgba(255, 255, 255, 0.07);
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
       }
@@ -517,15 +581,15 @@ export function createBootstrap(context, options = {}) {
 
       .yyt-shell-sidebar-title {
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 800;
         color: var(--yyt-text);
       }
 
       .yyt-shell-sidebar-hint {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--yyt-text-muted);
         text-transform: uppercase;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.44px;
       }
 
       .yyt-main-nav {
@@ -597,29 +661,29 @@ export function createBootstrap(context, options = {}) {
       }
 
       .yyt-shell-sidebar-note {
-        padding: 14px 16px;
+        padding: 11px 12px;
         border-radius: 16px;
         border: 1px dashed rgba(123, 183, 255, 0.18);
         background: rgba(123, 183, 255, 0.05);
         color: var(--yyt-text-secondary);
-        font-size: 12px;
-        line-height: 1.65;
+        font-size: 11px;
+        line-height: 1.55;
       }
 
       .yyt-shell-main {
         min-height: 0;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
       }
 
       .yyt-shell-main-header {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 16px;
-        padding: 16px 18px;
-        border-radius: 18px;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: var(--yyt-radius-xl);
         border: 1px solid rgba(255, 255, 255, 0.07);
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
       }
@@ -636,28 +700,48 @@ export function createBootstrap(context, options = {}) {
       .yyt-shell-main-heading-block {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 7px;
         min-width: 0;
+      }
+
+      .yyt-shell-main-label-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
       }
 
       .yyt-shell-main-label {
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 800;
         color: var(--yyt-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
+      .yyt-shell-breadcrumb {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--yyt-text-secondary);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        max-width: 100%;
+      }
+
       .yyt-shell-main-title {
         font-size: 20px;
         font-weight: 800;
-        line-height: 1.15;
+        line-height: 1.12;
         color: var(--yyt-text);
       }
 
       .yyt-shell-main-description {
-        font-size: 13px;
-        line-height: 1.65;
+        font-size: 12px;
+        line-height: 1.6;
         color: var(--yyt-text-secondary);
       }
 
@@ -667,7 +751,7 @@ export function createBootstrap(context, options = {}) {
         gap: 8px;
         padding: 10px 12px;
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
         color: var(--yyt-text-secondary);
         font-size: 12px;
@@ -677,6 +761,10 @@ export function createBootstrap(context, options = {}) {
       .yyt-shell-main-save-btn {
         white-space: nowrap;
         flex-shrink: 0;
+      }
+
+      .yyt-shell-main-meta i {
+        color: var(--yyt-accent);
       }
 
       /* 次级顶栏 */
@@ -718,6 +806,7 @@ export function createBootstrap(context, options = {}) {
       .yyt-content {
         flex: 1;
         min-height: 0;
+        min-width: 0;
         overflow: auto;
         padding: 4px;
         border-radius: calc(var(--yyt-radius) + 2px);
@@ -790,6 +879,11 @@ export function createBootstrap(context, options = {}) {
         transition: all 0.25s ease;
       }
 
+      .yyt-btn:focus-visible {
+        outline: none;
+        box-shadow: var(--yyt-focus-ring);
+      }
+
       .yyt-btn-primary {
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         color: var(--yyt-on-accent);
@@ -855,9 +949,13 @@ export function createBootstrap(context, options = {}) {
 
       .yyt-input:focus,
       .yyt-select:focus,
-      .yyt-textarea:focus {
+      .yyt-textarea:focus,
+      .yyt-input:focus-visible,
+      .yyt-select:focus-visible,
+      .yyt-textarea:focus-visible {
         outline: none;
         border-color: var(--yyt-accent);
+        box-shadow: var(--yyt-focus-ring);
       }
 
       .yyt-input::placeholder,
@@ -1084,6 +1182,10 @@ export function createBootstrap(context, options = {}) {
         .yyt-popup-footer-right {
           width: 100%;
           justify-content: center;
+        }
+
+        .yyt-popup-footer-note {
+          text-align: center;
         }
       }
     `;

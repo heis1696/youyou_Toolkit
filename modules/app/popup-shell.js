@@ -1015,12 +1015,15 @@ export function createPopupShell(context) {
             <div class="yyt-shell-topbar">
               <div class="yyt-shell-topbar-main">
                 <div class="yyt-shell-kicker">Workspace</div>
-                <div class="yyt-shell-heading">统一工具工作台</div>
-                <div class="yyt-shell-overview-text">将 API、工具、提取规则、破限词与执行诊断收口到一个更紧凑的工作区里，优先保证可读性和可操作空间。</div>
+                <div class="yyt-shell-heading-row">
+                  <div class="yyt-shell-heading">YouYou 工具工作台</div>
+                  <span class="yyt-shell-heading-badge">统一入口</span>
+                </div>
+                <div class="yyt-shell-overview-text">集中管理 API 预设、自定义工具、提取规则与调试流程，在同一工作台里保持更高可读性与更低操作噪音。</div>
               </div>
               <div class="yyt-shell-topbar-side">
                 <div class="yyt-shell-current-card">
-                  <span class="yyt-shell-current-label">当前页面</span>
+                  <span class="yyt-shell-current-label">聚焦页面</span>
                   <strong class="yyt-shell-current-page">${escapeHtml(currentDisplayName)}</strong>
                   <span class="yyt-shell-current-desc">${escapeHtml(currentDescription)}</span>
                 </div>
@@ -1060,14 +1063,17 @@ export function createPopupShell(context) {
               <section class="yyt-shell-main">
                 <div class="yyt-shell-main-header">
                   <div class="yyt-shell-main-heading-block">
-                    <div class="yyt-shell-main-label">当前页面</div>
+                    <div class="yyt-shell-main-label-row">
+                      <div class="yyt-shell-main-label">当前页面</div>
+                      <div class="yyt-shell-breadcrumb">${escapeHtml(currentDisplayName)}</div>
+                    </div>
                     <div class="yyt-shell-main-title">${escapeHtml(currentDisplayName)}</div>
                     <div class="yyt-shell-main-description">${escapeHtml(currentDescription)}</div>
                   </div>
                   <div class="yyt-shell-main-actions">
                     <div class="yyt-shell-main-meta">
                       <i class="fa-solid fa-circle-info"></i>
-                      <span>保存后手动执行与写回链会使用最新配置</span>
+                      <span>保存后执行链会立即使用最新配置</span>
                     </div>
                   </div>
                 </div>
@@ -1090,12 +1096,14 @@ export function createPopupShell(context) {
 
         <div class="yyt-popup-footer">
           <div class="yyt-popup-footer-left">
-            <div class="yyt-popup-status">
-              <i class="fa-solid fa-compass"></i>
-              <span class="yyt-popup-active-label">当前：${escapeHtml(currentDisplayName)}</span>
-            </div>
-            <div class="yyt-popup-footer-note">
-              API、工具、提取与诊断统一入口。
+            <div class="yyt-popup-status-cluster">
+              <div class="yyt-popup-status">
+                <i class="fa-solid fa-compass"></i>
+                <span class="yyt-popup-active-label">当前：${escapeHtml(currentDisplayName)}</span>
+              </div>
+              <div class="yyt-popup-footer-note">
+                API、工具、提取与诊断统一入口。
+              </div>
             </div>
           </div>
           <div class="yyt-popup-footer-right">

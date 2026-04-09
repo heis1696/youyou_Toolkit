@@ -454,38 +454,38 @@ export const ToolManagePanel = {
       .yyt-tool-manager {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 16px;
         min-height: 100%;
       }
 
       .yyt-tool-manage-hero {
-        gap: 12px;
+        gap: 14px;
       }
 
       .yyt-tool-manage-hero-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 12px;
+        gap: 14px;
         align-items: stretch;
       }
 
       .yyt-tool-manage-copy {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
       }
 
       .yyt-tool-manage-lead {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 800;
         line-height: 1.2;
         color: var(--yyt-text);
       }
-      
+
       .yyt-tool-list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         min-height: 0;
         overflow-y: auto;
         padding-right: 4px;
@@ -494,12 +494,13 @@ export const ToolManagePanel = {
       .yyt-tool-manage-hint {
         font-size: 12px;
         color: var(--yyt-text-secondary);
-        line-height: 1.55;
+        line-height: 1.65;
+        max-width: 64ch;
       }
 
       .yyt-tool-manage-stats {
         display: grid;
-        grid-template-columns: repeat(2, minmax(110px, 1fr));
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
         gap: 10px;
       }
 
@@ -507,52 +508,55 @@ export const ToolManagePanel = {
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: 6px;
-        padding: 10px 12px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
+        gap: 8px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        min-width: 110px;
+        min-width: 120px;
       }
 
       .yyt-tool-manage-stat-label {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--yyt-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.42px;
       }
 
       .yyt-tool-manage-stat-value {
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 800;
         color: var(--yyt-text);
         line-height: 1;
       }
-      
+
       .yyt-tool-item {
-        padding: 12px;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+        padding: 14px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        transition: all 0.2s ease;
+        border-radius: 18px;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
-      
+
       .yyt-tool-item:hover {
         border-color: rgba(255, 255, 255, 0.16);
         transform: translateY(-1px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.12);
       }
-      
+
       .yyt-tool-item.yyt-disabled {
         opacity: 0.62;
       }
-      
+
       .yyt-tool-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         margin-bottom: 10px;
         gap: 12px;
       }
-      
+
       .yyt-tool-info {
         display: flex;
         align-items: center;
@@ -560,25 +564,28 @@ export const ToolManagePanel = {
         min-width: 0;
         flex-wrap: wrap;
       }
-      
+
       .yyt-tool-name {
-        font-weight: 600;
+        font-weight: 800;
         font-size: 15px;
         color: var(--yyt-text);
       }
-      
+
       .yyt-tool-category {
-        font-size: 11px;
-        padding: 4px 8px;
+        font-size: 10px;
+        padding: 4px 9px;
         background: rgba(123, 183, 255, 0.1);
         border-radius: 999px;
         color: var(--yyt-accent);
+        border: 1px solid rgba(123, 183, 255, 0.14);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
       }
-      
+
       .yyt-tool-desc {
         font-size: 12px;
         color: var(--yyt-text-muted);
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         line-height: 1.7;
       }
 
@@ -588,10 +595,19 @@ export const ToolManagePanel = {
         flex-wrap: wrap;
       }
 
+      .yyt-tool-actions .yyt-btn-secondary {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .yyt-tool-actions .yyt-btn-danger {
+        margin-left: auto;
+      }
+
       .yyt-tool-controls {
         flex-shrink: 0;
+        padding-top: 2px;
       }
-      
+
       .yyt-dialog-wide {
         width: 480px;
       }

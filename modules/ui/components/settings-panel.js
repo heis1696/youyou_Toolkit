@@ -22,13 +22,17 @@ const BASE_THEME_TOKENS = {
   '--yyt-bg-gradient-1': 'rgba(123, 183, 255, 0.12)',
   '--yyt-bg-gradient-2': 'rgba(155, 123, 255, 0.10)',
   '--yyt-surface': 'rgba(255, 255, 255, 0.03)',
-  '--yyt-surface-hover': 'rgba(255, 255, 255, 0.06)',
-  '--yyt-surface-active': 'rgba(255, 255, 255, 0.08)',
+  '--yyt-surface-2': 'rgba(255, 255, 255, 0.05)',
+  '--yyt-surface-3': 'rgba(255, 255, 255, 0.075)',
+  '--yyt-surface-hover': 'rgba(255, 255, 255, 0.08)',
+  '--yyt-surface-active': 'rgba(255, 255, 255, 0.11)',
   '--yyt-border': 'rgba(255, 255, 255, 0.08)',
-  '--yyt-border-strong': 'rgba(255, 255, 255, 0.15)',
+  '--yyt-border-soft': 'rgba(255, 255, 255, 0.05)',
+  '--yyt-border-strong': 'rgba(255, 255, 255, 0.16)',
   '--yyt-text': 'rgba(255, 255, 255, 0.95)',
-  '--yyt-text-secondary': 'rgba(255, 255, 255, 0.7)',
-  '--yyt-text-muted': 'rgba(255, 255, 255, 0.45)',
+  '--yyt-text-secondary': 'rgba(255, 255, 255, 0.72)',
+  '--yyt-text-muted': 'rgba(255, 255, 255, 0.5)',
+  '--yyt-focus-ring': '0 0 0 3px rgba(123, 183, 255, 0.18)',
   '--yyt-on-accent': '#0b0f15'
 };
 
@@ -65,13 +69,17 @@ const THEME_CONFIGS = {
     '--yyt-bg-gradient-1': 'rgba(59, 130, 246, 0.08)',
     '--yyt-bg-gradient-2': 'rgba(139, 92, 246, 0.06)',
     '--yyt-text': 'rgba(15, 23, 42, 0.95)',
-    '--yyt-text-secondary': 'rgba(15, 23, 42, 0.7)',
-    '--yyt-text-muted': 'rgba(15, 23, 42, 0.45)',
-    '--yyt-surface': 'rgba(0, 0, 0, 0.03)',
-    '--yyt-surface-hover': 'rgba(0, 0, 0, 0.06)',
-    '--yyt-surface-active': 'rgba(0, 0, 0, 0.08)',
-    '--yyt-border': 'rgba(0, 0, 0, 0.08)',
-    '--yyt-border-strong': 'rgba(0, 0, 0, 0.15)',
+    '--yyt-text-secondary': 'rgba(15, 23, 42, 0.72)',
+    '--yyt-text-muted': 'rgba(15, 23, 42, 0.52)',
+    '--yyt-surface': 'rgba(255, 255, 255, 0.66)',
+    '--yyt-surface-2': 'rgba(255, 255, 255, 0.86)',
+    '--yyt-surface-3': 'rgba(255, 255, 255, 0.94)',
+    '--yyt-surface-hover': 'rgba(255, 255, 255, 0.92)',
+    '--yyt-surface-active': 'rgba(255, 255, 255, 0.98)',
+    '--yyt-border': 'rgba(15, 23, 42, 0.08)',
+    '--yyt-border-soft': 'rgba(15, 23, 42, 0.05)',
+    '--yyt-border-strong': 'rgba(15, 23, 42, 0.14)',
+    '--yyt-focus-ring': '0 0 0 3px rgba(59, 130, 246, 0.14)',
     '--yyt-on-accent': '#0f172a'
   }
 };
@@ -496,24 +504,24 @@ export const SettingsPanel = {
         display: flex;
         flex-direction: column;
         height: 100%;
-        gap: 10px;
+        gap: 14px;
       }
 
       .yyt-settings-hero {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
-        padding: 12px 14px;
-        border-radius: 18px;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
       }
 
       .yyt-settings-hero-copy {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
         min-width: 0;
       }
 
@@ -526,8 +534,9 @@ export const SettingsPanel = {
 
       .yyt-settings-hero-desc {
         font-size: 12px;
-        line-height: 1.55;
+        line-height: 1.65;
         color: var(--yyt-text-secondary);
+        max-width: 62ch;
       }
 
       .yyt-settings-hero-status {
@@ -544,11 +553,11 @@ export const SettingsPanel = {
         padding: 6px 10px;
         border-radius: 999px;
         font-size: 10px;
-        font-weight: 700;
+        font-weight: 800;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        letter-spacing: 0.3px;
+        letter-spacing: 0.35px;
         color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.04);
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .yyt-settings-status-chip.is-on {
@@ -570,7 +579,13 @@ export const SettingsPanel = {
       .yyt-settings-tabs {
         display: flex;
         gap: 8px;
-        padding: 0 2px;
+        padding: 2px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        width: fit-content;
+        max-width: 100%;
+        flex-wrap: wrap;
       }
 
       .yyt-settings-tab {
@@ -579,16 +594,18 @@ export const SettingsPanel = {
         gap: 8px;
         padding: 10px 14px;
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid transparent;
+        background: transparent;
         color: var(--yyt-text-secondary);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.18s ease;
+        font-weight: 700;
       }
 
       .yyt-settings-tab:hover {
         color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.045);
+        border-color: rgba(255, 255, 255, 0.06);
       }
 
       .yyt-settings-tab.yyt-active {
@@ -616,14 +633,14 @@ export const SettingsPanel = {
 
       .yyt-settings-section {
         padding: 14px;
-        border-radius: 16px;
+        border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
       }
 
       .yyt-settings-section-title {
         font-size: 14px;
-        font-weight: 700;
+        font-weight: 800;
         color: var(--yyt-text);
         margin-bottom: 12px;
       }
@@ -632,13 +649,13 @@ export const SettingsPanel = {
         display: flex;
         justify-content: space-between;
         gap: 8px;
-        padding-top: 4px;
+        padding-top: 2px;
       }
 
       .yyt-settings-macro-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
         margin-top: 12px;
       }
 
@@ -647,21 +664,22 @@ export const SettingsPanel = {
         grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
         gap: 12px;
         align-items: start;
-        padding: 10px 12px;
-        border-radius: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.02);
+        background: rgba(255, 255, 255, 0.03);
       }
 
       .yyt-settings-macro-item code {
         color: var(--yyt-accent);
         word-break: break-word;
+        font-weight: 700;
       }
 
       .yyt-settings-macro-item span {
         color: var(--yyt-text-secondary);
         font-size: 12px;
-        line-height: 1.6;
+        line-height: 1.65;
       }
 
       .yyt-settings-runtime-grid {
@@ -677,7 +695,7 @@ export const SettingsPanel = {
         padding: 6px 10px;
         border-radius: 999px;
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 800;
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(255, 255, 255, 0.04);
         color: var(--yyt-text-secondary);
@@ -707,13 +725,13 @@ export const SettingsPanel = {
       }
 
       .yyt-settings-runtime-item {
-        padding: 10px 12px;
-        border-radius: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.02);
+        background: rgba(255, 255, 255, 0.025);
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       }
 
       .yyt-settings-runtime-meta {
@@ -727,7 +745,7 @@ export const SettingsPanel = {
       .yyt-settings-runtime-main {
         font-size: 12px;
         color: var(--yyt-text);
-        line-height: 1.6;
+        line-height: 1.65;
         word-break: break-word;
       }
     `;

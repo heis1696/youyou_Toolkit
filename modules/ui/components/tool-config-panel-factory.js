@@ -32,29 +32,29 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
   }
 
   .yyt-tool-panel-hero {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
+    gap: 14px;
     align-items: stretch;
-    padding: 12px 14px;
-    border-radius: 18px;
+    padding: 14px 16px;
+    border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
   }
 
   .yyt-tool-panel-hero-copy {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
   }
 
   .yyt-tool-panel-hero-title {
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 800;
     line-height: 1.15;
     color: var(--yyt-text);
@@ -62,8 +62,9 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-panel-hero-desc {
     font-size: 12px;
-    line-height: 1.55;
+    line-height: 1.65;
     color: var(--yyt-text-secondary);
+    max-width: 64ch;
   }
 
   .yyt-tool-panel-hero-tags {
@@ -92,17 +93,17 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     padding: 6px 10px;
     border-radius: 999px;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 800;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.35px;
     color: var(--yyt-text-secondary);
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .yyt-tool-compact-hint {
     font-size: 12px;
     color: var(--yyt-text-muted);
-    line-height: 1.6;
+    line-height: 1.65;
   }
 
   .yyt-hidden {
@@ -112,16 +113,16 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-code-textarea {
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
     tab-size: 2;
-    background: rgba(0, 0, 0, 0.2);
+    background: linear-gradient(180deg, rgba(9, 13, 18, 0.68) 0%, rgba(9, 13, 18, 0.52) 100%);
     border-color: rgba(255, 255, 255, 0.1);
     resize: vertical;
     min-height: 180px;
   }
 
   .yyt-code-textarea-small {
-    min-height: 96px;
+    min-height: 108px;
   }
 
   .yyt-select-multiple {
@@ -133,7 +134,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     flex-direction: column;
     gap: 10px;
     padding: 12px;
-    border-radius: 14px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(18, 22, 30, 0.42);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -143,6 +144,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     font-size: 12px;
     color: var(--yyt-text-secondary);
     line-height: 1.6;
+    font-weight: 700;
   }
 
   .yyt-worldbook-dropdown {
@@ -173,20 +175,20 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-worldbook-item {
     padding: 10px 12px;
-    border-radius: 12px;
+    border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .yyt-worldbook-empty {
     padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.02);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.025);
   }
 
   .yyt-code-textarea:focus {
     border-color: var(--yyt-accent);
-    box-shadow: 0 0 0 2px rgba(123, 183, 255, 0.15);
+    box-shadow: var(--yyt-focus-ring);
   }
 
   .yyt-title-actions {
@@ -214,7 +216,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-manual-area {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+    grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
     gap: 12px;
     align-items: start;
   }
@@ -223,10 +225,10 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 12px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+    padding: 14px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
+    border-radius: 16px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
@@ -241,6 +243,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-runtime-label {
     color: var(--yyt-text-muted);
     flex-shrink: 0;
+    font-weight: 700;
   }
 
   .yyt-tool-runtime-value {
@@ -250,10 +253,10 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-tool-runtime-badge {
-    padding: 3px 10px;
+    padding: 4px 10px;
     border-radius: 999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
@@ -285,12 +288,12 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-manual-actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
-    padding: 12px;
-    border-radius: 14px;
+    padding: 14px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
   }
 
   .yyt-preview-box {
