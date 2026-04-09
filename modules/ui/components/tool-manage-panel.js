@@ -459,102 +459,132 @@ export const ToolManagePanel = {
       }
 
       .yyt-tool-manage-hero {
-        gap: 14px;
+        position: relative;
+        overflow: hidden;
+        gap: 16px;
+        border-radius: 26px;
+        background:
+          radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
+          linear-gradient(145deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%);
       }
 
       .yyt-tool-manage-hero-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
+        gap: 16px;
         align-items: stretch;
       }
 
       .yyt-tool-manage-copy {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
       }
 
       .yyt-tool-manage-lead {
-        font-size: 18px;
-        font-weight: 800;
-        line-height: 1.2;
+        font-size: 24px;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -0.2px;
         color: var(--yyt-text);
       }
 
       .yyt-tool-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
         min-height: 0;
         overflow-y: auto;
         padding-right: 4px;
       }
 
       .yyt-tool-manage-hint {
-        font-size: 12px;
-        color: var(--yyt-text-secondary);
-        line-height: 1.65;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.75;
         max-width: 64ch;
       }
 
       .yyt-tool-manage-stats {
         display: grid;
-        grid-template-columns: repeat(2, minmax(120px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+        gap: 12px;
       }
 
       .yyt-tool-manage-stat {
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: 8px;
-        padding: 12px 14px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        min-width: 120px;
+        gap: 10px;
+        padding: 16px;
+        border-radius: 20px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%),
+          rgba(5, 10, 18, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        min-width: 150px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
       }
 
       .yyt-tool-manage-stat-label {
         font-size: 10px;
-        color: var(--yyt-text-muted);
+        color: rgba(255, 255, 255, 0.58);
         text-transform: uppercase;
-        letter-spacing: 0.42px;
+        letter-spacing: 0.48px;
       }
 
       .yyt-tool-manage-stat-value {
-        font-size: 20px;
-        font-weight: 800;
+        font-size: 28px;
+        font-weight: 900;
         color: var(--yyt-text);
         line-height: 1;
       }
 
       .yyt-tool-item {
-        padding: 14px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 18px;
-        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        position: relative;
+        overflow: hidden;
+        padding: 18px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+          rgba(255, 255, 255, 0.01);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 22px;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 32px rgba(0, 0, 0, 0.12);
+      }
+
+      .yyt-tool-item::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, rgba(255, 255, 255, 0.05) 0%, transparent 40%, transparent 70%, rgba(255, 255, 255, 0.02) 100%);
+        pointer-events: none;
       }
 
       .yyt-tool-item:hover {
-        border-color: rgba(255, 255, 255, 0.16);
-        transform: translateY(-1px);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.12);
+        border-color: rgba(123, 183, 255, 0.2);
+        transform: translateY(-2px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(123, 183, 255, 0.06);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%),
+          rgba(255, 255, 255, 0.012);
       }
 
       .yyt-tool-item.yyt-disabled {
-        opacity: 0.62;
+        opacity: 0.6;
+        filter: saturate(0.8);
+      }
+
+      .yyt-tool-item.yyt-enabled {
+        border-color: rgba(74, 222, 128, 0.16);
       }
 
       .yyt-tool-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 10px;
-        gap: 12px;
+        margin-bottom: 12px;
+        gap: 14px;
       }
 
       .yyt-tool-info {
@@ -566,27 +596,28 @@ export const ToolManagePanel = {
       }
 
       .yyt-tool-name {
-        font-weight: 800;
-        font-size: 15px;
+        font-weight: 900;
+        font-size: 17px;
         color: var(--yyt-text);
       }
 
       .yyt-tool-category {
         font-size: 10px;
-        padding: 4px 9px;
-        background: rgba(123, 183, 255, 0.1);
+        padding: 5px 10px;
+        background: rgba(123, 183, 255, 0.14);
         border-radius: 999px;
-        color: var(--yyt-accent);
-        border: 1px solid rgba(123, 183, 255, 0.14);
+        color: var(--yyt-accent-strong);
+        border: 1px solid rgba(123, 183, 255, 0.2);
         text-transform: uppercase;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.45px;
+        font-weight: 800;
       }
 
       .yyt-tool-desc {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        margin-bottom: 14px;
-        line-height: 1.7;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.74);
+        margin-bottom: 16px;
+        line-height: 1.75;
       }
 
       .yyt-tool-actions {
@@ -596,7 +627,7 @@ export const ToolManagePanel = {
       }
 
       .yyt-tool-actions .yyt-btn-secondary {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.07);
       }
 
       .yyt-tool-actions .yyt-btn-danger {

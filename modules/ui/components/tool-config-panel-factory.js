@@ -36,41 +36,47 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-tool-panel-hero {
+    position: relative;
+    overflow: hidden;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 14px;
+    gap: 16px;
     align-items: stretch;
-    padding: 14px 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
+    padding: 18px 20px;
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.18), transparent 62%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16);
   }
 
   .yyt-tool-panel-hero-copy {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
   }
 
   .yyt-tool-panel-hero-title {
-    font-size: 19px;
-    font-weight: 800;
-    line-height: 1.15;
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.08;
+    letter-spacing: -0.2px;
     color: var(--yyt-text);
   }
 
   .yyt-tool-panel-hero-desc {
-    font-size: 12px;
-    line-height: 1.65;
-    color: var(--yyt-text-secondary);
+    font-size: 13px;
+    line-height: 1.75;
+    color: rgba(255, 255, 255, 0.8);
     max-width: 64ch;
   }
 
   .yyt-tool-panel-hero-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     align-items: flex-start;
     justify-content: flex-end;
   }
@@ -90,20 +96,21 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 10px;
+    padding: 8px 12px;
     border-radius: 999px;
     font-size: 10px;
     font-weight: 800;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    letter-spacing: 0.35px;
-    color: var(--yyt-text-secondary);
-    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    letter-spacing: 0.38px;
+    color: var(--yyt-text);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
   .yyt-tool-compact-hint {
     font-size: 12px;
-    color: var(--yyt-text-muted);
-    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.74);
+    line-height: 1.7;
   }
 
   .yyt-hidden {
@@ -113,12 +120,15 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-code-textarea {
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.7;
     tab-size: 2;
-    background: linear-gradient(180deg, rgba(9, 13, 18, 0.68) 0%, rgba(9, 13, 18, 0.52) 100%);
-    border-color: rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(7, 11, 18, 0.9) 0%, rgba(9, 13, 18, 0.72) 100%),
+      rgba(3, 7, 12, 0.3);
+    border-color: rgba(255, 255, 255, 0.12);
     resize: vertical;
     min-height: 180px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 22px rgba(0, 0, 0, 0.18);
   }
 
   .yyt-code-textarea-small {
@@ -132,19 +142,21 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-worldbook-select {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(18, 22, 30, 0.42);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    gap: 12px;
+    padding: 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(12, 16, 24, 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.14);
   }
 
   .yyt-worldbook-summary {
-    font-size: 12px;
-    color: var(--yyt-text-secondary);
-    line-height: 1.6;
-    font-weight: 700;
+    font-size: 13px;
+    color: var(--yyt-text);
+    line-height: 1.7;
+    font-weight: 800;
   }
 
   .yyt-worldbook-dropdown {
@@ -167,28 +179,35 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-worldbook-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     max-height: 260px;
     overflow: auto;
     padding-right: 2px;
   }
 
   .yyt-worldbook-item {
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.04);
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  }
+
+  .yyt-worldbook-item:hover {
+    border-color: rgba(123, 183, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
   }
 
   .yyt-worldbook-empty {
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.025);
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.035);
   }
 
   .yyt-code-textarea:focus {
     border-color: var(--yyt-accent);
-    box-shadow: var(--yyt-focus-ring);
+    box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .yyt-title-actions {
@@ -216,20 +235,22 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-manual-area {
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
-    gap: 12px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(240px, 0.75fr);
+    gap: 14px;
     align-items: start;
   }
 
   .yyt-tool-runtime-card {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    gap: 12px;
+    padding: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 30px rgba(0, 0, 0, 0.12);
   }
 
   .yyt-tool-runtime-line {
@@ -238,12 +259,20 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     align-items: flex-start;
     gap: 12px;
     font-size: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .yyt-tool-runtime-line:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
   }
 
   .yyt-tool-runtime-label {
-    color: var(--yyt-text-muted);
+    color: rgba(255, 255, 255, 0.56);
     flex-shrink: 0;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: 0.2px;
   }
 
   .yyt-tool-runtime-value {
@@ -253,32 +282,32 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-tool-runtime-badge {
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 999px;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.45px;
   }
 
   .yyt-status-idle {
-    color: var(--yyt-text-secondary);
-    background: rgba(255, 255, 255, 0.06);
+    color: var(--yyt-text);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .yyt-status-running {
-    color: var(--yyt-accent);
-    background: rgba(123, 183, 255, 0.12);
+    color: var(--yyt-accent-strong);
+    background: rgba(123, 183, 255, 0.18);
   }
 
   .yyt-status-success {
     color: var(--yyt-success);
-    background: rgba(74, 222, 128, 0.12);
+    background: rgba(74, 222, 128, 0.18);
   }
 
   .yyt-status-error {
     color: var(--yyt-error);
-    background: rgba(255, 107, 107, 0.12);
+    background: rgba(255, 107, 107, 0.18);
   }
 
   .yyt-tool-runtime-error .yyt-tool-runtime-value {
@@ -288,12 +317,15 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-manual-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     min-width: 0;
-    padding: 14px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(255, 255, 255, 0.01);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 30px rgba(0, 0, 0, 0.12);
   }
 
   .yyt-preview-box {

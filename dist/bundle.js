@@ -1629,102 +1629,132 @@ ${t.content}`).join(`
       }
 
       .yyt-tool-manage-hero {
-        gap: 14px;
+        position: relative;
+        overflow: hidden;
+        gap: 16px;
+        border-radius: 26px;
+        background:
+          radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
+          linear-gradient(145deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%);
       }
 
       .yyt-tool-manage-hero-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
+        gap: 16px;
         align-items: stretch;
       }
 
       .yyt-tool-manage-copy {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
       }
 
       .yyt-tool-manage-lead {
-        font-size: 18px;
-        font-weight: 800;
-        line-height: 1.2;
+        font-size: 24px;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -0.2px;
         color: var(--yyt-text);
       }
 
       .yyt-tool-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
         min-height: 0;
         overflow-y: auto;
         padding-right: 4px;
       }
 
       .yyt-tool-manage-hint {
-        font-size: 12px;
-        color: var(--yyt-text-secondary);
-        line-height: 1.65;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.75;
         max-width: 64ch;
       }
 
       .yyt-tool-manage-stats {
         display: grid;
-        grid-template-columns: repeat(2, minmax(120px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+        gap: 12px;
       }
 
       .yyt-tool-manage-stat {
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: 8px;
-        padding: 12px 14px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        min-width: 120px;
+        gap: 10px;
+        padding: 16px;
+        border-radius: 20px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%),
+          rgba(5, 10, 18, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        min-width: 150px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
       }
 
       .yyt-tool-manage-stat-label {
         font-size: 10px;
-        color: var(--yyt-text-muted);
+        color: rgba(255, 255, 255, 0.58);
         text-transform: uppercase;
-        letter-spacing: 0.42px;
+        letter-spacing: 0.48px;
       }
 
       .yyt-tool-manage-stat-value {
-        font-size: 20px;
-        font-weight: 800;
+        font-size: 28px;
+        font-weight: 900;
         color: var(--yyt-text);
         line-height: 1;
       }
 
       .yyt-tool-item {
-        padding: 14px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 18px;
-        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        position: relative;
+        overflow: hidden;
+        padding: 18px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+          rgba(255, 255, 255, 0.01);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 22px;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 32px rgba(0, 0, 0, 0.12);
+      }
+
+      .yyt-tool-item::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, rgba(255, 255, 255, 0.05) 0%, transparent 40%, transparent 70%, rgba(255, 255, 255, 0.02) 100%);
+        pointer-events: none;
       }
 
       .yyt-tool-item:hover {
-        border-color: rgba(255, 255, 255, 0.16);
-        transform: translateY(-1px);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.12);
+        border-color: rgba(123, 183, 255, 0.2);
+        transform: translateY(-2px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(123, 183, 255, 0.06);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%),
+          rgba(255, 255, 255, 0.012);
       }
 
       .yyt-tool-item.yyt-disabled {
-        opacity: 0.62;
+        opacity: 0.6;
+        filter: saturate(0.8);
+      }
+
+      .yyt-tool-item.yyt-enabled {
+        border-color: rgba(74, 222, 128, 0.16);
       }
 
       .yyt-tool-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 10px;
-        gap: 12px;
+        margin-bottom: 12px;
+        gap: 14px;
       }
 
       .yyt-tool-info {
@@ -1736,27 +1766,28 @@ ${t.content}`).join(`
       }
 
       .yyt-tool-name {
-        font-weight: 800;
-        font-size: 15px;
+        font-weight: 900;
+        font-size: 17px;
         color: var(--yyt-text);
       }
 
       .yyt-tool-category {
         font-size: 10px;
-        padding: 4px 9px;
-        background: rgba(123, 183, 255, 0.1);
+        padding: 5px 10px;
+        background: rgba(123, 183, 255, 0.14);
         border-radius: 999px;
-        color: var(--yyt-accent);
-        border: 1px solid rgba(123, 183, 255, 0.14);
+        color: var(--yyt-accent-strong);
+        border: 1px solid rgba(123, 183, 255, 0.2);
         text-transform: uppercase;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.45px;
+        font-weight: 800;
       }
 
       .yyt-tool-desc {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        margin-bottom: 14px;
-        line-height: 1.7;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.74);
+        margin-bottom: 16px;
+        line-height: 1.75;
       }
 
       .yyt-tool-actions {
@@ -1766,7 +1797,7 @@ ${t.content}`).join(`
       }
 
       .yyt-tool-actions .yyt-btn-secondary {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.07);
       }
 
       .yyt-tool-actions .yyt-btn-danger {
@@ -2107,41 +2138,47 @@ ${a}`}).filter(Boolean).join(`
   }
 
   .yyt-tool-panel-hero {
+    position: relative;
+    overflow: hidden;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 14px;
+    gap: 16px;
     align-items: stretch;
-    padding: 14px 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
+    padding: 18px 20px;
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.18), transparent 62%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16);
   }
 
   .yyt-tool-panel-hero-copy {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
   }
 
   .yyt-tool-panel-hero-title {
-    font-size: 19px;
-    font-weight: 800;
-    line-height: 1.15;
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.08;
+    letter-spacing: -0.2px;
     color: var(--yyt-text);
   }
 
   .yyt-tool-panel-hero-desc {
-    font-size: 12px;
-    line-height: 1.65;
-    color: var(--yyt-text-secondary);
+    font-size: 13px;
+    line-height: 1.75;
+    color: rgba(255, 255, 255, 0.8);
     max-width: 64ch;
   }
 
   .yyt-tool-panel-hero-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     align-items: flex-start;
     justify-content: flex-end;
   }
@@ -2161,20 +2198,21 @@ ${a}`}).filter(Boolean).join(`
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 10px;
+    padding: 8px 12px;
     border-radius: 999px;
     font-size: 10px;
     font-weight: 800;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    letter-spacing: 0.35px;
-    color: var(--yyt-text-secondary);
-    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    letter-spacing: 0.38px;
+    color: var(--yyt-text);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
   .yyt-tool-compact-hint {
     font-size: 12px;
-    color: var(--yyt-text-muted);
-    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.74);
+    line-height: 1.7;
   }
 
   .yyt-hidden {
@@ -2184,12 +2222,15 @@ ${a}`}).filter(Boolean).join(`
   .yyt-code-textarea {
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.7;
     tab-size: 2;
-    background: linear-gradient(180deg, rgba(9, 13, 18, 0.68) 0%, rgba(9, 13, 18, 0.52) 100%);
-    border-color: rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(7, 11, 18, 0.9) 0%, rgba(9, 13, 18, 0.72) 100%),
+      rgba(3, 7, 12, 0.3);
+    border-color: rgba(255, 255, 255, 0.12);
     resize: vertical;
     min-height: 180px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 22px rgba(0, 0, 0, 0.18);
   }
 
   .yyt-code-textarea-small {
@@ -2203,19 +2244,21 @@ ${a}`}).filter(Boolean).join(`
   .yyt-worldbook-select {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(18, 22, 30, 0.42);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    gap: 12px;
+    padding: 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(12, 16, 24, 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.14);
   }
 
   .yyt-worldbook-summary {
-    font-size: 12px;
-    color: var(--yyt-text-secondary);
-    line-height: 1.6;
-    font-weight: 700;
+    font-size: 13px;
+    color: var(--yyt-text);
+    line-height: 1.7;
+    font-weight: 800;
   }
 
   .yyt-worldbook-dropdown {
@@ -2238,28 +2281,35 @@ ${a}`}).filter(Boolean).join(`
   .yyt-worldbook-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     max-height: 260px;
     overflow: auto;
     padding-right: 2px;
   }
 
   .yyt-worldbook-item {
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.04);
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  }
+
+  .yyt-worldbook-item:hover {
+    border-color: rgba(123, 183, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
   }
 
   .yyt-worldbook-empty {
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.025);
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.035);
   }
 
   .yyt-code-textarea:focus {
     border-color: var(--yyt-accent);
-    box-shadow: var(--yyt-focus-ring);
+    box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .yyt-title-actions {
@@ -2287,20 +2337,22 @@ ${a}`}).filter(Boolean).join(`
 
   .yyt-tool-manual-area {
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
-    gap: 12px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(240px, 0.75fr);
+    gap: 14px;
     align-items: start;
   }
 
   .yyt-tool-runtime-card {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    gap: 12px;
+    padding: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 30px rgba(0, 0, 0, 0.12);
   }
 
   .yyt-tool-runtime-line {
@@ -2309,12 +2361,20 @@ ${a}`}).filter(Boolean).join(`
     align-items: flex-start;
     gap: 12px;
     font-size: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .yyt-tool-runtime-line:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
   }
 
   .yyt-tool-runtime-label {
-    color: var(--yyt-text-muted);
+    color: rgba(255, 255, 255, 0.56);
     flex-shrink: 0;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: 0.2px;
   }
 
   .yyt-tool-runtime-value {
@@ -2324,32 +2384,32 @@ ${a}`}).filter(Boolean).join(`
   }
 
   .yyt-tool-runtime-badge {
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 999px;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.45px;
   }
 
   .yyt-status-idle {
-    color: var(--yyt-text-secondary);
-    background: rgba(255, 255, 255, 0.06);
+    color: var(--yyt-text);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .yyt-status-running {
-    color: var(--yyt-accent);
-    background: rgba(123, 183, 255, 0.12);
+    color: var(--yyt-accent-strong);
+    background: rgba(123, 183, 255, 0.18);
   }
 
   .yyt-status-success {
     color: var(--yyt-success);
-    background: rgba(74, 222, 128, 0.12);
+    background: rgba(74, 222, 128, 0.18);
   }
 
   .yyt-status-error {
     color: var(--yyt-error);
-    background: rgba(255, 107, 107, 0.12);
+    background: rgba(255, 107, 107, 0.18);
   }
 
   .yyt-tool-runtime-error .yyt-tool-runtime-value {
@@ -2359,12 +2419,15 @@ ${a}`}).filter(Boolean).join(`
   .yyt-tool-manual-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     min-width: 0;
-    padding: 14px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(255, 255, 255, 0.01);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 30px rgba(0, 0, 0, 0.12);
   }
 
   .yyt-preview-box {
@@ -3463,41 +3526,47 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
       }
 
       .yyt-settings-hero {
+        position: relative;
+        overflow: hidden;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 14px;
-        padding: 14px 16px;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
+        gap: 16px;
+        padding: 18px 20px;
+        border-radius: 26px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+          radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
+          linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16);
       }
 
       .yyt-settings-hero-copy {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
         min-width: 0;
       }
 
       .yyt-settings-hero-title {
-        font-size: 18px;
-        font-weight: 800;
-        line-height: 1.15;
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: -0.3px;
         color: var(--yyt-text);
       }
 
       .yyt-settings-hero-desc {
-        font-size: 12px;
-        line-height: 1.65;
-        color: var(--yyt-text-secondary);
+        font-size: 13px;
+        line-height: 1.75;
+        color: rgba(255, 255, 255, 0.8);
         max-width: 62ch;
       }
 
       .yyt-settings-hero-status {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
         justify-content: flex-end;
       }
 
@@ -3505,69 +3574,71 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 6px 10px;
+        padding: 8px 12px;
         border-radius: 999px;
         font-size: 10px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        letter-spacing: 0.35px;
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        letter-spacing: 0.4px;
+        color: var(--yyt-text);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
       }
 
       .yyt-settings-status-chip.is-on {
         color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.35);
-        background: rgba(74, 222, 128, 0.08);
+        border-color: rgba(74, 222, 128, 0.32);
+        background: rgba(74, 222, 128, 0.12);
       }
 
       .yyt-settings-status-chip.is-off {
         color: #f87171;
-        border-color: rgba(248, 113, 113, 0.35);
-        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.32);
+        background: rgba(248, 113, 113, 0.12);
       }
 
       .yyt-settings-status-chip.is-neutral {
-        color: var(--yyt-text-secondary);
+        color: var(--yyt-text);
       }
 
       .yyt-settings-tabs {
         display: flex;
         gap: 8px;
-        padding: 2px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.025);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 6px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.07);
         width: fit-content;
         max-width: 100%;
         flex-wrap: wrap;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
       }
 
       .yyt-settings-tab {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 10px 14px;
-        border-radius: 12px;
+        padding: 12px 16px;
+        border-radius: 14px;
         border: 1px solid transparent;
         background: transparent;
         color: var(--yyt-text-secondary);
         cursor: pointer;
         transition: all 0.18s ease;
-        font-weight: 700;
+        font-weight: 800;
       }
 
       .yyt-settings-tab:hover {
         color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.045);
-        border-color: rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.055);
+        border-color: rgba(255, 255, 255, 0.08);
       }
 
       .yyt-settings-tab.yyt-active {
         color: var(--yyt-on-accent);
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         border-color: transparent;
-        box-shadow: 0 10px 24px var(--yyt-accent-glow);
+        box-shadow: 0 12px 28px var(--yyt-accent-glow);
       }
 
       .yyt-settings-content {
@@ -3579,7 +3650,7 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
       .yyt-settings-tab-content {
         display: none;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
       }
 
       .yyt-settings-tab-content.yyt-active {
@@ -3587,17 +3658,22 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
       }
 
       .yyt-settings-section {
-        padding: 14px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+        position: relative;
+        overflow: hidden;
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+          rgba(255, 255, 255, 0.01);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 32px rgba(0, 0, 0, 0.12);
       }
 
       .yyt-settings-section-title {
-        font-size: 14px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 900;
         color: var(--yyt-text);
-        margin-bottom: 12px;
+        margin-bottom: 14px;
       }
 
       .yyt-settings-footer {
@@ -3610,80 +3686,80 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
       .yyt-settings-macro-list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         margin-top: 12px;
       }
 
       .yyt-settings-macro-item {
         display: grid;
         grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-        gap: 12px;
+        gap: 14px;
         align-items: start;
-        padding: 12px 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .yyt-settings-macro-item code {
-        color: var(--yyt-accent);
+        color: var(--yyt-accent-strong);
         word-break: break-word;
-        font-weight: 700;
+        font-weight: 800;
       }
 
       .yyt-settings-macro-item span {
-        color: var(--yyt-text-secondary);
+        color: rgba(255, 255, 255, 0.8);
         font-size: 12px;
-        line-height: 1.65;
+        line-height: 1.7;
       }
 
       .yyt-settings-runtime-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 10px;
+        margin-bottom: 14px;
       }
 
       .yyt-settings-runtime-chip {
         display: inline-flex;
         align-items: center;
-        padding: 6px 10px;
+        padding: 8px 12px;
         border-radius: 999px;
         font-size: 11px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.04);
-        color: var(--yyt-text-secondary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--yyt-text);
       }
 
       .yyt-settings-runtime-chip.is-on {
         color: #4ade80;
         border-color: rgba(74, 222, 128, 0.35);
-        background: rgba(74, 222, 128, 0.08);
+        background: rgba(74, 222, 128, 0.12);
       }
 
       .yyt-settings-runtime-chip.is-off {
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.35);
-        background: rgba(248, 113, 113, 0.08);
+        background: rgba(248, 113, 113, 0.12);
       }
 
       .yyt-settings-runtime-chip.is-neutral {
-        color: var(--yyt-text-secondary);
+        color: var(--yyt-text);
       }
 
       .yyt-settings-runtime-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-top: 12px;
+        gap: 10px;
+        margin-top: 14px;
       }
 
       .yyt-settings-runtime-item {
-        padding: 12px 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.025);
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -3694,13 +3770,13 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
         gap: 10px;
         flex-wrap: wrap;
         font-size: 11px;
-        color: var(--yyt-text-secondary);
+        color: rgba(255, 255, 255, 0.72);
       }
 
       .yyt-settings-runtime-main {
         font-size: 12px;
         color: var(--yyt-text);
-        line-height: 1.65;
+        line-height: 1.7;
         word-break: break-word;
       }
     `},renderTo(s){s.html(this.render({})),this.bindEvents(s,{})}},uc=at});var ki={};ne(ki,{ApiPresetPanel:()=>Ne,BypassPanel:()=>Ct,EscapeTransformToolPanel:()=>Fe,PunctuationTransformToolPanel:()=>He,RegexExtractPanel:()=>Be,SCRIPT_ID:()=>u,SettingsPanel:()=>at,StatusBlockPanel:()=>je,SummaryToolPanel:()=>ze,ToolManagePanel:()=>Ue,UIManager:()=>Xt,YouyouReviewPanel:()=>We,bindDialogEvents:()=>Jt,createDialogHtml:()=>Vt,default:()=>yc,downloadJson:()=>st,escapeHtml:()=>x,fillFormWithConfig:()=>bt,getAllStyles:()=>Mi,getFormApiConfig:()=>pt,getJQuery:()=>W,initUI:()=>ms,isContainerValid:()=>H,readFileContent:()=>ot,registerComponents:()=>Yt,renderApiPanel:()=>wo,renderBypassPanel:()=>Ei,renderEscapeTransformToolPanel:()=>Ti,renderPunctuationTransformToolPanel:()=>_i,renderRegexPanel:()=>So,renderSettingsPanel:()=>Ai,renderStatusBlockPanel:()=>wi,renderSummaryToolPanel:()=>vi,renderToolPanel:()=>To,renderYouyouReviewPanel:()=>Si,resetJQueryCache:()=>pa,showToast:()=>b,showTopNotice:()=>De,uiManager:()=>Q});function Yt(){Q.register(Ne.id,Ne),Q.register(Be.id,Be),Q.register(Ue.id,Ue),Q.register(ze.id,ze),Q.register(je.id,je),Q.register(We.id,We),Q.register(Fe.id,Fe),Q.register(He.id,He),Q.register(Ct.id,Ct),Q.register(at.id,at),console.log("[UI] \u7EC4\u4EF6\u6CE8\u518C\u5B8C\u6210")}function ms(s={}){let{autoInjectStyles:e=!0,targetDocument:t,...o}=s;Q.init(o),Yt(),e&&Q.injectStyles(t),console.log("[UI] \u6A21\u5757\u521D\u59CB\u5316\u5B8C\u6210")}function Ze(s,e,t={}){Q.render(s,e,t)}function wo(s){Ze(Ne.id,s)}function So(s){Ze(Be.id,s)}function To(s){Ze(Ue.id,s)}function vi(s){Ze(ze.id,s)}function wi(s){Ze(je.id,s)}function Si(s){Ze(We.id,s)}function Ti(s){Ze(Fe.id,s)}function _i(s){Ze(He.id,s)}function Ei(s){Ze(Ct.id,s)}function Ai(s){Ze(at.id,s)}function Mi(){return Q.getAllStyles()}var yc,Rr=L(()=>{Do();Vo();sr();cr();_r();Er();Ar();kr();Pr();Cr();vo();Le();Do();Vo();sr();cr();_r();Er();Ar();kr();Pr();Cr();vo();yc={uiManager:Q,ApiPresetPanel:Ne,RegexExtractPanel:Be,ToolManagePanel:Ue,SummaryToolPanel:ze,StatusBlockPanel:je,YouyouReviewPanel:We,EscapeTransformToolPanel:Fe,PunctuationTransformToolPanel:He,BypassPanel:Ct,SettingsPanel:at,registerComponents:Yt,initUI:ms,renderApiPanel:wo,renderRegexPanel:So,renderToolPanel:To,renderSummaryToolPanel:vi,renderStatusBlockPanel:wi,renderYouyouReviewPanel:Si,renderEscapeTransformToolPanel:Ti,renderPunctuationTransformToolPanel:_i,renderBypassPanel:Ei,renderSettingsPanel:Ai,getAllStyles:Mi}});var Ni={};ne(Ni,{ApiPresetPanel:()=>Ne,EscapeTransformToolPanel:()=>Fe,PunctuationTransformToolPanel:()=>He,RegexExtractPanel:()=>Be,SCRIPT_ID:()=>u,StatusBlockPanel:()=>je,SummaryToolPanel:()=>ze,ToolManagePanel:()=>Ue,YouyouReviewPanel:()=>We,default:()=>gc,escapeHtml:()=>x,fillFormWithConfig:()=>bt,getCurrentTab:()=>Di,getFormApiConfig:()=>pt,getJQuery:()=>W,getRegexStyles:()=>$i,getStyles:()=>Ri,getToolStyles:()=>Oi,initUI:()=>ms,isContainerValid:()=>H,registerComponents:()=>Yt,render:()=>Pi,renderRegex:()=>Ci,renderTool:()=>Ii,setCurrentTab:()=>Li,showToast:()=>b,uiManager:()=>Q});function $r(s,e){let t=W();return t?s?typeof s=="string"?t(s):s?.jquery?s:t(s):e:(console.error("[YouYouToolkit] jQuery not available"),null)}function Pi(s){if(hs=$r(s,hs),!hs||!hs.length){console.error("[YouYouToolkit] Container not found or invalid");return}wo(hs)}function Ci(s){if(bs=$r(s,bs),!bs||!bs.length){console.error("[YouYouToolkit] Regex container not found");return}So(bs)}function Ii(s){if(xs=$r(s,xs),!xs||!xs.length){console.error("[YouYouToolkit] Tool container not found");return}To(xs)}function Ri(){return Ne.getStyles()}function $i(){return Be.getStyles()}function Oi(){return[Ue.getStyles(),ze.getStyles(),je.getStyles(),We.getStyles(),Fe.getStyles(),He.getStyles()].join(`

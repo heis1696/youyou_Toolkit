@@ -508,41 +508,47 @@ export const SettingsPanel = {
       }
 
       .yyt-settings-hero {
+        position: relative;
+        overflow: hidden;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 14px;
-        padding: 14px 16px;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
+        gap: 16px;
+        padding: 18px 20px;
+        border-radius: 26px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+          radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
+          linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16);
       }
 
       .yyt-settings-hero-copy {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
         min-width: 0;
       }
 
       .yyt-settings-hero-title {
-        font-size: 18px;
-        font-weight: 800;
-        line-height: 1.15;
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: -0.3px;
         color: var(--yyt-text);
       }
 
       .yyt-settings-hero-desc {
-        font-size: 12px;
-        line-height: 1.65;
-        color: var(--yyt-text-secondary);
+        font-size: 13px;
+        line-height: 1.75;
+        color: rgba(255, 255, 255, 0.8);
         max-width: 62ch;
       }
 
       .yyt-settings-hero-status {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
         justify-content: flex-end;
       }
 
@@ -550,69 +556,71 @@ export const SettingsPanel = {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 6px 10px;
+        padding: 8px 12px;
         border-radius: 999px;
         font-size: 10px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        letter-spacing: 0.35px;
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        letter-spacing: 0.4px;
+        color: var(--yyt-text);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
       }
 
       .yyt-settings-status-chip.is-on {
         color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.35);
-        background: rgba(74, 222, 128, 0.08);
+        border-color: rgba(74, 222, 128, 0.32);
+        background: rgba(74, 222, 128, 0.12);
       }
 
       .yyt-settings-status-chip.is-off {
         color: #f87171;
-        border-color: rgba(248, 113, 113, 0.35);
-        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.32);
+        background: rgba(248, 113, 113, 0.12);
       }
 
       .yyt-settings-status-chip.is-neutral {
-        color: var(--yyt-text-secondary);
+        color: var(--yyt-text);
       }
 
       .yyt-settings-tabs {
         display: flex;
         gap: 8px;
-        padding: 2px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.025);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 6px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.07);
         width: fit-content;
         max-width: 100%;
         flex-wrap: wrap;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
       }
 
       .yyt-settings-tab {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 10px 14px;
-        border-radius: 12px;
+        padding: 12px 16px;
+        border-radius: 14px;
         border: 1px solid transparent;
         background: transparent;
         color: var(--yyt-text-secondary);
         cursor: pointer;
         transition: all 0.18s ease;
-        font-weight: 700;
+        font-weight: 800;
       }
 
       .yyt-settings-tab:hover {
         color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.045);
-        border-color: rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.055);
+        border-color: rgba(255, 255, 255, 0.08);
       }
 
       .yyt-settings-tab.yyt-active {
         color: var(--yyt-on-accent);
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         border-color: transparent;
-        box-shadow: 0 10px 24px var(--yyt-accent-glow);
+        box-shadow: 0 12px 28px var(--yyt-accent-glow);
       }
 
       .yyt-settings-content {
@@ -624,7 +632,7 @@ export const SettingsPanel = {
       .yyt-settings-tab-content {
         display: none;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
       }
 
       .yyt-settings-tab-content.yyt-active {
@@ -632,17 +640,22 @@ export const SettingsPanel = {
       }
 
       .yyt-settings-section {
-        padding: 14px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+        position: relative;
+        overflow: hidden;
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+          rgba(255, 255, 255, 0.01);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 32px rgba(0, 0, 0, 0.12);
       }
 
       .yyt-settings-section-title {
-        font-size: 14px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 900;
         color: var(--yyt-text);
-        margin-bottom: 12px;
+        margin-bottom: 14px;
       }
 
       .yyt-settings-footer {
@@ -655,80 +668,80 @@ export const SettingsPanel = {
       .yyt-settings-macro-list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         margin-top: 12px;
       }
 
       .yyt-settings-macro-item {
         display: grid;
         grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-        gap: 12px;
+        gap: 14px;
         align-items: start;
-        padding: 12px 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .yyt-settings-macro-item code {
-        color: var(--yyt-accent);
+        color: var(--yyt-accent-strong);
         word-break: break-word;
-        font-weight: 700;
+        font-weight: 800;
       }
 
       .yyt-settings-macro-item span {
-        color: var(--yyt-text-secondary);
+        color: rgba(255, 255, 255, 0.8);
         font-size: 12px;
-        line-height: 1.65;
+        line-height: 1.7;
       }
 
       .yyt-settings-runtime-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 10px;
+        margin-bottom: 14px;
       }
 
       .yyt-settings-runtime-chip {
         display: inline-flex;
         align-items: center;
-        padding: 6px 10px;
+        padding: 8px 12px;
         border-radius: 999px;
         font-size: 11px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.04);
-        color: var(--yyt-text-secondary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--yyt-text);
       }
 
       .yyt-settings-runtime-chip.is-on {
         color: #4ade80;
         border-color: rgba(74, 222, 128, 0.35);
-        background: rgba(74, 222, 128, 0.08);
+        background: rgba(74, 222, 128, 0.12);
       }
 
       .yyt-settings-runtime-chip.is-off {
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.35);
-        background: rgba(248, 113, 113, 0.08);
+        background: rgba(248, 113, 113, 0.12);
       }
 
       .yyt-settings-runtime-chip.is-neutral {
-        color: var(--yyt-text-secondary);
+        color: var(--yyt-text);
       }
 
       .yyt-settings-runtime-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-top: 12px;
+        gap: 10px;
+        margin-top: 14px;
       }
 
       .yyt-settings-runtime-item {
-        padding: 12px 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.025);
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -739,13 +752,13 @@ export const SettingsPanel = {
         gap: 10px;
         flex-wrap: wrap;
         font-size: 11px;
-        color: var(--yyt-text-secondary);
+        color: rgba(255, 255, 255, 0.72);
       }
 
       .yyt-settings-runtime-main {
         font-size: 12px;
         color: var(--yyt-text);
-        line-height: 1.65;
+        line-height: 1.7;
         word-break: break-word;
       }
     `;

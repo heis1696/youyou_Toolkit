@@ -1211,120 +1211,145 @@
 }
 
 .yyt-shell-topbar {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-  gap: var(--yyt-shell-topbar-gap);
-  padding: 18px;
-  border-radius: var(--yyt-radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 360px);
+  gap: 18px;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(600px 240px at 0% 0%, rgba(123, 183, 255, 0.14), transparent 65%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    radial-gradient(720px 320px at 0% 0%, rgba(123, 183, 255, 0.2), transparent 62%),
+    radial-gradient(460px 220px at 100% 0%, rgba(155, 123, 255, 0.16), transparent 60%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0.01) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 48px rgba(3, 8, 16, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.yyt-shell-topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.08) 0%, transparent 35%, transparent 65%, rgba(255, 255, 255, 0.04) 100%);
+  pointer-events: none;
+  opacity: 0.9;
 }
 
 .yyt-shell-topbar-main {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
 }
 
 .yyt-shell-topbar-side {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .yyt-shell-kicker {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  padding: 5px 10px;
+  padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(123, 183, 255, 0.12);
-  border: 1px solid rgba(123, 183, 255, 0.18);
-  color: var(--yyt-accent);
+  background: rgba(123, 183, 255, 0.16);
+  border: 1px solid rgba(123, 183, 255, 0.28);
+  color: var(--yyt-accent-strong);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.42px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
+  box-shadow: 0 0 0 1px rgba(123, 183, 255, 0.08), 0 10px 24px rgba(123, 183, 255, 0.12);
 }
 
 .yyt-shell-heading-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .yyt-shell-heading {
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: 0.2px;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -0.4px;
   color: var(--yyt-text);
+  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
 }
 
 .yyt-shell-heading-badge {
   display: inline-flex;
   align-items: center;
-  padding: 5px 10px;
+  padding: 7px 12px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 700;
-  color: var(--yyt-text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 800;
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .yyt-shell-overview-text {
-  font-size: 12px;
-  line-height: 1.65;
-  color: var(--yyt-text-secondary);
-  max-width: 72ch;
+  font-size: 13px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 68ch;
 }
 
 .yyt-shell-current-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.04) 100%),
+    rgba(10, 14, 22, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 36px rgba(6, 10, 18, 0.22);
 }
 
 .yyt-shell-current-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.42px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--yyt-text-muted);
+  color: rgba(255, 255, 255, 0.56);
 }
 
 .yyt-shell-current-page {
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.35;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.25;
   color: var(--yyt-text);
   word-break: break-word;
 }
 
 .yyt-shell-current-desc {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--yyt-text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.76);
 }
 
 .yyt-shell-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(78px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(84px, 1fr));
+  gap: 10px;
   align-self: stretch;
 }
 
@@ -1332,24 +1357,27 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 6px;
-  min-width: 78px;
-  padding: 12px 12px 11px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 8px;
+  min-width: 84px;
+  padding: 16px 14px 14px;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%),
+    rgba(7, 12, 20, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .yyt-shell-stat-label {
   font-size: 10px;
-  color: var(--yyt-text-muted);
-  letter-spacing: 0.44px;
+  color: rgba(255, 255, 255, 0.54);
+  letter-spacing: 0.48px;
   text-transform: uppercase;
 }
 
 .yyt-shell-stat-value {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: 26px;
+  font-weight: 900;
   line-height: 1;
   color: var(--yyt-text);
 }
@@ -1358,8 +1386,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(210px, var(--yyt-shell-sidebar-width)) minmax(0, 1fr);
-  gap: var(--yyt-shell-gap);
+  grid-template-columns: minmax(230px, var(--yyt-shell-sidebar-width)) minmax(0, 1fr);
+  gap: 16px;
 }
 
 .yyt-shell-sidebar {
@@ -1373,12 +1401,15 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   overflow: hidden;
-  padding: 14px;
-  border-radius: var(--yyt-radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+  padding: 16px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%),
+    rgba(255, 255, 255, 0.01);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 32px rgba(0, 0, 0, 0.16);
 }
 
 .yyt-shell-sidebar-title-row {
@@ -1389,8 +1420,8 @@
 }
 
 .yyt-shell-sidebar-title {
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 900;
   color: var(--yyt-text);
 }
 
@@ -1398,12 +1429,12 @@
   font-size: 10px;
   color: var(--yyt-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.44px;
+  letter-spacing: 0.5px;
 }
 
 .yyt-shell-sidebar .yyt-main-nav {
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding: 0;
   margin-bottom: 0;
   background: transparent;
@@ -1413,39 +1444,102 @@
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item {
+  position: relative;
   width: 100%;
   min-width: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item::before {
+  content: '';
+  position: absolute;
+  inset: 10px auto 10px 0;
+  width: 4px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 24px rgba(0, 0, 0, 0.16);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item.active {
+  color: var(--yyt-text);
+  border-color: rgba(123, 183, 255, 0.28);
+  background:
+    linear-gradient(135deg, rgba(123, 183, 255, 0.2) 0%, rgba(123, 183, 255, 0.06) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  box-shadow: 0 14px 28px rgba(123, 183, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item.active::before {
+  background: linear-gradient(180deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
+  box-shadow: 0 0 18px rgba(123, 183, 255, 0.4);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item.active .yyt-main-nav-icon {
+  background: rgba(123, 183, 255, 0.14);
+  border-color: rgba(123, 183, 255, 0.22);
 }
 
 .yyt-shell-sidebar-note {
-  padding: 11px 12px;
-  border-radius: 16px;
-  border: 1px dashed rgba(123, 183, 255, 0.18);
-  background: rgba(123, 183, 255, 0.05);
-  color: var(--yyt-text-secondary);
-  font-size: 11px;
-  line-height: 1.55;
+  padding: 13px 14px;
+  border-radius: 18px;
+  border: 1px dashed rgba(123, 183, 255, 0.24);
+  background: linear-gradient(180deg, rgba(123, 183, 255, 0.09) 0%, rgba(123, 183, 255, 0.05) 100%);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  line-height: 1.65;
 }
 
 .yyt-shell-main {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .yyt-shell-main-header {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: var(--yyt-radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(420px 180px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 65%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 32px rgba(0, 0, 0, 0.15);
+}
+
+.yyt-shell-main-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.06) 0%, transparent 35%, transparent 70%, rgba(255, 255, 255, 0.03) 100%);
+  pointer-events: none;
 }
 
 .yyt-shell-main-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -1455,9 +1549,11 @@
 }
 
 .yyt-shell-main-heading-block {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 9px;
   min-width: 0;
 }
 
@@ -1471,7 +1567,7 @@
 .yyt-shell-main-label {
   font-size: 11px;
   font-weight: 800;
-  color: var(--yyt-text-muted);
+  color: rgba(255, 255, 255, 0.58);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1479,40 +1575,43 @@
 .yyt-shell-breadcrumb {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 700;
-  color: var(--yyt-text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 800;
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   max-width: 100%;
 }
 
 .yyt-shell-main-title {
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.12;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.06;
+  letter-spacing: -0.3px;
   color: var(--yyt-text);
 }
 
 .yyt-shell-main-description {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--yyt-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 68ch;
 }
 
 .yyt-shell-main-meta {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--yyt-text-secondary);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--yyt-text);
   font-size: 12px;
   line-height: 1.5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .yyt-shell-main-save-btn {
@@ -1521,7 +1620,7 @@
 }
 
 .yyt-shell-main-meta i {
-  color: var(--yyt-accent);
+  color: var(--yyt-accent-strong);
 }
 
 .yyt-popup-footer {
@@ -1529,8 +1628,8 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 14px 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.02) 100%);
+  padding: 16px 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%);
   border-top: 1px solid var(--yyt-border);
   border-radius: 0 0 22px 22px;
   flex-shrink: 0;
@@ -1550,7 +1649,7 @@
 .yyt-popup-status-cluster {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   flex-wrap: wrap;
 }
@@ -1559,22 +1658,22 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: 999px;
   font-size: 12px;
-  color: var(--yyt-text-secondary);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .yyt-popup-status i {
-  color: var(--yyt-accent);
+  color: var(--yyt-accent-strong);
 }
 
 .yyt-popup-footer-note {
   font-size: 12px;
   line-height: 1.6;
-  color: var(--yyt-text-muted);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .yyt-shell-sidebar .yyt-main-nav,
