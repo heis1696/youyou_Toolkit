@@ -869,49 +869,76 @@ export function createBootstrap(context, options = {}) {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
-        padding: 8px 16px;
-        border: none;
-        border-radius: var(--yyt-radius-sm);
+        gap: 8px;
+        min-height: 38px;
+        padding: 10px 16px;
+        border: 1px solid var(--yyt-border);
+        border-radius: 13px;
+        background: linear-gradient(180deg, var(--yyt-surface-3) 0%, var(--yyt-surface) 100%);
+        color: var(--yyt-text);
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.25s ease;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+
+      .yyt-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 42%, transparent 78%);
+        pointer-events: none;
+      }
+
+      .yyt-btn:hover {
+        transform: translateY(-1px);
+        border-color: var(--yyt-border-strong);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
       }
 
       .yyt-btn:focus-visible {
         outline: none;
-        box-shadow: var(--yyt-focus-ring);
+        box-shadow: var(--yyt-focus-ring), 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
       }
 
       .yyt-btn-primary {
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         color: var(--yyt-on-accent);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 14px 30px rgba(123, 183, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
       }
 
       .yyt-btn-primary:hover {
-        transform: translateY(-1px);
+        box-shadow: 0 18px 34px rgba(123, 183, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.34);
       }
 
       .yyt-btn-secondary {
-        background: linear-gradient(135deg, var(--yyt-surface-active) 0%, var(--yyt-surface) 100%);
+        background: linear-gradient(180deg, var(--yyt-surface-active) 0%, var(--yyt-surface-2) 100%);
         color: var(--yyt-text);
-        border: 1px solid var(--yyt-border);
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.07);
       }
 
       .yyt-btn-secondary:hover {
+        background: linear-gradient(180deg, var(--yyt-surface-hover) 0%, var(--yyt-surface-active) 100%);
         border-color: var(--yyt-border-strong);
       }
 
       .yyt-btn-danger {
-        background: linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(248, 113, 113, 0.05) 100%);
+        background: linear-gradient(180deg, rgba(248, 113, 113, 0.22) 0%, rgba(248, 113, 113, 0.08) 100%);
         color: var(--yyt-error);
-        border: 1px solid rgba(248, 113, 113, 0.25);
+        border: 1px solid rgba(248, 113, 113, 0.34);
+        box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
       }
 
       .yyt-btn-small {
-        padding: 6px 10px;
-        font-size: 11px;
+        min-height: 32px;
+        padding: 7px 12px;
+        font-size: 12px;
+        border-radius: 11px;
       }
 
       /* 表单样式 */
@@ -939,12 +966,14 @@ export function createBootstrap(context, options = {}) {
       .yyt-input,
       .yyt-select,
       .yyt-textarea {
-        padding: 10px 14px;
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        background: rgba(255, 255, 255, 0.03);
+        min-height: 42px;
+        padding: 11px 15px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.028) 100%);
         color: var(--yyt-text);
         font-size: 13px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 8px 18px rgba(0, 0, 0, 0.1);
       }
 
       .yyt-input:focus,
@@ -954,18 +983,19 @@ export function createBootstrap(context, options = {}) {
       .yyt-select:focus-visible,
       .yyt-textarea:focus-visible {
         outline: none;
-        border-color: var(--yyt-accent);
-        box-shadow: var(--yyt-focus-ring);
+        border-color: rgba(123, 183, 255, 0.8);
+        background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
+        box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(11, 20, 34, 0.18);
       }
 
       .yyt-input::placeholder,
       .yyt-textarea::placeholder {
-        color: var(--yyt-text-muted);
+        color: rgba(255, 255, 255, 0.42);
       }
 
       .yyt-textarea {
         resize: vertical;
-        min-height: 80px;
+        min-height: 112px;
       }
 
       /* 面板底部 */

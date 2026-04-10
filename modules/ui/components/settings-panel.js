@@ -560,23 +560,23 @@ export const SettingsPanel = {
         border-radius: 999px;
         font-size: 10px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         letter-spacing: 0.4px;
         color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.08);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 16px rgba(0, 0, 0, 0.1);
       }
 
       .yyt-settings-status-chip.is-on {
         color: #4ade80;
         border-color: rgba(74, 222, 128, 0.32);
-        background: rgba(74, 222, 128, 0.12);
+        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
       }
 
       .yyt-settings-status-chip.is-off {
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.32);
-        background: rgba(248, 113, 113, 0.12);
+        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
       }
 
       .yyt-settings-status-chip.is-neutral {
@@ -586,14 +586,14 @@ export const SettingsPanel = {
       .yyt-settings-tabs {
         display: flex;
         gap: 8px;
-        padding: 6px;
-        border-radius: 20px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        padding: 7px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.025) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.09);
         width: fit-content;
         max-width: 100%;
         flex-wrap: wrap;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 20px rgba(0, 0, 0, 0.1);
       }
 
       .yyt-settings-tab {
@@ -601,26 +601,27 @@ export const SettingsPanel = {
         align-items: center;
         gap: 8px;
         padding: 12px 16px;
-        border-radius: 14px;
+        border-radius: 15px;
         border: 1px solid transparent;
-        background: transparent;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
         color: var(--yyt-text-secondary);
         cursor: pointer;
         transition: all 0.18s ease;
         font-weight: 800;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
       }
 
       .yyt-settings-tab:hover {
         color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.055);
-        border-color: rgba(255, 255, 255, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+        border-color: rgba(255, 255, 255, 0.1);
       }
 
       .yyt-settings-tab.yyt-active {
         color: var(--yyt-on-accent);
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         border-color: transparent;
-        box-shadow: 0 12px 28px var(--yyt-accent-glow);
+        box-shadow: 0 14px 30px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.24);
       }
 
       .yyt-settings-content {
@@ -709,21 +710,22 @@ export const SettingsPanel = {
         border-radius: 999px;
         font-size: 11px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.035) 100%);
         color: var(--yyt-text);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 16px rgba(0, 0, 0, 0.08);
       }
 
       .yyt-settings-runtime-chip.is-on {
         color: #4ade80;
         border-color: rgba(74, 222, 128, 0.35);
-        background: rgba(74, 222, 128, 0.12);
+        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
       }
 
       .yyt-settings-runtime-chip.is-off {
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.35);
-        background: rgba(248, 113, 113, 0.12);
+        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
       }
 
       .yyt-settings-runtime-chip.is-neutral {

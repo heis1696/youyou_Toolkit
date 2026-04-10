@@ -1317,54 +1317,57 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 12px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        transition: all 0.2s ease;
+        padding: 12px 13px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.025) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.1);
       }
-      
+
       .yyt-rule-item:hover {
-        background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
-        border-color: rgba(255, 255, 255, 0.12);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 24px rgba(0, 0, 0, 0.12);
       }
-      
+
       .yyt-rule-enabled-label {
         flex-shrink: 0;
         white-space: nowrap;
       }
-      
+
       /* \u6807\u7B7E\u5EFA\u8BAE\u533A\u57DF */
       .yyt-tag-suggestions {
         margin-top: 12px;
-        padding: 12px;
-        background: linear-gradient(135deg, rgba(74, 222, 128, 0.08) 0%, rgba(74, 222, 128, 0.02) 100%);
-        border: 1px solid rgba(74, 222, 128, 0.2);
-        border-radius: var(--yyt-radius-sm);
+        padding: 14px;
+        background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(74, 222, 128, 0.03) 100%);
+        border: 1px solid rgba(74, 222, 128, 0.24);
+        border-radius: 16px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 22px rgba(0, 0, 0, 0.08);
       }
-      
+
       .yyt-tag-suggestions-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--yyt-text-secondary);
       }
-      
+
       .yyt-tag-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
       }
-      
+
       .yyt-tag-list .yyt-btn {
         cursor: pointer;
       }
-      
+
       .yyt-tag-list .yyt-btn:hover {
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.2) 0%, rgba(123, 183, 255, 0.1) 100%);
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.24) 0%, rgba(123, 183, 255, 0.11) 100%);
         border-color: rgba(123, 183, 255, 0.4);
       }
       
@@ -1412,16 +1415,22 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
       .yyt-checkbox-label {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 8px;
         font-size: 12px;
         color: var(--yyt-text-secondary);
         cursor: pointer;
       }
-      
+
+      .yyt-checkbox-label span {
+        color: var(--yyt-text);
+        font-weight: 700;
+      }
+
       .yyt-checkbox-label input {
-        width: 14px;
-        height: 14px;
+        width: 16px;
+        height: 16px;
         cursor: pointer;
+        accent-color: var(--yyt-accent);
       }
       
       .yyt-empty-state-small {
@@ -2324,15 +2333,51 @@ ${a}`}).filter(Boolean).join(`
   .yyt-checkbox-label {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     cursor: pointer;
     user-select: none;
+    min-width: 0;
   }
 
-  .yyt-checkbox-label input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+  .yyt-checkbox-label > span:last-child {
+    flex: 1;
+    min-width: 0;
+    color: var(--yyt-text);
+    font-weight: 700;
+    line-height: 1.5;
+  }
+
+  .yyt-checkbox-label input[type="checkbox"],
+  .yyt-checkbox-label input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex-shrink: 0;
     cursor: pointer;
+    accent-color: var(--yyt-accent);
+  }
+
+  .yyt-checkbox-label input[type="checkbox"]:focus-visible,
+  .yyt-checkbox-label input[type="radio"]:focus-visible {
+    outline: none;
+    box-shadow: var(--yyt-focus-ring);
+    border-radius: 6px;
+  }
+
+  .yyt-worldbook-item .yyt-checkbox-label,
+  .yyt-form-group > .yyt-checkbox-label {
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .yyt-worldbook-item .yyt-checkbox-label:hover,
+  .yyt-form-group > .yyt-checkbox-label:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.065);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .yyt-tool-manual-area {
@@ -2859,10 +2904,18 @@ ${a}`}).filter(Boolean).join(`
   }
 
   .yyt-local-option-card {
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    padding: 12px 13px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.025) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .yyt-local-option-card:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 24px rgba(0, 0, 0, 0.12);
   }
 
   .yyt-local-option-card .yyt-checkbox-label {
@@ -2876,13 +2929,25 @@ ${a}`}).filter(Boolean).join(`
   }
 
   .yyt-local-choice-card {
-    padding: 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.025) 100%);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .yyt-local-choice-card:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .yyt-local-choice-card .yyt-checkbox-label {
+    align-items: flex-start;
   }
 
   .yyt-local-choice-title {
@@ -3578,23 +3643,23 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
         border-radius: 999px;
         font-size: 10px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         letter-spacing: 0.4px;
         color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.08);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 16px rgba(0, 0, 0, 0.1);
       }
 
       .yyt-settings-status-chip.is-on {
         color: #4ade80;
         border-color: rgba(74, 222, 128, 0.32);
-        background: rgba(74, 222, 128, 0.12);
+        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
       }
 
       .yyt-settings-status-chip.is-off {
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.32);
-        background: rgba(248, 113, 113, 0.12);
+        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
       }
 
       .yyt-settings-status-chip.is-neutral {
@@ -3604,14 +3669,14 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
       .yyt-settings-tabs {
         display: flex;
         gap: 8px;
-        padding: 6px;
-        border-radius: 20px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        padding: 7px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.025) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.09);
         width: fit-content;
         max-width: 100%;
         flex-wrap: wrap;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 20px rgba(0, 0, 0, 0.1);
       }
 
       .yyt-settings-tab {
@@ -3619,26 +3684,27 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
         align-items: center;
         gap: 8px;
         padding: 12px 16px;
-        border-radius: 14px;
+        border-radius: 15px;
         border: 1px solid transparent;
-        background: transparent;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
         color: var(--yyt-text-secondary);
         cursor: pointer;
         transition: all 0.18s ease;
         font-weight: 800;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
       }
 
       .yyt-settings-tab:hover {
         color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.055);
-        border-color: rgba(255, 255, 255, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+        border-color: rgba(255, 255, 255, 0.1);
       }
 
       .yyt-settings-tab.yyt-active {
         color: var(--yyt-on-accent);
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         border-color: transparent;
-        box-shadow: 0 12px 28px var(--yyt-accent-glow);
+        box-shadow: 0 14px 30px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.24);
       }
 
       .yyt-settings-content {
@@ -3727,21 +3793,22 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
         border-radius: 999px;
         font-size: 11px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.035) 100%);
         color: var(--yyt-text);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 16px rgba(0, 0, 0, 0.08);
       }
 
       .yyt-settings-runtime-chip.is-on {
         color: #4ade80;
         border-color: rgba(74, 222, 128, 0.35);
-        background: rgba(74, 222, 128, 0.12);
+        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
       }
 
       .yyt-settings-runtime-chip.is-off {
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.35);
-        background: rgba(248, 113, 113, 0.12);
+        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
       }
 
       .yyt-settings-runtime-chip.is-neutral {
@@ -5134,49 +5201,76 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
-        padding: 8px 16px;
-        border: none;
-        border-radius: var(--yyt-radius-sm);
+        gap: 8px;
+        min-height: 38px;
+        padding: 10px 16px;
+        border: 1px solid var(--yyt-border);
+        border-radius: 13px;
+        background: linear-gradient(180deg, var(--yyt-surface-3) 0%, var(--yyt-surface) 100%);
+        color: var(--yyt-text);
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.25s ease;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+
+      .yyt-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 42%, transparent 78%);
+        pointer-events: none;
+      }
+
+      .yyt-btn:hover {
+        transform: translateY(-1px);
+        border-color: var(--yyt-border-strong);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
       }
 
       .yyt-btn:focus-visible {
         outline: none;
-        box-shadow: var(--yyt-focus-ring);
+        box-shadow: var(--yyt-focus-ring), 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
       }
 
       .yyt-btn-primary {
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         color: var(--yyt-on-accent);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 14px 30px rgba(123, 183, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
       }
 
       .yyt-btn-primary:hover {
-        transform: translateY(-1px);
+        box-shadow: 0 18px 34px rgba(123, 183, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.34);
       }
 
       .yyt-btn-secondary {
-        background: linear-gradient(135deg, var(--yyt-surface-active) 0%, var(--yyt-surface) 100%);
+        background: linear-gradient(180deg, var(--yyt-surface-active) 0%, var(--yyt-surface-2) 100%);
         color: var(--yyt-text);
-        border: 1px solid var(--yyt-border);
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.07);
       }
 
       .yyt-btn-secondary:hover {
+        background: linear-gradient(180deg, var(--yyt-surface-hover) 0%, var(--yyt-surface-active) 100%);
         border-color: var(--yyt-border-strong);
       }
 
       .yyt-btn-danger {
-        background: linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(248, 113, 113, 0.05) 100%);
+        background: linear-gradient(180deg, rgba(248, 113, 113, 0.22) 0%, rgba(248, 113, 113, 0.08) 100%);
         color: var(--yyt-error);
-        border: 1px solid rgba(248, 113, 113, 0.25);
+        border: 1px solid rgba(248, 113, 113, 0.34);
+        box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
       }
 
       .yyt-btn-small {
-        padding: 6px 10px;
-        font-size: 11px;
+        min-height: 32px;
+        padding: 7px 12px;
+        font-size: 12px;
+        border-radius: 11px;
       }
 
       /* \u8868\u5355\u6837\u5F0F */
@@ -5204,12 +5298,14 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
       .yyt-input,
       .yyt-select,
       .yyt-textarea {
-        padding: 10px 14px;
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        background: rgba(255, 255, 255, 0.03);
+        min-height: 42px;
+        padding: 11px 15px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.028) 100%);
         color: var(--yyt-text);
         font-size: 13px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 8px 18px rgba(0, 0, 0, 0.1);
       }
 
       .yyt-input:focus,
@@ -5219,18 +5315,19 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
       .yyt-select:focus-visible,
       .yyt-textarea:focus-visible {
         outline: none;
-        border-color: var(--yyt-accent);
-        box-shadow: var(--yyt-focus-ring);
+        border-color: rgba(123, 183, 255, 0.8);
+        background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
+        box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(11, 20, 34, 0.18);
       }
 
       .yyt-input::placeholder,
       .yyt-textarea::placeholder {
-        color: var(--yyt-text-muted);
+        color: rgba(255, 255, 255, 0.42);
       }
 
       .yyt-textarea {
         resize: vertical;
-        min-height: 80px;
+        min-height: 112px;
       }
 
       /* \u9762\u677F\u5E95\u90E8 */

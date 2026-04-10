@@ -640,54 +640,57 @@ Phase 4: 应用黑名单过滤
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 12px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
-        transition: all 0.2s ease;
+        padding: 12px 13px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.025) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.1);
       }
-      
+
       .yyt-rule-item:hover {
-        background: linear-gradient(135deg, var(--yyt-surface-hover) 0%, var(--yyt-surface) 100%);
-        border-color: rgba(255, 255, 255, 0.12);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 24px rgba(0, 0, 0, 0.12);
       }
-      
+
       .yyt-rule-enabled-label {
         flex-shrink: 0;
         white-space: nowrap;
       }
-      
+
       /* 标签建议区域 */
       .yyt-tag-suggestions {
         margin-top: 12px;
-        padding: 12px;
-        background: linear-gradient(135deg, rgba(74, 222, 128, 0.08) 0%, rgba(74, 222, 128, 0.02) 100%);
-        border: 1px solid rgba(74, 222, 128, 0.2);
-        border-radius: var(--yyt-radius-sm);
+        padding: 14px;
+        background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(74, 222, 128, 0.03) 100%);
+        border: 1px solid rgba(74, 222, 128, 0.24);
+        border-radius: 16px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 22px rgba(0, 0, 0, 0.08);
       }
-      
+
       .yyt-tag-suggestions-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--yyt-text-secondary);
       }
-      
+
       .yyt-tag-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
       }
-      
+
       .yyt-tag-list .yyt-btn {
         cursor: pointer;
       }
-      
+
       .yyt-tag-list .yyt-btn:hover {
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.2) 0%, rgba(123, 183, 255, 0.1) 100%);
+        background: linear-gradient(135deg, rgba(123, 183, 255, 0.24) 0%, rgba(123, 183, 255, 0.11) 100%);
         border-color: rgba(123, 183, 255, 0.4);
       }
       
@@ -735,16 +738,22 @@ Phase 4: 应用黑名单过滤
       .yyt-checkbox-label {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 8px;
         font-size: 12px;
         color: var(--yyt-text-secondary);
         cursor: pointer;
       }
-      
+
+      .yyt-checkbox-label span {
+        color: var(--yyt-text);
+        font-weight: 700;
+      }
+
       .yyt-checkbox-label input {
-        width: 14px;
-        height: 14px;
+        width: 16px;
+        height: 16px;
         cursor: pointer;
+        accent-color: var(--yyt-accent);
       }
       
       .yyt-empty-state-small {
