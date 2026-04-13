@@ -436,7 +436,8 @@ export const TOOL_REGISTRY = {
       { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' },
       { id: 'youyouReview', name: '小幽点评', icon: 'fa-comment-dots', component: 'YouyouReviewPanel' },
       { id: 'escapeTransformTool', name: '转义处理', icon: 'fa-quote-left', component: 'EscapeTransformToolPanel' },
-      { id: 'punctuationTransformTool', name: '中文标点替换', icon: 'fa-language', component: 'PunctuationTransformToolPanel' }
+      { id: 'punctuationTransformTool', name: '中文标点替换', icon: 'fa-language', component: 'PunctuationTransformToolPanel' },
+      { id: 'tableWorkbench', name: '填表工作台', icon: 'fa-table-cells', component: 'TableWorkbenchPanel', order: 60 }
     ]
   },
   // v0.5 新增页面

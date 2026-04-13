@@ -706,6 +706,14 @@ export function createPopupShell(context) {
             }
             break;
 
+          case 'TableWorkbenchPanel':
+            if (modules.uiModule?.renderTableWorkbenchPanel) {
+              modules.uiModule.renderTableWorkbenchPanel($subContent);
+            } else {
+              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>填表工作台加载失败</span></div>');
+            }
+            break;
+
           case 'GenericToolConfigPanel':
             await renderGenericToolConfigPanel(subToolConfig, $subContent);
             break;

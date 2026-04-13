@@ -5,153 +5,143 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build and development commands
 
 - Install dependencies: `npm install`
-- Production bundle (minified ESM): `npm run build`
-- Development bundle (unminified ESM): `npm run build:dev`
-- IIFE bundle: `npm run build:iife`
-- Watch and rebuild on file changes: `npm run watch`
-- One-off local dev build: `npm run dev`
+- Production ESM bundle: `npm run build` → writes `dist/bundle.js`
+- Development ESM bundle: `npm run build:dev` → writes `dist/bundle.js` without minification
+- IIFE bundle: `npm run build:iife` → writes `dist/bundle.iife.js`
+- Watch mode: `npm run watch`
+- One-off local dev build: `npm run dev` (build only; it does not start a dev server)
 
-## Testing and validation
-
-This repository does not currently define npm `test` or `lint` scripts in `package.json`.
+This repo does not define npm `test` or `lint` scripts.
+There is no built-in command for running a single automated test because no automated test runner is configured.
 
 Validation is primarily:
-- bundling successfully with `npm run build`
-- host-environment regression testing inside SillyTavern / TavernHelper
+- `npm run build`
+- host-environment verification inside SillyTavern / TavernHelper for changes that touch execution, automation, writeback, or popup UI
 
-For host regression coverage, the most relevant checklist is `docs/HOST_REGRESSION_CHECKLIST.md`, especially for changes touching:
-- `modules/tool-trigger.js`
-- `modules/tool-output-service.js`
-- `modules/context-injector.js`
+## Scope and active code
 
-There is no built-in command for running a single automated test because no automated test runner is configured.
+The active plugin code is the root package (`index.js`, `modules/`, `styles/`, `docs/`).
+`Reference/` contains external/reference material and should not be treated as the primary runtime code path.
+`dist/` is generated output.
 
 ## Repository purpose
 
-This project is a configurable toolchain platform for the SillyTavern / TavernHelper host environment.
-The current main capabilities described in the repo docs are:
+YouYou Toolkit is a configurable toolchain plugin for the SillyTavern / TavernHelper host environment.
+
+The current repo is centered on:
 - API configuration and preset management
-- custom tool management
-- regex/rule-based extraction
-- manual tool execution and extraction preview
+- built-in and custom tool management
+- extraction preview and rule/tag-based extraction
+- manual tool execution
+- automatic post-response tool execution for enabled tools
 - writeback of tool output into the latest assistant message
-- unified popup-based UI for configuration and diagnostics
+- a single popup workspace UI for configuration and diagnostics
 
 ## High-level architecture
 
-### Entry and app shell
+### Thin entry and bootstrap shell
 
-`index.js` is intentionally thin now. It builds a shared app context, creates the popup shell, creates bootstrap services, exposes `window.YouYouToolkit`, and starts initialization.
+`index.js` is intentionally thin. It creates the shared app context, wires the popup shell and public API, exposes `window.YouYouToolkit`, and immediately calls bootstrap initialization.
 
-The app-level coordination has been split into:
-- `modules/app/bootstrap.js` — lazy module loading, startup initialization, base style injection, menu registration
-- `modules/app/popup-shell.js` — popup window, main/sub-tab routing, content mounting, compatibility fallback loading
-- `modules/app/public-api.js` — global facade exposed as `YouYouToolkit`
+Main orchestration lives in:
+- `modules/app/bootstrap.js` — loads modules, injects CSS, applies saved UI theme, registers the magic-wand menu item, and initializes the automation service
+- `modules/app/popup-shell.js` — renders the single popup workspace, main/sub-tab navigation, and lazy-loads compatibility panels
+- `modules/app/public-api.js` — exposes the host-facing `YouYouToolkit` facade, including automation controls
 
-When changing startup behavior, popup behavior, or public API exposure, start with these files rather than expanding `index.js`.
+Prefer changing these modules instead of expanding `index.js`.
 
-### Core foundation
+### Core services
 
-`modules/core/` provides the shared infrastructure used across the repo:
-- `event-bus.js` — cross-module event system
-- `storage-service.js` — primary storage abstraction; prefers host storage and falls back to `localStorage`
-- `settings-service.js` — cached global settings for executor, debug, and UI groups
+`modules/core/` holds shared infrastructure:
+- `event-bus.js` — cross-module events
+- `storage-service.js` — preferred storage abstraction for new code
+- `settings-service.js` — cached global settings, including automation/debug/UI settings
 
-The repo is in a transition where newer code should prefer `modules/core/storage-service.js`, while `modules/storage.js` remains as a compatibility layer.
+`modules/storage.js` still exists as a compatibility layer; prefer `modules/core/storage-service.js` for new storage work.
 
-### Tool runtime model
+### Tool definition vs runtime model
 
-The central runtime source of truth is `modules/tool-registry.js`.
+There are two separate layers for tools:
+- `modules/tool-manager.js` — persists and normalizes user-managed tool definitions
+- `modules/tool-registry.js` — builds the runtime-facing tool model used by the UI, built-in tools, dynamic custom tool tabs, and runtime diagnostics
 
-It is responsible for:
-- default built-in tools
-- merging built-in and user-managed tools
-- compatibility normalization between old and new config shapes
-- runtime status/diagnostic fields used by the UI and execution flow
+When changing persisted tool schemas or custom-tool import/export, start in `tool-manager.js`.
+When changing execution-facing config, UI-visible runtime state, or navigation/tab structure, start in `tool-registry.js`.
 
-If a change affects how tools are configured or resolved at runtime, check `tool-registry.js` first.
+### Execution context and runtime flows
 
-### Manual execution and writeback flow
+`modules/tool-execution-context.js` is the shared context builder for both manual and automatic runs. It resolves the target assistant message and computes the slot identity keys used by writeback:
+- `slotBindingKey`
+- `slotRevisionKey`
+- `slotTransactionId`
 
-The current tool execution chain is:
+Two main entry paths exist:
+- `modules/tool-automation-service.js` — automatic lifecycle, driven by host events and deduped per message/content revision
+- `modules/tool-trigger.js` — manual execution and extraction preview entry point
 
-`tool-trigger -> tool-output-service -> tool-prompt-service -> api-connection -> context-injector`
+The main extra-model/writeback chain is:
+
+`tool-output-service -> tool-prompt-service -> api-connection -> context-injector`
 
 Responsibilities:
-- `modules/tool-trigger.js` builds execution context for manual runs and extraction preview; the filename remains for compatibility, but the old automatic trigger runtime has been removed
-- `modules/tool-output-service.js` is the direct execution layer for output modes, especially `post_response_api`
-- `modules/tool-prompt-service.js` builds request messages from `promptTemplate`, variables, and bypass messages
-- `modules/api-connection.js` resolves effective API config/presets and sends requests through host-compatible paths
-- `modules/context-injector.js` writes tool output back into the latest assistant slot/message and maintains injected context state
+- `modules/tool-output-service.js` — builds request messages from extracted conversation context, calls the extra API path, extracts tool output, and records writeback metadata
+- `modules/tool-prompt-service.js` — turns `promptTemplate` and variables into request messages
+- `modules/api-connection.js` — resolves effective API config/preset and dispatches the request
+- `modules/context-injector.js` — writes tool output back into the latest assistant slot/message and confirms refresh state
 
-For bugs around manual execution, extraction preview, or writeback failures, inspect this chain in order.
+For bugs involving execution, extraction preview, or failed writeback, inspect that chain in order after verifying the execution context.
 
-### Output modes
+### Output-mode behavior
 
-Tool execution behavior is organized around two output modes in `modules/tool-output-service.js`:
-- `follow_ai` — does not issue the extra post-response request chain
-- `post_response_api` — performs an additional API call, extracts tool output, and writes it back into the latest assistant message
+The current codebase supports multiple manual execution paths:
+- `post_response_api` — manual and automatic extra-model execution path
+- `follow_ai` — manual execution path handled by `toolOutputService.runToolFollowAiManual()`
+- `local_transform` — local text transform path handled in `modules/tool-trigger.js` via `tool-local-transform-service.js`, then written back through `context-injector`
+- compatibility fallback — older execution path routed through `modules/tool-executor.js`
 
-The writeback path is especially sensitive to host message identity, swipe identity, and slot binding fields.
-
-### Tool definition split
-
-There are two related but distinct layers:
-- `modules/tool-manager.js` — CRUD/import/export for user-defined tool definitions
-- `modules/tool-registry.js` — normalized runtime view used by the execution pipeline and UI
-
-When editing user tool persistence or editor-facing schemas, check `tool-manager.js`.
-When editing runtime behavior, diagnostics, bindings, or merged config resolution, check `tool-registry.js`.
+Automatic execution currently runs only auto-eligible `post_response_api` tools via `modules/tool-automation-service.js`.
 
 ### UI architecture
 
-The UI has been consolidated around `modules/ui/index.js` as the primary entry point.
+The UI is centered on `modules/ui/index.js`, which registers panels with `ui-manager.js`.
 
-Important structure:
-- `modules/ui/index.js` — registers panels and exports render helpers
-- `modules/ui/ui-manager.js` — component lifecycle and style aggregation
-- `modules/ui/components/` — actual panel implementations
-- `modules/ui/components/tool-config-panel-factory.js` — shared factory logic for tool config panels
-- `modules/ui-components.js` — compatibility facade; prefer `modules/ui/index.js` for new UI wiring
+Important pieces:
+- `modules/ui/index.js` — primary UI entry point and panel registration
+- `modules/ui/ui-manager.js` — component lifecycle and aggregated styles
+- `modules/ui/components/tool-config-panel-factory.js` — shared config-panel factory used by built-in and dynamic custom tools
+- `modules/app/popup-shell.js` — renders navigation using `tool-registry.js` and mounts the correct panel for each tab/sub-tab
 
-The main user experience is a single popup shell rather than independent windows. `modules/window-manager.js` is still present but is described in repo docs as extension/compatibility capability rather than the default path.
+The `tools` page is dynamic: built-in tool sub-tabs come from `tool-registry.js`, and custom tool sub-tabs are generated from `tool-manager.js` definitions at runtime.
 
-### Compatibility and lazy loading
+`modules/ui-components.js` and `modules/prompt-editor.js` are compatibility/lazy-loaded modules, not the preferred primary path for new UI work.
 
-This codebase keeps several compatibility modules while moving newer code toward the app/core/ui split.
+### Host-environment assumptions
 
-Notable examples:
-- `modules/storage.js` remains for older storage calls
-- `modules/ui-components.js` remains as a compatibility facade
-- `modules/prompt-editor.js` remains mainly as compatibility functionality
-- `modules/tool-executor.js` still exists for older execution paths and generic scheduling, but manual compatibility fallback should stay minimal
+This plugin is designed for SillyTavern / TavernHelper and depends on host globals and message semantics rather than a standalone Node runtime.
 
-When adding new code, prefer the newer main path instead of extending compatibility layers unless the task specifically requires backward compatibility.
+Be careful with code that touches:
+- host event subscription and timing in `modules/tool-automation-service.js`
+- assistant message resolution in `modules/tool-execution-context.js`
+- manual execution entry in `modules/tool-trigger.js`
+- writeback and refresh confirmation in `modules/context-injector.js`
 
-## Host-environment assumptions
+Do not casually simplify message identity, swipe handling, content fingerprinting, slot keys, or refresh confirmation logic; those behaviors exist to make same-slot rerolls, swipes, and writeback reliable in the host environment.
 
-This plugin is designed to run inside SillyTavern / TavernHelper and relies on host-provided runtime capabilities. The code expects browser/host globals and host message/writeback semantics rather than a standalone Node app architecture.
+## Documentation to consult
 
-That matters for:
-- message reads in `tool-trigger.js`
-- API dispatch behavior in `api-connection.js`
-- UI integration and popup mounting
-- writeback behavior in `context-injector.js`
+- `README.md` — current product overview
+- `docs/ARCHITECTURE_ANALYSIS.md` — architecture walkthrough
+- `docs/API_DOCUMENTATION.md` — public API and execution model
+- `docs/CHANGELOG.md` — recent behavior changes and migration history
 
-Be careful not to “simplify” host-specific logic that exists to handle host-side message identity, swipe handling, or refresh quirks.
-
-## Important docs to consult
-
-- `README.md` — product-level overview and current capabilities
-- `docs/ARCHITECTURE_ANALYSIS.md` — current architecture and execution flow
-- `docs/HOST_REGRESSION_CHECKLIST.md` — manual host regression checklist for manual execution / writeback behavior
-- `docs/API_DOCUMENTATION.md` — public API surface and usage notes
-- `docs/EXTENSION_GUIDE.md` — how to add or extend functionality
+There is currently no checked-in `docs/HOST_REGRESSION_CHECKLIST.md` even though older docs may mention it.
+Some docs still refer to older version labels or earlier architecture wording. When docs and source disagree, prefer the current source in `index.js`, `package.json`, and `modules/`.
 
 ## Practical guidance for edits
 
-- Prefer editing the thin app-shell modules under `modules/app/` instead of pushing orchestration back into `index.js`.
+- Prefer `modules/app/*` for startup, popup, and public-API changes.
 - Prefer `modules/ui/index.js` over `modules/ui-components.js` for new UI wiring.
-- Prefer `modules/core/storage-service.js` over `modules/storage.js` for new storage usage.
-- For manual execution / writeback bugs, validate against the manual host regression checklist, not just a successful bundle.
-- Keep in mind that `dist/bundle.js` is the built artifact produced from `index.js` via esbuild.
+- Prefer `modules/core/storage-service.js` over `modules/storage.js` for new persistence work.
+- Treat `modules/tool-automation-service.js` as the source of truth for automatic execution behavior.
+- Treat `modules/tool-trigger.js` as the source of truth for manual execution and extraction preview.
+- Rebuild after source changes; `dist/bundle.js` and `dist/bundle.iife.js` are generated artifacts, not the place to make manual edits.

@@ -15,6 +15,7 @@ import { EscapeTransformToolPanel } from './components/escape-transform-tool-pan
 import { PunctuationTransformToolPanel } from './components/punctuation-transform-tool-panel.js';
 import { BypassPanel } from './components/bypass-panel.js';
 import { SettingsPanel } from './components/settings-panel.js';
+import { TableWorkbenchPanel } from './components/table-workbench-panel.js';
 
 // ============================================================
 // 工具导出
@@ -42,6 +43,7 @@ export { EscapeTransformToolPanel } from './components/escape-transform-tool-pan
 export { PunctuationTransformToolPanel } from './components/punctuation-transform-tool-panel.js';
 export { BypassPanel } from './components/bypass-panel.js';
 export { SettingsPanel } from './components/settings-panel.js';
+export { TableWorkbenchPanel } from './components/table-workbench-panel.js';
 
 // ============================================================
 // 组件注册
@@ -61,7 +63,8 @@ export function registerComponents() {
   uiManager.register(PunctuationTransformToolPanel.id, PunctuationTransformToolPanel);
   uiManager.register(BypassPanel.id, BypassPanel);
   uiManager.register(SettingsPanel.id, SettingsPanel);
-  
+  uiManager.register(TableWorkbenchPanel.id, TableWorkbenchPanel);
+
   console.log('[UI] 组件注册完成');
 }
 
@@ -170,6 +173,10 @@ export function renderSettingsPanel(container) {
   renderRegisteredPanel(SettingsPanel.id, container);
 }
 
+export function renderTableWorkbenchPanel(container) {
+  renderRegisteredPanel(TableWorkbenchPanel.id, container);
+}
+
 // ============================================================
 // 获取所有样式
 // ============================================================
@@ -198,6 +205,7 @@ export default {
   PunctuationTransformToolPanel,
   BypassPanel,
   SettingsPanel,
+  TableWorkbenchPanel,
   registerComponents,
   initUI,
   renderApiPanel,
@@ -210,5 +218,6 @@ export default {
   renderPunctuationTransformToolPanel,
   renderBypassPanel,
   renderSettingsPanel,
+  renderTableWorkbenchPanel,
   getAllStyles
 };
