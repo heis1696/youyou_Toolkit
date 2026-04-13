@@ -13,7 +13,7 @@ class StorageService {
    * @param {string} namespace - 存储命名空间
    */
   constructor(namespace = 'youyou_toolkit') {
-    this.namespace = namespace;
+    this.namespaceKey = namespace;
     this._storage = null;
     this._cache = new Map();
   }
@@ -41,22 +41,22 @@ class StorageService {
         const context = topWindow.SillyTavern.getContext();
         if (context?.extensionSettings) {
           // 确保命名空间存在
-          if (!context.extensionSettings[this.namespace]) {
-            context.extensionSettings[this.namespace] = {};
+          if (!context.extensionSettings[this.namespaceKey]) {
+            context.extensionSettings[this.namespaceKey] = {};
           }
           
           this._storage = {
-            _target: context.extensionSettings[this.namespace],
+            _target: context.extensionSettings[this.namespaceKey],
             getItem: (key) => {
-              const value = context.extensionSettings[this.namespace][key];
+              const value = context.extensionSettings[this.namespaceKey][key];
               return typeof value === 'string' ? value : (value ? JSON.stringify(value) : null);
             },
             setItem: (key, value) => {
-              context.extensionSettings[this.namespace][key] = value;
+              context.extensionSettings[this.namespaceKey][key] = value;
               this._saveSettings(context);
             },
             removeItem: (key) => {
-              delete context.extensionSettings[this.namespace][key];
+              delete context.extensionSettings[this.namespaceKey][key];
               this._saveSettings(context);
             },
             _isTavern: true
@@ -65,7 +65,7 @@ class StorageService {
         }
       }
     } catch (e) {
-      console.warn(`[${this.namespace}] SillyTavern存储不可用，使用localStorage`);
+      console.warn(`[${this.namespaceKey}] SillyTavern存储不可用，使用localStorage`);
     }
 
     // 回退到localStorage
@@ -81,7 +81,7 @@ class StorageService {
         try {
           localStorage.setItem(key, value);
         } catch (e) {
-          console.error(`[${this.namespace}] localStorage写入失败:`, e);
+          console.error(`[${this.namespaceKey}] localStorage写入失败:`, e);
         }
       },
       removeItem: (key) => {
@@ -122,7 +122,7 @@ class StorageService {
    * @returns {*}
    */
   get(key, defaultValue = null) {
-    const cacheKey = `${this.namespace}:${key}`;
+    const cacheKey = `${this.namespaceKey}:${key}`;
     if (this._cache.has(cacheKey)) {
       return this._cache.get(cacheKey);
     }
@@ -152,14 +152,14 @@ class StorageService {
     const fullKey = this._getFullKey(key);
     
     // 更新缓存
-    const cacheKey = `${this.namespace}:${key}`;
+    const cacheKey = `${this.namespaceKey}:${key}`;
     this._cache.set(cacheKey, value);
     
     // 持久化
     try {
       storage.setItem(fullKey, JSON.stringify(value));
     } catch (e) {
-      console.error(`[${this.namespace}] 存储失败:`, e);
+      console.error(`[${this.namespaceKey}] 存储失败:`, e);
     }
   }
 
@@ -172,7 +172,7 @@ class StorageService {
     const fullKey = this._getFullKey(key);
     
     // 清除缓存
-    const cacheKey = `${this.namespace}:${key}`;
+    const cacheKey = `${this.namespaceKey}:${key}`;
     this._cache.delete(cacheKey);
     
     storage.removeItem(fullKey);
@@ -200,14 +200,14 @@ class StorageService {
       const topWindow = (typeof window.parent !== 'undefined') ? window.parent : window;
       if (topWindow.SillyTavern?.getContext) {
         const context = topWindow.SillyTavern.getContext();
-        if (context?.extensionSettings?.[this.namespace]) {
-          context.extensionSettings[this.namespace] = {};
+        if (context?.extensionSettings?.[this.namespaceKey]) {
+          context.extensionSettings[this.namespaceKey] = {};
           this._saveSettings(context);
         }
       }
     } else {
       // localStorage - 需要遍历删除
-      const prefix = `${this.namespace}_`;
+      const prefix = `${this.namespaceKey}_`;
       const keysToRemove = [];
       
       for (let i = 0; i < localStorage.length; i++) {
@@ -234,7 +234,7 @@ class StorageService {
       return key;
     }
     // localStorage需要前缀
-    return `${this.namespace}_${key}`;
+    return `${this.namespaceKey}_${key}`;
   }
 
   /**
@@ -243,7 +243,7 @@ class StorageService {
    * @returns {StorageService}
    */
   namespace(subNamespace) {
-    return new StorageService(`${this.namespace}:${subNamespace}`);
+    return new StorageService(`${this.namespaceKey}:${subNamespace}`);
   }
 
   // ============================================================
@@ -285,13 +285,13 @@ class StorageService {
       const topWindow = (typeof window.parent !== 'undefined') ? window.parent : window;
       if (topWindow.SillyTavern?.getContext) {
         const context = topWindow.SillyTavern.getContext();
-        const data = context?.extensionSettings?.[this.namespace] || {};
+        const data = context?.extensionSettings?.[this.namespaceKey] || {};
         Object.entries(data).forEach(([key, value]) => {
           result[key] = typeof value === 'string' ? JSON.parse(value) : value;
         });
       }
     } else {
-      const prefix = `${this.namespace}_`;
+      const prefix = `${this.namespaceKey}_`;
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith(prefix)) {
