@@ -20,6 +20,7 @@ if (window.AutoCardUpdaterAPI) {
 
 - [剧情推进预设管理 API](#剧情推进预设管理-api)
 - [数据导入导出 API](#数据导入导出-api)
+- [表格操作 API](#表格操作-api)
 - [设置与更新 API](#设置与更新-api)
 - [世界书操作 API](#世界书操作-api)
 - [TXT导入链路 API](#txt导入链路-api)
@@ -28,6 +29,7 @@ if (window.AutoCardUpdaterAPI) {
 - [更新配置参数 API](#更新配置参数-api)
 - [手动更新表选择 API](#手动更新表选择-api)
 - [API 预设管理 API](#api-预设管理-api)
+- [AI 调用 API](#ai-调用-api)
 
 ---
 
@@ -199,6 +201,126 @@ const success = await window.AutoCardUpdaterAPI.importTableAsJson(jsonData);
 
 ---
 
+### `updateCell(tableName, rowIndex, colIdentifier, value)`
+
+更新指定表格中单个单元格的值。
+
+**参数**:
+| 参数名| 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| tableName | string | 是 | 表格名称 |
+| rowIndex | number | 是 | 行索引（0为表头，1为第一行数据） |
+| colIdentifier | string \| number | 是 | | 列标识（列名或列索引） |
+| value | any | 是 | 新的单元格值 |
+
+**返回值**: `Promise<boolean>` - 成功返回true，失败返回false
+
+**说明**:
+- 使用列名时，会自动查找对应的列索引
+- 更新后会自动保存到聊天历史
+- 如果表格不存在或参数无效，返回false
+
+**示例**:
+```javascript
+// 使用列名更新
+const success = await window.AutoCardUpdaterAPI.updateCell('主角信息', 1, '自由点数', 5);
+
+// 使用列索引更新（假设第3列是自由点数）
+const success2 = await window.AutoCardUpdaterAPI.updateCell('主角信息', 1, 3, 5);
+```
+
+---
+
+### `updateRow(tableName, rowIndex, data)`
+
+更新指定表格中整行的数据（按列名-值映射）。
+
+**参数**:
+| 参数名| 类型 | 必填 | 说明 |
+| -------- | ------ | ------ | ------ |
+| tableName | string | 是 | 表格名称 |
+| rowIndex | number | 是 | 行索引（1为第一行数据） |
+| data | object | 是 | 列名-值映射对象 |
+
+**返回值**: `Promise<boolean>` - 成功返回true，失败返回false
+
+**说明**:
+- data对象中的键值对应于表格的列名和单元格值
+- 只更新data中指定的列，其他列保持不变
+- **表的最新楼层保存**：更新后会自动查找该表数据最后一次出现的楼层，并保存到该楼层
+- **世界书刷新**：保存后会自动触发世界书重新写入，确保前端能读取到最新数据
+- 如果找不到该表的楼层（新表格），会保存到最新AI楼层
+
+**示例**:
+```javascript
+const success = await window.AutoCardUpdaterAPI.updateRow('主角信息', 1, {
+    '力量': 15,
+    '敏捷': 12,
+    '体质': 14,
+    '智力': 8,
+    '感知': 16,
+    '魅力': 10,
+    '自由点数': 2
+});
+```
+
+---
+
+### `insertRow(tableName, data)`
+
+在指定表格的表尾插入新行。
+
+**参数**:
+| 参数名| 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| tableName | string | 是 | 表格名称 |
+| data | object | 是 | 列名-值映射对象 |
+
+**返回值**: `Promise<number>` - 成功返回新行索引，失败返回-1
+
+**说明**:
+- 新行会插入到表头之后（索引为行数）
+- 插入后会自动保存到聊天历史
+
+**示例**:
+```javascript
+const rowIndex = await window.AutoCardUpdaterAPI.insertRow('背包物品', {
+    '物品名称': '治疗药水',
+    '数量': 3,
+    '类别': '消耗品',
+    '描述/效果': '恢复50点生命值'
+});
+
+if (rowIndex !== -1) {
+    console.log("新行索引:", rowIndex);
+}
+```
+
+---
+
+### `deleteRow(tableName, rowIndex)`
+
+删除指定表格中的某行。
+
+**参数**:
+| 参数名| 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| tableName | string | 是 | 表格名称 |
+| rowIndex | number | 是 | 要删除的行索引（1为第一行数据） |
+
+**返回值**: `Promise<boolean>` - 成功返回true，失败返回false
+
+**说明**:
+- 不能删除表头（rowIndex=0）
+- 删除后会自动保存到聊天历史
+
+**示例**:
+```javascript
+const success = await window.AutoCardUpdaterAPI.deleteRow('背包物品', 3);
+```
+
+---
+
 ### `importCombinedSettings()`
 
 导入组合设置（会弹出文件选择对话框）。
@@ -307,6 +429,31 @@ await window.AutoCardUpdaterAPI.syncWorldbookEntries({ createIfNeeded: true });
 
 ---
 
+### `refreshDataAndWorldbook()`
+
+强制刷新数据并重新注入世界书。用于前端完成数据写入后，强制触发一次完整的数据合并和世界书更新。
+
+**返回值**: `Promise<boolean>` - 刷新是否成功
+
+**说明**:
+- 重新加载聊天记录中的所有表格数据
+- 合并所有独立表的数据
+- 更新世界书条目
+- 通知前端刷新 UI
+
+**使用场景**:
+- 前端通过 `updateRow`、`insertRow`、`deleteRow` 等 API 修改表格数据后
+- 需要确保世界书中的数据与表格数据同步时
+
+**示例**:
+```javascript
+// 修改表格数据后刷新世界书
+await window.AutoCardUpdaterAPI.updateRow('主角信息', 1, { '力量': 15 });
+await window.AutoCardUpdaterAPI.refreshDataAndWorldbook();
+```
+
+---
+
 ### `deleteInjectedEntries()`
 
 删除当前注入目标世界书里的"本插件生成条目"。
@@ -393,25 +540,43 @@ await window.AutoCardUpdaterAPI.syncWorldbookEntries({ createIfNeeded: true });
 
 ## 模板管理 API
 
-### `importTemplate()`
+### `importTemplate(options)`
 
 导入模板（会弹出文件选择对话框）。
 
+**参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| options | Object | 否 | 可选配置 |
+| options.scope | `'global' \| 'chat'` | 否 | 导入作用域，默认 `global`。传入 `chat` 时会将模板仅注入到当前聊天 |
+
 **返回值**: `Promise<boolean>`
 
 ---
 
-### `exportTemplate()`
+### `exportTemplate(options)`
 
 导出模板到文件。
 
+**参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| options | Object | 否 | 可选配置 |
+| options.scope | `'global' \| 'chat'` | 否 | 导出作用域，默认 `global`。传入 `chat` 时导出当前聊天模板快照 |
+
 **返回值**: `Promise<boolean>`
 
 ---
 
-### `resetTemplate()`
+### `resetTemplate(options)`
 
 重置模板为默认值。
+
+**参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| options | Object | 否 | 可选配置 |
+| options.scope | `'global' \| 'chat'` | 否 | 重置作用域，默认 `global`。传入 `chat` 时仅重置当前聊天模板为默认模板 |
 
 **返回值**: `Promise<boolean>`
 
@@ -435,7 +600,10 @@ await window.AutoCardUpdaterAPI.syncWorldbookEntries({ createIfNeeded: true });
 
 ### `getTableTemplate()`
 
-获取当前使用的表格模板。
+获取当前运行态实际使用的表格模板。
+
+- 如果当前聊天存在聊天级模板覆写，则返回当前聊天模板
+- 否则返回当前 profile 的全局模板
 
 **返回值**: `Object | null` - 模板对象的深拷贝，如果未设置则返回 `null`
 
@@ -449,7 +617,51 @@ if (template) {
 
 ---
 
-### `importTemplateFromData(templateData)`
+### `getTemplatePresetNames()`
+
+获取全局模板预设名称列表。
+
+**返回值**: `Array<string>` - 全局模板预设名称数组
+
+---
+
+### `switchTemplatePreset(presetName, options)`
+
+切换模板预设，可作用于全局或仅当前聊天。
+
+**参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| presetName | string | 是 | 要切换到的模板预设名称。传空字符串时表示切换到默认模板 |
+| options | Object | 否 | 可选配置 |
+| options.scope | `'global' \| 'chat'` | 否 | 切换作用域，默认 `global`。传入 `chat` 时仅影响当前聊天 |
+
+**返回值**: `Promise<{success: boolean, scope: string, message: string}>`
+
+**示例**:
+```javascript
+const api = window.AutoCardUpdaterAPI;
+
+await api.switchTemplatePreset('标准模板', { scope: 'global' });
+await api.switchTemplatePreset('任务模板', { scope: 'chat' });
+```
+
+---
+
+### `injectTemplatePresetToCurrentChat(presetName)`
+
+仅将模板预设注入到当前聊天，不修改全局当前模板预设。
+
+**参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| presetName | string | 是 | 要注入到当前聊天的模板预设名称。传空字符串时表示当前聊天恢复到默认模板快照 |
+
+**返回值**: `Promise<{success: boolean, scope: string, message: string}>`
+
+---
+
+### `importTemplateFromData(templateData, options)`
 
 通过前端直接导入表格模板（无需文件选择器）。
 
@@ -457,8 +669,18 @@ if (template) {
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | templateData | Object \| string | 是 | 模板数据，可以是 JSON 对象或 JSON 字符串 |
+| options | Object | 否 | 可选配置 |
+| options.scope | `'global' \| 'chat'` | 否 | 导入作用域，默认 `global`。传入 `chat` 时仅写入当前聊天模板快照 |
+| options.presetName | string | 否 | 模板名。优先级最高；`scope='global'` 时会尝试保存到全局模板预设库；`scope='chat'` 时作为当前聊天模板快照的标记名 |
 
-**返回值**: `Promise<{success: boolean, message: string}>` - 导入结果
+**返回值**: `Promise<{success: boolean, message: string, scope?: string, presetName?: string}>` - 导入结果
+
+**命名补充说明**:
+- 如果调用方没有显式传入 `options.presetName`：
+  - 文件导入场景会优先使用文件名作为模板预设名；
+  - 如果连文件名也没有，则会回退使用当前角色卡卡名作为模板预设名；
+  - 仅当 `scope='global'` 且前两者都拿不到时，才会继续使用系统生成的兜底名称。
+- 通过 [`initGameSession()`](index.js:7774) 并配合 `options.injectTemplate = true` 注入模板时，也会复用同一套命名回退逻辑；如果调用方未提供 `options.templatePresetName`，则会优先尝试角色卡名称。
 
 **模板数据结构要求**:
 - 必须包含 `mate` 对象且 `mate.type` 为 `"chatSheets"`
@@ -476,12 +698,18 @@ const template = {
     }
 };
 
-const result = await window.AutoCardUpdaterAPI.importTemplateFromData(template);
-if (result.success) {
-    console.log("模板导入成功:", result.message);
-} else {
-    console.error("模板导入失败:", result.message);
-}
+const globalResult = await window.AutoCardUpdaterAPI.importTemplateFromData(template, {
+    scope: 'global',
+    presetName: '标准模板'
+});
+
+const chatResult = await window.AutoCardUpdaterAPI.importTemplateFromData(template, {
+    scope: 'chat',
+    presetName: '任务专用模板'
+});
+
+console.log(globalResult.message);
+console.log(chatResult.message);
 ```
 
 ---
@@ -837,13 +1065,24 @@ const api = window.AutoCardUpdaterAPI;
 
 // 假设从服务器获取了模板和预设数据
 async function loadFromServer() {
-    // 导入模板
+    // 将模板注入到当前聊天，不改动全局模板库
     const templateResponse = await fetch('/api/template.json');
     const templateData = await templateResponse.json();
-    const templateResult = await api.importTemplateFromData(templateData);
-    console.log("模板导入:", templateResult.message);
+    const templateResult = await api.importTemplateFromData(templateData, {
+        scope: 'chat',
+        presetName: '服务器下发模板'
+    });
+    console.log("模板注入当前聊天:", templateResult.message);
+
+    // 如果你走的是角色卡开场页初始化链路，也可以这样显式指定模板预设名
+    await api.initGameSession({ name: '示例角色' }, {
+        injectTemplate: true,
+        loadPreset: false,
+        templateData,
+        templatePresetName: '示例角色'
+    });
     
-    // 导入预设
+    // 导入剧情推进预设库
     const presetResponse = await fetch('/api/presets.json');
     const presetsData = await presetResponse.json();
     const presetsResult = await api.importPlotPresetsFromData(presetsData);
@@ -1169,6 +1408,91 @@ window.AutoCardUpdaterAPI.deleteApiPreset('测试预设');
 
 ---
 
+## AI 调用 API
+
+### `callAI(messages, options)`
+
+调用 AI 生成内容，使用数据库当前配置的 API。
+
+**参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| messages | Array | 是 | 消息数组，格式: `[{role: 'system'\|'user'\|'assistant', content: '...'}]` |
+| options.max_tokens | number | 否 | 最大 token 数，默认使用数据库配置或 4096 |
+
+**返回值**: `Promise<string|null>` - AI 返回的文本内容，失败返回 `null`
+
+**说明**:
+- 使用数据库插件中配置的 API 设置（API URL、模型、密钥等）
+- 支持两种 API 模式：
+  - **酒馆 Profile 模式** (`apiMode === 'tavern'`)：使用酒馆的 Connection Manager
+  - **自定义 API 模式** (`apiMode === 'custom'`)：
+    - 如果启用 `useMainApi`，使用酒馆主 API（`TavernHelper.generateRaw`）
+    - 否则使用独立配置的 API（流式传输）
+- 前端插件可以通过此方法直接调用 AI，无需自行配置 API
+
+**使用场景**:
+- 前端插件需要调用 AI 生成内容（如地图生成、剧情分析等）
+- 避免在前端重复配置 API 信息
+- 统一使用数据库插件的 API 配置
+
+**示例**:
+```javascript
+// 检查 API 是否可用
+if (window.AutoCardUpdaterAPI && typeof window.AutoCardUpdaterAPI.callAI === 'function') {
+    const messages = [
+        { role: 'system', content: '你是一个有帮助的助手。' },
+        { role: 'user', content: '请生成一个奇幻场景的描述。' }
+    ];
+    
+    const response = await window.AutoCardUpdaterAPI.callAI(messages, { max_tokens: 2000 });
+    
+    if (response) {
+        console.log('AI 响应:', response);
+    } else {
+        console.error('AI 调用失败');
+    }
+}
+```
+
+---
+
+### `getStoryContext(maxTurns)`
+
+获取最近剧情上下文（从聊天记录，仅 AI 消息）。
+
+**参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| maxTurns | number | 否 | 最大回合数，默认 3 |
+
+**返回值**: `string` - 剧情上下文文本（多条消息用 `\n\n` 分隔）
+
+**说明**:
+- 从最新的聊天记录向前遍历
+- 只获取 AI 的回复消息（`is_user === false`）
+- 返回的消息按时间顺序排列（旧消息在前）
+
+**使用场景**:
+- 获取最近的剧情内容用于上下文分析
+- 为 AI 调用提供剧情背景
+
+**示例**:
+```javascript
+// 获取最近 5 轮对话的剧情上下文
+const context = window.AutoCardUpdaterAPI.getStoryContext(5);
+console.log('最近剧情:', context);
+
+// 配合 callAI 使用
+const messages = [
+    { role: 'system', content: '你是剧情分析助手。' },
+    { role: 'user', content: `请分析以下剧情的发展趋势：\n\n${context}` }
+];
+const analysis = await window.AutoCardUpdaterAPI.callAI(messages);
+```
+
+---
+
 ## 注意事项
 
 1. **API 可用性检查**: 在调用任何 API 方法前，请先检查 `window.AutoCardUpdaterAPI` 是否存在。
@@ -1177,13 +1501,15 @@ window.AutoCardUpdaterAPI.deleteApiPreset('测试预设');
 
 3. **数据安全**: `getPlotPresets()` 和 `getPlotPresetDetails()` 返回的是深拷贝，修改返回值不会影响原始数据。
 
-4. **UI 同步**: `switchPlotPreset()` 会自动同步设置面板的 UI（如果已打开）。
+4. **UI 同步**: `switchPlotPreset()` 与 `switchTemplatePreset()` 会自动同步设置面板的 UI（如果已打开）。
 
 5. **错误处理**: 所有 API 方法都有内置错误处理，失败时会返回 `false` 或空值，不会抛出异常。
 
 6. **前端导入 API**: `importTemplateFromData()` 和 `importPlotPresetFromData()` 返回包含 `success` 和 `message` 的对象，便于前端展示导入结果。
 
 7. **数据隔离**: 切换预设后，`$6` 占位符会自动回溯查找匹配当前预设名称标签的历史数据，实现不同预设间的剧情规划隔离。
+
+8. **模板作用域**: `importTemplate()`、`exportTemplate()`、`resetTemplate()`、`switchTemplatePreset()`、`importTemplateFromData()` 都支持 `options.scope`。`global` 作用于当前 profile 的全局模板；`chat` 仅作用于当前聊天模板快照，不会改动全局模板库。
 
 ---
 
@@ -1195,3 +1521,5 @@ window.AutoCardUpdaterAPI.deleteApiPreset('测试预设');
 | 1.1 | 新增剧情推进预设管理 API：`getPlotPresets()`, `getPlotPresetNames()`, `getCurrentPlotPreset()`, `switchPlotPreset()`, `getPlotPresetDetails()` |
 | 1.2 | 新增前端导入 API：`importTemplateFromData()`, `importPlotPresetFromData()`, `importPlotPresetsFromData()`, `getTableTemplate()`, `exportAllPlotPresets()` |
 | 1.3 | 新增更新配置参数 API：`getUpdateConfigParams()`, `setUpdateConfigParams()`；新增手动更新表选择 API：`getManualSelectedTables()`, `setManualSelectedTables()`, `clearManualSelectedTables()`；新增 API 预设管理 API：`getApiPresets()`, `getTableApiPreset()`, `setTableApiPreset()`, `getPlotApiPreset()`, `setPlotApiPreset()`, `saveApiPreset()`, `loadApiPreset()`, `deleteApiPreset()` |
+| 1.4 | 新增 AI 调用 API：`callAI(messages, options)` 使用数据库配置的 API 调用 AI；`getStoryContext(maxTurns)` 获取最近剧情上下文 |
+| 1.5 | 补充模板双作用域相关文档：`importTemplate(options)`、`exportTemplate(options)`、`resetTemplate(options)`、`getTemplatePresetNames()`、`switchTemplatePreset()`、`injectTemplatePresetToCurrentChat()`、`importTemplateFromData(templateData, options)` |

@@ -89,6 +89,7 @@ export function createBootstrap(context, options = {}) {
       } catch (error) {
         moduleLoadPromise = null;
         console.warn(`[${SCRIPT_ID}] 模块加载失败，使用内置功能:`, error);
+        console.warn(`[${SCRIPT_ID}] 已加载模块:`, Object.keys(modules).filter((key) => modules[key]));
         return false;
       }
     })();
@@ -1371,30 +1372,32 @@ export function createBootstrap(context, options = {}) {
     const modulesLoaded = await loadModules();
     if (modulesLoaded) {
       log('所有模块加载成功');
+    } else {
+      log('部分模块加载失败，使用可用功能');
+    }
 
-      if (!uiInitialized && modules.uiModule?.initUI) {
-        try {
-          modules.uiModule.initUI({
-            services: modules,
-            autoInjectStyles: false,
-            targetDocument: topLevelWindow.document || document
-          });
-          uiInitialized = true;
-          log('UI 装配中心已初始化');
-        } catch (uiError) {
-          console.error(`[${SCRIPT_ID}] UI 模块初始化失败:`, uiError);
-        }
+    if (!uiInitialized && modules.uiModule?.initUI) {
+      try {
+        modules.uiModule.initUI({
+          services: modules,
+          autoInjectStyles: false,
+          targetDocument: topLevelWindow.document || document
+        });
+        uiInitialized = true;
+        log('UI 装配中心已初始化');
+      } catch (uiError) {
+        console.error(`[${SCRIPT_ID}] UI 模块初始化失败:`, uiError);
       }
+    }
 
+    if (modules.uiModule) {
       injectComponentStyles();
       await applySavedTheme();
+    }
 
-      if (modules.toolAutomationServiceModule?.toolAutomationService) {
-        const initialized = modules.toolAutomationServiceModule.toolAutomationService.init();
-        log(initialized ? '自动化生命周期服务已初始化' : '自动化生命周期服务初始化未完成，等待宿主事件源重试');
-      }
-    } else {
-      log('部分模块加载失败，使用基础功能');
+    if (modules.toolAutomationServiceModule?.toolAutomationService) {
+      const initialized = modules.toolAutomationServiceModule.toolAutomationService.init();
+      log(initialized ? '自动化生命周期服务已初始化' : '自动化生命周期服务初始化未完成，等待宿主事件源重试');
     }
 
     const targetDoc = topLevelWindow.document || document;
