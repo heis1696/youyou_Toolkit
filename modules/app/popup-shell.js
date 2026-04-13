@@ -69,7 +69,7 @@ export function createPopupShell(context) {
       return mainConfig.name || tabId;
     }
 
-    const activeSubTabId = uiState.currentSubTab[tabId] || mainConfig.subTabs?.[0]?.id || '';
+    const activeSubTabId = resolveActiveSubTabId(tabId);
     const subConfig = mainConfig.subTabs?.find(item => item.id === activeSubTabId);
 
     if (subConfig?.name) {
@@ -91,9 +91,26 @@ export function createPopupShell(context) {
       return mainConfig.description || '在这里管理当前页面的配置和操作。';
     }
 
-    const activeSubTabId = uiState.currentSubTab[tabId] || mainConfig.subTabs?.[0]?.id || '';
+    const activeSubTabId = resolveActiveSubTabId(tabId);
     const subConfig = mainConfig.subTabs?.find(item => item.id === activeSubTabId);
     return subConfig?.description || mainConfig.description || '在这里管理当前工具的模板、配置与调试能力。';
+  }
+
+  function resolveActiveSubTabId(mainTab, preferredSubTab = '') {
+    const mainConfig = modules.toolRegistryModule?.getToolConfig(mainTab);
+    if (!mainConfig?.hasSubTabs || !Array.isArray(mainConfig.subTabs) || mainConfig.subTabs.length === 0) {
+      return '';
+    }
+
+    const requestedSubTab = String(preferredSubTab || uiState.currentSubTab[mainTab] || '').trim();
+    const hasRequestedSubTab = requestedSubTab && mainConfig.subTabs.some(item => item?.id === requestedSubTab);
+    const nextSubTab = hasRequestedSubTab ? requestedSubTab : (mainConfig.subTabs[0]?.id || '');
+
+    if (nextSubTab && uiState.currentSubTab[mainTab] !== nextSubTab) {
+      uiState.currentSubTab[mainTab] = nextSubTab;
+    }
+
+    return nextSubTab;
   }
 
   function updatePopupStatus() {
@@ -528,7 +545,7 @@ export function createPopupShell(context) {
     const $ = getJQuery();
     if (!$ || !uiState.currentPopup || !subTabs) return;
 
-    const currentSub = uiState.currentSubTab[mainTab] || subTabs[0]?.id;
+    const currentSub = resolveActiveSubTabId(mainTab, uiState.currentSubTab[mainTab] || subTabs[0]?.id);
 
     const subNavHtml = subTabs.map(tab => `
       <div class="yyt-sub-nav-item ${tab.id === currentSub ? 'active' : ''}" data-subtab="${tab.id}">
@@ -589,12 +606,21 @@ export function createPopupShell(context) {
         }
         break;
 
-      case 'tools':
-        if (toolConfig?.hasSubTabs && toolConfig.subTabs?.length > 0) {
-          const activeSubTab = uiState.currentSubTab[tabName] || toolConfig.subTabs[0].id;
+      case 'tools': {
+        const activeSubTab = resolveActiveSubTabId(tabName);
+        if (toolConfig?.hasSubTabs && activeSubTab) {
           await renderSubTabContent(tabName, activeSubTab);
         } else {
           $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置加载失败</span></div>');
+        }
+        break;
+      }
+
+      case 'tableWorkbench':
+        if (modules.uiModule?.renderTableWorkbenchPanel) {
+          modules.uiModule.renderTableWorkbenchPanel($content);
+        } else {
+          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>填表工作台加载失败</span></div>');
         }
         break;
 
@@ -631,16 +657,21 @@ export function createPopupShell(context) {
 
     const mainToolConfig = modules.toolRegistryModule?.getToolConfig(mainTab);
     if (mainToolConfig?.hasSubTabs) {
-      const subToolConfig = mainToolConfig.subTabs?.find(st => st.id === subTab);
+      const activeSubTab = resolveActiveSubTabId(mainTab, subTab);
+      const subToolConfig = mainToolConfig.subTabs?.find(st => st.id === activeSubTab);
+      let $subContent = $mainContent.find('.yyt-sub-content');
+      if (!$subContent.length) {
+        $mainContent.html('<div class="yyt-sub-content"></div>');
+        $subContent = $mainContent.find('.yyt-sub-content');
+      }
 
-      if (subToolConfig) {
-        let $subContent = $mainContent.find('.yyt-sub-content');
-        if (!$subContent.length) {
-          $mainContent.html('<div class="yyt-sub-content"></div>');
-          $subContent = $mainContent.find('.yyt-sub-content');
-        }
+      if (!subToolConfig) {
+        $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>当前子页面不存在或已失效</span></div>');
+        refreshScrollableSurfaces();
+        return;
+      }
 
-        switch (subToolConfig.component) {
+      switch (subToolConfig.component) {
           case 'SummaryToolPanel':
             if (modules.uiModule?.renderSummaryToolPanel) {
               modules.uiModule.renderSummaryToolPanel($subContent);
@@ -706,14 +737,6 @@ export function createPopupShell(context) {
             }
             break;
 
-          case 'TableWorkbenchPanel':
-            if (modules.uiModule?.renderTableWorkbenchPanel) {
-              modules.uiModule.renderTableWorkbenchPanel($subContent);
-            } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>填表工作台加载失败</span></div>');
-            }
-            break;
-
           case 'GenericToolConfigPanel':
             await renderGenericToolConfigPanel(subToolConfig, $subContent);
             break;
@@ -721,8 +744,7 @@ export function createPopupShell(context) {
           default:
             $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>');
         }
-      }
-
+      refreshScrollableSurfaces();
       return;
     }
 

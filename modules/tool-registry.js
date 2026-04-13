@@ -436,9 +436,17 @@ export const TOOL_REGISTRY = {
       { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' },
       { id: 'youyouReview', name: '小幽点评', icon: 'fa-comment-dots', component: 'YouyouReviewPanel' },
       { id: 'escapeTransformTool', name: '转义处理', icon: 'fa-quote-left', component: 'EscapeTransformToolPanel' },
-      { id: 'punctuationTransformTool', name: '中文标点替换', icon: 'fa-language', component: 'PunctuationTransformToolPanel' },
-      { id: 'tableWorkbench', name: '填表工作台', icon: 'fa-table-cells', component: 'TableWorkbenchPanel', order: 60 }
+      { id: 'punctuationTransformTool', name: '中文标点替换', icon: 'fa-language', component: 'PunctuationTransformToolPanel' }
     ]
+  },
+  tableWorkbench: {
+    id: 'tableWorkbench',
+    name: '填表工作台',
+    icon: 'fa-table-cells',
+    hasSubTabs: false,
+    description: '结构化填表与状态预览工作台',
+    component: 'TableWorkbenchPanel',
+    order: 5
   },
   // v0.5 新增页面
   bypass: {
@@ -448,7 +456,7 @@ export const TOOL_REGISTRY = {
     hasSubTabs: false,
     description: '管理破限词预设',
     component: 'BypassPanel',
-    order: 5
+    order: 6
   },
   settings: {
     id: 'settings',
@@ -457,7 +465,7 @@ export const TOOL_REGISTRY = {
     hasSubTabs: false,
     description: '全局设置',
     component: 'SettingsPanel',
-    order: 6
+    order: 7
   }
 };
 
