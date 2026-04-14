@@ -84,6 +84,21 @@ const THEME_CONFIGS = {
   }
 };
 
+
+function renderToggleControl({ id, checked = false, title = '', hint = '' }) {
+  return `
+    <div class="yyt-toggle-row">
+      <div class="yyt-toggle-label">
+        <span>${title}</span>
+        ${hint ? `<span class="yyt-toggle-hint">${hint}</span>` : ''}
+      </div>
+      <label class="yyt-toggle">
+        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}>
+        <span class="yyt-toggle-slider"></span>
+      </label>
+    </div>
+  `;
+}
 function getTargetWindow() {
   try {
     if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
@@ -288,12 +303,12 @@ export const SettingsPanel = {
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">自动触发总开关</div>
           <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-automationEnabled"
-                     ${automation.enabled ? 'checked' : ''}>
-              <span>启用工具自动触发</span>
-            </label>
-            <div class="yyt-form-hint">这里只保留一个全局开关。开启后，所有处于“额外 AI 模型解析”模式的工具都会参与自动触发。</div>
+            ${renderToggleControl({
+              id: 'yyt-setting-automationEnabled',
+              checked: automation.enabled,
+              title: '启用工具自动触发',
+              hint: '这里只保留一个全局开关。开启后，所有处于“额外 AI 模型解析”模式的工具都会参与自动触发。'
+            })}
           </div>
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
@@ -336,33 +351,33 @@ export const SettingsPanel = {
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">日志设置</div>
           <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-enableDebugLog"
-                     ${debug.enableDebugLog ? 'checked' : ''}>
-              <span>启用调试日志</span>
-            </label>
-            <div class="yyt-form-hint">在控制台输出详细的调试信息</div>
+            ${renderToggleControl({
+              id: 'yyt-setting-enableDebugLog',
+              checked: debug.enableDebugLog,
+              title: '启用调试日志',
+              hint: '在控制台输出详细的调试信息'
+            })}
           </div>
 
           <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-saveExecutionHistory"
-                     ${debug.saveExecutionHistory ? 'checked' : ''}>
-              <span>保存执行历史</span>
-            </label>
-            <div class="yyt-form-hint">记录工具执行历史，便于问题排查</div>
+            ${renderToggleControl({
+              id: 'yyt-setting-saveExecutionHistory',
+              checked: debug.saveExecutionHistory,
+              title: '保存执行历史',
+              hint: '记录工具执行历史，便于问题排查'
+            })}
           </div>
         </div>
 
         <div class="yyt-settings-section">
           <div class="yyt-settings-section-title">UI 显示</div>
           <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-showRuntimeBadge"
-                     ${debug.showRuntimeBadge ? 'checked' : ''}>
-              <span>显示运行状态徽章</span>
-            </label>
-            <div class="yyt-form-hint">在工具卡片上显示运行状态指示器</div>
+            ${renderToggleControl({
+              id: 'yyt-setting-showRuntimeBadge',
+              checked: debug.showRuntimeBadge,
+              title: '显示运行状态徽章',
+              hint: '在工具卡片上显示运行状态指示器'
+            })}
           </div>
         </div>
       </div>
@@ -385,21 +400,21 @@ export const SettingsPanel = {
           </div>
 
           <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-compactMode"
-                     ${ui.compactMode ? 'checked' : ''}>
-              <span>紧凑模式</span>
-            </label>
-            <div class="yyt-form-hint">减少卡片间距，显示更多内容</div>
+            ${renderToggleControl({
+              id: 'yyt-setting-compactMode',
+              checked: ui.compactMode,
+              title: '紧凑模式',
+              hint: '减少卡片间距，显示更多内容'
+            })}
           </div>
 
           <div class="yyt-form-group">
-            <label class="yyt-toggle-label">
-              <input type="checkbox" class="yyt-toggle" id="yyt-setting-animationEnabled"
-                     ${ui.animationEnabled ? 'checked' : ''}>
-              <span>启用动画效果</span>
-            </label>
-            <div class="yyt-form-hint">界面过渡和交互动画</div>
+            ${renderToggleControl({
+              id: 'yyt-setting-animationEnabled',
+              checked: ui.animationEnabled,
+              title: '启用动画效果',
+              hint: '界面过渡和交互动画'
+            })}
           </div>
         </div>
 

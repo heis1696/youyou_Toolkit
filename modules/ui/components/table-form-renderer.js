@@ -3,7 +3,14 @@
  * @description 基于 schema 渲染最小配置表单，并负责表单取值
  */
 
-import { escapeHtml, getJQuery, isContainerValid } from '../utils.js';
+import {
+  bindDialogEvents,
+  createDialogHtml,
+  escapeHtml,
+  getJQuery,
+  isContainerValid,
+  showToast
+} from '../utils.js';
 import {
   createEmptyTableColumn,
   createEmptyTableDefinition,
@@ -99,11 +106,12 @@ export const TABLE_FORM_RENDERER_STYLES = `
   .yyt-table-editor-card {
     padding: 14px;
     border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.025) 100%);
     display: flex;
     flex-direction: column;
     gap: 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 34px rgba(0, 0, 0, 0.16);
   }
 
   .yyt-table-editor-card-title {
@@ -144,7 +152,7 @@ export const TABLE_FORM_RENDERER_STYLES = `
     padding: 10px 12px;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .yyt-table-editor-input-group {
@@ -170,7 +178,7 @@ export const TABLE_FORM_RENDERER_STYLES = `
     width: 100%;
     min-width: 680px;
     border-collapse: collapse;
-    background: rgba(8, 12, 18, 0.42);
+    background: rgba(8, 12, 18, 0.62);
   }
 
   .yyt-table-editor-grid th,
@@ -306,17 +314,23 @@ function renderTableEditorRow(table = {}, row = {}, tableIndex = 0, rowIndex = 0
   `;
 }
 
-function renderTableEditorCard(table = {}, tableIndex = 0) {
+function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
   const columns = Array.isArray(table.columns) ? table.columns : [];
   const rows = Array.isArray(table.rows) ? table.rows : [];
+  const showDeleteTable = options.showDeleteTable !== false;
+  const deleteButtonHtml = showDeleteTable
+    ? `
+        <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-table" data-table-index="${tableIndex}">
+          <i class="fa-solid fa-trash"></i> 删除表格
+        </button>
+      `
+    : '';
 
   return `
     <div class="yyt-table-editor-card" data-table-editor-table="${tableIndex}">
       <div class="yyt-table-editor-card-head">
         <div class="yyt-table-editor-card-title">表格 ${tableIndex + 1}</div>
-        <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-table" data-table-index="${tableIndex}">
-          <i class="fa-solid fa-trash"></i> 删除表格
-        </button>
+        ${deleteButtonHtml}
       </div>
 
       <div class="yyt-table-editor-meta">
@@ -388,6 +402,15 @@ function renderTableEditorCard(table = {}, tableIndex = 0) {
   `;
 }
 
+function renderTableDefinitionDialogBody(table = {}, tableIndex = 0) {
+  return `
+    <div class="yyt-table-editor" data-table-dialog-root>
+      <div class="yyt-table-editor-muted">先完成单张表的结构与内容，再保存回表定义列表。</div>
+      ${renderTableEditorCard(table, tableIndex, { showDeleteTable: false })}
+    </div>
+  `;
+}
+
 function renderTableDefinitionsEditorBody(draft = {}) {
   const tables = Array.isArray(draft?.tables) ? draft.tables : [];
 
@@ -425,6 +448,47 @@ function renderTableDefinitionsField(field = {}, values = {}) {
       ${description}
     </div>
   `;
+}
+
+function openTableDefinitionDialog($container, table = {}, callbacks = {}) {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container)) {
+    return null;
+  }
+
+  const dialogId = `yyt-table-definition-dialog-${Date.now()}`;
+  const dialogHtml = createDialogHtml({
+    id: dialogId,
+    title: '编辑表格',
+    body: renderTableDefinitionDialogBody(table, 0),
+    wide: true,
+    width: 'min(860px, calc(100vw - 32px))'
+  });
+
+  $container.append(dialogHtml);
+
+  bindDialogEvents($container, dialogId, {
+    onSave: (closeDialog) => {
+      const $dialogRoot = $container.find(`#${dialogId}-overlay [data-table-dialog-root]`);
+      const validation = validateTableDraft(readTableDefinitionsDraft($dialogRoot));
+      if (!validation.valid) {
+        showToast('error', validation.errors.join('\n'));
+        return;
+      }
+
+      if (typeof callbacks.onSave === 'function') {
+        callbacks.onSave(validation.tables[0] || createEmptyTableDefinition(1));
+      }
+      closeDialog();
+    },
+    onClose: () => {
+      if (typeof callbacks.onClose === 'function') {
+        callbacks.onClose();
+      }
+    }
+  });
+
+  return dialogId;
 }
 
 function renderField(field = {}, values = {}) {
@@ -562,7 +626,16 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
     const rowIndex = Number.parseInt($target.attr('data-row-index') || '', 10);
 
     if (action === 'add-table') {
-      tables.push(createEmptyTableDefinition(tables.length + 1));
+      openTableDefinitionDialog($container, createEmptyTableDefinition(tables.length + 1), {
+        onSave: (nextTable) => {
+          const nextDraft = readTableDefinitionsDraft($root);
+          const nextTables = Array.isArray(nextDraft.tables) ? nextDraft.tables : [];
+          nextTables.push(nextTable);
+          rerenderTableDefinitionsRoot($root, field, { tables: nextTables });
+          notifyChange();
+        }
+      });
+      return;
     }
 
     if (action === 'delete-table' && Number.isInteger(tableIndex) && tableIndex >= 0 && tableIndex < tables.length) {

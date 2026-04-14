@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.31] - 2026-04-15
+
+### 修复
+
+- 🐛 **统一修复共享表单控件与设置开关 UI 回归** (`styles/main.css`, `modules/ui/components/settings-panel.js`)
+  - `.yyt-select` 现改为箭头图标与深色控件背景同层渲染，常态 / hover / focus 不再出现发白
+  - 设置页 6 个开关已切回现有自定义 toggle 结构，不再显示原生 checkbox
+  - 保留原有设置项 `id` 与保存逻辑，只修正渲染结构与样式表现
+
+- 🐛 **表格工作台“新增表格”改回标准 dialog 交互** (`modules/ui/components/table-form-renderer.js`)
+  - 点击“新增表格”后不再直接把空白卡片内联插回列表，而是进入现有 dialog 流程
+  - 取消 / 关闭不会污染当前表定义，保存后才回写到列表
+  - 同步收紧表格编辑卡片与表格区透明度，避免继续呈现“半透明窗口”观感
+
 ## [1.0.30] - 2026-04-14
 
 ### 修复
