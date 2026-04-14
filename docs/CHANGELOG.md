@@ -9,7 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.30] - 2026-04-14
+
 ### 修复
+
+- 🐛 **填表工作台导入链恢复：修复 `storage.namespace` 冲突** (`modules/core/storage-service.js`, `modules/table-engine/table-schema-service.js`, `modules/ui/components/table-workbench-panel.js`)
+  - `StorageService` 的实例属性与 `namespace()` 方法不再同名，避免 `storage.namespace is not a function`
+  - 修复后 `tableWorkbench` 相关模块可正常导入，顶级工作台页能够恢复渲染
+  - 这次修复解决的是模块导入/初始化失败，不涉及表定义编辑体验本身
 
 - 🐛 **自动化生命周期服务回退到 same-slot / 多事件事务入口** (`modules/tool-automation-service.js`, `docs/OPTIMIZATION_PROGRESS.md`)
   - 不再错误地只依赖 `MESSAGE_RECEIVED + MESSAGE_SENT` 的简化版 MVU 入口
@@ -18,6 +25,17 @@
   - 新增按 execution key 的短时间窗口去重：同一轮事件回响不重复执行，但同楼层新 revision 仍可再次进入自动链
 
 ### 更改
+
+- ♻️ **填表工作台最小手动 MVP 已接入独立顶级页签** (`modules/tool-registry.js`, `modules/app/popup-shell.js`, `modules/table-engine/*.js`, `modules/ui/components/table-workbench-panel.js`, `modules/ui/components/table-form-renderer.js`)
+  - 当前 `tableWorkbench` 已作为独立顶级标签页接入 popup shell，不再与普通工具页混在同一个子页签集合中
+  - 已落地最小手动链：fresh target resolve -> template/state load -> request build -> API -> tables JSON parse -> structured state commit -> optional mirror writeback
+  - 当前工作台仍属于 MVP 阶段，但表定义已经不再要求直接手写 JSON；当前已切到结构化编辑器 MVP，下一阶段的主要缺口转为排序、模板、历史与更成熟的 visualizer / authoring 体验
+
+- ♻️ **填表工作台切到结构化表定义编辑器 MVP** (`modules/table-engine/table-schema-service.js`, `modules/ui/components/table-form-renderer.js`, `modules/ui/components/table-workbench-panel.js`)
+  - `tableWorkbench` 的 `tables` 字段已从 `json` textarea 主路径切换为 `tableDefinitions` 结构化编辑器字段
+  - 当前已支持表格 / 列 / 行的增删、表格基础信息编辑，以及单元格内容内联编辑
+  - 保存 / 运行前会统一编译为 runtime `tables`，原有 `table-update-service -> table-writeback-service` 执行与 revision-safe 写回主链保持不变
+  - 当前这套编辑器仍是 MVP：已经解决“必须手写 JSON”的问题，但表 / 行 / 列排序、模板体系、历史 / 导入导出、visualizer shell 仍未完成
 
 - ♻️ **MVU 风格自动生命周期主链落地** (`modules/tool-automation-service.js`, `modules/tool-execution-context.js`, `modules/tool-trigger.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `modules/tool-registry.js`, `modules/tool-manager.js`, `modules/core/settings-service.js`, `modules/app/bootstrap.js`, `modules/app/public-api.js`, `modules/ui/components/settings-panel.js`, `modules/ui/components/tool-config-panel-factory.js`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/HOST_REGRESSION_CHECKLIST.md`)
   - 新增 `tool-automation-service.js` 作为唯一自动入口，直接监听宿主 `MESSAGE_RECEIVED / CHAT_CHANGED / MESSAGE_DELETED`，不再恢复旧 trigger/baseline/replay 状态机

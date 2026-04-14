@@ -546,13 +546,47 @@ export function createPopupShell(context) {
     if (!$ || !uiState.currentPopup || !subTabs) return;
 
     const currentSub = resolveActiveSubTabId(mainTab, uiState.currentSubTab[mainTab] || subTabs[0]?.id);
+    const groups = mainTab === 'tools'
+      ? [
+          {
+            key: 'ai',
+            title: 'AI 工具',
+            items: subTabs.filter(tab => (tab?.toolKind || 'ai') !== 'script')
+          },
+          {
+            key: 'script',
+            title: '脚本工具',
+            items: subTabs.filter(tab => tab?.toolKind === 'script')
+          }
+        ].filter(group => group.items.length > 0)
+      : [
+          {
+            key: 'default',
+            title: '',
+            items: subTabs
+          }
+        ];
 
-    const subNavHtml = subTabs.map(tab => `
-      <div class="yyt-sub-nav-item ${tab.id === currentSub ? 'active' : ''}" data-subtab="${tab.id}">
-        <i class="fa-solid ${tab.icon || 'fa-file'}"></i>
-        <span>${tab.name}</span>
-      </div>
-    `).join('');
+    const subNavHtml = groups.map(group => {
+      const titleHtml = group.title
+        ? `<div class="yyt-sub-nav-group-title">${escapeHtml(group.title)}</div>`
+        : '';
+      const itemsHtml = group.items.map(tab => `
+        <div class="yyt-sub-nav-item ${tab.id === currentSub ? 'active' : ''}" data-subtab="${tab.id}">
+          <i class="fa-solid ${tab.icon || 'fa-file'}"></i>
+          <span>${escapeHtml(tab.name || tab.id)}</span>
+        </div>
+      `).join('');
+
+      return `
+        <div class="yyt-sub-nav-group yyt-sub-nav-group-${group.key}">
+          ${titleHtml}
+          <div class="yyt-sub-nav-group-items">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
 
     $(uiState.currentPopup).find('.yyt-sub-nav').html(subNavHtml);
     $(uiState.currentPopup).find('.yyt-sub-nav-item').on('click', function onSubTabClick() {

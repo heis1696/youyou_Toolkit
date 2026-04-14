@@ -14,6 +14,7 @@
    `tool-output-service.js -> tool-prompt-service.js -> api-connection.js -> context-injector.js`
 4. `modules/tool-trigger.js` 文件名被保留，但当前职责只剩手动执行与提取预览入口。
 5. `tool-executor.js` 仍保留调度 / 批处理 / compatibility 执行能力，但不再作为自动触发入口。
+6. `tableWorkbench` 已经进入“结构化 authoring MVP”阶段，但它仍然是现有 transaction / execution / writeback 主链上的一个 table domain，而不是独立状态机。
 
 ## 2. 模块职责
 
@@ -42,6 +43,15 @@
 - `modules/ui/ui-manager.js`：组件生命周期与样式装配
 - `modules/ui/components/`：面板组件
 - `modules/ui/components/tool-config-panel-factory.js`：统一工具配置面板工厂
+
+### 2.4 填表工作台 / table domain
+
+- `modules/table-engine/`：当前 tableWorkbench 的 domain 层，已落地 target resolve、bound state、schema/config、manual update、writeback 等最小主链
+- `modules/tool-registry.js` + `modules/app/popup-shell.js`：`tableWorkbench` 现在是独立顶级页签，不再挂在 `tools` 子页签下
+- `modules/ui/components/table-workbench-panel.js`：当前手动工作台入口，负责配置保存、目标诊断、编译结果预览与手动执行按钮
+- `modules/ui/components/table-form-renderer.js`：当前结构化表定义编辑器 MVP，负责表 / 列 / 行 / 单元格的最小 authoring 交互
+- `modules/table-engine/table-schema-service.js`：当前除了 schema/config 外，还负责 draft ↔ runtime `tables` 的 derive / compile / validate
+- 当前 tableWorkbench 已不再把 JSON textarea 作为主 authoring 入口，但仍属于 MVP：执行链已落地、结构化编辑器已存在，不过排序、模板、历史、visualizer 等高级体验尚未完成
 
 ## 3. 当前执行流
 
@@ -77,7 +87,27 @@
   -> tool-output-service.previewExtraction()
 ```
 
-### 3.4 写回路径
+### 3.4 tableWorkbench 手动填表
+
+```text
+tableWorkbench 顶级页
+  -> table-form-renderer 结构化编辑器
+  -> readTableFormValues()
+  -> compileTableDraftToTables()
+  -> saveTableWorkbenchConfig()
+  -> runManualTableUpdate()
+  -> buildExecutionContextForLatestAssistant()
+  -> resolveTableTargetFromExecutionContext()
+  -> recordResolvedTarget()
+  -> loadBoundStateOrTemplate()
+  -> buildRequest()
+  -> sendApiRequest() / sendWithPreset()
+  -> parsePatch()
+  -> writeTableState()
+  -> commitBoundState() + optional mirror writeback
+```
+
+### 3.5 写回路径
 
 ```text
 runToolPostResponse()
@@ -118,19 +148,37 @@ runToolPostResponse()
 `tool-manager.js` 负责定义层工具对象的创建、导入、导出与启停。
 当前逻辑会在读取与保存时清理旧 trigger 形状，避免历史数据继续把过时字段带回主线。
 
+### 4.4 `tableWorkbench` 的现状
+
+不要再把 `tableWorkbench` 理解成“只是一个 JSON 配置 textarea”。
+
+当前它主要已经承担：
+- 结构化表定义 authoring MVP
+- runtime `tables` 编译与预览
+- 手动填表入口
+- 目标诊断与当前加载结果诊断
+
+但当前仍不能把它理解成：
+- 完整 visualizer
+- 完整模板系统
+- 完整历史 / 导入导出系统
+- 独立 table 状态机
+
 ## 5. 当前仓库的真实风险点
 
-如果后续要继续推进新一轮自动执行方案，应该把它视为**新的实现任务**，而不是“恢复旧 trigger 链”。
+如果后续要继续推进新一轮 tableWorkbench 方案，应该把它视为**在现有稳定主链上增强 authoring UX**，而不是重写执行 / 写回架构。
 
 也就是说：
-- 当前旧自动触发实现已经退出主源码运行链
-- 后续若要引入自动执行，应先有新的设计，再落地新的事件模型 / 门控 / 幂等 / 写回确认链
+- 当前手动执行主链已经能跑
+- 当前 stale-target / revision-safe 保护已经在主链里
+- 后续若要继续推进，应优先增强 editor / visualizer / 模板 / 历史，而不是破坏已稳定的 target / commit 边界
 
 ## 6. 结论
 
-当前仓库最重要的主线已经不是“自动监听何时触发”，而是：
+当前仓库最重要的主线已经不是“自动监听何时触发”，也不再是“能不能先把 tableWorkbench 跑起来”，而是：
 - 手动执行如何稳定工作
 - `post_response_api` 如何正确提取与写回
+- tableWorkbench 如何在不破坏 revision-safe 主链的前提下，逐步从结构化 editor MVP 演进到正式工作台体验
 - 运行态诊断如何帮助定位写回 / 执行问题
 
-如果发现文档或注释仍把旧自动触发主链描述成当前事实，应以源码为准，并优先修正文档。
+如果发现文档或注释仍把旧自动触发主链或旧 JSON-only 的 tableWorkbench 描述成当前事实，应以源码为准，并优先修正文档。

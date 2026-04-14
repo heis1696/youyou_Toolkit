@@ -214,61 +214,6 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     margin-left: auto;
   }
 
-  .yyt-btn-small {
-    padding: 4px 10px;
-    font-size: 12px;
-  }
-
-  .yyt-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-    min-width: 0;
-  }
-
-  .yyt-checkbox-label > span:last-child {
-    flex: 1;
-    min-width: 0;
-    color: var(--yyt-text);
-    font-weight: 700;
-    line-height: 1.5;
-  }
-
-  .yyt-checkbox-label input[type="checkbox"],
-  .yyt-checkbox-label input[type="radio"] {
-    width: 18px;
-    height: 18px;
-    margin: 0;
-    flex-shrink: 0;
-    cursor: pointer;
-    accent-color: var(--yyt-accent);
-  }
-
-  .yyt-checkbox-label input[type="checkbox"]:focus-visible,
-  .yyt-checkbox-label input[type="radio"]:focus-visible {
-    outline: none;
-    box-shadow: var(--yyt-focus-ring);
-    border-radius: 6px;
-  }
-
-  .yyt-worldbook-item .yyt-checkbox-label,
-  .yyt-form-group > .yyt-checkbox-label {
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-  }
-
-  .yyt-worldbook-item .yyt-checkbox-label:hover,
-  .yyt-form-group > .yyt-checkbox-label:hover {
-    border-color: rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.065);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
   .yyt-tool-manual-area {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(240px, 0.75fr);
@@ -592,7 +537,8 @@ export function createToolConfigPanel(options) {
     postResponseHint,
     extractionPlaceholder,
     previewDialogId,
-    previewTitle = '测试提取结果'
+    previewTitle = '测试提取结果',
+    toolKindLabel = 'AI 工具'
   } = options;
 
   return {

@@ -17,6 +17,7 @@
   --yyt-success-glow: rgba(74, 222, 128, 0.3);
   --yyt-error: #f87171;
   --yyt-danger: var(--yyt-error);
+  --yyt-danger-soft: rgba(248, 113, 113, 0.16);
   --yyt-error-glow: rgba(248, 113, 113, 0.3);
   --yyt-warning: #fbbf24;
   --yyt-bg-base: #0b0f15;
@@ -41,6 +42,20 @@
   --yyt-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
   --yyt-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.18);
   --yyt-shadow-glow: 0 0 24px var(--yyt-accent-glow);
+  --yyt-control-radius: 14px;
+  --yyt-control-radius-sm: 11px;
+  --yyt-control-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.022) 100%);
+  --yyt-control-bg-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.032) 100%);
+  --yyt-control-bg-active: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.038) 100%);
+  --yyt-control-bg-strong: linear-gradient(180deg, rgba(255, 255, 255, 0.082) 0%, rgba(255, 255, 255, 0.03) 100%);
+  --yyt-control-bg-focus: linear-gradient(180deg, rgba(123, 183, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
+  --yyt-control-border: rgba(255, 255, 255, 0.11);
+  --yyt-control-border-hover: rgba(255, 255, 255, 0.18);
+  --yyt-control-border-focus: rgba(123, 183, 255, 0.72);
+  --yyt-control-shadow: 0 10px 24px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --yyt-control-shadow-hover: 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --yyt-control-shadow-focus: 0 16px 30px rgba(8, 14, 24, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --yyt-control-shadow-active: 0 8px 18px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --yyt-shell-sidebar-width: 248px;
   --yyt-shell-topbar-gap: 14px;
   --yyt-shell-gap: 12px;
@@ -163,39 +178,95 @@
 
 .yyt-sub-nav {
   display: flex;
-  gap: 6px;
-  padding: 6px;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.012) 100%);
-  border-radius: 16px;
+  border-radius: 18px;
   margin-bottom: 10px;
   border: 1px solid var(--yyt-border-soft);
   flex-shrink: 0;
 }
 
-.yyt-sub-nav-item {
+.yyt-sub-nav-group {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 260px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.032) 0%, rgba(255, 255, 255, 0.014) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.yyt-sub-nav-group-title {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 14px;
-  border-radius: 12px;
+  min-height: 26px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.42px;
+  text-transform: uppercase;
+  color: var(--yyt-text-muted);
+}
+
+.yyt-sub-nav-group-title::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
+}
+
+.yyt-sub-nav-group-ai .yyt-sub-nav-group-title::before {
+  background: rgba(123, 183, 255, 0.92);
+  box-shadow: 0 0 0 4px rgba(123, 183, 255, 0.12);
+}
+
+.yyt-sub-nav-group-script .yyt-sub-nav-group-title::before {
+  background: rgba(251, 191, 36, 0.92);
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
+}
+
+.yyt-sub-nav-group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.yyt-sub-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 13px;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   color: var(--yyt-text-secondary);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 12px;
   border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .yyt-sub-nav-item:hover {
   color: var(--yyt-text);
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--yyt-border-soft);
+  transform: translateY(-1px);
 }
 
 .yyt-sub-nav-item.active {
   color: var(--yyt-accent);
-  background: rgba(123, 183, 255, 0.1);
-  border-color: rgba(123, 183, 255, 0.16);
+  background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.06) 100%);
+  border-color: rgba(123, 183, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(11, 20, 34, 0.16);
 }
 
 .yyt-sub-nav-item i {
@@ -274,22 +345,23 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 13px;
+  padding: 18px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%),
-    linear-gradient(135deg, var(--yyt-surface) 0%, transparent 100%);
-  border: 1px solid var(--yyt-border);
-  border-radius: var(--yyt-radius-lg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--yyt-shadow-soft);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.038) 0%, rgba(255, 255, 255, 0.015) 100%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.028) 0%, transparent 62%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 34px rgba(0, 0, 0, 0.16);
   transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .yyt-panel-section:hover {
-  border-color: var(--yyt-border-strong);
+  border-color: rgba(255, 255, 255, 0.14);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%),
-    linear-gradient(135deg, var(--yyt-surface-2) 0%, transparent 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.022) 100%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.036) 0%, transparent 62%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 40px rgba(0, 0, 0, 0.2);
 }
 
 .yyt-panel-section > .yyt-section-title + * {
@@ -330,11 +402,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 38px;
+  min-height: 40px;
   padding: 10px 16px;
-  border: 1px solid var(--yyt-border);
-  border-radius: 13px;
-  background: linear-gradient(180deg, var(--yyt-surface-3) 0%, var(--yyt-surface) 100%);
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg-strong);
   color: var(--yyt-text);
   font-size: 13px;
   font-weight: 700;
@@ -343,14 +415,14 @@
   position: relative;
   overflow: hidden;
   letter-spacing: 0.2px;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--yyt-control-shadow);
 }
 
 .yyt-btn::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 42%, transparent 78%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.045) 42%, transparent 76%);
   pointer-events: none;
 }
 
@@ -359,72 +431,81 @@
   position: absolute;
   inset: 1px;
   border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.025);
   pointer-events: none;
 }
 
 .yyt-btn:hover {
   transform: translateY(-1px);
-  border-color: var(--yyt-border-strong);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+  box-shadow: var(--yyt-control-shadow-hover);
 }
 
 .yyt-btn:active {
   transform: translateY(0);
+  background: var(--yyt-control-bg-active);
+  box-shadow: var(--yyt-control-shadow-active);
   filter: saturate(0.98);
 }
 
 .yyt-btn:focus-visible {
   outline: none;
-  box-shadow: var(--yyt-focus-ring), 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
 }
 
 .yyt-btn-primary {
-  background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
+  background: linear-gradient(135deg, rgba(123, 183, 255, 0.98) 0%, rgba(165, 212, 255, 0.95) 100%);
   color: var(--yyt-on-accent);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 14px 30px rgba(123, 183, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 14px 30px rgba(123, 183, 255, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 .yyt-btn-primary:hover {
-  box-shadow: 0 18px 34px rgba(123, 183, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  background: linear-gradient(135deg, #86c0ff 0%, #b2ddff 100%);
+  box-shadow: 0 18px 34px rgba(123, 183, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.yyt-btn-primary:active {
+  background: linear-gradient(135deg, #74b2ff 0%, #a1d4ff 100%);
 }
 
 .yyt-btn-secondary {
-  background: linear-gradient(180deg, var(--yyt-surface-active) 0%, var(--yyt-surface-2) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%);
   color: var(--yyt-text);
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .yyt-btn-secondary:hover {
-  background: linear-gradient(180deg, var(--yyt-surface-hover) 0%, var(--yyt-surface-active) 100%);
-  border-color: var(--yyt-border-strong);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.038) 100%);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .yyt-btn-danger {
-  background: linear-gradient(180deg, rgba(248, 113, 113, 0.22) 0%, rgba(248, 113, 113, 0.08) 100%);
-  color: var(--yyt-error);
-  border-color: rgba(248, 113, 113, 0.34);
-  box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(248, 113, 113, 0.2) 0%, rgba(248, 113, 113, 0.07) 100%);
+  color: #ffb4b4;
+  border-color: rgba(248, 113, 113, 0.32);
+  box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .yyt-btn-danger:hover {
-  background: linear-gradient(180deg, rgba(248, 113, 113, 0.3) 0%, rgba(248, 113, 113, 0.12) 100%);
-  box-shadow: 0 16px 30px rgba(248, 113, 113, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(248, 113, 113, 0.28) 0%, rgba(248, 113, 113, 0.1) 100%);
+  border-color: rgba(248, 113, 113, 0.42);
+  box-shadow: 0 16px 30px rgba(248, 113, 113, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .yyt-btn-icon {
   padding: 0;
-  width: 38px;
-  min-width: 38px;
+  width: 40px;
+  min-width: 40px;
 }
 
 .yyt-btn-small {
-  min-height: 32px;
+  min-height: 34px;
   padding: 7px 12px;
   font-size: 12px;
-  border-radius: 11px;
+  border-radius: var(--yyt-control-radius-sm);
 }
 
 .yyt-btn:disabled {
@@ -461,19 +542,72 @@
   flex: 1;
 }
 
+.yyt-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+.yyt-checkbox-label > span {
+  color: var(--yyt-text);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.yyt-checkbox-label > span:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.yyt-checkbox-label input[type="checkbox"],
+.yyt-checkbox-label input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--yyt-accent);
+}
+
+.yyt-checkbox-label input[type="checkbox"]:focus-visible,
+.yyt-checkbox-label input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring);
+  border-radius: 6px;
+}
+
+.yyt-worldbook-item .yyt-checkbox-label,
+.yyt-form-group > .yyt-checkbox-label {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.yyt-worldbook-item .yyt-checkbox-label:hover,
+.yyt-form-group > .yyt-checkbox-label:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.065);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
 /* 输入框 */
 .yyt-input,
 .yyt-select,
 .yyt-textarea {
   min-height: 42px;
   padding: 11px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.028) 100%);
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg);
   color: var(--yyt-text);
   font-size: 13px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 8px 18px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--yyt-control-shadow);
 }
 
 .yyt-select {
@@ -490,8 +624,9 @@
 .yyt-input:hover,
 .yyt-select:hover,
 .yyt-textarea:hover {
-  border-color: rgba(255, 255, 255, 0.24);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.036) 100%);
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+  box-shadow: var(--yyt-control-shadow-hover);
 }
 
 .yyt-input:focus,
@@ -501,9 +636,9 @@
 .yyt-select:focus-visible,
 .yyt-textarea:focus-visible {
   outline: none;
-  border-color: rgba(123, 183, 255, 0.8);
-  background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
-  box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(11, 20, 34, 0.18);
+  border-color: var(--yyt-control-border-focus);
+  background: var(--yyt-control-bg-focus);
+  box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
 }
 
 .yyt-input::placeholder,
@@ -524,23 +659,23 @@
   justify-content: space-between;
   gap: 14px;
   padding: 15px 16px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 15px;
+  border-radius: 17px;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 18px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 22px rgba(0, 0, 0, 0.12);
 }
 
 .yyt-toggle-row:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.025) 100%);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 24px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.026) 100%);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 28px rgba(0, 0, 0, 0.15);
 }
 
 .yyt-toggle-label {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .yyt-toggle-label > span:first-child {
@@ -576,7 +711,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -633,25 +768,26 @@
   gap: 12px;
   min-height: 42px;
   padding: 11px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg);
   color: var(--yyt-text);
   font-size: 13px;
   cursor: pointer;
   transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, transform 0.22s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 18px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--yyt-control-shadow);
 }
 
 .yyt-select-trigger:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+  box-shadow: var(--yyt-control-shadow-hover);
 }
 
 .yyt-custom-select.yyt-open .yyt-select-trigger {
-  border-color: rgba(123, 183, 255, 0.8);
-  background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
-  box-shadow: var(--yyt-focus-ring), 0 12px 24px rgba(11, 20, 34, 0.18);
+  border-color: var(--yyt-control-border-focus);
+  background: var(--yyt-control-bg-focus);
+  box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
 }
 
 .yyt-select-value {
@@ -674,24 +810,26 @@
 
 .yyt-select-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   left: 0;
   right: 0;
   max-height: 0;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(24, 28, 40, 0.985) 0%, rgba(16, 19, 30, 0.985) 100%);
+  padding: 0;
+  background: linear-gradient(180deg, rgba(20, 24, 34, 0.985) 0%, rgba(13, 16, 24, 0.992) 100%);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.34);
+  border-radius: 18px;
+  box-shadow: 0 24px 44px rgba(0, 0, 0, 0.36);
   z-index: 1000;
   opacity: 0;
-  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, border-color 0.2s ease;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
 }
 
 .yyt-custom-select.yyt-open .yyt-select-dropdown {
   max-height: 320px;
   overflow-y: auto;
   opacity: 1;
+  padding: 8px;
 }
 
 .yyt-select-option {
@@ -700,19 +838,20 @@
   gap: 10px;
   padding: 11px 14px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   border: 1px solid transparent;
-  border-radius: 12px;
-  margin: 6px;
+  border-radius: 13px;
+  margin: 0;
 }
 
 .yyt-select-option:hover {
-  background: rgba(123, 183, 255, 0.12);
-  border-color: rgba(123, 183, 255, 0.16);
+  background: rgba(123, 183, 255, 0.1);
+  border-color: rgba(123, 183, 255, 0.14);
+  transform: translateY(-1px);
 }
 
 .yyt-select-option.yyt-selected {
-  background: linear-gradient(135deg, rgba(123, 183, 255, 0.18) 0%, rgba(123, 183, 255, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(123, 183, 255, 0.18) 0%, rgba(123, 183, 255, 0.07) 100%);
   border-color: rgba(123, 183, 255, 0.28);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }

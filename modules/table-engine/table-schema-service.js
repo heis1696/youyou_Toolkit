@@ -53,6 +53,175 @@ function normalizeTables(value) {
   return cloneTableValue(value);
 }
 
+function normalizeCellValue(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (_) {
+    return String(value);
+  }
+}
+
+function sanitizeColumnKey(value, fallback = 'col') {
+  const normalized = normalizeString(value, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return normalized || fallback;
+}
+
+function ensureUniqueColumnKey(baseKey, usedKeys = new Set()) {
+  const base = sanitizeColumnKey(baseKey, 'col');
+  let candidate = base;
+  let suffix = 2;
+
+  while (usedKeys.has(candidate)) {
+    candidate = `${base}_${suffix}`;
+    suffix += 1;
+  }
+
+  usedKeys.add(candidate);
+  return candidate;
+}
+
+function getSourceColumnsFromRows(rows = []) {
+  const keys = [];
+  let maxArrayLength = 0;
+
+  rows.forEach((row) => {
+    const sourceRow = row && typeof row === 'object' ? row : {};
+    const objectCells = sourceRow.cells && typeof sourceRow.cells === 'object' && !Array.isArray(sourceRow.cells)
+      ? sourceRow.cells
+      : null;
+    const arrayCells = Array.isArray(sourceRow.cells)
+      ? sourceRow.cells
+      : (Array.isArray(sourceRow.values) ? sourceRow.values : null);
+
+    if (objectCells) {
+      Object.keys(objectCells).forEach((key) => {
+        if (!keys.includes(key)) {
+          keys.push(key);
+        }
+      });
+    }
+
+    if (arrayCells && arrayCells.length > maxArrayLength) {
+      maxArrayLength = arrayCells.length;
+    }
+  });
+
+  if (keys.length > 0) {
+    return keys.map((key) => ({
+      key,
+      title: String(key)
+    }));
+  }
+
+  if (maxArrayLength > 0) {
+    return Array.from({ length: maxArrayLength }, (_, index) => ({
+      key: `col_${index + 1}`,
+      title: `列${index + 1}`
+    }));
+  }
+
+  return [];
+}
+
+function normalizeDraftColumnDescriptor(value = {}, index = 0, usedKeys = new Set()) {
+  const sourceValue = value && typeof value === 'object' ? value : {};
+  const title = normalizeString(
+    sourceValue.title || sourceValue.name || sourceValue.label,
+    `列${index + 1}`
+  );
+  const rawKey = normalizeString(sourceValue.key || sourceValue.id, '');
+  const key = ensureUniqueColumnKey(rawKey || title || `col_${index + 1}`, usedKeys);
+  const sourceKeys = [
+    rawKey,
+    normalizeString(sourceValue.title, ''),
+    normalizeString(sourceValue.name, ''),
+    normalizeString(sourceValue.label, '')
+  ].filter(Boolean);
+
+  return {
+    key,
+    title,
+    sourceKeys
+  };
+}
+
+function readCellValueForColumn(sourceRow = {}, columnDescriptor = {}, columnIndex = 0) {
+  const objectCells = sourceRow.cells && typeof sourceRow.cells === 'object' && !Array.isArray(sourceRow.cells)
+    ? sourceRow.cells
+    : null;
+  const arrayCells = Array.isArray(sourceRow.cells)
+    ? sourceRow.cells
+    : (Array.isArray(sourceRow.values) ? sourceRow.values : null);
+
+  if (objectCells) {
+    const candidates = [
+      ...(Array.isArray(columnDescriptor.sourceKeys) ? columnDescriptor.sourceKeys : []),
+      columnDescriptor.key,
+      columnDescriptor.title
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+      if (objectCells[candidate] !== undefined) {
+        return normalizeCellValue(objectCells[candidate]);
+      }
+    }
+  }
+
+  if (arrayCells && arrayCells[columnIndex] !== undefined) {
+    return normalizeCellValue(arrayCells[columnIndex]);
+  }
+
+  return '';
+}
+
+function normalizeDraftRow(value = {}, columns = [], index = 0) {
+  const sourceValue = value && typeof value === 'object' ? value : {};
+  const cells = {};
+
+  columns.forEach((column, columnIndex) => {
+    cells[column.key] = readCellValueForColumn(sourceValue, column, columnIndex);
+  });
+
+  return {
+    name: normalizeString(sourceValue.name || sourceValue.title || sourceValue.label, `行${index + 1}`),
+    cells
+  };
+}
+
+function normalizeDraftTable(value = {}, index = 0) {
+  const sourceValue = value && typeof value === 'object' ? value : {};
+  const usedKeys = new Set();
+  const sourceColumns = Array.isArray(sourceValue.columns) && sourceValue.columns.length > 0
+    ? sourceValue.columns
+    : getSourceColumnsFromRows(Array.isArray(sourceValue.rows) ? sourceValue.rows : []);
+  const columns = sourceColumns.map((column, columnIndex) => normalizeDraftColumnDescriptor(column, columnIndex, usedKeys));
+  const rows = Array.isArray(sourceValue.rows)
+    ? sourceValue.rows.map((row, rowIndex) => normalizeDraftRow(row, columns, rowIndex))
+    : [];
+
+  return {
+    name: normalizeString(sourceValue.name || sourceValue.title, `表${index + 1}`),
+    note: normalizeString(sourceValue.note || sourceValue.description, ''),
+    columns: columns.map((column) => ({
+      key: column.key,
+      title: column.title
+    })),
+    rows
+  };
+}
+
 function normalizeRuntime(runtime = {}) {
   const value = runtime && typeof runtime === 'object' ? runtime : {};
 
@@ -67,6 +236,99 @@ function normalizeRuntime(runtime = {}) {
     lastSlotRevisionKey: normalizeString(value.lastSlotRevisionKey, ''),
     lastLoadMode: normalizeString(value.lastLoadMode, ''),
     lastMirrorApplied: value.lastMirrorApplied === true
+  };
+}
+
+export function createEmptyTableColumn(columnIndex = 1, existingColumns = []) {
+  const usedKeys = new Set(
+    (Array.isArray(existingColumns) ? existingColumns : [])
+      .map((column) => normalizeString(column?.key, ''))
+      .filter(Boolean)
+  );
+  const key = ensureUniqueColumnKey(`col_${columnIndex}`, usedKeys);
+
+  return {
+    key,
+    title: `列${columnIndex}`
+  };
+}
+
+export function createEmptyTableRow(columns = [], rowIndex = 1) {
+  const cells = {};
+
+  (Array.isArray(columns) ? columns : []).forEach((column) => {
+    const key = normalizeString(column?.key, '');
+    if (!key) {
+      return;
+    }
+
+    cells[key] = '';
+  });
+
+  return {
+    name: `行${rowIndex}`,
+    cells
+  };
+}
+
+export function createEmptyTableDefinition(tableIndex = 1) {
+  const firstColumn = createEmptyTableColumn(1);
+
+  return {
+    name: `表${tableIndex}`,
+    note: '',
+    columns: [firstColumn],
+    rows: [createEmptyTableRow([firstColumn], 1)]
+  };
+}
+
+export function createEmptyTableDraft() {
+  return {
+    tables: []
+  };
+}
+
+export function deriveTableDraftFromTables(tables = []) {
+  if (!Array.isArray(tables) || tables.length === 0) {
+    return createEmptyTableDraft();
+  }
+
+  return {
+    tables: tables.map((table, index) => normalizeDraftTable(table, index))
+  };
+}
+
+export function compileTableDraftToTables(draft = {}) {
+  const sourceDraft = draft && typeof draft === 'object' ? draft : {};
+  const sourceTables = Array.isArray(sourceDraft.tables) ? sourceDraft.tables : [];
+
+  return sourceTables.map((table, index) => normalizeDraftTable(table, index));
+}
+
+export function validateTableDraft(draft = {}) {
+  const errors = [];
+
+  if (!draft || typeof draft !== 'object') {
+    errors.push('表定义草稿无效。');
+  }
+
+  if (draft && draft.tables !== undefined && !Array.isArray(draft.tables)) {
+    errors.push('表定义必须包含 tables 数组。');
+  }
+
+  let tables = [];
+  if (errors.length === 0) {
+    try {
+      tables = compileTableDraftToTables(draft);
+    } catch (error) {
+      errors.push(error?.message || '表定义编译失败。');
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    tables
   };
 }
 
@@ -195,10 +457,9 @@ export function getTableWorkbenchFormSchema({ apiPresets = [] } = {}) {
   return [
     {
       name: 'tables',
-      type: 'json',
-      label: '表定义 / 初始 tables',
-      rows: 14,
-      description: '填写 tables 数组 JSON。首次执行或当前消息尚无绑定 state 时，会以它作为 merge base。',
+      type: 'tableDefinitions',
+      label: '表定义',
+      description: '通过结构化编辑器维护 tables。首次执行或当前消息尚无绑定 state 时，会以编译后的 tables 作为 merge base。',
       emptyValue: []
     },
     {
@@ -228,6 +489,13 @@ export default {
   TABLE_WORKBENCH_RUNTIME_STATUS,
   DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE,
   TABLE_WORKBENCH_RESPONSE_CONTRACT,
+  createEmptyTableColumn,
+  createEmptyTableRow,
+  createEmptyTableDefinition,
+  createEmptyTableDraft,
+  deriveTableDraftFromTables,
+  compileTableDraftToTables,
+  validateTableDraft,
   getTableWorkbenchDefaultConfig,
   normalizeTableWorkbenchConfig,
   validateTableWorkbenchConfig,

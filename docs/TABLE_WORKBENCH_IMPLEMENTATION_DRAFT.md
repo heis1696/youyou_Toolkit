@@ -2,741 +2,434 @@
 
 ## 文档目的
 
-本文档用于规划将“填表 / 表格工作台”能力集成到 YouYou Toolkit 的第一版施工路径。
+本文档不再把 `tableWorkbench` 只当成“待实现方案”，而是作为当前 **已落地状态文档** 使用。
 
-目标不是照搬参考项目，而是：
+如果只想快速了解当前阶段、已完成范围、待优化项与未完成内容，可先看：
+- `docs/TABLE_WORKBENCH_STATUS_SUMMARY.md`
 
-- 吸收 `st-memory-enhancement` 的**配置驱动表单**优点
-- 吸收 `shujuku-main` 的**可视化表格编辑器 + 增量填表流水线**优点
-- 底层严格复用当前仓库已存在的 **execution context / automation / writeback / slot transaction** 模型
-- 从设计上避免 `shujuku-main` 中“自动触发失败后，手动更新错误写回上一条消息”的 stale target 问题
+它要回答四件事：
+
+1. 现在已经做到了什么。
+2. 当前实现依赖哪些既有主链与约束。
+3. 目前还缺什么，哪些只是下一阶段的 UX / authoring 缺口。
+4. 下一轮如果继续推进，应该从什么事实上继续往下走。
 
 ---
 
-## 一、当前仓库必须遵守的基线
+## 一、当前结论
 
-当前仓库已经有一套比较清晰的执行主链，新增填表模块时必须挂接在这套主链上，而不是另起一套独立自动触发系统。
+当前仓库里的 `tableWorkbench` 已经不是纸面设计，而是已接入主线代码的最小手动填表工作台，并且已经跨过了“必须手写 JSON”这一阶段：
 
-当前事实：
+- 它已经是 **独立顶级标签页**，不是 `tools` 下的 subtab。
+- 它已经有自己的 table domain 文件组，不再只是 generic tool config 的附属配置。
+- 它已经可以执行一条最小手动链：
+  - fresh target resolve
+  - bound state / template load
+  - request build
+  - API request
+  - tables JSON parse
+  - structured state commit
+  - optional mirror writeback
+- 它当前已经有一套 **结构化表定义编辑器 MVP**：
+  - 新增 / 删除表格
+  - 编辑表格名与表格说明
+  - 新增 / 删除列
+  - 新增 / 删除行
+  - 内联编辑单元格内容
+  - 保存 / 运行前自动编译为 runtime `tables`
+- 它当前最大的现实缺口已经不再是“表定义只能手写 JSON”，而是：
+  - 结构化编辑器仍是 MVP
+  - 还没有进入正式 visualizer / 高级工作台体验阶段
 
-- 自动入口：`modules/tool-automation-service.js`
+换句话说，当前工作台已经具备：
+
+> **“能不用手写 JSON，完成基础表定义 authoring，并把结构化状态安全写到正确楼层”**
+
+但还没有具备：
+
+> **“正式的表格工作台 / visualizer / 模板体系 / 历史体系 / 完整高级编辑体验”**
+
+---
+
+## 二、必须遵守的基线
+
+`tableWorkbench` 必须继续服从 YouYou Toolkit 当前主线，而不是另起一个独立状态机。
+
+### 2.1 它属于现有事务模型中的一个专用执行域
+
+当前必须复用的主链：
+
 - 手动 / 自动共用上下文：`modules/tool-execution-context.js`
-- 手动执行入口：`modules/tool-trigger.js`
-- post-response 执行链：`modules/tool-output-service.js -> modules/tool-prompt-service.js -> modules/api-connection.js -> modules/context-injector.js`
-- 写回绑定依赖：`slotBindingKey / slotRevisionKey / slotTransactionId / sourceMessageId / sourceSwipeId`
+- API 请求链：`modules/tool-prompt-service.js` + `modules/api-connection.js`
+- 写回链：`modules/context-injector.js`
+- 绑定身份：`slotBindingKey / slotRevisionKey / slotTransactionId / sourceMessageId / sourceSwipeId`
 
-因此，填表能力必须视为：
+因此，`tableWorkbench` 不是：
 
-> **YouYou Toolkit 现有事务模型中的一个专用执行域**
+- 独立弹窗插件
+- 独立消息绑定缓存
+- 独立写回目标记忆机制
 
-而不是：
+它是：
 
-> “另一个独立的弹窗插件 + 另一个独立的消息绑定状态机”
+- `YouYou Toolkit` 现有 slot transaction 模型里的一个 table domain
 
----
-
-## 二、参考项目中要吸收的点
-
-## 2.1 来自 st-memory-enhancement 的优点
-
-### A. 配置驱动表单
-
-适合借鉴到：
-
-- 表格基础属性编辑
-- 列定义编辑
-- prompt 模板编辑
-- 更新策略编辑
-- 导入导出配置
-- 表格预设配置
-
-结论：
-
-- 表单类 UI 应采用 **schema-driven renderer**
-- 不应继续把所有配置面板都写成手工 DOM 拼接 + 手工绑定
-
-### B. 模板与运行态分离
-
-适合借鉴到：
-
-- 全局模板快照
-- 聊天级模板覆盖
-- 某条 assistant 槽位上的运行态表数据
-- 编辑器未保存草稿态
-
-结论：
-
-- 模板、运行态、草稿态不能混成一个对象
-
----
-
-## 2.2 来自 shujuku-main 的优点
-
-### A. 可视化编辑器
-
-适合借鉴到：
-
-- 表顺序调整
-- 行列编辑
-- 单元格编辑
-- 表级配置编辑
-- 行 / 列 / 单元格锁定
-- 结构化预览
-
-结论：
-
-- 表数据编辑不适合纯表单，应单独做 visualizer
-
-### B. 增量填表流水线
-
-适合借鉴到：
-
-- merge base 构造
-- 按消息批次切上下文
-- auto / manual 模式分流
-- 只保存真正变更的表
-- 重试机制
-- 填表和保存阶段拆开
-
-结论：
-
-- 更新链可以借鉴 shujuku 的思路
-- 但实现必须拆成 service，而不是做成大型全局函数
-
----
-
-## 三、明确不继承的缺点
-
-## 3.1 不继承 shujuku 的 stale target 设计
-
-已知风险：
-
-- 一次自动填表失败后，如果“当前目标楼层”仍沿用上一次成功提交的缓存状态
-- 后续手动执行就可能错误写回到上一条 assistant 消息
-
-这是本项目必须从设计上规避的问题。
-
-### 设计规则
+### 2.2 当前仍然成立的五条规则
 
 #### 规则 1：执行目标必须每次现算
 
-无论是自动执行还是手动执行，都必须在**本次执行开始前**重新解析目标 assistant 槽位：
+无论是手动还是未来的自动执行，都必须在本次执行前重新解析目标 assistant 槽位：
 
 - 手动：`buildExecutionContextForLatestAssistant()`
 - 自动：`buildExecutionContextForMessage()`
 
-禁止使用：
+禁止把：
 
 - `lastSuccessfulMessageId`
-- `lastUpdatedMessageId`
-- `上次成功楼层号`
+- “上次成功楼层”
+- 旧的 committed target
 
-作为下一次执行的默认写回目标。
+直接当成下一次执行默认目标。
 
 #### 规则 2：绑定到 revision，而不是只绑定 messageId
 
-同一楼层可能发生：
+同一条 assistant 楼层可能发生 reroll / regenerate / swipe / same-slot replace。
 
-- regenerate
-- reroll
-- swipe
-- same-slot content replace
-
-因此表格执行必须以 `slotRevisionKey` 作为真正的内容版本锚点，而不是只看 `messageId`。
+因此执行与写回必须以 `slotRevisionKey` 为内容锚点，而不是只看 `messageId`。
 
 #### 规则 3：失败事务不能推进 committed target
 
-需要区分两类状态：
+当前仍要区分：
 
-- `lastResolvedTarget`：本次执行尝试解析到的目标
-- `lastCommittedTarget`：最近一次真正写回成功的目标
+- `lastResolvedTarget`
+- `lastCommittedTarget`
 
-失败时：
+失败时可以记录解析到的目标做诊断，但不能把失败事务错误推进为新的 committed target。
 
-- 可记录 `lastResolvedTarget` 做诊断
-- 但不能把它当成下次手动执行默认目标
-- 更不能覆盖 `lastCommittedTarget`
+#### 规则 4：正文镜像只是 UI 层，不是结构化真相来源
 
-#### 规则 4：写回前必须二次校验 revision
-
-执行阶段拿到的目标快照，在真正写回前要再次检查：
-
-- `sourceMessageId` 是否仍匹配
-- `sourceSwipeId` 是否仍匹配
-- `slotRevisionKey` 是否仍匹配
-
-若不匹配：
-
-- 中止写回
-- 返回“目标消息已变化，请重新执行”
-
----
-
-## 四、推荐架构
-
-## 4.1 先做独立 table domain，而不是塞进 generic tool config
-
-建议新增：
-
-```text
-modules/table-engine/
-├─ table-schema-service.js
-├─ table-template-service.js
-├─ table-state-service.js
-├─ table-target-resolver.js
-├─ table-update-service.js
-├─ table-writeback-service.js
-├─ table-automation-adapter.js
-└─ table-types.js
-```
-
-职责建议：
-
-### `table-schema-service.js`
-
-负责：
-
-- 表结构定义
-- 列定义
-- 表级参数默认值
-- schema 校验
-
-### `table-template-service.js`
-
-负责：
-
-- 全局模板预设
-- 聊天级模板覆盖
-- 模板导入导出
-- 模板快照序列化
-
-### `table-state-service.js`
-
-负责：
-
-- 获取某个 assistant 槽位绑定的表状态
-- 生成 merge base
-- 管理 editor draft / persisted state
-- 区分模板态和运行态
-
-### `table-target-resolver.js`
-
-负责：
-
-- 从 execution context 解析表格目标
-- 构造 `TableTargetSnapshot`
-- 提供手动 / 自动共用的目标解析逻辑
-- 做 revision 校验
-
-### `table-update-service.js`
-
-负责：
-
-- 构造 AI 请求输入
-- 批处理上下文切片
-- 解析 AI 增量更新结果
-- 输出结构化 patch / modifiedTables
-
-### `table-writeback-service.js`
-
-负责：
-
-- 写回前二次校验 target snapshot
-- 结构化保存 table state
-- 如需正文镜像，调用现有 `context-injector`
-- 记录 writeback 诊断信息
-
-### `table-automation-adapter.js`
-
-负责：
-
-- 接入现有 `tool-automation-service.js` 事件模型
-- 为自动填表构造 table transaction
-- 使用现有 same-slot / revision-aware 去重思路
-
----
-
-## 4.2 数据对象建议
-
-建议至少拆出以下对象：
-
-### `TableTemplateSnapshot`
-
-表示：
-
-- 全局模板定义
-- 不绑定具体 assistant 消息
-
-### `TableChatPreset`
-
-表示：
-
-- 当前聊天下对全局模板的覆盖
-
-### `TableBoundState`
-
-表示：
-
-- 某个 assistant slot 上真正绑定的表运行态数据
-
-建议最少包含：
-
-- `slotBindingKey`
-- `slotRevisionKey`
-- `sourceMessageId`
-- `sourceSwipeId`
-- `tables`
-- `updatedAt`
-
-### `TableEditorDraft`
-
-表示：
-
-- 当前 visualizer 中尚未保存的草稿
-- 不直接视为持久态真相
-
-### `TableRunTransaction`
-
-表示一次填表执行事务：
-
-- `traceId`
-- `slotBindingKey`
-- `slotRevisionKey`
-- `slotTransactionId`
-- `sourceMessageId`
-- `sourceSwipeId`
-- `runSource` (`MANUAL_TABLE` / `AUTO_TABLE`)
-- `phase`
-- `verdict`
-- `error`
-
----
-
-## 五、UI 施工方案
-
-## 5.1 UI 入口建议
-
-### 第一阶段建议
-
-先不要直接升格为顶级主 tab。
-
-建议先作为 `tools` 下的专用 subtab 落地，例如：
-
-- `tableWorkbench`
-
-原因：
-
-- 对当前 `popup-shell` 改动更小
-- 便于先验证底层状态模型和执行链
-- 降低第一次接入的 blast radius
-
-### 稳定后可升级
-
-后续如果表格工作台能力扩大，再考虑升级为独立主 tab：
-
-- `tables`
-
----
-
-## 5.2 UI 组件建议
-
-```text
-modules/ui/components/
-├─ table-workbench-panel.js
-├─ table-form-renderer.js
-├─ table-visualizer-shell.js
-├─ table-visualizer-sidebar.js
-├─ table-visualizer-data-panel.js
-├─ table-visualizer-config-panel.js
-├─ table-visualizer-global-panel.js
-└─ table-run-history-panel.js
-```
-
-### `table-form-renderer.js`
-
-用途：
-
-- 做配置类表单渲染
-- 借鉴 st-memory 的 schema-driven 思路
-
-但明确要求：
-
-- 不使用 `setTimeout(..., 0)` 绑定事件
-- 不依赖裸 `document.getElementById`
-- 不在 renderer 内直接读取宿主全局状态
-- 输入输出都走组件 props / service 调用
-
-### `table-visualizer-*`
-
-用途：
-
-- 做表数据与结构编辑
-- 借鉴 shujuku visualizer
-
-但明确要求：
-
-- 拆组件
-- 拆状态
-- 不做单文件巨型函数
-
----
-
-## 六、执行链施工方案
-
-## 6.1 手动填表执行链
-
-```text
-用户点击“手动填表”
-  -> buildExecutionContextForLatestAssistant()
-  -> table-target-resolver.resolveFromExecutionContext()
-  -> table-state-service.loadBoundStateOrTemplate()
-  -> table-update-service.buildRequest()
-  -> api-connection 发送请求
-  -> table-update-service.parsePatch()
-  -> table-writeback-service.validateBeforeCommit()
-  -> table-writeback-service.commit()
-```
-
-### 关键要求
-
-- 手动执行目标必须来自 fresh context
-- 不允许“拿上次成功目标继续写”
-- commit 前必须再次校验 `slotRevisionKey`
-
----
-
-## 6.2 自动填表执行链
-
-```text
-宿主消息事件
-  -> tool-automation-service / table-automation-adapter
-  -> buildExecutionContextForMessage(messageId)
-  -> table-target-resolver.resolveFromExecutionContext()
-  -> revision-aware 去重
-  -> table-update-service.runAuto()
-  -> table-writeback-service.validateBeforeCommit()
-  -> table-writeback-service.commit()
-```
-
-### 关键要求
-
-- 自动链也必须使用当前 execution context
-- 去重键至少要包含 revision 语义
-- 自动失败不能污染下一次手动执行目标
-
----
-
-## 七、写回策略建议
-
-不建议把表格系统完全等同于“正文替换”。
-
-建议分两层：
-
-## 7.1 结构化状态写回
-
-优先把结构化 table state 挂到目标消息扩展字段，例如：
+结构化 table state 优先落到目标消息扩展字段：
 
 - `message.YouYouToolkit_tableState`
 - `message.YouYouToolkit_tableBindings`
 
-这样可以避免：
+正文镜像只是可见反馈层；需要时才通过 `context-injector` 把内容镜像到 assistant 正文中。
 
-- 纯正文替换导致结构信息难以校验
-- 视觉展示与底层状态混成一份文本
+#### 规则 5：编辑器草稿不是执行真相来源
 
-## 7.2 正文镜像写回
+当前可以在 UI 层使用结构化 authoring 视图，但执行主链的 runtime 真相来源仍然是：
 
-如果需要给用户可见反馈，再根据配置决定是否把表格摘要 / 预览块镜像到 assistant 正文中。
+- `config.tables`
 
-这一层可以复用：
+也就是说：
 
-- `modules/context-injector.js`
+- 编辑器负责 authoring
+- 保存 / 运行前要先 compile 成 `tables`
+- `table-update-service.js` 仍只消费编译后的 runtime `tables`
 
-但只把它当作：
-
-- UI 镜像层
-
-而不是：
-
-- 结构化真相来源
+不能把 editor draft 直接塞给执行链，导致主链被 authoring 结构反向污染。
 
 ---
 
-## 八、第一阶段最小可行版本（MVP）
+## 三、当前已落地的模块
 
-第一阶段不要一口气上完整 visualizer + 全自动。
+### 3.1 table domain 核心文件
 
-推荐 MVP 范围：
+已经存在并承担职责的文件：
 
-### 必做
+- `modules/table-engine/table-types.js`
+  - table domain 常量、克隆与 target / bound state 基础结构
+- `modules/table-engine/table-target-resolver.js`
+  - 从 execution context 解析 revision-aware target snapshot
+- `modules/table-engine/table-state-service.js`
+  - 读取 / 记录 `tableState` 与 `tableBindings`
+  - 提供 `loadBoundStateOrTemplate()`、`recordResolvedTarget()`、`commitBoundState()`
+- `modules/table-engine/table-schema-service.js`
+  - 当前 workbench 配置、运行时状态、配置校验
+  - 负责 editor draft ↔ runtime `tables` 的 derive / compile / validate
+- `modules/table-engine/table-update-service.js`
+  - 最小手动填表主链：build request / send request / parse patch / 更新 runtime
+- `modules/table-engine/table-writeback-service.js`
+  - 结构化写回与可选 mirror writeback
 
-1. `table-target-resolver`
-2. `table-state-service`
-3. `table-update-service`
-4. `table-writeback-service`
-5. 一个基础 `table-workbench-panel`
-6. 一套最小 schema-driven 配置表单
-7. 手动填表流程跑通
-8. stale target 防护跑通
+### 3.2 UI 与路由文件
 
-### 暂缓
+已经存在并承担职责的文件：
 
-1. 高级 visualizer
-2. 复杂批处理策略 UI
-3. 聊天级 / 全局模板双向同步细节
-4. 自动填表大范围开放
+- `modules/ui/components/table-form-renderer.js`
+  - 当前结构化表定义编辑器 MVP
+  - 负责 `tableDefinitions` 字段渲染、行列增删、单元格编辑、编译回读
+- `modules/ui/components/table-workbench-panel.js`
+  - 工作台 UI、诊断区、保存动作、手动执行按钮
+  - 负责显示编译后的 `tables` 预览
+- `modules/ui/index.js`
+  - 注册 `TableWorkbenchPanel`
+- `modules/tool-registry.js`
+  - 注册顶级 `tableWorkbench` 页签
+- `modules/app/popup-shell.js`
+  - 顶级 `tableWorkbench` 路由分发
 
-也就是先把：
+### 3.3 还没有落地的原草案组件 / 体验
 
-> **“能安全手动填表，并且绝不写错楼层”**
+以下内容仍属于原草案里提到、但当前**尚未开始或尚未成型**的部分：
 
-做稳定，再扩展功能。
+- `table-template-service.js`
+- `table-automation-adapter.js`
+- 真正的 visualizer shell
+- 模板预设体系
+- 历史 / 导入导出
+- 高级 authoring / 可视化工作台体验
+
+这部分不能再被文档误写成“已经接入”。
 
 ---
 
-## 九、分阶段施工计划
+## 四、当前实际入口与执行链
 
-## Phase 0：文档与骨架
+### 4.1 入口位置
 
-状态：已完成
+当前 `tableWorkbench` 已经是顶级标签页：
 
-目标：
+- `modules/tool-registry.js`
+  - `tableWorkbench` 注册为 `hasSubTabs: false` 的独立页面
+- `modules/app/popup-shell.js`
+  - `renderTabContent()` 已存在 `case 'tableWorkbench'`
+  - 会直接调用 `modules.uiModule.renderTableWorkbenchPanel($content)`
 
-- 明确 table domain 的边界
-- 确认模块命名
-- 搭建空文件与类型定义
+因此当前工作台的导航事实是：
 
-已完成交付：
+- 独立顶级页
+- 与 `tools`、`bypass`、`settings` 同级
 
-- 本文档
-- `modules/table-engine/` 目录骨架
+而不是早期草案里的：
 
-## Phase 1：目标解析与状态模型
+- `tools` 下的一个 subtab
 
-状态：已完成（最小骨架）
+### 4.2 当前手动执行链
 
-目标：
+当前已接通的最小手动路径为：
 
-- 做 `table-target-resolver`
-- 做 `table-state-service`
-- 完成 `TableTargetSnapshot` / `TableBoundState` 数据模型
+```text
+tableWorkbench 顶级页
+  -> TableWorkbenchPanel
+  -> 结构化 tableDefinitions 编辑器
+  -> readTableFormValues()
+  -> compileTableDraftToTables()
+  -> saveTableWorkbenchConfig()
+  -> runManualTableUpdate()
+  -> buildExecutionContextForLatestAssistant()
+  -> resolveTableTargetFromExecutionContext()
+  -> recordResolvedTarget()
+  -> loadBoundStateOrTemplate()
+  -> buildRequest()
+  -> sendApiRequest() / sendWithPreset()
+  -> parsePatch()
+  -> writeTableState()
+  -> commitBoundState() + optional mirror writeback
+```
 
-已完成内容：
+当前已经落地的能力：
 
-- 新增 `modules/table-engine/table-types.js`
-- 新增 `modules/table-engine/table-target-resolver.js`
-- 新增 `modules/table-engine/table-state-service.js`
-- 已把结构化消息扩展字段固定为：
-  - `message.YouYouToolkit_tableState`
-  - `message.YouYouToolkit_tableBindings`
-- 已实现 `lastResolvedTarget / lastCommittedTarget` 最小分离
-- 已实现 commit 前 fresh target resolve + revision 校验
+- 目标每次 fresh resolve
+- 结构化编辑器不再要求用户直接手写 `tables` JSON
+- 保存 / 运行前统一编译成 runtime `tables`
+- 右侧可实时预览编译结果
+- 读取当前绑定 state；若无绑定则回退到 template tables
+- 模型输出 JSON 后解析为 `tables`
+- 写回前继续走 revision-safe 结构化提交
+- 可选将结果镜像到 assistant 正文
+- runtime 可记录最近状态、耗时、错误、目标信息、loadMode
 
-当前边界：
+---
 
-- 仅完成底层目标解析与结构化状态读写
-- 尚未接入手动执行入口
-- 尚未接入 prompt/buildRequest/patch 解析链
-- 尚未提供 UI 配置面板
+## 五、当前已完成范围
 
-验收结论：
+当前可以认为已经完成的范围是：
 
-- 任意时刻都能基于现有 execution context 解析当前 assistant 目标
-- 不依赖上次成功楼层缓存
-- 已具备 stale target 的最小防护骨架
+### 5.1 最小手动填表 MVP
 
-## Phase 2：手动填表 MVP
+- 工作台页可打开
+- 配置可保存
+- 可读取当前 assistant 目标诊断
+- 可执行最小手动填表
+- 可写入结构化 table state
+- 可选正文镜像
 
-目标：
+### 5.2 结构化表定义编辑器 MVP
 
-- 接通最小手动执行入口
-- 新增最小 `table-workbench-panel`
-- 新增最小 `table-form-renderer`
-- 先支持基础表定义 / prompt / 写回策略配置
-- 接通 `resolve target -> load state -> build request -> parse patch -> commit` 主链
+- `tables` 已不再以 JSON textarea 作为主 authoring 入口
+- 当前可直接在 UI 中：
+  - 新增 / 删除表格
+  - 编辑表格名 / 表格说明
+  - 新增 / 删除列
+  - 新增 / 删除行
+  - 编辑单元格内容
+- 保存 / 运行前会统一 compile 成 runtime `tables`
+- 右侧 `tables 预览` 会展示当前编译结果
 
-建议拆分：
+### 5.3 revision-safe 目标与写回保护
 
-### 2.1 配置与入口
+- target snapshot 来自 fresh execution context
+- `lastResolvedTarget / lastCommittedTarget` 已分离
+- commit 前仍要做当前目标校验
+- 不依赖“上次成功楼层”做默认写回目标
 
-新增：
+### 5.4 页面路由与基础稳定性修正
 
+近期已经实际完成的修正包括：
+
+- `tableWorkbench` 从 `tools` 子页签迁到顶级标签页
+- popup shell 对该页的独立路由接线已经完成
+- `modules/core/storage-service.js` 中 `namespace` / `namespace()` 同名冲突已修复，避免 workbench 导入链和 UI 模块初始化失败
+
+---
+
+## 六、当前待优化项 / 未完成范围
+
+下列内容现在都还不能写成“已完成”。
+
+### 6.1 表定义编辑器仍未完成到正式版
+
+虽然结构化编辑器 MVP 已落地，但仍未完成：
+
+- 表顺序调整
+- 行顺序调整
+- 列顺序调整
+- 更成熟的单元格编辑交互
+- 更丰富的列元信息（如数据类型、约束、说明）
+- draft / template / compiled tables 的正式 authoring 层拆分
+
+### 6.2 模板体系
+
+尚未完成：
+
+- 全局模板预设
+- 聊天级模板覆盖策略
+- 模板导入导出
+- 模板版本 / 历史
+
+### 6.3 自动填表接入
+
+尚未完成：
+
+- 自动触发 adapter
+- 自动填表门控与事务接线
+- 自动失败与手动链的统一 UX 反馈
+
+### 6.4 高级工作台体验
+
+尚未完成：
+
+- visualizer shell
+- 历史记录
+- 导入 / 导出
+- 高级诊断面板
+- 大表编辑体验优化
+
+---
+
+## 七、当前已知限制与现实口径
+
+这是当前最重要、也最应该被文档正视的现实问题。
+
+### 7.1 当前已经不是 JSON 主路径，但也还不是正式可视化编辑器
+
+当前源码事实：
+
+- `modules/table-engine/table-schema-service.js`
+  - `getTableWorkbenchFormSchema()` 已把 `tables` 切为 `type: 'tableDefinitions'`
+  - 新增了 derive / compile / validate 辅助函数
+- `modules/ui/components/table-form-renderer.js`
+  - 已新增结构化表定义编辑器分支
+  - 当前支持表 / 列 / 行增删与单元格内联编辑
+- `modules/ui/components/table-workbench-panel.js`
+  - 当前会把编译后的 runtime `tables` 预览展示在右侧
+
+所以当前用户看到的交互已经不是：
+
+- 一个大 textarea
+- 里面直接编辑 `tables` 数组 JSON
+
+而是：
+
+- 一套最小结构化编辑器
+- 编辑内容在保存 / 运行前编译回 `tables`
+
+### 7.2 当前最大缺口已经从“摆脱 JSON”变成“把结构化编辑器做完整”
+
+当前最需要被准确描述的，不是：
+
+- target resolve 失效
+- writeback 事务模型错误
+- state binding 丢失
+
+而是：
+
+- 结构化编辑器虽然已经存在，但仍只是 MVP
+- 还没有排序、模板、历史、导入导出、visualizer shell
+- 还没有独立成型的正式 authoring 模型
+
+### 7.3 `config.tables` 仍然是 runtime 真相来源
+
+这点必须明确写清楚：
+
+- 当前 editor 只是 authoring 入口
+- 当前执行链真正读取的仍然是 `config.tables`
+- 保存 / 运行前 compile 不是临时 hack，而是当前架构故意保留的稳定边界
+
+---
+
+## 八、当前建议的文档口径
+
+后续在其他文档或讨论中，关于 `tableWorkbench` 应统一使用以下口径：
+
+### 可以直接说的事实
+
+- `tableWorkbench` 已落地为顶级页签
+- 它已经有最小手动填表 MVP
+- 它已经具备 revision-safe 结构化写回主链
+- 它已经不再要求直接手写 JSON 维护表定义
+- 它当前已有结构化表定义编辑器 MVP，并会在保存 / 运行前编译为 runtime `tables`
+
+### 不能再继续沿用的旧说法
+
+- “它还只是计划中的子页签”
+- “table-workbench-panel 尚未新增”
+- “当前还没有手动执行入口”
+- “当前表定义仍只能通过 JSON textarea 编辑”
+- “当前已经有正式可用的 visualizer / 表编辑器”
+
+---
+
+## 九、下一次规划前的起点
+
+这份文档补齐后，下一次再进入新阶段规划，应直接从这个事实出发：
+
+> **当前 tableWorkbench 的主链已经能跑，JSON 已不再是主 authoring 路径，下一阶段真正要解决的是把结构化编辑器从 MVP 推进到正式工作台体验。**
+
+下一轮应该重点讨论的是：
+
+- 是否要引入更正式的 draft model
+- 表 / 行 / 列排序与更成熟的大表编辑体验怎么做
+- 是否要补模板 / 历史 / 导入导出
+- 是继续增强轻量结构化编辑器，还是进入 visualizer shell
+
+但这些都属于下一轮，不属于本文档当前要假装已经完成的内容。
+
+---
+
+## 十、当前事实对照文件
+
+如需校验本文档是否仍然准确，应优先对照以下源码：
+
+- `modules/tool-registry.js`
+- `modules/app/popup-shell.js`
 - `modules/ui/components/table-workbench-panel.js`
 - `modules/ui/components/table-form-renderer.js`
-
-范围：
-
-- 先作为 `tools` 下的 `tableWorkbench` subtab 接入
-- 先只提供最小配置项：
-  - 表定义
-  - prompt 模板
-  - 是否镜像写回正文
-
-### 2.2 执行链服务补全
-
-新增：
-
 - `modules/table-engine/table-schema-service.js`
 - `modules/table-engine/table-update-service.js`
 - `modules/table-engine/table-writeback-service.js`
+- `modules/table-engine/table-state-service.js`
+- `modules/core/storage-service.js`
 
-职责：
-
-- `table-schema-service`：校验最小表定义与 prompt 配置
-- `table-update-service`：组装请求输入，先支持单次手动执行，不做批处理
-- `table-writeback-service`：封装 `commitBoundState()`，并决定是否调用现有 `context-injector.js` 做正文镜像
-
-### 2.3 手动链路接入点
-
-建议手动链先不要直接改自动化服务，而是挂在现有手动链旁路：
-
-```text
-UI 按钮 / Panel 动作
-  -> buildExecutionContextForLatestAssistant()
-  -> table-target-resolver.resolveTableTargetFromExecutionContext()
-  -> table-state-service.recordResolvedTarget()
-  -> table-state-service.loadBoundStateOrTemplate()
-  -> table-update-service.buildRequest()
-  -> api-connection.js
-  -> table-update-service.parsePatch()
-  -> table-writeback-service.commit()
-```
-
-### 2.4 Phase 2 验收口径
-
-- 能在当前 popup shell 中稳定打开 tableWorkbench
-- 能完成一次最小手动填表并写入 `YouYouToolkit_tableState`
-- 勾选正文镜像时，能通过现有 `context-injector.js` 做可见写回
-- 目标发生变化时，commit 会被拒绝并提示重新执行
-
-## Phase 3：自动填表接入
-
-目标：
-
-- 将 table 自动更新挂到现有 transaction-first 自动链
-- 复用 current repo 的 same-slot / revision-aware 机制
-- 保持自动失败不污染下一次手动目标
-
-前置条件：
-
-- Phase 2 的手动链已稳定
-- `table-update-service` 的输入输出协议已固定
-- `table-writeback-service` 已能稳定处理结构化写回和可选正文镜像
-
-验收：
-
-- 手动填表成功时写对当前楼层
-- 自动链接入后，同楼层 reroll / swipe 不会误提交旧 revision
-- 自动失败不会污染后续手动目标
-
-## Phase 4：可视化编辑器
-
-目标：
-
-- 落地 visualizer shell / sidebar / data panel / config panel
-- 支持表顺序、行列、单元格与锁定编辑
-
-验收：
-
-- 编辑器草稿与持久态分离
-- 保存前后状态一致且可诊断
-
-## Phase 5：预设、导入导出、历史与优化
-
-目标：
-
-- 全局模板预设
-- 聊天级覆盖
-- 导入导出
-- 历史记录与诊断面板
-
-验收：
-
-- 用户可以在不同聊天中稳定复用同一套表模板
-
----
-
-## 十、第一批建议新增文件
-
-```text
-docs/
-└─ TABLE_WORKBENCH_IMPLEMENTATION_DRAFT.md
-
-modules/table-engine/
-├─ [已完成] table-types.js
-├─ [已完成] table-target-resolver.js
-├─ [已完成] table-state-service.js
-├─ [下一阶段] table-schema-service.js
-├─ [后续阶段] table-template-service.js
-├─ [下一阶段] table-update-service.js
-├─ [下一阶段] table-writeback-service.js
-└─ [后续阶段] table-automation-adapter.js
-
-modules/ui/components/
-├─ [下一阶段] table-workbench-panel.js
-└─ [下一阶段] table-form-renderer.js
-```
-
-说明：
-
-- 当前已完成的是 Phase 1 最小骨架，不包含 UI 与自动链接入
-- 下一阶段优先补齐最小手动填表 MVP，而不是继续扩张文件数量
-- visualizer 细分组件继续暂缓
-
----
-
-## 十一、明确的非目标
-
-当前这轮不追求：
-
-1. 一次性复刻 shujuku 全部 UI
-2. 一次性复刻 st-memory 全部设置页
-3. 一次性支持所有批处理 / 世界书 / 特殊索引功能
-4. 在第一轮就把所有表格可视化配置做完
-
-当前最重要的是：
-
-- 目标绑定正确
-- revision 校验正确
-- 手动填表稳定
-- 自动失败不污染后续执行
-
----
-
-## 十二、施工验收口径
-
-当以下条件同时满足时，才算第一轮施工成功：
-
-### 目标安全
-
-- 自动失败后，下一次手动更新不会写到旧楼层
-- 同一楼层 reroll / swipe 后，旧 revision 结果不会覆盖新 revision
-- 写回前 revision 校验可阻止 stale commit
-
-### 结构边界
-
-- 模板态 / 运行态 / 草稿态已拆分
-- 表配置 UI 与表数据编辑 UI 已拆分
-- 更新执行与写回执行已拆分
-
-### 仓库一致性
-
-- 没有绕开 `tool-execution-context.js`
-- 没有绕开 `context-injector.js` / 现有写回诊断模型
-- 没有新增第二套独立自动触发状态机
-
----
-
-## 十三、当前推荐决策
-
-当前推荐按以下顺序落地：
-
-1. 先在 `docs/` 保留并持续更新本施工草案
-2. 已完成 `modules/table-engine/` Phase 1 最小骨架
-3. 下一阶段先做手动填表 MVP
-4. 等手动链与状态模型稳定后，再上 visualizer
-5. 自动填表最后接入
-
-核心原则一句话总结：
-
-> UI 上吸收 st-memory 的配置驱动，交互上吸收 shujuku 的 visualizer，但底层执行和写回必须完全服从 YouYou Toolkit 当前的 slot transaction 模型。
+只要这些文件的职责边界发生变化，就应优先更新本文档，而不是继续保留历史草案表述。

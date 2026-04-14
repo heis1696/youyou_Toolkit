@@ -12,7 +12,7 @@ import {
   showTopNotice
 } from '../utils.js';
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
-import { TABLE_FORM_RENDERER_STYLES, renderTableForm, readTableFormValues } from './table-form-renderer.js';
+import { TABLE_FORM_RENDERER_STYLES, bindTableFormEvents, renderTableForm, readTableFormValues } from './table-form-renderer.js';
 import { variableResolver } from '../../variable-resolver.js';
 import { getAllPresets } from '../../preset-manager.js';
 import {
@@ -121,6 +121,26 @@ function formatJson(value) {
   } catch (_) {
     return String(value ?? '');
   }
+}
+
+function updateCompiledPreview($container) {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container)) return;
+
+  const schema = getSchema();
+  const { values, errors } = readTableFormValues($container, schema);
+  const $preview = $container.find('[data-table-workbench-preview]');
+
+  if (!$preview.length) {
+    return;
+  }
+
+  if (errors.length > 0) {
+    $preview.text(errors.join('\n'));
+    return;
+  }
+
+  $preview.text(formatJson(values.tables || []));
 }
 
 function buildHero(config = {}) {
@@ -323,6 +343,7 @@ async function refreshDiagnostics($container) {
 function collectAndSaveConfig($container, { silent = false } = {}) {
   const schema = getSchema();
   const { values, errors } = readTableFormValues($container, schema);
+  updateCompiledPreview($container);
   if (errors.length > 0) {
     showTopNotice('warning', errors.join('\n'), {
       duration: 4000,
@@ -359,8 +380,10 @@ export const TableWorkbenchPanel = {
     if (!$ || !isContainerValid($container)) return;
 
     $container.find('[data-table-workbench-action="save"], [data-table-workbench-action="save-top"]').on('click', () => {
-      collectAndSaveConfig($container, { silent: false });
-      this.renderTo($container);
+      const saveResult = collectAndSaveConfig($container, { silent: false });
+      if (saveResult?.success) {
+        this.renderTo($container);
+      }
     });
 
     $container.find('[data-table-workbench-action="refresh"]').on('click', () => {
@@ -413,7 +436,11 @@ export const TableWorkbenchPanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
     $container.html(this.render({}));
+    bindTableFormEvents($container, getSchema(), {
+      onChange: () => updateCompiledPreview($container)
+    });
     this.bindEvents($container, {});
+    updateCompiledPreview($container);
     void refreshDiagnostics($container);
   }
 };

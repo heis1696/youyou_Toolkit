@@ -735,27 +735,6 @@ Phase 4: 应用黑名单过滤
         padding: 20px;
       }
       
-      .yyt-checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 12px;
-        color: var(--yyt-text-secondary);
-        cursor: pointer;
-      }
-
-      .yyt-checkbox-label span {
-        color: var(--yyt-text);
-        font-weight: 700;
-      }
-
-      .yyt-checkbox-label input {
-        width: 16px;
-        height: 16px;
-        cursor: pointer;
-        accent-color: var(--yyt-accent);
-      }
-      
       .yyt-empty-state-small {
         display: flex;
         flex-direction: column;

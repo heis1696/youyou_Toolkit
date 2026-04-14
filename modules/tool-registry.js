@@ -432,11 +432,11 @@ export const TOOL_REGISTRY = {
     description: '工具集合',
     order: 4,
     subTabs: [
-      { id: 'summaryTool', name: '摘要工具', icon: 'fa-file-lines', component: 'SummaryToolPanel' },
-      { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel' },
-      { id: 'youyouReview', name: '小幽点评', icon: 'fa-comment-dots', component: 'YouyouReviewPanel' },
-      { id: 'escapeTransformTool', name: '转义处理', icon: 'fa-quote-left', component: 'EscapeTransformToolPanel' },
-      { id: 'punctuationTransformTool', name: '中文标点替换', icon: 'fa-language', component: 'PunctuationTransformToolPanel' }
+      { id: 'summaryTool', name: '摘要工具', icon: 'fa-file-lines', component: 'SummaryToolPanel', toolKind: 'ai' },
+      { id: 'statusBlock', name: '主角状态栏', icon: 'fa-user-check', component: 'StatusBlockPanel', toolKind: 'ai' },
+      { id: 'youyouReview', name: '小幽点评', icon: 'fa-comment-dots', component: 'YouyouReviewPanel', toolKind: 'ai' },
+      { id: 'escapeTransformTool', name: '转义处理', icon: 'fa-quote-left', component: 'EscapeTransformToolPanel', toolKind: 'script' },
+      { id: 'punctuationTransformTool', name: '中文标点替换', icon: 'fa-language', component: 'PunctuationTransformToolPanel', toolKind: 'script' }
     ]
   },
   tableWorkbench: {
@@ -506,13 +506,35 @@ function getCustomManagedToolEntries() {
     .map(([toolId, tool]) => [toolId, tool || {}]);
 }
 
+function resolveToolKind(config = {}) {
+  if (config?.toolKind === 'script') {
+    return 'script';
+  }
+
+  if (config?.toolKind === 'ai') {
+    return 'ai';
+  }
+
+  if (config?.output?.mode === 'local_transform' || config?.processor?.type) {
+    return 'script';
+  }
+
+  return 'ai';
+}
+
 function buildToolsSubTabs() {
   const baseSubTabs = Array.isArray(TOOL_REGISTRY.tools?.subTabs)
-    ? [...TOOL_REGISTRY.tools.subTabs]
+    ? TOOL_REGISTRY.tools.subTabs.map((tab, index) => ({
+      ...tab,
+      order: Number.isFinite(tab?.order) ? tab.order : index,
+      toolKind: resolveToolKind(tab),
+      toolGroupLabel: resolveToolKind(tab) === 'script' ? '脚本工具' : 'AI 工具'
+    }))
     : [];
 
   const customSubTabs = getCustomManagedToolEntries().map(([toolId, tool], index) => {
     const runtimeConfig = normalizeToolDefinitionToRuntimeConfig(toolId, tool);
+    const toolKind = resolveToolKind(runtimeConfig);
 
     return {
       id: toolId,
@@ -521,7 +543,9 @@ function buildToolsSubTabs() {
       component: 'GenericToolConfigPanel',
       order: Number.isFinite(runtimeConfig.order) ? runtimeConfig.order : (100 + index),
       isCustom: true,
-      description: runtimeConfig.description || ''
+      description: runtimeConfig.description || '',
+      toolKind,
+      toolGroupLabel: toolKind === 'script' ? '脚本工具' : 'AI 工具'
     };
   });
 
