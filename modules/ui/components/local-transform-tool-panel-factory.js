@@ -294,7 +294,11 @@ export function createLocalTransformToolPanel(options) {
     },
 
     _getFormData($container) {
+      const $ = getJQuery();
       const currentConfig = getToolFullConfig(this.toolId) || {};
+      if (!$ || !isContainerValid($container)) {
+        return currentConfig;
+      }
       const selectorLines = ($container.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || '')
         .split(/\r?\n/)
         .map(item => item.trim())
@@ -409,47 +413,52 @@ export function createLocalTransformToolPanel(options) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
 
-      $container.find(`#${SCRIPT_ID}-tool-save, #${SCRIPT_ID}-tool-save-top`).on('click', () => {
-        this._saveConfig($container, { silent: false });
+      const self = this;
+
+      // 使用事件委托绑定所有按钮事件，避免重新渲染导致事件丢失
+      $container.off('.yytLocalToolPanel');
+
+      $container.on('click.yytLocalToolPanel', `#${SCRIPT_ID}-tool-save, #${SCRIPT_ID}-tool-save-top`, () => {
+        self._saveConfig($container, { silent: false });
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-run-manual`).on('click', async () => {
-        const saveSuccess = this._saveConfig($container, { silent: true });
+      $container.on('click.yytLocalToolPanel', `#${SCRIPT_ID}-tool-run-manual`, async () => {
+        const saveSuccess = self._saveConfig($container, { silent: true });
         if (!saveSuccess) return;
 
         try {
-          const result = await runToolManually(this.toolId);
+          const result = await runToolManually(self.toolId);
           if (!result?.success && result?.error) {
             showTopNotice('warning', result.error, {
               duration: 3200,
-              noticeId: `yyt-tool-run-${this.toolId}`
+              noticeId: `yyt-tool-run-${self.toolId}`
             });
           }
         } catch (error) {
           showToast('error', error?.message || '手动执行失败');
         } finally {
-          this.renderTo($container);
+          self.renderTo($container);
         }
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-preview-extraction`).on('click', async () => {
-        const saveSuccess = this._saveConfig($container, { silent: true });
+      $container.on('click.yytLocalToolPanel', `#${SCRIPT_ID}-tool-preview-extraction`, async () => {
+        const saveSuccess = self._saveConfig($container, { silent: true });
         if (!saveSuccess) return;
 
         try {
-          const result = await previewToolExtraction(this.toolId);
+          const result = await previewToolExtraction(self.toolId);
           if (!result?.success) {
             showToast('error', result?.error || '测试提取失败');
             return;
           }
-          this._showExtractionPreview($container, result);
+          self._showExtractionPreview($container, result);
         } catch (error) {
           showToast('error', error?.message || '测试提取失败');
         }
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-reset-template`).on('click', () => {
-        const baseConfig = getToolBaseConfig(this.toolId);
+      $container.on('click.yytLocalToolPanel', `#${SCRIPT_ID}-tool-reset-template`, () => {
+        const baseConfig = getToolBaseConfig(self.toolId);
         if (baseConfig?.promptTemplate) {
           $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(baseConfig.promptTemplate);
           showToast('info', '模板已重置');
@@ -476,7 +485,7 @@ export function createLocalTransformToolPanel(options) {
     destroy($container) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
-      $container.find('*').off();
+      $container.off('.yytLocalToolPanel');
     },
 
     getStyles() {

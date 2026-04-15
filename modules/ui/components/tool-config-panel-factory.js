@@ -862,7 +862,11 @@ export function createToolConfigPanel(options) {
     },
 
     _getFormData($container) {
-      const currentConfig = getToolFullConfig(this.toolId);
+      const $ = getJQuery();
+      const currentConfig = getToolFullConfig(this.toolId) || {};
+      if (!$ || !isContainerValid($container)) {
+        return currentConfig;
+      }
       const outputMode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
       const bypassEnabled = $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(':checked');
       const postResponseEnabled = outputMode === 'post_response_api';
@@ -983,6 +987,8 @@ export function createToolConfigPanel(options) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
 
+      const self = this;
+
       const getSelectedWorldbooks = () => $container.find(`[data-worldbook-name]:checked`).map((_, element) =>
         String($(element).data('worldbook-name') || '').trim()
       ).get().filter(Boolean);
@@ -1021,19 +1027,22 @@ export function createToolConfigPanel(options) {
         }
       };
 
-      $container.find(`#${SCRIPT_ID}-tool-worldbook-search`).on('input', (event) => {
+      // 使用事件委托绑定所有按钮事件，避免异步重新渲染导致事件丢失
+      $container.off('.yytToolPanel');
+
+      $container.on('input.yytToolPanel', `#${SCRIPT_ID}-tool-worldbook-search`, (event) => {
         this.worldbookFilter = String($(event.currentTarget).val() || '');
         syncWorldbookFilter();
       });
 
       syncWorldbookFilter();
 
-      $container.find(`[data-worldbook-name]`).on('change', () => {
+      $container.on('change.yytToolPanel', `[data-worldbook-name]`, () => {
         this.draftSelectedWorldbooks = getSelectedWorldbooks();
         syncWorldbookSummary();
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-output-mode`).on('change', () => {
+      $container.on('change.yytToolPanel', `#${SCRIPT_ID}-tool-output-mode`, () => {
         const mode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
         const modeText = mode === 'post_response_api'
           ? `${postResponseHint} 当前模式会参与自动触发，记得同时开启全局自动化。`
@@ -1041,57 +1050,57 @@ export function createToolConfigPanel(options) {
         $container.find('.yyt-tool-mode-hint').text(modeText);
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).on('change', (event) => {
+      $container.on('change.yytToolPanel', `#${SCRIPT_ID}-tool-bypass-enabled`, (event) => {
         const enabled = $(event.currentTarget).is(':checked');
         $container.find('.yyt-bypass-preset-select').toggleClass('yyt-hidden', !enabled);
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-save, #${SCRIPT_ID}-tool-save-top`).on('click', () => {
-        this._saveConfig($container, { silent: false });
+      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-save, #${SCRIPT_ID}-tool-save-top`, () => {
+        self._saveConfig($container, { silent: false });
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-reset-template`).on('click', () => {
-        const baseConfig = getToolBaseConfig(this.toolId);
+      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-reset-template`, () => {
+        const baseConfig = getToolBaseConfig(self.toolId);
         if (baseConfig?.promptTemplate) {
           $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(baseConfig.promptTemplate);
           showToast('info', '模板已重置');
         }
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-run-manual`).on('click', async () => {
-        const saveSuccess = this._saveConfig($container, { silent: true });
+      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-run-manual`, async () => {
+        const saveSuccess = self._saveConfig($container, { silent: true });
         if (!saveSuccess) {
           return;
         }
 
         try {
-          const result = await runToolManually(this.toolId);
+          const result = await runToolManually(self.toolId);
           if (!result?.success && result?.error) {
             showTopNotice('warning', result.error, {
               duration: 3200,
-              noticeId: `yyt-tool-run-${this.toolId}`
+              noticeId: `yyt-tool-run-${self.toolId}`
             });
           }
         } catch (error) {
           showToast('error', error?.message || '手动执行失败');
         } finally {
-          this.renderTo($container);
+          self.renderTo($container);
         }
       });
 
-      $container.find(`#${SCRIPT_ID}-tool-preview-extraction`).on('click', async () => {
-        const saveSuccess = this._saveConfig($container, { silent: true });
+      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-preview-extraction`, async () => {
+        const saveSuccess = self._saveConfig($container, { silent: true });
         if (!saveSuccess) {
           return;
         }
 
         try {
-          const result = await previewToolExtraction(this.toolId);
+          const result = await previewToolExtraction(self.toolId);
           if (!result?.success) {
             showToast('error', result?.error || '测试提取失败');
             return;
           }
-          this._showExtractionPreview($container, result);
+          self._showExtractionPreview($container, result);
         } catch (error) {
           showToast('error', error?.message || '测试提取失败');
         }
@@ -1122,7 +1131,7 @@ export function createToolConfigPanel(options) {
     destroy($container) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
-      $container.find('*').off();
+      $container.off('.yytToolPanel');
     },
 
     getStyles() {
@@ -1130,6 +1139,9 @@ export function createToolConfigPanel(options) {
     },
 
     renderTo($container) {
+      const $ = getJQuery();
+      if (!$ || !isContainerValid($container)) return;
+
       this.worldbookFilter = this.worldbookFilter || '';
       if (!Array.isArray(this.draftSelectedWorldbooks)) {
         const config = getToolFullConfig(this.toolId);
@@ -1137,20 +1149,73 @@ export function createToolConfigPanel(options) {
           ? [...config.worldbooks.selected]
           : [];
       }
-      this.worldbookLoadState = 'loading';
+
+      // 尝试先使用缓存的世界书数据
+      const cachedWorldbooks = getCachedAvailableWorldbooks();
+      if (Array.isArray(cachedWorldbooks) && cachedWorldbooks.length > 0) {
+        this.availableWorldbooks = cachedWorldbooks;
+        this.worldbookLoadState = 'ready';
+      } else {
+        this.worldbookLoadState = 'loading';
+      }
+
+      // 渲染并绑定事件
       $container.html(this.render({}));
       this.bindEvents($container, {});
 
-      Promise.resolve(this._loadWorldbooks())
-        .catch(() => {
-          this.worldbookLoadState = 'empty';
-          return getCachedAvailableWorldbooks();
-        })
-        .then((worldbooks) => {
-          this.availableWorldbooks = Array.isArray(worldbooks) ? worldbooks : [];
-          $container.html(this.render({}));
-          this.bindEvents($container, {});
-        });
+      // 异步加载世界书（如果需要）
+      if (this.worldbookLoadState === 'loading') {
+        Promise.resolve(this._loadWorldbooks())
+          .catch(() => {
+            this.worldbookLoadState = 'empty';
+            return getCachedAvailableWorldbooks();
+          })
+          .then((worldbooks) => {
+            if (!isContainerValid($container)) return;
+
+            this.availableWorldbooks = Array.isArray(worldbooks) ? worldbooks : [];
+
+            // 只更新世界书列表部分，而不是完全重新渲染
+            this._updateWorldbookList($container);
+          });
+      }
+    },
+
+    _updateWorldbookList($container) {
+      const $ = getJQuery();
+      if (!$ || !isContainerValid($container)) return;
+
+      const worldbookFilter = String(this.worldbookFilter || '').trim().toLowerCase();
+      const availableWorldbooks = Array.isArray(this.availableWorldbooks) ? this.availableWorldbooks : [];
+      const selectedWorldbooks = Array.isArray(this.draftSelectedWorldbooks) ? this.draftSelectedWorldbooks : [];
+      const visibleWorldbooks = worldbookFilter
+        ? availableWorldbooks.filter((bookName) => String(bookName || '').toLowerCase().includes(worldbookFilter))
+        : availableWorldbooks;
+
+      const $list = $container.find(`#${SCRIPT_ID}-tool-worldbooks`);
+      if (!$list.length) return;
+
+      if (availableWorldbooks.length === 0) {
+        $list.html(`<div class="yyt-tool-compact-hint yyt-worldbook-empty">${this.worldbookLoadState === 'loading' ? '世界书加载中…' : '当前未读取到可用世界书。'}</div>`);
+        return;
+      }
+
+      $list.html(visibleWorldbooks.length > 0 ? visibleWorldbooks.map((bookName) => `
+        <div class="yyt-worldbook-item">
+          <label class="yyt-checkbox-label">
+            <input type="checkbox" data-worldbook-name="${escapeHtml(bookName)}" ${selectedWorldbooks.includes(bookName) ? 'checked' : ''}>
+            <span>${escapeHtml(bookName)}</span>
+          </label>
+        </div>
+      `).join('') : '<div class="yyt-tool-compact-hint yyt-worldbook-empty">未找到匹配世界书。</div>');
+
+      // 更新摘要
+      const summary = selectedWorldbooks.length === 0
+        ? '选择要注入的世界书'
+        : selectedWorldbooks.length <= 2
+          ? selectedWorldbooks.join('、')
+          : `已选 ${selectedWorldbooks.length} 项：${selectedWorldbooks.slice(0, 2).join('、')} 等`;
+      $container.find('.yyt-worldbook-summary').text(summary);
     }
   };
 }

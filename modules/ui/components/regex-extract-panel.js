@@ -599,8 +599,8 @@ Phase 4: 应用黑名单过滤
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
-    $container.find('*').off();
+
+    $container.off();
   },
   
   // ============================================================

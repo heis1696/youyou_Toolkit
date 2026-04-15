@@ -444,7 +444,12 @@ export const SettingsPanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
-    $container.find('.yyt-settings-tab').on('click', (e) => {
+    const self = this;
+
+    // 使用事件委托，避免重新渲染导致事件丢失
+    $container.off('.yytSettings');
+
+    $container.on('click.yytSettings', '.yyt-settings-tab', (e) => {
       const tabId = $(e.currentTarget).data('tab');
       $container.find('.yyt-settings-tab').removeClass('yyt-active');
       $(e.currentTarget).addClass('yyt-active');
@@ -452,15 +457,15 @@ export const SettingsPanel = {
       $container.find(`.yyt-settings-tab-content[data-tab="${tabId}"]`).addClass('yyt-active');
     });
 
-    $container.find('#yyt-settings-save').on('click', () => {
-      this._saveSettings($container);
+    $container.on('click.yytSettings', '#yyt-settings-save', () => {
+      self._saveSettings($container);
     });
 
-    $container.find('#yyt-settings-reset').on('click', () => {
+    $container.on('click.yytSettings', '#yyt-settings-reset', () => {
       if (confirm('确定要重置所有设置为默认值吗？')) {
         settingsService.resetSettings();
         applyUiPreferences(DEFAULT_SETTINGS.ui, getTargetDocument());
-        this.renderTo($container);
+        self.renderTo($container);
         showToast('success', '设置已重置');
       }
     });
@@ -509,7 +514,7 @@ export const SettingsPanel = {
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    $container.find('*').off();
+    $container.off('.yytSettings');
   },
 
   getStyles() {

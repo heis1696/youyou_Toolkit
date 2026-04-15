@@ -436,8 +436,8 @@ export const ToolManagePanel = {
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
-    $container.find('*').off();
+
+    $container.off();
   },
   
   // ============================================================

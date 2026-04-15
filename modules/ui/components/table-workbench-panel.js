@@ -47,23 +47,53 @@ ${TABLE_FORM_RENDERER_STYLES}
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 28px rgba(0, 0, 0, 0.14);
   }
 
-  .yyt-table-workbench-kv {
-    display: grid;
-    grid-template-columns: 120px minmax(0, 1fr);
-    gap: 8px 12px;
+  .yyt-table-workbench-panel-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .yyt-table-workbench-panel-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--yyt-text);
+  }
+
+  .yyt-table-workbench-panel-desc,
+  .yyt-table-workbench-muted {
     font-size: 12px;
     line-height: 1.7;
+    color: rgba(255, 255, 255, 0.68);
   }
 
-  .yyt-table-workbench-kv dt {
-    color: rgba(255, 255, 255, 0.62);
-    font-weight: 700;
+  .yyt-table-workbench-flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .yyt-table-workbench-kv dd {
-    margin: 0;
-    color: var(--yyt-text);
-    word-break: break-word;
+  .yyt-table-workbench-flow .yyt-tool-hero-chip {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .yyt-table-workbench-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    min-height: 108px;
+  }
+
+  .yyt-table-workbench-empty-state {
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.03);
+    min-height: 108px;
   }
 
   .yyt-table-workbench-pre {
@@ -81,19 +111,6 @@ ${TABLE_FORM_RENDERER_STYLES}
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
     font-size: 12px;
     line-height: 1.7;
-  }
-
-  .yyt-table-workbench-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-  }
-
-  .yyt-table-workbench-muted {
-    font-size: 12px;
-    line-height: 1.7;
-    color: rgba(255, 255, 255, 0.68);
   }
 
   @media (max-width: 1100px) {
@@ -167,32 +184,53 @@ function buildHero(config = {}) {
 
 function buildRuntimeSummary(config = {}) {
   const runtime = config.runtime || {};
+  const runtimeStatus = String(runtime.lastStatus || 'idle').toLowerCase();
+  const lastError = runtime.lastError ? `
+    <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
+      <span class="yyt-tool-runtime-label">最近错误</span>
+      <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastError)}</span>
+    </div>
+  ` : '';
+
   return `
-    <div class="yyt-table-workbench-card">
-      <div class="yyt-section-title">
-        <i class="fa-solid fa-wave-square"></i>
-        <span>最近运行</span>
+    <div class="yyt-tool-runtime-card">
+      <div class="yyt-table-workbench-panel-copy">
+        <div class="yyt-table-workbench-panel-title">运行摘要</div>
+        <div class="yyt-table-workbench-panel-desc">记录最近一次手动填表的目标、revision 与写回结果，便于快速判断是否命中正确 assistant slot。</div>
       </div>
-      <dl class="yyt-table-workbench-kv">
-        <dt>状态</dt>
-        <dd>${escapeHtml(runtime.lastStatus || 'idle')}</dd>
-        <dt>最近运行</dt>
-        <dd>${escapeHtml(formatTimestamp(runtime.lastRunAt))}</dd>
-        <dt>耗时</dt>
-        <dd>${runtime.lastDurationMs ? `${runtime.lastDurationMs} ms` : '未记录'}</dd>
-        <dt>成功 / 失败</dt>
-        <dd>${Number(runtime.successCount) || 0} / ${Number(runtime.errorCount) || 0}</dd>
-        <dt>最近目标</dt>
-        <dd>${escapeHtml(runtime.lastSourceMessageId || '未记录')}</dd>
-        <dt>最近 revision</dt>
-        <dd>${escapeHtml(runtime.lastSlotRevisionKey || '未记录')}</dd>
-        <dt>最近 loadMode</dt>
-        <dd>${escapeHtml(runtime.lastLoadMode || '未记录')}</dd>
-        <dt>正文镜像</dt>
-        <dd>${runtime.lastMirrorApplied === true ? '已执行' : '未执行'}</dd>
-        <dt>最近错误</dt>
-        <dd>${escapeHtml(runtime.lastError || '无')}</dd>
-      </dl>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">当前状态</span>
+        <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtime.lastStatus || 'idle')}</span>
+      </div>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">最近运行</span>
+        <span class="yyt-tool-runtime-value">${escapeHtml(formatTimestamp(runtime.lastRunAt))}</span>
+      </div>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">耗时</span>
+        <span class="yyt-tool-runtime-value">${runtime.lastDurationMs ? `${runtime.lastDurationMs} ms` : '未记录'}</span>
+      </div>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">成功 / 失败</span>
+        <span class="yyt-tool-runtime-value">${Number(runtime.successCount) || 0} / ${Number(runtime.errorCount) || 0}</span>
+      </div>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">最近目标</span>
+        <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastSourceMessageId || '未记录')}</span>
+      </div>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">最近 revision</span>
+        <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastSlotRevisionKey || '未记录')}</span>
+      </div>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">loadMode</span>
+        <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastLoadMode || '未记录')}</span>
+      </div>
+      <div class="yyt-tool-runtime-line">
+        <span class="yyt-tool-runtime-label">正文镜像</span>
+        <span class="yyt-tool-runtime-value">${runtime.lastMirrorApplied === true ? '已执行' : '未执行'}</span>
+      </div>
+      ${lastError}
     </div>
   `;
 }
@@ -211,6 +249,10 @@ function buildMainLayout(config = {}) {
               <i class="fa-solid fa-sliders"></i>
               <span>工作台配置</span>
             </div>
+            <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-title">表定义与请求模板</div>
+              <div class="yyt-table-workbench-panel-desc">在这里维护 tables 草稿、promptTemplate 与写回策略。保存后才会更新运行时配置。</div>
+            </div>
             ${renderTableForm(schema, config)}
           </div>
 
@@ -219,24 +261,43 @@ function buildMainLayout(config = {}) {
               <i class="fa-solid fa-hand-pointer"></i>
               <span>手动执行</span>
             </div>
-            <div class="yyt-table-workbench-actions">
-              <button class="yyt-btn yyt-btn-primary" data-table-workbench-action="run">
-                <i class="fa-solid fa-play"></i> 立即手动填表
-              </button>
-              <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="refresh">
-                <i class="fa-solid fa-rotate"></i> 刷新目标诊断
-              </button>
-              <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="save">
-                <i class="fa-solid fa-save"></i> 保存配置
-              </button>
+            <div class="yyt-tool-manual-area">
+              <div class="yyt-tool-runtime-card">
+                <div class="yyt-table-workbench-panel-copy">
+                  <div class="yyt-table-workbench-panel-title">执行链路</div>
+                  <div class="yyt-table-workbench-panel-desc">每次执行都会重新解析当前 assistant 目标，并在 commit 前校验 revision，避免写到旧 slot。</div>
+                </div>
+                <div class="yyt-table-workbench-flow">
+                  <span class="yyt-tool-hero-chip">fresh target</span>
+                  <span class="yyt-tool-hero-chip">load state/template</span>
+                  <span class="yyt-tool-hero-chip">build request</span>
+                  <span class="yyt-tool-hero-chip">parse tables</span>
+                  <span class="yyt-tool-hero-chip">commit state</span>
+                </div>
+              </div>
+              <div class="yyt-tool-manual-actions">
+                <button class="yyt-btn yyt-btn-primary" data-table-workbench-action="run">
+                  <i class="fa-solid fa-play"></i> 立即手动填表
+                </button>
+                <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="refresh">
+                  <i class="fa-solid fa-rotate"></i> 刷新目标诊断
+                </button>
+                <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="save">
+                  <i class="fa-solid fa-save"></i> 保存配置
+                </button>
+                <div class="yyt-tool-compact-hint">建议顺序：先保存配置，再刷新诊断，最后执行一次手动填表确认 writeback 命中目标消息。</div>
+              </div>
             </div>
-            <div class="yyt-tool-compact-hint">执行链：resolve fresh target → load state/template → build request → API → parse tables JSON → commit structured state。</div>
           </div>
 
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-code"></i>
               <span>可用变量</span>
+            </div>
+            <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-title">模板辅助速查</div>
+              <div class="yyt-table-workbench-panel-desc">这些变量可直接用于 promptTemplate，生成结构化表格更新请求。</div>
             </div>
             <pre class="yyt-table-workbench-pre">${escapeHtml(variableHelp)}</pre>
           </div>
@@ -250,7 +311,11 @@ function buildMainLayout(config = {}) {
               <i class="fa-solid fa-crosshairs"></i>
               <span>当前目标诊断</span>
             </div>
-            <div data-table-workbench-target class="yyt-table-workbench-muted">正在读取当前 assistant 目标...</div>
+            <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-title">目标定位</div>
+              <div class="yyt-table-workbench-panel-desc">显示当前 assistant message / swipe / slot 键，便于判断本次执行会写到哪里。</div>
+            </div>
+            <div data-table-workbench-target class="yyt-table-workbench-empty-state">正在读取当前 assistant 目标...</div>
           </div>
 
           <div class="yyt-panel-section">
@@ -258,13 +323,21 @@ function buildMainLayout(config = {}) {
               <i class="fa-solid fa-database"></i>
               <span>当前加载结果</span>
             </div>
-            <div data-table-workbench-load class="yyt-table-workbench-muted">等待诊断结果...</div>
+            <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-title">状态来源</div>
+              <div class="yyt-table-workbench-panel-desc">展示当前是从 bound state 继续，还是回退到模板 tables。</div>
+            </div>
+            <div data-table-workbench-load class="yyt-table-workbench-empty-state">等待诊断结果...</div>
           </div>
 
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-table"></i>
               <span>tables 预览</span>
+            </div>
+            <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-title">当前编译结果</div>
+              <div class="yyt-table-workbench-panel-desc">这里展示将用于执行或回退的 tables JSON，便于在运行前做最后检查。</div>
             </div>
             <pre class="yyt-table-workbench-pre" data-table-workbench-preview>${escapeHtml(formatJson(config.tables || []))}</pre>
           </div>
@@ -276,16 +349,18 @@ function buildMainLayout(config = {}) {
 
 function renderDiagnosticList(items = []) {
   if (!items.length) {
-    return '<div class="yyt-table-workbench-muted">暂无可显示内容。</div>';
+    return '<div class="yyt-table-workbench-empty-state"><div class="yyt-table-workbench-muted">暂无可显示内容。</div></div>';
   }
 
   return `
-    <dl class="yyt-table-workbench-kv">
+    <div class="yyt-table-workbench-detail-list">
       ${items.map((item) => `
-        <dt>${escapeHtml(item.label || '')}</dt>
-        <dd>${escapeHtml(item.value || '')}</dd>
+        <div class="yyt-tool-runtime-line">
+          <span class="yyt-tool-runtime-label">${escapeHtml(item.label || '')}</span>
+          <span class="yyt-tool-runtime-value">${escapeHtml(item.value || '')}</span>
+        </div>
       `).join('')}
-    </dl>
+    </div>
   `;
 }
 
@@ -379,18 +454,23 @@ export const TableWorkbenchPanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
-    $container.find('[data-table-workbench-action="save"], [data-table-workbench-action="save-top"]').on('click', () => {
+    const self = this;
+
+    // 使用事件委托绑定所有按钮事件，避免重新渲染导致事件丢失
+    $container.off('.yytTableWorkbench');
+
+    $container.on('click.yytTableWorkbench', '[data-table-workbench-action="save"], [data-table-workbench-action="save-top"]', () => {
       const saveResult = collectAndSaveConfig($container, { silent: false });
       if (saveResult?.success) {
-        this.renderTo($container);
+        self.renderTo($container);
       }
     });
 
-    $container.find('[data-table-workbench-action="refresh"]').on('click', () => {
-      this.renderTo($container);
+    $container.on('click.yytTableWorkbench', '[data-table-workbench-action="refresh"]', () => {
+      self.renderTo($container);
     });
 
-    $container.find('[data-table-workbench-action="run"]').on('click', async () => {
+    $container.on('click.yytTableWorkbench', '[data-table-workbench-action="run"]', async () => {
       const saveResult = collectAndSaveConfig($container, { silent: true });
       if (!saveResult.success) {
         return;
@@ -417,7 +497,7 @@ export const TableWorkbenchPanel = {
       } catch (error) {
         showToast('error', error?.message || '手动填表失败');
       } finally {
-        this.renderTo($container);
+        self.renderTo($container);
       }
     });
   },
@@ -425,7 +505,7 @@ export const TableWorkbenchPanel = {
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    $container.find('*').off();
+    $container.off('.yytTableWorkbench');
   },
 
   getStyles() {

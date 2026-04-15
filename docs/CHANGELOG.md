@@ -9,6 +9,24 @@
 
 ## [Unreleased]
 
+## [1.0.32] - 2026-04-15
+
+### 修复
+
+- 🐛 **修复工具面板按钮点击无效的 bug** (`modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/local-transform-tool-panel-factory.js`, `modules/ui/components/table-workbench-panel.js` 等)
+  - 问题根源：异步加载世界书后重新渲染 HTML 导致事件监听器丢失
+  - 所有面板组件改用事件委托方式绑定事件 (`$container.on('event.namespace', selector, handler)`)
+  - `renderTo` 方法先尝试使用缓存数据，异步加载后只更新必要部分
+  - 使用命名空间标识事件，便于清理和隔离
+  - 统一 `destroy` 方法只移除当前组件的事件，不影响其他组件
+
+### 重构
+
+- ♻️ **统一 UI 组件事件绑定机制** (`modules/ui/components/*.js`)
+  - 所有面板组件接口保持一致：`render()`、`bindEvents()`、`destroy()`、`getStyles()`、`renderTo()`
+  - 事件绑定使用命名空间：`.yytToolPanel`、`.yytLocalToolPanel`、`.yytTableWorkbench`、`.yytSettings` 等
+  - 改进 `destroy` 方法，只移除当前组件命名空间的事件
+
 ## [1.0.31] - 2026-04-15
 
 ### 修复
