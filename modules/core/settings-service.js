@@ -33,7 +33,8 @@ const DEFAULT_SETTINGS = {
   ui: {
     compactMode: false,
     animationEnabled: true,
-    theme: 'dark-blue'
+    theme: 'dark-blue',
+    startupScreenDismissed: false
   }
 };
 

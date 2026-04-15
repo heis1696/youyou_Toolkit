@@ -451,10 +451,10 @@ export const TOOL_REGISTRY = {
   // v0.5 新增页面
   bypass: {
     id: 'bypass',
-    name: '破限词',
+    name: 'Ai指令预设',
     icon: 'fa-shield-halved',
     hasSubTabs: false,
-    description: '管理破限词预设',
+    description: '管理 Ai 指令预设',
     component: 'BypassPanel',
     order: 6
   },

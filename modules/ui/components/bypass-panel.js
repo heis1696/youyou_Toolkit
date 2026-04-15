@@ -1,6 +1,6 @@
 /**
- * YouYou Toolkit - 破限词面板组件
- * @description 提供破限词预设管理的UI界面
+ * YouYou Toolkit - Ai指令预设面板组件
+ * @description 提供 Ai指令预设管理的UI界面
  * @version 1.0.0
  */
 
@@ -33,7 +33,7 @@ export const BypassPanel = {
         <!-- 左侧预设列表 -->
         <div class="yyt-bypass-sidebar">
           <div class="yyt-bypass-sidebar-header">
-            <span class="yyt-bypass-sidebar-title">破限词预设</span>
+            <span class="yyt-bypass-sidebar-title">Ai指令预设</span>
             <button class="yyt-btn yyt-btn-small yyt-btn-primary" id="yyt-bypass-add">
               <i class="fa-solid fa-plus"></i>
             </button>
@@ -56,7 +56,7 @@ export const BypassPanel = {
         <div class="yyt-bypass-editor" id="yyt-bypass-editor">
           <div class="yyt-bypass-empty">
             <i class="fa-solid fa-shield-halved"></i>
-            <p>选择或创建破限词预设</p>
+            <p>选择或创建 Ai 指令预设</p>
           </div>
         </div>
       </div>
@@ -97,7 +97,7 @@ export const BypassPanel = {
       return `
         <div class="yyt-bypass-empty">
           <i class="fa-solid fa-shield-halved"></i>
-          <p>选择或创建破限词预设</p>
+          <p>选择或创建 Ai 指令预设</p>
         </div>
       `;
     }
@@ -252,7 +252,7 @@ export const BypassPanel = {
           $container.find('#yyt-bypass-editor').html(`
             <div class="yyt-bypass-empty">
               <i class="fa-solid fa-shield-halved"></i>
-              <p>选择或创建破限词预设</p>
+              <p>选择或创建 Ai 指令预设</p>
             </div>
           `);
         }
@@ -379,7 +379,7 @@ export const BypassPanel = {
     const id = `bypass_${Date.now()}`;
     const result = bypassManager.createPreset({
       id,
-      name: '新破限词预设',
+      name: '新 Ai 指令预设',
       description: '',
       messages: []
     });
@@ -808,10 +808,6 @@ export const BypassPanel = {
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         display: flex;
         justify-content: flex-end;
-      }
-      
-      .yyt-toggle.yyt-small {
-        transform: scale(0.8);
       }
     `;
   },

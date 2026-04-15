@@ -3,6 +3,7 @@
  * @description 负责主弹窗、主/子标签切换以及内容装配
  */
 
+import { eventBus, EVENTS } from '../core/event-bus.js';
 import { destroyEnhancedCustomSelects, enhanceNativeSelects } from '../ui/utils.js';
 
 export function createPopupShell(context) {
@@ -10,6 +11,9 @@ export function createPopupShell(context) {
   const { SCRIPT_ID, SCRIPT_VERSION, POPUP_ID } = constants;
   const popupDragState = {
     cleanup: null
+  };
+  const popupEventState = {
+    cleanups: []
   };
   const scrollSurfaceState = {
     cleanups: []
@@ -57,6 +61,34 @@ export function createPopupShell(context) {
 
   function getTargetDocument() {
     return topLevelWindow.document || document;
+  }
+
+  function getSettingsService() {
+    return modules.settingsServiceModule?.settingsService || null;
+  }
+
+  function hasDismissedStartupScreen() {
+    return getSettingsService()?.getUiSettings?.()?.startupScreenDismissed === true;
+  }
+
+  function persistStartupScreenDismissal() {
+    const settingsService = getSettingsService();
+    if (!settingsService) {
+      return;
+    }
+
+    if (typeof settingsService.set === 'function') {
+      settingsService.set('ui.startupScreenDismissed', true);
+      return;
+    }
+
+    if (typeof settingsService.updateUiSettings === 'function') {
+      const uiSettings = settingsService.getUiSettings?.() || {};
+      settingsService.updateUiSettings({
+        ...uiSettings,
+        startupScreenDismissed: true
+      });
+    }
   }
 
   function getTabDisplayName(tabId) {
@@ -141,16 +173,6 @@ export function createPopupShell(context) {
     if (summary) {
       summary.textContent = description;
     }
-
-    const currentPageChip = popup.querySelector('.yyt-shell-current-page');
-    if (currentPageChip) {
-      currentPageChip.textContent = displayName;
-    }
-
-    const currentPageDesc = popup.querySelector('.yyt-shell-current-desc');
-    if (currentPageDesc) {
-      currentPageDesc.textContent = description;
-    }
   }
 
   function cleanupPopupDrag() {
@@ -158,6 +180,18 @@ export function createPopupShell(context) {
       popupDragState.cleanup();
       popupDragState.cleanup = null;
     }
+  }
+
+  function cleanupPopupEvents() {
+    if (!Array.isArray(popupEventState.cleanups)) return;
+
+    popupEventState.cleanups.forEach((cleanup) => {
+      if (typeof cleanup === 'function') {
+        cleanup();
+      }
+    });
+
+    popupEventState.cleanups = [];
   }
 
   function cleanupScrollableSurfaces() {
@@ -170,6 +204,175 @@ export function createPopupShell(context) {
     });
 
     scrollSurfaceState.cleanups = [];
+  }
+
+  function refreshMainNavigation() {
+    const $ = getJQuery();
+    if (!$ || !uiState.currentPopup) return;
+
+    const tools = modules.toolRegistryModule?.getToolList() || [];
+    const $mainNav = $(uiState.currentPopup).find('.yyt-main-nav');
+    if (!$mainNav.length) return;
+
+    const mainNavHtml = tools.map(tool => `
+      <div class="yyt-main-nav-item ${tool.id === uiState.currentMainTab ? 'active' : ''}" data-tab="${tool.id}">
+        <div class="yyt-main-nav-icon">
+          <i class="fa-solid ${escapeHtml(tool.icon || 'fa-file')}"></i>
+        </div>
+        <div class="yyt-main-nav-copy">
+          <span class="yyt-main-nav-name">${escapeHtml(tool.name || tool.id)}</span>
+          <span class="yyt-main-nav-desc">${escapeHtml(tool.description || '进入此页面进行配置、查看或维护。')}</span>
+        </div>
+      </div>
+    `).join('');
+
+    $mainNav.html(mainNavHtml);
+    $(uiState.currentPopup).find('.yyt-main-nav-item').on('click', function onMainTabClick() {
+      const tab = $(this).data('tab');
+      if (tab) {
+        switchMainTab(tab);
+      }
+    });
+
+    const $sidebarHint = $(uiState.currentPopup).find('.yyt-shell-sidebar-hint');
+    if ($sidebarHint.length) {
+      $sidebarHint.text(`${tools.length} tabs`);
+    }
+  }
+
+  function refreshPopupMetrics() {
+    const $ = getJQuery();
+    if (!$ || !uiState.currentPopup) return;
+
+    const tools = modules.toolRegistryModule?.getToolList() || [];
+    const toolsRootConfig = modules.toolRegistryModule?.getToolConfig('tools');
+    const toolSubTabs = Array.isArray(toolsRootConfig?.subTabs) ? toolsRootConfig.subTabs : [];
+    const customToolCount = toolSubTabs.filter(tab => tab?.isCustom).length;
+    const defaultToolCount = toolSubTabs.filter(tab => !tab?.isCustom).length;
+
+    const $popup = $(uiState.currentPopup);
+    $popup.find('.yyt-shell-topbar-meta').text(`主页面 ${tools.length} / 默认工具 ${defaultToolCount} / 自定义工具 ${customToolCount}`);
+    $popup.find('.yyt-shell-stat').eq(0).find('.yyt-shell-stat-value').text(String(tools.length));
+    $popup.find('.yyt-shell-stat').eq(1).find('.yyt-shell-stat-value').text(String(defaultToolCount));
+    $popup.find('.yyt-shell-stat').eq(2).find('.yyt-shell-stat-value').text(String(customToolCount));
+  }
+
+  function ensureActiveMainTabStillExists() {
+    const tools = modules.toolRegistryModule?.getToolList() || [];
+    if (!tools.length) return null;
+
+    if (!tools.some(tool => tool.id === uiState.currentMainTab)) {
+      uiState.currentMainTab = tools[0].id;
+    }
+
+    return uiState.currentMainTab;
+  }
+
+  async function refreshCurrentPanel(options = {}) {
+    const { rebuildNavigation = false, reRenderSubNav = false } = options;
+    const $ = getJQuery();
+    if (!$ || !uiState.currentPopup) return;
+
+    const activeMainTab = ensureActiveMainTabStillExists();
+    if (!activeMainTab) return;
+
+    if (rebuildNavigation) {
+      refreshMainNavigation();
+      refreshPopupMetrics();
+    }
+
+    const toolConfig = modules.toolRegistryModule?.getToolConfig(activeMainTab);
+    const hasSubTabs = Boolean(toolConfig?.hasSubTabs);
+    const $subNav = $(uiState.currentPopup).find('.yyt-sub-nav');
+    const $content = $(uiState.currentPopup).find('.yyt-content-inner');
+
+    if (rebuildNavigation && $content.length) {
+      const knownTabs = new Set($content.find('.yyt-tab-content').map((_, el) => $(el).data('tab')).get());
+      (modules.toolRegistryModule?.getToolList() || []).forEach((tool) => {
+        if (!knownTabs.has(tool.id)) {
+          $content.append(`<div class="yyt-tab-content" data-tab="${escapeHtml(tool.id)}"></div>`);
+        }
+      });
+      $content.find('.yyt-tab-content').each((_, el) => {
+        const tabId = $(el).data('tab');
+        if (!(modules.toolRegistryModule?.getToolList() || []).some(tool => tool.id === tabId)) {
+          $(el).remove();
+        }
+      });
+    }
+
+    $(uiState.currentPopup).find('.yyt-main-nav-item').removeClass('active');
+    $(uiState.currentPopup).find(`.yyt-main-nav-item[data-tab="${activeMainTab}"]`).addClass('active');
+    $(uiState.currentPopup).find('.yyt-tab-content').removeClass('active');
+    $(uiState.currentPopup).find(`.yyt-tab-content[data-tab="${activeMainTab}"]`).addClass('active');
+
+    if (hasSubTabs) {
+      $subNav.show();
+      if (reRenderSubNav || rebuildNavigation) {
+        renderSubNav(activeMainTab, toolConfig.subTabs);
+      }
+    } else {
+      $subNav.hide();
+    }
+
+    await renderTabContent(activeMainTab);
+    updatePopupStatus();
+    refreshScrollableSurfaces();
+  }
+
+  function bindPopupEvents() {
+    if (!uiState.currentPopup) return;
+
+    cleanupPopupEvents();
+
+    const refreshCurrentPresetPanel = () => {
+      if (uiState.currentMainTab === 'apiPresets') {
+        void refreshCurrentPanel();
+        return;
+      }
+
+      if (uiState.currentMainTab === 'tools') {
+        void refreshCurrentPanel({ reRenderSubNav: true });
+      }
+    };
+
+    const refreshToolsPanel = () => {
+      if (uiState.currentMainTab === 'tools') {
+        void refreshCurrentPanel({ rebuildNavigation: true, reRenderSubNav: true });
+      } else {
+        refreshPopupMetrics();
+      }
+    };
+
+    const refreshBypassPanel = () => {
+      if (uiState.currentMainTab === 'bypass' || uiState.currentMainTab === 'tools') {
+        void refreshCurrentPanel({ reRenderSubNav: uiState.currentMainTab === 'tools' });
+      }
+    };
+
+    [
+      EVENTS.PRESET_CREATED,
+      EVENTS.PRESET_UPDATED,
+      EVENTS.PRESET_DELETED
+    ].forEach((eventName) => {
+      popupEventState.cleanups.push(eventBus.on(eventName, refreshCurrentPresetPanel));
+    });
+
+    [
+      EVENTS.TOOL_REGISTERED,
+      EVENTS.TOOL_UPDATED,
+      EVENTS.TOOL_UNREGISTERED
+    ].forEach((eventName) => {
+      popupEventState.cleanups.push(eventBus.on(eventName, refreshToolsPanel));
+    });
+
+    [
+      EVENTS.BYPASS_PRESET_CREATED,
+      EVENTS.BYPASS_PRESET_UPDATED,
+      EVENTS.BYPASS_PRESET_DELETED
+    ].forEach((eventName) => {
+      popupEventState.cleanups.push(eventBus.on(eventName, refreshBypassPanel));
+    });
   }
 
   function isInteractiveScrollTarget(target) {
@@ -399,6 +602,58 @@ export function createPopupShell(context) {
     [...new Set(surfaces)].forEach(bindDragScroll);
   }
 
+  function getStartupScreenHtml(tools) {
+    const primaryModules = (tools || []).slice(0, 6).map(tool => `
+      <div class="yyt-startup-module-chip">
+        <i class="fa-solid ${escapeHtml(tool.icon || 'fa-file')}"></i>
+        <span>${escapeHtml(tool.name || tool.id)}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="yyt-startup-screen" data-yyt-startup-screen>
+        <div class="yyt-startup-screen-inner">
+          <div class="yyt-startup-screen-kicker">Welcome</div>
+          <div class="yyt-startup-screen-title">YouYou 工具箱</div>
+          <div class="yyt-startup-screen-desc">集中管理 API 预设、自定义工具、提取规则、Ai指令预设与诊断流程。首次启动界面只出现一次，也为后续异步准备状态预留位置。</div>
+          <div class="yyt-startup-screen-modules">
+            ${primaryModules}
+          </div>
+          <div class="yyt-startup-screen-status">
+            <i class="fa-solid fa-sparkles"></i>
+            <span>工作台已准备就绪，后续打开将直接进入主界面。</span>
+          </div>
+          <button type="button" class="yyt-btn yyt-btn-primary yyt-startup-enter">
+            <i class="fa-solid fa-arrow-right"></i>
+            <span>进入工具箱</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindStartupScreen(tools) {
+    const $ = getJQuery();
+    if (!$ || !uiState.currentPopup || hasDismissedStartupScreen()) {
+      return;
+    }
+
+    const $body = $(uiState.currentPopup).find('.yyt-popup-body');
+    const $shell = $body.find('.yyt-popup-shell');
+    if (!$body.length || !$shell.length || $body.find('[data-yyt-startup-screen]').length) {
+      return;
+    }
+
+    $shell.attr('data-yyt-startup-visible', 'true');
+    $body.prepend(getStartupScreenHtml(tools));
+    $body.find('.yyt-startup-enter').on('click', () => {
+      persistStartupScreenDismissal();
+      $body.find('[data-yyt-startup-screen]').remove();
+      $shell.removeAttr('data-yyt-startup-visible');
+      refreshScrollableSurfaces();
+    });
+  }
+
   function enablePopupDrag() {
     const targetDoc = getTargetDocument();
     const popup = uiState.currentPopup;
@@ -489,6 +744,7 @@ export function createPopupShell(context) {
 
   function closePopup() {
     cleanupPopupDrag();
+    cleanupPopupEvents();
     cleanupScrollableSurfaces();
 
     const $ = getJQuery();
@@ -671,7 +927,7 @@ export function createPopupShell(context) {
         if (modules.uiModule?.renderBypassPanel) {
           modules.uiModule.renderBypassPanel($content);
         } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>破限词面板加载失败</span></div>');
+          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>Ai指令预设面板加载失败</span></div>');
         }
         break;
 
@@ -1093,31 +1349,23 @@ export function createPopupShell(context) {
             <div class="yyt-shell-topbar">
               <div class="yyt-shell-topbar-main">
                 <div class="yyt-shell-kicker">Workspace</div>
-                <div class="yyt-shell-heading-row">
-                  <div class="yyt-shell-heading">YouYou 工具工作台</div>
-                  <span class="yyt-shell-heading-badge">统一入口</span>
+                <div class="yyt-shell-topbar-summary">
+                  <div class="yyt-shell-topbar-title">工作台概览</div>
+                  <div class="yyt-shell-topbar-meta">主页面 ${tools.length} / 默认工具 ${defaultToolCount} / 自定义工具 ${customToolCount}</div>
                 </div>
-                <div class="yyt-shell-overview-text">集中管理 API 预设、自定义工具、提取规则与调试流程，在同一工作台里保持更高可读性与更低操作噪音。</div>
               </div>
-              <div class="yyt-shell-topbar-side">
-                <div class="yyt-shell-current-card">
-                  <span class="yyt-shell-current-label">聚焦页面</span>
-                  <strong class="yyt-shell-current-page">${escapeHtml(currentDisplayName)}</strong>
-                  <span class="yyt-shell-current-desc">${escapeHtml(currentDescription)}</span>
+              <div class="yyt-shell-stats">
+                <div class="yyt-shell-stat">
+                  <span class="yyt-shell-stat-label">主页面</span>
+                  <strong class="yyt-shell-stat-value">${tools.length}</strong>
                 </div>
-                <div class="yyt-shell-stats">
-                  <div class="yyt-shell-stat">
-                    <span class="yyt-shell-stat-label">主页面</span>
-                    <strong class="yyt-shell-stat-value">${tools.length}</strong>
-                  </div>
-                  <div class="yyt-shell-stat">
-                    <span class="yyt-shell-stat-label">默认工具</span>
-                    <strong class="yyt-shell-stat-value">${defaultToolCount}</strong>
-                  </div>
-                  <div class="yyt-shell-stat">
-                    <span class="yyt-shell-stat-label">自定义工具</span>
-                    <strong class="yyt-shell-stat-value">${customToolCount}</strong>
-                  </div>
+                <div class="yyt-shell-stat">
+                  <span class="yyt-shell-stat-label">默认工具</span>
+                  <strong class="yyt-shell-stat-value">${defaultToolCount}</strong>
+                </div>
+                <div class="yyt-shell-stat">
+                  <span class="yyt-shell-stat-label">自定义工具</span>
+                  <strong class="yyt-shell-stat-value">${customToolCount}</strong>
                 </div>
               </div>
             </div>
@@ -1198,6 +1446,7 @@ export function createPopupShell(context) {
 
     $(uiState.currentPopup).find('.yyt-popup-close').on('click', closePopup);
     $(uiState.currentPopup).find(`#${SCRIPT_ID}-close-btn`).on('click', closePopup);
+    bindPopupEvents();
     $(uiState.currentPopup).find('.yyt-main-nav-item').on('click', function onMainTabClick() {
       const tab = $(this).data('tab');
       if (tab) {
@@ -1216,6 +1465,7 @@ export function createPopupShell(context) {
     }
 
     updatePopupStatus();
+    bindStartupScreen(tools);
     refreshScrollableSurfaces();
 
     log('弹窗已打开');

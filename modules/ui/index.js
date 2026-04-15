@@ -158,7 +158,7 @@ export function renderPunctuationTransformToolPanel(container) {
 }
 
 /**
- * 渲染破限词面板
+ * 渲染 Ai指令预设面板
  * @param {Object} container - 容器
  */
 export function renderBypassPanel(container) {

@@ -110,6 +110,7 @@ export const ApiPresetPanel = {
                   <div class="yyt-select-option ${!initialSelectValue ? 'yyt-selected' : ''}" data-value="">
                     <span class="yyt-option-star yyt-placeholder"></span>
                     <span class="yyt-option-text">-- 当前配置 --</span>
+                    <span class="yyt-option-delete yyt-placeholder"></span>
                   </div>
                   ${presets.length > 0 ? presets.map(p => this._renderSelectOption(p, initialSelectValue)).join('') : ''}
                 </div>
@@ -204,11 +205,14 @@ export const ApiPresetPanel = {
     const starClass = isStarred ? 'yyt-option-star yyt-starred' : 'yyt-option-star';
     const starIcon = isStarred ? '★' : '☆';
     const isSelected = preset.name === selectedValue;
-    
+
     return `
       <div class="yyt-select-option ${isSelected ? 'yyt-selected' : ''}" data-value="${escapeHtml(preset.name)}">
         <button class="${starClass}" data-preset="${escapeHtml(preset.name)}" title="${isStarred ? '点击取消星标' : '点击添加星标'}">${starIcon}</button>
         <span class="yyt-option-text">${escapeHtml(preset.name)}</span>
+        <button class="yyt-option-delete" data-action="delete" data-preset="${escapeHtml(preset.name)}" title="删除预设">
+          <i class="fa-solid fa-trash"></i>
+        </button>
       </div>
     `;
   },
@@ -231,7 +235,20 @@ export const ApiPresetPanel = {
           </label>
         </div>
       </div>
-      
+
+      <div class="yyt-form-group">
+        <div class="yyt-toggle-row">
+          <div class="yyt-toggle-label">
+            <span>流式响应</span>
+            <span class="yyt-toggle-hint">启用后按流式方式请求模型；关闭则等待完整结果后一次性返回</span>
+          </div>
+          <label class="yyt-toggle">
+            <input type="checkbox" id="${SCRIPT_ID}-stream" ${config.stream === true ? 'checked' : ''}>
+            <span class="yyt-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
       <div id="${SCRIPT_ID}-custom-api-fields" class="${config.useMainApi ? 'yyt-disabled' : ''}">
         <div class="yyt-form-row">
           <div class="yyt-form-group yyt-flex-1">
@@ -359,9 +376,9 @@ export const ApiPresetPanel = {
     
     // 点击选项选择预设
     $dropdown.find('.yyt-select-option').on('click', (e) => {
-      // 如果点击的是星标按钮，不选择预设
-      if ($(e.target).hasClass('yyt-option-star')) return;
-      
+      // 如果点击的是星标按钮或删除按钮，不选择预设
+      if ($(e.target).closest('.yyt-option-star, .yyt-option-delete').length) return;
+
       const $option = $(e.currentTarget);
       const value = $option.data('value');
       const text = $option.find('.yyt-option-text').text();
@@ -386,10 +403,10 @@ export const ApiPresetPanel = {
     $dropdown.find('.yyt-option-star').on('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       const presetName = $(e.currentTarget).data('preset');
       if (!presetName) return;
-      
+
       const result = togglePresetStar(presetName);
       if (result.success) {
         showToast('success', result.message);
@@ -400,6 +417,37 @@ export const ApiPresetPanel = {
         }
       } else {
         showToast('error', result.message);
+      }
+    });
+
+    $dropdown.find('.yyt-option-delete').on('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const presetName = normalizePresetName($(e.currentTarget).data('preset'));
+      if (!presetName) return;
+
+      if (!confirm(`确定要删除预设 "${presetName}" 吗？`)) {
+        return;
+      }
+
+      const delResult = deletePreset(presetName);
+      showToast(delResult.success ? 'info' : 'error', delResult.message);
+      if (!delResult.success) {
+        return;
+      }
+
+      eventBus.emit(EVENTS.PRESET_DELETED, { name: presetName });
+      if (normalizePresetName(currentSelectedPresetName) === presetName) {
+        currentSelectedPresetName = '';
+      }
+      if (normalizePresetName($selectValue.data('value')) === presetName) {
+        $selectValue.text('-- 当前配置 --').data('value', '');
+      }
+
+      const $panel = $container.closest('.yyt-api-manager').parent();
+      if ($panel.length) {
+        this.renderTo($panel);
       }
     });
     
@@ -441,8 +489,9 @@ export const ApiPresetPanel = {
             const delResult = deletePreset(presetName);
             showToast(delResult.success ? 'info' : 'error', delResult.message);
             if (delResult.success) {
+              eventBus.emit(EVENTS.PRESET_DELETED, { name: presetName });
               if (normalizePresetName(currentSelectedPresetName) === presetName) {
-                currentSelectedPresetName = null;
+                currentSelectedPresetName = '';
               }
               // 重新渲染
               const $panel = $container.closest('.yyt-api-manager').parent();
@@ -586,6 +635,7 @@ export const ApiPresetPanel = {
           apiKey: '',
           model: '',
           useMainApi: true,
+          stream: false,
           max_tokens: 4096,
           temperature: 0.7,
           top_p: 0.9
@@ -718,6 +768,7 @@ export const ApiPresetPanel = {
           return;
         }
         deletePreset(name);
+        eventBus.emit(EVENTS.PRESET_DELETED, { name });
       }
       
       const currentConfig = getFormApiConfig($container, SCRIPT_ID);
@@ -814,7 +865,8 @@ export const ApiPresetPanel = {
         color: var(--yyt-accent);
       }
 
-      .yyt-option-star.yyt-placeholder {
+      .yyt-option-star.yyt-placeholder,
+      .yyt-option-delete.yyt-placeholder {
         visibility: hidden;
       }
 

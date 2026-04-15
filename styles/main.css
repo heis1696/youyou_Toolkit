@@ -717,10 +717,10 @@
 /* Toggle开关 */
 .yyt-toggle-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 15px 16px;
+  gap: 18px;
+  padding: 17px 18px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 17px;
@@ -736,20 +736,23 @@
 
 .yyt-toggle-label {
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .yyt-toggle-label > span:first-child {
   font-weight: 700;
   font-size: 14px;
   color: var(--yyt-text);
+  line-height: 1.45;
 }
 
 .yyt-toggle-hint {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.56);
-  line-height: 1.45;
+  line-height: 1.55;
 }
 
 .yyt-toggle {
@@ -758,6 +761,12 @@
   width: 52px;
   height: 30px;
   flex-shrink: 0;
+  align-self: center;
+}
+
+.yyt-toggle.yyt-small {
+  width: 46px;
+  height: 26px;
 }
 
 .yyt-toggle input {
@@ -793,6 +802,13 @@
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
+.yyt-toggle.yyt-small .yyt-toggle-slider::before {
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  bottom: 3px;
+}
+
 .yyt-toggle input:focus-visible + .yyt-toggle-slider {
   box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
 }
@@ -805,6 +821,10 @@
 
 .yyt-toggle input:checked + .yyt-toggle-slider::before {
   transform: translateX(22px);
+}
+
+.yyt-toggle.yyt-small input:checked + .yyt-toggle-slider::before {
+  transform: translateX(20px);
 }
 
 /* ============================================================
@@ -918,7 +938,8 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.yyt-option-star {
+.yyt-option-star,
+.yyt-option-delete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -938,6 +959,12 @@
   color: var(--yyt-accent);
   background: rgba(123, 183, 255, 0.14);
   border-color: rgba(123, 183, 255, 0.18);
+}
+
+.yyt-option-delete:hover {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.18);
 }
 
 .yyt-option-star.yyt-starred {
@@ -1453,6 +1480,7 @@
 }
 
 .yyt-popup-body {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1461,30 +1489,137 @@
   overflow: hidden;
 }
 
-.yyt-popup-shell {
+.yyt-startup-screen {
+  position: absolute;
+  inset: 16px 18px;
+  z-index: 3;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 18px;
+  border-radius: 26px;
+  background: rgba(5, 8, 12, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.38);
+}
+
+.yyt-startup-screen-inner {
+  width: min(760px, 100%);
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  flex: 1;
-  gap: var(--yyt-shell-gap);
+  justify-content: center;
+  gap: 18px;
+  padding: 30px 32px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(640px 260px at 0% 0%, rgba(123, 183, 255, 0.2), transparent 62%),
+    radial-gradient(420px 220px at 100% 0%, rgba(155, 123, 255, 0.12), transparent 58%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 42%, rgba(255, 255, 255, 0.015) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+.yyt-startup-screen-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.52px;
+  text-transform: uppercase;
+  color: var(--yyt-accent-strong);
+  background: rgba(123, 183, 255, 0.14);
+  border: 1px solid rgba(123, 183, 255, 0.22);
+}
+
+.yyt-startup-screen-title {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: -0.5px;
+  color: var(--yyt-text);
+}
+
+.yyt-startup-screen-desc {
+  max-width: 62ch;
+  font-size: 14px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.yyt-startup-screen-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.yyt-startup-module-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--yyt-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.yyt-startup-module-chip i {
+  color: var(--yyt-accent-strong);
+}
+
+.yyt-startup-screen-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 11px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.yyt-startup-screen-status i {
+  color: var(--yyt-accent-strong);
+}
+
+.yyt-startup-enter {
+  align-self: flex-start;
+  min-width: 148px;
+}
+
+.yyt-popup-shell[data-yyt-startup-visible="true"] .yyt-shell-topbar,
+.yyt-popup-shell[data-yyt-startup-visible="true"] .yyt-shell-workspace {
+  filter: blur(1px);
+  pointer-events: none;
+  user-select: none;
 }
 
 .yyt-shell-topbar {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 360px);
-  gap: 18px;
-  padding: 24px;
-  border-radius: 28px;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(720px 320px at 0% 0%, rgba(123, 183, 255, 0.2), transparent 62%),
-    radial-gradient(460px 220px at 100% 0%, rgba(155, 123, 255, 0.16), transparent 60%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0.01) 100%);
+    radial-gradient(560px 240px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
+    radial-gradient(360px 180px at 100% 0%, rgba(155, 123, 255, 0.12), transparent 60%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0.01) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 18px 48px rgba(3, 8, 16, 0.3),
+    0 16px 36px rgba(3, 8, 16, 0.24),
     0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
@@ -1495,26 +1630,16 @@
   border-radius: inherit;
   background: linear-gradient(115deg, rgba(255, 255, 255, 0.08) 0%, transparent 35%, transparent 65%, rgba(255, 255, 255, 0.04) 100%);
   pointer-events: none;
-  opacity: 0.9;
+  opacity: 0.82;
 }
 
 .yyt-shell-topbar-main {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
   gap: 14px;
   min-width: 0;
-}
-
-.yyt-shell-topbar-side {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .yyt-shell-kicker {
@@ -1531,72 +1656,27 @@
   letter-spacing: 0.5px;
   text-transform: uppercase;
   box-shadow: 0 0 0 1px rgba(123, 183, 255, 0.08), 0 10px 24px rgba(123, 183, 255, 0.12);
+  flex-shrink: 0;
 }
 
-.yyt-shell-heading-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.yyt-shell-heading {
-  font-size: 30px;
-  font-weight: 900;
-  line-height: 1.02;
-  letter-spacing: -0.4px;
-  color: var(--yyt-text);
-  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
-}
-
-.yyt-shell-heading-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--yyt-text);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-.yyt-shell-overview-text {
-  font-size: 13px;
-  line-height: 1.8;
-  color: rgba(255, 255, 255, 0.8);
-  max-width: 68ch;
-}
-
-.yyt-shell-current-card {
+.yyt-shell-topbar-summary {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
   min-width: 0;
-  padding: 18px 18px 16px;
-  border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.04) 100%),
-    rgba(10, 14, 22, 0.24);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 36px rgba(6, 10, 18, 0.22);
 }
 
-.yyt-shell-current-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.56);
-}
-
-.yyt-shell-current-page {
+.yyt-shell-topbar-title {
   font-size: 18px;
   font-weight: 900;
-  line-height: 1.25;
+  line-height: 1.15;
   color: var(--yyt-text);
-  word-break: break-word;
+}
+
+.yyt-shell-topbar-meta {
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .yyt-shell-current-desc {
@@ -2011,33 +2091,33 @@
 
 /* 响应式调整 */
 @media screen and (max-width: 980px) {
-  .yyt-popup {
-    width: calc(100vw - 4px);
-    max-width: calc(100vw - 4px);
-    height: calc(100vh - 4px);
-    max-height: calc(100vh - 4px);
-  }
-
   .yyt-shell-topbar {
     grid-template-columns: 1fr;
   }
 
-  .yyt-shell-topbar-side {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-    align-items: stretch;
+  .yyt-shell-topbar-main {
+    align-items: flex-start;
   }
 
   .yyt-shell-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  
+
   .yyt-popup-header {
     padding: 12px 16px;
   }
-  
+
   .yyt-popup-body {
     padding: 12px 14px;
+  }
+
+  .yyt-startup-screen {
+    inset: 12px 14px;
+    padding: 14px;
+  }
+
+  .yyt-startup-screen-inner {
+    padding: 24px 22px;
   }
 
   .yyt-popup-header-actions {
@@ -2069,15 +2149,10 @@
     padding: 12px;
   }
 
-  .yyt-shell-overview-text,
-  .yyt-shell-main-description,
-  .yyt-shell-current-desc {
+  .yyt-shell-topbar-title,
+  .yyt-shell-main-description {
     font-size: 11px;
     line-height: 1.4;
-  }
-
-  .yyt-shell-current-desc {
-    display: none;
   }
 
   .yyt-shell-stat {
@@ -2087,14 +2162,25 @@
   .yyt-shell-stat-value {
     font-size: 16px;
   }
+
+  .yyt-startup-screen {
+    inset: 10px 12px;
+    padding: 12px;
+  }
+
+  .yyt-startup-screen-inner {
+    gap: 14px;
+    padding: 22px 20px;
+  }
+
+  .yyt-startup-screen-desc {
+    font-size: 12px;
+    line-height: 1.6;
+  }
 }
 
 @media screen and (max-width: 860px) {
   .yyt-shell-workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .yyt-shell-topbar-side {
     grid-template-columns: 1fr;
   }
 
@@ -2107,6 +2193,15 @@
 
   .yyt-shell-sidebar .yyt-main-nav-item {
     min-width: 220px;
+  }
+
+  .yyt-startup-screen {
+    inset: 12px;
+    padding: 12px;
+  }
+
+  .yyt-startup-screen-inner {
+    padding: 22px 18px;
   }
 }
 
@@ -2140,7 +2235,7 @@
     border-radius: 0;
     border: none;
   }
-  
+
   .yyt-popup-header {
     border-radius: 0;
     padding: 10px 14px;
@@ -2154,7 +2249,7 @@
   .yyt-popup-drag-hint {
     display: none;
   }
-  
+
   .yyt-popup-body {
     padding: 10px 14px;
   }
@@ -2166,8 +2261,14 @@
     border-radius: 16px;
   }
 
-  .yyt-shell-heading {
-    font-size: 20px;
+  .yyt-shell-topbar-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .yyt-shell-topbar-title {
+    font-size: 16px;
   }
 
   .yyt-shell-main-header {
@@ -2183,10 +2284,6 @@
 
   .yyt-shell-stats {
     grid-template-columns: 1fr;
-  }
-
-  .yyt-shell-topbar-side {
-    display: flex;
   }
 
   .yyt-shell-sidebar .yyt-main-nav {
@@ -2205,7 +2302,26 @@
   .yyt-main-nav-desc {
     font-size: 10px;
   }
-  
+
+  .yyt-startup-screen {
+    inset: 10px 14px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .yyt-startup-screen-inner {
+    padding: 20px 16px;
+    border-radius: 20px;
+  }
+
+  .yyt-startup-screen-status {
+    width: 100%;
+  }
+
+  .yyt-startup-enter {
+    align-self: stretch;
+  }
+
   .yyt-popup-footer {
     border-radius: 0;
     padding: 10px 14px;

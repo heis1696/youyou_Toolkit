@@ -891,6 +891,7 @@ export function getFormApiConfig($container, scriptId = SCRIPT_ID) {
       apiKey: '',
       model: '',
       useMainApi: true,
+      stream: false,
       max_tokens: 4096,
       temperature: 0.7,
       top_p: 0.9
@@ -909,6 +910,7 @@ export function getFormApiConfig($container, scriptId = SCRIPT_ID) {
     apiKey: $container.find(`#${scriptId}-api-key`).val() || '',
     model: model,
     useMainApi: $container.find(`#${scriptId}-use-main-api`).is(':checked'),
+    stream: $container.find(`#${scriptId}-stream`).is(':checked'),
     max_tokens: parseInt($container.find(`#${scriptId}-max-tokens`).val()) || 4096,
     temperature: parseFloat($container.find(`#${scriptId}-temperature`).val()) ?? 0.7,
     top_p: parseFloat($container.find(`#${scriptId}-top-p`).val()) ?? 0.9
@@ -928,6 +930,7 @@ export function fillFormWithConfig($container, config, scriptId = SCRIPT_ID) {
   $container.find(`#${scriptId}-api-url`).val(config.url || '');
   $container.find(`#${scriptId}-api-key`).val(config.apiKey || '');
   $container.find(`#${scriptId}-model`).val(config.model || '');
+  $container.find(`#${scriptId}-stream`).prop('checked', config.stream === true);
   $container.find(`#${scriptId}-max-tokens`).val(config.max_tokens || 4096);
   $container.find(`#${scriptId}-temperature`).val(config.temperature ?? 0.7);
   $container.find(`#${scriptId}-top-p`).val(config.top_p ?? 0.9);

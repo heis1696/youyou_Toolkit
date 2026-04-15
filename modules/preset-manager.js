@@ -143,6 +143,7 @@ export function createPreset(presetData) {
       apiKey: apiConfig?.apiKey || '',
       model: apiConfig?.model || '',
       useMainApi: apiConfig?.useMainApi ?? true,
+      stream: apiConfig?.stream ?? false,
       max_tokens: apiConfig?.max_tokens || 4096,
       temperature: apiConfig?.temperature ?? 0.7,
       top_p: apiConfig?.top_p ?? 0.9

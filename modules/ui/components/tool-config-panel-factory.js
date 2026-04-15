@@ -647,16 +647,16 @@ export function createToolConfigPanel(options) {
           <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-shield-halved"></i>
-              <span>破限预设</span>
+              <span>Ai指令预设</span>
             </div>
             <div class="yyt-form-group">
               <label class="yyt-checkbox-label">
                 <input type="checkbox" id="${SCRIPT_ID}-tool-bypass-enabled" ${bypassEnabled ? 'checked' : ''}>
-                <span>启用破限词</span>
+                <span>启用 Ai 指令预设</span>
               </label>
             </div>
             <div class="yyt-form-group yyt-bypass-preset-select ${bypassEnabled ? '' : 'yyt-hidden'}">
-              <label>绑定破限词预设</label>
+              <label>绑定 Ai 指令预设</label>
               <select class="yyt-select" id="${SCRIPT_ID}-tool-bypass-preset">
                 <option value="">选择预设</option>
                 ${bypassPresets.map((preset) => `
@@ -802,7 +802,7 @@ export function createToolConfigPanel(options) {
                 <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-tool-preview-extraction">
                   <i class="fa-solid fa-vial"></i> 测试提取
                 </button>
-                <div class="yyt-tool-compact-hint">用于手动验证当前模板、API预设和破限预设是否能正常工作。</div>
+                <div class="yyt-tool-compact-hint">用于手动验证当前模板、API预设和 Ai 指令预设是否能正常工作。</div>
               </div>
             </div>
           </div>
@@ -816,7 +816,7 @@ export function createToolConfigPanel(options) {
           </div>
 
           <div class="yyt-tool-macro-hint">
-            说明：工具会把当前模板解析后作为最终用户请求发送给额外模型；若启用了破限词，则会作为前置消息一并发送。可用宏包括 <code>{{toolPromptMacro}}</code>、<code>{{toolContentMacro}}</code>、<code>{{toolWorldbookContent}}</code>、<code>{{lastAiMessage}}</code>、<code>{{recentMessagesText}}</code>、<code>{{rawRecentMessagesText}}</code>、<code>{{userMessage}}</code>、<code>{{toolName}}</code>、<code>{{toolId}}</code>。
+            说明：工具会把当前模板解析后作为最终用户请求发送给额外模型；若启用了 Ai 指令预设，则会作为前置消息一并发送。可用宏包括 <code>{{toolPromptMacro}}</code>、<code>{{toolContentMacro}}</code>、<code>{{toolWorldbookContent}}</code>、<code>{{lastAiMessage}}</code>、<code>{{recentMessagesText}}</code>、<code>{{rawRecentMessagesText}}</code>、<code>{{userMessage}}</code>、<code>{{toolName}}</code>、<code>{{toolId}}</code>。
           </div>
         </div>
       `;

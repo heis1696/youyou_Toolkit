@@ -16,6 +16,7 @@ function getDefaultSettingsSnapshot() {
       apiKey: '',
       model: '',
       useMainApi: true,
+      stream: false,
       max_tokens: 4096,
       temperature: 0.7,
       top_p: 0.9
@@ -247,7 +248,7 @@ function buildRequestBody(messages, options = {}) {
     max_tokens: config.max_tokens || 4096,
     temperature: config.temperature ?? 0.7,
     top_p: config.top_p ?? 0.9,
-    stream: false,
+    stream: config.stream ?? false,
     ...options.extraParams
   };
 }
@@ -323,7 +324,7 @@ async function sendViaMainApi(messages, options, abortSignal) {
   try {
     const response = await topWindow.TavernHelper.generateRaw({
       ordered_prompts: messages,
-      should_stream: false,
+      should_stream: options.apiConfig?.stream ?? getApiConfig().stream ?? false,
       ...options.extraParams
     });
     
@@ -379,7 +380,7 @@ async function sendViaTavernHelperCustomApi(messages, config, options, abortSign
 
   const response = await topWindow.TavernHelper.generateRaw({
     ordered_prompts: messages,
-    should_stream: false,
+    should_stream: config.stream ?? false,
     max_chat_history: 0,
     custom_api: {
       apiurl: normalizeApiBaseUrl(config.url),
