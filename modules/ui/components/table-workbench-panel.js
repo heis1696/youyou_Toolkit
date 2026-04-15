@@ -54,6 +54,21 @@ ${TABLE_FORM_RENDERER_STYLES}
     margin-bottom: 12px;
   }
 
+  .yyt-table-workbench-panel-kicker {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(123, 183, 255, 0.2);
+    background: rgba(123, 183, 255, 0.08);
+    color: var(--yyt-accent-strong);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.38px;
+    text-transform: uppercase;
+  }
+
   .yyt-table-workbench-panel-title {
     font-size: 13px;
     font-weight: 800;
@@ -77,10 +92,55 @@ ${TABLE_FORM_RENDERER_STYLES}
     background: rgba(255, 255, 255, 0.08);
   }
 
+  .yyt-table-workbench-action-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .yyt-table-workbench-action-primary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(123, 183, 255, 0.16);
+    background: radial-gradient(280px 120px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 70%), rgba(123, 183, 255, 0.05);
+  }
+
+  .yyt-table-workbench-action-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--yyt-text);
+  }
+
+  .yyt-table-workbench-action-subtitle {
+    font-size: 11px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.66);
+  }
+
+  .yyt-table-workbench-action-secondary {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  .yyt-table-workbench-action-hint {
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 12px;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
   .yyt-table-workbench-detail-list {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 10px;
     padding: 14px 16px;
     border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -162,15 +222,20 @@ function updateCompiledPreview($container) {
 
 function buildHero(config = {}) {
   const runtime = config.runtime || {};
+  const tableCount = Array.isArray(config.tables) ? config.tables.length : 0;
+  const mirrorEnabled = config.mirrorToMessage === true ? '正文镜像开启' : '正文镜像关闭';
   return `
     <div class="yyt-tool-panel-hero">
       <div class="yyt-tool-panel-hero-copy">
+        <div class="yyt-table-workbench-panel-kicker">Table Workbench</div>
         <div class="yyt-tool-panel-hero-title">填表工作台</div>
-        <div class="yyt-tool-panel-hero-desc">最小手动填表 MVP。结构化 table state 写入消息扩展字段，可选正文镜像，commit 前执行 fresh target + revision 校验。</div>
+        <div class="yyt-tool-panel-hero-desc">围绕当前 assistant 目标安全地整理表定义、提示词与执行诊断。每次运行都会重新解析目标消息，并带着 revision 校验完成结构化写回。</div>
       </div>
       <div class="yyt-tool-panel-hero-tags">
+        <span class="yyt-tool-hero-chip">${tableCount} 张表</span>
         <span class="yyt-tool-hero-chip">手动执行</span>
         <span class="yyt-tool-hero-chip">revision-safe</span>
+        <span class="yyt-tool-hero-chip">${escapeHtml(mirrorEnabled)}</span>
         <span class="yyt-tool-hero-chip">状态 ${escapeHtml(runtime.lastStatus || 'idle')}</span>
         <div class="yyt-tool-panel-hero-actions">
           <button class="yyt-btn yyt-btn-primary yyt-btn-small" data-table-workbench-action="save-top">
@@ -195,6 +260,7 @@ function buildRuntimeSummary(config = {}) {
   return `
     <div class="yyt-tool-runtime-card">
       <div class="yyt-table-workbench-panel-copy">
+        <div class="yyt-table-workbench-panel-kicker">Runtime</div>
         <div class="yyt-table-workbench-panel-title">运行摘要</div>
         <div class="yyt-table-workbench-panel-desc">记录最近一次手动填表的目标、revision 与写回结果，便于快速判断是否命中正确 assistant slot。</div>
       </div>
@@ -250,8 +316,9 @@ function buildMainLayout(config = {}) {
               <span>工作台配置</span>
             </div>
             <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-kicker">Setup</div>
               <div class="yyt-table-workbench-panel-title">表定义与请求模板</div>
-              <div class="yyt-table-workbench-panel-desc">在这里维护 tables 草稿、promptTemplate 与写回策略。保存后才会更新运行时配置。</div>
+              <div class="yyt-table-workbench-panel-desc">在这里维护 tables 草稿、promptTemplate 与写回策略。保存后才会更新运行时配置，并作为后续执行的 merge base。</div>
             </div>
             ${renderTableForm(schema, config)}
           </div>
@@ -264,8 +331,9 @@ function buildMainLayout(config = {}) {
             <div class="yyt-tool-manual-area">
               <div class="yyt-tool-runtime-card">
                 <div class="yyt-table-workbench-panel-copy">
+                  <div class="yyt-table-workbench-panel-kicker">Pipeline</div>
                   <div class="yyt-table-workbench-panel-title">执行链路</div>
-                  <div class="yyt-table-workbench-panel-desc">每次执行都会重新解析当前 assistant 目标，并在 commit 前校验 revision，避免写到旧 slot。</div>
+                  <div class="yyt-table-workbench-panel-desc">每次执行都会重新解析当前 assistant 目标，并在 commit 前校验 revision，避免把 tables 写到旧 slot 或旧 swipe。</div>
                 </div>
                 <div class="yyt-table-workbench-flow">
                   <span class="yyt-tool-hero-chip">fresh target</span>
@@ -276,16 +344,24 @@ function buildMainLayout(config = {}) {
                 </div>
               </div>
               <div class="yyt-tool-manual-actions">
-                <button class="yyt-btn yyt-btn-primary" data-table-workbench-action="run">
-                  <i class="fa-solid fa-play"></i> 立即手动填表
-                </button>
-                <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="refresh">
-                  <i class="fa-solid fa-rotate"></i> 刷新目标诊断
-                </button>
-                <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="save">
-                  <i class="fa-solid fa-save"></i> 保存配置
-                </button>
-                <div class="yyt-tool-compact-hint">建议顺序：先保存配置，再刷新诊断，最后执行一次手动填表确认 writeback 命中目标消息。</div>
+                <div class="yyt-table-workbench-action-stack">
+                  <div class="yyt-table-workbench-action-primary">
+                    <div class="yyt-table-workbench-action-title">主操作</div>
+                    <div class="yyt-table-workbench-action-subtitle">确认配置无误后，直接对当前 assistant 目标执行一次安全写回。</div>
+                    <button class="yyt-btn yyt-btn-primary" data-table-workbench-action="run">
+                      <i class="fa-solid fa-play"></i> 立即手动填表
+                    </button>
+                  </div>
+                  <div class="yyt-table-workbench-action-secondary">
+                    <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="save">
+                      <i class="fa-solid fa-save"></i> 保存配置
+                    </button>
+                    <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="refresh">
+                      <i class="fa-solid fa-rotate"></i> 刷新目标诊断
+                    </button>
+                  </div>
+                </div>
+                <div class="yyt-table-workbench-action-hint">推荐顺序：先保存配置，再刷新诊断，最后执行一次手动填表，确认 writeback 命中当前目标消息。</div>
               </div>
             </div>
           </div>
@@ -296,8 +372,9 @@ function buildMainLayout(config = {}) {
               <span>可用变量</span>
             </div>
             <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-kicker">Reference</div>
               <div class="yyt-table-workbench-panel-title">模板辅助速查</div>
-              <div class="yyt-table-workbench-panel-desc">这些变量可直接用于 promptTemplate，生成结构化表格更新请求。</div>
+              <div class="yyt-table-workbench-panel-desc">这些变量可直接用于 promptTemplate，帮助模型结合当前对话与已有表格状态生成结构化更新。</div>
             </div>
             <pre class="yyt-table-workbench-pre">${escapeHtml(variableHelp)}</pre>
           </div>
@@ -312,8 +389,9 @@ function buildMainLayout(config = {}) {
               <span>当前目标诊断</span>
             </div>
             <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-kicker">Target</div>
               <div class="yyt-table-workbench-panel-title">目标定位</div>
-              <div class="yyt-table-workbench-panel-desc">显示当前 assistant message / swipe / slot 键，便于判断本次执行会写到哪里。</div>
+              <div class="yyt-table-workbench-panel-desc">显示当前 assistant message / swipe / slot 键，便于在执行前确认这次写回会落到哪一个上下文槽位。</div>
             </div>
             <div data-table-workbench-target class="yyt-table-workbench-empty-state">正在读取当前 assistant 目标...</div>
           </div>
@@ -324,8 +402,9 @@ function buildMainLayout(config = {}) {
               <span>当前加载结果</span>
             </div>
             <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-kicker">State</div>
               <div class="yyt-table-workbench-panel-title">状态来源</div>
-              <div class="yyt-table-workbench-panel-desc">展示当前是从 bound state 继续，还是回退到模板 tables。</div>
+              <div class="yyt-table-workbench-panel-desc">展示当前是继续沿用 bound state，还是因为目标尚无绑定记录而回退到模板 tables。</div>
             </div>
             <div data-table-workbench-load class="yyt-table-workbench-empty-state">等待诊断结果...</div>
           </div>
@@ -336,8 +415,9 @@ function buildMainLayout(config = {}) {
               <span>tables 预览</span>
             </div>
             <div class="yyt-table-workbench-panel-copy">
+              <div class="yyt-table-workbench-panel-kicker">Preview</div>
               <div class="yyt-table-workbench-panel-title">当前编译结果</div>
-              <div class="yyt-table-workbench-panel-desc">这里展示将用于执行或回退的 tables JSON，便于在运行前做最后检查。</div>
+              <div class="yyt-table-workbench-panel-desc">这里展示当前将用于执行或回退的 tables JSON，可在运行前快速确认结构、字段和行内容。</div>
             </div>
             <pre class="yyt-table-workbench-pre" data-table-workbench-preview>${escapeHtml(formatJson(config.tables || []))}</pre>
           </div>

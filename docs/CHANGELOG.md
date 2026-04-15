@@ -9,6 +9,22 @@
 
 ## [Unreleased]
 
+## [1.0.33] - 2026-04-15
+
+### 修复
+
+- 🐛 **统一修复填表工作台深色主题控件显示异常** (`styles/main.css`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/table-form-renderer.js`)
+  - 补强原生 `.yyt-select` 在宿主环境中的深色主题表现，避免下拉框出现白底白字
+  - 稳定 `.yyt-code-textarea` 的 hover / focus 外观，避免 `promptTemplate` 文本框移入时变白
+  - 保持共享表单控件的状态样式一致，减少宿主注入样式带来的视觉漂移
+
+### 优化
+
+- ✨ **升级填表工作台与表格编辑弹窗的视觉层级** (`modules/ui/components/table-workbench-panel.js`, `modules/ui/components/table-form-renderer.js`, `modules/ui/utils.js`)
+  - 强化工作台 hero、运行态摘要、主操作区与右侧诊断区的信息层次
+  - 为“新增/编辑表格”弹窗增加专用 dialog 外壳变体，统一 header / body / footer 质感
+  - 调整创建态与编辑态文案、按钮与提示信息，让填表流程更清晰
+
 ## [1.0.32] - 2026-04-15
 
 ### 修复

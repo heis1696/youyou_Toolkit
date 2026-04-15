@@ -20,6 +20,44 @@ import {
 } from '../../table-engine/table-schema-service.js';
 
 export const TABLE_FORM_RENDERER_STYLES = `
+  .yyt-dialog.yyt-table-editor-dialog {
+    border-radius: 24px;
+    border-color: rgba(123, 183, 255, 0.18);
+    background:
+      radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 62%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 28%),
+      var(--yyt-bg-base);
+    box-shadow: 0 30px 84px rgba(0, 0, 0, 0.6), 0 0 48px rgba(123, 183, 255, 0.08);
+  }
+
+  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-header {
+    padding: 18px 22px;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
+  }
+
+  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-title {
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-body.yyt-table-editor-dialog-body {
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.01);
+  }
+
+  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-footer.yyt-table-editor-dialog-footer {
+    justify-content: space-between;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.014) 100%);
+  }
+
+  .yyt-table-editor-dialog-note {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.62);
+    line-height: 1.65;
+  }
+
   .yyt-table-form-grid {
     display: grid;
     gap: 14px;
@@ -74,6 +112,68 @@ export const TABLE_FORM_RENDERER_STYLES = `
     gap: 14px;
   }
 
+  .yyt-table-editor-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(12, 16, 24, 0.32);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 34px rgba(0, 0, 0, 0.16);
+  }
+
+  .yyt-table-editor-shell-compact {
+    padding: 16px;
+  }
+
+  .yyt-table-editor-banner {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(123, 183, 255, 0.2);
+    background: radial-gradient(280px 120px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 70%), rgba(123, 183, 255, 0.05);
+  }
+
+  .yyt-table-editor-banner-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .yyt-table-editor-banner-title {
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--yyt-text);
+  }
+
+  .yyt-table-editor-banner-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .yyt-table-editor-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: var(--yyt-text);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
   .yyt-table-editor-toolbar,
   .yyt-table-editor-section-head,
   .yyt-table-editor-card-head {
@@ -82,6 +182,10 @@ export const TABLE_FORM_RENDERER_STYLES = `
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
+  }
+
+  .yyt-table-editor-toolbar {
+    align-items: flex-start;
   }
 
   .yyt-table-editor-muted {
@@ -98,26 +202,33 @@ export const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-editor-empty {
     padding: 16px;
-    border-radius: 16px;
+    border-radius: 18px;
     border: 1px dashed rgba(255, 255, 255, 0.14);
     background: rgba(255, 255, 255, 0.03);
   }
 
   .yyt-table-editor-card {
-    padding: 14px;
-    border-radius: 18px;
+    padding: 16px;
+    border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.12);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.025) 100%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
+      rgba(10, 14, 22, 0.2);
     display: flex;
     flex-direction: column;
     gap: 14px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 34px rgba(0, 0, 0, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 36px rgba(0, 0, 0, 0.18);
   }
 
   .yyt-table-editor-card-title {
     font-size: 14px;
     font-weight: 800;
     color: var(--yyt-text);
+  }
+
+  .yyt-table-editor-card-subtitle {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .yyt-table-editor-meta {
@@ -130,6 +241,10 @@ export const TABLE_FORM_RENDERER_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 10px;
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .yyt-table-editor-section-title {
@@ -137,6 +252,12 @@ export const TABLE_FORM_RENDERER_STYLES = `
     font-weight: 800;
     letter-spacing: 0.02em;
     color: rgba(255, 255, 255, 0.82);
+  }
+
+  .yyt-table-editor-section-desc {
+    font-size: 11px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.56);
   }
 
   .yyt-table-editor-columns {
@@ -149,8 +270,8 @@ export const TABLE_FORM_RENDERER_STYLES = `
     grid-template-columns: minmax(0, 1fr) minmax(140px, 0.75fr) auto;
     gap: 10px;
     align-items: end;
-    padding: 10px 12px;
-    border-radius: 14px;
+    padding: 12px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.05);
   }
@@ -170,15 +291,16 @@ export const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-editor-grid-wrap {
     overflow-x: auto;
-    border-radius: 14px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(8, 12, 18, 0.36);
   }
 
   .yyt-table-editor-grid {
     width: 100%;
     min-width: 680px;
     border-collapse: collapse;
-    background: rgba(8, 12, 18, 0.62);
+    background: rgba(8, 12, 18, 0.72);
   }
 
   .yyt-table-editor-grid th,
@@ -193,7 +315,7 @@ export const TABLE_FORM_RENDERER_STYLES = `
     text-align: left;
     font-size: 12px;
     color: rgba(255, 255, 255, 0.78);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .yyt-table-editor-grid td:last-child,
@@ -317,6 +439,8 @@ function renderTableEditorRow(table = {}, row = {}, tableIndex = 0, rowIndex = 0
 function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
   const columns = Array.isArray(table.columns) ? table.columns : [];
   const rows = Array.isArray(table.rows) ? table.rows : [];
+  const tableName = String(table?.name || '').trim();
+  const tableNote = String(table?.note || '').trim();
   const showDeleteTable = options.showDeleteTable !== false;
   const deleteButtonHtml = showDeleteTable
     ? `
@@ -325,11 +449,22 @@ function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
         </button>
       `
     : '';
+  const summaryParts = [
+    `表格 ${tableIndex + 1}`,
+    `${columns.length} 列`,
+    `${rows.length} 行`
+  ];
+  if (tableNote) {
+    summaryParts.push('已填写说明');
+  }
 
   return `
     <div class="yyt-table-editor-card" data-table-editor-table="${tableIndex}">
       <div class="yyt-table-editor-card-head">
-        <div class="yyt-table-editor-card-title">表格 ${tableIndex + 1}</div>
+        <div>
+          <div class="yyt-table-editor-card-title">${escapeHtml(tableName || `表格 ${tableIndex + 1}`)}</div>
+          <div class="yyt-table-editor-card-subtitle">${escapeHtml(summaryParts.join(' · '))}</div>
+        </div>
         ${deleteButtonHtml}
       </div>
 
@@ -346,7 +481,10 @@ function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
 
       <div class="yyt-table-editor-section">
         <div class="yyt-table-editor-section-head">
-          <div class="yyt-table-editor-section-title">列定义</div>
+          <div>
+            <div class="yyt-table-editor-section-title">列定义</div>
+            <div class="yyt-table-editor-section-desc">先声明每一列的显示标题与字段 key，运行时会按这里的结构写入表格状态。</div>
+          </div>
           <button type="button" class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-editor-action="add-column" data-table-index="${tableIndex}">
             <i class="fa-solid fa-plus"></i> 新增列
           </button>
@@ -366,13 +504,16 @@ function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
                 <i class="fa-solid fa-trash"></i>
               </button>
             </div>
-          `).join('') : '<div class="yyt-table-editor-empty"><div class="yyt-table-editor-muted">当前没有列定义，先新增一列。</div></div>'}
+          `).join('') : '<div class="yyt-table-editor-empty"><div class="yyt-table-editor-section-title">当前没有列定义</div><div class="yyt-table-editor-muted">先新增一列，再继续填写行内容。</div></div>'}
         </div>
       </div>
 
       <div class="yyt-table-editor-section">
         <div class="yyt-table-editor-section-head">
-          <div class="yyt-table-editor-section-title">行内容</div>
+          <div>
+            <div class="yyt-table-editor-section-title">行内容</div>
+            <div class="yyt-table-editor-section-desc">每一行对应一组字段值，单元格内容会按列顺序映射到当前表定义。</div>
+          </div>
           <button type="button" class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-editor-action="add-row" data-table-index="${tableIndex}">
             <i class="fa-solid fa-plus"></i> 新增行
           </button>
@@ -390,7 +531,10 @@ function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
               ${rows.length ? rows.map((row, rowIndex) => renderTableEditorRow(table, row, tableIndex, rowIndex)).join('') : `
                 <tr>
                   <td colspan="${Math.max(columns.length + 2, 2)}">
-                    <div class="yyt-table-editor-muted">当前没有行内容，可先新增一行。</div>
+                    <div class="yyt-table-editor-empty">
+                      <div class="yyt-table-editor-section-title">当前没有行内容</div>
+                      <div class="yyt-table-editor-muted">可先新增一行，再逐列补齐单元格数据。</div>
+                    </div>
                   </td>
                 </tr>
               `}
@@ -402,10 +546,29 @@ function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
   `;
 }
 
-function renderTableDefinitionDialogBody(table = {}, tableIndex = 0) {
+function renderTableDefinitionDialogBody(table = {}, tableIndex = 0, options = {}) {
+  const columns = Array.isArray(table?.columns) ? table.columns : [];
+  const rows = Array.isArray(table?.rows) ? table.rows : [];
+  const mode = options.mode === 'create' ? 'create' : 'edit';
+  const title = mode === 'create' ? '新增表格' : '编辑单张表格';
+  const subtitle = mode === 'create'
+    ? '先完成这张表的结构与内容，再保存回表定义列表。创建完成后可继续追加其它表。'
+    : '先完成单张表的结构与内容，再保存回表定义列表。这里不会直接改动其它表。';
+  const modeChip = mode === 'create' ? '创建模式' : '单表编辑';
+
   return `
-    <div class="yyt-table-editor" data-table-dialog-root>
-      <div class="yyt-table-editor-muted">先完成单张表的结构与内容，再保存回表定义列表。</div>
+    <div class="yyt-table-editor yyt-table-editor-shell yyt-table-editor-shell-compact" data-table-dialog-root>
+      <div class="yyt-table-editor-banner">
+        <div class="yyt-table-editor-banner-copy">
+          <div class="yyt-table-editor-banner-title">${title}</div>
+          <div class="yyt-table-editor-muted">${subtitle}</div>
+        </div>
+        <div class="yyt-table-editor-banner-meta">
+          <span class="yyt-table-editor-chip">${modeChip}</span>
+          <span class="yyt-table-editor-chip">${columns.length} 列</span>
+          <span class="yyt-table-editor-chip">${rows.length} 行</span>
+        </div>
+      </div>
       ${renderTableEditorCard(table, tableIndex, { showDeleteTable: false })}
     </div>
   `;
@@ -413,20 +576,36 @@ function renderTableDefinitionDialogBody(table = {}, tableIndex = 0) {
 
 function renderTableDefinitionsEditorBody(draft = {}) {
   const tables = Array.isArray(draft?.tables) ? draft.tables : [];
+  const totalColumns = tables.reduce((sum, table) => sum + (Array.isArray(table?.columns) ? table.columns.length : 0), 0);
+  const totalRows = tables.reduce((sum, table) => sum + (Array.isArray(table?.rows) ? table.rows.length : 0), 0);
 
   return `
-    <div class="yyt-table-editor-toolbar">
-      <div class="yyt-table-editor-muted">结构化编辑表定义；保存或运行时会自动编译为 runtime tables。</div>
-      <button type="button" class="yyt-btn yyt-btn-small yyt-btn-primary" data-table-editor-action="add-table">
-        <i class="fa-solid fa-plus"></i> 新增表格
-      </button>
-    </div>
-    <div class="yyt-table-editor-stack">
-      ${tables.length ? tables.map((table, tableIndex) => renderTableEditorCard(table, tableIndex)).join('') : `
-        <div class="yyt-table-editor-empty">
-          <div class="yyt-table-editor-muted">还没有表定义。点击右侧“新增表格”开始配置。</div>
+    <div class="yyt-table-editor-shell">
+      <div class="yyt-table-editor-banner">
+        <div class="yyt-table-editor-banner-copy">
+          <div class="yyt-table-editor-banner-title">表定义编辑器</div>
+          <div class="yyt-table-editor-muted">结构化维护 tables 草稿。保存或执行时会自动编译为 runtime tables，无需手写 JSON。</div>
         </div>
-      `}
+        <div class="yyt-table-editor-banner-meta">
+          <span class="yyt-table-editor-chip">${tables.length} 张表</span>
+          <span class="yyt-table-editor-chip">${totalColumns} 列</span>
+          <span class="yyt-table-editor-chip">${totalRows} 行</span>
+        </div>
+      </div>
+      <div class="yyt-table-editor-toolbar">
+        <div class="yyt-table-editor-muted">建议先补齐表格名与列定义，再录入行内容，避免后续频繁调整列结构。</div>
+        <button type="button" class="yyt-btn yyt-btn-small yyt-btn-primary" data-table-editor-action="add-table">
+          <i class="fa-solid fa-plus"></i> 新增表格
+        </button>
+      </div>
+      <div class="yyt-table-editor-stack">
+        ${tables.length ? tables.map((table, tableIndex) => renderTableEditorCard(table, tableIndex)).join('') : `
+          <div class="yyt-table-editor-empty">
+            <div class="yyt-table-editor-section-title">还没有表定义</div>
+            <div class="yyt-table-editor-muted">点击右侧“新增表格”开始配置表名、列结构和行内容。</div>
+          </div>
+        `}
+      </div>
     </div>
   `;
 }
@@ -456,16 +635,23 @@ function openTableDefinitionDialog($container, table = {}, callbacks = {}) {
     return null;
   }
 
+  const mode = callbacks.mode === 'create' ? 'create' : 'edit';
   const dialogId = `yyt-table-definition-dialog-${Date.now()}`;
   const dialogHtml = createDialogHtml({
     id: dialogId,
-    title: '编辑表格',
-    body: renderTableDefinitionDialogBody(table, 0),
+    title: mode === 'create' ? '新增表格' : '编辑表格',
+    body: renderTableDefinitionDialogBody(table, 0, { mode }),
     wide: true,
-    width: 'min(860px, calc(100vw - 32px))'
+    width: 'min(900px, calc(100vw - 32px))',
+    dialogClass: 'yyt-table-editor-dialog',
+    bodyClass: 'yyt-table-editor-dialog-body',
+    footerClass: 'yyt-table-editor-dialog-footer'
   });
 
   $container.append(dialogHtml);
+  $container.find(`#${dialogId}-save`).html(`<i class="fa-solid fa-check"></i> ${mode === 'create' ? '添加表格' : '保存表格'}`);
+  $container.find(`#${dialogId}-cancel`).html('<i class="fa-solid fa-arrow-left"></i> 返回');
+  $container.find(`#${dialogId}-cancel`).before('<div class="yyt-table-editor-dialog-note">保存后会把当前表写回表定义列表，不会直接影响其它表。</div>');
 
   bindDialogEvents($container, dialogId, {
     onSave: (closeDialog) => {
@@ -627,6 +813,7 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
 
     if (action === 'add-table') {
       openTableDefinitionDialog($container, createEmptyTableDefinition(tables.length + 1), {
+        mode: 'create',
         onSave: (nextTable) => {
           const nextDraft = readTableDefinitionsDraft($root);
           const nextTables = Array.isArray(nextDraft.tables) ? nextDraft.tables : [];

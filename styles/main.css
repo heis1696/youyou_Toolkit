@@ -616,28 +616,33 @@
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+  color-scheme: dark;
+  background-color: #141b29;
+  color: var(--yyt-text);
   background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg);
   padding-right: 36px;
 }
 
 .yyt-input:hover,
 .yyt-select:hover,
-.yyt-textarea:hover {
+.yyt-textarea:not(.yyt-code-textarea):hover {
   border-color: var(--yyt-control-border-hover);
   background: var(--yyt-control-bg-hover);
   box-shadow: var(--yyt-control-shadow-hover);
 }
 
 .yyt-select:hover {
+  color: var(--yyt-text);
+  background-color: #182031;
   background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg-hover);
 }
 
 .yyt-input:focus,
 .yyt-select:focus,
-.yyt-textarea:focus,
+.yyt-textarea:not(.yyt-code-textarea):focus,
 .yyt-input:focus-visible,
 .yyt-select:focus-visible,
-.yyt-textarea:focus-visible {
+.yyt-textarea:not(.yyt-code-textarea):focus-visible {
   outline: none;
   border-color: var(--yyt-control-border-focus);
   background: var(--yyt-control-bg-focus);
@@ -646,7 +651,56 @@
 
 .yyt-select:focus,
 .yyt-select:focus-visible {
+  color: var(--yyt-text);
+  background-color: #1b2437;
   background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg-focus);
+}
+
+.yyt-select:disabled {
+  color: var(--yyt-text-muted);
+  background-color: #111722;
+  cursor: not-allowed;
+}
+
+.yyt-select option,
+.yyt-select optgroup {
+  background: #141b29;
+  color: var(--yyt-text);
+}
+
+.yyt-select option:checked,
+.yyt-select option[selected] {
+  background: #24324b;
+  color: #f5fbff;
+}
+
+.yyt-select option:disabled {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.yyt-select optgroup {
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.yyt-textarea.yyt-code-textarea {
+  color: var(--yyt-text);
+  caret-color: var(--yyt-accent-strong);
+  background:
+    linear-gradient(180deg, rgba(7, 11, 18, 0.9) 0%, rgba(9, 13, 18, 0.72) 100%),
+    rgba(3, 7, 12, 0.3);
+}
+
+.yyt-textarea.yyt-code-textarea:hover,
+.yyt-textarea.yyt-code-textarea:focus,
+.yyt-textarea.yyt-code-textarea:focus-visible {
+  color: var(--yyt-text);
+  caret-color: var(--yyt-accent-strong);
+  border-color: rgba(123, 183, 255, 0.32);
+  background:
+    linear-gradient(180deg, rgba(7, 11, 18, 0.96) 0%, rgba(9, 13, 18, 0.82) 100%),
+    rgba(3, 7, 12, 0.34);
+  box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 26px rgba(0, 0, 0, 0.22);
 }
 
 .yyt-input::placeholder,

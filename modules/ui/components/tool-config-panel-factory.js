@@ -122,6 +122,8 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     font-size: 13px;
     line-height: 1.7;
     tab-size: 2;
+    color: var(--yyt-text);
+    caret-color: var(--yyt-accent-strong);
     background:
       linear-gradient(180deg, rgba(7, 11, 18, 0.9) 0%, rgba(9, 13, 18, 0.72) 100%),
       rgba(3, 7, 12, 0.3);

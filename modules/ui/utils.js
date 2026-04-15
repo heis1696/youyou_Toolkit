@@ -507,22 +507,25 @@ export function createDialogHtml(options) {
     title,
     body,
     width = '380px',
-    wide = false
+    wide = false,
+    dialogClass = '',
+    bodyClass = '',
+    footerClass = ''
   } = options;
-  
+
   return `
     <div class="yyt-dialog-overlay" id="${id}-overlay">
-      <div class="yyt-dialog ${wide ? 'yyt-dialog-wide' : ''}" style="${width !== '380px' ? `width: ${width};` : ''} max-height: calc(100vh - 32px);">
+      <div class="yyt-dialog ${wide ? 'yyt-dialog-wide' : ''} ${dialogClass}" style="${width !== '380px' ? `width: ${width};` : ''} max-height: calc(100vh - 32px);">
         <div class="yyt-dialog-header">
           <span class="yyt-dialog-title">${title}</span>
           <button class="yyt-dialog-close" id="${id}-close">
             <i class="fa-solid fa-times"></i>
           </button>
         </div>
-        <div class="yyt-dialog-body" style="overflow-y: auto; overflow-x: hidden; max-height: calc(100vh - 160px);">
+        <div class="yyt-dialog-body ${bodyClass}" style="overflow-y: auto; overflow-x: hidden; max-height: calc(100vh - 160px);">
           ${body}
         </div>
-        <div class="yyt-dialog-footer">
+        <div class="yyt-dialog-footer ${footerClass}">
           <button class="yyt-btn yyt-btn-secondary" id="${id}-cancel">取消</button>
           <button class="yyt-btn yyt-btn-primary" id="${id}-save">保存</button>
         </div>
