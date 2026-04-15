@@ -6,7 +6,7 @@
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { bypassManager, DEFAULT_BYPASS_PRESETS } from '../../bypass-manager.js';
-import { showToast, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
+import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
 
 // ============================================================
 // 组件定义
@@ -206,10 +206,17 @@ export const BypassPanel = {
   bindEvents($container, dependencies) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
+
+    $container.off('.yytBypass');
+
     this._bindPresetListEvents($container, $);
     this._bindEditorEvents($container, $);
     this._bindFileEvents($container, $);
+
+    enhanceNativeSelects($container, {
+      namespace: 'yytBypassSelect',
+      selectors: ['.yyt-bypass-role-select']
+    });
   },
   
   /**
@@ -218,7 +225,7 @@ export const BypassPanel = {
    */
   _bindPresetListEvents($container, $) {
     // 选择预设
-    $container.on('click', '.yyt-bypass-preset-item', (e) => {
+    $container.on('click.yytBypass', '.yyt-bypass-preset-item', (e) => {
       // 如果点击的是删除按钮，不触发选择
       if ($(e.target).closest('.yyt-bypass-quick-delete').length) {
         return;
@@ -228,7 +235,7 @@ export const BypassPanel = {
     });
     
     // 快速删除预设
-    $container.on('click', '.yyt-bypass-quick-delete', (e) => {
+    $container.on('click.yytBypass', '.yyt-bypass-quick-delete', (e) => {
       e.stopPropagation();
       const presetId = $(e.currentTarget).data('presetId');
       if (!presetId) return;
@@ -258,7 +265,7 @@ export const BypassPanel = {
     });
     
     // 新建预设
-    $container.find('#yyt-bypass-add').on('click', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-add', () => {
       this._createNewPreset($container, $);
     });
   },
@@ -269,39 +276,39 @@ export const BypassPanel = {
    */
   _bindEditorEvents($container, $) {
     // 保存预设
-    $container.on('click', '#yyt-bypass-save', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-save', () => {
       this._saveCurrentPreset($container, $);
     });
     
     // 删除预设
-    $container.on('click', '#yyt-bypass-delete', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-delete', () => {
       this._deleteCurrentPreset($container, $);
     });
     
     // 复制预设
-    $container.on('click', '#yyt-bypass-duplicate', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-duplicate', () => {
       this._duplicateCurrentPreset($container, $);
     });
     
     // 设为默认
-    $container.on('click', '#yyt-bypass-set-default', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-set-default', () => {
       this._setAsDefault($container, $);
     });
     
     // 添加消息
-    $container.on('click', '#yyt-bypass-add-message', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-add-message', () => {
       this._addMessage($container, $);
     });
     
     // 删除消息
-    $container.on('click', '.yyt-bypass-delete-message', (e) => {
+    $container.on('click.yytBypass', '.yyt-bypass-delete-message', (e) => {
       const $message = $(e.currentTarget).closest('.yyt-bypass-message');
       const messageId = $message.data('messageId');
       $message.remove();
     });
     
     // 消息启用/禁用
-    $container.on('change', '.yyt-bypass-message-enabled', (e) => {
+    $container.on('change.yytBypass', '.yyt-bypass-message-enabled', (e) => {
       const $message = $(e.currentTarget).closest('.yyt-bypass-message');
       $message.toggleClass('yyt-disabled', !$(e.currentTarget).is(':checked'));
     });
@@ -313,11 +320,11 @@ export const BypassPanel = {
    */
   _bindFileEvents($container, $) {
     // 导入
-    $container.find('#yyt-bypass-import').on('click', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-import', () => {
       $container.find('#yyt-bypass-import-file').click();
     });
-    
-    $container.find('#yyt-bypass-import-file').on('change', async (e) => {
+
+    $container.on('change.yytBypass', '#yyt-bypass-import-file', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
@@ -333,7 +340,7 @@ export const BypassPanel = {
     });
     
     // 导出
-    $container.find('#yyt-bypass-export').on('click', () => {
+    $container.on('click.yytBypass', '#yyt-bypass-export', () => {
       try {
         const json = bypassManager.exportPresets();
         downloadJson(json, `bypass_presets_${Date.now()}.json`);
@@ -535,7 +542,8 @@ export const BypassPanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
-    $container.off();
+    destroyEnhancedCustomSelects($container, 'yytBypassSelect');
+    $container.off('.yytBypass');
   },
   
   // ============================================================

@@ -4,11 +4,13 @@
  * @version 1.0.0
  */
 
-import { 
-  SCRIPT_ID, 
-  escapeHtml, 
-  showToast, 
-  getJQuery, 
+import {
+  SCRIPT_ID,
+  destroyEnhancedCustomSelects,
+  enhanceNativeSelects,
+  escapeHtml,
+  showToast,
+  getJQuery,
   isContainerValid,
   downloadJson,
   readFileContent
@@ -197,7 +199,9 @@ export const ToolManagePanel = {
   bindEvents($container, dependencies) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
+
+    $container.off('.yytToolManage');
+
     this._bindToolEvents($container, $);
     this._bindFileEvents($container, $);
   },
@@ -208,7 +212,7 @@ export const ToolManagePanel = {
    */
   _bindToolEvents($container, $) {
     // 工具启用/禁用
-    $container.find('.yyt-tool-toggle input').on('change', (e) => {
+    $container.on('change.yytToolManage', '.yyt-tool-toggle input', (e) => {
       const $item = $(e.currentTarget).closest('.yyt-tool-item');
       const toolId = $item.data('tool-id');
       const enabled = $(e.currentTarget).is(':checked');
@@ -219,21 +223,21 @@ export const ToolManagePanel = {
     });
     
     // 新建工具
-    $container.find('#yyt-add-tool').on('click', () => {
+    $container.on('click.yytToolManage', '#yyt-add-tool', () => {
       this._showToolEditDialog($container, $, null);
     });
 
-    $container.find('.yyt-tool-item [data-action="config"]').on('click', (e) => {
+    $container.on('click.yytToolManage', '.yyt-tool-item [data-action="config"]', (e) => {
       const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
       this._openToolConfig(toolId);
     });
 
-    $container.find('.yyt-tool-item [data-action="edit"]').on('click', (e) => {
+    $container.on('click.yytToolManage', '.yyt-tool-item [data-action="edit"]', (e) => {
       const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
       this._showToolEditDialog($container, $, toolId);
     });
 
-    $container.find('.yyt-tool-item [data-action="delete"]').on('click', (e) => {
+    $container.on('click.yytToolManage', '.yyt-tool-item [data-action="delete"]', (e) => {
       const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
       const tool = getTool(toolId);
       if (!toolId || !tool) return;
@@ -259,11 +263,11 @@ export const ToolManagePanel = {
    */
   _bindFileEvents($container, $) {
     // 导入工具
-    $container.find('#yyt-import-tools').on('click', () => {
+    $container.on('click.yytToolManage', '#yyt-import-tools', () => {
       $container.find('#yyt-import-tools-file').click();
     });
-    
-    $container.find('#yyt-import-tools-file').on('change', async (e) => {
+
+    $container.on('change.yytToolManage', '#yyt-import-tools-file', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
@@ -279,7 +283,7 @@ export const ToolManagePanel = {
     });
     
     // 导出工具
-    $container.find('#yyt-export-tools').on('click', () => {
+    $container.on('click.yytToolManage', '#yyt-export-tools', () => {
       try {
         const json = exportTools();
         downloadJson(json, `youyou_toolkit_tools_${Date.now()}.json`);
@@ -290,7 +294,7 @@ export const ToolManagePanel = {
     });
     
     // 重置工具
-    $container.find('#yyt-reset-tools').on('click', () => {
+    $container.on('click.yytToolManage', '#yyt-reset-tools', () => {
       if (confirm('确定要重置所有工具吗？')) {
         resetTools();
         this.renderTo($container);
@@ -366,8 +370,16 @@ export const ToolManagePanel = {
     $container.append(dialogHtml);
     
     const $overlay = $('#yyt-tool-dialog-overlay');
-    
-    const closeDialog = () => $overlay.remove();
+
+    enhanceNativeSelects($overlay, {
+      namespace: 'yytToolManageDialogSelect',
+      selectors: ['#yyt-tool-category']
+    });
+
+    const closeDialog = () => {
+      destroyEnhancedCustomSelects($overlay, 'yytToolManageDialogSelect');
+      $overlay.remove();
+    };
     
     $overlay.find('#yyt-tool-dialog-close, #yyt-tool-dialog-cancel').on('click', closeDialog);
     $overlay.on('click', function(e) { if (e.target === this) closeDialog(); });
@@ -437,7 +449,8 @@ export const ToolManagePanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
-    $container.off();
+    destroyEnhancedCustomSelects($('#yyt-tool-dialog-overlay'), 'yytToolManageDialogSelect');
+    $container.off('.yytToolManage');
   },
   
   // ============================================================

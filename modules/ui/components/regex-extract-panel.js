@@ -5,11 +5,13 @@
  */
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
-import { 
-  SCRIPT_ID, 
-  escapeHtml, 
-  showToast, 
-  getJQuery, 
+import {
+  SCRIPT_ID,
+  destroyEnhancedCustomSelects,
+  enhanceNativeSelects,
+  escapeHtml,
+  showToast,
+  getJQuery,
   isContainerValid,
   downloadJson,
   readFileContent
@@ -248,11 +250,21 @@ export const RegexExtractPanel = {
   bindEvents($container, dependencies) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    
+
+    $container.off('.yytRegex');
+
     this._bindRuleEditorEvents($container, $);
     this._bindPresetEvents($container, $);
     this._bindTestEvents($container, $);
     this._bindFileEvents($container, $);
+
+    enhanceNativeSelects($container, {
+      namespace: 'yytRegexSelect',
+      selectors: [
+        `#${SCRIPT_ID}-rule-preset-select`,
+        '.yyt-rule-type'
+      ]
+    });
   },
   
   /**
@@ -261,17 +273,17 @@ export const RegexExtractPanel = {
    */
   _bindRuleEditorEvents($container, $) {
     // 规则类型变化
-    $container.find('.yyt-rule-type').on('change', function() {
+    $container.on('change.yytRegex', '.yyt-rule-type', function() {
       const $item = $(this).closest('.yyt-rule-item');
       const index = $item.data('rule-index');
       const type = $(this).val();
-      
+
       updateTagRule(index, { type });
       showToast('info', '规则类型已更新');
     });
-    
+
     // 规则值变化
-    $container.find('.yyt-rule-value').on('change', function() {
+    $container.on('change.yytRegex', '.yyt-rule-value', function() {
       const $item = $(this).closest('.yyt-rule-item');
       const index = $item.data('rule-index');
       const value = $(this).val().trim();
@@ -280,7 +292,7 @@ export const RegexExtractPanel = {
     });
     
     // 规则启用/禁用
-    $container.find('.yyt-rule-enabled').on('change', function() {
+    $container.on('change.yytRegex', '.yyt-rule-enabled', function() {
       const $item = $(this).closest('.yyt-rule-item');
       const index = $item.data('rule-index');
       const enabled = $(this).is(':checked');
@@ -289,20 +301,8 @@ export const RegexExtractPanel = {
       showToast('info', enabled ? '规则已启用' : '规则已禁用');
     });
     
-    // 删除规则
-    $container.find('.yyt-rule-delete').on('click', () => {
-      const $item = $container.find('.yyt-rule-delete').closest('.yyt-rule-item');
-      const index = $item.data('rule-index');
-      
-      if (confirm('确定要删除这条规则吗？')) {
-        deleteTagRule(index);
-        this.renderTo($container);
-        showToast('info', '规则已删除');
-      }
-    });
-    
     // 删除规则（使用事件委托）
-    $container.on('click', '.yyt-rule-delete', (e) => {
+    $container.on('click.yytRegex', '.yyt-rule-delete', (e) => {
       const $item = $(e.currentTarget).closest('.yyt-rule-item');
       const index = $item.data('rule-index');
       
@@ -314,7 +314,7 @@ export const RegexExtractPanel = {
     });
     
     // 添加规则
-    $container.find(`#${SCRIPT_ID}-add-rule`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-add-rule`, () => {
       addTagRule({
         type: 'include',
         value: '',
@@ -325,7 +325,7 @@ export const RegexExtractPanel = {
     });
     
     // 扫描标签
-    $container.find(`#${SCRIPT_ID}-scan-tags`).on('click', async () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-scan-tags`, async () => {
       const $btn = $container.find(`#${SCRIPT_ID}-scan-tags`);
       const testText = $container.find(`#${SCRIPT_ID}-test-input`).val();
       
@@ -385,7 +385,7 @@ export const RegexExtractPanel = {
     });
     
     // 排除小CoT
-    $container.find(`#${SCRIPT_ID}-add-exclude-cot`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-add-exclude-cot`, () => {
       const rules = getTagRules();
       const cotPattern = '<!--[\\s\\S]*?-->';
       const exists = rules.some(r => r.type === 'regex_exclude' && r.value === cotPattern);
@@ -405,7 +405,7 @@ export const RegexExtractPanel = {
     });
     
     // 黑名单变化
-    $container.find(`#${SCRIPT_ID}-content-blacklist`).on('change', function() {
+    $container.on('change.yytRegex', `#${SCRIPT_ID}-content-blacklist`, function() {
       const value = $(this).val();
       const blacklist = value.split(',').map(k => k.trim()).filter(k => k);
       setContentBlacklist(blacklist);
@@ -413,7 +413,7 @@ export const RegexExtractPanel = {
     });
     
     // 查看示例
-    $container.find(`#${SCRIPT_ID}-show-examples`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-show-examples`, () => {
       const examples = `
 规则类型说明:
 
@@ -461,7 +461,7 @@ Phase 4: 应用黑名单过滤
    */
   _bindPresetEvents($container, $) {
     // 加载规则预设
-    $container.find(`#${SCRIPT_ID}-load-rule-preset`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-load-rule-preset`, () => {
       const presetId = $container.find(`#${SCRIPT_ID}-rule-preset-select`).val();
       
       if (!presetId) {
@@ -480,7 +480,7 @@ Phase 4: 应用黑名单过滤
     });
     
     // 保存规则预设
-    $container.find(`#${SCRIPT_ID}-save-rule-preset`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-save-rule-preset`, () => {
       const name = prompt('请输入预设名称:');
       if (!name || !name.trim()) return;
       
@@ -500,7 +500,7 @@ Phase 4: 应用黑名单过滤
    */
   _bindTestEvents($container, $) {
     // 测试提取
-    $container.find(`#${SCRIPT_ID}-test-extract`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-test-extract`, () => {
       const text = $container.find(`#${SCRIPT_ID}-test-input`).val();
       
       if (!text || !text.trim()) {
@@ -529,7 +529,7 @@ Phase 4: 应用黑名单过滤
     });
     
     // 清空测试
-    $container.find(`#${SCRIPT_ID}-test-clear`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-test-clear`, () => {
       $container.find(`#${SCRIPT_ID}-test-input`).val('');
       $container.find(`#${SCRIPT_ID}-test-result-container`).hide();
     });
@@ -541,11 +541,11 @@ Phase 4: 应用黑名单过滤
    */
   _bindFileEvents($container, $) {
     // 导入规则
-    $container.find(`#${SCRIPT_ID}-import-rules`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-import-rules`, () => {
       $container.find(`#${SCRIPT_ID}-import-rules-file`).click();
     });
-    
-    $container.find(`#${SCRIPT_ID}-import-rules-file`).on('change', async (e) => {
+
+    $container.on('change.yytRegex', `#${SCRIPT_ID}-import-rules-file`, async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
@@ -567,7 +567,7 @@ Phase 4: 应用黑名单过滤
     });
     
     // 导出规则
-    $container.find(`#${SCRIPT_ID}-export-rules`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-export-rules`, () => {
       try {
         const json = exportRulesConfig();
         downloadJson(json, `youyou_toolkit_rules_${Date.now()}.json`);
@@ -578,7 +578,7 @@ Phase 4: 应用黑名单过滤
     });
     
     // 重置规则
-    $container.find(`#${SCRIPT_ID}-reset-rules`).on('click', () => {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-reset-rules`, () => {
       if (confirm('确定要重置所有规则吗？这将清空当前的规则配置。')) {
         setTagRules([]);
         setContentBlacklist([]);
@@ -600,7 +600,8 @@ Phase 4: 应用黑名单过滤
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
-    $container.off();
+    destroyEnhancedCustomSelects($container, 'yytRegexSelect');
+    $container.off('.yytRegex');
   },
   
   // ============================================================

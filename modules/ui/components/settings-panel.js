@@ -7,7 +7,7 @@
 import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { settingsService, DEFAULT_SETTINGS } from '../../core/settings-service.js';
 import { variableResolver } from '../../variable-resolver.js';
-import { showToast, getJQuery, isContainerValid } from '../utils.js';
+import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuery, isContainerValid } from '../utils.js';
 
 // ============================================================
 // 主题配置
@@ -469,6 +469,14 @@ export const SettingsPanel = {
         showToast('success', '设置已重置');
       }
     });
+
+    enhanceNativeSelects($container, {
+      namespace: 'yytSettingsSelect',
+      selectors: [
+        '#yyt-setting-queueStrategy',
+        '#yyt-setting-theme'
+      ]
+    });
   },
 
   _saveSettings($container) {
@@ -514,6 +522,7 @@ export const SettingsPanel = {
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
+    destroyEnhancedCustomSelects($container, 'yytSettingsSelect');
     $container.off('.yytSettings');
   },
 

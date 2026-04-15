@@ -3,6 +3,8 @@
  * @description 负责主弹窗、主/子标签切换以及内容装配
  */
 
+import { destroyEnhancedCustomSelects, enhanceNativeSelects } from '../ui/utils.js';
+
 export function createPopupShell(context) {
   const { constants, topLevelWindow, modules, caches, uiState } = context;
   const { SCRIPT_ID, SCRIPT_VERSION, POPUP_ID } = constants;
@@ -489,6 +491,13 @@ export function createPopupShell(context) {
     cleanupPopupDrag();
     cleanupScrollableSurfaces();
 
+    const $ = getJQuery();
+    if ($ && uiState.currentPopup) {
+      const $popup = $(uiState.currentPopup);
+      destroyEnhancedCustomSelects($popup, 'yytPopupToolConfigSelect');
+      destroyEnhancedCustomSelects($popup, 'yytPromptEditorSelect');
+    }
+
     if (uiState.currentPopup) {
       uiState.currentPopup.remove();
       uiState.currentPopup = null;
@@ -909,6 +918,11 @@ export function createPopupShell(context) {
         </div>
       </div>
     `);
+
+    enhanceNativeSelects($container, {
+      namespace: 'yytPopupToolConfigSelect',
+      selectors: ['#yyt-tool-api-preset']
+    });
 
     $container.find('#yyt-save-tool-preset').on('click', function onSavePresetClick() {
       const presetName = $container.find('#yyt-tool-api-preset').val();

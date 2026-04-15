@@ -3,6 +3,8 @@
  * @description 提供三段式提示词编辑器（System/AI/User），支持展开/折叠、导入/导出
  */
 
+import { destroyEnhancedCustomSelects, enhanceNativeSelects } from './ui/utils.js';
+
 // ============================================================
 // 常量定义
 // ============================================================
@@ -235,8 +237,11 @@ export class PromptEditor {
   bindEvents() {
     if (!this.$container) return;
 
+    destroyEnhancedCustomSelects(this.$container, 'yytPromptEditorSelect');
+    this.$container.off('.yytPromptEditor');
+
     // 展开/折叠
-    this.$container.find('.yyt-prompt-toggle').on('click', (e) => {
+    this.$container.on('click.yytPromptEditor', '.yyt-prompt-toggle', (e) => {
       const $segment = this.$(e.currentTarget).closest('.yyt-prompt-segment');
       $segment.toggleClass('yyt-expanded');
       const $icon = this.$(e.currentTarget).find('i');
@@ -244,45 +249,50 @@ export class PromptEditor {
     });
 
     // 删除段落
-    this.$container.find('.yyt-prompt-delete').on('click', (e) => {
+    this.$container.on('click.yytPromptEditor', '.yyt-prompt-delete', (e) => {
       const segmentId = this.$(e.currentTarget).closest('.yyt-prompt-segment').data('segment-id');
       this.deleteSegment(segmentId);
     });
 
     // 角色变化
-    this.$container.find('.yyt-prompt-role').on('change', (e) => {
+    this.$container.on('change.yytPromptEditor', '.yyt-prompt-role', (e) => {
       const segmentId = this.$(e.currentTarget).closest('.yyt-prompt-segment').data('segment-id');
       const role = this.$(e.currentTarget).val();
       this.updateSegmentMeta(segmentId, { role });
     });
 
     // Main Slot变化
-    this.$container.find('.yyt-prompt-main-slot').on('change', (e) => {
+    this.$container.on('change.yytPromptEditor', '.yyt-prompt-main-slot', (e) => {
       const segmentId = this.$(e.currentTarget).closest('.yyt-prompt-segment').data('segment-id');
       const mainSlot = this.$(e.currentTarget).val();
       this.updateSegmentMeta(segmentId, { mainSlot });
     });
 
     // 内容变化
-    this.$container.find('.yyt-prompt-textarea').on('input', (e) => {
+    this.$container.on('input.yytPromptEditor', '.yyt-prompt-textarea', (e) => {
       if (this.onChange) {
         this.onChange(this.getSegments());
       }
     });
 
     // 添加段落
-    this.$container.find(`#${this.containerId}-add-segment`).on('click', () => {
+    this.$container.on('click.yytPromptEditor', `#${this.containerId}-add-segment`, () => {
       this.addSegment();
     });
 
     // 导入
-    this.$container.find(`#${this.containerId}-import-prompt`).on('click', () => {
+    this.$container.on('click.yytPromptEditor', `#${this.containerId}-import-prompt`, () => {
       this.importPrompt();
     });
 
     // 导出
-    this.$container.find(`#${this.containerId}-export-prompt`).on('click', () => {
+    this.$container.on('click.yytPromptEditor', `#${this.containerId}-export-prompt`, () => {
       this.exportPrompt();
+    });
+
+    enhanceNativeSelects(this.$container, {
+      namespace: 'yytPromptEditorSelect',
+      selectors: ['.yyt-prompt-role', '.yyt-prompt-main-slot']
     });
   }
 
@@ -393,14 +403,20 @@ export class PromptEditor {
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = `prompt_group_${Date.now()}.json`;
     a.click();
-    
+
     URL.revokeObjectURL(url);
     console.log('[PromptEditor] 提示词已导出');
+  }
+
+  destroy() {
+    if (!this.$container) return;
+    destroyEnhancedCustomSelects(this.$container, 'yytPromptEditorSelect');
+    this.$container.off('.yytPromptEditor');
   }
 
   /**

@@ -10,6 +10,13 @@
 
 export const SCRIPT_ID = 'youyou_toolkit';
 
+export function getTargetDocument() {
+  if (typeof window.parent !== 'undefined' && window.parent !== window && window.parent.document) {
+    return window.parent.document;
+  }
+  return document;
+}
+
 // ============================================================
 // HTML转义
 // ============================================================
@@ -83,9 +90,7 @@ export function showTopNotice(type, message, options = {}) {
     noticeId = ''
   } = options;
 
-  const targetDoc = (typeof window.parent !== 'undefined' && window.parent !== window)
-    ? window.parent.document
-    : document;
+  const targetDoc = getTargetDocument();
 
   if (!targetDoc?.body) {
     showToast(type, message, duration);
@@ -290,9 +295,7 @@ export function showTopNotice(type, message, options = {}) {
  * @private
  */
 function _showFallbackToast(type, message, duration) {
-  const targetDoc = (typeof window.parent !== 'undefined' && window.parent !== window) 
-    ? window.parent.document 
-    : document;
+  const targetDoc = getTargetDocument();
   
   if (!targetDoc) {
     return;
@@ -415,6 +418,459 @@ export function resetJQueryCache() {
  */
 export function isContainerValid($container) {
   return $container && $container.length > 0;
+}
+
+// ============================================================
+// 自定义下拉框
+// ============================================================
+
+function mergeClassNames(...values) {
+  return values
+    .flat(Infinity)
+    .flatMap((value) => String(value || '').split(/\s+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+function buildAttributeString(attributes = {}) {
+  return Object.entries(attributes)
+    .filter(([, value]) => value !== undefined && value !== null && value !== false)
+    .map(([key, value]) => {
+      if (value === true) {
+        return key;
+      }
+      return `${key}="${escapeHtml(String(value))}"`;
+    })
+    .join(' ');
+}
+
+function resolveSelectedOption(options = [], selectedValue = '', placeholder = '') {
+  const resolvedValue = String(selectedValue ?? '');
+  const selectedOption = options.find((option) => option.value === resolvedValue)
+    || options.find((option) => option.disabled !== true)
+    || null;
+
+  if (selectedOption) {
+    return selectedOption;
+  }
+
+  return {
+    value: resolvedValue,
+    label: placeholder || resolvedValue || '请选择',
+    disabled: false
+  };
+}
+
+function extractSelectClasses(className = '') {
+  return String(className || '')
+    .split(/\s+/)
+    .map((value) => value.trim())
+    .filter((value) => value && value !== 'yyt-select' && value !== 'yyt-native-select-bridge');
+}
+
+function getCustomSelectRoot($container, $native) {
+  const $ = getJQuery();
+  if (!$ || !$native?.length) {
+    return null;
+  }
+
+  const targetSelector = $native.attr('id')
+    ? `#${$native.attr('id')}`
+    : ($native.attr('data-yyt-select-key') ? `[data-yyt-select-key="${$native.attr('data-yyt-select-key')}"]` : '');
+
+  if (!targetSelector) {
+    return null;
+  }
+
+  const $roots = $container.find('[data-yyt-custom-select]');
+  const $root = $roots.filter((_, element) => String($(element).attr('data-yyt-select-target') || '') === targetSelector);
+  return $root.length ? $root.first() : null;
+}
+
+function resolveCustomSelectEventDocument($container) {
+  const containerElement = $container?.[0];
+  if (containerElement?.ownerDocument) {
+    return containerElement.ownerDocument;
+  }
+
+  if (typeof window.parent !== 'undefined' && window.parent !== window && window.parent.document) {
+    return window.parent.document;
+  }
+
+  return document;
+}
+
+function resolveCustomSelectRoots($container) {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container)) {
+    return null;
+  }
+
+  const $roots = $container.find('[data-yyt-custom-select]');
+  return $roots.length ? $roots : null;
+}
+
+function resolveCustomSelectNative($container, $root) {
+  const $ = getJQuery();
+  if (!$ || !$root?.length) {
+    return null;
+  }
+
+  const $embeddedNative = $root.find('[data-yyt-select-native]').first();
+  if ($embeddedNative.length) {
+    return $embeddedNative;
+  }
+
+  const targetSelector = String($root.attr('data-yyt-select-target') || '').trim();
+  if (!targetSelector) {
+    return null;
+  }
+
+  const $native = $container.find(targetSelector).first();
+  return $native.length ? $native : null;
+}
+
+function updateCustomSelectUi($container, $root, $native = null) {
+  const $ = getJQuery();
+  if (!$ || !$root?.length) {
+    return;
+  }
+
+  const $resolvedNative = $native || resolveCustomSelectNative($container, $root);
+  if (!$resolvedNative?.length) {
+    return;
+  }
+
+  const options = Array.isArray($resolvedNative.data('yytCustomSelectOptions'))
+    ? $resolvedNative.data('yytCustomSelectOptions')
+    : [];
+  const selectedOption = resolveSelectedOption(options, $resolvedNative.val(), $root.attr('data-yyt-select-placeholder') || '');
+  const selectedValue = String(selectedOption.value ?? '');
+  const selectedLabel = String(selectedOption.label ?? '');
+  const disabled = $resolvedNative.is(':disabled');
+
+  $root.find('.yyt-select-value')
+    .text(selectedLabel)
+    .attr('data-value', selectedValue)
+    .data('value', selectedValue);
+
+  $root.find('[data-yyt-select-option]').each((_, element) => {
+    const $option = $(element);
+    const isSelected = String($option.attr('data-value') || '') === selectedValue;
+    $option.toggleClass('yyt-selected', isSelected).attr('aria-selected', String(isSelected));
+  });
+
+  const $trigger = $root.find('[data-yyt-select-trigger]').first();
+  $trigger.prop('disabled', disabled);
+  if (disabled) {
+    $root.removeClass('yyt-open');
+    $trigger.attr('aria-expanded', 'false');
+  }
+}
+
+export function normalizeCustomSelectOptions(options = []) {
+  return Array.isArray(options)
+    ? options.map((option) => {
+      if (option && typeof option === 'object' && !Array.isArray(option)) {
+        const optionValue = String(option.value ?? '');
+        const optionLabel = String(option.label ?? option.text ?? option.name ?? optionValue);
+        return {
+          value: optionValue,
+          label: optionLabel,
+          disabled: option.disabled === true
+        };
+      }
+
+      const optionValue = String(option ?? '');
+      return {
+        value: optionValue,
+        label: optionValue,
+        disabled: false
+      };
+    })
+    : [];
+}
+
+export function renderCustomSelectControl(config = {}) {
+  const {
+    selectedValue = '',
+    options = [],
+    placeholder = '请选择',
+    disabled = false,
+    includeNative = true,
+    nativeTag = 'input',
+    nativeType = 'hidden',
+    rootAttributes = {},
+    nativeAttributes = {},
+    triggerAttributes = {},
+    dropdownAttributes = {},
+    optionAttributes = {},
+    optionClass = '',
+    optionTextClass = ''
+  } = config;
+
+  const normalizedOptions = normalizeCustomSelectOptions(options);
+  const selectedOption = resolveSelectedOption(normalizedOptions, selectedValue, placeholder);
+  const resolvedDisabled = disabled === true || normalizedOptions.length === 0;
+
+  const rootAttributeString = buildAttributeString({
+    ...rootAttributes,
+    class: mergeClassNames('yyt-custom-select', rootAttributes.class),
+    'data-yyt-custom-select': rootAttributes['data-yyt-custom-select'] ?? 'true',
+    'data-yyt-select-placeholder': placeholder
+  });
+
+  const triggerAttributeString = buildAttributeString({
+    type: 'button',
+    ...triggerAttributes,
+    class: mergeClassNames('yyt-select-trigger', triggerAttributes.class),
+    'data-yyt-select-trigger': triggerAttributes['data-yyt-select-trigger'] ?? 'true',
+    'aria-haspopup': triggerAttributes['aria-haspopup'] ?? 'listbox',
+    'aria-expanded': triggerAttributes['aria-expanded'] ?? 'false',
+    disabled: resolvedDisabled ? true : triggerAttributes.disabled
+  });
+
+  const dropdownAttributeString = buildAttributeString({
+    ...dropdownAttributes,
+    class: mergeClassNames('yyt-select-dropdown', dropdownAttributes.class),
+    'data-yyt-select-dropdown': dropdownAttributes['data-yyt-select-dropdown'] ?? 'true',
+    role: dropdownAttributes.role ?? 'listbox'
+  });
+
+  const nativeMarkup = includeNative
+    ? (() => {
+        const commonAttributes = {
+          ...nativeAttributes,
+          class: mergeClassNames(nativeAttributes.class),
+          'data-yyt-select-native': nativeAttributes['data-yyt-select-native'] ?? 'true',
+          disabled: resolvedDisabled ? true : nativeAttributes.disabled
+        };
+
+        if (nativeTag === 'select') {
+          const nativeAttributeString = buildAttributeString(commonAttributes);
+          return `<select ${nativeAttributeString}>${normalizedOptions.map((option) => `
+            <option value="${escapeHtml(option.value)}" ${option.value === String(selectedOption.value ?? '') ? 'selected' : ''} ${option.disabled ? 'disabled' : ''}>${escapeHtml(option.label)}</option>
+          `).join('')}</select>`;
+        }
+
+        const nativeAttributeString = buildAttributeString({
+          type: nativeType,
+          value: selectedOption.value,
+          ...commonAttributes
+        });
+        return `<input ${nativeAttributeString}>`;
+      })()
+    : '';
+
+  return `
+    <div ${rootAttributeString}>
+      ${nativeMarkup}
+      <button ${triggerAttributeString}>
+        <span class="${escapeHtml(mergeClassNames('yyt-select-value'))}" data-value="${escapeHtml(selectedOption.value)}">${escapeHtml(selectedOption.label)}</span>
+        <i class="fa-solid fa-chevron-down yyt-select-arrow"></i>
+      </button>
+      <div ${dropdownAttributeString}>
+        ${normalizedOptions.map((option) => {
+          const isSelected = option.value === String(selectedOption.value ?? '');
+          const optionAttributeString = buildAttributeString({
+            type: 'button',
+            ...optionAttributes,
+            class: mergeClassNames('yyt-select-option', optionClass, optionAttributes.class, isSelected ? 'yyt-selected' : ''),
+            'data-yyt-select-option': optionAttributes['data-yyt-select-option'] ?? 'true',
+            'data-value': option.value,
+            role: optionAttributes.role ?? 'option',
+            'aria-selected': isSelected ? 'true' : 'false',
+            disabled: option.disabled ? true : optionAttributes.disabled
+          });
+          return `
+            <button ${optionAttributeString}>
+              <span class="${escapeHtml(mergeClassNames('yyt-option-text', optionTextClass))}">${escapeHtml(option.label)}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+export function destroyEnhancedCustomSelects($container, namespace = 'yytCustomSelect') {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container)) {
+    return;
+  }
+
+  const eventDocument = resolveCustomSelectEventDocument($container);
+
+  $container.off(`.${namespace}`);
+  $(eventDocument).off(`click.${namespace}`);
+
+  $container.find('[data-yyt-enhanced-select="true"]').remove();
+  $container.find('.yyt-native-select-bridge').each((_, element) => {
+    const $native = $(element);
+    const originalStyle = $native.attr('data-yyt-original-style');
+    if (originalStyle !== undefined) {
+      if (originalStyle) {
+        $native.attr('style', originalStyle);
+      } else {
+        $native.removeAttr('style');
+      }
+    } else {
+      $native.removeAttr('style');
+    }
+
+    $native
+      .removeClass('yyt-native-select-bridge')
+      .removeAttr('data-yyt-original-style')
+      .removeAttr('data-yyt-select-key')
+      .removeData('yytCustomSelectOptions');
+  });
+}
+
+export function enhanceNativeSelects($container, config = {}) {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container)) {
+    return;
+  }
+
+  const {
+    namespace = 'yytCustomSelect',
+    selectors = []
+  } = config;
+  const selectorList = Array.isArray(selectors) ? selectors.filter(Boolean) : [selectors].filter(Boolean);
+  if (selectorList.length === 0) {
+    return;
+  }
+
+  destroyEnhancedCustomSelects($container, namespace);
+
+  const selector = selectorList.join(', ');
+  const eventDocument = resolveCustomSelectEventDocument($container);
+
+  $container.find(selector).each((index, element) => {
+    const $native = $(element);
+    const selectId = String($native.attr('id') || '').trim();
+    const selectKey = selectId || `yyt-select-${Date.now()}-${index}`;
+    const targetSelector = selectId ? `#${selectId}` : `[data-yyt-select-key="${selectKey}"]`;
+    const dropdownId = `${selectKey}-dropdown`;
+    const extraClasses = extractSelectClasses($native.attr('class'));
+    const originalStyle = $native.attr('style');
+    const options = $native.find('option').map((_, optionElement) => {
+      const $option = $(optionElement);
+      return {
+        value: String($option.attr('value') ?? $option.val() ?? ''),
+        label: $option.text(),
+        disabled: $option.is(':disabled')
+      };
+    }).get();
+
+    $native
+      .attr('data-yyt-original-style', originalStyle ?? '')
+      .attr('data-yyt-select-key', selectKey)
+      .addClass('yyt-native-select-bridge')
+      .css('display', 'none')
+      .data('yytCustomSelectOptions', options);
+
+    const customHtml = renderCustomSelectControl({
+      includeNative: false,
+      selectedValue: $native.val(),
+      options,
+      disabled: $native.is(':disabled'),
+      placeholder: options[0]?.label || '请选择',
+      rootAttributes: {
+        class: mergeClassNames(extraClasses),
+        style: originalStyle || undefined,
+        'data-yyt-enhanced-select': 'true',
+        'data-yyt-select-target': targetSelector
+      },
+      triggerAttributes: {
+        id: `${selectKey}-trigger`,
+        'aria-controls': dropdownId
+      },
+      dropdownAttributes: {
+        id: dropdownId
+      }
+    });
+
+    $native.after(customHtml);
+    const $root = getCustomSelectRoot($container, $native);
+    updateCustomSelectUi($container, $root, $native);
+  });
+
+  $container.on(`click.${namespace}`, '[data-yyt-select-trigger]', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const $trigger = $(event.currentTarget);
+    if ($trigger.prop('disabled')) {
+      return;
+    }
+
+    const $root = $trigger.closest('[data-yyt-custom-select]');
+    const isOpen = $root.hasClass('yyt-open');
+
+    $container.find('[data-yyt-custom-select].yyt-open')
+      .not($root)
+      .removeClass('yyt-open')
+      .find('[data-yyt-select-trigger]')
+      .attr('aria-expanded', 'false');
+
+    $root.toggleClass('yyt-open', !isOpen);
+    $trigger.attr('aria-expanded', String(!isOpen));
+  });
+
+  $container.on(`click.${namespace}`, '[data-yyt-select-option]', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const $option = $(event.currentTarget);
+    if ($option.prop('disabled')) {
+      return;
+    }
+
+    const $root = $option.closest('[data-yyt-custom-select]');
+    const $native = resolveCustomSelectNative($container, $root);
+    if (!$native?.length) {
+      return;
+    }
+
+    const value = String($option.attr('data-value') || '');
+    $native.val(value).trigger('change');
+    updateCustomSelectUi($container, $root, $native);
+    $root.removeClass('yyt-open');
+    $root.find('[data-yyt-select-trigger]').attr('aria-expanded', 'false');
+  });
+
+  $container.on(`change.${namespace}`, selector, (event) => {
+    const $native = $(event.currentTarget);
+    const options = $native.find('option').map((_, optionElement) => {
+      const $option = $(optionElement);
+      return {
+        value: String($option.attr('value') ?? $option.val() ?? ''),
+        label: $option.text(),
+        disabled: $option.is(':disabled')
+      };
+    }).get();
+    $native.data('yytCustomSelectOptions', options);
+    const $root = getCustomSelectRoot($container, $native);
+    updateCustomSelectUi($container, $root, $native);
+  });
+
+  $(eventDocument).off(`click.${namespace}`).on(`click.${namespace}`, (event) => {
+    if ($(event.target).closest('[data-yyt-custom-select]').length) {
+      return;
+    }
+
+    const $roots = resolveCustomSelectRoots($container);
+    if (!$roots?.length) {
+      return;
+    }
+
+    $roots.filter('.yyt-open')
+      .removeClass('yyt-open')
+      .find('[data-yyt-select-trigger]')
+      .attr('aria-expanded', 'false');
+  });
 }
 
 // ============================================================

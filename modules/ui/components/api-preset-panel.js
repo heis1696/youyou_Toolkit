@@ -5,16 +5,17 @@
  */
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
-import { 
-  SCRIPT_ID, 
-  escapeHtml, 
-  showToast, 
-  getJQuery, 
+import {
+  SCRIPT_ID,
+  escapeHtml,
+  showToast,
+  getJQuery,
   isContainerValid,
   getFormApiConfig,
   fillFormWithConfig,
   downloadJson,
-  readFileContent
+  readFileContent,
+  getTargetDocument
 } from '../utils.js';
 
 // API和预设管理导入
@@ -402,8 +403,10 @@ export const ApiPresetPanel = {
       }
     });
     
+    const targetDoc = getTargetDocument();
+
     // 点击外部关闭下拉框
-    $(document).on('click.yyt-dropdown', (e) => {
+    $(targetDoc).on('click.yyt-dropdown', (e) => {
       if (!$(e.target).closest($dropdown).length) {
         $dropdown.removeClass('yyt-open');
       }
@@ -758,7 +761,7 @@ export const ApiPresetPanel = {
     if (!$ || !isContainerValid($container)) return;
 
     $container.off();
-    $(document).off('click.yyt-dropdown');
+    $(getTargetDocument()).off('click.yyt-dropdown');
   },
   
   // ============================================================

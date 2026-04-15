@@ -8,7 +8,10 @@ import {
   createDialogHtml,
   escapeHtml,
   getJQuery,
+  getTargetDocument,
   isContainerValid,
+  normalizeCustomSelectOptions,
+  renderCustomSelectControl,
   showToast
 } from '../utils.js';
 import {
@@ -83,8 +86,44 @@ export const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-form-field textarea.yyt-textarea,
   .yyt-table-form-field .yyt-input,
-  .yyt-table-form-field .yyt-select {
+  .yyt-table-form-field .yyt-select,
+  .yyt-table-form-field .yyt-custom-select {
     width: 100%;
+  }
+
+  .yyt-table-form-field button.yyt-select-trigger {
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .yyt-table-form-field button.yyt-select-option {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .yyt-table-form-field button.yyt-select-option:hover {
+    background: rgba(123, 183, 255, 0.1);
+    border-color: rgba(123, 183, 255, 0.14);
+    transform: translateY(-1px);
+  }
+
+  .yyt-table-form-field button.yyt-select-option.yyt-selected {
+    background: linear-gradient(135deg, rgba(123, 183, 255, 0.18) 0%, rgba(123, 183, 255, 0.07) 100%);
+    border-color: rgba(123, 183, 255, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .yyt-table-form-field .yyt-select-dropdown {
+    z-index: 24;
   }
 
   .yyt-table-form-inline-checkbox {
@@ -378,13 +417,39 @@ function getFieldStringValue(field, value) {
   return String(value ?? '');
 }
 
-function renderOptions(options = [], selectedValue = '') {
-  return options.map((option) => {
-    const optionValue = String(option?.value ?? '');
-    const optionLabel = String(option?.label ?? optionValue);
-    const selected = optionValue === String(selectedValue ?? '') ? 'selected' : '';
-    return `<option value="${escapeHtml(optionValue)}" ${selected}>${escapeHtml(optionLabel)}</option>`;
-  }).join('');
+function renderCustomSelect(field = {}, selectedValue = '') {
+  const fieldName = String(field.name || '').trim();
+  const fieldId = `yyt-table-field-${fieldName}`;
+  const valueId = `${fieldId}-value`;
+  const dropdownId = `${fieldId}-dropdown`;
+  const normalizedOptions = normalizeCustomSelectOptions(field.options || []);
+
+  return renderCustomSelectControl({
+    selectedValue,
+    options: normalizedOptions,
+    placeholder: normalizedOptions[0]?.label || '请选择',
+    rootAttributes: {
+      'data-table-custom-select': 'true'
+    },
+    nativeAttributes: {
+      class: 'yyt-table-select-native',
+      id: valueId,
+      'data-table-field': fieldName,
+      'data-field-type': 'select'
+    },
+    triggerAttributes: {
+      id: fieldId,
+      'data-table-select-trigger': 'true',
+      'aria-controls': dropdownId
+    },
+    dropdownAttributes: {
+      id: dropdownId,
+      'data-table-select-dropdown': 'true'
+    },
+    optionAttributes: {
+      'data-table-select-option': 'true'
+    }
+  });
 }
 
 function getRowCellValue(row = {}, column = {}, index = 0) {
@@ -708,9 +773,7 @@ function renderField(field = {}, values = {}) {
     return `
       <div class="yyt-table-form-field" data-table-form-item="${escapeHtml(fieldName)}">
         <label for="yyt-table-field-${escapeHtml(fieldName)}">${label}</label>
-        <select class="yyt-select" id="yyt-table-field-${escapeHtml(fieldName)}" data-table-field="${escapeHtml(fieldName)}" data-field-type="select">
-          ${renderOptions(field.options || [], value)}
-        </select>
+        ${renderCustomSelect(field, value)}
         ${description}
       </div>
     `;
@@ -879,6 +942,46 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
     notifyChange();
   });
 
+  $container.on('click.yytTableForm', '[data-table-select-trigger]', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const $trigger = $(event.currentTarget);
+    const $select = $trigger.closest('[data-table-custom-select]');
+    const isOpen = $select.hasClass('yyt-open');
+
+    $container.find('[data-table-custom-select].yyt-open')
+      .not($select)
+      .removeClass('yyt-open')
+      .find('[data-table-select-trigger]')
+      .attr('aria-expanded', 'false');
+
+    $select.toggleClass('yyt-open', !isOpen);
+    $trigger.attr('aria-expanded', String(!isOpen));
+  });
+
+  $container.on('click.yytTableForm', '[data-table-select-option]', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const $option = $(event.currentTarget);
+    const $select = $option.closest('[data-table-custom-select]');
+    const value = String($option.attr('data-value') || '');
+    const label = $option.find('.yyt-option-text').text();
+
+    $select.find('.yyt-table-select-native').val(value).trigger('change');
+    $select.find('.yyt-select-value').text(label).attr('data-value', value).data('value', value);
+    $select.find('[data-table-select-option]').removeClass('yyt-selected').attr('aria-selected', 'false');
+    $option.addClass('yyt-selected').attr('aria-selected', 'true');
+    $select.removeClass('yyt-open');
+    $select.find('[data-table-select-trigger]').attr('aria-expanded', 'false');
+    notifyChange();
+  });
+
+  $container.on('change.yytTableForm', '[data-table-field][data-field-type="select"]', () => {
+    notifyChange();
+  });
+
   $container.on('change.yytTableForm', '[data-table-definition-root] [data-table-editor-column-key], [data-table-definition-root] [data-table-editor-column-title]', (event) => {
     const $root = $(event.currentTarget).closest('[data-table-definition-root]');
     if (!$root.length) {
@@ -889,6 +992,27 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
     rerenderTableDefinitionsRoot($root, field, readTableDefinitionsDraft($root));
     notifyChange();
   });
+
+  const targetDoc = getTargetDocument();
+
+  $(targetDoc).off('click.yytTableFormSelect').on('click.yytTableFormSelect', (event) => {
+    if (!$(event.target).closest($container).length) {
+      $container.find('[data-table-custom-select].yyt-open')
+        .removeClass('yyt-open')
+        .find('[data-table-select-trigger]')
+        .attr('aria-expanded', 'false');
+    }
+  });
+}
+
+export function destroyTableFormEvents($container) {
+  const $ = getJQuery();
+  if (!$ || !isContainerValid($container)) {
+    return;
+  }
+
+  $container.off('.yytTableForm');
+  $(getTargetDocument()).off('click.yytTableFormSelect');
 }
 
 export function renderTableForm(schema = [], values = {}) {
@@ -963,6 +1087,7 @@ export function readTableFormValues($container, schema = []) {
 export default {
   TABLE_FORM_RENDERER_STYLES,
   bindTableFormEvents,
+  destroyTableFormEvents,
   renderTableForm,
   readTableFormValues
 };

@@ -11,7 +11,9 @@ import {
   getJQuery,
   isContainerValid,
   createDialogHtml,
-  bindDialogEvents
+  bindDialogEvents,
+  destroyEnhancedCustomSelects,
+  enhanceNativeSelects
 } from '../utils.js';
 
 import {
@@ -1107,6 +1109,15 @@ export function createToolConfigPanel(options) {
           showToast('error', error?.message || '测试提取失败');
         }
       });
+
+      enhanceNativeSelects($container, {
+        namespace: 'yytToolPanelSelect',
+        selectors: [
+          `#${SCRIPT_ID}-tool-output-mode`,
+          `#${SCRIPT_ID}-tool-api-preset`,
+          `#${SCRIPT_ID}-tool-bypass-preset`
+        ]
+      });
     },
 
     _saveConfig($container, options = {}) {
@@ -1133,6 +1144,7 @@ export function createToolConfigPanel(options) {
     destroy($container) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
+      destroyEnhancedCustomSelects($container, 'yytToolPanelSelect');
       $container.off('.yytToolPanel');
     },
 

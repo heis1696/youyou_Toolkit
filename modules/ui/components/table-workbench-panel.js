@@ -12,7 +12,7 @@ import {
   showTopNotice
 } from '../utils.js';
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
-import { TABLE_FORM_RENDERER_STYLES, bindTableFormEvents, renderTableForm, readTableFormValues } from './table-form-renderer.js';
+import { TABLE_FORM_RENDERER_STYLES, bindTableFormEvents, destroyTableFormEvents, renderTableForm, readTableFormValues } from './table-form-renderer.js';
 import { variableResolver } from '../../variable-resolver.js';
 import { getAllPresets } from '../../preset-manager.js';
 import {
@@ -585,6 +585,7 @@ export const TableWorkbenchPanel = {
   destroy($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
+    destroyTableFormEvents($container);
     $container.off('.yytTableWorkbench');
   },
 
