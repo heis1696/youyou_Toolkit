@@ -733,45 +733,6 @@ Phase 4: \u5E94\u7528\u9ED1\u540D\u5355\u8FC7\u6EE4
         gap: 12px;
       }
 
-      .yyt-regex-panel .yyt-input,
-      .yyt-regex-panel .yyt-select,
-      .yyt-regex-panel .yyt-textarea {
-        color: var(--yyt-text);
-      }
-
-      .yyt-regex-panel .yyt-input,
-      .yyt-regex-panel .yyt-select,
-      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea),
-      .yyt-regex-panel #${g}-test-input {
-        background: var(--yyt-control-bg);
-        color: var(--yyt-text);
-        border-color: var(--yyt-control-border);
-        box-shadow: var(--yyt-control-shadow);
-      }
-
-      .yyt-regex-panel .yyt-input:hover,
-      .yyt-regex-panel .yyt-select:hover,
-      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea):hover,
-      .yyt-regex-panel #${g}-test-input:hover {
-        background: var(--yyt-control-bg-hover);
-        border-color: var(--yyt-control-border-hover);
-        box-shadow: var(--yyt-control-shadow-hover);
-      }
-
-      .yyt-regex-panel .yyt-input:focus,
-      .yyt-regex-panel .yyt-select:focus,
-      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea):focus,
-      .yyt-regex-panel .yyt-input:focus-visible,
-      .yyt-regex-panel .yyt-select:focus-visible,
-      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea):focus-visible,
-      .yyt-regex-panel #${g}-test-input:focus,
-      .yyt-regex-panel #${g}-test-input:focus-visible {
-        background: var(--yyt-control-bg-focus);
-        color: var(--yyt-text);
-        border-color: var(--yyt-control-border-focus);
-        box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
-      }
-
       .yyt-test-result {
         background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
         border: 1px solid var(--yyt-border);
@@ -3443,7 +3404,7 @@ ${yu}`.trim()}function Hi(t={}){return{id:"tableWorkbench",name:"\u586B\u8868\u5
   .yyt-table-form-field button.yyt-select-option {
     width: 100%;
     border: 1px solid transparent;
-    background: transparent;
+    background: linear-gradient(180deg, #1c2737 0%, #151e2c 100%);
     color: inherit;
     text-align: left;
     font: inherit;
@@ -3452,15 +3413,15 @@ ${yu}`.trim()}function Hi(t={}){return{id:"tableWorkbench",name:"\u586B\u8868\u5
   }
 
   .yyt-table-form-field button.yyt-select-option:hover {
-    background: rgba(123, 183, 255, 0.1);
-    border-color: rgba(123, 183, 255, 0.14);
+    background: linear-gradient(180deg, #243247 0%, #1a2638 100%);
+    border-color: rgba(123, 183, 255, 0.22);
     transform: translateY(-1px);
   }
 
   .yyt-table-form-field button.yyt-select-option.yyt-selected {
-    background: linear-gradient(135deg, rgba(123, 183, 255, 0.18) 0%, rgba(123, 183, 255, 0.07) 100%);
-    border-color: rgba(123, 183, 255, 0.28);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background: linear-gradient(135deg, rgba(123, 183, 255, 0.28) 0%, rgba(72, 119, 190, 0.22) 100%);
+    border-color: rgba(123, 183, 255, 0.4);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
   .yyt-table-form-field .yyt-select-dropdown {
@@ -6201,4 +6162,4 @@ ${Gi}
           </div>
         </div>
       </div>
-    `,ot=T.createElement("div");ot.innerHTML=dt,a.currentPopup=ot.firstElementChild,T.body.appendChild(a.currentPopup),h(a.currentPopup).find(".yyt-popup-close").on("click",vt),h(a.currentPopup).find(`#${n}-close-btn`).on("click",vt),tt(),h(a.currentPopup).find(".yyt-main-nav-item").on("click",function(){let H=h(this).data("tab");H&&st(H)}),As(),It(a.currentMainTab);let xt=o.toolRegistryModule?.getToolConfig(a.currentMainTab);xt?.hasSubTabs&&(h(a.currentPopup).find(".yyt-sub-nav").show(),Pt(a.currentMainTab,xt.subTabs)),L(),as(S),fe(),f("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Jl,closePopup:vt,switchMainTab:st,switchSubTab:ns,renderTabContent:It,renderSubTabContent:$t}}function Gl(t,e={}){let{constants:s,modules:o}=t,{SCRIPT_ID:r,SCRIPT_VERSION:a}=s,{init:n,loadModules:l,loadLegacyModule:i,addMenuItem:c,popupShell:d}=e;return{version:a,id:r,init:n,openPopup:d?.openPopup,closePopup:d?.closePopup,switchMainTab:d?.switchMainTab,switchSubTab:d?.switchSubTab,addMenuItem:c,getStorage:()=>o.storageModule,getApiConnection:()=>o.apiConnectionModule,getPresetManager:()=>o.presetManagerModule,getUi:()=>o.uiModule,getUiModule:()=>o.uiModule,getUiComponents:()=>o.uiComponentsModule,getRegexExtractor:()=>o.regexExtractorModule,getToolManager:()=>o.toolManagerModule,getToolExecutor:()=>o.toolExecutorModule,getWindowManager:()=>o.windowManagerModule,getToolRegistry:()=>o.toolRegistryModule,getPromptEditor:()=>o.promptEditorModule,getSettingsService:()=>o.settingsServiceModule,getBypassManager:()=>o.bypassManagerModule,getVariableResolver:()=>o.variableResolverModule,getContextInjector:()=>o.contextInjectorModule,getToolPromptService:()=>o.toolPromptServiceModule,getToolOutputService:()=>o.toolOutputServiceModule,getToolAutomationService:()=>o.toolAutomationServiceModule,async loadLegacyModule(u){return typeof i!="function"?null:i(u)},async getApiConfig(){return await l(),o.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(u){return await l(),o.apiConnectionModule?(o.apiConnectionModule.updateApiConfig(u),!0):!1},async getPresets(){return await l(),o.presetManagerModule?o.presetManagerModule.getAllPresets():[]},async sendApiRequest(u,f){if(await l(),o.apiConnectionModule)return o.apiConnectionModule.sendApiRequest(u,f);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await l(),o.apiConnectionModule?o.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(u,f){return o.toolRegistryModule?.registerTool(u,f)||!1},unregisterTool(u){return o.toolRegistryModule?.unregisterTool(u)||!1},getToolList(){return o.toolRegistryModule?.getToolList()||[]},createWindow(u){return o.windowManagerModule?.createWindow(u)||null},closeWindow(u){o.windowManagerModule?.closeWindow(u)},startAutomation(){return o.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){o.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return o.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},async processCurrentAssistantMessage(u={}){return o.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(u)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var po="youyou_toolkit",Cy="1.0.37",Py=`${po}-menu-item`,Iy=`${po}-menu-container`,$y=`${po}-popup`,Ry=typeof window.parent<"u"?window.parent:window,go={constants:{SCRIPT_ID:po,SCRIPT_VERSION:Cy,MENU_ITEM_ID:Py,MENU_CONTAINER_ID:Iy,POPUP_ID:$y},topLevelWindow:Ry,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,uiComponentsModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,promptEditorModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null,loadLegacyModule:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"apiPresets",currentSubTab:{}}},Vl=ql(go),os=Yl(go,{openPopup:Vl.openPopup});go.services.loadModules=os.loadModules;go.services.loadLegacyModule=os.loadLegacyModule;var Xa=Gl(go,{init:os.init,loadModules:os.loadModules,loadLegacyModule:os.loadLegacyModule,addMenuItem:os.addMenuItem,popupShell:Vl});if(typeof window<"u"&&(window.YouYouToolkit=Xa,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Xa}catch{}var Qf=Xa;os.init();console.log(`[${po}] \u6A21\u5757\u52A0\u8F7D\u5B8C\u6210`);export{Qf as default};
+    `,ot=T.createElement("div");ot.innerHTML=dt,a.currentPopup=ot.firstElementChild,T.body.appendChild(a.currentPopup),h(a.currentPopup).find(".yyt-popup-close").on("click",vt),h(a.currentPopup).find(`#${n}-close-btn`).on("click",vt),tt(),h(a.currentPopup).find(".yyt-main-nav-item").on("click",function(){let H=h(this).data("tab");H&&st(H)}),As(),It(a.currentMainTab);let xt=o.toolRegistryModule?.getToolConfig(a.currentMainTab);xt?.hasSubTabs&&(h(a.currentPopup).find(".yyt-sub-nav").show(),Pt(a.currentMainTab,xt.subTabs)),L(),as(S),fe(),f("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Jl,closePopup:vt,switchMainTab:st,switchSubTab:ns,renderTabContent:It,renderSubTabContent:$t}}function Gl(t,e={}){let{constants:s,modules:o}=t,{SCRIPT_ID:r,SCRIPT_VERSION:a}=s,{init:n,loadModules:l,loadLegacyModule:i,addMenuItem:c,popupShell:d}=e;return{version:a,id:r,init:n,openPopup:d?.openPopup,closePopup:d?.closePopup,switchMainTab:d?.switchMainTab,switchSubTab:d?.switchSubTab,addMenuItem:c,getStorage:()=>o.storageModule,getApiConnection:()=>o.apiConnectionModule,getPresetManager:()=>o.presetManagerModule,getUi:()=>o.uiModule,getUiModule:()=>o.uiModule,getUiComponents:()=>o.uiComponentsModule,getRegexExtractor:()=>o.regexExtractorModule,getToolManager:()=>o.toolManagerModule,getToolExecutor:()=>o.toolExecutorModule,getWindowManager:()=>o.windowManagerModule,getToolRegistry:()=>o.toolRegistryModule,getPromptEditor:()=>o.promptEditorModule,getSettingsService:()=>o.settingsServiceModule,getBypassManager:()=>o.bypassManagerModule,getVariableResolver:()=>o.variableResolverModule,getContextInjector:()=>o.contextInjectorModule,getToolPromptService:()=>o.toolPromptServiceModule,getToolOutputService:()=>o.toolOutputServiceModule,getToolAutomationService:()=>o.toolAutomationServiceModule,async loadLegacyModule(u){return typeof i!="function"?null:i(u)},async getApiConfig(){return await l(),o.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(u){return await l(),o.apiConnectionModule?(o.apiConnectionModule.updateApiConfig(u),!0):!1},async getPresets(){return await l(),o.presetManagerModule?o.presetManagerModule.getAllPresets():[]},async sendApiRequest(u,f){if(await l(),o.apiConnectionModule)return o.apiConnectionModule.sendApiRequest(u,f);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await l(),o.apiConnectionModule?o.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(u,f){return o.toolRegistryModule?.registerTool(u,f)||!1},unregisterTool(u){return o.toolRegistryModule?.unregisterTool(u)||!1},getToolList(){return o.toolRegistryModule?.getToolList()||[]},createWindow(u){return o.windowManagerModule?.createWindow(u)||null},closeWindow(u){o.windowManagerModule?.closeWindow(u)},startAutomation(){return o.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){o.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return o.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},async processCurrentAssistantMessage(u={}){return o.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(u)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var po="youyou_toolkit",Cy="1.0.38",Py=`${po}-menu-item`,Iy=`${po}-menu-container`,$y=`${po}-popup`,Ry=typeof window.parent<"u"?window.parent:window,go={constants:{SCRIPT_ID:po,SCRIPT_VERSION:Cy,MENU_ITEM_ID:Py,MENU_CONTAINER_ID:Iy,POPUP_ID:$y},topLevelWindow:Ry,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,uiComponentsModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,promptEditorModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null,loadLegacyModule:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"apiPresets",currentSubTab:{}}},Vl=ql(go),os=Yl(go,{openPopup:Vl.openPopup});go.services.loadModules=os.loadModules;go.services.loadLegacyModule=os.loadLegacyModule;var Xa=Gl(go,{init:os.init,loadModules:os.loadModules,loadLegacyModule:os.loadLegacyModule,addMenuItem:os.addMenuItem,popupShell:Vl});if(typeof window<"u"&&(window.YouYouToolkit=Xa,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Xa}catch{}var Qf=Xa;os.init();console.log(`[${po}] \u6A21\u5757\u52A0\u8F7D\u5B8C\u6210`);export{Qf as default};

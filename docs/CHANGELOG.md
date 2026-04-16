@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.38] - 2026-04-16
+
+### 修复
+
+- 🐛 **修复共享下拉展开层与正则提取控件主题可读性问题** (`styles/main.css`, `modules/ui/components/regex-extract-panel.js`, `modules/ui/components/table-form-renderer.js`)
+  - 删除正则提取面板对共享输入控件的重复背景覆盖，恢复规则下拉与测试提取输入区的统一深色主题
+  - 将共享自定义下拉的展开层改为更实的深色底与更强的边框/阴影，避免宿主背景穿透导致选项难以辨认
+  - 同步统一表格工作台里的自定义下拉 option 底色、hover 与 selected 态，避免局部透明覆盖让下拉菜单再次发虚
+
 ## [1.0.37] - 2026-04-16
 
 ### 修复

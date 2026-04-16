@@ -102,7 +102,7 @@ export const TABLE_FORM_RENDERER_STYLES = `
   .yyt-table-form-field button.yyt-select-option {
     width: 100%;
     border: 1px solid transparent;
-    background: transparent;
+    background: linear-gradient(180deg, #1c2737 0%, #151e2c 100%);
     color: inherit;
     text-align: left;
     font: inherit;
@@ -111,15 +111,15 @@ export const TABLE_FORM_RENDERER_STYLES = `
   }
 
   .yyt-table-form-field button.yyt-select-option:hover {
-    background: rgba(123, 183, 255, 0.1);
-    border-color: rgba(123, 183, 255, 0.14);
+    background: linear-gradient(180deg, #243247 0%, #1a2638 100%);
+    border-color: rgba(123, 183, 255, 0.22);
     transform: translateY(-1px);
   }
 
   .yyt-table-form-field button.yyt-select-option.yyt-selected {
-    background: linear-gradient(135deg, rgba(123, 183, 255, 0.18) 0%, rgba(123, 183, 255, 0.07) 100%);
-    border-color: rgba(123, 183, 255, 0.28);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background: linear-gradient(135deg, rgba(123, 183, 255, 0.28) 0%, rgba(72, 119, 190, 0.22) 100%);
+    border-color: rgba(123, 183, 255, 0.4);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
   .yyt-table-form-field .yyt-select-dropdown {
