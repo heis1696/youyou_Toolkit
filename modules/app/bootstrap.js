@@ -983,12 +983,12 @@ export function createBootstrap(context, options = {}) {
       .yyt-textarea {
         min-height: 42px;
         padding: 11px 15px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 14px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.028) 100%);
+        border: 1px solid var(--yyt-control-border);
+        border-radius: var(--yyt-control-radius);
+        background: var(--yyt-control-bg);
         color: var(--yyt-text);
         font-size: 13px;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 8px 18px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--yyt-control-shadow);
       }
 
       .yyt-input:focus,
@@ -998,14 +998,166 @@ export function createBootstrap(context, options = {}) {
       .yyt-select:focus-visible,
       .yyt-textarea:focus-visible {
         outline: none;
-        border-color: rgba(123, 183, 255, 0.8);
-        background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
-        box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(11, 20, 34, 0.18);
+        border-color: var(--yyt-control-border-focus);
+        background: var(--yyt-control-bg-focus);
+        box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
       }
 
       .yyt-input::placeholder,
       .yyt-textarea::placeholder {
         color: rgba(255, 255, 255, 0.42);
+      }
+
+      .yyt-custom-select {
+        position: relative;
+        isolation: isolate;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .yyt-select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 42px;
+        padding: 11px 15px;
+        border: 1px solid var(--yyt-control-border);
+        border-radius: var(--yyt-control-radius);
+        background: var(--yyt-control-bg) !important;
+        background-image: none !important;
+        color: var(--yyt-text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, transform 0.22s ease;
+        box-shadow: var(--yyt-control-shadow);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
+      .yyt-select-trigger:hover {
+        border-color: var(--yyt-control-border-hover);
+        background: var(--yyt-control-bg-hover) !important;
+        background-image: none !important;
+        box-shadow: var(--yyt-control-shadow-hover);
+      }
+
+      .yyt-custom-select.yyt-open .yyt-select-trigger {
+        border-color: var(--yyt-control-border-focus);
+        background: var(--yyt-control-bg-focus) !important;
+        background-image: none !important;
+        box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
+      }
+
+      .yyt-select-value {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .yyt-select-arrow {
+        color: rgba(255, 255, 255, 0.52);
+        transition: transform 0.2s ease, color 0.2s ease;
+        margin-left: 8px;
+      }
+
+      .yyt-custom-select.yyt-open .yyt-select-arrow {
+        transform: rotate(180deg);
+        color: var(--yyt-accent-strong);
+      }
+
+      .yyt-select-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        max-height: 0;
+        overflow: hidden;
+        padding: 0;
+        background: #121a26 !important;
+        background-image: none !important;
+        border: 1px solid rgba(146, 173, 212, 0.32);
+        border-radius: 18px;
+        box-shadow: 0 24px 44px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(8, 12, 18, 0.82);
+        z-index: 3200;
+        opacity: 0;
+        transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
+      .yyt-custom-select.yyt-open .yyt-select-dropdown {
+        max-height: 320px;
+        overflow-y: auto;
+        opacity: 1;
+        padding: 8px;
+      }
+
+      .yyt-select-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+        border: 1px solid transparent;
+        border-radius: 13px;
+        margin: 0;
+        background: #192334 !important;
+        background-image: none !important;
+        color: var(--yyt-text);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
+      .yyt-select-option:hover {
+        background: #233249 !important;
+        background-image: none !important;
+        border-color: rgba(123, 183, 255, 0.22);
+        transform: translateY(-1px);
+      }
+
+      .yyt-select-option.yyt-selected {
+        background: #2a3f60 !important;
+        background-image: none !important;
+        border-color: rgba(123, 183, 255, 0.4);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      .yyt-option-star,
+      .yyt-option-delete {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 26px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: #1b2535 !important;
+        color: var(--yyt-text-muted);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .yyt-option-star:hover {
+        color: var(--yyt-accent);
+        background: #243249 !important;
+        border-color: rgba(123, 183, 255, 0.18);
+      }
+
+      .yyt-option-delete:hover {
+        color: #fca5a5;
+        background: #3a2025 !important;
+        border-color: rgba(239, 68, 68, 0.18);
+      }
+
+      .yyt-option-star.yyt-starred {
+        color: #fbbf24;
+        background: #3b3120 !important;
+        border-color: rgba(251, 191, 36, 0.2);
       }
 
       .yyt-textarea {

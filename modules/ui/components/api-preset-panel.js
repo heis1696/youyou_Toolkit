@@ -872,7 +872,7 @@ export const ApiPresetPanel = {
 
       .yyt-option-star.yyt-starred:hover {
         color: #fcd34d;
-        background: rgba(251, 191, 36, 0.18);
+        background: #4a3c22;
         border-color: rgba(251, 191, 36, 0.26);
       }
     `;

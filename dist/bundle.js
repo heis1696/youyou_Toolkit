@@ -446,7 +446,7 @@ var tc=Object.defineProperty;var D=(t,e)=>()=>(t&&(e=t(t=0)),e);var ie=(t,e)=>{f
 
       .yyt-option-star.yyt-starred:hover {
         color: #fcd34d;
-        background: rgba(251, 191, 36, 0.18);
+        background: #4a3c22;
         border-color: rgba(251, 191, 36, 0.26);
       }
     `},renderTo(t){let e=this.render({});t.html(e),this.bindEvents(t,{})}}});var Mn={};ie(Mn,{MESSAGE_MACROS:()=>kn,addTagRule:()=>ds,createRuleTemplate:()=>Tn,default:()=>Lc,deleteRulePreset:()=>En,deleteRuleTemplate:()=>_n,deleteTagRule:()=>ko,escapeRegex:()=>Ft,exportRulesConfig:()=>Io,extractComplexTag:()=>hn,extractCurlyBraceTag:()=>Zr,extractHtmlFormatTag:()=>vn,extractSimpleTag:()=>Qr,extractTagContent:()=>Kt,generateTagSuggestions:()=>Eo,getAllRulePresets:()=>Co,getAllRuleTemplates:()=>xn,getContentBlacklist:()=>Ht,getRuleTemplate:()=>wn,getTagRules:()=>ft,importRulesConfig:()=>$o,isValidTagName:()=>Xr,loadRulePreset:()=>Po,saveRulesAsPreset:()=>Mo,scanTextForTags:()=>_o,setContentBlacklist:()=>Us,setTagRules:()=>Ao,shouldSkipContent:()=>Jr,testRegex:()=>An,updateRuleTemplate:()=>Sn,updateTagRule:()=>us});function Oc(){return{apiConfig:{url:"",apiKey:"",model:"",useMainApi:!0,max_tokens:4096,temperature:.7,top_p:.9},currentPreset:"",uiSettings:{theme:"dark",lastTab:"api"},ruleTemplates:[...Vr],tagRules:[],contentBlacklist:[],tagRulePresets:{}}}function Pe(){return _.get(bn,Oc())}function rt(t){_.set(bn,t)}function So(){let t=Pe();return xe=t.ruleTemplates||[...Vr],se=t.tagRules||[],Me=t.contentBlacklist||[],{ruleTemplates:xe,tagRules:se,contentBlacklist:Me}}function Ft(t){return typeof t!="string"?"":t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function Jr(t,e){if(!e||e.length===0||!t||typeof t!="string")return!1;let s=t.toLowerCase();return e.some(o=>{let r=o.trim().toLowerCase();return r&&s.includes(r)})}function Xr(t){return!t||typeof t!="string"?!1:/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(t)&&!Dc.includes(t.toLowerCase())}function Qr(t,e){if(!t||!e)return[];let s=[],o=Ft(e),r=new RegExp(`<${o}>([\\s\\S]*?)<\\/${o}>`,"gi");[...t.matchAll(r)].forEach(i=>{i[1]&&s.push(i[1].trim())});let n=(t.match(new RegExp(`<${o}>`,"gi"))||[]).length,l=(t.match(new RegExp(`<\\/${o}>`,"gi"))||[]).length;return n>l&&console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${n-l} \u4E2A\u672A\u95ED\u5408\u7684 <${e}> \u6807\u7B7E`),s}function Zr(t,e){if(!t||!e)return[];let s=[],o=Ft(e),r=new RegExp(`\\{${o}\\|`,"gi"),a;for(;(a=r.exec(t))!==null;){let n=a.index,l=n+a[0].length,i=1,c=l;for(;c<t.length&&i>0;)t[c]==="{"?i++:t[c]==="}"&&i--,c++;if(i===0){let d=t.substring(l,c-1);d.trim()&&s.push(d.trim())}r.lastIndex=n+1}return s}function hn(t,e){if(!t||!e)return[];let s=e.split(",");if(s.length!==2)return console.error(`[YouYouToolkit] \u590D\u6742\u6807\u7B7E\u914D\u7F6E\u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u8BE5\u5305\u542B\u4E00\u4E2A\u9017\u53F7: ${e}`),[];let o=s[0].trim(),r=s[1].trim(),a=r.match(/<\/(\w+)>/);if(!a)return console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790\u7ED3\u675F\u6807\u7B7E: ${r}`),[];let n=a[1],l=new RegExp(`${Ft(o)}([\\s\\S]*?)<\\/${n}>`,"gi"),i=[];return[...t.matchAll(l)].forEach(d=>{d[1]&&i.push(d[1].trim())}),i}function vn(t,e){if(!t||!e)return[];let s=e.match(/<(\w+)(?:\s[^>]*)?>/);if(!s)return console.error(`[YouYouToolkit] \u65E0\u6CD5\u89E3\u6790HTML\u683C\u5F0F\u6807\u7B7E: ${e}`),[];let o=s[1],r=[],a=new RegExp(`<${o}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${o}>`,"gi");[...t.matchAll(a)].forEach(c=>{c[1]&&r.push(c[1].trim())});let l=(t.match(new RegExp(`<${o}(?:\\s[^>]*)?>`,"gi"))||[]).length,i=(t.match(new RegExp(`<\\/${o}>`,"gi"))||[]).length;return l>i&&console.warn(`[YouYouToolkit] \u8B66\u544A: \u53D1\u73B0 ${l-i} \u4E2A\u672A\u95ED\u5408\u7684 <${o}> \u6807\u7B7E`),r}function Kt(t,e,s=[]){if(!t)return"";if(!e||e.length===0)return t;let o=e.filter(d=>d.type==="exclude"&&d.enabled),r=e.filter(d=>(d.type==="include"||d.type==="regex_include")&&d.enabled),a=e.filter(d=>d.type==="regex_exclude"&&d.enabled),n=t;for(let d of o)try{let u=new RegExp(`<${Ft(d.value)}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${Ft(d.value)}>`,"gi");n=n.replace(u,"")}catch(u){console.error("[YouYouToolkit] Error applying block exclusion rule:",{rule:d,error:u})}let l=[];if(r.length>0)for(let d of r){let u=[];try{if(d.type==="include")u.push(...Qr(n,d.value)),u.push(...Zr(n,d.value));else if(d.type==="regex_include"){let f=new RegExp(d.value,"gi");[...n.matchAll(f)].forEach(m=>{m[1]&&u.push(m[1])})}}catch(f){console.error("[YouYouToolkit] Error applying inclusion rule:",{rule:d,error:f})}u.forEach(f=>l.push(f.trim()))}else l.push(n);let i=[];for(let d of l){for(let u of a)try{let f=new RegExp(u.value,"gi");d=d.replace(f,"")}catch(f){console.error("[YouYouToolkit] Error applying cleanup rule:",{rule:u,error:f})}Jr(d,s)||i.push(d)}return i.join(`
@@ -5685,12 +5685,12 @@ ${Gi}
       .yyt-textarea {
         min-height: 42px;
         padding: 11px 15px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 14px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.028) 100%);
+        border: 1px solid var(--yyt-control-border);
+        border-radius: var(--yyt-control-radius);
+        background: var(--yyt-control-bg);
         color: var(--yyt-text);
         font-size: 13px;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 8px 18px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--yyt-control-shadow);
       }
 
       .yyt-input:focus,
@@ -5700,14 +5700,166 @@ ${Gi}
       .yyt-select:focus-visible,
       .yyt-textarea:focus-visible {
         outline: none;
-        border-color: rgba(123, 183, 255, 0.8);
-        background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
-        box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(11, 20, 34, 0.18);
+        border-color: var(--yyt-control-border-focus);
+        background: var(--yyt-control-bg-focus);
+        box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
       }
 
       .yyt-input::placeholder,
       .yyt-textarea::placeholder {
         color: rgba(255, 255, 255, 0.42);
+      }
+
+      .yyt-custom-select {
+        position: relative;
+        isolation: isolate;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .yyt-select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 42px;
+        padding: 11px 15px;
+        border: 1px solid var(--yyt-control-border);
+        border-radius: var(--yyt-control-radius);
+        background: var(--yyt-control-bg) !important;
+        background-image: none !important;
+        color: var(--yyt-text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, transform 0.22s ease;
+        box-shadow: var(--yyt-control-shadow);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
+      .yyt-select-trigger:hover {
+        border-color: var(--yyt-control-border-hover);
+        background: var(--yyt-control-bg-hover) !important;
+        background-image: none !important;
+        box-shadow: var(--yyt-control-shadow-hover);
+      }
+
+      .yyt-custom-select.yyt-open .yyt-select-trigger {
+        border-color: var(--yyt-control-border-focus);
+        background: var(--yyt-control-bg-focus) !important;
+        background-image: none !important;
+        box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
+      }
+
+      .yyt-select-value {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .yyt-select-arrow {
+        color: rgba(255, 255, 255, 0.52);
+        transition: transform 0.2s ease, color 0.2s ease;
+        margin-left: 8px;
+      }
+
+      .yyt-custom-select.yyt-open .yyt-select-arrow {
+        transform: rotate(180deg);
+        color: var(--yyt-accent-strong);
+      }
+
+      .yyt-select-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        max-height: 0;
+        overflow: hidden;
+        padding: 0;
+        background: #121a26 !important;
+        background-image: none !important;
+        border: 1px solid rgba(146, 173, 212, 0.32);
+        border-radius: 18px;
+        box-shadow: 0 24px 44px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(8, 12, 18, 0.82);
+        z-index: 3200;
+        opacity: 0;
+        transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
+      .yyt-custom-select.yyt-open .yyt-select-dropdown {
+        max-height: 320px;
+        overflow-y: auto;
+        opacity: 1;
+        padding: 8px;
+      }
+
+      .yyt-select-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+        border: 1px solid transparent;
+        border-radius: 13px;
+        margin: 0;
+        background: #192334 !important;
+        background-image: none !important;
+        color: var(--yyt-text);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
+      .yyt-select-option:hover {
+        background: #233249 !important;
+        background-image: none !important;
+        border-color: rgba(123, 183, 255, 0.22);
+        transform: translateY(-1px);
+      }
+
+      .yyt-select-option.yyt-selected {
+        background: #2a3f60 !important;
+        background-image: none !important;
+        border-color: rgba(123, 183, 255, 0.4);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      .yyt-option-star,
+      .yyt-option-delete {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 26px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: #1b2535 !important;
+        color: var(--yyt-text-muted);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .yyt-option-star:hover {
+        color: var(--yyt-accent);
+        background: #243249 !important;
+        border-color: rgba(123, 183, 255, 0.18);
+      }
+
+      .yyt-option-delete:hover {
+        color: #fca5a5;
+        background: #3a2025 !important;
+        border-color: rgba(239, 68, 68, 0.18);
+      }
+
+      .yyt-option-star.yyt-starred {
+        color: #fbbf24;
+        background: #3b3120 !important;
+        border-color: rgba(251, 191, 36, 0.2);
       }
 
       .yyt-textarea {
@@ -6176,4 +6328,4 @@ ${Gi}
           </div>
         </div>
       </div>
-    `,ot=T.createElement("div");ot.innerHTML=dt,a.currentPopup=ot.firstElementChild,T.body.appendChild(a.currentPopup),h(a.currentPopup).find(".yyt-popup-close").on("click",vt),h(a.currentPopup).find(`#${n}-close-btn`).on("click",vt),tt(),h(a.currentPopup).find(".yyt-main-nav-item").on("click",function(){let H=h(this).data("tab");H&&st(H)}),As(),It(a.currentMainTab);let xt=o.toolRegistryModule?.getToolConfig(a.currentMainTab);xt?.hasSubTabs&&(h(a.currentPopup).find(".yyt-sub-nav").show(),Pt(a.currentMainTab,xt.subTabs)),L(),as(S),fe(),f("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Jl,closePopup:vt,switchMainTab:st,switchSubTab:ns,renderTabContent:It,renderSubTabContent:$t}}function Gl(t,e={}){let{constants:s,modules:o}=t,{SCRIPT_ID:r,SCRIPT_VERSION:a}=s,{init:n,loadModules:l,loadLegacyModule:i,addMenuItem:c,popupShell:d}=e;return{version:a,id:r,init:n,openPopup:d?.openPopup,closePopup:d?.closePopup,switchMainTab:d?.switchMainTab,switchSubTab:d?.switchSubTab,addMenuItem:c,getStorage:()=>o.storageModule,getApiConnection:()=>o.apiConnectionModule,getPresetManager:()=>o.presetManagerModule,getUi:()=>o.uiModule,getUiModule:()=>o.uiModule,getUiComponents:()=>o.uiComponentsModule,getRegexExtractor:()=>o.regexExtractorModule,getToolManager:()=>o.toolManagerModule,getToolExecutor:()=>o.toolExecutorModule,getWindowManager:()=>o.windowManagerModule,getToolRegistry:()=>o.toolRegistryModule,getPromptEditor:()=>o.promptEditorModule,getSettingsService:()=>o.settingsServiceModule,getBypassManager:()=>o.bypassManagerModule,getVariableResolver:()=>o.variableResolverModule,getContextInjector:()=>o.contextInjectorModule,getToolPromptService:()=>o.toolPromptServiceModule,getToolOutputService:()=>o.toolOutputServiceModule,getToolAutomationService:()=>o.toolAutomationServiceModule,async loadLegacyModule(u){return typeof i!="function"?null:i(u)},async getApiConfig(){return await l(),o.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(u){return await l(),o.apiConnectionModule?(o.apiConnectionModule.updateApiConfig(u),!0):!1},async getPresets(){return await l(),o.presetManagerModule?o.presetManagerModule.getAllPresets():[]},async sendApiRequest(u,f){if(await l(),o.apiConnectionModule)return o.apiConnectionModule.sendApiRequest(u,f);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await l(),o.apiConnectionModule?o.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(u,f){return o.toolRegistryModule?.registerTool(u,f)||!1},unregisterTool(u){return o.toolRegistryModule?.unregisterTool(u)||!1},getToolList(){return o.toolRegistryModule?.getToolList()||[]},createWindow(u){return o.windowManagerModule?.createWindow(u)||null},closeWindow(u){o.windowManagerModule?.closeWindow(u)},startAutomation(){return o.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){o.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return o.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},async processCurrentAssistantMessage(u={}){return o.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(u)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var po="youyou_toolkit",Cy="1.0.39",Py=`${po}-menu-item`,Iy=`${po}-menu-container`,$y=`${po}-popup`,Ry=typeof window.parent<"u"?window.parent:window,go={constants:{SCRIPT_ID:po,SCRIPT_VERSION:Cy,MENU_ITEM_ID:Py,MENU_CONTAINER_ID:Iy,POPUP_ID:$y},topLevelWindow:Ry,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,uiComponentsModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,promptEditorModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null,loadLegacyModule:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"apiPresets",currentSubTab:{}}},Vl=ql(go),os=Yl(go,{openPopup:Vl.openPopup});go.services.loadModules=os.loadModules;go.services.loadLegacyModule=os.loadLegacyModule;var Xa=Gl(go,{init:os.init,loadModules:os.loadModules,loadLegacyModule:os.loadLegacyModule,addMenuItem:os.addMenuItem,popupShell:Vl});if(typeof window<"u"&&(window.YouYouToolkit=Xa,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Xa}catch{}var Qf=Xa;os.init();console.log(`[${po}] \u6A21\u5757\u52A0\u8F7D\u5B8C\u6210`);export{Qf as default};
+    `,ot=T.createElement("div");ot.innerHTML=dt,a.currentPopup=ot.firstElementChild,T.body.appendChild(a.currentPopup),h(a.currentPopup).find(".yyt-popup-close").on("click",vt),h(a.currentPopup).find(`#${n}-close-btn`).on("click",vt),tt(),h(a.currentPopup).find(".yyt-main-nav-item").on("click",function(){let H=h(this).data("tab");H&&st(H)}),As(),It(a.currentMainTab);let xt=o.toolRegistryModule?.getToolConfig(a.currentMainTab);xt?.hasSubTabs&&(h(a.currentPopup).find(".yyt-sub-nav").show(),Pt(a.currentMainTab,xt.subTabs)),L(),as(S),fe(),f("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Jl,closePopup:vt,switchMainTab:st,switchSubTab:ns,renderTabContent:It,renderSubTabContent:$t}}function Gl(t,e={}){let{constants:s,modules:o}=t,{SCRIPT_ID:r,SCRIPT_VERSION:a}=s,{init:n,loadModules:l,loadLegacyModule:i,addMenuItem:c,popupShell:d}=e;return{version:a,id:r,init:n,openPopup:d?.openPopup,closePopup:d?.closePopup,switchMainTab:d?.switchMainTab,switchSubTab:d?.switchSubTab,addMenuItem:c,getStorage:()=>o.storageModule,getApiConnection:()=>o.apiConnectionModule,getPresetManager:()=>o.presetManagerModule,getUi:()=>o.uiModule,getUiModule:()=>o.uiModule,getUiComponents:()=>o.uiComponentsModule,getRegexExtractor:()=>o.regexExtractorModule,getToolManager:()=>o.toolManagerModule,getToolExecutor:()=>o.toolExecutorModule,getWindowManager:()=>o.windowManagerModule,getToolRegistry:()=>o.toolRegistryModule,getPromptEditor:()=>o.promptEditorModule,getSettingsService:()=>o.settingsServiceModule,getBypassManager:()=>o.bypassManagerModule,getVariableResolver:()=>o.variableResolverModule,getContextInjector:()=>o.contextInjectorModule,getToolPromptService:()=>o.toolPromptServiceModule,getToolOutputService:()=>o.toolOutputServiceModule,getToolAutomationService:()=>o.toolAutomationServiceModule,async loadLegacyModule(u){return typeof i!="function"?null:i(u)},async getApiConfig(){return await l(),o.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(u){return await l(),o.apiConnectionModule?(o.apiConnectionModule.updateApiConfig(u),!0):!1},async getPresets(){return await l(),o.presetManagerModule?o.presetManagerModule.getAllPresets():[]},async sendApiRequest(u,f){if(await l(),o.apiConnectionModule)return o.apiConnectionModule.sendApiRequest(u,f);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await l(),o.apiConnectionModule?o.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(u,f){return o.toolRegistryModule?.registerTool(u,f)||!1},unregisterTool(u){return o.toolRegistryModule?.unregisterTool(u)||!1},getToolList(){return o.toolRegistryModule?.getToolList()||[]},createWindow(u){return o.windowManagerModule?.createWindow(u)||null},closeWindow(u){o.windowManagerModule?.closeWindow(u)},startAutomation(){return o.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){o.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return o.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},async processCurrentAssistantMessage(u={}){return o.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(u)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var po="youyou_toolkit",Cy="1.0.40",Py=`${po}-menu-item`,Iy=`${po}-menu-container`,$y=`${po}-popup`,Ry=typeof window.parent<"u"?window.parent:window,go={constants:{SCRIPT_ID:po,SCRIPT_VERSION:Cy,MENU_ITEM_ID:Py,MENU_CONTAINER_ID:Iy,POPUP_ID:$y},topLevelWindow:Ry,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,uiComponentsModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,promptEditorModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null,loadLegacyModule:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"apiPresets",currentSubTab:{}}},Vl=ql(go),os=Yl(go,{openPopup:Vl.openPopup});go.services.loadModules=os.loadModules;go.services.loadLegacyModule=os.loadLegacyModule;var Xa=Gl(go,{init:os.init,loadModules:os.loadModules,loadLegacyModule:os.loadLegacyModule,addMenuItem:os.addMenuItem,popupShell:Vl});if(typeof window<"u"&&(window.YouYouToolkit=Xa,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Xa}catch{}var Qf=Xa;os.init();console.log(`[${po}] \u6A21\u5757\u52A0\u8F7D\u5B8C\u6210`);export{Qf as default};

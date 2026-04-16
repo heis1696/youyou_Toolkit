@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.40] - 2026-04-16
+
+### 修复
+
+- 🐛 **强制自定义下拉展开层与选项改为实底深色，彻底移除半透明观感** (`styles/main.css`, `modules/app/bootstrap.js`, `modules/ui/components/api-preset-panel.js`, `dist/bundle.js`)
+  - 为 `.yyt-select-dropdown`、`.yyt-select-option`、`.yyt-select-trigger` 增加更强优先级的实色背景，并显式禁用 `background-image` 与 `backdrop-filter`
+  - 同步补齐 fallback 内置样式路径，避免宿主未加载外部样式时仍回落到旧的半透明下拉表现
+  - 调整 API 预设星标等局部按钮的 hover 背景，避免下拉内部残留发虚的半透明块
+
 ## [1.0.39] - 2026-04-16
 
 ### 修复
