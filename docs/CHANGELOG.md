@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.42] - 2026-04-16
+
+### 修复
+
+- 🐛 **修复共享下拉浮层宽度异常与选项行宽不一致** (`modules/ui/utils.js`, `styles/main.css`, `modules/app/bootstrap.js`, `dist/bundle.js`)
+  - 下拉浮层宽度改为严格跟随 trigger 宽度，移除会放大到异常宽度的 dropdown 自身宽度兜底
+  - 为共享下拉容器与选项补齐 `box-sizing` / `width: 100%`，统一 portal 下拉与旧版手写下拉的整行宽表现
+  - 同步更新 fallback 内置样式与构建产物，避免宿主运行时继续出现“展开像全屏”或“选项宽度忽长忽短”
+
 ## [1.0.41] - 2026-04-16
 
 ### 修复

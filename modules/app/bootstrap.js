@@ -1081,6 +1081,7 @@ export function createBootstrap(context, options = {}) {
         right: 0;
         max-height: 0;
         overflow: hidden;
+        box-sizing: border-box;
         padding: 0;
         background: #121a26 !important;
         background-image: none !important;
@@ -1109,6 +1110,8 @@ export function createBootstrap(context, options = {}) {
         display: flex;
         align-items: center;
         gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
         padding: 11px 14px;
         cursor: pointer;
         transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;

@@ -747,7 +747,7 @@ function positionFloatingCustomSelectDropdown(state) {
   dropdownElement.classList.add('yyt-floating-open');
 
   const contentHeight = Math.min(dropdownElement.scrollHeight || maxHeight, maxHeight);
-  const width = Math.max(Math.ceil(rect.width), dropdownElement.offsetWidth || 0);
+  const width = Math.ceil(rect.width);
   let left = Math.round(rect.left);
   if (left + width > viewportWidth - margin) {
     left = Math.max(margin, Math.round(viewportWidth - margin - width));
