@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.41] - 2026-04-16
+
+### 修复
+
+- 🐛 **将共享下拉改为顶层浮层展开，修复展开层裁切、透明发虚与点击穿透** (`modules/ui/utils.js`, `modules/ui/components/api-preset-panel.js`, `modules/app/popup-shell.js`, `styles/main.css`, `modules/app/bootstrap.js`, `dist/bundle.js`)
+  - 为共享自定义下拉增加 portal 式浮层展开与重定位逻辑，使展开菜单脱离 popup 内部的裁切/滚动容器链
+  - API 预设面板的手写下拉改为复用同一套浮层打开/关闭链路，不再单独维护一套文档点击关闭逻辑
+  - 扩展 popup shell 对浮层下拉的交互保护，避免滚轮与鼠标命中继续落到下层内容区域
+
 ## [1.0.40] - 2026-04-16
 
 ### 修复

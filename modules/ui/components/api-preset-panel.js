@@ -15,7 +15,9 @@ import {
   fillFormWithConfig,
   downloadJson,
   readFileContent,
-  getTargetDocument
+  toggleCustomSelectDropdown,
+  closeCustomSelectDropdown,
+  closeActiveCustomSelectDropdown
 } from '../utils.js';
 
 // API和预设管理导入
@@ -369,9 +371,10 @@ export const ApiPresetPanel = {
     };
     
     // 点击触发器展开/收起下拉框
-    $trigger.on('click', function(e) {
+    $trigger.on('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      $dropdown.toggleClass('yyt-open');
+      toggleCustomSelectDropdown($dropdown);
     });
     
     // 点击选项选择预设
@@ -392,7 +395,7 @@ export const ApiPresetPanel = {
       $option.addClass('yyt-selected');
       
       // 关闭下拉框
-      $dropdown.removeClass('yyt-open');
+      closeCustomSelectDropdown($dropdown);
     });
 
     $container.find(`#${SCRIPT_ID}-load-preset`).on('click', () => {
@@ -451,14 +454,6 @@ export const ApiPresetPanel = {
       }
     });
     
-    const targetDoc = getTargetDocument();
-
-    // 点击外部关闭下拉框
-    $(targetDoc).on('click.yyt-dropdown', (e) => {
-      if (!$(e.target).closest($dropdown).length) {
-        $dropdown.removeClass('yyt-open');
-      }
-    });
   },
   
   /**
@@ -811,8 +806,8 @@ export const ApiPresetPanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
+    closeActiveCustomSelectDropdown($container);
     $container.off();
-    $(getTargetDocument()).off('click.yyt-dropdown');
   },
   
   // ============================================================

@@ -531,6 +531,369 @@ function resolveCustomSelectNative($container, $root) {
   return $native.length ? $native : null;
 }
 
+const customSelectPortalStates = new WeakMap();
+const CUSTOM_SELECT_PORTAL_LAYER_ID = 'yyt-select-portal-layer';
+
+function resolveOwnerDocument(subject = null) {
+  if (subject?.jquery && subject[0]?.ownerDocument) {
+    return subject[0].ownerDocument;
+  }
+
+  if (subject?.ownerDocument) {
+    return subject.ownerDocument;
+  }
+
+  if (subject?.nodeType === 9) {
+    return subject;
+  }
+
+  return getTargetDocument();
+}
+
+function getCustomSelectPortalState(subject = null) {
+  const targetDoc = resolveOwnerDocument(subject);
+  let state = customSelectPortalStates.get(targetDoc);
+  if (!state) {
+    state = {
+      targetDoc,
+      layer: null,
+      activeRoot: null,
+      activeDropdown: null,
+      placeholder: null,
+      cleanup: null
+    };
+    customSelectPortalStates.set(targetDoc, state);
+  }
+  return state;
+}
+
+function ensureCustomSelectPortalLayer(subject = null) {
+  const targetDoc = resolveOwnerDocument(subject);
+  if (!targetDoc?.body) {
+    return null;
+  }
+
+  const state = getCustomSelectPortalState(targetDoc);
+  if (state.layer && state.layer.isConnected) {
+    return state.layer;
+  }
+
+  let layer = targetDoc.getElementById(CUSTOM_SELECT_PORTAL_LAYER_ID);
+  if (!layer) {
+    layer = targetDoc.createElement('div');
+    layer.id = CUSTOM_SELECT_PORTAL_LAYER_ID;
+    layer.className = 'yyt-select-portal-layer';
+    targetDoc.body.appendChild(layer);
+  }
+
+  state.layer = layer;
+  return layer;
+}
+
+function resolveCustomSelectTrigger($root) {
+  const $ = getJQuery();
+  if (!$ || !$root?.length) {
+    return null;
+  }
+
+  const $trigger = $root.find('[data-yyt-select-trigger]').first();
+  return $trigger.length ? $trigger : $root.find('.yyt-select-trigger').first();
+}
+
+function resolveCustomSelectDropdown($root) {
+  const $ = getJQuery();
+  if (!$ || !$root?.length) {
+    return null;
+  }
+
+  const state = getCustomSelectPortalState($root);
+  if (state.activeRoot === $root[0] && state.activeDropdown) {
+    return $(state.activeDropdown);
+  }
+
+  const $dropdown = $root.find('[data-yyt-select-dropdown]').first();
+  return $dropdown.length ? $dropdown : $root.find('.yyt-select-dropdown').first();
+}
+
+function clearFloatingDropdownPresentation(dropdownElement) {
+  if (!dropdownElement) {
+    return;
+  }
+
+  dropdownElement.classList.remove('yyt-floating-open');
+  dropdownElement.removeAttribute('data-yyt-floating');
+  dropdownElement.removeAttribute('data-yyt-floating-placement');
+  dropdownElement.style.position = '';
+  dropdownElement.style.top = '';
+  dropdownElement.style.left = '';
+  dropdownElement.style.right = '';
+  dropdownElement.style.width = '';
+  dropdownElement.style.maxHeight = '';
+  dropdownElement.style.zIndex = '';
+}
+
+function isEventInsideCustomSelect(target, subject = null) {
+  if (!target) {
+    return false;
+  }
+
+  const state = getCustomSelectPortalState(subject || target);
+  if (state.activeRoot?.contains?.(target) || state.activeDropdown?.contains?.(target)) {
+    return true;
+  }
+
+  return Boolean(target.closest?.('[data-yyt-custom-select], .yyt-select-portal-layer'));
+}
+
+function attachCustomSelectPortalListeners(state) {
+  if (!state?.targetDoc || typeof state.cleanup === 'function') {
+    return;
+  }
+
+  const targetDoc = state.targetDoc;
+  const targetWindow = targetDoc.defaultView || window;
+
+  const onMouseDown = (event) => {
+    if (!state.activeRoot || !state.activeDropdown) {
+      return;
+    }
+
+    if (isEventInsideCustomSelect(event.target, targetDoc)) {
+      return;
+    }
+
+    closeActiveCustomSelectDropdown(targetDoc);
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key !== 'Escape') {
+      return;
+    }
+
+    const activeRoot = state.activeRoot;
+    closeActiveCustomSelectDropdown(targetDoc);
+
+    const $ = getJQuery();
+    if ($ && activeRoot) {
+      resolveCustomSelectTrigger($(activeRoot))?.trigger('focus');
+    }
+  };
+
+  const onResize = () => {
+    repositionActiveCustomSelectDropdown(targetDoc);
+  };
+
+  const onScroll = () => {
+    repositionActiveCustomSelectDropdown(targetDoc);
+  };
+
+  targetDoc.addEventListener('mousedown', onMouseDown, true);
+  targetDoc.addEventListener('keydown', onKeyDown, true);
+  targetWindow.addEventListener('resize', onResize);
+  targetDoc.addEventListener('scroll', onScroll, true);
+
+  state.cleanup = () => {
+    targetDoc.removeEventListener('mousedown', onMouseDown, true);
+    targetDoc.removeEventListener('keydown', onKeyDown, true);
+    targetWindow.removeEventListener('resize', onResize);
+    targetDoc.removeEventListener('scroll', onScroll, true);
+  };
+}
+
+function detachCustomSelectPortalListeners(state) {
+  if (typeof state?.cleanup === 'function') {
+    state.cleanup();
+  }
+  if (state) {
+    state.cleanup = null;
+  }
+}
+
+function positionFloatingCustomSelectDropdown(state) {
+  const $ = getJQuery();
+  if (!$ || !state?.activeRoot || !state?.activeDropdown) {
+    return;
+  }
+
+  const targetDoc = state.targetDoc;
+  if (!targetDoc?.body?.contains?.(state.activeRoot)) {
+    closeActiveCustomSelectDropdown(targetDoc);
+    return;
+  }
+
+  const $root = $(state.activeRoot);
+  const $trigger = resolveCustomSelectTrigger($root);
+  const dropdownElement = state.activeDropdown;
+  const targetWindow = targetDoc?.defaultView || window;
+
+  if (!$trigger?.length || !dropdownElement?.isConnected || !$root[0]?.isConnected) {
+    closeActiveCustomSelectDropdown(targetDoc);
+    return;
+  }
+
+  const rect = $trigger[0].getBoundingClientRect();
+  const viewportWidth = targetWindow.innerWidth || targetDoc.documentElement?.clientWidth || 0;
+  const viewportHeight = targetWindow.innerHeight || targetDoc.documentElement?.clientHeight || 0;
+  const margin = 12;
+  const gap = 8;
+  const availableBelow = Math.max(0, viewportHeight - rect.bottom - margin - gap);
+  const availableAbove = Math.max(0, rect.top - margin - gap);
+  const openAbove = availableBelow < 220 && availableAbove > availableBelow;
+  const availableHeight = openAbove ? availableAbove : availableBelow;
+  const maxHeight = Math.max(120, Math.floor(availableHeight || 0));
+
+  dropdownElement.setAttribute('data-yyt-floating', 'true');
+  dropdownElement.setAttribute('data-yyt-floating-placement', openAbove ? 'top' : 'bottom');
+  dropdownElement.classList.add('yyt-floating-open');
+
+  const contentHeight = Math.min(dropdownElement.scrollHeight || maxHeight, maxHeight);
+  const width = Math.max(Math.ceil(rect.width), dropdownElement.offsetWidth || 0);
+  let left = Math.round(rect.left);
+  if (left + width > viewportWidth - margin) {
+    left = Math.max(margin, Math.round(viewportWidth - margin - width));
+  }
+  left = Math.max(margin, left);
+
+  let top = openAbove
+    ? Math.round(rect.top - gap - contentHeight)
+    : Math.round(rect.bottom + gap);
+  top = Math.max(margin, Math.min(top, Math.round(viewportHeight - margin - contentHeight)));
+
+  dropdownElement.style.position = 'fixed';
+  dropdownElement.style.top = `${top}px`;
+  dropdownElement.style.left = `${left}px`;
+  dropdownElement.style.right = 'auto';
+  dropdownElement.style.width = `${Math.ceil(width)}px`;
+  dropdownElement.style.maxHeight = `${Math.floor(maxHeight)}px`;
+  dropdownElement.style.zIndex = '10050';
+}
+
+export function closeActiveCustomSelectDropdown(subject = null) {
+  const $ = getJQuery();
+  const state = getCustomSelectPortalState(subject);
+  if (!$ || !state?.activeRoot) {
+    return;
+  }
+
+  const rootElement = state.activeRoot;
+  const dropdownElement = state.activeDropdown;
+  const placeholder = state.placeholder;
+  const $root = $(rootElement);
+  const $trigger = resolveCustomSelectTrigger($root);
+
+  if (dropdownElement) {
+    clearFloatingDropdownPresentation(dropdownElement);
+
+    if (placeholder?.parentNode) {
+      placeholder.parentNode.insertBefore(dropdownElement, placeholder);
+    } else if (rootElement?.isConnected) {
+      rootElement.appendChild(dropdownElement);
+    } else {
+      dropdownElement.remove();
+    }
+  }
+
+  placeholder?.parentNode?.removeChild(placeholder);
+
+  $root.removeClass('yyt-open');
+  $trigger?.attr('aria-expanded', 'false');
+
+  state.activeRoot = null;
+  state.activeDropdown = null;
+  state.placeholder = null;
+  detachCustomSelectPortalListeners(state);
+}
+
+export function repositionActiveCustomSelectDropdown(subject = null) {
+  const state = getCustomSelectPortalState(subject);
+  if (!state?.activeRoot || !state?.activeDropdown) {
+    return;
+  }
+
+  positionFloatingCustomSelectDropdown(state);
+}
+
+export function openCustomSelectDropdown($root) {
+  const $ = getJQuery();
+  if (!$ || !$root?.length) {
+    return;
+  }
+
+  const $resolvedRoot = $root.first();
+  const $trigger = resolveCustomSelectTrigger($resolvedRoot);
+  const $dropdown = resolveCustomSelectDropdown($resolvedRoot);
+  if (!$trigger?.length || !$dropdown?.length || $trigger.prop('disabled')) {
+    return;
+  }
+
+  const state = getCustomSelectPortalState($resolvedRoot);
+  if (state.activeRoot === $resolvedRoot[0]) {
+    positionFloatingCustomSelectDropdown(state);
+    return;
+  }
+
+  closeActiveCustomSelectDropdown($resolvedRoot);
+
+  const layer = ensureCustomSelectPortalLayer($resolvedRoot);
+  if (!layer) {
+    return;
+  }
+
+  const dropdownElement = $dropdown[0];
+  const placeholder = state.targetDoc.createComment('yyt-select-dropdown-placeholder');
+  dropdownElement.parentNode?.insertBefore(placeholder, dropdownElement);
+  layer.appendChild(dropdownElement);
+
+  state.activeRoot = $resolvedRoot[0];
+  state.activeDropdown = dropdownElement;
+  state.placeholder = placeholder;
+
+  $resolvedRoot.addClass('yyt-open');
+  $trigger.attr('aria-expanded', 'true');
+
+  attachCustomSelectPortalListeners(state);
+  positionFloatingCustomSelectDropdown(state);
+}
+
+function resolveCustomSelectRootFromOption($container, $option) {
+  const $ = getJQuery();
+  if (!$ || !$option?.length) {
+    return null;
+  }
+
+  const $inlineRoot = $option.closest('[data-yyt-custom-select]');
+  if ($inlineRoot.length) {
+    return $inlineRoot.first();
+  }
+
+  const state = getCustomSelectPortalState($option);
+  if (state.activeRoot && state.activeDropdown?.contains?.($option[0])) {
+    const $root = $(state.activeRoot);
+    return $container.has(state.activeRoot).length ? $root : null;
+  }
+
+  return null;
+}
+
+export function closeCustomSelectDropdown($root) {
+  const state = getCustomSelectPortalState($root);
+  if ($root?.length && state.activeRoot && state.activeRoot !== $root[0]) {
+    return;
+  }
+
+  closeActiveCustomSelectDropdown($root);
+}
+
+export function toggleCustomSelectDropdown($root) {
+  const state = getCustomSelectPortalState($root);
+  if ($root?.length && state.activeRoot === $root[0]) {
+    closeActiveCustomSelectDropdown($root);
+    return;
+  }
+
+  openCustomSelectDropdown($root);
+}
+
 function updateCustomSelectUi($container, $root, $native = null) {
   const $ = getJQuery();
   if (!$ || !$root?.length) {
@@ -555,7 +918,9 @@ function updateCustomSelectUi($container, $root, $native = null) {
     .attr('data-value', selectedValue)
     .data('value', selectedValue);
 
-  $root.find('[data-yyt-select-option]').each((_, element) => {
+  const $dropdown = resolveCustomSelectDropdown($root);
+  const $options = $dropdown?.length ? $dropdown.find('[data-yyt-select-option]') : $root.find('[data-yyt-select-option]');
+  $options.each((_, element) => {
     const $option = $(element);
     const isSelected = String($option.attr('data-value') || '') === selectedValue;
     $option.toggleClass('yyt-selected', isSelected).attr('aria-selected', String(isSelected));
@@ -564,6 +929,7 @@ function updateCustomSelectUi($container, $root, $native = null) {
   const $trigger = $root.find('[data-yyt-select-trigger]').first();
   $trigger.prop('disabled', disabled);
   if (disabled) {
+    closeCustomSelectDropdown($root);
     $root.removeClass('yyt-open');
     $trigger.attr('aria-expanded', 'false');
   }
@@ -701,9 +1067,14 @@ export function destroyEnhancedCustomSelects($container, namespace = 'yytCustomS
   }
 
   const eventDocument = resolveCustomSelectEventDocument($container);
+  const state = getCustomSelectPortalState(eventDocument);
+  if (state.activeRoot && $container.has(state.activeRoot).length) {
+    closeActiveCustomSelectDropdown(eventDocument);
+  }
 
   $container.off(`.${namespace}`);
   $(eventDocument).off(`click.${namespace}`);
+  $(eventDocument).off(`mousedown.${namespace}`);
 
   $container.find('[data-yyt-enhanced-select="true"]').remove();
   $container.find('.yyt-native-select-bridge').each((_, element) => {
@@ -807,38 +1178,7 @@ export function enhanceNativeSelects($container, config = {}) {
     }
 
     const $root = $trigger.closest('[data-yyt-custom-select]');
-    const isOpen = $root.hasClass('yyt-open');
-
-    $container.find('[data-yyt-custom-select].yyt-open')
-      .not($root)
-      .removeClass('yyt-open')
-      .find('[data-yyt-select-trigger]')
-      .attr('aria-expanded', 'false');
-
-    $root.toggleClass('yyt-open', !isOpen);
-    $trigger.attr('aria-expanded', String(!isOpen));
-  });
-
-  $container.on(`click.${namespace}`, '[data-yyt-select-option]', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const $option = $(event.currentTarget);
-    if ($option.prop('disabled')) {
-      return;
-    }
-
-    const $root = $option.closest('[data-yyt-custom-select]');
-    const $native = resolveCustomSelectNative($container, $root);
-    if (!$native?.length) {
-      return;
-    }
-
-    const value = String($option.attr('data-value') || '');
-    $native.val(value).trigger('change');
-    updateCustomSelectUi($container, $root, $native);
-    $root.removeClass('yyt-open');
-    $root.find('[data-yyt-select-trigger]').attr('aria-expanded', 'false');
+    toggleCustomSelectDropdown($root);
   });
 
   $container.on(`change.${namespace}`, selector, (event) => {
@@ -857,7 +1197,7 @@ export function enhanceNativeSelects($container, config = {}) {
   });
 
   $(eventDocument).off(`click.${namespace}`).on(`click.${namespace}`, (event) => {
-    if ($(event.target).closest('[data-yyt-custom-select]').length) {
+    if (isEventInsideCustomSelect(event.target, eventDocument)) {
       return;
     }
 
@@ -866,11 +1206,38 @@ export function enhanceNativeSelects($container, config = {}) {
       return;
     }
 
+    closeActiveCustomSelectDropdown(eventDocument);
     $roots.filter('.yyt-open')
       .removeClass('yyt-open')
       .find('[data-yyt-select-trigger]')
       .attr('aria-expanded', 'false');
   });
+
+  $(eventDocument).off(`mousedown.${namespace}`, '.yyt-select-portal-layer [data-yyt-select-option]')
+    .on(`mousedown.${namespace}`, '.yyt-select-portal-layer [data-yyt-select-option]', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const $option = $(event.currentTarget);
+      if ($option.prop('disabled')) {
+        return;
+      }
+
+      const $root = resolveCustomSelectRootFromOption($container, $option);
+      if (!$root?.length) {
+        return;
+      }
+
+      const $native = resolveCustomSelectNative($container, $root);
+      if (!$native?.length) {
+        return;
+      }
+
+      const value = String($option.attr('data-value') || '');
+      $native.val(value).trigger('change');
+      updateCustomSelectUi($container, $root, $native);
+      closeCustomSelectDropdown($root);
+    });
 }
 
 // ============================================================

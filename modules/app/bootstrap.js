@@ -1067,6 +1067,13 @@ export function createBootstrap(context, options = {}) {
         color: var(--yyt-accent-strong);
       }
 
+      .yyt-select-portal-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 10040;
+        pointer-events: none;
+      }
+
       .yyt-select-dropdown {
         position: absolute;
         top: calc(100% + 8px);
@@ -1082,16 +1089,20 @@ export function createBootstrap(context, options = {}) {
         box-shadow: 0 24px 44px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(8, 12, 18, 0.82);
         z-index: 3200;
         opacity: 0;
+        pointer-events: none;
         transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
       }
 
-      .yyt-custom-select.yyt-open .yyt-select-dropdown {
+      .yyt-custom-select.yyt-open .yyt-select-dropdown,
+      .yyt-select-dropdown.yyt-floating-open {
         max-height: 320px;
         overflow-y: auto;
+        overflow-x: hidden;
         opacity: 1;
         padding: 8px;
+        pointer-events: auto;
       }
 
       .yyt-select-option {

@@ -387,7 +387,8 @@ export function createPopupShell(context) {
       'details',
       '[contenteditable="true"]',
       '.yyt-dialog',
-      '.yyt-select-dropdown'
+      '.yyt-select-dropdown',
+      '.yyt-select-portal-layer'
     ].join(',')));
   }
 
@@ -396,6 +397,7 @@ export function createPopupShell(context) {
       'textarea',
       '.yyt-preview-pre',
       '.yyt-select-dropdown',
+      '.yyt-select-portal-layer',
       '.yyt-dialog-body',
       '.yyt-worldbook-list',
       '.yyt-tool-panel',
@@ -420,6 +422,7 @@ export function createPopupShell(context) {
     const nativeScrollable = target.closest?.([
       '.yyt-worldbook-list',
       '.yyt-select-dropdown',
+      '.yyt-select-portal-layer',
       '.yyt-dialog-body',
       '.yyt-preview-pre',
       '.yyt-tool-panel',
@@ -427,7 +430,7 @@ export function createPopupShell(context) {
     ].join(','));
 
     if (nativeScrollable
-      && rootContainer.contains(nativeScrollable)
+      && (nativeScrollable.classList?.contains('yyt-select-portal-layer') || rootContainer.contains(nativeScrollable))
       && (nativeScrollable.scrollHeight > nativeScrollable.clientHeight + 2
         || nativeScrollable.scrollWidth > nativeScrollable.clientWidth + 2)) {
       return nativeScrollable;
