@@ -9,6 +9,42 @@
 
 ## [Unreleased]
 
+## [1.0.36] - 2026-04-16
+
+### 修复
+
+- 🐛 **修复工作台瘦身后的滚动、层级与表单主题回归** (`modules/app/popup-shell.js`, `modules/ui/components/settings-panel.js`, `styles/main.css`)
+  - 恢复主内容区原生滚动条与滚轮滚动，避免根内容容器被统一 wheel 代理拦截
+  - 修正顶部卡面与工作区的纵向 flex 约束，缓解顶部区域与导航/当前页面卡片重合
+  - 统一常规输入框、下拉框与文本域的主题底色，并修复自定义下拉白底与层级遮挡问题
+  - 继续放松 toggle 行与设置页 section 的堆叠间距，改善密集布局观感
+
+## [1.0.35] - 2026-04-16
+
+### 优化
+
+- ✨ **工作台首屏改为一次性启动界面，主弹窗进一步瘦身** (`modules/app/popup-shell.js`, `modules/core/settings-service.js`, `styles/main.css`)
+  - 首次打开工具箱时显示启动界面，用于承接品牌标题、简介与后续加载状态扩展位
+  - 用户进入一次后会持久化记录，后续打开直接进入正常工作台
+  - 删除顶部重复的“聚焦页面”卡片，并收缩常驻顶部区域，释放主内容显示空间
+
+- ✨ **共享 toggle 布局与填表工作台结构体验优化** (`styles/main.css`, `modules/ui/components/bypass-panel.js`, `modules/ui/components/table-workbench-panel.js`)
+  - 放松共享 toggle 行间距与标签布局，小号开关改为真实尺寸规则，不再依赖整体缩放
+  - 填表工具台拆分为 `配置 / 执行与诊断 / 预览/参考` 分界面，减少单页信息堆叠
+  - 手动执行填表后会自动聚焦运行态视图，便于查看摘要、诊断与预览结果
+
+### 更改
+
+- ♻️ **API 预设支持流式开关、显式删除入口与即时刷新** (`modules/ui/components/api-preset-panel.js`, `modules/ui/utils.js`, `modules/preset-manager.js`, `modules/api-connection.js`, `modules/app/popup-shell.js`)
+  - API 预设 schema 新增 `stream` 字段，保存、回填与请求下发链路已全量打通
+  - 预设列表新增更直观的删除入口，减少只能依赖其它区域删除的使用成本
+  - 新建、更新、删除 API 预设后，工作台内相关引用区域可立即刷新，无需重启工具箱
+
+- ♻️ **工作台事件刷新与用户文案统一收口** (`modules/app/popup-shell.js`, `modules/core/event-bus.js`, `modules/tool-registry.js`, `modules/ui/components/bypass-panel.js`, `modules/ui/components/tool-config-panel-factory.js`)
+  - popup shell 补齐对 API 预设、自定义工具与 Ai 指令预设的事件订阅与清理逻辑
+  - 新建工具、新建 Ai 指令预设后，相关导航与引用区域会立即同步刷新
+  - 所有主要用户可见入口统一将“破限词”调整为 `Ai指令预设`，内部兼容键名保持不变
+
 ## [1.0.33] - 2026-04-15
 
 ### 修复

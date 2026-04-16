@@ -545,6 +545,10 @@ export function createPopupShell(context) {
         return;
       }
 
+      if (isRootContentSurface && wheelContainer === container) {
+        return;
+      }
+
       if (Math.abs(event.deltaY) > 0) {
         wheelContainer.scrollTop += event.deltaY;
       }
@@ -554,10 +558,7 @@ export function createPopupShell(context) {
       }
 
       event.preventDefault();
-
-      if (!isRootContentSurface || wheelContainer !== container) {
-        event.stopPropagation();
-      }
+      event.stopPropagation();
     };
 
     const onDragStart = (event) => {

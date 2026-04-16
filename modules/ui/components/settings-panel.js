@@ -659,6 +659,10 @@ export const SettingsPanel = {
         padding-right: 4px;
       }
 
+      .yyt-settings-content .yyt-form-group {
+        gap: 12px;
+      }
+
       .yyt-settings-tab-content {
         display: none;
         flex-direction: column;
@@ -671,7 +675,10 @@ export const SettingsPanel = {
 
       .yyt-settings-section {
         position: relative;
-        overflow: hidden;
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
         padding: 18px;
         border-radius: 22px;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -685,7 +692,7 @@ export const SettingsPanel = {
         font-size: 16px;
         font-weight: 900;
         color: var(--yyt-text);
-        margin-bottom: 14px;
+        margin-bottom: 0;
       }
 
       .yyt-settings-footer {
