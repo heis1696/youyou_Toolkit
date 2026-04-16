@@ -451,6 +451,36 @@ export function createPopupShell(context) {
     }) || rootContainer;
   }
 
+  function resetPopupScrollState({ mainTab = null, includeSubContent = false } = {}) {
+    const popup = uiState.currentPopup;
+    if (!popup) return;
+
+    const content = popup.querySelector('.yyt-content');
+    if (content) {
+      content.scrollTop = 0;
+      content.scrollLeft = 0;
+    }
+
+    const tabSelector = mainTab
+      ? `.yyt-tab-content[data-tab="${mainTab}"]`
+      : '.yyt-tab-content.active';
+    const activeTab = popup.querySelector(tabSelector);
+    if (activeTab) {
+      activeTab.scrollTop = 0;
+      activeTab.scrollLeft = 0;
+    }
+
+    if (!includeSubContent) {
+      return;
+    }
+
+    const subContainers = activeTab?.querySelectorAll('.yyt-sub-content') || [];
+    subContainers.forEach((container) => {
+      container.scrollTop = 0;
+      container.scrollLeft = 0;
+    });
+  }
+
   function bindDragScroll(container) {
     const targetDoc = getTargetDocument();
     if (!container || !targetDoc) return;
@@ -538,14 +568,14 @@ export function createPopupShell(context) {
         return;
       }
 
+      if (wheelContainer !== container && !container.contains(wheelContainer)) {
+        return;
+      }
+
       const hasScrollableOverflow = wheelContainer.scrollHeight > wheelContainer.clientHeight + 2
         || wheelContainer.scrollWidth > wheelContainer.clientWidth + 2;
 
       if (!hasScrollableOverflow) {
-        return;
-      }
-
-      if (isRootContentSurface && wheelContainer === container) {
         return;
       }
 
@@ -594,8 +624,6 @@ export function createPopupShell(context) {
       ...popup.querySelectorAll('.yyt-shell-sidebar .yyt-main-nav'),
       ...popup.querySelectorAll('.yyt-sub-nav'),
       ...popup.querySelectorAll('.yyt-content'),
-      ...popup.querySelectorAll('.yyt-tab-content.active'),
-      ...popup.querySelectorAll('.yyt-tab-content.active .yyt-sub-content'),
       ...popup.querySelectorAll('.yyt-settings-content'),
       ...popup.querySelectorAll('.yyt-tool-list')
     ];
@@ -774,6 +802,8 @@ export function createPopupShell(context) {
     const $ = getJQuery();
     if (!$ || !uiState.currentPopup) return;
 
+    resetPopupScrollState({ mainTab: tabName, includeSubContent: true });
+
     $(uiState.currentPopup).find('.yyt-main-nav-item').removeClass('active');
     $(uiState.currentPopup).find(`.yyt-main-nav-item[data-tab="${tabName}"]`).addClass('active');
 
@@ -798,6 +828,8 @@ export function createPopupShell(context) {
 
     const $ = getJQuery();
     if (!$ || !uiState.currentPopup) return;
+
+    resetPopupScrollState({ mainTab, includeSubContent: true });
 
     $(uiState.currentPopup).find('.yyt-sub-nav-item').removeClass('active');
     $(uiState.currentPopup).find(`.yyt-sub-nav-item[data-subtab="${subTab}"]`).addClass('active');
@@ -967,6 +999,7 @@ export function createPopupShell(context) {
 
       if (!subToolConfig) {
         $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>当前子页面不存在或已失效</span></div>');
+        resetPopupScrollState({ mainTab, includeSubContent: true });
         refreshScrollableSurfaces();
         return;
       }
@@ -1044,6 +1077,7 @@ export function createPopupShell(context) {
           default:
             $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>');
         }
+      resetPopupScrollState({ mainTab, includeSubContent: true });
       refreshScrollableSurfaces();
       return;
     }
@@ -1065,6 +1099,7 @@ export function createPopupShell(context) {
         $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>');
     }
 
+    resetPopupScrollState({ mainTab, includeSubContent: true });
     refreshScrollableSurfaces();
   }
 

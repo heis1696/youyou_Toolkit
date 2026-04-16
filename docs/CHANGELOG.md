@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.0.37] - 2026-04-16
+
+### 修复
+
+- 🐛 **修复工作台下拉层、滚动链路与正则测试输入框回归** (`modules/app/popup-shell.js`, `modules/ui/components/regex-extract-panel.js`, `styles/main.css`)
+  - 将共享自定义下拉展开层恢复为不透明深色背景，避免展开后透出底层内容导致选项难以辨认
+  - 将正则规则类型下拉局部回退为原生 `select`，规避规则列表滚动容器对内嵌 dropdown 的裁切与遮挡
+  - 修正 popup shell 的 wheel 代理边界与页面切换 scroll reset，恢复主内容区直接滚轮滚动并阻断页面间滚动位置串台
+  - 补强 regex 面板内测试文本框与相关表单控件的局部深色主题，消除残留白底输入框
+
 ## [1.0.36] - 2026-04-16
 
 ### 修复

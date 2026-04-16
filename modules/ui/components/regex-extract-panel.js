@@ -261,8 +261,7 @@ export const RegexExtractPanel = {
     enhanceNativeSelects($container, {
       namespace: 'yytRegexSelect',
       selectors: [
-        `#${SCRIPT_ID}-rule-preset-select`,
-        '.yyt-rule-type'
+        `#${SCRIPT_ID}-rule-preset-select`
       ]
     });
   },
@@ -649,6 +648,20 @@ Phase 4: 应用黑名单过滤
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.1);
       }
 
+      .yyt-rule-item > .yyt-select,
+      .yyt-rule-item > .yyt-input {
+        min-width: 0;
+      }
+
+      .yyt-rule-item > .yyt-rule-type {
+        flex: 2 1 148px !important;
+        min-width: 132px !important;
+      }
+
+      .yyt-rule-item > .yyt-rule-value {
+        flex: 5 1 0 !important;
+      }
+
       .yyt-rule-item:hover {
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
         border-color: rgba(255, 255, 255, 0.18);
@@ -701,7 +714,46 @@ Phase 4: 应用黑名单过滤
         flex-direction: column;
         gap: 12px;
       }
-      
+
+      .yyt-regex-panel .yyt-input,
+      .yyt-regex-panel .yyt-select,
+      .yyt-regex-panel .yyt-textarea {
+        color: var(--yyt-text);
+      }
+
+      .yyt-regex-panel .yyt-input,
+      .yyt-regex-panel .yyt-select,
+      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea),
+      .yyt-regex-panel #${SCRIPT_ID}-test-input {
+        background: var(--yyt-control-bg);
+        color: var(--yyt-text);
+        border-color: var(--yyt-control-border);
+        box-shadow: var(--yyt-control-shadow);
+      }
+
+      .yyt-regex-panel .yyt-input:hover,
+      .yyt-regex-panel .yyt-select:hover,
+      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea):hover,
+      .yyt-regex-panel #${SCRIPT_ID}-test-input:hover {
+        background: var(--yyt-control-bg-hover);
+        border-color: var(--yyt-control-border-hover);
+        box-shadow: var(--yyt-control-shadow-hover);
+      }
+
+      .yyt-regex-panel .yyt-input:focus,
+      .yyt-regex-panel .yyt-select:focus,
+      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea):focus,
+      .yyt-regex-panel .yyt-input:focus-visible,
+      .yyt-regex-panel .yyt-select:focus-visible,
+      .yyt-regex-panel .yyt-textarea:not(.yyt-code-textarea):focus-visible,
+      .yyt-regex-panel #${SCRIPT_ID}-test-input:focus,
+      .yyt-regex-panel #${SCRIPT_ID}-test-input:focus-visible {
+        background: var(--yyt-control-bg-focus);
+        color: var(--yyt-text);
+        border-color: var(--yyt-control-border-focus);
+        box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
+      }
+
       .yyt-test-result {
         background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
         border: 1px solid var(--yyt-border);
