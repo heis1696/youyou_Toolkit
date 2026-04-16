@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.39] - 2026-04-16
+
+### 修复
+
+- 🐛 **补齐 fallback 内置样式中的深色控件变量，修复实际运行仍出现白底/半透明的问题** (`modules/app/bootstrap.js`, `styles/main.css`, `dist/bundle.js`)
+  - 为 `getBaseStyles()` 补上与主样式文件一致的 `--yyt-control-*` 变量，避免宿主加载不到外部 `styles/main.css` 时回退到旧的浅色控件主题
+  - 将共享输入框、文本域与自定义下拉在 fallback 路径下也统一为更实的深色底、边框与阴影
+  - 确保构建产物 `dist/bundle.js` 内已包含这套热修复，减少“源码已改但宿主实际未生效”的情况
+
 ## [1.0.38] - 2026-04-16
 
 ### 修复
