@@ -19,7 +19,9 @@ import {
   createEmptyTableDefinition,
   deriveTableDraftFromTables,
   validateTableDraft,
-  compileTableDraftToTables
+  compileTableDraftToTables,
+  TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
+  DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE
 } from '../../table-engine/table-schema-service.js';
 
 export const TABLE_FORM_RENDERER_STYLES = `
@@ -215,7 +217,8 @@ export const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-editor-toolbar,
   .yyt-table-editor-section-head,
-  .yyt-table-editor-card-head {
+  .yyt-table-editor-card-head,
+  .yyt-table-editor-card-head-main {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -223,8 +226,18 @@ export const TABLE_FORM_RENDERER_STYLES = `
     flex-wrap: wrap;
   }
 
-  .yyt-table-editor-toolbar {
+  .yyt-table-editor-card-head-main {
     align-items: flex-start;
+  }
+
+  .yyt-table-editor-card-actions,
+  .yyt-table-editor-row-actions,
+  .yyt-table-editor-column-actions,
+  .yyt-table-editor-move-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .yyt-table-editor-muted {
@@ -391,6 +404,62 @@ export const TABLE_FORM_RENDERER_STYLES = `
   }
 `;
 
+function moveArrayItem(items = [], fromIndex = -1, toIndex = -1) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  if (
+    !Number.isInteger(fromIndex)
+    || !Number.isInteger(toIndex)
+    || fromIndex < 0
+    || toIndex < 0
+    || fromIndex >= items.length
+    || toIndex >= items.length
+    || fromIndex === toIndex
+  ) {
+    return [...items];
+  }
+
+  const nextItems = [...items];
+  const [item] = nextItems.splice(fromIndex, 1);
+  nextItems.splice(toIndex, 0, item);
+  return nextItems;
+}
+
+function buildMoveControls(actionPrefix, indices = {}, options = {}) {
+  const size = Number.isInteger(options.size) ? options.size : 0;
+  const currentIndex = Number.isInteger(options.currentIndex) ? options.currentIndex : -1;
+  const disableUp = currentIndex <= 0;
+  const disableDown = currentIndex < 0 || currentIndex >= size - 1;
+  const dataAttributes = Object.entries(indices)
+    .filter(([, value]) => Number.isInteger(value))
+    .map(([key, value]) => `data-${key}="${value}"`)
+    .join(' ');
+
+  return `
+    <div class="yyt-table-editor-move-controls">
+      <button type="button" class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-editor-action="move-${actionPrefix}-up" ${dataAttributes} ${disableUp ? 'disabled' : ''}>
+        <i class="fa-solid fa-arrow-up"></i>
+      </button>
+      <button type="button" class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-editor-action="move-${actionPrefix}-down" ${dataAttributes} ${disableDown ? 'disabled' : ''}>
+        <i class="fa-solid fa-arrow-down"></i>
+      </button>
+    </div>
+  `;
+}
+
+function getColumnTypeLabel(value = '') {
+  const match = TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS.find((option) => option.value === value);
+  return match?.label || '文本';
+}
+
+function renderColumnTypeOptions(selectedValue = DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE) {
+  return TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS.map((option) => `
+    <option value="${escapeHtml(option.value)}" ${option.value === selectedValue ? 'selected' : ''}>${escapeHtml(option.label)}</option>
+  `).join('');
+}
+
 function cloneValue(value) {
   if (value === undefined) return undefined;
   try {
@@ -477,11 +546,15 @@ function normalizeDraftForRender(draft = {}) {
 
 function renderTableEditorRow(table = {}, row = {}, tableIndex = 0, rowIndex = 0) {
   const columns = Array.isArray(table.columns) ? table.columns : [];
+  const moveControls = buildMoveControls('row', { 'table-index': tableIndex, 'row-index': rowIndex }, {
+    currentIndex: rowIndex,
+    size: columns.length >= 0 ? (Array.isArray(table.rows) ? table.rows.length : 0) : 0
+  });
 
   return `
     <tr data-table-editor-row="${rowIndex}">
       <td>
-        <input type="text" class="yyt-input" data-table-editor-row-name value="${escapeHtml(String(row?.name || ''))}" placeholder="行名">
+        <input type="text" class="yyt-input" data-table-editor-row-name value="${escapeHtml(String(row?.name || ''))}" placeholder="可留空，默认会自动命名">
       </td>
       ${columns.map((column, columnIndex) => `
         <td>
@@ -493,9 +566,12 @@ function renderTableEditorRow(table = {}, row = {}, tableIndex = 0, rowIndex = 0
         </td>
       `).join('')}
       <td>
-        <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-row" data-table-index="${tableIndex}" data-row-index="${rowIndex}">
-          <i class="fa-solid fa-trash"></i>
-        </button>
+        <div class="yyt-table-editor-row-actions">
+          ${moveControls}
+          <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-row" data-table-index="${tableIndex}" data-row-index="${rowIndex}">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
       </td>
     </tr>
   `;
@@ -505,89 +581,130 @@ function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
   const columns = Array.isArray(table.columns) ? table.columns : [];
   const rows = Array.isArray(table.rows) ? table.rows : [];
   const tableName = String(table?.name || '').trim();
-  const tableNote = String(table?.note || '').trim();
   const showDeleteTable = options.showDeleteTable !== false;
+  const moveControls = buildMoveControls('table', { 'table-index': tableIndex }, {
+    currentIndex: tableIndex,
+    size: Number.isInteger(options.totalTables) ? options.totalTables : 0
+  });
   const deleteButtonHtml = showDeleteTable
     ? `
-        <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-table" data-table-index="${tableIndex}">
-          <i class="fa-solid fa-trash"></i> 删除表格
-        </button>
+        <div class="yyt-table-editor-card-actions">
+          ${moveControls}
+          <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-table" data-table-index="${tableIndex}">
+            <i class="fa-solid fa-trash"></i> 删除表格
+          </button>
+        </div>
       `
     : '';
-  const summaryParts = [
-    `表格 ${tableIndex + 1}`,
-    `${columns.length} 列`,
-    `${rows.length} 行`
-  ];
-  if (tableNote) {
-    summaryParts.push('已填写说明');
-  }
 
   return `
     <div class="yyt-table-editor-card" data-table-editor-table="${tableIndex}">
       <div class="yyt-table-editor-card-head">
-        <div>
+        <div class="yyt-table-editor-card-head-main">
           <div class="yyt-table-editor-card-title">${escapeHtml(tableName || `表格 ${tableIndex + 1}`)}</div>
-          <div class="yyt-table-editor-card-subtitle">${escapeHtml(summaryParts.join(' · '))}</div>
+          <div class="yyt-table-editor-muted">直接把这张表当普通表格编辑：先写表头，再填每一行数据。</div>
         </div>
         ${deleteButtonHtml}
       </div>
 
       <div class="yyt-table-editor-meta">
         <div class="yyt-table-editor-input-group">
-          <span>表格名</span>
+          <span>表格名称</span>
           <input type="text" class="yyt-input" data-table-editor-table-name value="${escapeHtml(String(table?.name || ''))}" placeholder="例如：角色状态表">
         </div>
         <div class="yyt-table-editor-input-group">
-          <span>表格说明</span>
-          <textarea class="yyt-textarea yyt-code-textarea-small" data-table-editor-table-note rows="2" placeholder="给模型解释此表的作用">${escapeHtml(String(table?.note || ''))}</textarea>
+          <span>这张表是做什么的</span>
+          <textarea class="yyt-textarea yyt-code-textarea-small" data-table-editor-table-note rows="2" placeholder="例如：记录角色当前状态、数值或备注">${escapeHtml(String(table?.note || ''))}</textarea>
         </div>
       </div>
 
       <div class="yyt-table-editor-section">
         <div class="yyt-table-editor-section-head">
           <div>
-            <div class="yyt-table-editor-section-title">列定义</div>
-            <div class="yyt-table-editor-section-desc">先声明每一列的显示标题与字段 key，运行时会按这里的结构写入表格状态。</div>
+            <div class="yyt-table-editor-section-title">表头设置</div>
+            <div class="yyt-table-editor-section-desc">列标题就是你看到的表头。内部名一般不用改，留空也会自动生成。</div>
           </div>
           <button type="button" class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-editor-action="add-column" data-table-index="${tableIndex}">
-            <i class="fa-solid fa-plus"></i> 新增列
-          </button>
-        </div>
-        <div class="yyt-table-editor-columns">
-          ${columns.length ? columns.map((column, columnIndex) => `
-            <div class="yyt-table-editor-column" data-table-editor-column="${columnIndex}">
-              <div class="yyt-table-editor-input-group">
-                <span>列标题</span>
-                <input type="text" class="yyt-input" data-table-editor-column-title value="${escapeHtml(String(column?.title || ''))}" placeholder="例如：属性">
-              </div>
-              <div class="yyt-table-editor-input-group">
-                <span>字段 key</span>
-                <input type="text" class="yyt-input" data-table-editor-column-key value="${escapeHtml(String(column?.key || ''))}" placeholder="attribute_name">
-              </div>
-              <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-column" data-table-index="${tableIndex}" data-column-index="${columnIndex}">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-          `).join('') : '<div class="yyt-table-editor-empty"><div class="yyt-table-editor-section-title">当前没有列定义</div><div class="yyt-table-editor-muted">先新增一列，再继续填写行内容。</div></div>'}
-        </div>
-      </div>
-
-      <div class="yyt-table-editor-section">
-        <div class="yyt-table-editor-section-head">
-          <div>
-            <div class="yyt-table-editor-section-title">行内容</div>
-            <div class="yyt-table-editor-section-desc">每一行对应一组字段值，单元格内容会按列顺序映射到当前表定义。</div>
-          </div>
-          <button type="button" class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-editor-action="add-row" data-table-index="${tableIndex}">
-            <i class="fa-solid fa-plus"></i> 新增行
+            <i class="fa-solid fa-plus"></i> 新增一列
           </button>
         </div>
         <div class="yyt-table-editor-grid-wrap">
           <table class="yyt-table-editor-grid">
             <thead>
               <tr>
-                <th>行名</th>
+                <th>表头名称</th>
+                <th>内部名</th>
+                <th>类型</th>
+                <th>必填</th>
+                <th>说明</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${columns.length ? columns.map((column, columnIndex) => `
+                <tr class="yyt-table-editor-column" data-table-editor-column="${columnIndex}">
+                  <td>
+                    <input type="text" class="yyt-input" data-table-editor-column-title value="${escapeHtml(String(column?.title || ''))}" placeholder="例如：属性">
+                  </td>
+                  <td>
+                    <input type="text" class="yyt-input" data-table-editor-column-key value="${escapeHtml(String(column?.key || ''))}" placeholder="可留空自动生成">
+                  </td>
+                  <td>
+                    <select class="yyt-select" data-table-editor-column-type>
+                      ${renderColumnTypeOptions(String(column?.type || DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE))}
+                    </select>
+                  </td>
+                  <td>
+                    <label class="yyt-table-editor-column-required yyt-table-editor-column-required-inline">
+                      <input type="checkbox" data-table-editor-column-required ${column?.required === true ? 'checked' : ''}>
+                      <span>必填</span>
+                    </label>
+                  </td>
+                  <td>
+                    <input type="text" class="yyt-input" data-table-editor-column-description value="${escapeHtml(String(column?.description || ''))}" placeholder="可不填">
+                  </td>
+                  <td>
+                    <div class="yyt-table-editor-column-actions">
+                      ${buildMoveControls('column', { 'table-index': tableIndex, 'column-index': columnIndex }, {
+                        currentIndex: columnIndex,
+                        size: columns.length
+                      })}
+                      <button type="button" class="yyt-btn yyt-btn-small yyt-btn-danger" data-table-editor-action="delete-column" data-table-index="${tableIndex}" data-column-index="${columnIndex}">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('') : `
+                <tr>
+                  <td colspan="6">
+                    <div class="yyt-table-editor-empty">
+                      <div class="yyt-table-editor-section-title">还没有表头</div>
+                      <div class="yyt-table-editor-muted">先新增一列，填上你想展示的表头名称。</div>
+                    </div>
+                  </td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="yyt-table-editor-section">
+        <div class="yyt-table-editor-section-head">
+          <div>
+            <div class="yyt-table-editor-section-title">表格内容</div>
+            <div class="yyt-table-editor-section-desc">下面每一行就是一条数据。第一列只是给这行起个名字，不填也可以。</div>
+          </div>
+          <button type="button" class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-editor-action="add-row" data-table-index="${tableIndex}">
+            <i class="fa-solid fa-plus"></i> 新增一行
+          </button>
+        </div>
+        <div class="yyt-table-editor-grid-wrap">
+          <table class="yyt-table-editor-grid">
+            <thead>
+              <tr>
+                <th>这一行名称</th>
                 ${columns.map((column, columnIndex) => `<th>${escapeHtml(column?.title || column?.key || `列${columnIndex + 1}`)}</th>`).join('')}
                 <th></th>
               </tr>
@@ -597,8 +714,8 @@ function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
                 <tr>
                   <td colspan="${Math.max(columns.length + 2, 2)}">
                     <div class="yyt-table-editor-empty">
-                      <div class="yyt-table-editor-section-title">当前没有行内容</div>
-                      <div class="yyt-table-editor-muted">可先新增一行，再逐列补齐单元格数据。</div>
+                      <div class="yyt-table-editor-section-title">还没有数据行</div>
+                      <div class="yyt-table-editor-muted">先新增一行，再按表格方式把每个单元格填进去。</div>
                     </div>
                   </td>
                 </tr>
@@ -648,8 +765,8 @@ function renderTableDefinitionsEditorBody(draft = {}) {
     <div class="yyt-table-editor-shell">
       <div class="yyt-table-editor-banner">
         <div class="yyt-table-editor-banner-copy">
-          <div class="yyt-table-editor-banner-title">表定义编辑器</div>
-          <div class="yyt-table-editor-muted">结构化维护 tables 草稿。保存或执行时会自动编译为 runtime tables，无需手写 JSON。</div>
+          <div class="yyt-table-editor-banner-title">表格编辑器</div>
+          <div class="yyt-table-editor-muted">像改普通表格一样改这里。保存或运行时会自动整理成系统要用的格式。</div>
         </div>
         <div class="yyt-table-editor-banner-meta">
           <span class="yyt-table-editor-chip">${tables.length} 张表</span>
@@ -658,16 +775,16 @@ function renderTableDefinitionsEditorBody(draft = {}) {
         </div>
       </div>
       <div class="yyt-table-editor-toolbar">
-        <div class="yyt-table-editor-muted">建议先补齐表格名与列定义，再录入行内容，避免后续频繁调整列结构。</div>
+        <div class="yyt-table-editor-muted">先写表头，再填内容；顺序不对就直接上移下移。</div>
         <button type="button" class="yyt-btn yyt-btn-small yyt-btn-primary" data-table-editor-action="add-table">
           <i class="fa-solid fa-plus"></i> 新增表格
         </button>
       </div>
       <div class="yyt-table-editor-stack">
-        ${tables.length ? tables.map((table, tableIndex) => renderTableEditorCard(table, tableIndex)).join('') : `
+        ${tables.length ? tables.map((table, tableIndex) => renderTableEditorCard(table, tableIndex, { totalTables: tables.length })).join('') : `
           <div class="yyt-table-editor-empty">
-            <div class="yyt-table-editor-section-title">还没有表定义</div>
-            <div class="yyt-table-editor-muted">点击右侧“新增表格”开始配置表名、列结构和行内容。</div>
+            <div class="yyt-table-editor-section-title">还没有表格</div>
+            <div class="yyt-table-editor-muted">点“新增表格”，先起名字，再加表头和内容。</div>
           </div>
         `}
       </div>
@@ -804,7 +921,10 @@ function readTableDefinitionsDraft($root) {
       const $column = $(columnElement);
       return {
         title: String($column.find('[data-table-editor-column-title]').val() || ''),
-        key: String($column.find('[data-table-editor-column-key]').val() || '')
+        key: String($column.find('[data-table-editor-column-key]').val() || ''),
+        description: String($column.find('[data-table-editor-column-description]').val() || ''),
+        type: String($column.find('[data-table-editor-column-type]').val() || DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE),
+        required: $column.find('[data-table-editor-column-required]').is(':checked')
       };
     }).get();
 
@@ -892,11 +1012,25 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
       tables.splice(tableIndex, 1);
     }
 
+    if (action === 'move-table-up' && Number.isInteger(tableIndex)) {
+      const nextTables = moveArrayItem(tables, tableIndex, tableIndex - 1);
+      rerenderTableDefinitionsRoot($root, field, { tables: nextTables });
+      notifyChange();
+      return;
+    }
+
+    if (action === 'move-table-down' && Number.isInteger(tableIndex)) {
+      const nextTables = moveArrayItem(tables, tableIndex, tableIndex + 1);
+      rerenderTableDefinitionsRoot($root, field, { tables: nextTables });
+      notifyChange();
+      return;
+    }
+
     if (action === 'add-column' && Number.isInteger(tableIndex) && tableIndex >= 0 && tableIndex < tables.length) {
       const table = tables[tableIndex] || {};
       const nextColumns = Array.isArray(table.columns) ? table.columns : [];
       const nextColumn = createEmptyTableColumn(nextColumns.length + 1, nextColumns);
-      table.columns = [...nextColumns, { key: nextColumn.key, title: nextColumn.title }];
+      table.columns = [...nextColumns, nextColumn];
       table.rows = (Array.isArray(table.rows) ? table.rows : []).map((row, index) => ({
         name: String(row?.name || `行${index + 1}`),
         cells: [...(Array.isArray(row?.cells) ? row.cells : []), '']
@@ -919,6 +1053,32 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
       }
     }
 
+    if (action === 'move-column-up' && Number.isInteger(tableIndex) && Number.isInteger(columnIndex) && tableIndex >= 0 && tableIndex < tables.length) {
+      const table = tables[tableIndex] || {};
+      const columns = Array.isArray(table.columns) ? table.columns : [];
+      table.columns = moveArrayItem(columns, columnIndex, columnIndex - 1);
+      table.rows = (Array.isArray(table.rows) ? table.rows : []).map((row, index) => ({
+        name: String(row?.name || `行${index + 1}`),
+        cells: moveArrayItem(Array.isArray(row?.cells) ? row.cells : [], columnIndex, columnIndex - 1)
+      }));
+      rerenderTableDefinitionsRoot($root, field, { tables });
+      notifyChange();
+      return;
+    }
+
+    if (action === 'move-column-down' && Number.isInteger(tableIndex) && Number.isInteger(columnIndex) && tableIndex >= 0 && tableIndex < tables.length) {
+      const table = tables[tableIndex] || {};
+      const columns = Array.isArray(table.columns) ? table.columns : [];
+      table.columns = moveArrayItem(columns, columnIndex, columnIndex + 1);
+      table.rows = (Array.isArray(table.rows) ? table.rows : []).map((row, index) => ({
+        name: String(row?.name || `行${index + 1}`),
+        cells: moveArrayItem(Array.isArray(row?.cells) ? row.cells : [], columnIndex, columnIndex + 1)
+      }));
+      rerenderTableDefinitionsRoot($root, field, { tables });
+      notifyChange();
+      return;
+    }
+
     if (action === 'add-row' && Number.isInteger(tableIndex) && tableIndex >= 0 && tableIndex < tables.length) {
       const table = tables[tableIndex] || {};
       const columns = Array.isArray(table.columns) ? table.columns : [];
@@ -932,6 +1092,22 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
       if (Number.isInteger(rowIndex) && rowIndex >= 0 && rowIndex < rows.length) {
         table.rows = rows.filter((_, index) => index !== rowIndex);
       }
+    }
+
+    if (action === 'move-row-up' && Number.isInteger(tableIndex) && Number.isInteger(rowIndex) && tableIndex >= 0 && tableIndex < tables.length) {
+      const table = tables[tableIndex] || {};
+      table.rows = moveArrayItem(Array.isArray(table.rows) ? table.rows : [], rowIndex, rowIndex - 1);
+      rerenderTableDefinitionsRoot($root, field, { tables });
+      notifyChange();
+      return;
+    }
+
+    if (action === 'move-row-down' && Number.isInteger(tableIndex) && Number.isInteger(rowIndex) && tableIndex >= 0 && tableIndex < tables.length) {
+      const table = tables[tableIndex] || {};
+      table.rows = moveArrayItem(Array.isArray(table.rows) ? table.rows : [], rowIndex, rowIndex + 1);
+      rerenderTableDefinitionsRoot($root, field, { tables });
+      notifyChange();
+      return;
     }
 
     rerenderTableDefinitionsRoot($root, field, { tables });

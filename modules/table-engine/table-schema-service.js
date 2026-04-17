@@ -34,6 +34,20 @@ export const TABLE_WORKBENCH_RESPONSE_CONTRACT = `输出要求：
   "tables": []
 }`;
 
+const TABLE_WORKBENCH_COLUMN_TYPES = Object.freeze([
+  { value: 'text', label: '文本' },
+  { value: 'number', label: '数字' },
+  { value: 'boolean', label: '布尔' },
+  { value: 'date', label: '日期' },
+  { value: 'json', label: 'JSON' }
+]);
+
+export const DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE = 'text';
+
+export const TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS = Object.freeze(
+  TABLE_WORKBENCH_COLUMN_TYPES.map((option) => Object.freeze({ ...option }))
+);
+
 function normalizeString(value, fallback = '') {
   if (value === undefined || value === null) return fallback;
   const normalized = String(value).trim();
@@ -135,6 +149,13 @@ function getSourceColumnsFromRows(rows = []) {
   return [];
 }
 
+function normalizeColumnType(value, fallback = DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE) {
+  const normalized = normalizeString(value, fallback);
+  return TABLE_WORKBENCH_COLUMN_TYPES.some((option) => option.value === normalized)
+    ? normalized
+    : fallback;
+}
+
 function normalizeDraftColumnDescriptor(value = {}, index = 0, usedKeys = new Set()) {
   const sourceValue = value && typeof value === 'object' ? value : {};
   const title = normalizeString(
@@ -153,6 +174,9 @@ function normalizeDraftColumnDescriptor(value = {}, index = 0, usedKeys = new Se
   return {
     key,
     title,
+    description: normalizeString(sourceValue.description || sourceValue.note, ''),
+    type: normalizeColumnType(sourceValue.type),
+    required: sourceValue.required === true,
     sourceKeys
   };
 }
@@ -216,7 +240,10 @@ function normalizeDraftTable(value = {}, index = 0) {
     note: normalizeString(sourceValue.note || sourceValue.description, ''),
     columns: columns.map((column) => ({
       key: column.key,
-      title: column.title
+      title: column.title,
+      description: normalizeString(column.description, ''),
+      type: normalizeColumnType(column.type),
+      required: column.required === true
     })),
     rows
   };
@@ -249,7 +276,10 @@ export function createEmptyTableColumn(columnIndex = 1, existingColumns = []) {
 
   return {
     key,
-    title: `列${columnIndex}`
+    title: `列${columnIndex}`,
+    description: '',
+    type: DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE,
+    required: false
   };
 }
 
@@ -486,6 +516,8 @@ export function getTableWorkbenchFormSchema({ apiPresets = [] } = {}) {
 }
 
 export default {
+  TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
+  DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE,
   TABLE_WORKBENCH_RUNTIME_STATUS,
   DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE,
   TABLE_WORKBENCH_RESPONSE_CONTRACT,

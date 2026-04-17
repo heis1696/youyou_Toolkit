@@ -348,29 +348,28 @@ function updateCompiledPreview($container) {
 function buildHeader(config = {}) {
   const runtime = config.runtime || {};
   const tableCount = Array.isArray(config.tables) ? config.tables.length : 0;
-  const mirrorEnabled = config.mirrorToMessage === true ? '正文镜像开启' : '正文镜像关闭';
+  const mirrorEnabled = config.mirrorToMessage === true ? '会同步写回正文' : '只保存结构化结果';
 
   return `
     <div class="yyt-table-workbench-header">
       <div class="yyt-table-workbench-header-main">
         <div class="yyt-table-workbench-header-copy">
           <div class="yyt-table-workbench-panel-kicker">Table Workbench</div>
-          <div class="yyt-table-workbench-title">填表工具台</div>
-          <div class="yyt-table-workbench-desc">把配置、执行诊断和预览参考拆开显示，减少重复说明，让每个界面只承担一类任务。</div>
+          <div class="yyt-table-workbench-title">填表工作台</div>
+          <div class="yyt-table-workbench-desc">先把表格改好，再去运行页点一次填表；目标和加载细节放到后面单独看，不堵在主界面里。</div>
         </div>
         <div class="yyt-table-workbench-header-actions">
           <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-table-workbench-action="refresh">
-            <i class="fa-solid fa-rotate"></i> 刷新诊断
+            <i class="fa-solid fa-rotate"></i> 刷新状态
           </button>
           <button class="yyt-btn yyt-btn-primary yyt-btn-small" data-table-workbench-action="save-top">
-            <i class="fa-solid fa-save"></i> 保存配置
+            <i class="fa-solid fa-save"></i> 保存
           </button>
         </div>
       </div>
       <div class="yyt-table-workbench-chip-row">
         <span class="yyt-table-workbench-chip"><i class="fa-solid fa-table"></i>${tableCount} 张表</span>
-        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-hand-pointer"></i>手动执行</span>
-        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-shield-halved"></i>revision-safe</span>
+        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-hand-pointer"></i>手动填表</span>
         <span class="yyt-table-workbench-chip"><i class="fa-solid fa-file-lines"></i>${escapeHtml(mirrorEnabled)}</span>
         <span class="yyt-table-workbench-chip"><i class="fa-solid fa-wave-square"></i>状态 ${escapeHtml(runtime.lastStatus || 'idle')}</span>
       </div>
@@ -383,15 +382,15 @@ function buildViewNav(activeView) {
     <div class="yyt-table-workbench-view-nav" role="tablist" aria-label="填表工作台分界面">
       <button class="yyt-table-workbench-view-button ${activeView === 'config' ? 'active' : ''}" data-table-workbench-view-button="config" type="button">
         <i class="fa-solid fa-sliders"></i>
-        <span>配置</span>
+        <span>改表格</span>
       </button>
       <button class="yyt-table-workbench-view-button ${activeView === 'runtime' ? 'active' : ''}" data-table-workbench-view-button="runtime" type="button">
         <i class="fa-solid fa-stethoscope"></i>
-        <span>执行与诊断</span>
+        <span>运行</span>
       </button>
       <button class="yyt-table-workbench-view-button ${activeView === 'preview' ? 'active' : ''}" data-table-workbench-view-button="preview" type="button">
         <i class="fa-solid fa-code"></i>
-        <span>预览/参考</span>
+        <span>预览</span>
       </button>
     </div>
   `;
@@ -411,8 +410,8 @@ function buildRuntimeSummary(config = {}) {
     <div class="yyt-tool-runtime-card">
       <div class="yyt-table-workbench-panel-copy">
         <div class="yyt-table-workbench-panel-kicker">Runtime</div>
-        <div class="yyt-table-workbench-panel-title">运行摘要</div>
-        <div class="yyt-table-workbench-panel-desc">记录最近一次手动填表的目标、revision 与写回结果，便于快速判断是否命中正确 assistant slot。</div>
+        <div class="yyt-table-workbench-panel-title">最近一次运行结果</div>
+        <div class="yyt-table-workbench-panel-desc">这里只看结果够不够正常；更细的目标信息在右边。</div>
       </div>
       <div class="yyt-tool-runtime-line">
         <span class="yyt-tool-runtime-label">当前状态</span>
@@ -431,20 +430,12 @@ function buildRuntimeSummary(config = {}) {
         <span class="yyt-tool-runtime-value">${Number(runtime.successCount) || 0} / ${Number(runtime.errorCount) || 0}</span>
       </div>
       <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">最近目标</span>
+        <span class="yyt-tool-runtime-label">命中的消息</span>
         <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastSourceMessageId || '未记录')}</span>
       </div>
       <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">最近 revision</span>
-        <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastSlotRevisionKey || '未记录')}</span>
-      </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">loadMode</span>
-        <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastLoadMode || '未记录')}</span>
-      </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">正文镜像</span>
-        <span class="yyt-tool-runtime-value">${runtime.lastMirrorApplied === true ? '已执行' : '未执行'}</span>
+        <span class="yyt-tool-runtime-label">正文同步</span>
+        <span class="yyt-tool-runtime-value">${runtime.lastMirrorApplied === true ? '已同步' : '未同步'}</span>
       </div>
       ${lastError}
     </div>
@@ -457,12 +448,12 @@ function buildConfigView(config = {}, schema) {
       <div class="yyt-panel-section">
         <div class="yyt-section-title">
           <i class="fa-solid fa-sliders"></i>
-          <span>工作台配置</span>
+          <span>改表格</span>
         </div>
         <div class="yyt-table-workbench-panel-copy">
           <div class="yyt-table-workbench-panel-kicker">Setup</div>
-          <div class="yyt-table-workbench-panel-title">表定义与请求模板</div>
-          <div class="yyt-table-workbench-panel-desc">这里只保留配置本身：维护 tables 草稿、promptTemplate 与写回策略。保存后才会更新运行时配置，并作为后续执行的 merge base。</div>
+          <div class="yyt-table-workbench-panel-title">先把表格和提示词改好</div>
+          <div class="yyt-table-workbench-panel-desc">主入口在这里：改表格、改提示词、决定要不要同步写回正文。</div>
         </div>
         ${renderTableForm(schema, config)}
       </div>
@@ -470,14 +461,14 @@ function buildConfigView(config = {}, schema) {
       <div class="yyt-table-workbench-card">
         <div class="yyt-table-workbench-panel-copy">
           <div class="yyt-table-workbench-panel-kicker">Flow</div>
-          <div class="yyt-table-workbench-panel-title">推荐操作顺序</div>
-          <div class="yyt-table-workbench-panel-desc">先在这里整理配置，再切到“执行与诊断”确认目标与状态，最后执行手动填表。</div>
+          <div class="yyt-table-workbench-panel-title">怎么用最顺手</div>
+          <div class="yyt-table-workbench-panel-desc">平时就按这个顺序来，不用先看诊断细节。</div>
         </div>
         <div class="yyt-table-workbench-flow">
-          <span class="yyt-tool-hero-chip">1. 编辑 tables / promptTemplate</span>
-          <span class="yyt-tool-hero-chip">2. 保存配置</span>
-          <span class="yyt-tool-hero-chip">3. 刷新目标诊断</span>
-          <span class="yyt-tool-hero-chip">4. 手动填表</span>
+          <span class="yyt-tool-hero-chip">1. 改表格</span>
+          <span class="yyt-tool-hero-chip">2. 保存</span>
+          <span class="yyt-tool-hero-chip">3. 去运行页点填表</span>
+          <span class="yyt-tool-hero-chip">4. 需要时再看状态</span>
         </div>
       </div>
     </div>
@@ -491,42 +482,41 @@ function buildRuntimeView(config = {}) {
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-hand-pointer"></i>
-            <span>手动执行</span>
+            <span>运行填表</span>
           </div>
           <div class="yyt-tool-manual-area">
             <div class="yyt-tool-runtime-card">
               <div class="yyt-table-workbench-panel-copy">
-                <div class="yyt-table-workbench-panel-kicker">Pipeline</div>
-                <div class="yyt-table-workbench-panel-title">执行链路</div>
-                <div class="yyt-table-workbench-panel-desc">每次执行都会重新解析当前 assistant 目标，并在 commit 前校验 revision，避免把 tables 写到旧 slot 或旧 swipe。</div>
+                <div class="yyt-table-workbench-panel-kicker">Run</div>
+                <div class="yyt-table-workbench-panel-title">点这里就会执行一次</div>
+                <div class="yyt-table-workbench-panel-desc">它会自动找当前 assistant 楼层，再把这次结果写回去；一般不用理解内部链路。</div>
               </div>
               <div class="yyt-table-workbench-flow">
-                <span class="yyt-tool-hero-chip">fresh target</span>
-                <span class="yyt-tool-hero-chip">load state/template</span>
-                <span class="yyt-tool-hero-chip">build request</span>
-                <span class="yyt-tool-hero-chip">parse tables</span>
-                <span class="yyt-tool-hero-chip">commit state</span>
+                <span class="yyt-tool-hero-chip">找当前目标</span>
+                <span class="yyt-tool-hero-chip">读取现有表格</span>
+                <span class="yyt-tool-hero-chip">请求模型</span>
+                <span class="yyt-tool-hero-chip">写回结果</span>
               </div>
             </div>
             <div class="yyt-tool-manual-actions">
               <div class="yyt-table-workbench-action-stack">
                 <div class="yyt-table-workbench-action-primary">
                   <div class="yyt-table-workbench-action-title">主操作</div>
-                  <div class="yyt-table-workbench-action-subtitle">确认配置无误后，直接对当前 assistant 目标执行一次安全写回。</div>
+                  <div class="yyt-table-workbench-action-subtitle">表格改好后，直接点一次就行。</div>
                   <button class="yyt-btn yyt-btn-primary" data-table-workbench-action="run">
-                    <i class="fa-solid fa-play"></i> 立即手动填表
+                    <i class="fa-solid fa-play"></i> 立即填表
                   </button>
                 </div>
                 <div class="yyt-table-workbench-action-secondary">
                   <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="save">
-                    <i class="fa-solid fa-save"></i> 保存配置
+                    <i class="fa-solid fa-save"></i> 先保存
                   </button>
                   <button class="yyt-btn yyt-btn-secondary" data-table-workbench-action="refresh">
-                    <i class="fa-solid fa-rotate"></i> 刷新目标诊断
+                    <i class="fa-solid fa-rotate"></i> 刷新状态
                   </button>
                 </div>
               </div>
-              <div class="yyt-table-workbench-action-hint">执行前先刷新诊断，确认 writeback 将落到当前 assistant 目标；如刚修改过配置，先保存再运行。</div>
+              <div class="yyt-table-workbench-action-hint">如果你刚改过表格，先保存；想确认写到哪条消息，再看右边。</div>
             </div>
           </div>
         </div>
@@ -538,12 +528,12 @@ function buildRuntimeView(config = {}) {
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-crosshairs"></i>
-            <span>当前目标诊断</span>
+            <span>会写到哪里</span>
           </div>
           <div class="yyt-table-workbench-panel-copy">
             <div class="yyt-table-workbench-panel-kicker">Target</div>
-            <div class="yyt-table-workbench-panel-title">目标定位</div>
-            <div class="yyt-table-workbench-panel-desc">显示当前 assistant message / swipe / slot 键，便于在执行前确认这次写回会落到哪一个上下文槽位。</div>
+            <div class="yyt-table-workbench-panel-title">当前目标</div>
+            <div class="yyt-table-workbench-panel-desc">只有你想核对目标时再看这里。</div>
           </div>
           <div data-table-workbench-target class="yyt-table-workbench-empty-state">正在读取当前 assistant 目标...</div>
         </div>
@@ -551,12 +541,12 @@ function buildRuntimeView(config = {}) {
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-database"></i>
-            <span>当前加载结果</span>
+            <span>这次从哪份表开始</span>
           </div>
           <div class="yyt-table-workbench-panel-copy">
             <div class="yyt-table-workbench-panel-kicker">State</div>
-            <div class="yyt-table-workbench-panel-title">状态来源</div>
-            <div class="yyt-table-workbench-panel-desc">展示当前是继续沿用 bound state，还是因为目标尚无绑定记录而回退到模板 tables。</div>
+            <div class="yyt-table-workbench-panel-title">当前载入内容</div>
+            <div class="yyt-table-workbench-panel-desc">看这次是接着已有结果填，还是从模板开始。</div>
           </div>
           <div data-table-workbench-load class="yyt-table-workbench-empty-state">等待诊断结果...</div>
         </div>
@@ -572,12 +562,12 @@ function buildPreviewView(config = {}, variableHelp) {
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-table"></i>
-            <span>tables 预览</span>
+            <span>表格预览</span>
           </div>
           <div class="yyt-table-workbench-panel-copy">
             <div class="yyt-table-workbench-panel-kicker">Preview</div>
-            <div class="yyt-table-workbench-panel-title">当前编译结果</div>
-            <div class="yyt-table-workbench-panel-desc">这里展示当前将用于执行或回退的 tables JSON，可在运行前快速确认结构、字段和行内容。</div>
+            <div class="yyt-table-workbench-panel-title">系统实际会用这份表格</div>
+            <div class="yyt-table-workbench-panel-desc">这里只读，主要用来确认顺序和内容有没有跑偏。</div>
           </div>
           <pre class="yyt-table-workbench-pre" data-table-workbench-preview>${escapeHtml(formatJson(config.tables || []))}</pre>
         </div>
@@ -587,12 +577,12 @@ function buildPreviewView(config = {}, variableHelp) {
         <div class="yyt-panel-section">
           <div class="yyt-section-title">
             <i class="fa-solid fa-code"></i>
-            <span>可用变量</span>
+            <span>提示词变量</span>
           </div>
           <div class="yyt-table-workbench-panel-copy">
             <div class="yyt-table-workbench-panel-kicker">Reference</div>
-            <div class="yyt-table-workbench-panel-title">模板辅助速查</div>
-            <div class="yyt-table-workbench-panel-desc">这些变量可直接用于 promptTemplate，帮助模型结合当前对话与已有表格状态生成结构化更新。</div>
+            <div class="yyt-table-workbench-panel-title">写提示词时可用</div>
+            <div class="yyt-table-workbench-panel-desc">只有你要改提示词时，才需要看这份速查。</div>
           </div>
           <pre class="yyt-table-workbench-pre">${escapeHtml(variableHelp)}</pre>
         </div>

@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.47] - 2026-04-17
+
+### 优化
+
+- ✨ **重做填表工作台主界面与表格编辑体验，改成更直白的表格式交互** (`modules/ui/components/table-form-renderer.js`, `modules/ui/components/table-workbench-panel.js`, `modules/table-engine/table-schema-service.js`, `dist/bundle.js`)
+  - 将填表工作台主入口压平为“改表格 / 运行 / 预览”，减少主路径里的抽象术语与诊断噪音
+  - 把表定义编辑器改成更接近普通表格的表头/内容编辑方式，支持表、列、行的直接增删和上下移动
+  - 保留保存/运行前统一编译到 runtime tables 的稳定边界，同时补齐列类型、说明、必填等元信息编辑能力
+
 ## [1.0.46] - 2026-04-17
 
 ### 修复
