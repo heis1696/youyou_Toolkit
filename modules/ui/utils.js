@@ -628,6 +628,7 @@ function clearFloatingDropdownPresentation(dropdownElement) {
   dropdownElement.style.left = '';
   dropdownElement.style.right = '';
   dropdownElement.style.width = '';
+  dropdownElement.style.minWidth = '';
   dropdownElement.style.maxWidth = '';
   dropdownElement.style.maxHeight = '';
   dropdownElement.style.zIndex = '';
@@ -747,9 +748,13 @@ function positionFloatingCustomSelectDropdown(state) {
   dropdownElement.setAttribute('data-yyt-floating-placement', openAbove ? 'top' : 'bottom');
   dropdownElement.classList.add('yyt-floating-open');
 
-  const contentHeight = Math.min(dropdownElement.scrollHeight || maxHeight, maxHeight);
-  const width = Math.ceil(rect.width);
+  const triggerWidth = Math.ceil(rect.width);
+  const measuredWidth = Math.ceil(dropdownElement.scrollWidth || 0);
   const maxWidth = Math.max(0, Math.floor(viewportWidth - margin * 2));
+  const desiredWidth = Math.max(triggerWidth, measuredWidth);
+  const width = Math.min(maxWidth, desiredWidth);
+  const contentHeight = Math.min(dropdownElement.scrollHeight || maxHeight, maxHeight);
+
   let left = Math.round(rect.left);
   if (left + width > viewportWidth - margin) {
     left = Math.max(margin, Math.round(viewportWidth - margin - width));
@@ -765,7 +770,8 @@ function positionFloatingCustomSelectDropdown(state) {
   dropdownElement.style.top = `${top}px`;
   dropdownElement.style.left = `${left}px`;
   dropdownElement.style.right = 'auto';
-  dropdownElement.style.width = `${Math.ceil(width)}px`;
+  dropdownElement.style.width = `${width}px`;
+  dropdownElement.style.minWidth = `${Math.min(triggerWidth, width)}px`;
   dropdownElement.style.maxWidth = `${maxWidth}px`;
   dropdownElement.style.maxHeight = `${Math.floor(maxHeight)}px`;
   dropdownElement.style.zIndex = '10050';
