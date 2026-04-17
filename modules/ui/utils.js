@@ -631,6 +631,7 @@ function clearFloatingDropdownPresentation(dropdownElement) {
   dropdownElement.style.minWidth = '';
   dropdownElement.style.maxWidth = '';
   dropdownElement.style.maxHeight = '';
+  dropdownElement.style.visibility = '';
   dropdownElement.style.zIndex = '';
 }
 
@@ -749,11 +750,25 @@ function positionFloatingCustomSelectDropdown(state) {
   dropdownElement.classList.add('yyt-floating-open');
 
   const triggerWidth = Math.ceil(rect.width);
-  const measuredWidth = Math.ceil(dropdownElement.scrollWidth || 0);
-  const maxWidth = Math.max(0, Math.floor(viewportWidth - margin * 2));
-  const desiredWidth = Math.max(triggerWidth, measuredWidth);
-  const width = Math.min(maxWidth, desiredWidth);
+  const maxWidth = Math.max(triggerWidth, Math.floor(viewportWidth - margin * 2));
+  const previousWidth = dropdownElement.style.width;
+  const previousMinWidth = dropdownElement.style.minWidth;
+  const previousMaxWidth = dropdownElement.style.maxWidth;
+  const previousVisibility = dropdownElement.style.visibility;
+
+  dropdownElement.style.width = 'max-content';
+  dropdownElement.style.minWidth = `${triggerWidth}px`;
+  dropdownElement.style.maxWidth = `${maxWidth}px`;
+  dropdownElement.style.visibility = 'hidden';
+
+  const measuredWidth = Math.ceil(dropdownElement.scrollWidth || dropdownElement.getBoundingClientRect().width || triggerWidth);
+  const width = Math.max(triggerWidth, Math.min(maxWidth, measuredWidth));
   const contentHeight = Math.min(dropdownElement.scrollHeight || maxHeight, maxHeight);
+
+  dropdownElement.style.width = previousWidth;
+  dropdownElement.style.minWidth = previousMinWidth;
+  dropdownElement.style.maxWidth = previousMaxWidth;
+  dropdownElement.style.visibility = previousVisibility;
 
   let left = Math.round(rect.left);
   if (left + width > viewportWidth - margin) {
@@ -771,9 +786,10 @@ function positionFloatingCustomSelectDropdown(state) {
   dropdownElement.style.left = `${left}px`;
   dropdownElement.style.right = 'auto';
   dropdownElement.style.width = `${width}px`;
-  dropdownElement.style.minWidth = `${Math.min(triggerWidth, width)}px`;
+  dropdownElement.style.minWidth = `${triggerWidth}px`;
   dropdownElement.style.maxWidth = `${maxWidth}px`;
   dropdownElement.style.maxHeight = `${Math.floor(maxHeight)}px`;
+  dropdownElement.style.visibility = '';
   dropdownElement.style.zIndex = '10050';
 }
 
