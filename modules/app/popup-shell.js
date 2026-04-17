@@ -63,33 +63,6 @@ export function createPopupShell(context) {
     return topLevelWindow.document || document;
   }
 
-  function getSettingsService() {
-    return modules.settingsServiceModule?.settingsService || null;
-  }
-
-  function hasDismissedStartupScreen() {
-    return getSettingsService()?.getUiSettings?.()?.startupScreenDismissed === true;
-  }
-
-  function persistStartupScreenDismissal() {
-    const settingsService = getSettingsService();
-    if (!settingsService) {
-      return;
-    }
-
-    if (typeof settingsService.set === 'function') {
-      settingsService.set('ui.startupScreenDismissed', true);
-      return;
-    }
-
-    if (typeof settingsService.updateUiSettings === 'function') {
-      const uiSettings = settingsService.getUiSettings?.() || {};
-      settingsService.updateUiSettings({
-        ...uiSettings,
-        startupScreenDismissed: true
-      });
-    }
-  }
 
   function getTabDisplayName(tabId) {
     if (!tabId) return '未选择页面';
@@ -647,7 +620,7 @@ export function createPopupShell(context) {
         <div class="yyt-startup-screen-inner">
           <div class="yyt-startup-screen-kicker">Welcome</div>
           <div class="yyt-startup-screen-title">YouYou 工具箱</div>
-          <div class="yyt-startup-screen-desc">集中管理 API 预设、自定义工具、提取规则、Ai指令预设与诊断流程。首次启动界面只出现一次，也为后续异步准备状态预留位置。</div>
+          <div class="yyt-startup-screen-desc">集中管理 API 预设、自定义工具、提取规则、Ai指令预设与诊断流程。每次刷新后都会重新显示，便于快速回到介绍入口。</div>
           <div class="yyt-startup-screen-modules">
             ${primaryModules}
           </div>
@@ -666,7 +639,7 @@ export function createPopupShell(context) {
 
   function bindStartupScreen(tools) {
     const $ = getJQuery();
-    if (!$ || !uiState.currentPopup || hasDismissedStartupScreen()) {
+    if (!$ || !uiState.currentPopup) {
       return;
     }
 
@@ -679,7 +652,6 @@ export function createPopupShell(context) {
     $shell.attr('data-yyt-startup-visible', 'true');
     $body.prepend(getStartupScreenHtml(tools));
     $body.find('.yyt-startup-enter').on('click', () => {
-      persistStartupScreenDismissal();
       $body.find('[data-yyt-startup-screen]').remove();
       $shell.removeAttr('data-yyt-startup-visible');
       refreshScrollableSurfaces();

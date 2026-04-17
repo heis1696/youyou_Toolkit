@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.43] - 2026-04-17
+
+### 修复
+
+- 🐛 **统一下拉与欢迎页主题 token，修复颜色漂移、角色下拉白底与欢迎页不再显示的问题** (`modules/ui/components/settings-panel.js`, `styles/main.css`, `modules/app/bootstrap.js`, `modules/app/popup-shell.js`, `modules/ui/components/bypass-panel.js`, `dist/bundle.js`)
+  - 将共享下拉、展开层与欢迎页相关颜色收敛到主题 token，避免 fallback 样式和主样式各自维护导致颜色不一致
+  - 为 bypass 角色下拉增加固定宽度约束，避免选中短文本后收起态过窄、展开后看不全其它选项
+  - 删除欢迎页关闭状态的持久化逻辑，改为页面刷新或浏览器重开后重新显示
+
 ## [1.0.42] - 2026-04-16
 
 ### 修复

@@ -33,7 +33,27 @@ const BASE_THEME_TOKENS = {
   '--yyt-text-secondary': 'rgba(255, 255, 255, 0.72)',
   '--yyt-text-muted': 'rgba(255, 255, 255, 0.5)',
   '--yyt-focus-ring': '0 0 0 3px rgba(123, 183, 255, 0.18)',
-  '--yyt-on-accent': '#0b0f15'
+  '--yyt-on-accent': '#0b0f15',
+  '--yyt-control-bg': 'linear-gradient(180deg, #1d2737 0%, #151d2a 100%)',
+  '--yyt-control-bg-hover': 'linear-gradient(180deg, #243247 0%, #1a2638 100%)',
+  '--yyt-control-bg-active': 'linear-gradient(180deg, #2a3951 0%, #1d2b3f 100%)',
+  '--yyt-control-bg-strong': 'linear-gradient(180deg, #243247 0%, #192435 100%)',
+  '--yyt-control-bg-focus': 'linear-gradient(180deg, #243a57 0%, #1a2a3f 100%)',
+  '--yyt-control-border': 'rgba(146, 173, 212, 0.24)',
+  '--yyt-control-border-hover': 'rgba(146, 173, 212, 0.36)',
+  '--yyt-control-border-focus': 'rgba(123, 183, 255, 0.72)',
+  '--yyt-control-shadow': '0 12px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+  '--yyt-control-shadow-hover': '0 16px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+  '--yyt-control-shadow-focus': '0 18px 30px rgba(8, 14, 24, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+  '--yyt-control-shadow-active': '0 10px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+  '--yyt-select-surface': '#121a26',
+  '--yyt-select-option-bg': '#192334',
+  '--yyt-select-option-hover-bg': '#233249',
+  '--yyt-select-option-selected-bg': '#2a3f60',
+  '--yyt-select-option-border': 'rgba(123, 183, 255, 0.22)',
+  '--yyt-select-option-selected-border': 'rgba(123, 183, 255, 0.4)',
+  '--yyt-select-dropdown-shadow': '0 24px 44px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(8, 12, 18, 0.82)',
+  '--yyt-select-arrow-color': 'rgba(255, 255, 255, 0.52)'
 };
 
 const THEME_CONFIGS = {
@@ -80,7 +100,27 @@ const THEME_CONFIGS = {
     '--yyt-border-soft': 'rgba(15, 23, 42, 0.05)',
     '--yyt-border-strong': 'rgba(15, 23, 42, 0.14)',
     '--yyt-focus-ring': '0 0 0 3px rgba(59, 130, 246, 0.14)',
-    '--yyt-on-accent': '#0f172a'
+    '--yyt-on-accent': '#0f172a',
+    '--yyt-control-bg': 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%)',
+    '--yyt-control-bg-hover': 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(226, 232, 240, 0.98) 100%)',
+    '--yyt-control-bg-active': 'linear-gradient(180deg, rgba(239, 246, 255, 1) 0%, rgba(219, 234, 254, 0.98) 100%)',
+    '--yyt-control-bg-strong': 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(241, 245, 249, 0.98) 100%)',
+    '--yyt-control-bg-focus': 'linear-gradient(180deg, rgba(239, 246, 255, 1) 0%, rgba(219, 234, 254, 0.98) 100%)',
+    '--yyt-control-border': 'rgba(59, 130, 246, 0.18)',
+    '--yyt-control-border-hover': 'rgba(59, 130, 246, 0.28)',
+    '--yyt-control-border-focus': 'rgba(59, 130, 246, 0.58)',
+    '--yyt-control-shadow': '0 10px 22px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.75)',
+    '--yyt-control-shadow-hover': '0 12px 24px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85)',
+    '--yyt-control-shadow-focus': '0 14px 26px rgba(59, 130, 246, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+    '--yyt-control-shadow-active': '0 8px 18px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85)',
+    '--yyt-select-surface': '#ffffff',
+    '--yyt-select-option-bg': '#f8fafc',
+    '--yyt-select-option-hover-bg': '#eff6ff',
+    '--yyt-select-option-selected-bg': '#dbeafe',
+    '--yyt-select-option-border': 'rgba(59, 130, 246, 0.16)',
+    '--yyt-select-option-selected-border': 'rgba(59, 130, 246, 0.34)',
+    '--yyt-select-dropdown-shadow': '0 18px 32px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(148, 163, 184, 0.18)',
+    '--yyt-select-arrow-color': 'rgba(15, 23, 42, 0.45)'
   }
 };
 

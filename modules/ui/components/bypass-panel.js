@@ -170,7 +170,7 @@ export const BypassPanel = {
         <div class="yyt-bypass-message-header">
           <div class="yyt-bypass-message-role">
             <i class="fa-solid ${roleIcons[message.role] || 'fa-comment'}"></i>
-            <select class="yyt-select yyt-bypass-role-select">
+            <select class="yyt-select yyt-bypass-role-select yyt-select-fixed-width">
               <option value="SYSTEM" ${message.role === 'SYSTEM' ? 'selected' : ''}>SYSTEM</option>
               <option value="USER" ${message.role === 'USER' ? 'selected' : ''}>USER</option>
               <option value="assistant" ${message.role === 'assistant' ? 'selected' : ''}>assistant</option>
@@ -785,12 +785,7 @@ export const BypassPanel = {
       }
       
       .yyt-bypass-role-select {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 6px;
-        padding: 4px 8px;
         font-size: 12px;
-        color: var(--yyt-text);
       }
       
       .yyt-bypass-message-controls {
