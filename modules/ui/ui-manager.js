@@ -116,13 +116,13 @@ class UIManager {
       console.error('[UIManager] jQuery不可用');
       return;
     }
-    
+
     const component = this.components.get(id);
     if (!component) {
       console.warn(`[UIManager] 组件不存在: ${id}`);
       return;
     }
-    
+
     let $container;
     if (typeof container === 'string') {
       $container = $(container);
@@ -131,15 +131,23 @@ class UIManager {
     } else if (container) {
       $container = $(container);
     }
-    
+
     if (!isContainerValid($container)) {
       console.warn(`[UIManager] 容器不存在`);
       return;
     }
-    
+
+    this.activeInstances.forEach((instance, instanceId) => {
+      const sameContainer = instance?.container?.length && $container.length
+        && instance.container[0] === $container[0];
+      if (sameContainer && instanceId !== id) {
+        this.destroyInstance(instanceId);
+      }
+    });
+
     // 销毁旧实例
     this.destroyInstance(id);
-    
+
     // 渲染
     if (typeof component.renderTo === 'function') {
       component.renderTo($container, {
@@ -156,14 +164,14 @@ class UIManager {
       // 绑定事件
       component.bindEvents($container, this.dependencies);
     }
-    
+
     // 保存实例
     this.activeInstances.set(id, {
       container: $container,
       component,
       props
     });
-    
+
     // 发送渲染完成事件
     eventBus.emit(EVENTS.UI_RENDER_REQUESTED, { componentId: id });
   }
