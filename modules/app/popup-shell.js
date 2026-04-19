@@ -639,7 +639,7 @@ export function createPopupShell(context) {
 
   function bindStartupScreen(tools) {
     const $ = getJQuery();
-    if (!$ || !uiState.currentPopup) {
+    if (!$ || !uiState.currentPopup || uiState.startupScreenDismissed) {
       return;
     }
 
@@ -654,6 +654,7 @@ export function createPopupShell(context) {
     $body.find('.yyt-startup-enter').on('click', () => {
       $body.find('[data-yyt-startup-screen]').remove();
       $shell.removeAttr('data-yyt-startup-visible');
+      uiState.startupScreenDismissed = true;
       refreshScrollableSurfaces();
     });
   }
