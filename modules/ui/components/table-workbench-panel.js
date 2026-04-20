@@ -474,6 +474,10 @@ function normalizeWorkbenchView(view) {
   return TABLE_WORKBENCH_VIEWS.includes(view) ? view : 'config';
 }
 
+function normalizeString(value, fallback = '') {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
 function formatTimestamp(value) {
   return Number.isFinite(value) && value > 0
     ? new Date(value).toLocaleString()
@@ -768,6 +772,59 @@ function buildConfigView(config = {}, schema, currentTableIndex = 0) {
 
       <div class="yyt-table-workbench-config-column" data-config-column="aux">
         ${buildConfigAuxiliaryCard(config, validation)}
+      </div>
+    </div>
+  `;
+}
+
+function buildRuntimeSummary(config = {}) {
+  const runtime = config.runtime || {};
+  const runtimeStatus = normalizeString(runtime.lastStatus, 'idle');
+  const lastRunText = runtime.lastRunAt ? formatTimestamp(runtime.lastRunAt) : '未运行';
+  const lastDurationText = Number.isFinite(runtime.lastDurationMs) && runtime.lastDurationMs > 0
+    ? `${runtime.lastDurationMs} ms`
+    : '未记录';
+  const validationSummary = runtime.lastValidationSummary || {};
+  const validationText = `${Number(validationSummary.errorCount) || 0} 个错误 / ${Number(validationSummary.warningCount) || 0} 个提示`;
+  const lastLoadMode = normalizeString(runtime.lastLoadMode, '未记录');
+  const mirrorText = runtime.lastMirrorApplied === true ? '已写回正文' : '未写回正文';
+  const lastError = normalizeString(runtime.lastError, '');
+  const details = [
+    { label: '当前状态', value: runtimeStatus, badge: true },
+    { label: '最近运行', value: lastRunText },
+    { label: '耗时', value: lastDurationText },
+    { label: '成功 / 失败', value: `${Number(runtime.successCount) || 0} / ${Number(runtime.errorCount) || 0}` },
+    { label: '最近校验', value: validationText },
+    { label: '最近载入模式', value: lastLoadMode },
+    { label: '正文镜像', value: mirrorText }
+  ];
+
+  return `
+    <div class="yyt-panel-section">
+      <div class="yyt-section-title">
+        <i class="fa-solid fa-wave-square"></i>
+        <span>最近运行状态</span>
+      </div>
+      <div class="yyt-table-workbench-panel-copy">
+        <div class="yyt-table-workbench-panel-kicker">Runtime</div>
+        <div class="yyt-table-workbench-panel-title">先看这次有没有跑通</div>
+        <div class="yyt-table-workbench-panel-desc">这里只放最常用的运行结果摘要；更细的目标和加载信息放在右边。</div>
+      </div>
+      <div class="yyt-tool-runtime-card">
+        ${details.map((item) => `
+          <div class="yyt-tool-runtime-line${item.error ? ' yyt-tool-runtime-error' : ''}">
+            <span class="yyt-tool-runtime-label">${escapeHtml(item.label)}</span>
+            ${item.badge
+              ? `<span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(item.value)}">${escapeHtml(item.value)}</span>`
+              : `<span class="yyt-tool-runtime-value">${escapeHtml(item.value)}</span>`}
+          </div>
+        `).join('')}
+        ${lastError ? `
+          <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
+            <span class="yyt-tool-runtime-label">最近错误</span>
+            <span class="yyt-tool-runtime-value">${escapeHtml(lastError)}</span>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;

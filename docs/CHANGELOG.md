@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.56] - 2026-04-20
+
+### 修复
+
+- 🐛 **修复填表工作台运行页缺失 `buildRuntimeSummary()` / `normalizeString()` 时直接报错，导致 `runtime` 视图无法渲染** (`modules/ui/components/table-workbench-panel.js`, `dist/bundle.js`)
+  - 补回运行摘要卡片所需的最小 helper，恢复运行状态摘要区挂载
+  - 让填表工作台在切到“运行”分界面时不再因缺失函数而整块报错
+
 ## [1.0.55] - 2026-04-20
 
 ### 修复
