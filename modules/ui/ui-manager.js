@@ -119,7 +119,10 @@ class UIManager {
 
     const component = this.components.get(id);
     if (!component) {
-      console.warn(`[UIManager] 组件不存在: ${id}`);
+      console.error(`[UIManager] 组件不存在: ${id}`);
+      if ($container?.length) {
+        $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>组件未注册：${id}</span></div>`);
+      }
       return;
     }
 
@@ -149,20 +152,26 @@ class UIManager {
     this.destroyInstance(id);
 
     // 渲染
-    if (typeof component.renderTo === 'function') {
-      component.renderTo($container, {
-        ...props,
-        dependencies: this.dependencies
-      });
-    } else {
-      const html = component.render({
-        ...props,
-        dependencies: this.dependencies
-      });
-      $container.html(html);
+    try {
+      if (typeof component.renderTo === 'function') {
+        component.renderTo($container, {
+          ...props,
+          dependencies: this.dependencies
+        });
+      } else {
+        const html = component.render({
+          ...props,
+          dependencies: this.dependencies
+        });
+        $container.html(html);
 
-      // 绑定事件
-      component.bindEvents($container, this.dependencies);
+        // 绑定事件
+        component.bindEvents($container, this.dependencies);
+      }
+    } catch (error) {
+      console.error(`[UIManager] 组件渲染失败: ${id}`, error);
+      $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>组件渲染失败：${id}${error?.message ? ` - ${error.message}` : ''}</span></div>`);
+      return;
     }
 
     // 保存实例

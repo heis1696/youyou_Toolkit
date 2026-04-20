@@ -93,7 +93,16 @@ export function initUI(options = {}) {
   console.log('[UI] 模块初始化完成');
 }
 
+function ensureComponentsRegistered() {
+  if (uiManager.getComponent(ApiPresetPanel.id)) {
+    return;
+  }
+
+  registerComponents();
+}
+
 function renderRegisteredPanel(componentId, container, props = {}) {
+  ensureComponentsRegistered();
   uiManager.render(componentId, container, props);
 }
 

@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.54] - 2026-04-20
+
+### 修复
+
+- 🐛 **修复侧边工具子页在共享挂载链失效时只剩空的 `.yyt-sub-content` 容器，改为自动补注册并在容器内显示明确错误** (`modules/ui/index.js`, `modules/ui/ui-manager.js`, `dist/bundle.js`)
+  - `renderRegisteredPanel()` 现会在渲染前确认组件已注册，避免因注册时序问题导致工具子页统一空白
+  - `UIManager.render()` 现会把“组件未注册”或“组件渲染失败”的信息直接写入容器，不再静默返回空白壳
+
 ## [1.0.53] - 2026-04-20
 
 ### 修复
