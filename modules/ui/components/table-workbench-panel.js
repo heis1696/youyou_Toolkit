@@ -633,7 +633,7 @@ function buildTableListCard(tables = [], currentTableIndex = 0) {
           const note = String(table?.note || '').trim();
           const isActive = tableIndex === normalizedIndex;
           return `
-            <button type="button" class="yyt-table-workbench-table-item ${isActive ? 'active' : ''}" data-table-workbench-select-table="${tableIndex}">
+            <div class="yyt-table-workbench-table-item ${isActive ? 'active' : ''}" data-table-workbench-select-table="${tableIndex}" role="button" tabindex="0" aria-pressed="${isActive ? 'true' : 'false'}">
               <div class="yyt-table-workbench-table-item-head">
                 <span class="yyt-table-workbench-table-order">第 ${tableIndex + 1} 张</span>
                 ${buildMoveControls('table', { 'table-index': tableIndex }, { currentIndex: tableIndex, size: tables.length })}
@@ -651,7 +651,7 @@ function buildTableListCard(tables = [], currentTableIndex = 0) {
                 </div>
                 ${isActive ? '<span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-crosshairs"></i>当前</span>' : ''}
               </div>
-            </button>
+            </div>
           `;
         }).join('') : `
           <div class="yyt-table-workbench-empty-state">
@@ -1032,10 +1032,24 @@ export const TableWorkbenchPanel = {
     });
 
     $container.on('click.yytTableWorkbench', '[data-table-workbench-select-table]', (event) => {
+      if ($(event.target).closest('[data-table-editor-action]').length) {
+        return;
+      }
       const nextIndex = Number.parseInt($(event.currentTarget).attr('data-table-workbench-select-table') || '0', 10);
       const draft = readTableDefinitionsDraft($container.find('[data-table-definition-root]'));
       self.currentTableIndex = clampCurrentTableIndex(draft.tables, nextIndex);
       self.renderTo($container);
+    });
+
+    $container.on('keydown.yytTableWorkbench', '[data-table-workbench-select-table]', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      if ($(event.target).closest('[data-table-editor-action]').length) {
+        return;
+      }
+      event.preventDefault();
+      $(event.currentTarget).trigger('click');
     });
 
     $container.on('click.yytTableWorkbench', '[data-table-workbench-action="save"], [data-table-workbench-action="save-top"]', () => {
