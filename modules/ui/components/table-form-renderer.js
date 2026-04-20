@@ -19,6 +19,7 @@ import {
   createEmptyTableDefinition,
   deriveTableDraftFromTables,
   validateTableDraft,
+  validateTableDraftDeep,
   compileTableDraftToTables,
   TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
   DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE
@@ -259,17 +260,56 @@ export const TABLE_FORM_RENDERER_STYLES = `
     background: rgba(255, 255, 255, 0.03);
   }
 
-  .yyt-table-editor-card {
-    padding: 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
-      rgba(10, 14, 22, 0.2);
+  .yyt-table-editor-validation-summary {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 36px rgba(0, 0, 0, 0.18);
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 100, 100, 0.28);
+    background: rgba(255, 100, 100, 0.08);
+  }
+
+  .yyt-table-editor-validation-summary.yyt-warning-only {
+    border-color: rgba(255, 196, 87, 0.28);
+    background: rgba(255, 196, 87, 0.08);
+  }
+
+  .yyt-table-editor-validation-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--yyt-text);
+  }
+
+  .yyt-table-editor-validation-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .yyt-table-editor-card.yyt-has-error,
+  .yyt-table-editor-grid tr.yyt-has-error {
+    border-color: rgba(255, 100, 100, 0.26);
+  }
+
+  .yyt-table-editor-grid tr.yyt-has-error td,
+  .yyt-table-editor-grid tr.yyt-has-error th {
+    background: rgba(255, 100, 100, 0.04);
+  }
+
+  .yyt-table-editor-grid textarea.yyt-table-cell-error,
+  .yyt-table-editor-grid input.yyt-table-cell-error,
+  .yyt-table-editor-grid select.yyt-table-cell-error,
+  .yyt-table-editor-meta input.yyt-table-cell-error,
+  .yyt-table-editor-meta textarea.yyt-table-cell-error {
+    border-color: rgba(255, 100, 100, 0.55);
+    box-shadow: 0 0 0 1px rgba(255, 100, 100, 0.14);
+    background: rgba(255, 100, 100, 0.08);
   }
 
   .yyt-table-editor-card-title {
@@ -427,7 +467,7 @@ function moveArrayItem(items = [], fromIndex = -1, toIndex = -1) {
   return nextItems;
 }
 
-function buildMoveControls(actionPrefix, indices = {}, options = {}) {
+export function buildMoveControls(actionPrefix, indices = {}, options = {}) {
   const size = Number.isInteger(options.size) ? options.size : 0;
   const currentIndex = Number.isInteger(options.currentIndex) ? options.currentIndex : -1;
   const disableUp = currentIndex <= 0;
@@ -467,6 +507,23 @@ function cloneValue(value) {
   } catch (_) {
     return value;
   }
+}
+
+function clampTableIndex(tableCount = 0, currentIndex = 0) {
+  if (!Number.isInteger(tableCount) || tableCount <= 0) {
+    return 0;
+  }
+
+  if (!Number.isInteger(currentIndex) || currentIndex < 0) {
+    return 0;
+  }
+
+  return Math.min(currentIndex, tableCount - 1);
+}
+
+function normalizeDraftForRender(draft = {}) {
+  const sourceDraft = draft && typeof draft === 'object' ? draft : {};
+  return deriveTableDraftFromTables(Array.isArray(sourceDraft.tables) ? sourceDraft.tables : []);
 }
 
 function getFieldStringValue(field, value) {
@@ -540,8 +597,93 @@ function getRowCellValue(row = {}, column = {}, index = 0) {
   return '';
 }
 
-function normalizeDraftForRender(draft = {}) {
-  return deriveTableDraftFromTables(compileTableDraftToTables(draft));
+function buildIssueLocationKey(issue = {}) {
+  return [
+    Number.isInteger(issue?.tableIndex) ? issue.tableIndex : -1,
+    Number.isInteger(issue?.rowIndex) ? issue.rowIndex : -1,
+    Number.isInteger(issue?.columnIndex) ? issue.columnIndex : -1,
+    String(issue?.cellKey || '')
+  ].join(':');
+}
+
+function summarizeValidation(validation = {}, limit = 6) {
+  const issues = Array.isArray(validation?.issues) ? validation.issues : [];
+  if (!issues.length) {
+    return '';
+  }
+
+  const errorCount = Number(validation?.summary?.errorCount) || 0;
+  const warningCount = Number(validation?.summary?.warningCount) || 0;
+  const title = errorCount > 0
+    ? `发现 ${errorCount} 个错误${warningCount > 0 ? `，另有 ${warningCount} 个提示` : ''}`
+    : `当前有 ${warningCount} 个提示`;
+  const previewItems = issues.slice(0, Math.max(1, limit)).map((issue) => `<li>${escapeHtml(issue?.message || '')}</li>`).join('');
+  const moreHint = issues.length > limit
+    ? `<li>还有 ${issues.length - limit} 条未展开，请先修正上面这些。</li>`
+    : '';
+  const summaryClass = errorCount > 0 ? '' : ' yyt-warning-only';
+
+  return `
+    <div class="yyt-table-editor-validation-summary${summaryClass}" data-table-validation-summary>
+      <div class="yyt-table-editor-validation-title">${escapeHtml(title)}</div>
+      <ul class="yyt-table-editor-validation-list">${previewItems}${moreHint}</ul>
+    </div>
+  `;
+}
+
+export function applyDraftValidationState($root, validation = null) {
+  const $ = getJQuery();
+  if (!$ || !$root?.length) {
+    return validation;
+  }
+
+  $root.find('[data-table-validation-summary]').remove();
+  $root.find('.yyt-table-cell-error').removeClass('yyt-table-cell-error');
+  $root.find('.yyt-has-error').removeClass('yyt-has-error');
+
+  const normalizedValidation = validation || validateTableDraftDeep(readTableDefinitionsDraft($root));
+  const issues = Array.isArray(normalizedValidation?.issues) ? normalizedValidation.issues : [];
+  const issueKeySet = new Set(issues.filter((issue) => issue?.severity !== 'warning').map((issue) => buildIssueLocationKey(issue)));
+  const columnIssueSet = new Set(issues.filter((issue) => issue?.severity !== 'warning').map((issue) => `${issue?.tableIndex ?? -1}:${issue?.columnIndex ?? -1}`));
+  const tableIssueSet = new Set(issues.filter((issue) => issue?.severity !== 'warning').map((issue) => `${issue?.tableIndex ?? -1}`));
+
+  if (issues.length > 0) {
+    $root.prepend(summarizeValidation(normalizedValidation));
+  }
+
+  $root.find('[data-table-editor-table]').each((tableIndex, tableElement) => {
+    const $table = $(tableElement);
+    if (tableIssueSet.has(`${tableIndex}`)) {
+      $table.addClass('yyt-has-error');
+    }
+
+    $table.find('[data-table-editor-column]').each((columnIndex, columnElement) => {
+      const $column = $(columnElement);
+      if (columnIssueSet.has(`${tableIndex}:${columnIndex}`)) {
+        $column.addClass('yyt-has-error');
+        $column.find('[data-table-editor-column-title], [data-table-editor-column-key], [data-table-editor-column-type], [data-table-editor-column-description]').addClass('yyt-table-cell-error');
+      }
+    });
+
+    $table.find('[data-table-editor-row]').each((rowIndex, rowElement) => {
+      const $row = $(rowElement);
+      let rowHasError = false;
+      $row.find('[data-table-editor-cell]').each((columnIndex, cellElement) => {
+        const columnKey = String($table.find(`[data-table-editor-column="${columnIndex}"] [data-table-editor-column-key]`).val() || '').trim();
+        const locationKey = [tableIndex, rowIndex, columnIndex, columnKey].join(':');
+        if (issueKeySet.has(locationKey)) {
+          rowHasError = true;
+          $(cellElement).addClass('yyt-table-cell-error');
+        }
+      });
+
+      if (rowHasError) {
+        $row.addClass('yyt-has-error');
+      }
+    });
+  });
+
+  return normalizedValidation;
 }
 
 function renderTableEditorRow(table = {}, row = {}, tableIndex = 0, rowIndex = 0) {
@@ -556,15 +698,19 @@ function renderTableEditorRow(table = {}, row = {}, tableIndex = 0, rowIndex = 0
       <td>
         <input type="text" class="yyt-input" data-table-editor-row-name value="${escapeHtml(String(row?.name || ''))}" placeholder="可留空，默认会自动命名">
       </td>
-      ${columns.map((column, columnIndex) => `
+      ${columns.map((column, columnIndex) => {
+        const columnKey = String(column?.key || '').trim();
+        return `
         <td>
           <textarea class="yyt-textarea yyt-code-textarea-small"
                     data-table-editor-cell
                     data-column-index="${columnIndex}"
+                    data-column-key="${escapeHtml(columnKey)}"
                     rows="2"
                     placeholder="${escapeHtml(column.title || column.key || `列${columnIndex + 1}`)}">${escapeHtml(getRowCellValue(row, column, columnIndex))}</textarea>
         </td>
-      `).join('')}
+      `;
+      }).join('')}
       <td>
         <div class="yyt-table-editor-row-actions">
           ${moveControls}
@@ -577,7 +723,7 @@ function renderTableEditorRow(table = {}, row = {}, tableIndex = 0, rowIndex = 0
   `;
 }
 
-function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
+export function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) {
   const columns = Array.isArray(table.columns) ? table.columns : [];
   const rows = Array.isArray(table.rows) ? table.rows : [];
   const tableName = String(table?.name || '').trim();
@@ -756,10 +902,44 @@ function renderTableDefinitionDialogBody(table = {}, tableIndex = 0, options = {
   `;
 }
 
-function renderTableDefinitionsEditorBody(draft = {}) {
-  const tables = Array.isArray(draft?.tables) ? draft.tables : [];
+function renderTableDefinitionsEditorBody(draft = {}, options = {}) {
+  const normalizedDraft = normalizeDraftForRender(draft);
+  const tables = Array.isArray(normalizedDraft?.tables) ? normalizedDraft.tables : [];
   const totalColumns = tables.reduce((sum, table) => sum + (Array.isArray(table?.columns) ? table.columns.length : 0), 0);
   const totalRows = tables.reduce((sum, table) => sum + (Array.isArray(table?.rows) ? table.rows.length : 0), 0);
+  const mode = options.mode === 'focused' ? 'focused' : 'full';
+  const currentTableIndex = clampTableIndex(tables.length, Number.parseInt(options.currentTableIndex, 10));
+
+  if (mode === 'focused') {
+    const activeTable = tables[currentTableIndex] || null;
+    return `
+      <div class="yyt-table-editor-shell">
+        <div class="yyt-table-editor-banner">
+          <div class="yyt-table-editor-banner-copy">
+            <div class="yyt-table-editor-banner-title">当前表编辑区</div>
+            <div class="yyt-table-editor-muted">左边切表，右边看编译和校验；中间只专心改当前这张表。</div>
+          </div>
+          <div class="yyt-table-editor-banner-meta">
+            <span class="yyt-table-editor-chip">${tables.length} 张表</span>
+            <span class="yyt-table-editor-chip">${totalColumns} 列</span>
+            <span class="yyt-table-editor-chip">${totalRows} 行</span>
+          </div>
+        </div>
+        <div class="yyt-table-editor-toolbar">
+          <div class="yyt-table-editor-muted">先写表头，再填内容；顺序不对可以在左侧快速调整。</div>
+          <button type="button" class="yyt-btn yyt-btn-small yyt-btn-primary" data-table-editor-action="add-table">
+            <i class="fa-solid fa-plus"></i> 新增表格
+          </button>
+        </div>
+        ${activeTable ? renderTableEditorCard(activeTable, currentTableIndex, { totalTables: tables.length }) : `
+          <div class="yyt-table-editor-empty">
+            <div class="yyt-table-editor-section-title">还没有表格</div>
+            <div class="yyt-table-editor-muted">先新增一张表，再开始写表头和内容。</div>
+          </div>
+        `}
+      </div>
+    `;
+  }
 
   return `
     <div class="yyt-table-editor-shell">
@@ -803,10 +983,57 @@ function renderTableDefinitionsField(field = {}, values = {}) {
   return `
     <div class="yyt-table-form-field" data-table-form-item="${escapeHtml(fieldName)}">
       <label>${label}</label>
-      <div class="yyt-table-editor" data-table-field="${escapeHtml(fieldName)}" data-field-type="tableDefinitions" data-table-definition-root>
-        ${renderTableDefinitionsEditorBody(draft)}
-      </div>
-      ${description}
+      ${renderTableDefinitionsEditorField(field, draft, { description })}
+    </div>
+  `;
+}
+
+export function renderTableDefinitionsEditorField(field = {}, draft = {}, options = {}) {
+  const fieldName = String(field.name || '').trim();
+  const description = typeof options.description === 'string'
+    ? options.description
+    : (field.description ? `<div class="yyt-table-form-field-desc">${escapeHtml(field.description)}</div>` : '');
+  const mode = options.mode === 'focused' ? 'focused' : 'full';
+  const currentTableIndex = Number.parseInt(options.currentTableIndex, 10);
+
+  return `
+    <div class="yyt-table-editor" data-table-field="${escapeHtml(fieldName)}" data-field-type="tableDefinitions" data-table-definition-root data-table-editor-mode="${mode}" data-current-table-index="${Number.isInteger(currentTableIndex) ? currentTableIndex : 0}">
+      ${renderTableDefinitionsEditorBody(draft, { mode, currentTableIndex })}
+    </div>
+    ${description}
+  `;
+}
+
+export function renderTableAuxiliaryFields(schema = [], values = {}, options = {}) {
+  const fields = Array.isArray(schema) ? schema : [];
+  const includeFieldNames = Array.isArray(options.includeFieldNames)
+    ? new Set(options.includeFieldNames.map((item) => String(item || '').trim()).filter(Boolean))
+    : null;
+  const excludeFieldNames = Array.isArray(options.excludeFieldNames)
+    ? new Set(options.excludeFieldNames.map((item) => String(item || '').trim()).filter(Boolean))
+    : null;
+
+  const renderedFields = fields.filter((field) => {
+    const fieldName = String(field?.name || '').trim();
+    if (!fieldName) {
+      return false;
+    }
+    if (includeFieldNames && !includeFieldNames.has(fieldName)) {
+      return false;
+    }
+    if (excludeFieldNames && excludeFieldNames.has(fieldName)) {
+      return false;
+    }
+    return field.type !== 'tableDefinitions';
+  }).map((field) => renderField(field, values)).join('');
+
+  if (!renderedFields) {
+    return '';
+  }
+
+  return `
+    <div class="yyt-table-form-grid">
+      ${renderedFields}
     </div>
   `;
 }
@@ -838,7 +1065,8 @@ function openTableDefinitionDialog($container, table = {}, callbacks = {}) {
   bindDialogEvents($container, dialogId, {
     onSave: (closeDialog) => {
       const $dialogRoot = $container.find(`#${dialogId}-overlay [data-table-dialog-root]`);
-      const validation = validateTableDraft(readTableDefinitionsDraft($dialogRoot));
+      const validation = validateTableDraftDeep(readTableDefinitionsDraft($dialogRoot));
+      applyDraftValidationState($dialogRoot, validation);
       if (!validation.valid) {
         showToast('error', validation.errors.join('\n'));
         return;
@@ -909,7 +1137,7 @@ function renderField(field = {}, values = {}) {
   `;
 }
 
-function readTableDefinitionsDraft($root) {
+export function readTableDefinitionsDraft($root) {
   const $ = getJQuery();
   if (!$ || !$root?.length) {
     return { tables: [] };
@@ -955,7 +1183,13 @@ function createEmptyEditorRow(columns = [], rowIndex = 1) {
 }
 
 function rerenderTableDefinitionsRoot($root, field = {}, draft = {}) {
-  $root.html(renderTableDefinitionsEditorBody(normalizeDraftForRender(draft)));
+  const mode = String($root.attr('data-table-editor-mode') || '').trim() === 'focused' ? 'focused' : 'full';
+  const currentTableIndex = Number.parseInt($root.attr('data-current-table-index') || '0', 10);
+  const normalizedDraft = normalizeDraftForRender(draft);
+  const nextIndex = clampTableIndex(Array.isArray(normalizedDraft.tables) ? normalizedDraft.tables.length : 0, currentTableIndex);
+
+  $root.attr('data-current-table-index', String(nextIndex));
+  $root.html(renderTableDefinitionsEditorBody(normalizedDraft, { mode, currentTableIndex: nextIndex }));
 }
 
 export function bindTableFormEvents($container, schema = [], options = {}) {
@@ -972,6 +1206,11 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
   const notifyChange = () => {
     if (typeof options.onChange === 'function') {
       options.onChange();
+    }
+  };
+  const notifyTableMutation = (payload = {}) => {
+    if (typeof options.onTableMutation === 'function') {
+      options.onTableMutation(payload);
     }
   };
 
@@ -1002,6 +1241,11 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
           const nextTables = Array.isArray(nextDraft.tables) ? nextDraft.tables : [];
           nextTables.push(nextTable);
           rerenderTableDefinitionsRoot($root, field, { tables: nextTables });
+          notifyTableMutation({
+            action: 'add-table',
+            tableIndex: nextTables.length - 1,
+            draft: { tables: nextTables }
+          });
           notifyChange();
         }
       });
@@ -1010,11 +1254,25 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
 
     if (action === 'delete-table' && Number.isInteger(tableIndex) && tableIndex >= 0 && tableIndex < tables.length) {
       tables.splice(tableIndex, 1);
+      rerenderTableDefinitionsRoot($root, field, { tables });
+      notifyTableMutation({
+        action: 'delete-table',
+        tableIndex,
+        draft: { tables }
+      });
+      notifyChange();
+      return;
     }
 
     if (action === 'move-table-up' && Number.isInteger(tableIndex)) {
       const nextTables = moveArrayItem(tables, tableIndex, tableIndex - 1);
       rerenderTableDefinitionsRoot($root, field, { tables: nextTables });
+      notifyTableMutation({
+        action: 'move-table-up',
+        tableIndex,
+        nextTableIndex: Math.max(0, tableIndex - 1),
+        draft: { tables: nextTables }
+      });
       notifyChange();
       return;
     }
@@ -1022,6 +1280,12 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
     if (action === 'move-table-down' && Number.isInteger(tableIndex)) {
       const nextTables = moveArrayItem(tables, tableIndex, tableIndex + 1);
       rerenderTableDefinitionsRoot($root, field, { tables: nextTables });
+      notifyTableMutation({
+        action: 'move-table-down',
+        tableIndex,
+        nextTableIndex: Math.min(nextTables.length - 1, tableIndex + 1),
+        draft: { tables: nextTables }
+      });
       notifyChange();
       return;
     }
@@ -1111,10 +1375,15 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
     }
 
     rerenderTableDefinitionsRoot($root, field, { tables });
+    applyDraftValidationState($root);
     notifyChange();
   });
 
-  $container.on('input.yytTableForm', '[data-table-definition-root] input, [data-table-definition-root] textarea', () => {
+  $container.on('input.yytTableForm', '[data-table-definition-root] input, [data-table-definition-root] textarea', (event) => {
+    const $root = $(event.currentTarget).closest('[data-table-definition-root]');
+    if ($root.length) {
+      applyDraftValidationState($root);
+    }
     notifyChange();
   });
 
@@ -1156,6 +1425,13 @@ export function bindTableFormEvents($container, schema = [], options = {}) {
 
   $container.on('change.yytTableForm', '[data-table-field][data-field-type="select"]', () => {
     notifyChange();
+  });
+
+  $container.on('blur.yytTableForm', '[data-table-definition-root] [data-table-editor-cell], [data-table-definition-root] [data-table-editor-column-key], [data-table-definition-root] [data-table-editor-column-title], [data-table-definition-root] [data-table-editor-column-type], [data-table-definition-root] [data-table-editor-column-required]', (event) => {
+    const $root = $(event.currentTarget).closest('[data-table-definition-root]');
+    if ($root.length) {
+      applyDraftValidationState($root);
+    }
   });
 
   $container.on('change.yytTableForm', '[data-table-definition-root] [data-table-editor-column-key], [data-table-definition-root] [data-table-editor-column-title]', (event) => {
@@ -1217,7 +1493,8 @@ export function readTableFormValues($container, schema = []) {
     }
 
     if (field.type === 'tableDefinitions') {
-      const validation = validateTableDraft(readTableDefinitionsDraft($field));
+      const validation = validateTableDraftDeep(readTableDefinitionsDraft($field));
+      applyDraftValidationState($field, validation);
       if (!validation.valid) {
         validation.errors.forEach((message) => {
           errors.push(`${field.label || fieldName}：${message}`);
@@ -1265,5 +1542,11 @@ export default {
   bindTableFormEvents,
   destroyTableFormEvents,
   renderTableForm,
-  readTableFormValues
+  renderTableEditorCard,
+  renderTableDefinitionsEditorField,
+  renderTableAuxiliaryFields,
+  readTableDefinitionsDraft,
+  readTableFormValues,
+  applyDraftValidationState,
+  buildMoveControls
 };

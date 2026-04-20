@@ -20,6 +20,7 @@ import {
   normalizeTableWorkbenchConfig,
   updateTableWorkbenchRuntime,
   validateTableWorkbenchConfig,
+  validateTableDraftDeep,
   TABLE_WORKBENCH_RUNTIME_STATUS
 } from './table-schema-service.js';
 import { writeTableState } from './table-writeback-service.js';
@@ -193,11 +194,27 @@ export async function sendRequest(messages, config = {}, abortSignal = null) {
 export async function runManualTableUpdate(configInput = null) {
   const config = normalizeTableWorkbenchConfig(configInput || getTableWorkbenchConfig());
   const validation = validateTableWorkbenchConfig(config);
-  if (!validation.valid) {
+  const draftValidation = validateTableDraftDeep({
+    tables: Array.isArray(config.tables) ? config.tables : []
+  });
+  if (!validation.valid || !draftValidation.valid) {
+    const errors = [
+      ...validation.errors,
+      ...draftValidation.errors
+    ];
+    updateTableWorkbenchRuntime({
+      lastStatus: TABLE_WORKBENCH_RUNTIME_STATUS.ERROR,
+      lastRunAt: Date.now(),
+      lastDurationMs: 0,
+      lastError: errors[0] || '填表配置无效。',
+      lastErrorDetails: errors,
+      lastValidationSummary: draftValidation.summary || { errorCount: errors.length, warningCount: 0 },
+      errorCount: Number(config?.runtime?.errorCount) || 0
+    });
     return {
       success: false,
-      error: validation.errors.join('\n'),
-      errors: validation.errors
+      error: errors.join('\n'),
+      errors
     };
   }
 
@@ -205,7 +222,9 @@ export async function runManualTableUpdate(configInput = null) {
   const startedAt = Date.now();
   updateTableWorkbenchRuntime({
     lastStatus: TABLE_WORKBENCH_RUNTIME_STATUS.RUNNING,
-    lastError: ''
+    lastError: '',
+    lastErrorDetails: [],
+    lastValidationSummary: draftValidation.summary || { errorCount: 0, warningCount: 0 }
   });
 
   try {
@@ -255,6 +274,8 @@ export async function runManualTableUpdate(configInput = null) {
       lastRunAt: Date.now(),
       lastDurationMs: durationMs,
       lastError: '',
+      lastErrorDetails: [],
+      lastValidationSummary: draftValidation.summary || { errorCount: 0, warningCount: 0 },
       successCount: (Number(runtime.successCount) || 0) + 1,
       errorCount: Number(runtime.errorCount) || 0,
       lastSourceMessageId: normalizeString(targetSnapshot.sourceMessageId),
@@ -282,13 +303,16 @@ export async function runManualTableUpdate(configInput = null) {
       lastRunAt: Date.now(),
       lastDurationMs: durationMs,
       lastError: error?.message || String(error),
+      lastErrorDetails: [error?.message || String(error)],
+      lastValidationSummary: draftValidation.summary || { errorCount: 0, warningCount: 0 },
       successCount: Number(runtime.successCount) || 0,
       errorCount: (Number(runtime.errorCount) || 0) + 1
     });
 
     return {
       success: false,
-      error: error?.message || String(error)
+      error: error?.message || String(error),
+      errors: [error?.message || String(error)]
     };
   }
 }

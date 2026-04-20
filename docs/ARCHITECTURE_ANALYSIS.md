@@ -395,6 +395,7 @@
 - draft 到 runtime tables 的编译/校验链
 - 手动执行入口
 - target resolve 与 bound state 相关能力
+- `config / runtime / preview` 三视图工作台壳层
 
 但它仍应被理解为：
 
@@ -405,6 +406,15 @@
 
 - 一套独立于主线之外的新状态机
 - 可以绕开现有 revision-safe / writeback-safe 设计的旁路系统
+
+更细的模块化优化方案与 UI / authoring / runtime / template / automation 分层口径，见：
+- `docs/TABLE_WORKBENCH_IMPLEMENTATION_DRAFT.md`
+- `docs/TABLE_WORKBENCH_STATUS_SUMMARY.md`
+
+当前更准确的 UI 演进方向是：
+- 保留顶层 `config / runtime / preview` 三视图
+- 在 `config` 内部向 visualizer MVP 推进
+- 吸收参考项目里的“当前对象焦点 + 主辅分区 + 渐进展开”，而不是把 tableWorkbench 重写成独立状态机
 
 ## 10. compatibility 与非主线路径
 

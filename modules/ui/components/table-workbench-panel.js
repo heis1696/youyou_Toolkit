@@ -12,13 +12,14 @@ import {
   showTopNotice
 } from '../utils.js';
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
-import { TABLE_FORM_RENDERER_STYLES, bindTableFormEvents, destroyTableFormEvents, renderTableForm, readTableFormValues } from './table-form-renderer.js';
+import { TABLE_FORM_RENDERER_STYLES, bindTableFormEvents, destroyTableFormEvents, renderTableDefinitionsEditorField, renderTableAuxiliaryFields, readTableDefinitionsDraft, readTableFormValues, applyDraftValidationState, buildMoveControls } from './table-form-renderer.js';
 import { variableResolver } from '../../variable-resolver.js';
 import { getAllPresets } from '../../preset-manager.js';
 import {
   getTableWorkbenchConfig,
   getTableWorkbenchFormSchema,
-  saveTableWorkbenchConfig
+  saveTableWorkbenchConfig,
+  validateTableDraftDeep
 } from '../../table-engine/table-schema-service.js';
 import { resolveLatestTableTarget } from '../../table-engine/table-target-resolver.js';
 import { getAssistantTableSnapshot, loadBoundStateOrTemplate } from '../../table-engine/table-state-service.js';
@@ -294,6 +295,168 @@ ${TABLE_FORM_RENDERER_STYLES}
     line-height: 1.7;
   }
 
+  .yyt-table-workbench-validation-card {
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 196, 87, 0.22);
+    background: rgba(255, 196, 87, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .yyt-table-workbench-validation-card.yyt-has-error {
+    border-color: rgba(255, 100, 100, 0.26);
+    background: rgba(255, 100, 100, 0.08);
+  }
+
+  .yyt-table-workbench-validation-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .yyt-table-workbench-config-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.78fr) minmax(0, 1.6fr) minmax(280px, 0.95fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .yyt-table-workbench-config-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .yyt-table-workbench-sidebar-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .yyt-table-workbench-table-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.035);
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+
+  .yyt-table-workbench-table-item:hover {
+    border-color: rgba(123, 183, 255, 0.18);
+    background: rgba(123, 183, 255, 0.08);
+  }
+
+  .yyt-table-workbench-table-item.active {
+    border-color: rgba(123, 183, 255, 0.34);
+    background: linear-gradient(180deg, rgba(123, 183, 255, 0.16) 0%, rgba(123, 183, 255, 0.08) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 28px rgba(18, 26, 40, 0.18);
+  }
+
+  .yyt-table-workbench-table-item-head,
+  .yyt-table-workbench-table-item-main,
+  .yyt-table-workbench-table-item-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .yyt-table-workbench-table-item-main {
+    align-items: flex-start;
+  }
+
+  .yyt-table-workbench-table-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--yyt-text);
+  }
+
+  .yyt-table-workbench-table-note {
+    font-size: 11px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.66);
+  }
+
+  .yyt-table-workbench-table-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .yyt-table-workbench-stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .yyt-table-workbench-table-order {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.58);
+  }
+
+  .yyt-table-workbench-aux-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .yyt-table-workbench-tip-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .yyt-table-workbench-aux-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.62);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 1280px) {
+    .yyt-table-workbench-config-layout {
+      grid-template-columns: minmax(220px, 0.78fr) minmax(0, 1.4fr);
+    }
+
+    .yyt-table-workbench-config-column[data-config-column="aux"] {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 960px) {
+    .yyt-table-workbench-config-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   @media (max-width: 1100px) {
     .yyt-table-workbench-grid {
       grid-template-columns: minmax(0, 1fr);
@@ -321,8 +484,64 @@ function formatJson(value) {
   }
 }
 
-function normalizeWorkbenchView(view) {
-  return TABLE_WORKBENCH_VIEWS.includes(view) ? view : 'config';
+function clampCurrentTableIndex(tables = [], currentTableIndex = 0) {
+  const tableCount = Array.isArray(tables) ? tables.length : 0;
+  if (tableCount <= 0) {
+    return 0;
+  }
+
+  if (!Number.isInteger(currentTableIndex) || currentTableIndex < 0) {
+    return 0;
+  }
+
+  return Math.min(currentTableIndex, tableCount - 1);
+}
+
+function getTableFieldSchema(schema = []) {
+  return (Array.isArray(schema) ? schema : []).find((field) => field?.type === 'tableDefinitions') || {
+    name: 'tables',
+    label: '表定义',
+    description: ''
+  };
+}
+
+function buildConfigFlowCard() {
+  return `
+    <div class="yyt-table-workbench-card">
+      <div class="yyt-table-workbench-panel-copy">
+        <div class="yyt-table-workbench-panel-kicker">Flow</div>
+        <div class="yyt-table-workbench-panel-title">怎么用最顺手</div>
+        <div class="yyt-table-workbench-panel-desc">平时就按这个顺序来，不用先看诊断细节。</div>
+      </div>
+      <div class="yyt-table-workbench-flow">
+        <span class="yyt-tool-hero-chip">1. 左侧选表</span>
+        <span class="yyt-tool-hero-chip">2. 中间改当前表</span>
+        <span class="yyt-tool-hero-chip">3. 右侧确认编译与校验</span>
+        <span class="yyt-tool-hero-chip">4. 保存后去运行页</span>
+      </div>
+    </div>
+  `;
+}
+
+function buildValidationCard(validation = {}) {
+  const errorCount = Number(validation?.summary?.errorCount) || 0;
+  const warningCount = Number(validation?.summary?.warningCount) || 0;
+  const issues = Array.isArray(validation?.issues) ? validation.issues : [];
+  const title = errorCount > 0
+    ? `当前表格有 ${errorCount} 个错误${warningCount > 0 ? `，另有 ${warningCount} 个提示` : ''}`
+    : warningCount > 0
+      ? `当前表格有 ${warningCount} 个提示`
+      : '当前数据质量正常';
+  const list = issues.slice(0, 5).map((issue) => `<li>${escapeHtml(issue?.message || '')}</li>`).join('');
+  const more = issues.length > 5 ? `<li>还有 ${issues.length - 5} 条，请先回到“改表格”处理。</li>` : '';
+  const cardClass = errorCount > 0 ? ' yyt-has-error' : '';
+
+  return `
+    <div class="yyt-table-workbench-validation-card${cardClass}">
+      <div class="yyt-table-workbench-panel-title">${escapeHtml(title)}</div>
+      ${issues.length ? `<ul class="yyt-table-workbench-validation-list">${list}${more}</ul>` : '<div class="yyt-table-workbench-muted">没有发现明显问题。</div>'}
+    </div>
+  `;
 }
 
 function updateCompiledPreview($container) {
@@ -396,80 +615,155 @@ function buildViewNav(activeView) {
   `;
 }
 
-function buildRuntimeSummary(config = {}) {
-  const runtime = config.runtime || {};
-  const runtimeStatus = String(runtime.lastStatus || 'idle').toLowerCase();
-  const lastError = runtime.lastError ? `
-    <div class="yyt-tool-runtime-line yyt-tool-runtime-error">
-      <span class="yyt-tool-runtime-label">最近错误</span>
-      <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastError)}</span>
-    </div>
-  ` : '';
+function buildTableListCard(tables = [], currentTableIndex = 0) {
+  const normalizedIndex = clampCurrentTableIndex(tables, currentTableIndex);
 
   return `
-    <div class="yyt-tool-runtime-card">
+    <div class="yyt-table-workbench-card">
       <div class="yyt-table-workbench-panel-copy">
-        <div class="yyt-table-workbench-panel-kicker">Runtime</div>
-        <div class="yyt-table-workbench-panel-title">最近一次运行结果</div>
-        <div class="yyt-table-workbench-panel-desc">这里只看结果够不够正常；更细的目标信息在右边。</div>
+        <div class="yyt-table-workbench-panel-kicker">Tables</div>
+        <div class="yyt-table-workbench-panel-title">表列表</div>
+        <div class="yyt-table-workbench-panel-desc">先在这里切换当前表；顺序调整也尽量在这里做。</div>
       </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">当前状态</span>
-        <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtime.lastStatus || 'idle')}</span>
+      <div class="yyt-table-workbench-sidebar-list">
+        ${tables.length ? tables.map((table, tableIndex) => {
+          const columns = Array.isArray(table?.columns) ? table.columns.length : 0;
+          const rows = Array.isArray(table?.rows) ? table.rows.length : 0;
+          const tableName = String(table?.name || '').trim() || `表格 ${tableIndex + 1}`;
+          const note = String(table?.note || '').trim();
+          const isActive = tableIndex === normalizedIndex;
+          return `
+            <button type="button" class="yyt-table-workbench-table-item ${isActive ? 'active' : ''}" data-table-workbench-select-table="${tableIndex}">
+              <div class="yyt-table-workbench-table-item-head">
+                <span class="yyt-table-workbench-table-order">第 ${tableIndex + 1} 张</span>
+                ${buildMoveControls('table', { 'table-index': tableIndex }, { currentIndex: tableIndex, size: tables.length })}
+              </div>
+              <div class="yyt-table-workbench-table-item-main">
+                <div>
+                  <div class="yyt-table-workbench-table-name">${escapeHtml(tableName)}</div>
+                  <div class="yyt-table-workbench-table-note">${escapeHtml(note || '未填写说明')}</div>
+                </div>
+              </div>
+              <div class="yyt-table-workbench-table-item-meta">
+                <div class="yyt-table-workbench-table-stats">
+                  <span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-table-columns"></i>${columns} 列</span>
+                  <span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-bars-staggered"></i>${rows} 行</span>
+                </div>
+                ${isActive ? '<span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-crosshairs"></i>当前</span>' : ''}
+              </div>
+            </button>
+          `;
+        }).join('') : `
+          <div class="yyt-table-workbench-empty-state">
+            <div class="yyt-table-workbench-panel-title">还没有表格</div>
+            <div class="yyt-table-workbench-panel-desc">先在中间点“新增表格”，再回来切换焦点。</div>
+          </div>
+        `}
       </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">最近运行</span>
-        <span class="yyt-tool-runtime-value">${escapeHtml(formatTimestamp(runtime.lastRunAt))}</span>
-      </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">耗时</span>
-        <span class="yyt-tool-runtime-value">${runtime.lastDurationMs ? `${runtime.lastDurationMs} ms` : '未记录'}</span>
-      </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">成功 / 失败</span>
-        <span class="yyt-tool-runtime-value">${Number(runtime.successCount) || 0} / ${Number(runtime.errorCount) || 0}</span>
-      </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">命中的消息</span>
-        <span class="yyt-tool-runtime-value">${escapeHtml(runtime.lastSourceMessageId || '未记录')}</span>
-      </div>
-      <div class="yyt-tool-runtime-line">
-        <span class="yyt-tool-runtime-label">正文同步</span>
-        <span class="yyt-tool-runtime-value">${runtime.lastMirrorApplied === true ? '已同步' : '未同步'}</span>
-      </div>
-      ${lastError}
     </div>
   `;
 }
 
-function buildConfigView(config = {}, schema) {
+function buildConfigAuxiliaryCard(config = {}, draft = {}) {
+  const validation = validateTableDraftDeep(draft);
+  const runtimeTables = Array.isArray(validation?.tables) ? validation.tables : [];
+  const saveTips = [
+    '右侧预览展示的是编译后的 runtime tables，不是草稿原样。',
+    '有错误时先修正再保存；提示不会阻止保存，但最好先看一眼。',
+    'Prompt、API 预设和正文镜像放在下面，不再压住主编辑区。'
+  ];
+
   return `
-    <div class="yyt-table-workbench-grid-single">
-      <div class="yyt-panel-section">
-        <div class="yyt-section-title">
-          <i class="fa-solid fa-sliders"></i>
-          <span>改表格</span>
-        </div>
+    <div class="yyt-table-workbench-aux-stack">
+      <div class="yyt-table-workbench-card">
         <div class="yyt-table-workbench-panel-copy">
-          <div class="yyt-table-workbench-panel-kicker">Setup</div>
-          <div class="yyt-table-workbench-panel-title">先把表格和提示词改好</div>
-          <div class="yyt-table-workbench-panel-desc">主入口在这里：改表格、改提示词、决定要不要同步写回正文。</div>
+          <div class="yyt-table-workbench-panel-kicker">Validation</div>
+          <div class="yyt-table-workbench-panel-title">当前校验摘要</div>
+          <div class="yyt-table-workbench-panel-desc">边改边看这里，能尽早发现列名、必填项和单元格格式问题。</div>
         </div>
-        ${renderTableForm(schema, config)}
+        ${buildValidationCard(validation)}
       </div>
 
       <div class="yyt-table-workbench-card">
         <div class="yyt-table-workbench-panel-copy">
-          <div class="yyt-table-workbench-panel-kicker">Flow</div>
-          <div class="yyt-table-workbench-panel-title">怎么用最顺手</div>
-          <div class="yyt-table-workbench-panel-desc">平时就按这个顺序来，不用先看诊断细节。</div>
+          <div class="yyt-table-workbench-panel-kicker">Compiled</div>
+          <div class="yyt-table-workbench-panel-title">编译后会保存成这样</div>
+          <div class="yyt-table-workbench-panel-desc">这里只做即时确认；完整只读预览仍在“预览”页。</div>
         </div>
-        <div class="yyt-table-workbench-flow">
-          <span class="yyt-tool-hero-chip">1. 改表格</span>
-          <span class="yyt-tool-hero-chip">2. 保存</span>
-          <span class="yyt-tool-hero-chip">3. 去运行页点填表</span>
-          <span class="yyt-tool-hero-chip">4. 需要时再看状态</span>
+        <pre class="yyt-table-workbench-pre" data-table-workbench-preview>${escapeHtml(formatJson(runtimeTables))}</pre>
+      </div>
+
+      <div class="yyt-table-workbench-card">
+        <div class="yyt-table-workbench-panel-copy">
+          <div class="yyt-table-workbench-panel-kicker">Options</div>
+          <div class="yyt-table-workbench-panel-title">提示词与保存选项</div>
+          <div class="yyt-table-workbench-panel-desc">这些属于辅助配置，集中放在右边，避免打断表格编辑。</div>
         </div>
+        ${renderTableAuxiliaryFields(getSchema(), config)}
+      </div>
+
+      <div class="yyt-table-workbench-card">
+        <div class="yyt-table-workbench-panel-copy">
+          <div class="yyt-table-workbench-panel-kicker">Hints</div>
+          <div class="yyt-table-workbench-panel-title">保存前快速确认</div>
+          <div class="yyt-table-workbench-panel-desc">主要看这几件事就够了。</div>
+        </div>
+        <ul class="yyt-table-workbench-tip-list">
+          ${saveTips.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+function buildConfigView(config = {}, schema, currentTableIndex = 0) {
+  const tableField = getTableFieldSchema(schema);
+  const draft = {
+    tables: Array.isArray(config?.tables) ? config.tables : []
+  };
+  const validation = validateTableDraftDeep(draft);
+  const tables = Array.isArray(validation?.tables) ? validation.tables : [];
+  const normalizedIndex = clampCurrentTableIndex(tables, currentTableIndex);
+
+  return `
+    <div class="yyt-table-workbench-config-layout">
+      <div class="yyt-table-workbench-config-column" data-config-column="sidebar">
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-list"></i>
+            <span>选表</span>
+          </div>
+          <div class="yyt-table-workbench-panel-copy">
+            <div class="yyt-table-workbench-panel-kicker">Navigator</div>
+            <div class="yyt-table-workbench-panel-title">先选当前要改的表</div>
+            <div class="yyt-table-workbench-panel-desc">多表场景下把焦点固定住，减少来回滚动整页。</div>
+          </div>
+          ${buildTableListCard(tables, normalizedIndex)}
+        </div>
+        ${buildConfigFlowCard()}
+      </div>
+
+      <div class="yyt-table-workbench-config-column" data-config-column="editor">
+        <div class="yyt-panel-section">
+          <div class="yyt-section-title">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>改当前表</span>
+          </div>
+          <div class="yyt-table-workbench-panel-copy">
+            <div class="yyt-table-workbench-panel-kicker">Editor</div>
+            <div class="yyt-table-workbench-panel-title">中间只编辑当前表</div>
+            <div class="yyt-table-workbench-panel-desc">表头、行和单元格都在这里改；左边切表，右边看反馈。</div>
+          </div>
+          ${renderTableDefinitionsEditorField(tableField, validation, {
+            mode: 'focused',
+            currentTableIndex: normalizedIndex,
+            description: ''
+          })}
+        </div>
+      </div>
+
+      <div class="yyt-table-workbench-config-column" data-config-column="aux">
+        ${buildConfigAuxiliaryCard(config, validation)}
       </div>
     </div>
   `;
@@ -591,7 +885,7 @@ function buildPreviewView(config = {}, variableHelp) {
   `;
 }
 
-function buildMainLayout(config = {}, activeView = 'config') {
+function buildMainLayout(config = {}, activeView = 'config', currentTableIndex = 0) {
   const schema = getSchema();
   const variableHelp = variableResolver.getVariableHelp();
   const normalizedView = normalizeWorkbenchView(activeView);
@@ -601,7 +895,7 @@ function buildMainLayout(config = {}, activeView = 'config') {
       ${buildHeader(config)}
       ${buildViewNav(normalizedView)}
       <div class="yyt-table-workbench-view-pane ${normalizedView === 'config' ? 'active' : ''}" data-table-workbench-view-pane="config">
-        ${buildConfigView(config, schema)}
+        ${buildConfigView(config, schema, currentTableIndex)}
       </div>
       <div class="yyt-table-workbench-view-pane ${normalizedView === 'runtime' ? 'active' : ''}" data-table-workbench-view-pane="runtime">
         ${buildRuntimeView(config)}
@@ -654,6 +948,9 @@ async function refreshDiagnostics($container) {
     const loadResult = loadBoundStateOrTemplate(targetSnapshot, {
       templateTables: config.tables
     });
+    const loadValidation = validateTableDraftDeep({
+      tables: Array.isArray(loadResult.state?.tables) ? loadResult.state.tables : []
+    });
     const bindings = assistantSnapshot?.tableBindings || {};
     const targetItems = [
       { label: 'sourceMessageId', value: targetSnapshot.sourceMessageId || '未解析' },
@@ -668,11 +965,12 @@ async function refreshDiagnostics($container) {
       { label: 'loadMode', value: loadResult.loadMode || 'empty' },
       { label: 'mergeBaseOnly', value: loadResult.mergeBaseOnly === true ? 'true' : 'false' },
       { label: 'tables 数量', value: String(Array.isArray(loadResult.state?.tables) ? loadResult.state.tables.length : 0) },
-      { label: 'state updatedAt', value: formatTimestamp(loadResult.state?.updatedAt) }
+      { label: 'state updatedAt', value: formatTimestamp(loadResult.state?.updatedAt) },
+      { label: '数据质量', value: loadValidation.valid ? (loadValidation.summary?.warningCount > 0 ? `0 个错误 / ${loadValidation.summary.warningCount} 个提示` : '正常') : `${loadValidation.summary?.errorCount || 0} 个错误 / ${loadValidation.summary?.warningCount || 0} 个提示` }
     ];
 
     $target.html(renderDiagnosticList(targetItems));
-    $load.html(renderDiagnosticList(loadItems));
+    $load.html(`${renderDiagnosticList(loadItems)}${buildValidationCard(loadValidation)}`);
     $preview.text(formatJson(loadResult.state?.tables || []));
   } catch (error) {
     if (!isContainerValid($container)) return;
@@ -712,9 +1010,12 @@ function collectAndSaveConfig($container, { silent = false } = {}) {
 export const TableWorkbenchPanel = {
   id: 'tableWorkbenchPanel',
   currentView: 'config',
+  currentTableIndex: 0,
 
   render() {
-    return buildMainLayout(getTableWorkbenchConfig(), this.currentView);
+    const config = getTableWorkbenchConfig();
+    this.currentTableIndex = clampCurrentTableIndex(config.tables, this.currentTableIndex);
+    return buildMainLayout(config, this.currentView, this.currentTableIndex);
   },
 
   bindEvents($container) {
@@ -730,9 +1031,17 @@ export const TableWorkbenchPanel = {
       self.applyViewState($container, nextView);
     });
 
+    $container.on('click.yytTableWorkbench', '[data-table-workbench-select-table]', (event) => {
+      const nextIndex = Number.parseInt($(event.currentTarget).attr('data-table-workbench-select-table') || '0', 10);
+      const draft = readTableDefinitionsDraft($container.find('[data-table-definition-root]'));
+      self.currentTableIndex = clampCurrentTableIndex(draft.tables, nextIndex);
+      self.renderTo($container);
+    });
+
     $container.on('click.yytTableWorkbench', '[data-table-workbench-action="save"], [data-table-workbench-action="save-top"]', () => {
       const saveResult = collectAndSaveConfig($container, { silent: false });
       if (saveResult?.success) {
+        self.currentTableIndex = clampCurrentTableIndex(saveResult.config?.tables, self.currentTableIndex);
         self.renderTo($container);
       }
     });
@@ -801,14 +1110,44 @@ export const TableWorkbenchPanel = {
   renderTo($container) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
+    const currentConfig = getTableWorkbenchConfig();
     this.currentView = normalizeWorkbenchView(this.currentView);
+    this.currentTableIndex = clampCurrentTableIndex(currentConfig.tables, this.currentTableIndex);
     $container.html(this.render({}));
     bindTableFormEvents($container, getSchema(), {
-      onChange: () => updateCompiledPreview($container)
+      onChange: () => {
+        updateCompiledPreview($container);
+        const $tableRoot = $container.find('[data-table-definition-root]');
+        if ($tableRoot.length) {
+          applyDraftValidationState($tableRoot);
+        }
+      },
+      onTableMutation: ({ action, tableIndex, nextTableIndex, draft }) => {
+        if (action === 'add-table') {
+          this.currentTableIndex = clampCurrentTableIndex(draft?.tables, tableIndex);
+          this.renderTo($container);
+          return;
+        }
+
+        if (action === 'move-table-up' || action === 'move-table-down') {
+          this.currentTableIndex = clampCurrentTableIndex(draft?.tables, nextTableIndex);
+          this.renderTo($container);
+          return;
+        }
+
+        if (action === 'delete-table') {
+          this.currentTableIndex = clampCurrentTableIndex(draft?.tables, tableIndex);
+          this.renderTo($container);
+        }
+      }
     });
     this.bindEvents($container, {});
     this.applyViewState($container, this.currentView);
     updateCompiledPreview($container);
+    const $tableRoot = $container.find('[data-table-definition-root]');
+    if ($tableRoot.length) {
+      applyDraftValidationState($tableRoot);
+    }
     void refreshDiagnostics($container);
   }
 };

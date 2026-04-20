@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+## [1.0.50] - 2026-04-20
+
+### 优化
+
+- ✨ **将填表工作台 `config` 视图升级为更聚焦的 visualizer MVP，改成左侧表列表、中间当前表编辑、右侧辅助信息的三栏工作台** (`modules/ui/components/table-workbench-panel.js`, `modules/ui/components/table-form-renderer.js`, `modules/table-engine/table-schema-service.js`, `modules/table-engine/table-update-service.js`, `dist/bundle.js`)
+  - 保留顶层 `config / runtime / preview` 三视图与既有执行/写回主链，只重做 `config` 内部壳层
+  - 新增当前表焦点切换与表级操作同步，新增/删除/移动表后会保持更合理的当前选中状态
+  - 将编译预览、校验摘要、Prompt / API 预设 / 正文镜像等辅助项移到侧边辅助区，减少主编辑流干扰
+
+- 📝 **补充填表工作台当前架构、阶段总结与后续施工草案文档，统一 visualizer MVP 的实现口径** (`docs/ARCHITECTURE_ANALYSIS.md`, `docs/TABLE_WORKBENCH_STATUS_SUMMARY.md`, `docs/TABLE_WORKBENCH_IMPLEMENTATION_DRAFT.md`)
+  - 明确 `tableWorkbench` 仍是主线架构内的 table domain，而不是独立状态机
+  - 细化 Table UI、Authoring Model、Runtime / Diagnostics、Template & History、Automation 的边界与优先级
+
 ## [1.0.49] - 2026-04-20
 
 - 🐛 **欢迎页关闭状态改为仅在当前页面会话内生效，关闭后重复打开工具不再显示，但浏览器刷新后会重新显示** (`index.js`, `modules/app/popup-shell.js`, `dist/bundle.js`)

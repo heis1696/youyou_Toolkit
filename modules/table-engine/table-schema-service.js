@@ -251,12 +251,25 @@ function normalizeDraftTable(value = {}, index = 0) {
 
 function normalizeRuntime(runtime = {}) {
   const value = runtime && typeof runtime === 'object' ? runtime : {};
+  const lastErrorDetails = Array.isArray(value.lastErrorDetails)
+    ? value.lastErrorDetails
+      .map((item) => normalizeString(item, ''))
+      .filter(Boolean)
+    : [];
+  const lastValidationSummary = value.lastValidationSummary && typeof value.lastValidationSummary === 'object'
+    ? {
+      errorCount: Number.isFinite(value.lastValidationSummary.errorCount) ? value.lastValidationSummary.errorCount : 0,
+      warningCount: Number.isFinite(value.lastValidationSummary.warningCount) ? value.lastValidationSummary.warningCount : 0
+    }
+    : { errorCount: 0, warningCount: 0 };
 
   return {
     lastStatus: normalizeString(value.lastStatus, TABLE_WORKBENCH_RUNTIME_STATUS.IDLE),
     lastRunAt: Number.isFinite(value.lastRunAt) ? value.lastRunAt : 0,
     lastDurationMs: Number.isFinite(value.lastDurationMs) ? value.lastDurationMs : 0,
     lastError: normalizeString(value.lastError, ''),
+    lastErrorDetails,
+    lastValidationSummary,
     successCount: Number.isFinite(value.successCount) ? value.successCount : 0,
     errorCount: Number.isFinite(value.errorCount) ? value.errorCount : 0,
     lastSourceMessageId: normalizeString(value.lastSourceMessageId, ''),
@@ -335,30 +348,219 @@ export function compileTableDraftToTables(draft = {}) {
   return sourceTables.map((table, index) => normalizeDraftTable(table, index));
 }
 
-export function validateTableDraft(draft = {}) {
+function validateCellByColumn(value = '', column = {}, location = {}) {
+  const type = normalizeColumnType(column?.type);
+  const trimmedValue = String(value ?? '').trim();
+  const label = normalizeString(
+    location?.label,
+    `${normalizeString(location?.tableName, '表格')} / ${normalizeString(location?.rowName, '行')} / ${normalizeString(column?.title || column?.key, '单元格')}`
+  );
   const errors = [];
+  const warnings = [];
 
-  if (!draft || typeof draft !== 'object') {
-    errors.push('表定义草稿无效。');
+  if (column?.required === true && !trimmedValue) {
+    errors.push(`${label} 为必填，当前为空。`);
   }
 
-  if (draft && draft.tables !== undefined && !Array.isArray(draft.tables)) {
-    errors.push('表定义必须包含 tables 数组。');
+  if (!trimmedValue) {
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings
+    };
   }
 
-  let tables = [];
-  if (errors.length === 0) {
+  if (type === 'number' && !Number.isFinite(Number(trimmedValue))) {
+    errors.push(`${label} 需要填写数字。`);
+  }
+
+  if (type === 'boolean' && !['true', 'false', '1', '0', 'yes', 'no'].includes(trimmedValue.toLowerCase())) {
+    errors.push(`${label} 需要填写布尔值（true / false）。`);
+  }
+
+  if (type === 'date' && Number.isNaN(Date.parse(trimmedValue))) {
+    errors.push(`${label} 需要填写可解析的日期。`);
+  }
+
+  if (type === 'json') {
     try {
-      tables = compileTableDraftToTables(draft);
+      JSON.parse(trimmedValue);
     } catch (error) {
-      errors.push(error?.message || '表定义编译失败。');
+      errors.push(`${label} 需要填写合法 JSON：${error?.message || '解析失败'}`);
     }
   }
 
   return {
     valid: errors.length === 0,
     errors,
-    tables
+    warnings
+  };
+}
+
+function buildValidationIssue({
+  severity = 'error',
+  message = '',
+  tableIndex = -1,
+  tableName = '',
+  columnIndex = -1,
+  columnKey = '',
+  rowIndex = -1,
+  rowName = '',
+  cellKey = ''
+} = {}) {
+  return {
+    severity,
+    message: normalizeString(message, severity === 'warning' ? '存在警告。' : '存在错误。'),
+    tableIndex,
+    tableName: normalizeString(tableName, ''),
+    columnIndex,
+    columnKey: normalizeString(columnKey, ''),
+    rowIndex,
+    rowName: normalizeString(rowName, ''),
+    cellKey: normalizeString(cellKey, '')
+  };
+}
+
+export function validateTableDraftDeep(draft = {}) {
+  const baseValidation = validateTableDraft(draft);
+  const issues = [];
+
+  if (!baseValidation.valid) {
+    return {
+      ...baseValidation,
+      warnings: [],
+      issues,
+      summary: {
+        errorCount: baseValidation.errors.length,
+        warningCount: 0
+      }
+    };
+  }
+
+  const tables = Array.isArray(baseValidation.tables) ? baseValidation.tables : [];
+
+  tables.forEach((table, tableIndex) => {
+    const tableName = normalizeString(table?.name, `表${tableIndex + 1}`);
+    const columns = Array.isArray(table?.columns) ? table.columns : [];
+    const rows = Array.isArray(table?.rows) ? table.rows : [];
+    const usedKeys = new Set();
+
+    if (!tableName) {
+      issues.push(buildValidationIssue({
+        severity: 'error',
+        message: `表 ${tableIndex + 1} 缺少名称。`,
+        tableIndex,
+        tableName
+      }));
+    }
+
+    columns.forEach((column, columnIndex) => {
+      const columnKey = normalizeString(column?.key, '');
+      const columnTitle = normalizeString(column?.title, `列${columnIndex + 1}`);
+
+      if (!columnKey) {
+        issues.push(buildValidationIssue({
+          severity: 'error',
+          message: `${tableName} / ${columnTitle} 缺少内部名。`,
+          tableIndex,
+          tableName,
+          columnIndex,
+          columnKey,
+          cellKey: columnKey
+        }));
+      }
+
+      if (columnKey) {
+        if (usedKeys.has(columnKey)) {
+          issues.push(buildValidationIssue({
+            severity: 'error',
+            message: `${tableName} 中存在重复列内部名：${columnKey}`,
+            tableIndex,
+            tableName,
+            columnIndex,
+            columnKey,
+            cellKey: columnKey
+          }));
+        }
+        usedKeys.add(columnKey);
+      }
+    });
+
+    rows.forEach((row, rowIndex) => {
+      const rowName = normalizeString(row?.name, `行${rowIndex + 1}`);
+      const rowCells = row?.cells && typeof row.cells === 'object' && !Array.isArray(row.cells)
+        ? row.cells
+        : {};
+      const rowKeys = Object.keys(rowCells);
+
+      rowKeys.forEach((rowKey) => {
+        if (!columns.some((column) => normalizeString(column?.key, '') === rowKey)) {
+          issues.push(buildValidationIssue({
+            severity: 'warning',
+            message: `${tableName} / ${rowName} 包含未定义列 ${rowKey}，保存后会被忽略。`,
+            tableIndex,
+            tableName,
+            rowIndex,
+            rowName,
+            cellKey: rowKey
+          }));
+        }
+      });
+
+      columns.forEach((column, columnIndex) => {
+        const columnKey = normalizeString(column?.key, '');
+        const columnLabel = normalizeString(column?.title || columnKey, `列${columnIndex + 1}`);
+        const cellValue = columnKey ? normalizeCellValue(rowCells[columnKey]) : '';
+        const validation = validateCellByColumn(cellValue, column, {
+          label: `${tableName} / ${rowName} / ${columnLabel}`,
+          tableName,
+          rowName
+        });
+
+        validation.errors.forEach((message) => {
+          issues.push(buildValidationIssue({
+            severity: 'error',
+            message,
+            tableIndex,
+            tableName,
+            columnIndex,
+            columnKey,
+            rowIndex,
+            rowName,
+            cellKey: columnKey
+          }));
+        });
+
+        validation.warnings.forEach((message) => {
+          issues.push(buildValidationIssue({
+            severity: 'warning',
+            message,
+            tableIndex,
+            tableName,
+            columnIndex,
+            columnKey,
+            rowIndex,
+            rowName,
+            cellKey: columnKey
+          }));
+        });
+      });
+    });
+  });
+
+  const errors = issues.filter((issue) => issue.severity !== 'warning').map((issue) => issue.message);
+  const warnings = issues.filter((issue) => issue.severity === 'warning').map((issue) => issue.message);
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    issues,
+    tables,
+    summary: {
+      errorCount: errors.length,
+      warningCount: warnings.length
+    }
   };
 }
 
@@ -528,6 +730,7 @@ export default {
   deriveTableDraftFromTables,
   compileTableDraftToTables,
   validateTableDraft,
+  validateTableDraftDeep,
   getTableWorkbenchDefaultConfig,
   normalizeTableWorkbenchConfig,
   validateTableWorkbenchConfig,
