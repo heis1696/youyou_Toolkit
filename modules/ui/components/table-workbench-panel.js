@@ -470,6 +470,10 @@ function getSchema() {
   });
 }
 
+function normalizeWorkbenchView(view) {
+  return TABLE_WORKBENCH_VIEWS.includes(view) ? view : 'config';
+}
+
 function formatTimestamp(value) {
   return Number.isFinite(value) && value > 0
     ? new Date(value).toLocaleString()

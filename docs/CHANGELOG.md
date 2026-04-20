@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.53] - 2026-04-20
+
+### 修复
+
+- 🐛 **修复填表工作台因缺失 `normalizeWorkbenchView()` 而在首屏渲染时直接报错，导致内容区保持空白** (`modules/ui/components/table-workbench-panel.js`, `dist/bundle.js`)
+  - 补回工作台视图归一化函数，统一 `config / runtime / preview` 视图的合法值回退规则
+  - 让 `render()`、`renderTo()` 与视图切换逻辑重新能够正常挂载面板内容
+
 ## [1.0.52] - 2026-04-20
 
 ### 修复
