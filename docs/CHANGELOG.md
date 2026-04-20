@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.57] - 2026-04-20
+
+### 优化
+
+- ✨ **重做填表工作台主界面，改成左侧表导航 + 右侧当前表编辑的单主界面，并把诊断/预览/更多设置下沉为次级折叠区** (`modules/ui/components/table-workbench-panel.js`, `modules/ui/components/table-form-renderer.js`, `docs/TABLE_WORKBENCH_REFERENCE_RESEARCH.md`, `dist/bundle.js`)
+  - 顶部只保留新增表格、保存、立即填表、刷新等主动作，首屏不再以 `config / runtime / preview` 分界面和说明卡片为中心
+  - focused editor 继续复用既有表格编辑链，但压薄外层 banner / card 感，让表格本体成为主视觉
+  - 切表和左侧表排序现在会保留未保存草稿，不再因整页重渲染把当前编辑内容刷掉
+
 ## [1.0.56] - 2026-04-20
 
 ### 修复

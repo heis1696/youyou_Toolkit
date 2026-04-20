@@ -157,30 +157,22 @@ export const TABLE_FORM_RENDERER_STYLES = `
   .yyt-table-editor-shell {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 18px;
-    border-radius: 22px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
-      rgba(12, 16, 24, 0.32);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 34px rgba(0, 0, 0, 0.16);
+    gap: 12px;
   }
 
   .yyt-table-editor-shell-compact {
-    padding: 16px;
+    gap: 12px;
   }
 
   .yyt-table-editor-banner {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 14px;
+    gap: 12px;
     flex-wrap: wrap;
-    padding: 14px 16px;
-    border-radius: 18px;
-    border: 1px solid rgba(123, 183, 255, 0.2);
-    background: radial-gradient(280px 120px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 70%), rgba(123, 183, 255, 0.05);
+    padding: 0;
+    border: none;
+    background: transparent;
   }
 
   .yyt-table-editor-banner-copy {
@@ -191,8 +183,8 @@ export const TABLE_FORM_RENDERER_STYLES = `
   }
 
   .yyt-table-editor-banner-title {
-    font-size: 14px;
-    font-weight: 900;
+    font-size: 13px;
+    font-weight: 800;
     color: var(--yyt-text);
   }
 
@@ -206,14 +198,14 @@ export const TABLE_FORM_RENDERER_STYLES = `
   .yyt-table-editor-chip {
     display: inline-flex;
     align-items: center;
-    padding: 6px 10px;
+    padding: 5px 9px;
     border-radius: 999px;
     font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.3px;
-    color: var(--yyt-text);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.08);
+    letter-spacing: 0.2px;
+    color: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .yyt-table-editor-toolbar,
@@ -223,8 +215,12 @@ export const TABLE_FORM_RENDERER_STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
+  }
+
+  .yyt-table-editor-toolbar {
+    padding: 0;
   }
 
   .yyt-table-editor-card-head-main {
@@ -312,6 +308,16 @@ export const TABLE_FORM_RENDERER_STYLES = `
     background: rgba(255, 100, 100, 0.08);
   }
 
+  .yyt-table-editor-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
   .yyt-table-editor-card-title {
     font-size: 14px;
     font-weight: 800;
@@ -333,10 +339,10 @@ export const TABLE_FORM_RENDERER_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 14px;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.025);
   }
 
   .yyt-table-editor-section-title {
@@ -383,21 +389,21 @@ export const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-editor-grid-wrap {
     overflow-x: auto;
-    border-radius: 16px;
+    border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(8, 12, 18, 0.36);
+    background: rgba(8, 12, 18, 0.58);
   }
 
   .yyt-table-editor-grid {
     width: 100%;
     min-width: 680px;
     border-collapse: collapse;
-    background: rgba(8, 12, 18, 0.72);
+    background: rgba(8, 12, 18, 0.84);
   }
 
   .yyt-table-editor-grid th,
   .yyt-table-editor-grid td {
-    padding: 8px;
+    padding: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     vertical-align: top;
@@ -405,9 +411,9 @@ export const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-editor-grid th {
     text-align: left;
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.78);
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .yyt-table-editor-grid td:last-child,
@@ -748,7 +754,7 @@ export function renderTableEditorCard(table = {}, tableIndex = 0, options = {}) 
       <div class="yyt-table-editor-card-head">
         <div class="yyt-table-editor-card-head-main">
           <div class="yyt-table-editor-card-title">${escapeHtml(tableName || `表格 ${tableIndex + 1}`)}</div>
-          <div class="yyt-table-editor-muted">直接把这张表当普通表格编辑：先写表头，再填每一行数据。</div>
+          <div class="yyt-table-editor-muted">像普通表格一样直接编辑。</div>
         </div>
         ${deleteButtonHtml}
       </div>
@@ -917,7 +923,7 @@ function renderTableDefinitionsEditorBody(draft = {}, options = {}) {
         <div class="yyt-table-editor-banner">
           <div class="yyt-table-editor-banner-copy">
             <div class="yyt-table-editor-banner-title">当前表编辑区</div>
-            <div class="yyt-table-editor-muted">左边切表，右边看编译和校验；中间只专心改当前这张表。</div>
+            <div class="yyt-table-editor-muted">先改表头，再直接改单元格。</div>
           </div>
           <div class="yyt-table-editor-banner-meta">
             <span class="yyt-table-editor-chip">${tables.length} 张表</span>
@@ -926,7 +932,7 @@ function renderTableDefinitionsEditorBody(draft = {}, options = {}) {
           </div>
         </div>
         <div class="yyt-table-editor-toolbar">
-          <div class="yyt-table-editor-muted">先写表头，再填内容；顺序不对可以在左侧快速调整。</div>
+          <div class="yyt-table-editor-muted">顺序调整走左侧导航；这里专注当前表。</div>
           <button type="button" class="yyt-btn yyt-btn-small yyt-btn-primary" data-table-editor-action="add-table">
             <i class="fa-solid fa-plus"></i> 新增表格
           </button>
