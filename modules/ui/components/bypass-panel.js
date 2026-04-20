@@ -14,6 +14,10 @@ import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuer
 
 export const BypassPanel = {
   id: 'bypassPanel',
+
+  _getActivePresetId($container) {
+    return $container.find('.yyt-bypass-editor-content').data('presetId') || null;
+  },
   
   // ============================================================
   // 渲染
@@ -488,16 +492,15 @@ export const BypassPanel = {
     const $editor = $container.find('.yyt-bypass-editor-content');
     const presetId = $editor.data('presetId');
     if (!presetId) return;
-    
+
     bypassManager.setDefaultPresetId(presetId);
-    
-    // 更新UI
-    $container.find('.yyt-bypass-preset-item').removeClass('yyt-default');
-    $container.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"]`).addClass('yyt-default');
-    $container.find('.yyt-bypass-default-badge').remove();
-    $container.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"] .yyt-bypass-preset-info`)
-      .append('<span class="yyt-bypass-default-badge">默认</span>');
-    
+    this._refreshPresetList($container, $);
+
+    const preset = bypassManager.getPreset(presetId);
+    if (preset) {
+      $container.find('#yyt-bypass-editor').html(this._renderEditor(preset));
+    }
+
     showToast('success', '已设为默认预设');
   },
   
@@ -524,10 +527,15 @@ export const BypassPanel = {
   _refreshPresetList($container, $) {
     const presets = bypassManager.getPresetList();
     const defaultPresetId = bypassManager.getDefaultPresetId();
-    
+    const activePresetId = this._getActivePresetId($container);
+
     $container.find('.yyt-bypass-preset-list').html(
       presets.map(preset => this._renderPresetItem(preset, preset.id === defaultPresetId)).join('')
     );
+
+    if (activePresetId) {
+      $container.find(`.yyt-bypass-preset-item[data-preset-id="${activePresetId}"]`).addClass('yyt-active');
+    }
   },
   
   // ============================================================

@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.62] - 2026-04-21
+
+### 修复
+
+- 🐛 **修复 API 预设页、自定义工具列表与 Ai 指令预设页在上一版收口后暴露的三个交互回归** (`modules/ui/components/api-preset-panel.js`, `modules/ui/components/tool-manage-panel.js`, `modules/ui/components/bypass-panel.js`)
+  - API 预设页现会在重渲前主动关闭当前自定义下拉，并只维护当前浮层里的唯一选中项，修复星标切换不生效与下拉多项持续高亮
+  - 自定义工具卡片不再复用全局 `.yyt-disabled`，修复关闭启用后整卡失去点击能力、无法重新开启
+  - Ai 指令预设设为默认后会立即刷新左侧列表与右侧编辑区，修复默认态按钮和当前选中态不会同步更新
+
 ## [1.0.61] - 2026-04-21
 
 ### 修复

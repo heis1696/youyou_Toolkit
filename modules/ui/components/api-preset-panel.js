@@ -86,6 +86,7 @@ export const ApiPresetPanel = {
       return;
     }
 
+    closeActiveCustomSelectDropdown($container);
     this.renderTo($container);
   },
 
@@ -388,6 +389,8 @@ export const ApiPresetPanel = {
         switchToPreset('');
         fillFormWithConfig($container, getApiConfig(), SCRIPT_ID);
         $container.find('.yyt-preset-item').removeClass('yyt-loaded');
+        $dropdown.find('.yyt-select-option').removeClass('yyt-selected');
+        $dropdown.find('.yyt-select-option[data-value=""]').addClass('yyt-selected');
         showToast('info', '已切换到当前API配置');
         return;
       }
@@ -403,6 +406,8 @@ export const ApiPresetPanel = {
       fillFormWithConfig($container, preset.apiConfig, SCRIPT_ID);
       $container.find('.yyt-preset-item').removeClass('yyt-loaded');
       $container.find(`.yyt-preset-item[data-preset-name="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-loaded');
+      $dropdown.find('.yyt-select-option').removeClass('yyt-selected');
+      $dropdown.find(`.yyt-select-option[data-value="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-selected');
       showToast('info', `已加载预设 "${value}"，修改后点击“保存配置”会覆盖该预设`);
     };
 
@@ -418,10 +423,11 @@ export const ApiPresetPanel = {
       const $option = $(e.currentTarget);
       const value = normalizePresetName($option.data('value'));
       const text = $option.find('.yyt-option-text').text();
+      const $optionList = $option.closest('.yyt-select-dropdown').find('.yyt-select-option');
       this._setSelectedPresetName($container, value);
 
       $selectValue.text(text).data('value', value);
-      $dropdown.find('.yyt-select-option').removeClass('yyt-selected');
+      $optionList.removeClass('yyt-selected');
       $option.addClass('yyt-selected');
       closeCustomSelectDropdown($dropdown);
     });

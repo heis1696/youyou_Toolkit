@@ -168,7 +168,7 @@ export const ToolManagePanel = {
     }
 
     return entries.map(([id, tool]) => `
-      <div class="yyt-tool-item ${tool.enabled ? 'yyt-enabled' : 'yyt-disabled'}" data-tool-id="${id}">
+      <div class="yyt-tool-item ${tool.enabled ? 'yyt-tool-item-enabled' : 'yyt-tool-item-disabled'}" data-tool-id="${id}">
         <div class="yyt-tool-header">
           <div class="yyt-tool-info">
             <span class="yyt-tool-name">${escapeHtml(tool.name)}</span>
@@ -228,7 +228,7 @@ export const ToolManagePanel = {
       const enabled = $(e.currentTarget).is(':checked');
       
       setToolEnabled(toolId, enabled);
-      $item.toggleClass('yyt-enabled', enabled).toggleClass('yyt-disabled', !enabled);
+      $item.toggleClass('yyt-tool-item-enabled', enabled).toggleClass('yyt-tool-item-disabled', !enabled);
       showToast('info', enabled ? '工具已启用' : '工具已禁用');
     });
     
@@ -598,12 +598,12 @@ export const ToolManagePanel = {
           rgba(255, 255, 255, 0.012);
       }
 
-      .yyt-tool-item.yyt-disabled {
+      .yyt-tool-item.yyt-tool-item-disabled {
         opacity: 0.6;
         filter: saturate(0.8);
       }
 
-      .yyt-tool-item.yyt-enabled {
+      .yyt-tool-item.yyt-tool-item-enabled {
         border-color: rgba(74, 222, 128, 0.16);
       }
 
