@@ -35,38 +35,11 @@ ${TABLE_FORM_RENDERER_STYLES}
 
   .yyt-table-workbench-header {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px 18px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.025) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 12px 30px rgba(0, 0, 0, 0.14);
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0;
   }
 
-  .yyt-table-workbench-header-main {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-  }
-
-  .yyt-table-workbench-header-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .yyt-table-workbench-title {
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--yyt-text);
-  }
-
-  .yyt-table-workbench-desc,
   .yyt-table-workbench-muted {
     font-size: 12px;
     line-height: 1.7;
@@ -78,12 +51,6 @@ ${TABLE_FORM_RENDERER_STYLES}
     flex-wrap: wrap;
     gap: 10px;
     justify-content: flex-end;
-  }
-
-  .yyt-table-workbench-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
   }
 
   .yyt-table-workbench-chip {
@@ -113,34 +80,11 @@ ${TABLE_FORM_RENDERER_STYLES}
     min-width: 0;
   }
 
-  .yyt-table-workbench-card {
-    padding: 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 28px rgba(0, 0, 0, 0.14);
-  }
-
   .yyt-table-workbench-panel-copy {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-bottom: 12px;
-  }
-
-  .yyt-table-workbench-panel-kicker {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(123, 183, 255, 0.2);
-    background: rgba(123, 183, 255, 0.08);
-    color: var(--yyt-accent-strong);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.38px;
-    text-transform: uppercase;
   }
 
   .yyt-table-workbench-panel-title {
@@ -164,18 +108,12 @@ ${TABLE_FORM_RENDERER_STYLES}
   .yyt-table-workbench-sidebar-head,
   .yyt-table-workbench-editor-head,
   .yyt-table-workbench-inline-actions,
-  .yyt-table-workbench-table-item-head,
-  .yyt-table-workbench-table-item-main,
-  .yyt-table-workbench-table-item-meta {
+  .yyt-table-workbench-table-item-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     flex-wrap: wrap;
-  }
-
-  .yyt-table-workbench-table-item-main {
-    align-items: flex-start;
   }
 
   .yyt-table-workbench-table-item {
@@ -240,19 +178,17 @@ ${TABLE_FORM_RENDERER_STYLES}
   }
 
   .yyt-table-workbench-editor-card {
-    padding: 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 28px rgba(0, 0, 0, 0.14);
     min-width: 0;
   }
 
   .yyt-table-workbench-empty-state {
-    padding: 14px 16px;
-    border-radius: 16px;
-    border: 1px dashed rgba(255, 255, 255, 0.14);
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 12px;
+    line-height: 1.6;
   }
 
   .yyt-table-workbench-pre {
@@ -279,10 +215,9 @@ ${TABLE_FORM_RENDERER_STYLES}
   }
 
   .yyt-table-workbench-secondary-item {
-    border-radius: 18px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0, 0, 0, 0.12);
+    background: rgba(255,255,255,0.03);
     overflow: hidden;
   }
 
@@ -525,44 +460,16 @@ function updateCompiledPreview($container) {
   $preview.text(formatJson(values.tables || []));
 }
 
-function buildHeader(config = {}, currentTableIndex = 0) {
-  const runtime = config.runtime || {};
-  const tables = Array.isArray(config.tables) ? config.tables : [];
-  const tableCount = tables.length;
-  const currentTable = tables[clampCurrentTableIndex(tables, currentTableIndex)] || null;
-  const currentTableName = normalizeString(currentTable?.name, tableCount ? `表格 ${clampCurrentTableIndex(tables, currentTableIndex) + 1}` : '未选择');
-  const mirrorEnabled = config.mirrorToMessage === true ? '写回正文' : '仅结构结果';
-  const apiPreset = normalizeString(config.apiPreset, '当前 API 配置');
-
+function buildHeader() {
   return `
     <div class="yyt-table-workbench-header">
-      <div class="yyt-table-workbench-header-main">
-        <div class="yyt-table-workbench-header-copy">
-          <div class="yyt-table-workbench-panel-kicker">Table Workbench</div>
-          <div class="yyt-table-workbench-title">填表工作台</div>
-          <div class="yyt-table-workbench-desc">首屏只保留选表、改表、保存、填表；诊断、预览和提示词下沉到下面的次级区。</div>
-        </div>
-        <div class="yyt-table-workbench-header-actions">
-          <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-table-workbench-action="add-table">
-            <i class="fa-solid fa-plus"></i> 新增表格
-          </button>
-          <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-table-workbench-action="refresh">
-            <i class="fa-solid fa-rotate"></i> 刷新状态
-          </button>
-          <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-table-workbench-action="save">
-            <i class="fa-solid fa-save"></i> 保存
-          </button>
-          <button class="yyt-btn yyt-btn-primary yyt-btn-small" data-table-workbench-action="run">
-            <i class="fa-solid fa-play"></i> 立即填表
-          </button>
-        </div>
-      </div>
-      <div class="yyt-table-workbench-chip-row">
-        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-table"></i>${tableCount} 张表</span>
-        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-crosshairs"></i>${escapeHtml(currentTableName)}</span>
-        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-file-lines"></i>${escapeHtml(mirrorEnabled)}</span>
-        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-plug"></i>${escapeHtml(apiPreset)}</span>
-        <span class="yyt-table-workbench-chip"><i class="fa-solid fa-wave-square"></i>${escapeHtml(normalizeString(runtime.lastStatus, 'idle'))}</span>
+      <div class="yyt-table-workbench-header-actions">
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-table-workbench-action="save">
+          <i class="fa-solid fa-save"></i> 保存
+        </button>
+        <button class="yyt-btn yyt-btn-primary yyt-btn-small" data-table-workbench-action="run">
+          <i class="fa-solid fa-play"></i> 立即填表
+        </button>
       </div>
     </div>
   `;
@@ -572,13 +479,11 @@ function buildTableListCard(tables = [], currentTableIndex = 0) {
   const normalizedIndex = clampCurrentTableIndex(tables, currentTableIndex);
 
   return `
-    <div class="yyt-table-workbench-card">
+    <div>
       <div class="yyt-table-workbench-sidebar-head">
-        <div class="yyt-table-workbench-panel-copy">
-          <div class="yyt-table-workbench-panel-kicker">Tables</div>
-          <div class="yyt-table-workbench-panel-title">表导航</div>
-          <div class="yyt-table-workbench-panel-desc">左边固定切表，顺序调整也放在这里。</div>
-        </div>
+        <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-table-workbench-action="add-table">
+          <i class="fa-solid fa-plus"></i> 新增表格
+        </button>
       </div>
       <div class="yyt-table-workbench-sidebar-list">
         ${tables.length ? tables.map((table, tableIndex) => {
@@ -590,29 +495,13 @@ function buildTableListCard(tables = [], currentTableIndex = 0) {
           return `
             <div class="yyt-table-workbench-table-item ${isActive ? 'active' : ''}" data-table-workbench-select-table="${tableIndex}" role="button" tabindex="0" aria-pressed="${isActive ? 'true' : 'false'}">
               <div class="yyt-table-workbench-table-item-head">
-                <span class="yyt-table-workbench-table-order">第 ${tableIndex + 1} 张</span>
+                <div class="yyt-table-workbench-table-name">${escapeHtml(tableName)}</div>
                 ${buildMoveControls('table', { 'table-index': tableIndex }, { currentIndex: tableIndex, size: tables.length })}
-              </div>
-              <div class="yyt-table-workbench-table-item-main">
-                <div>
-                  <div class="yyt-table-workbench-table-name">${escapeHtml(tableName)}</div>
-                  <div class="yyt-table-workbench-table-note">${escapeHtml(note || '未填写说明')}</div>
-                </div>
-              </div>
-              <div class="yyt-table-workbench-table-item-meta">
-                <div class="yyt-table-workbench-table-stats">
-                  <span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-table-columns"></i>${columns} 列</span>
-                  <span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-bars-staggered"></i>${rows} 行</span>
-                </div>
-                ${isActive ? '<span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-crosshairs"></i>当前</span>' : ''}
               </div>
             </div>
           `;
         }).join('') : `
-          <div class="yyt-table-workbench-empty-state">
-            <div class="yyt-table-workbench-panel-title">还没有表格</div>
-            <div class="yyt-table-workbench-panel-desc">先点上面的“新增表格”，然后就能在这里切换。</div>
-          </div>
+          <div class="yyt-table-workbench-empty-state">还没有表，先新建一张。</div>
         `}
       </div>
     </div>
@@ -630,26 +519,11 @@ function buildEditorCard(config = {}, schema = [], currentTableIndex = 0) {
   const activeTable = tables[normalizedIndex] || null;
   const currentTableName = normalizeString(activeTable?.name, tables.length ? `表格 ${normalizedIndex + 1}` : '未选择');
 
-  return `
-    <div class="yyt-table-workbench-editor-card">
-      <div class="yyt-table-workbench-editor-head">
-        <div class="yyt-table-workbench-panel-copy">
-          <div class="yyt-table-workbench-panel-kicker">Editor</div>
-          <div class="yyt-table-workbench-panel-title">当前表：${escapeHtml(currentTableName)}</div>
-          <div class="yyt-table-workbench-panel-desc">右侧主区域只做当前表的表头、行和单元格编辑。</div>
-        </div>
-        <div class="yyt-table-workbench-inline-actions">
-          <span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-table"></i>${tables.length} 张表</span>
-          <span class="yyt-table-workbench-stat-chip"><i class="fa-solid fa-circle-check"></i>${validation.valid ? '可保存' : '待修正'}</span>
-        </div>
-      </div>
-      ${renderTableDefinitionsEditorField(tableField, draft, {
-        mode: 'focused',
-        currentTableIndex: normalizedIndex,
-        description: ''
-      })}
-    </div>
-  `;
+  return renderTableDefinitionsEditorField(tableField, draft, {
+    mode: 'focused',
+    currentTableIndex: normalizedIndex,
+    description: ''
+  });
 }
 
 function buildRuntimeSummary(config = {}) {
@@ -694,15 +568,12 @@ function buildRuntimeSummary(config = {}) {
   `;
 }
 
-function buildSecondarySection(title, description, body, options = {}) {
+function buildSecondarySection(title, body, options = {}) {
   const meta = options.meta ? `<div class="yyt-table-workbench-secondary-summary-meta">${options.meta}</div>` : '';
   return `
     <details class="yyt-table-workbench-secondary-item" ${options.open ? 'open' : ''}>
       <summary>
-        <div class="yyt-table-workbench-secondary-summary-copy">
-          <div class="yyt-table-workbench-secondary-summary-title">${escapeHtml(title)}</div>
-          <div class="yyt-table-workbench-secondary-summary-desc">${escapeHtml(description)}</div>
-        </div>
+        <div class="yyt-table-workbench-secondary-summary-title">${escapeHtml(title)}</div>
         ${meta}
       </summary>
       <div class="yyt-table-workbench-secondary-body">
@@ -724,47 +595,20 @@ function buildSecondarySections(config = {}) {
   return `
     <div class="yyt-table-workbench-secondary">
       ${buildSecondarySection(
-        '校验与编译预览',
-        '有问题时再展开；这里显示即时校验和编译后的 runtime tables。',
+        '更多',
         `
           ${buildValidationCard(validation)}
           <pre class="yyt-table-workbench-pre" data-table-workbench-compiled-preview>${escapeHtml(formatJson(validation.tables || []))}</pre>
+          ${renderTableAuxiliaryFields(getSchema(), config)}
+          ${buildRuntimeSummary(config)}
+          <div data-table-workbench-target class="yyt-table-workbench-empty-state">读取目标中...</div>
+          <div data-table-workbench-load class="yyt-table-workbench-empty-state">读取诊断中...</div>
+          <pre class="yyt-table-workbench-pre" data-table-workbench-load-preview>读取载入内容中...</pre>
+          <pre class="yyt-table-workbench-pre">${escapeHtml(variableHelp)}</pre>
         `,
         {
           open: errorCount > 0,
           meta: `<span>${errorCount} 错误</span><span>${warningCount} 提示</span>`
-        }
-      )}
-
-      ${buildSecondarySection(
-        '更多设置',
-        '提示词、API 预设和正文镜像不再占主编辑区。',
-        renderTableAuxiliaryFields(getSchema(), config),
-        {
-          meta: '<span>Prompt / API / Mirror</span>'
-        }
-      )}
-
-      ${buildSecondarySection(
-        '运行与目标诊断',
-        '只有要核对执行状态、目标消息或载入来源时再看。',
-        `
-          ${buildRuntimeSummary(config)}
-          <div data-table-workbench-target class="yyt-table-workbench-empty-state">正在读取当前 assistant 目标...</div>
-          <div data-table-workbench-load class="yyt-table-workbench-empty-state">等待诊断结果...</div>
-          <pre class="yyt-table-workbench-pre" data-table-workbench-load-preview>等待载入内容...</pre>
-        `,
-        {
-          meta: '<span>Runtime</span>'
-        }
-      )}
-
-      ${buildSecondarySection(
-        '提示词变量参考',
-        '只在改 Prompt 时需要。',
-        `<pre class="yyt-table-workbench-pre">${escapeHtml(variableHelp)}</pre>`,
-        {
-          meta: '<span>Variables</span>'
         }
       )}
     </div>

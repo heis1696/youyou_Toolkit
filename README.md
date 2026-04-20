@@ -1,6 +1,6 @@
 # YouYou Toolkit - SillyTavern 工具插件
 
-> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.57`。
+> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.58`。
 
 YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配置工具链插件。
 
@@ -128,5 +128,5 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 
 ## 版本说明
 
-- 当前 `package.json` 版本：`1.0.57`
-- 当前发布版本：`1.0.57`
+- 当前 `package.json` 版本：`1.0.58`
+- 当前发布版本：`1.0.58`

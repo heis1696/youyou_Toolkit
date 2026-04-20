@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.58] - 2026-04-20
+
+### 优化
+
+- ✨ **继续压平填表工作台，把剩余 banner / 空态 / 次级入口进一步收短，主路径更接近直接改表的工作面** (`modules/ui/components/table-workbench-panel.js`, `modules/ui/components/table-form-renderer.js`, `dist/bundle.js`)
+  - “更多”折叠区去掉多余说明壳，只保留标题、计数和内容本体
+  - 表格编辑器 full 模式去掉顶部 banner，空态改成更短的直接操作提示
+  - 诊断与表格内部空态文案同步压短，减少首屏和空白区域的解释噪音
+
 ## [1.0.57] - 2026-04-20
 
 ### 优化
