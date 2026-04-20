@@ -49,7 +49,7 @@ import {
 // 状态
 // ============================================================
 
-let currentSelectedPresetName = null;
+const PANEL_STATE_KEY = 'yytApiPresetPanelState';
 
 function normalizePresetName(value) {
   return String(value || '').trim();
@@ -61,7 +61,42 @@ function normalizePresetName(value) {
 
 export const ApiPresetPanel = {
   id: 'apiPresetPanel',
-  
+
+  _getSelectedPresetName($container) {
+    if (!$container?.length) {
+      return null;
+    }
+
+    const state = $container.data(PANEL_STATE_KEY);
+    return state ? state.selectedPresetName : null;
+  },
+
+  _setSelectedPresetName($container, value) {
+    if (!$container?.length) {
+      return;
+    }
+
+    $container.data(PANEL_STATE_KEY, {
+      selectedPresetName: value === null ? null : normalizePresetName(value)
+    });
+  },
+
+  _rerender($container) {
+    if (!isContainerValid($container)) {
+      return;
+    }
+
+    this.renderTo($container);
+  },
+
+  _removeDialog($container) {
+    if (!$container?.length) {
+      return;
+    }
+
+    $container.find(`#${SCRIPT_ID}-dialog-overlay`).remove();
+  },
+
   // ============================================================
   // 渲染
   // ============================================================
@@ -71,24 +106,25 @@ export const ApiPresetPanel = {
    * @param {Object} props
    * @returns {string} HTML
    */
-  render(props) {
+  render(props = {}) {
     const activeState = getActiveConfig();
     const config = activeState?.apiConfig || getApiConfig();
     const activePresetName = normalizePresetName(activeState?.presetName || getActivePresetName());
     const presets = getAllPresets();
     const starredPresets = getStarredPresets();
-    
+    const selectedPresetName = props.selectedPresetName ?? null;
+
     // 预设列表 - 只显示被星标的预设，限制最多8条
     const maxPresetsToShow = 8;
     const starredToShow = starredPresets.slice(0, maxPresetsToShow);
-    const presetListHtml = starredToShow.length > 0 
+    const presetListHtml = starredToShow.length > 0
       ? starredToShow.map(preset => this._renderPresetItem(preset)).join('')
       : '';
-    
+
     // 下拉框初始显示值
-    const initialSelectValue = currentSelectedPresetName === null
+    const initialSelectValue = selectedPresetName === null
       ? (activePresetName || '')
-      : normalizePresetName(currentSelectedPresetName);
+      : normalizePresetName(selectedPresetName);
     const initialSelectText = initialSelectValue || '-- 当前配置 --';
     
     return `
@@ -345,10 +381,10 @@ export const ApiPresetPanel = {
     const $selectValue = $dropdown.find('.yyt-select-value');
 
     const loadSelectedPreset = () => {
-      const value = String($selectValue.data('value') || '').trim();
+      const value = normalizePresetName($selectValue.data('value'));
 
       if (!value) {
-        currentSelectedPresetName = '';
+        this._setSelectedPresetName($container, '');
         switchToPreset('');
         fillFormWithConfig($container, getApiConfig(), SCRIPT_ID);
         $container.find('.yyt-preset-item').removeClass('yyt-loaded');
@@ -362,62 +398,49 @@ export const ApiPresetPanel = {
         return;
       }
 
-      currentSelectedPresetName = value;
+      this._setSelectedPresetName($container, value);
       switchToPreset(value);
       fillFormWithConfig($container, preset.apiConfig, SCRIPT_ID);
       $container.find('.yyt-preset-item').removeClass('yyt-loaded');
       $container.find(`.yyt-preset-item[data-preset-name="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-loaded');
       showToast('info', `已加载预设 "${value}"，修改后点击“保存配置”会覆盖该预设`);
     };
-    
-    // 点击触发器展开/收起下拉框
+
     $trigger.on('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       toggleCustomSelectDropdown($dropdown);
     });
-    
-    // 点击选项选择预设
+
     $dropdown.find('.yyt-select-option').on('click', (e) => {
-      // 如果点击的是星标按钮或删除按钮，不选择预设
       if ($(e.target).closest('.yyt-option-star, .yyt-option-delete').length) return;
 
       const $option = $(e.currentTarget);
-      const value = $option.data('value');
+      const value = normalizePresetName($option.data('value'));
       const text = $option.find('.yyt-option-text').text();
-      currentSelectedPresetName = String(value || '').trim();
-      
-      // 更新显示值
+      this._setSelectedPresetName($container, value);
+
       $selectValue.text(text).data('value', value);
-      
-      // 更新选中状态
       $dropdown.find('.yyt-select-option').removeClass('yyt-selected');
       $option.addClass('yyt-selected');
-      
-      // 关闭下拉框
       closeCustomSelectDropdown($dropdown);
     });
 
     $container.find(`#${SCRIPT_ID}-load-preset`).on('click', () => {
       loadSelectedPreset();
     });
-    
-    // 下拉框内的星标按钮点击事件
+
     $dropdown.find('.yyt-option-star').on('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
 
-      const presetName = $(e.currentTarget).data('preset');
+      const presetName = normalizePresetName($(e.currentTarget).data('preset'));
       if (!presetName) return;
 
       const result = togglePresetStar(presetName);
       if (result.success) {
         showToast('success', result.message);
-        // 重新渲染
-        const $panel = $container.closest('.yyt-api-manager').parent();
-        if ($panel.length) {
-          this.renderTo($panel);
-        }
+        this._rerender($container);
       } else {
         showToast('error', result.message);
       }
@@ -441,19 +464,15 @@ export const ApiPresetPanel = {
       }
 
       eventBus.emit(EVENTS.PRESET_DELETED, { name: presetName });
-      if (normalizePresetName(currentSelectedPresetName) === presetName) {
-        currentSelectedPresetName = '';
+      if (normalizePresetName(this._getSelectedPresetName($container)) === presetName) {
+        this._setSelectedPresetName($container, '');
       }
       if (normalizePresetName($selectValue.data('value')) === presetName) {
         $selectValue.text('-- 当前配置 --').data('value', '');
       }
 
-      const $panel = $container.closest('.yyt-api-manager').parent();
-      if ($panel.length) {
-        this.renderTo($panel);
-      }
+      this._rerender($container);
     });
-    
   },
   
   /**
@@ -461,38 +480,34 @@ export const ApiPresetPanel = {
    * @private
    */
   _bindPresetListEvents($container, $) {
-    // 预设列表项操作
     $container.find('.yyt-preset-item').on('click', (e) => {
       const $item = $(e.currentTarget);
-      const presetName = $item.data('preset-name');
+      const presetName = normalizePresetName($item.data('preset-name'));
       const action = $(e.target).closest('[data-action]').data('action');
-      
+
       if (!action) return;
-      
+
       e.stopPropagation();
-      
+
       switch (action) {
         case 'load':
+          this._setSelectedPresetName($container, presetName);
           $container.find('.yyt-select-value').text(presetName).data('value', presetName);
           $container.find('.yyt-select-option').removeClass('yyt-selected');
           $container.find(`.yyt-select-option[data-value="${presetName.replace(/"/g, '&quot;')}"]`).addClass('yyt-selected');
           $container.find(`#${SCRIPT_ID}-load-preset`).trigger('click');
           break;
-          
+
         case 'delete':
           if (confirm(`确定要删除预设 "${presetName}" 吗？`)) {
             const delResult = deletePreset(presetName);
             showToast(delResult.success ? 'info' : 'error', delResult.message);
             if (delResult.success) {
               eventBus.emit(EVENTS.PRESET_DELETED, { name: presetName });
-              if (normalizePresetName(currentSelectedPresetName) === presetName) {
-                currentSelectedPresetName = '';
+              if (normalizePresetName(this._getSelectedPresetName($container)) === presetName) {
+                this._setSelectedPresetName($container, '');
               }
-              // 重新渲染
-              const $panel = $container.closest('.yyt-api-manager').parent();
-              if ($panel.length) {
-                this.renderTo($panel);
-              }
+              this._rerender($container);
             }
           }
           break;
@@ -589,27 +604,20 @@ export const ApiPresetPanel = {
         if (!confirm(`是否要覆盖预设 "${activePresetName}" 的配置？\n\n点击"确定"覆盖预设，点击"取消"仅保存当前配置并切换到“当前配置”`)) {
           updateApiConfig(config);
           switchToPreset('');
-          currentSelectedPresetName = '';
+          this._setSelectedPresetName($container, '');
           showToast('success', 'API配置已保存，并已切换到当前API配置');
-          const $panel = $container.closest('.yyt-api-manager').parent();
-          if ($panel.length) {
-            this.renderTo($panel);
-          }
+          this._rerender($container);
           return;
         }
 
         updateApiConfig(config);
         const result = updatePreset(activePresetName, { apiConfig: config });
         if (result.success) {
-          currentSelectedPresetName = activePresetName;
+          this._setSelectedPresetName($container, activePresetName);
           showToast('success', `配置已保存并覆盖预设 "${activePresetName}"`);
           switchToPreset(activePresetName);
           eventBus.emit(EVENTS.PRESET_UPDATED, { name: activePresetName });
-          // 重新渲染
-          const $panel = $container.closest('.yyt-api-manager').parent();
-          if ($panel.length) {
-            this.renderTo($panel);
-          }
+          this._rerender($container);
         } else {
           showToast('error', result.message);
         }
@@ -624,7 +632,7 @@ export const ApiPresetPanel = {
     $container.find(`#${SCRIPT_ID}-reset-api-config`).on('click', () => {
       if (confirm('确定要重置API配置吗？')) {
         switchToPreset('');
-        currentSelectedPresetName = '';
+        this._setSelectedPresetName($container, '');
         updateApiConfig({
           url: '',
           apiKey: '',
@@ -635,11 +643,7 @@ export const ApiPresetPanel = {
           temperature: 0.7,
           top_p: 0.9
         });
-        // 重新渲染
-        const $panel = $container.closest('.yyt-api-manager').parent();
-        if ($panel.length) {
-          this.renderTo($panel);
-        }
+        this._rerender($container);
         showToast('info', 'API配置已重置');
       }
     });
@@ -680,11 +684,7 @@ export const ApiPresetPanel = {
         const result = importPresets(text, { overwrite: true });
         showToast(result.success ? 'success' : 'error', result.message);
         if (result.imported > 0) {
-          // 重新渲染
-          const $panel = $container.closest('.yyt-api-manager').parent();
-          if ($panel.length) {
-            this.renderTo($panel);
-          }
+          this._rerender($container);
         }
       } catch (e) {
         showToast('error', `导入失败: ${e.message}`);
@@ -702,7 +702,7 @@ export const ApiPresetPanel = {
     const presets = getAllPresets();
     const existingNames = presets.map(p => p.name);
     const defaultName = generateUniquePresetName('新预设');
-    
+
     const dialogHtml = `
       <div class="yyt-dialog-overlay" id="${SCRIPT_ID}-dialog-overlay">
         <div class="yyt-dialog">
@@ -715,12 +715,12 @@ export const ApiPresetPanel = {
           <div class="yyt-dialog-body">
             <div class="yyt-form-group">
               <label>预设名称</label>
-              <input type="text" class="yyt-input" id="${SCRIPT_ID}-dialog-preset-name" 
+              <input type="text" class="yyt-input" id="${SCRIPT_ID}-dialog-preset-name"
                      value="${escapeHtml(defaultName)}" placeholder="输入预设名称">
             </div>
             <div class="yyt-form-group">
               <label>描述（可选）</label>
-              <textarea class="yyt-textarea" id="${SCRIPT_ID}-dialog-preset-desc" rows="2" 
+              <textarea class="yyt-textarea" id="${SCRIPT_ID}-dialog-preset-desc" rows="2"
                         placeholder="预设描述..."></textarea>
             </div>
           </div>
@@ -731,33 +731,33 @@ export const ApiPresetPanel = {
         </div>
       </div>
     `;
-    
-    $(`#${SCRIPT_ID}-dialog-overlay`).remove();
+
+    this._removeDialog($container);
     $container.append(dialogHtml);
-    
-    const $overlay = $(`#${SCRIPT_ID}-dialog-overlay`);
-    const $nameInput = $(`#${SCRIPT_ID}-dialog-preset-name`);
-    const $descInput = $(`#${SCRIPT_ID}-dialog-preset-desc`);
-    
+
+    const $overlay = $container.find(`#${SCRIPT_ID}-dialog-overlay`);
+    const $nameInput = $overlay.find(`#${SCRIPT_ID}-dialog-preset-name`);
+    const $descInput = $overlay.find(`#${SCRIPT_ID}-dialog-preset-desc`);
+
     $nameInput.focus().select();
-    
+
     const closeDialog = () => $overlay.remove();
-    
+
     $overlay.find(`#${SCRIPT_ID}-dialog-close, #${SCRIPT_ID}-dialog-cancel`).on('click', closeDialog);
     $overlay.on('click', function(e) {
       if (e.target === this) closeDialog();
     });
-    
+
     $overlay.find(`#${SCRIPT_ID}-dialog-save`).on('click', () => {
       const name = $nameInput.val().trim();
       const desc = $descInput.val().trim();
-      
+
       if (!name) {
         showToast('warning', '请输入预设名称');
         $nameInput.focus();
         return;
       }
-      
+
       if (existingNames.includes(name)) {
         if (!confirm(`预设 "${name}" 已存在，是否覆盖？`)) {
           return;
@@ -765,28 +765,25 @@ export const ApiPresetPanel = {
         deletePreset(name);
         eventBus.emit(EVENTS.PRESET_DELETED, { name });
       }
-      
+
       const currentConfig = getFormApiConfig($container, SCRIPT_ID);
       const result = createPreset({
         name,
         description: desc,
         apiConfig: currentConfig
       });
-      
+
       if (result.success) {
         showToast('success', result.message);
+        this._setSelectedPresetName($container, name);
         closeDialog();
         eventBus.emit(EVENTS.PRESET_CREATED, { preset: result.preset });
-        // 重新渲染
-        const $panel = $container.closest('.yyt-api-manager').parent();
-        if ($panel.length) {
-          this.renderTo($panel);
-        }
+        this._rerender($container);
       } else {
         showToast('error', result.message);
       }
     });
-    
+
     $nameInput.on('keypress', function(e) {
       if (e.which === 13) {
         $overlay.find(`#${SCRIPT_ID}-dialog-save`).click();
@@ -806,7 +803,9 @@ export const ApiPresetPanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
+    this._removeDialog($container);
     closeActiveCustomSelectDropdown($container);
+    $container.removeData(PANEL_STATE_KEY);
     $container.off();
   },
   
@@ -882,7 +881,9 @@ export const ApiPresetPanel = {
    * @param {Object} $container
    */
   renderTo($container) {
-    const html = this.render({});
+    const html = this.render({
+      selectedPresetName: this._getSelectedPresetName($container)
+    });
     $container.html(html);
     this.bindEvents($container, {});
   }

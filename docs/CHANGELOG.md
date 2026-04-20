@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.61] - 2026-04-21
+
+### 修复
+
+- 🐛 **收口 API 预设页与工具管理页的实例状态和弹窗查找范围，修复重复挂载、切页或重开 popup 后易串到旧节点的问题** (`modules/ui/components/api-preset-panel.js`, `modules/ui/components/tool-manage-panel.js`)
+  - `api-preset-panel` 不再使用模块级 `currentSelectedPresetName`，改为把选中态保存在当前容器实例上，并统一改为对当前容器重渲
+  - API 预设“保存为预设”对话框与工具编辑对话框都改成容器内查找和销毁，不再依赖全局 `$('#...')` 读取弹窗字段
+
+### 文档
+
+- 📝 **补充 Phase 5 第一批改造的回顾检查与后续切口，避免把剩余固定 id 面板一次性全量扩散改造** (`docs/UI_REFACTOR_PROGRESS.md`)
+  - 记录 `api-preset-panel` / `tool-manage-panel` 的实际改动、宿主手测重点和当前风险判断
+  - 将下一阶段方案收口到 `bypass-panel` / `settings-panel` 的定点补刀，而不是直接扩大到 Phase 6
+
 ## [1.0.60] - 2026-04-21
 
 ### 修复

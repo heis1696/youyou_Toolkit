@@ -37,6 +37,16 @@ import { ensureToolRuntimeConfig } from '../../tool-registry.js';
 export const ToolManagePanel = {
   id: 'toolManagePanel',
 
+  _removeDialog($container) {
+    if (!$container?.length) {
+      return;
+    }
+
+    const $overlay = $container.find('#yyt-tool-dialog-overlay');
+    destroyEnhancedCustomSelects($overlay, 'yytToolManageDialogSelect');
+    $overlay.remove();
+  },
+
   _getToolkitWindow() {
     try {
       if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
@@ -314,7 +324,7 @@ export const ToolManagePanel = {
   _showToolEditDialog($container, $, toolId) {
     const tool = toolId ? getTool(toolId) : null;
     const isEdit = !!tool;
-    
+
     const dialogHtml = `
       <div class="yyt-dialog-overlay" id="yyt-tool-dialog-overlay">
         <div class="yyt-dialog yyt-dialog-wide">
@@ -328,7 +338,7 @@ export const ToolManagePanel = {
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>工具名称</label>
-                <input type="text" class="yyt-input" id="yyt-tool-name" 
+                <input type="text" class="yyt-input" id="yyt-tool-name"
                        value="${tool ? escapeHtml(tool.name) : ''}" placeholder="工具名称">
               </div>
               <div class="yyt-form-group yyt-flex-1">
@@ -342,18 +352,18 @@ export const ToolManagePanel = {
             </div>
             <div class="yyt-form-group">
               <label>描述</label>
-              <input type="text" class="yyt-input" id="yyt-tool-desc" 
+              <input type="text" class="yyt-input" id="yyt-tool-desc"
                      value="${tool ? escapeHtml(tool.description || '') : ''}" placeholder="工具描述">
             </div>
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>超时时间(ms)</label>
-                <input type="number" class="yyt-input" id="yyt-tool-timeout" 
+                <input type="number" class="yyt-input" id="yyt-tool-timeout"
                        value="${tool?.config?.execution?.timeout || 60000}">
               </div>
               <div class="yyt-form-group yyt-flex-1">
                 <label>重试次数</label>
-                <input type="number" class="yyt-input" id="yyt-tool-retries" 
+                <input type="number" class="yyt-input" id="yyt-tool-retries"
                        value="${tool?.config?.execution?.retries || 3}">
               </div>
             </div>
@@ -365,11 +375,16 @@ export const ToolManagePanel = {
         </div>
       </div>
     `;
-    
-    $('#yyt-tool-dialog-overlay').remove();
+
+    this._removeDialog($container);
     $container.append(dialogHtml);
-    
-    const $overlay = $('#yyt-tool-dialog-overlay');
+
+    const $overlay = $container.find('#yyt-tool-dialog-overlay');
+    const $nameInput = $overlay.find('#yyt-tool-name');
+    const $categorySelect = $overlay.find('#yyt-tool-category');
+    const $descInput = $overlay.find('#yyt-tool-desc');
+    const $timeoutInput = $overlay.find('#yyt-tool-timeout');
+    const $retriesInput = $overlay.find('#yyt-tool-retries');
 
     enhanceNativeSelects($overlay, {
       namespace: 'yytToolManageDialogSelect',
@@ -380,16 +395,16 @@ export const ToolManagePanel = {
       destroyEnhancedCustomSelects($overlay, 'yytToolManageDialogSelect');
       $overlay.remove();
     };
-    
+
     $overlay.find('#yyt-tool-dialog-close, #yyt-tool-dialog-cancel').on('click', closeDialog);
     $overlay.on('click', function(e) { if (e.target === this) closeDialog(); });
-    
+
     $overlay.find('#yyt-tool-dialog-save').on('click', () => {
-      const name = $('#yyt-tool-name').val().trim();
-      const category = $('#yyt-tool-category').val();
-      const desc = $('#yyt-tool-desc').val().trim();
-      const timeout = parseInt($('#yyt-tool-timeout').val()) || 60000;
-      const retries = parseInt($('#yyt-tool-retries').val()) || 3;
+      const name = $nameInput.val().trim();
+      const category = $categorySelect.val();
+      const desc = $descInput.val().trim();
+      const timeout = parseInt($timeoutInput.val()) || 60000;
+      const retries = parseInt($retriesInput.val()) || 3;
       
       if (!name) {
         showToast('warning', '请输入工具名称');
@@ -449,7 +464,7 @@ export const ToolManagePanel = {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
 
-    destroyEnhancedCustomSelects($('#yyt-tool-dialog-overlay'), 'yytToolManageDialogSelect');
+    this._removeDialog($container);
     $container.off('.yytToolManage');
   },
   

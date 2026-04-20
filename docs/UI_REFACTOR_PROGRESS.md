@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 当前 canonical 文档入口已建立：`docs/UI_REFACTOR_PLAN.md`、`docs/UI_REFACTOR_PROGRESS.md`
-- 当前优先级：推进 Phase 5，开始清理模块级 UI 状态与固定 DOM id 冲突
-- 当前策略：继续保持每阶段只切一个主问题；Phase 5 只处理实例状态归属、固定 id 与销毁清理，不回头扩 compatibility 收口
+- 当前优先级：继续推进 Phase 5，已先收口最高风险的模块级状态与对话框全局选择器污染
+- 当前策略：Phase 5 继续保持只处理实例状态归属、固定 id 与销毁清理；当前先解决 `api-preset-panel` / `tool-manage-panel`，再视宿主表现决定是否继续下探其它低风险面板
 
 ## 阶段记录
 
@@ -160,23 +160,62 @@
 - 本阶段没有改工具 schema、tool registry 导航来源或执行链。
 - 当前仍需宿主手测确认切页/关窗/重复打开场景下的真实卸载效果。
 
-## 下一阶段施工方案（Phase 5）
+### Phase 5 — 清理模块级 UI 状态与固定 DOM id 冲突
+
+**状态：已完成第一批静态改造，待宿主手测**
+
+**本阶段当前修改文件**
+- `modules/ui/components/api-preset-panel.js`
+- `modules/ui/components/tool-manage-panel.js`
+
+**实际修改点**
+- 将 `api-preset-panel` 的 `currentSelectedPresetName` 模块级状态收回到容器实例状态，不再由文件级变量跨挂载共享。
+- 将 `api-preset-panel` 中星标、删除、导入、保存配置、保存为预设后的重渲染统一改为对当前容器重渲，不再依赖 `closest('.yyt-api-manager').parent()` 反查宿主容器。
+- 将 `api-preset-panel` 的“保存为预设”对话框改为容器内查找和清理，`destroy()` 时会一并移除对话框节点并清掉实例状态。
+- 将 `tool-manage-panel` 的工具编辑对话框从全局 `$('#...')` 读取改为 `$overlay.find(...)` 容器内读取，避免重复挂载或旧弹窗残留时串到错误节点。
+- 为 `tool-manage-panel` 增加按容器移除对话框的统一清理路径，`destroy()` 不再依赖全局 overlay 选择器。
+
+**验证结果**
+- `npm run build`：已通过。
+- SillyTavern / TavernHelper 手测：尚未执行。
+
+**回顾检查**
+- 当前切口保持在高风险污染源：模块级状态、全局对话框选择器、跨容器反查重渲染。
+- `bypass-panel` 与 `settings-panel` 仍存在固定 id，但当前主要读写路径已基本依赖容器内选择和事件委托，风险级别低于本批已修改面板。
+- 本阶段当前没有扩散到 popup shell、runtime 事件语义或 compatibility fallback 边界。
+
+**宿主手测重点**
+- API 预设页反复切换预设、星标、删除、导入后，确认下拉选中态不会串到旧实例。
+- API 预设页打开“保存为预设”对话框后切页、关窗、再次打开，确认不会残留旧弹窗节点。
+- 工具管理页反复打开“新建工具 / 编辑工具”对话框，确认保存读取的始终是当前弹窗里的字段。
+- 在 popup 重复打开/关闭后，再次进入上述两页，确认不会残留旧增强 select 或旧 overlay。
+
+**新发现的连带问题**
+- `bypass-panel` 仍保留较多固定 id，但当前尚未发现模块级状态或全局 `$('#...')` 读取路径；是否继续改成实例级 id，需要先看宿主是否仍出现复挂载冲突。
+- `settings-panel` 也保留固定 id，但事件绑定与 destroy 路径相对干净，当前不是 Phase 5 第一刀的主要风险源。
+
+**对下一阶段边界的影响**
+- 如果宿主手测已覆盖当前主要串页问题，Phase 5 可以继续只做定点补刀，而不必为“看到固定 id 就全部改名”扩散改动面。
+- Phase 6 仍应最后再处理 compatibility fallback 边界。
+
+## 下一阶段施工方案（Phase 5 后续切口）
 
 **目标**
-- 清理模块级 UI 状态、固定 DOM id 和增强控件残留，减少跨面板污染与重复挂载冲突。
-- 让面板实例状态尽量回到实例内部，而不是继续悬挂在模块级变量或全局选择器上。
+- 在不扩散改动面的前提下，继续清理剩余高频 UI 污染点。
+- 优先处理仍可能因固定 id、编辑区复用和增强控件残留而在重复挂载时撞车的面板。
 
 **建议切口**
-1. 先审查 `modules/ui/components/api-preset-panel.js`、`bypass-panel.js`、`tool-manage-panel.js`、`settings-panel.js` 中的模块级状态、缓存选择器和 document 级事件绑定。
-2. 把会跨挂载残留的固定 id 改成容器内查询或实例级 id，优先处理重复打开 popup、切页复挂载时最容易撞车的输入框、对话框和增强 select。
-3. 对 custom select / dialog / file input 等增强控件补全按容器清理路径，确保 destroy 后不会留下 portal、document 事件或旧弹窗节点。
-4. 保持 `popup-shell` 与 `ui-manager` 的当前职责不再扩散，本阶段只动面板内部状态归属和节点命名空间。
+1. 先在真实宿主里回归 `api-preset-panel` 与 `tool-manage-panel`，确认当前第一批改造已经覆盖主要串页问题。
+2. 若宿主仍有复挂载污染，再把 `modules/ui/components/bypass-panel.js` 里的编辑区固定 id、空态/编辑区切换和增强 select 清理路径收口到容器内部。
+3. 仅在 `bypass-panel` 宿主表现仍不稳时，再评估 `modules/ui/components/settings-panel.js` 里固定 id 是否需要实例级命名空间；不要因为静态看到 id 就提前全量改名。
+4. 继续保持 `popup-shell`、`ui-manager`、runtime 事件语义和 compatibility fallback 边界不扩散。
 
 **本阶段暂不处理**
 - 不继续收 compatibility fallback 边界。
 - 不改 runtime-only 轻量刷新策略。
+- 不做全仓固定 id 批量重命名。
 - 不重写 tools 页描述符注册方式。
 
 **进入本阶段前的验证前提**
 - 保持 `npm run build` 为静态门槛。
-- 宿主手测应重点覆盖多次打开/关闭 popup、跨 tab 来回切换、重复打开对话框/下拉选择器等场景。
+- 宿主手测应重点覆盖 API 预设页 / 工具管理页 / Ai 指令预设页在多次打开 popup、切页、重复开关弹窗后的表现。
