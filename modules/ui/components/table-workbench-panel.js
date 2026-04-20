@@ -754,7 +754,7 @@ function buildConfigView(config = {}, schema, currentTableIndex = 0) {
             <div class="yyt-table-workbench-panel-title">中间只编辑当前表</div>
             <div class="yyt-table-workbench-panel-desc">表头、行和单元格都在这里改；左边切表，右边看反馈。</div>
           </div>
-          ${renderTableDefinitionsEditorField(tableField, validation, {
+          ${renderTableDefinitionsEditorField(tableField, draft, {
             mode: 'focused',
             currentTableIndex: normalizedIndex,
             description: ''

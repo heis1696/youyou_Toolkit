@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.52] - 2026-04-20
+
+### 修复
+
+- 🐛 **修复填表工作台 `config` 视图把校验结果误传给 focused 编辑器，导致当前表内容区可能显示为空** (`modules/ui/components/table-workbench-panel.js`, `dist/bundle.js`)
+  - 中间当前表编辑区改回直接基于原始 draft 渲染，避免 focused editor 读取到错误数据形状
+  - 右侧校验摘要与编译预览仍继续使用 validation / compiled tables，不改既有辅助区职责
+
 ## [1.0.51] - 2026-04-20
 
 ### 修复
