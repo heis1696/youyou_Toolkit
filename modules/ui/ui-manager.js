@@ -192,9 +192,40 @@ class UIManager {
   destroyInstance(id) {
     const instance = this.activeInstances.get(id);
     if (!instance) return;
-    
+
     instance.component.destroy(instance.container);
     this.activeInstances.delete(id);
+  }
+
+  /**
+   * 按容器销毁组件实例
+   * @param {HTMLElement|Object|string} container
+   */
+  destroyContainerInstance(container) {
+    const $ = getJQuery();
+    if (!$ || !container) return;
+
+    let $container;
+    if (typeof container === 'string') {
+      $container = $(container);
+    } else if (container?.jquery) {
+      $container = container;
+    } else {
+      $container = $(container);
+    }
+
+    if (!$container?.length) return;
+
+    const instanceIds = [];
+    this.activeInstances.forEach((instance, instanceId) => {
+      const sameContainer = instance?.container?.length
+        && instance.container[0] === $container[0];
+      if (sameContainer) {
+        instanceIds.push(instanceId);
+      }
+    });
+
+    instanceIds.forEach(instanceId => this.destroyInstance(instanceId));
   }
 
   // ============================================================

@@ -18,6 +18,9 @@ export function createPopupShell(context) {
   const scrollSurfaceState = {
     cleanups: []
   };
+  const panelHostState = {
+    current: null
+  };
 
   function log(...args) {
     console.log(`[${SCRIPT_ID}]`, ...args);
@@ -179,6 +182,48 @@ export function createPopupShell(context) {
     scrollSurfaceState.cleanups = [];
   }
 
+  function sameHostContainer(left, right) {
+    if (!left || !right) return false;
+
+    const leftElement = left.jquery ? left[0] : left;
+    const rightElement = right.jquery ? right[0] : right;
+    return Boolean(leftElement && rightElement && leftElement === rightElement);
+  }
+
+  function destroyActivePanelHost(options = {}) {
+    const { container = null } = options;
+    const activeHost = panelHostState.current;
+    if (!activeHost) {
+      return;
+    }
+
+    if (container && !sameHostContainer(activeHost.container, container)) {
+      return;
+    }
+
+    try {
+      if (typeof activeHost.destroy === 'function') {
+        activeHost.destroy(activeHost.container);
+      }
+    } catch (error) {
+      logError('销毁动态面板 host 失败', error);
+    }
+
+    if (modules.uiModule?.uiManager?.destroyContainerInstance) {
+      modules.uiModule.uiManager.destroyContainerInstance(activeHost.container);
+    }
+
+    panelHostState.current = null;
+  }
+
+  function registerActivePanelHost(container, host = {}) {
+    panelHostState.current = {
+      key: host.key || '',
+      container,
+      destroy: typeof host.destroy === 'function' ? host.destroy : null
+    };
+  }
+
   function refreshMainNavigation() {
     const $ = getJQuery();
     if (!$ || !uiState.currentPopup) return;
@@ -245,6 +290,8 @@ export function createPopupShell(context) {
     const { rebuildNavigation = false, reRenderSubNav = false } = options;
     const $ = getJQuery();
     if (!$ || !uiState.currentPopup) return;
+
+    destroyActivePanelHost();
 
     const activeMainTab = ensureActiveMainTabStillExists();
     if (!activeMainTab) return;
@@ -756,6 +803,7 @@ export function createPopupShell(context) {
   }
 
   function closePopup() {
+    destroyActivePanelHost();
     cleanupPopupDrag();
     cleanupPopupEvents();
     cleanupScrollableSurfaces();
@@ -781,6 +829,7 @@ export function createPopupShell(context) {
   }
 
   function switchMainTab(tabName) {
+    destroyActivePanelHost();
     uiState.currentMainTab = tabName;
 
     const $ = getJQuery();
@@ -808,6 +857,7 @@ export function createPopupShell(context) {
   }
 
   function switchSubTab(mainTab, subTab) {
+    destroyActivePanelHost();
     uiState.currentSubTab[mainTab] = subTab;
 
     const $ = getJQuery();
@@ -989,70 +1039,105 @@ export function createPopupShell(context) {
       }
 
       switch (subToolConfig.component) {
-          case 'SummaryToolPanel':
+          case 'SummaryToolPanel': {
+            destroyActivePanelHost({ container: $subContent });
             if (modules.uiModule?.renderSummaryToolPanel) {
               modules.uiModule.renderSummaryToolPanel($subContent);
+              registerActivePanelHost($subContent, { key: 'SummaryToolPanel' });
             } else {
               const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
               if (uiCompatibilityModule?.SummaryToolPanel) {
                 uiCompatibilityModule.SummaryToolPanel.renderTo($subContent);
+                registerActivePanelHost($subContent, {
+                  key: 'SummaryToolPanel',
+                  destroy: ($hostContainer) => uiCompatibilityModule.SummaryToolPanel.destroy?.($hostContainer)
+                });
               } else {
                 $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
               }
             }
             break;
+          }
 
-          case 'StatusBlockPanel':
+          case 'StatusBlockPanel': {
+            destroyActivePanelHost({ container: $subContent });
             if (modules.uiModule?.renderStatusBlockPanel) {
               modules.uiModule.renderStatusBlockPanel($subContent);
+              registerActivePanelHost($subContent, { key: 'StatusBlockPanel' });
             } else {
               const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
               if (uiCompatibilityModule?.StatusBlockPanel) {
                 uiCompatibilityModule.StatusBlockPanel.renderTo($subContent);
+                registerActivePanelHost($subContent, {
+                  key: 'StatusBlockPanel',
+                  destroy: ($hostContainer) => uiCompatibilityModule.StatusBlockPanel.destroy?.($hostContainer)
+                });
               } else {
                 $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
               }
             }
             break;
+          }
 
-          case 'YouyouReviewPanel':
+          case 'YouyouReviewPanel': {
+            destroyActivePanelHost({ container: $subContent });
             if (modules.uiModule?.renderYouyouReviewPanel) {
               modules.uiModule.renderYouyouReviewPanel($subContent);
+              registerActivePanelHost($subContent, { key: 'YouyouReviewPanel' });
             } else {
               const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
               if (uiCompatibilityModule?.YouyouReviewPanel) {
                 uiCompatibilityModule.YouyouReviewPanel.renderTo($subContent);
+                registerActivePanelHost($subContent, {
+                  key: 'YouyouReviewPanel',
+                  destroy: ($hostContainer) => uiCompatibilityModule.YouyouReviewPanel.destroy?.($hostContainer)
+                });
               } else {
                 $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
               }
             }
             break;
+          }
 
-          case 'EscapeTransformToolPanel':
+          case 'EscapeTransformToolPanel': {
+            destroyActivePanelHost({ container: $subContent });
             if (modules.uiModule?.renderEscapeTransformToolPanel) {
               modules.uiModule.renderEscapeTransformToolPanel($subContent);
+              registerActivePanelHost($subContent, { key: 'EscapeTransformToolPanel' });
             } else {
               const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
               if (uiCompatibilityModule?.EscapeTransformToolPanel) {
                 uiCompatibilityModule.EscapeTransformToolPanel.renderTo($subContent);
+                registerActivePanelHost($subContent, {
+                  key: 'EscapeTransformToolPanel',
+                  destroy: ($hostContainer) => uiCompatibilityModule.EscapeTransformToolPanel.destroy?.($hostContainer)
+                });
               } else {
                 $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>转义处理工具加载失败</span></div>');
               }
             }
             break;
+          }
 
-          case 'PunctuationTransformToolPanel':
+          case 'PunctuationTransformToolPanel': {
+            destroyActivePanelHost({ container: $subContent });
             if (modules.uiModule?.renderPunctuationTransformToolPanel) {
               modules.uiModule.renderPunctuationTransformToolPanel($subContent);
+              registerActivePanelHost($subContent, { key: 'PunctuationTransformToolPanel' });
             } else {
               const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
               if (uiCompatibilityModule?.PunctuationTransformToolPanel) {
                 uiCompatibilityModule.PunctuationTransformToolPanel.renderTo($subContent);
+                registerActivePanelHost($subContent, {
+                  key: 'PunctuationTransformToolPanel',
+                  destroy: ($hostContainer) => uiCompatibilityModule.PunctuationTransformToolPanel.destroy?.($hostContainer)
+                });
               } else {
                 $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>中文标点替换工具加载失败</span></div>');
               }
             }
             break;
+          }
 
           case 'GenericToolConfigPanel':
             await renderGenericToolConfigPanel(subToolConfig, $subContent);
@@ -1068,6 +1153,8 @@ export function createPopupShell(context) {
 
     const $content = $mainContent.find('.yyt-sub-content');
     if (!$content.length) return;
+
+    destroyActivePanelHost({ container: $content });
 
     switch (subTab) {
       case 'config':
@@ -1091,10 +1178,12 @@ export function createPopupShell(context) {
     const $ = getJQuery();
     if (!$ || !$container?.length || !subToolConfig?.id) return;
 
-    try {
-      let panel = caches.dynamicToolPanelCache.get(subToolConfig.id);
+    destroyActivePanelHost({ container: $container });
 
-      if (!panel) {
+    try {
+      let createPanel = caches.dynamicToolPanelCache.get(subToolConfig.id);
+
+      if (!createPanel) {
         const module = await import('../ui/components/tool-config-panel-factory.js');
         const createToolConfigPanel = module?.createToolConfigPanel;
 
@@ -1102,7 +1191,7 @@ export function createPopupShell(context) {
           throw new Error('通用工具面板工厂不可用');
         }
 
-        panel = createToolConfigPanel({
+        createPanel = () => createToolConfigPanel({
           id: `${subToolConfig.id}Panel`,
           toolId: subToolConfig.id,
           postResponseHint: `点击“立即执行一次”后，调用额外模型执行“${subToolConfig.name || subToolConfig.id}”。`,
@@ -1111,12 +1200,20 @@ export function createPopupShell(context) {
           previewTitle: `${subToolConfig.name || subToolConfig.id} 提取预览`
         });
 
-        caches.dynamicToolPanelCache.set(subToolConfig.id, panel);
+        caches.dynamicToolPanelCache.set(subToolConfig.id, createPanel);
       }
 
+      const panel = createPanel();
       panel.renderTo($container);
+      registerActivePanelHost($container, {
+        key: subToolConfig.id,
+        destroy: typeof panel?.destroy === 'function'
+          ? ($hostContainer) => panel.destroy($hostContainer)
+          : null
+      });
       refreshScrollableSurfaces();
     } catch (error) {
+      panelHostState.current = null;
       console.error(`[${SCRIPT_ID}] 自定义工具面板加载失败:`, error);
       $container.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>自定义工具面板加载失败</span></div>');
     }

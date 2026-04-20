@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+## [1.0.60] - 2026-04-21
+
+### 修复
+
+- 🐛 **收口 tools 页 panel host 生命周期，修复活面板对象被跨容器复用、切页或关窗后旧 host 仍可能继续存活的问题** (`modules/app/popup-shell.js`, `modules/ui/ui-manager.js`)
+  - `popup-shell` 现显式追踪并销毁当前活 host，在切主 tab、切 sub tab、刷新当前页和关闭 popup 时先卸载旧 host
+  - `dynamicToolPanelCache` 现缓存 panel factory 而不是活实例，自定义工具子页每次挂载都会创建新的 panel 对象
+  - `ui-manager` 新增按容器销毁实例的能力，tools 页默认工具、自定义工具与兼容回退面板都回到统一 mount / unmount 路径
+
+### 文档
+
+- 📝 **补充 Phase 4 回顾检查并固化 Phase 5 施工边界，避免生命周期改造后又把状态清理与 compatibility 收口混做一刀** (`docs/UI_REFACTOR_PROGRESS.md`)
+  - 记录 Phase 4 的实际修改点、宿主手测重点、遗留问题和边界影响
+  - 明确 Phase 5 只聚焦模块级状态、固定 DOM id 与增强控件销毁清理
+
 ## [1.0.59] - 2026-04-21
 
 ### 修复

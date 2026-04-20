@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 当前 canonical 文档入口已建立：`docs/UI_REFACTOR_PLAN.md`、`docs/UI_REFACTOR_PROGRESS.md`
-- 当前优先级：推进 Phase 4，先收口 `popup-shell` 的 panel host 生命周期与活对象缓存问题
-- 当前策略：继续保持每阶段只切一个主问题；Phase 4 只处理 mount / unmount 与缓存归属，不回头扩 runtime 细粒度刷新
+- 当前优先级：推进 Phase 5，开始清理模块级 UI 状态与固定 DOM id 冲突
+- 当前策略：继续保持每阶段只切一个主问题；Phase 5 只处理实例状态归属、固定 id 与销毁清理，不回头扩 compatibility 收口
 
 ## 阶段记录
 
@@ -113,23 +113,70 @@
 - 本阶段没有引入新的 UI 注册机制。
 - 当前仍保留轻量当前页刷新作为 runtime 展示兜底；是否进一步下沉为面板级局部刷新，留给后续阶段再判断。
 
-## 下一阶段施工方案（Phase 4）
+### Phase 4 — 收口 panel host 生命周期
 
-**目标**
+**状态：已完成静态改造，待宿主手测**
+
+**本阶段目标**
 - 把 `popup-shell` 从“缓存活面板对象并反复复用”收口为“缓存工厂/描述符，由壳层显式 mount / unmount host”。
 - 解决旧面板只是被隐藏、但事件绑定和异步回调仍继续存活的问题。
 
+**实际修改文件**
+- `modules/app/popup-shell.js`
+- `modules/ui/ui-manager.js`
+
+**实际修改点**
+- 在 `popup-shell` 中新增 `panelHostState`、`destroyActivePanelHost()`、`registerActivePanelHost()`，把当前 tools 页活面板 host 的生命周期收回壳层。
+- 将 `dynamicToolPanelCache` 从“缓存活 panel instance”改成“缓存 panel factory”，自定义工具子页每次挂载都会创建新的 panel 实例，不再跨容器复用旧对象。
+- 在切主 tab、切 sub tab、刷新当前页、关闭 popup 时，壳层都会先显式卸载当前活 host，再进入新的渲染路径。
+- 为 `ui-manager` 增加 `destroyContainerInstance()`，让壳层可以按容器销毁当前挂载实例，而不必依赖“再次 render 时顺手顶掉旧实例”。
+- tools 页内置工具面板与兼容回退面板也接入同一套 host 注册/销毁流程，避免只修自定义工具、却让默认工具继续悬挂旧实例。
+
+**验证结果**
+- `npm run build`：已通过。
+- SillyTavern / TavernHelper 手测：尚未执行。
+
+**回顾检查**
+- Phase 4 的切口保持在 host 生命周期归属，没有继续扩散到 runtime 细粒度刷新或 compatibility 边界重写。
+- 当前方案已切断“同一活 panel object 在不同容器间复用”这条主问题链，render session 守卫现在有了更清晰的宿主级卸载配合。
+- `tools` 页中的默认工具、自定义工具、脚本工具都已回到“切换即卸载旧 host，再挂新 host”的路径上。
+
+**宿主手测重点**
+- tools 页在默认工具、自定义工具、脚本工具之间快速来回切换，确认不会残留旧表单状态或旧事件绑定。
+- 手动执行过程中切换子页、主页或直接关闭 popup，确认旧 host 不再继续响应 UI 更新。
+- 连续打开/关闭 popup 多次后，确认不会重复弹出旧预览、旧 notice 或残留增强 select。
+- 保存配置后刷新当前页，确认当前 host 会被重建且表单可继续正常工作。
+
+**新发现的连带问题**
+- 当前普通工具窗口的 `config / prompts / presets` 子页虽然已在进入前销毁活 tools host，但这条旧路径本身仍是 popup 内较老的一套实现，后续仍值得和 compatibility 边界一起收口。
+- 当前 `dynamicToolPanelCache` 已变成 factory cache，但工厂描述仍然散落在 `popup-shell` 内，未来若继续收口 UI 注册边界，可以考虑再下沉到更清晰的描述层。
+
+**对下一阶段边界的影响**
+- Phase 5 可以专注清理模块级 UI 状态与固定 DOM id 冲突，不必再兼顾活面板缓存策略。
+- Phase 6 仍应放在最后处理 compatibility fallback 边界，避免和本阶段生命周期改造互相放大回归来源。
+
+**风险控制**
+- 本阶段没有改 runtime 事件语义。
+- 本阶段没有改工具 schema、tool registry 导航来源或执行链。
+- 当前仍需宿主手测确认切页/关窗/重复打开场景下的真实卸载效果。
+
+## 下一阶段施工方案（Phase 5）
+
+**目标**
+- 清理模块级 UI 状态、固定 DOM id 和增强控件残留，减少跨面板污染与重复挂载冲突。
+- 让面板实例状态尽量回到实例内部，而不是继续悬挂在模块级变量或全局选择器上。
+
 **建议切口**
-1. 先梳理 `modules/app/popup-shell.js` 中 `dynamicToolPanelCache` 的读取、创建、复用与销毁路径。
-2. 把 cache 语义从 panel instance 改成 panel factory / descriptor，避免跨容器复用同一个活对象。
-3. 给当前 tools 页建立显式 host 生命周期：切主 tab、切 sub tab、refresh 当前页时先销毁旧 host，再创建并挂载新 host。
-4. 让 `tool-config-panel-factory.js`、`local-transform-tool-panel-factory.js` 只负责当前容器 render / bind / destroy，不再承担跨 host 生存期。
+1. 先审查 `modules/ui/components/api-preset-panel.js`、`bypass-panel.js`、`tool-manage-panel.js`、`settings-panel.js` 中的模块级状态、缓存选择器和 document 级事件绑定。
+2. 把会跨挂载残留的固定 id 改成容器内查询或实例级 id，优先处理重复打开 popup、切页复挂载时最容易撞车的输入框、对话框和增强 select。
+3. 对 custom select / dialog / file input 等增强控件补全按容器清理路径，确保 destroy 后不会留下 portal、document 事件或旧弹窗节点。
+4. 保持 `popup-shell` 与 `ui-manager` 的当前职责不再扩散，本阶段只动面板内部状态归属和节点命名空间。
 
 **本阶段暂不处理**
-- 不继续细化 runtime 卡片的局部刷新。
-- 不同时收 compatibility fallback 边界。
-- 不清理其它面板的模块级状态或固定 DOM id。
+- 不继续收 compatibility fallback 边界。
+- 不改 runtime-only 轻量刷新策略。
+- 不重写 tools 页描述符注册方式。
 
 **进入本阶段前的验证前提**
-- 继续保留 `npm run build` 作为静态门槛。
-- 宿主手测仍需覆盖 Phase 2 / Phase 3 的既有场景，避免在 Phase 4 前把旧回归带入下一刀。
+- 保持 `npm run build` 为静态门槛。
+- 宿主手测应重点覆盖多次打开/关闭 popup、跨 tab 来回切换、重复打开对话框/下拉选择器等场景。
