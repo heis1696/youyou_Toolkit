@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.55] - 2026-04-20
+
+### 修复
+
+- 🐛 **修复模块加载在 `validateTableDraft` 缺失时直接中断，导致 UI 模块未装配、侧边子页空白且样式丢失** (`modules/table-engine/table-schema-service.js`, `dist/bundle.js`)
+  - 补回 `validateTableDraft()`，恢复 `validateTableDraftDeep()` 与 table 表单渲染链的基础校验依赖
+  - 让 `bootstrap.loadModules()` 能继续完成 UI 模块加载、组件注册与样式注入
+
 ## [1.0.54] - 2026-04-20
 
 ### 修复

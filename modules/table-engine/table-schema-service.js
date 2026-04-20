@@ -397,6 +397,70 @@ function validateCellByColumn(value = '', column = {}, location = {}) {
   };
 }
 
+export function validateTableDraft(draft = {}) {
+  const normalizedDraft = draft && typeof draft === 'object' ? draft : {};
+  const tables = compileTableDraftToTables(normalizedDraft);
+  const errors = [];
+
+  tables.forEach((table, tableIndex) => {
+    const tableName = normalizeString(table?.name, `表${tableIndex + 1}`);
+    const columns = Array.isArray(table?.columns) ? table.columns : [];
+    const rows = Array.isArray(table?.rows) ? table.rows : [];
+
+    if (!tableName) {
+      errors.push(`表 ${tableIndex + 1} 缺少名称。`);
+    }
+
+    if (columns.length === 0) {
+      errors.push(`${tableName} 至少需要一列。`);
+    }
+
+    const seenKeys = new Set();
+    columns.forEach((column, columnIndex) => {
+      const columnKey = normalizeString(column?.key, '');
+      const columnTitle = normalizeString(column?.title, `列${columnIndex + 1}`);
+
+      if (!columnKey) {
+        errors.push(`${tableName} / ${columnTitle} 缺少内部名。`);
+        return;
+      }
+
+      if (seenKeys.has(columnKey)) {
+        errors.push(`${tableName} 中存在重复列内部名：${columnKey}`);
+        return;
+      }
+
+      seenKeys.add(columnKey);
+    });
+
+    rows.forEach((row, rowIndex) => {
+      const rowName = normalizeString(row?.name, `行${rowIndex + 1}`);
+      const rowCells = row?.cells && typeof row.cells === 'object' && !Array.isArray(row.cells)
+        ? row.cells
+        : {};
+
+      columns.forEach((column, columnIndex) => {
+        const columnKey = normalizeString(column?.key, '');
+        const columnLabel = normalizeString(column?.title || columnKey, `列${columnIndex + 1}`);
+        const cellValue = columnKey ? normalizeCellValue(rowCells[columnKey]) : '';
+        const validation = validateCellByColumn(cellValue, column, {
+          label: `${tableName} / ${rowName} / ${columnLabel}`,
+          tableName,
+          rowName
+        });
+
+        errors.push(...validation.errors);
+      });
+    });
+  });
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    tables
+  };
+}
+
 function buildValidationIssue({
   severity = 'error',
   message = '',
