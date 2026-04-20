@@ -113,6 +113,27 @@ export function createLocalTransformToolPanel(options) {
   return {
     id,
     toolId,
+    renderSessionId: 0,
+
+    _beginRenderSession($container) {
+      this.renderSessionId = (this.renderSessionId || 0) + 1;
+      if (isContainerValid($container)) {
+        $container.data('yytRenderSessionId', this.renderSessionId);
+      }
+      return this.renderSessionId;
+    },
+
+    _isRenderSessionActive($container, sessionId) {
+      return isContainerValid($container) && $container.data('yytRenderSessionId') === sessionId;
+    },
+
+    _renderIfSessionActive($container, sessionId) {
+      if (!this._isRenderSessionActive($container, sessionId)) {
+        return false;
+      }
+      this.renderTo($container);
+      return true;
+    },
 
     render() {
       const config = getToolFullConfig(this.toolId);
@@ -337,9 +358,10 @@ export function createLocalTransformToolPanel(options) {
       };
     },
 
-    _showExtractionPreview($container, result) {
+    _showExtractionPreview($container, result, sessionId = null) {
       const $ = getJQuery();
       if (!$) return;
+      if (sessionId !== null && !this._isRenderSessionActive($container, sessionId)) return;
 
       const dialogId = `${SCRIPT_ID}-${previewDialogId}`;
       const messageEntries = Array.isArray(result.messageEntries) ? result.messageEntries : [];
@@ -414,6 +436,7 @@ export function createLocalTransformToolPanel(options) {
       if (!$ || !isContainerValid($container)) return;
 
       const self = this;
+      const sessionId = $container.data('yytRenderSessionId');
 
       // 使用事件委托绑定所有按钮事件，避免重新渲染导致事件丢失
       $container.off('.yytLocalToolPanel');
@@ -428,6 +451,9 @@ export function createLocalTransformToolPanel(options) {
 
         try {
           const result = await runToolManually(self.toolId);
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           if (!result?.success && result?.error) {
             showTopNotice('warning', result.error, {
               duration: 3200,
@@ -435,9 +461,12 @@ export function createLocalTransformToolPanel(options) {
             });
           }
         } catch (error) {
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           showToast('error', error?.message || '手动执行失败');
         } finally {
-          self.renderTo($container);
+          self._renderIfSessionActive($container, sessionId);
         }
       });
 
@@ -447,12 +476,18 @@ export function createLocalTransformToolPanel(options) {
 
         try {
           const result = await previewToolExtraction(self.toolId);
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           if (!result?.success) {
             showToast('error', result?.error || '测试提取失败');
             return;
           }
-          self._showExtractionPreview($container, result);
+          self._showExtractionPreview($container, result, sessionId);
         } catch (error) {
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           showToast('error', error?.message || '测试提取失败');
         }
       });
@@ -485,6 +520,8 @@ export function createLocalTransformToolPanel(options) {
     destroy($container) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
+      this.renderSessionId = (this.renderSessionId || 0) + 1;
+      $container.removeData('yytRenderSessionId');
       $container.off('.yytLocalToolPanel');
     },
 
@@ -493,6 +530,10 @@ export function createLocalTransformToolPanel(options) {
     },
 
     renderTo($container) {
+      const $ = getJQuery();
+      if (!$ || !isContainerValid($container)) return;
+
+      this._beginRenderSession($container);
       $container.html(this.render({}));
       this.bindEvents($container, {});
     }

@@ -417,7 +417,25 @@ export function resetJQueryCache() {
  * @returns {boolean}
  */
 export function isContainerValid($container) {
-  return $container && $container.length > 0;
+  if (!$container || $container.length === 0) {
+    return false;
+  }
+
+  const element = $container[0];
+  if (!element || element.nodeType !== 1) {
+    return false;
+  }
+
+  const ownerDocument = element.ownerDocument || document;
+  if (!element.isConnected) {
+    return false;
+  }
+
+  if (ownerDocument?.documentElement?.contains) {
+    return ownerDocument.documentElement.contains(element);
+  }
+
+  return true;
 }
 
 // ============================================================

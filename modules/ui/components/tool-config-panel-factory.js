@@ -548,6 +548,27 @@ export function createToolConfigPanel(options) {
   return {
     id,
     toolId,
+    renderSessionId: 0,
+
+    _beginRenderSession($container) {
+      this.renderSessionId = (this.renderSessionId || 0) + 1;
+      if (isContainerValid($container)) {
+        $container.data('yytRenderSessionId', this.renderSessionId);
+      }
+      return this.renderSessionId;
+    },
+
+    _isRenderSessionActive($container, sessionId) {
+      return isContainerValid($container) && $container.data('yytRenderSessionId') === sessionId;
+    },
+
+    _renderIfSessionActive($container, sessionId) {
+      if (!this._isRenderSessionActive($container, sessionId)) {
+        return false;
+      }
+      this.renderTo($container);
+      return true;
+    },
 
     render() {
       const config = getToolFullConfig(this.toolId);
@@ -915,9 +936,10 @@ export function createToolConfigPanel(options) {
       };
     },
 
-    _showExtractionPreview($container, result) {
+    _showExtractionPreview($container, result, sessionId = null) {
       const $ = getJQuery();
       if (!$) return;
+      if (sessionId !== null && !this._isRenderSessionActive($container, sessionId)) return;
 
       const dialogId = `${SCRIPT_ID}-${previewDialogId}`;
       const messageEntries = Array.isArray(result.messageEntries) ? result.messageEntries : [];
@@ -992,6 +1014,7 @@ export function createToolConfigPanel(options) {
       if (!$ || !isContainerValid($container)) return;
 
       const self = this;
+      const sessionId = $container.data('yytRenderSessionId');
 
       const getSelectedWorldbooks = () => $container.find(`[data-worldbook-name]:checked`).map((_, element) =>
         String($(element).data('worldbook-name') || '').trim()
@@ -1079,6 +1102,9 @@ export function createToolConfigPanel(options) {
 
         try {
           const result = await runToolManually(self.toolId);
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           if (!result?.success && result?.error) {
             showTopNotice('warning', result.error, {
               duration: 3200,
@@ -1086,9 +1112,12 @@ export function createToolConfigPanel(options) {
             });
           }
         } catch (error) {
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           showToast('error', error?.message || '手动执行失败');
         } finally {
-          self.renderTo($container);
+          self._renderIfSessionActive($container, sessionId);
         }
       });
 
@@ -1100,12 +1129,18 @@ export function createToolConfigPanel(options) {
 
         try {
           const result = await previewToolExtraction(self.toolId);
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           if (!result?.success) {
             showToast('error', result?.error || '测试提取失败');
             return;
           }
-          self._showExtractionPreview($container, result);
+          self._showExtractionPreview($container, result, sessionId);
         } catch (error) {
+          if (!self._isRenderSessionActive($container, sessionId)) {
+            return;
+          }
           showToast('error', error?.message || '测试提取失败');
         }
       });
@@ -1144,6 +1179,8 @@ export function createToolConfigPanel(options) {
     destroy($container) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
+      this.renderSessionId = (this.renderSessionId || 0) + 1;
+      $container.removeData('yytRenderSessionId');
       destroyEnhancedCustomSelects($container, 'yytToolPanelSelect');
       $container.off('.yytToolPanel');
     },
@@ -1156,6 +1193,7 @@ export function createToolConfigPanel(options) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
 
+      const sessionId = this._beginRenderSession($container);
       this.worldbookFilter = this.worldbookFilter || '';
       if (!Array.isArray(this.draftSelectedWorldbooks)) {
         const config = getToolFullConfig(this.toolId);
@@ -1185,19 +1223,19 @@ export function createToolConfigPanel(options) {
             return getCachedAvailableWorldbooks();
           })
           .then((worldbooks) => {
-            if (!isContainerValid($container)) return;
+            if (!this._isRenderSessionActive($container, sessionId)) return;
 
             this.availableWorldbooks = Array.isArray(worldbooks) ? worldbooks : [];
 
-            // 只更新世界书列表部分，而不是完全重新渲染
-            this._updateWorldbookList($container);
+            this._updateWorldbookList($container, sessionId);
           });
       }
     },
 
-    _updateWorldbookList($container) {
+    _updateWorldbookList($container, sessionId = null) {
       const $ = getJQuery();
       if (!$ || !isContainerValid($container)) return;
+      if (sessionId !== null && !this._isRenderSessionActive($container, sessionId)) return;
 
       const worldbookFilter = String(this.worldbookFilter || '').trim().toLowerCase();
       const availableWorldbooks = Array.isArray(this.availableWorldbooks) ? this.availableWorldbooks : [];

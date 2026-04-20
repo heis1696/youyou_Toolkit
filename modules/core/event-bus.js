@@ -32,6 +32,7 @@ export const EVENTS = {
   TOOL_REGISTERED: 'tool:registered',
   TOOL_UNREGISTERED: 'tool:unregistered',
   TOOL_UPDATED: 'tool:updated',
+  TOOL_RUNTIME_UPDATED: 'tool:runtimeUpdated',
   TOOL_ENABLED: 'tool:enabled',
   TOOL_DISABLED: 'tool:disabled',
   TOOL_EXECUTING: 'tool:executing',

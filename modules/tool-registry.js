@@ -1149,12 +1149,13 @@ export function setToolPromptTemplate(toolId, template) {
 
 /**
  * 轻量更新工具运行时诊断信息。
- * 默认不刷新 lastRunAt，也不广播 TOOL_UPDATED，避免高频触发导致 UI 抖动。
+ * 默认不刷新 lastRunAt，也不广播结构性 TOOL_UPDATED，避免高频触发导致 UI 抖动。
  * @param {string} toolId - 工具ID
  * @param {Object} runtimePartial - 运行时增量
  * @param {Object} options - 选项
  * @param {boolean} options.touchLastRunAt - 是否刷新 lastRunAt
- * @param {boolean} options.emitEvent - 是否广播 TOOL_UPDATED
+ * @param {boolean} options.emitEvent - 是否广播结构性 TOOL_UPDATED
+ * @param {boolean} options.emitRuntimeEvent - 是否广播 TOOL_RUNTIME_UPDATED
  * @returns {boolean}
  */
 export function patchToolRuntime(toolId, runtimePartial, options = {}) {
@@ -1163,7 +1164,8 @@ export function patchToolRuntime(toolId, runtimePartial, options = {}) {
 
   const {
     touchLastRunAt = false,
-    emitEvent = false
+    emitEvent = false,
+    emitRuntimeEvent = true
   } = options;
 
   const runtime = createToolRuntimeState({
@@ -1175,10 +1177,20 @@ export function patchToolRuntime(toolId, runtimePartial, options = {}) {
     runtime.lastRunAt = Date.now();
   }
 
-  return saveToolConfig(toolId, {
+  const saved = saveToolConfig(toolId, {
     ...config,
     runtime
   }, { emitEvent });
+
+  if (saved && emitRuntimeEvent) {
+    eventBus.emit(EVENTS.TOOL_RUNTIME_UPDATED, {
+      toolId,
+      runtime,
+      previousRuntime: createToolRuntimeState(config.runtime || {})
+    });
+  }
+
+  return saved;
 }
 
 /**
@@ -1188,7 +1200,8 @@ export function patchToolRuntime(toolId, runtimePartial, options = {}) {
  * @param {Object} historyEntry - 历史记录
  * @param {Object} options - 选项
  * @param {number} options.limit - 保留条数
- * @param {boolean} options.emitEvent - 是否广播 TOOL_UPDATED
+ * @param {boolean} options.emitEvent - 是否广播结构性 TOOL_UPDATED
+ * @param {boolean} options.emitRuntimeEvent - 是否广播 TOOL_RUNTIME_UPDATED
  * @returns {boolean}
  */
 export function appendToolRuntimeHistory(toolId, historyType, historyEntry = {}, options = {}) {
@@ -1197,10 +1210,12 @@ export function appendToolRuntimeHistory(toolId, historyType, historyEntry = {},
 
   const {
     limit = 10,
-    emitEvent = false
+    emitEvent = false,
+    emitRuntimeEvent = true
   } = options;
 
   const runtime = createToolRuntimeState(config.runtime || {});
+  const previousRuntime = createToolRuntimeState(config.runtime || {});
   const fieldName = 'recentWritebackHistory';
 
   const nextEntry = {
@@ -1218,10 +1233,22 @@ export function appendToolRuntimeHistory(toolId, historyType, historyEntry = {},
     runtime.lastTraceId = nextEntry.traceId;
   }
 
-  return saveToolConfig(toolId, {
+  const saved = saveToolConfig(toolId, {
     ...config,
     runtime
   }, { emitEvent });
+
+  if (saved && emitRuntimeEvent) {
+    eventBus.emit(EVENTS.TOOL_RUNTIME_UPDATED, {
+      toolId,
+      runtime,
+      previousRuntime,
+      historyType,
+      historyEntry: nextEntry
+    });
+  }
+
+  return saved;
 }
 
 /**
@@ -1230,10 +1257,17 @@ export function appendToolRuntimeHistory(toolId, historyType, historyEntry = {},
  * @param {Object} runtimePartial - 部分运行时状态
  * @returns {boolean} 是否成功
  */
-export function updateToolRuntime(toolId, runtimePartial) {
+export function updateToolRuntime(toolId, runtimePartial, options = {}) {
+  const {
+    touchLastRunAt = true,
+    emitEvent = false,
+    emitRuntimeEvent = true
+  } = options;
+
   return patchToolRuntime(toolId, runtimePartial, {
-    touchLastRunAt: true,
-    emitEvent: true
+    touchLastRunAt,
+    emitEvent,
+    emitRuntimeEvent
   });
 }
 

@@ -9,6 +9,24 @@
 
 ## [Unreleased]
 
+## [1.0.59] - 2026-04-21
+
+### 修复
+
+- 🐛 **将工具运行态更新从结构性刷新里拆出，修复 tools 页会因 runtime 字段变化而重建导航和当前面板的问题** (`modules/core/event-bus.js`, `modules/tool-registry.js`, `modules/app/popup-shell.js`)
+  - 新增 `TOOL_RUNTIME_UPDATED` 事件，运行态写入默认不再复用结构性 `TOOL_UPDATED`
+  - popup shell 现把 runtime-only 变化降级为当前 tools 页轻量刷新，不再默认重建导航和子页签
+
+- 🐛 **为共享工具面板补上 render session 守卫，修复切页、关窗或替换面板后旧异步仍可能回写 UI 的问题** (`modules/ui/utils.js`, `modules/ui/components/tool-config-panel-factory.js`, `modules/ui/components/local-transform-tool-panel-factory.js`)
+  - `isContainerValid()` 现要求目标节点仍连接在当前 document 上，不再把已脱离页面的旧容器视为有效
+  - 通用 AI 工具面板与本地转换工具面板都改为在手动执行、测试提取、世界书异步加载完成后校验当前 render session，旧结果不会再回写到新面板或已关闭 popup
+
+### 文档
+
+- 📝 **建立 UI 重构的 canonical 文档入口，统一记录全仓耦合地图、UI 根因模型与分阶段施工进度** (`docs/UI_REFACTOR_PLAN.md`, `docs/UI_REFACTOR_PROGRESS.md`)
+  - `UI_REFACTOR_PLAN.md` 固定本轮重构的背景、目标、非目标、阶段顺序和验证矩阵
+  - `UI_REFACTOR_PROGRESS.md` 作为后续每阶段的持续记录入口，避免重构口径再次丢失
+
 ## [1.0.58] - 2026-04-20
 
 ### 优化

@@ -317,6 +317,12 @@ export function createPopupShell(context) {
       }
     };
 
+    const refreshToolRuntimePanel = () => {
+      if (uiState.currentMainTab === 'tools') {
+        void refreshCurrentPanel({ rebuildNavigation: false, reRenderSubNav: false });
+      }
+    };
+
     const refreshBypassPanel = () => {
       if (uiState.currentMainTab === 'bypass' || uiState.currentMainTab === 'tools') {
         void refreshCurrentPanel({ reRenderSubNav: uiState.currentMainTab === 'tools' });
@@ -338,6 +344,8 @@ export function createPopupShell(context) {
     ].forEach((eventName) => {
       popupEventState.cleanups.push(eventBus.on(eventName, refreshToolsPanel));
     });
+
+    popupEventState.cleanups.push(eventBus.on(EVENTS.TOOL_RUNTIME_UPDATED, refreshToolRuntimePanel));
 
     [
       EVENTS.BYPASS_PRESET_CREATED,
