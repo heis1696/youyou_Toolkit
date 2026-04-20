@@ -6,7 +6,7 @@
 export function createPublicApi(context, services = {}) {
   const { constants, modules } = context;
   const { SCRIPT_ID, SCRIPT_VERSION } = constants;
-  const { init, loadModules, loadLegacyModule, addMenuItem, popupShell } = services;
+  const { init, loadModules, addMenuItem, popupShell } = services;
 
   return {
     version: SCRIPT_VERSION,
@@ -26,13 +26,11 @@ export function createPublicApi(context, services = {}) {
     getPresetManager: () => modules.presetManagerModule,
     getUi: () => modules.uiModule,
     getUiModule: () => modules.uiModule,
-    getUiComponents: () => modules.uiComponentsModule,
     getRegexExtractor: () => modules.regexExtractorModule,
     getToolManager: () => modules.toolManagerModule,
     getToolExecutor: () => modules.toolExecutorModule,
     getWindowManager: () => modules.windowManagerModule,
     getToolRegistry: () => modules.toolRegistryModule,
-    getPromptEditor: () => modules.promptEditorModule,
     getSettingsService: () => modules.settingsServiceModule,
     getBypassManager: () => modules.bypassManagerModule,
     getVariableResolver: () => modules.variableResolverModule,
@@ -40,14 +38,6 @@ export function createPublicApi(context, services = {}) {
     getToolPromptService: () => modules.toolPromptServiceModule,
     getToolOutputService: () => modules.toolOutputServiceModule,
     getToolAutomationService: () => modules.toolAutomationServiceModule,
-
-    async loadLegacyModule(moduleKey) {
-      if (typeof loadLegacyModule !== 'function') {
-        return null;
-      }
-
-      return loadLegacyModule(moduleKey);
-    },
 
     async getApiConfig() {
       await loadModules();

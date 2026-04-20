@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+## [1.0.63] - 2026-04-21
+
+### 修复
+
+- 🐛 **完成 UI 重构 Phase 5 收口与 Phase 6 compatibility boundary 两刀裁剪，收窄 popup 主路径与对外 API 中遗留的兼容入口** (`modules/ui/components/bypass-panel.js`, `modules/app/popup-shell.js`, `modules/app/public-api.js`, `modules/app/bootstrap.js`, `index.js`)
+  - `bypass-panel` 的编辑区、描述输入和消息列表改为容器内稳定选择器，避免重复挂载时命中旧节点
+  - `popup-shell` 不再运行时回落到 `ui-components.js` / `prompt-editor.js`，主 tab、内置工具子页和 prompts 子页统一走正式模块入口
+  - `public-api`、`bootstrap` 与 `index.js` 已移除对应的 `ui-components` / `prompt-editor` legacy 暴露、loader 注册和接线残留
+
+### 文档
+
+- 📝 **补齐 UI 重构 Phase 5/6 的总结、回顾检查和后续施工口径，准备把下一步优先级切到宿主回归验证** (`docs/UI_REFACTOR_PROGRESS.md`)
+  - 记录 Phase 5 定点补刀和 Phase 6 两批 compatibility boundary 收口的实际改动、验证结果与宿主手测重点
+  - 将下一阶段方案调整为“先做宿主回归与外部兼容确认，再决定是否继续缩减剩余 legacy loader”
+
 ## [1.0.62] - 2026-04-21
 
 ### 修复

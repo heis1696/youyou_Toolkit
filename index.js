@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
- * @version 1.0.62
+ * @version 1.0.63
  * @description 一个运行在 SillyTavern / TavernHelper 宿主中的可配置工具链平台，支持 API 预设、工具管理、自动触发、楼层写回与统一 UI 装配
  * @author YouYou
  */
@@ -10,7 +10,7 @@ import { createPopupShell } from './modules/app/popup-shell.js';
 import { createPublicApi } from './modules/app/public-api.js';
 
 const SCRIPT_ID = 'youyou_toolkit';
-const SCRIPT_VERSION = '1.0.62';
+const SCRIPT_VERSION = '1.0.63';
 const MENU_ITEM_ID = `${SCRIPT_ID}-menu-item`;
 const MENU_CONTAINER_ID = `${SCRIPT_ID}-menu-container`;
 const POPUP_ID = `${SCRIPT_ID}-popup`;
@@ -31,14 +31,12 @@ const appContext = {
     apiConnectionModule: null,
     uiModule: null,
     presetManagerModule: null,
-    uiComponentsModule: null,
     regexExtractorModule: null,
     toolManagerModule: null,
     toolExecutorModule: null,
     toolTriggerModule: null,
     windowManagerModule: null,
     toolRegistryModule: null,
-    promptEditorModule: null,
     settingsServiceModule: null,
     bypassManagerModule: null,
     variableResolverModule: null,
@@ -50,8 +48,7 @@ const appContext = {
     dynamicToolPanelCache: new Map()
   },
   services: {
-    loadModules: null,
-    loadLegacyModule: null
+    loadModules: null
   },
   uiState: {
     currentPopup: null,
@@ -68,12 +65,10 @@ const bootstrap = createBootstrap(appContext, {
 });
 
 appContext.services.loadModules = bootstrap.loadModules;
-appContext.services.loadLegacyModule = bootstrap.loadLegacyModule;
 
 const YouYouToolkit = createPublicApi(appContext, {
   init: bootstrap.init,
   loadModules: bootstrap.loadModules,
-  loadLegacyModule: bootstrap.loadLegacyModule,
   addMenuItem: bootstrap.addMenuItem,
   popupShell
 });

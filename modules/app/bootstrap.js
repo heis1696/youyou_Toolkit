@@ -14,15 +14,6 @@ export function createBootstrap(context, options = {}) {
 
   let moduleLoadPromise = null;
   let uiInitialized = false;
-  const legacyModuleLoadPromises = new Map();
-
-  const legacyModuleLoaders = {
-    storageModule: () => import('../storage.js'),
-    uiComponentsModule: () => import('../ui-components.js'),
-    promptEditorModule: () => import('../prompt-editor.js'),
-    toolExecutorModule: () => import('../tool-executor.js'),
-    windowManagerModule: () => import('../window-manager.js')
-  };
 
   function log(...args) {
     console.log(`[${SCRIPT_ID}]`, ...args);
@@ -30,31 +21,6 @@ export function createBootstrap(context, options = {}) {
 
   function logError(...args) {
     console.error(`[${SCRIPT_ID}]`, ...args);
-  }
-
-  async function loadLegacyModule(moduleKey) {
-    if (!moduleKey || !legacyModuleLoaders[moduleKey]) {
-      return null;
-    }
-
-    if (modules[moduleKey]) {
-      return modules[moduleKey];
-    }
-
-    if (!legacyModuleLoadPromises.has(moduleKey)) {
-      legacyModuleLoadPromises.set(moduleKey, (async () => {
-        try {
-          const loadedModule = await legacyModuleLoaders[moduleKey]();
-          modules[moduleKey] = loadedModule;
-          return loadedModule;
-        } catch (error) {
-          legacyModuleLoadPromises.delete(moduleKey);
-          throw error;
-        }
-      })());
-    }
-
-    return legacyModuleLoadPromises.get(moduleKey);
   }
 
   async function loadModules() {
@@ -1347,15 +1313,6 @@ export function createBootstrap(context, options = {}) {
       }
     }
 
-    if (modules.promptEditorModule && modules.promptEditorModule.getPromptEditorStyles) {
-      const promptStyleId = `${SCRIPT_ID}-prompt-styles`;
-      if (!targetDoc.getElementById(promptStyleId)) {
-        const promptStyle = targetDoc.createElement('style');
-        promptStyle.id = promptStyleId;
-        promptStyle.textContent = modules.promptEditorModule.getPromptEditorStyles();
-        (targetDoc.head || targetDoc.documentElement).appendChild(promptStyle);
-      }
-    }
   }
 
   async function applySavedTheme() {
@@ -1480,7 +1437,6 @@ export function createBootstrap(context, options = {}) {
     loadModules,
     injectStyles,
     addMenuItem,
-    loadLegacyModule,
     init,
     log,
     logError

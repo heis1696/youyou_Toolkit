@@ -5,6 +5,7 @@
 
 import { eventBus, EVENTS } from '../core/event-bus.js';
 import { destroyEnhancedCustomSelects, enhanceNativeSelects } from '../ui/utils.js';
+import { PromptEditor, DEFAULT_PROMPT_SEGMENTS, messagesToSegments, segmentsToMessages, getPromptEditorStyles } from '../prompt-editor.js';
 
 export function createPopupShell(context) {
   const { constants, topLevelWindow, modules, caches, uiState } = context;
@@ -28,24 +29,6 @@ export function createPopupShell(context) {
 
   function logError(...args) {
     console.error(`[${SCRIPT_ID}]`, ...args);
-  }
-
-  async function ensureLegacyModule(moduleKey) {
-    if (modules[moduleKey]) {
-      return modules[moduleKey];
-    }
-
-    const loadLegacyModule = context?.services?.loadLegacyModule;
-    if (typeof loadLegacyModule !== 'function') {
-      return null;
-    }
-
-    try {
-      return await loadLegacyModule(moduleKey);
-    } catch (error) {
-      logError(`兼容模块加载失败: ${moduleKey}`, error);
-      return null;
-    }
   }
 
   function escapeHtml(unsafe) {
@@ -943,10 +926,7 @@ export function createPopupShell(context) {
         if (modules.uiModule?.renderApiPanel) {
           modules.uiModule.renderApiPanel($content);
         } else {
-          const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-          if (uiCompatibilityModule?.render) {
-            uiCompatibilityModule.render($content);
-          }
+          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>API 预设面板加载失败</span></div>');
         }
         break;
 
@@ -954,10 +934,7 @@ export function createPopupShell(context) {
         if (modules.uiModule?.renderToolPanel) {
           modules.uiModule.renderToolPanel($content);
         } else {
-          const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-          if (uiCompatibilityModule?.renderTool) {
-            uiCompatibilityModule.renderTool($content);
-          }
+          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具管理面板加载失败</span></div>');
         }
         break;
 
@@ -965,10 +942,7 @@ export function createPopupShell(context) {
         if (modules.uiModule?.renderRegexPanel) {
           modules.uiModule.renderRegexPanel($content);
         } else {
-          const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-          if (uiCompatibilityModule?.renderRegex) {
-            uiCompatibilityModule.renderRegex($content);
-          }
+          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>正则提取面板加载失败</span></div>');
         }
         break;
 
@@ -1045,16 +1019,7 @@ export function createPopupShell(context) {
               modules.uiModule.renderSummaryToolPanel($subContent);
               registerActivePanelHost($subContent, { key: 'SummaryToolPanel' });
             } else {
-              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-              if (uiCompatibilityModule?.SummaryToolPanel) {
-                uiCompatibilityModule.SummaryToolPanel.renderTo($subContent);
-                registerActivePanelHost($subContent, {
-                  key: 'SummaryToolPanel',
-                  destroy: ($hostContainer) => uiCompatibilityModule.SummaryToolPanel.destroy?.($hostContainer)
-                });
-              } else {
-                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
-              }
+              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
             }
             break;
           }
@@ -1065,16 +1030,7 @@ export function createPopupShell(context) {
               modules.uiModule.renderStatusBlockPanel($subContent);
               registerActivePanelHost($subContent, { key: 'StatusBlockPanel' });
             } else {
-              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-              if (uiCompatibilityModule?.StatusBlockPanel) {
-                uiCompatibilityModule.StatusBlockPanel.renderTo($subContent);
-                registerActivePanelHost($subContent, {
-                  key: 'StatusBlockPanel',
-                  destroy: ($hostContainer) => uiCompatibilityModule.StatusBlockPanel.destroy?.($hostContainer)
-                });
-              } else {
-                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
-              }
+              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
             }
             break;
           }
@@ -1085,16 +1041,7 @@ export function createPopupShell(context) {
               modules.uiModule.renderYouyouReviewPanel($subContent);
               registerActivePanelHost($subContent, { key: 'YouyouReviewPanel' });
             } else {
-              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-              if (uiCompatibilityModule?.YouyouReviewPanel) {
-                uiCompatibilityModule.YouyouReviewPanel.renderTo($subContent);
-                registerActivePanelHost($subContent, {
-                  key: 'YouyouReviewPanel',
-                  destroy: ($hostContainer) => uiCompatibilityModule.YouyouReviewPanel.destroy?.($hostContainer)
-                });
-              } else {
-                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
-              }
+              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
             }
             break;
           }
@@ -1105,16 +1052,7 @@ export function createPopupShell(context) {
               modules.uiModule.renderEscapeTransformToolPanel($subContent);
               registerActivePanelHost($subContent, { key: 'EscapeTransformToolPanel' });
             } else {
-              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-              if (uiCompatibilityModule?.EscapeTransformToolPanel) {
-                uiCompatibilityModule.EscapeTransformToolPanel.renderTo($subContent);
-                registerActivePanelHost($subContent, {
-                  key: 'EscapeTransformToolPanel',
-                  destroy: ($hostContainer) => uiCompatibilityModule.EscapeTransformToolPanel.destroy?.($hostContainer)
-                });
-              } else {
-                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>转义处理工具加载失败</span></div>');
-              }
+              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>转义处理工具加载失败</span></div>');
             }
             break;
           }
@@ -1125,16 +1063,7 @@ export function createPopupShell(context) {
               modules.uiModule.renderPunctuationTransformToolPanel($subContent);
               registerActivePanelHost($subContent, { key: 'PunctuationTransformToolPanel' });
             } else {
-              const uiCompatibilityModule = await ensureLegacyModule('uiComponentsModule');
-              if (uiCompatibilityModule?.PunctuationTransformToolPanel) {
-                uiCompatibilityModule.PunctuationTransformToolPanel.renderTo($subContent);
-                registerActivePanelHost($subContent, {
-                  key: 'PunctuationTransformToolPanel',
-                  destroy: ($hostContainer) => uiCompatibilityModule.PunctuationTransformToolPanel.destroy?.($hostContainer)
-                });
-              } else {
-                $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>中文标点替换工具加载失败</span></div>');
-              }
+              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>中文标点替换工具加载失败</span></div>');
             }
             break;
           }
@@ -1309,26 +1238,21 @@ export function createPopupShell(context) {
 
   async function renderPromptEditor(toolId, $container) {
     const $ = getJQuery();
-    const promptEditorModule = modules.promptEditorModule || await ensureLegacyModule('promptEditorModule');
 
-    if (!$ || !promptEditorModule) {
+    if (!$) {
       $container.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>提示词编辑器模块未加载</span></div>');
       return;
     }
 
     const tool = modules.toolManagerModule?.getTool(toolId);
     const messages = tool?.config?.messages || [];
-    const segments = promptEditorModule.messagesToSegments
-      ? promptEditorModule.messagesToSegments(messages)
-      : promptEditorModule.DEFAULT_PROMPT_SEGMENTS;
+    const segments = messagesToSegments(messages) || DEFAULT_PROMPT_SEGMENTS;
 
-    const editor = new promptEditorModule.PromptEditor({
+    const editor = new PromptEditor({
       containerId: `yyt-prompt-editor-${toolId}`,
       segments,
       onChange: (newSegments) => {
-        const newMessages = promptEditorModule.segmentsToMessages
-          ? promptEditorModule.segmentsToMessages(newSegments)
-          : [];
+        const newMessages = segmentsToMessages(newSegments);
         log('提示词已更新:', newMessages.length, '条消息');
       }
     });
@@ -1336,9 +1260,7 @@ export function createPopupShell(context) {
     $container.html(`<div id="yyt-prompt-editor-${toolId}" class="yyt-prompt-editor-container"></div>`);
     editor.init($container.find(`#yyt-prompt-editor-${toolId}`));
 
-    const editorStyles = promptEditorModule.getPromptEditorStyles
-      ? promptEditorModule.getPromptEditorStyles()
-      : '';
+    const editorStyles = getPromptEditorStyles();
     if (editorStyles) {
       const styleId = 'yyt-prompt-editor-styles';
       const targetDoc = topLevelWindow.document || document;

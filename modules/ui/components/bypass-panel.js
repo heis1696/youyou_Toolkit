@@ -57,7 +57,7 @@ export const BypassPanel = {
         </div>
         
         <!-- 右侧编辑区 -->
-        <div class="yyt-bypass-editor" id="yyt-bypass-editor">
+        <div class="yyt-bypass-editor">
           <div class="yyt-bypass-empty">
             <i class="fa-solid fa-shield-halved"></i>
             <p>选择或创建 Ai 指令预设</p>
@@ -134,21 +134,21 @@ export const BypassPanel = {
         </div>
         
         <div class="yyt-bypass-editor-desc">
-          <input type="text" class="yyt-input" id="yyt-bypass-description" 
+          <input type="text" class="yyt-input yyt-bypass-description-input"
                  value="${escapeHtml(preset.description || '')}" placeholder="预设描述（可选）">
         </div>
-        
+
         <div class="yyt-bypass-messages-header">
           <span>消息列表</span>
           <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="yyt-bypass-add-message">
             <i class="fa-solid fa-plus"></i> 添加消息
           </button>
         </div>
-        
-        <div class="yyt-bypass-messages" id="yyt-bypass-messages">
+
+        <div class="yyt-bypass-messages">
           ${(preset.messages || []).map(msg => this._renderMessageItem(msg)).join('')}
         </div>
-        
+
         <div class="yyt-bypass-editor-footer">
           <button class="yyt-btn yyt-btn-primary" id="yyt-bypass-save">
             <i class="fa-solid fa-save"></i> 保存
@@ -253,7 +253,7 @@ export const BypassPanel = {
         const $editor = $container.find('.yyt-bypass-editor-content');
         const currentPresetId = $editor.data('presetId');
         if (currentPresetId === presetId) {
-          $container.find('#yyt-bypass-editor').html(`
+          $container.find('.yyt-bypass-editor').html(`
             <div class="yyt-bypass-empty">
               <i class="fa-solid fa-shield-halved"></i>
               <p>选择或创建 Ai 指令预设</p>
@@ -372,7 +372,7 @@ export const BypassPanel = {
     $container.find(`.yyt-bypass-preset-item[data-preset-id="${presetId}"]`).addClass('yyt-active');
     
     // 渲染编辑器
-    $container.find('#yyt-bypass-editor').html(this._renderEditor(preset));
+    $container.find('.yyt-bypass-editor').html(this._renderEditor(preset));
   },
   
   /**
@@ -407,7 +407,7 @@ export const BypassPanel = {
     if (!presetId) return;
     
     const name = $editor.find('.yyt-bypass-name-input').val().trim();
-    const description = $editor.find('#yyt-bypass-description').val().trim();
+    const description = $editor.find('.yyt-bypass-description-input').val().trim();
     
     if (!name) {
       showToast('warning', '请输入预设名称');
@@ -498,7 +498,7 @@ export const BypassPanel = {
 
     const preset = bypassManager.getPreset(presetId);
     if (preset) {
-      $container.find('#yyt-bypass-editor').html(this._renderEditor(preset));
+      $container.find('.yyt-bypass-editor').html(this._renderEditor(preset));
     }
 
     showToast('success', '已设为默认预设');
@@ -509,7 +509,7 @@ export const BypassPanel = {
    * @private
    */
   _addMessage($container, $) {
-    const $messages = $container.find('#yyt-bypass-messages');
+    const $messages = $container.find('.yyt-bypass-messages');
     const newMessage = {
       id: `msg_${Date.now()}`,
       role: 'SYSTEM',

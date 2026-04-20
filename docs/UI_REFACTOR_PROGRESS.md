@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 当前 canonical 文档入口已建立：`docs/UI_REFACTOR_PLAN.md`、`docs/UI_REFACTOR_PROGRESS.md`
-- 当前优先级：继续推进 Phase 5，已先收口最高风险的模块级状态与对话框全局选择器污染
-- 当前策略：Phase 5 继续保持只处理实例状态归属、固定 id 与销毁清理；当前先解决 `api-preset-panel` / `tool-manage-panel`，再视宿主表现决定是否继续下探其它低风险面板
+- 当前优先级：继续推进 Phase 6，已完成 compatibility boundary 的第二刀收口
+- 当前策略：Phase 5 已完成 `api-preset-panel` / `tool-manage-panel` / `bypass-panel` 的定点收口；Phase 6 已依次收掉 `popup-shell` 主路径 fallback，以及 `public-api` / `bootstrap` 中对应的 `ui-components` / `prompt-editor` legacy 暴露，当前优先转向宿主回归
 
 ## 阶段记录
 
@@ -162,11 +162,12 @@
 
 ### Phase 5 — 清理模块级 UI 状态与固定 DOM id 冲突
 
-**状态：已完成第一批静态改造，待宿主手测**
+**状态：已完成静态改造，宿主初步检查通过，仍待专项回归**
 
 **本阶段当前修改文件**
 - `modules/ui/components/api-preset-panel.js`
 - `modules/ui/components/tool-manage-panel.js`
+- `modules/ui/components/bypass-panel.js`
 
 **实际修改点**
 - 将 `api-preset-panel` 的 `currentSelectedPresetName` 模块级状态收回到容器实例状态，不再由文件级变量跨挂载共享。
@@ -174,48 +175,99 @@
 - 将 `api-preset-panel` 的“保存为预设”对话框改为容器内查找和清理，`destroy()` 时会一并移除对话框节点并清掉实例状态。
 - 将 `tool-manage-panel` 的工具编辑对话框从全局 `$('#...')` 读取改为 `$overlay.find(...)` 容器内读取，避免重复挂载或旧弹窗残留时串到错误节点。
 - 为 `tool-manage-panel` 增加按容器移除对话框的统一清理路径，`destroy()` 不再依赖全局 overlay 选择器。
+- 将 `bypass-panel` 内部编辑区、描述输入和消息列表的关键读写从固定 `id` 选择器改为容器内类选择器，避免重复挂载时命中错误节点，同时保持现有事件委托、增强 select 与销毁路径不变。
 
 **验证结果**
 - `npm run build`：已通过。
-- SillyTavern / TavernHelper 手测：尚未执行。
+- 当前宿主检查：UI 可正常打开，未见明显回归。
+- SillyTavern / TavernHelper 专项回归：尚未执行。
 
 **回顾检查**
-- 当前切口保持在高风险污染源：模块级状态、全局对话框选择器、跨容器反查重渲染。
-- `bypass-panel` 与 `settings-panel` 仍存在固定 id，但当前主要读写路径已基本依赖容器内选择和事件委托，风险级别低于本批已修改面板。
-- 本阶段当前没有扩散到 popup shell、runtime 事件语义或 compatibility fallback 边界。
+- 当前切口保持在高风险污染源：模块级状态、全局对话框选择器、跨容器反查重渲染，以及 `bypass-panel` 内部关键固定选择器。
+- `bypass-panel` 的编辑区关键读写已收回容器内稳定选择器，当前不再是 Phase 5 的主要残余风险源。
+- `settings-panel` 虽仍保留固定 id，但事件绑定、select 清理与 destroy 路径仍相对干净，本阶段没有因为静态看到 id 就扩散修改。
+- 本阶段仍未扩散到 popup shell、runtime 事件语义或 compatibility fallback 边界。
 
 **宿主手测重点**
 - API 预设页反复切换预设、星标、删除、导入后，确认下拉选中态不会串到旧实例。
 - API 预设页打开“保存为预设”对话框后切页、关窗、再次打开，确认不会残留旧弹窗节点。
 - 工具管理页反复打开“新建工具 / 编辑工具”对话框，确认保存读取的始终是当前弹窗里的字段。
-- 在 popup 重复打开/关闭后，再次进入上述两页，确认不会残留旧增强 select 或旧 overlay。
+- Ai 指令预设页反复选择、复制、删除、设默认、增删消息，并在 popup 重复打开/关闭后再次进入，确认不会残留旧编辑器内容或旧增强 select。
 
 **新发现的连带问题**
-- `bypass-panel` 仍保留较多固定 id，但当前尚未发现模块级状态或全局 `$('#...')` 读取路径；是否继续改成实例级 id，需要先看宿主是否仍出现复挂载冲突。
-- `settings-panel` 也保留固定 id，但事件绑定与 destroy 路径相对干净，当前不是 Phase 5 第一刀的主要风险源。
+- `settings-panel` 仍保留固定 id，但当前没有宿主复现证据支持继续扩散到该面板。
+- 当前真正剩余的高阶问题已更多集中在 compatibility fallback seam，而不是面板内部状态污染。
 
 **对下一阶段边界的影响**
-- 如果宿主手测已覆盖当前主要串页问题，Phase 5 可以继续只做定点补刀，而不必为“看到固定 id 就全部改名”扩散改动面。
-- Phase 6 仍应最后再处理 compatibility fallback 边界。
+- Phase 5 可以视为已完成当前计划范围内的定点补刀，不需要继续做全仓固定 id 批量重命名。
+- 下一阶段应按最小切口进入 Phase 6，开始收 compatibility fallback 边界。
 
-## 下一阶段施工方案（Phase 5 后续切口）
+### Phase 6 — 收 compatibility fallback 边界
+
+**状态：已完成第二批静态改造，待宿主手测**
+
+**本阶段当前修改文件**
+- `modules/app/popup-shell.js`
+- `modules/app/public-api.js`
+- `modules/app/bootstrap.js`
+- `index.js`
+
+**实际修改点**
+- 删除 `popup-shell` 内部的 `ensureLegacyModule()` 运行时兜底入口，不再在当前主路径上按需拉起 `ui-components.js` / `prompt-editor.js`。
+- 将 `apiPresets` / `toolManage` / `regexExtract` 三个主 tab 改为只走 `modules.uiModule` 的渲染入口；缺失时直接显示失败空态，不再回落到 `ui-components.js`。
+- 将内置工具子页 `SummaryToolPanel` / `StatusBlockPanel` / `YouyouReviewPanel` / `EscapeTransformToolPanel` / `PunctuationTransformToolPanel` 改为只走 `modules.uiModule` 正路，不再回落到 `ui-components.js` 兼容面板对象。
+- 将 prompt editor 路径改为直接静态使用 `PromptEditor`、`messagesToSegments`、`segmentsToMessages`、`getPromptEditorStyles`，不再依赖 `promptEditorModule` legacy loader。
+- 从 `public-api` 中移除 `getUiComponents()`、`getPromptEditor()`、`loadLegacyModule()` 等已无仓内调用的 compatibility 暴露。
+- 从 `bootstrap` 中移除对应的 `ui-components` / `prompt-editor` legacy loader 注册、失效样式注入路径，以及已无调用的 legacy loader 基础设施。
+- 从 `index.js` 中移除相应模块槽位与 service 接线，避免保留无效兼容入口。
+
+**验证结果**
+- `npm run build`：已通过。
+- 针对 `index.js` 与 `modules/**/*.js` 的静态检索已确认不存在 `uiComponentsModule`、`promptEditorModule`、`getUiComponents()`、`getPromptEditor()`、`loadLegacyModule()` 残留引用。
+- SillyTavern / TavernHelper 手测：尚未执行。
+
+**回顾检查**
+- 当前切口仍保持在 compatibility boundary 范围内，没有回头扩散到 settings、runtime 刷新策略或 tools 页描述符注册方式。
+- 当前主路径和对外 API 已不再暴露 `ui-components` / `prompt-editor` 这组 legacy seam，兼容边界明显收窄。
+- 本轮仅裁掉已无仓内主路依赖的 compatibility 入口，未继续波及 `toolExecutorModule`、`windowManagerModule` 等其它 legacy loader。
+- 从阶段顺序看，Phase 5 与 Phase 6 的切口保持干净：先收口面板实例污染，再收 compatibility seam，没有重新把生命周期、runtime 语义和旧兼容 API 混成一刀。
+
+**总结**
+- 本轮 UI 重构主线已经完成从“旧异步写旧容器、runtime 误触发结构刷新、活面板跨容器复用、面板内部状态污染”到“popup 主路径兼容入口过宽”的连续收口。
+- 当前代码状态更接近以 `modules/ui/index.js`、`modules/app/popup-shell.js`、`modules/prompt-editor.js` 为中心的单一主路径，后续判断问题来源会更直接。
+
+**宿主手测重点**
+- API 预设页 / 工具管理页 / 正则提取页正常打开，确认不再需要 `ui-components.js` fallback。
+- tools 页内置工具子页正常打开和切换，确认 host 注册 / 销毁行为不受 fallback 删除影响。
+- 普通工具窗口的 prompts 子页正常打开，确认 prompt editor 能渲染、展开折叠和切换页面后重新进入。
+- popup 重复打开/关闭后再次进入 prompts 子页，确认不会丢样式或重复注入异常。
+- 若宿主外部脚本曾直接调用 `window.YouYouToolkit.getUiComponents()` / `getPromptEditor()` / `loadLegacyModule()`，需额外确认是否存在外部兼容需求。
+
+**新发现的连带问题**
+- 当前仓内已清空 `ui-components` / `prompt-editor` 这组 legacy 引用，但是否仍有宿主外部脚本依赖旧 public API，需要通过实际宿主回归确认。
+- 其它 legacy loader（如 `toolExecutorModule`、`windowManagerModule`）是否还能继续收口，仍需单独评估，不应和本轮混做。
+
+**对下一阶段边界的影响**
+- Phase 6 后续可以转为评估剩余 legacy loader 是否仍有实际价值，或在宿主回归无异常后考虑结束本轮 compatibility 收口。
+- 下一步优先级应先从“继续裁代码”切到“做宿主验证”，确认这轮 boundary 收口没有打断外部使用面。 
+
+## 下一阶段施工方案（Phase 6 回归与收尾）
 
 **目标**
-- 在不扩散改动面的前提下，继续清理剩余高频 UI 污染点。
-- 优先处理仍可能因固定 id、编辑区复用和增强控件残留而在重复挂载时撞车的面板。
+- 先验证本轮 compatibility boundary 收口在真实宿主中的表现。
+- 只有在宿主回归稳定后，才决定是否继续收剩余 legacy loader。
 
 **建议切口**
-1. 先在真实宿主里回归 `api-preset-panel` 与 `tool-manage-panel`，确认当前第一批改造已经覆盖主要串页问题。
-2. 若宿主仍有复挂载污染，再把 `modules/ui/components/bypass-panel.js` 里的编辑区固定 id、空态/编辑区切换和增强 select 清理路径收口到容器内部。
-3. 仅在 `bypass-panel` 宿主表现仍不稳时，再评估 `modules/ui/components/settings-panel.js` 里固定 id 是否需要实例级命名空间；不要因为静态看到 id 就提前全量改名。
-4. 继续保持 `popup-shell`、`ui-manager`、runtime 事件语义和 compatibility fallback 边界不扩散。
+1. 优先在宿主里回归主 tab、内置工具子页和 prompts 子页。
+2. 若宿主外部没有依赖旧 public API，可再评估是否继续缩减剩余 legacy loader。
+3. 若发现外部依赖旧 API，再决定是否补最小兼容层，而不是回滚整轮收口。
 
 **本阶段暂不处理**
-- 不继续收 compatibility fallback 边界。
+- 不回头扩散修改 `settings-panel`。
 - 不改 runtime-only 轻量刷新策略。
-- 不做全仓固定 id 批量重命名。
 - 不重写 tools 页描述符注册方式。
+- 不一次性删除所有剩余 legacy loader。 
 
 **进入本阶段前的验证前提**
 - 保持 `npm run build` 为静态门槛。
-- 宿主手测应重点覆盖 API 预设页 / 工具管理页 / Ai 指令预设页在多次打开 popup、切页、重复开关弹窗后的表现。
+- 宿主手测应先确认本轮 compatibility boundary 收口后，主 tab、内置工具子页、prompt editor 子页与 `window.YouYouToolkit` 的基本入口行为均正常。
