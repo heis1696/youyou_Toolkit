@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明当前 `1.0.48` 代码基线下的公开 API、执行入口与运行模型。
+本文档说明当前 `1.0.64` 代码基线下的公开 API、执行入口与运行模型。
 
 当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 
@@ -26,12 +26,10 @@ const toolkit = window.YouYouToolkit;
 - `switchMainTab(mainTabId)`
 - `switchSubTab(mainTabId, subTabId)`
 - `addMenuItem()`
-- `loadLegacyModule(moduleKey)`
 
 说明：
 - `init()` 对应 bootstrap 初始化入口。
 - `openPopup()` / `closePopup()` / `switchMainTab()` / `switchSubTab()` 由 `modules/app/popup-shell.js` 提供。
-- `loadLegacyModule()` 仅用于兼容层懒加载，不是新的主线扩展入口。
 
 ### 2.2 API 与预设访问
 
@@ -66,13 +64,11 @@ const toolkit = window.YouYouToolkit;
 - `getPresetManager()`
 - `getUi()`
 - `getUiModule()`
-- `getUiComponents()`
 - `getRegexExtractor()`
 - `getToolManager()`
 - `getToolExecutor()`
 - `getWindowManager()`
 - `getToolRegistry()`
-- `getPromptEditor()`
 - `getSettingsService()`
 - `getBypassManager()`
 - `getVariableResolver()`
@@ -83,13 +79,14 @@ const toolkit = window.YouYouToolkit;
 
 说明：
 - 这些 getter 返回的是当前 `appContext.modules` 中已装配的模块引用。
-- 某些模块仍属于 compatibility/lazy-load 路径，例如 `getUiComponents()`、`getPromptEditor()`、`getToolExecutor()`；存在不等于它们是当前主线入口。
+- 当前公开 API 以 `modules/app/public-api.js` 的实际导出为准；已删除的 compatibility API 不再属于当前接口面。
 
 ### 2.5 自动化控制
 
 - `startAutomation()`
 - `stopAutomation()`
 - `getAutomationRuntime()`
+- `cancelAutomation(options = {})`
 - `processCurrentAssistantMessage(options = {})`
 
 说明：
@@ -97,6 +94,7 @@ const toolkit = window.YouYouToolkit;
 - `startAutomation()` 实际调用 `toolAutomationService.init()`。
 - `stopAutomation()` 实际调用 `toolAutomationService.stop()`。
 - `getAutomationRuntime()` 返回 `toolAutomationService.getRuntimeSnapshot()` 的快照。
+- `cancelAutomation()` 用于取消自动链路中的 pending timer 或 in-flight 事务，可按 `messageId`、`slotKey`、`traceId` 定位。
 - `processCurrentAssistantMessage()` 会解析“当前最新 assistant 楼层”，然后按自动链逻辑执行一次处理，可用 `force: true` 跳过未启用时的常规短路。
 
 ### 2.6 窗口接口
@@ -110,6 +108,9 @@ const toolkit = window.YouYouToolkit;
 
 以下旧命名不应再作为当前事实引用：
 
+- `loadLegacyModule()`
+- `getUiComponents()`
+- `getPromptEditor()`
 - `getToolTrigger()`
 - `getAutoTriggerDiagnostics()`
 - `exportAutoTriggerDiagnostics()`

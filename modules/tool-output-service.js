@@ -52,6 +52,22 @@ export const TOOL_WRITEBACK_STATUS = {
   NOT_APPLICABLE: 'not_applicable'
 };
 
+function shouldAbortAutoWriteback(rawContext) {
+  if (rawContext?.signal?.aborted) {
+    return true;
+  }
+
+  if (typeof rawContext?.shouldAbortWriteback === 'function') {
+    try {
+      return rawContext.shouldAbortWriteback() === true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function buildToolPipelineMeta(messages = [], outputContent = '', writebackDetails = null) {
   return {
     request: {
@@ -180,7 +196,33 @@ class ToolOutputService {
       }
       
       this._log(`构建了 ${messages.length} 条消息`);
-      
+
+      if (shouldAbortAutoWriteback(rawContext)) {
+        const duration = Date.now() - startTime;
+        return {
+          success: false,
+          toolId,
+          error: '请求已取消',
+          duration,
+          meta: {
+            traceId: executionTraceId,
+            sessionKey,
+            executionKey,
+            sourceMessageId: rawContext?.sourceMessageId || rawContext?.confirmedAssistantMessageId || rawContext?.messageId || '',
+            sourceSwipeId: rawContext?.sourceSwipeId || rawContext?.confirmedAssistantSwipeId || rawContext?.effectiveSwipeId || '',
+            slotRevisionKey: rawContext?.slotRevisionKey || '',
+            selectors,
+            apiPreset,
+            writebackStatus,
+            failureStage,
+            writebackDetails,
+            aborted: true,
+            stale: false,
+            phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
+          }
+        };
+      }
+
       // 2. 获取API配置
       const timeoutMs = await this._getRequestTimeout();
       
@@ -194,7 +236,33 @@ class ToolOutputService {
       // 4. 处理输出
       failureStage = TOOL_FAILURE_STAGES.EXTRACT_OUTPUT;
       outputContent = this._extractOutputContent(result, toolConfig);
-      
+
+      if (shouldAbortAutoWriteback(rawContext)) {
+        const duration = Date.now() - startTime;
+        return {
+          success: false,
+          toolId,
+          error: '请求已取消',
+          duration,
+          meta: {
+            traceId: executionTraceId,
+            sessionKey,
+            executionKey,
+            sourceMessageId: rawContext?.sourceMessageId || rawContext?.confirmedAssistantMessageId || rawContext?.messageId || '',
+            sourceSwipeId: rawContext?.sourceSwipeId || rawContext?.confirmedAssistantSwipeId || rawContext?.effectiveSwipeId || '',
+            slotRevisionKey: rawContext?.slotRevisionKey || '',
+            selectors,
+            apiPreset,
+            writebackStatus,
+            failureStage,
+            writebackDetails,
+            aborted: true,
+            stale: true,
+            phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
+          }
+        };
+      }
+
       // 5. 注入上下文
       if (outputContent) {
         failureStage = TOOL_FAILURE_STAGES.INJECT_CONTEXT;
@@ -208,7 +276,10 @@ class ToolOutputService {
           slotTransactionId: rawContext.slotTransactionId || '',
           extractionSelectors: selectors,
           traceId: executionTraceId,
-          sessionKey
+          sessionKey,
+          signal: rawContext.signal,
+          shouldAbortWriteback: rawContext.shouldAbortWriteback,
+          isAutoRun: rawContext.isAutoRun === true
         });
 
         if (!writebackDetails?.success) {
@@ -970,7 +1041,13 @@ class ToolOutputService {
   filterAutoPostResponseTools(toolConfigs) {
     if (!Array.isArray(toolConfigs)) return [];
 
-    return toolConfigs.filter((config) => this.shouldRunPostResponse(config));
+    return toolConfigs.filter((config) => {
+      if (!this.shouldRunPostResponse(config)) {
+        return false;
+      }
+
+      return config?.automation?.enabled === true;
+    });
   }
 
   /**

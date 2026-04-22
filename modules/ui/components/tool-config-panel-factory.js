@@ -758,6 +758,12 @@ export function createToolConfigPanel(options) {
               <i class="fa-solid fa-bolt"></i>
               <span>自动触发</span>
             </div>
+            <div class="yyt-form-group">
+              <label class="yyt-checkbox-label">
+                <input type="checkbox" id="${SCRIPT_ID}-tool-automation-enabled" ${automation.enabled ? 'checked' : ''}>
+                <span>允许当前工具参与自动触发</span>
+              </label>
+            </div>
             <div class="yyt-form-row">
               <div class="yyt-form-group yyt-flex-1">
                 <label>等待稳定时间 (ms)</label>
@@ -768,7 +774,7 @@ export function createToolConfigPanel(options) {
                 <input type="number" class="yyt-input" id="${SCRIPT_ID}-tool-automation-cooldown-ms" min="0" max="60000" step="100" value="${Number(automation.cooldownMs) || 5000}">
               </div>
             </div>
-            <div class="yyt-tool-compact-hint">不再单独配置工具级开关。只要当前工具选择“额外 AI 模型解析”，并且全局自动化开启，就会在 AI 回复后自动执行。</div>
+            <div class="yyt-tool-compact-hint">只有同时满足“当前工具启用自动触发”“输出模式为额外 AI 模型解析”“全局自动化开启”时，才会在 AI 回复后自动执行。</div>
           </div>
 
           <div class="yyt-panel-section">
@@ -895,6 +901,7 @@ export function createToolConfigPanel(options) {
       const outputMode = $container.find(`#${SCRIPT_ID}-tool-output-mode`).val() || 'follow_ai';
       const bypassEnabled = $container.find(`#${SCRIPT_ID}-tool-bypass-enabled`).is(':checked');
       const postResponseEnabled = outputMode === 'post_response_api';
+      const automationEnabled = postResponseEnabled && $container.find(`#${SCRIPT_ID}-tool-automation-enabled`).is(':checked');
       const selectorLines = ($container.find(`#${SCRIPT_ID}-tool-extraction-selectors`).val() || '')
         .split(/\r?\n/)
         .map(item => item.trim())
@@ -916,7 +923,7 @@ export function createToolConfigPanel(options) {
           enabled: postResponseEnabled
         },
         automation: {
-          enabled: postResponseEnabled,
+          enabled: automationEnabled,
           settleMs: Math.max(0, parseInt($container.find(`#${SCRIPT_ID}-tool-automation-settle-ms`).val(), 10) || 1200),
           cooldownMs: Math.max(0, parseInt($container.find(`#${SCRIPT_ID}-tool-automation-cooldown-ms`).val(), 10) || 5000)
         },

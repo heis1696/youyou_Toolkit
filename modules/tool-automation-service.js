@@ -12,9 +12,14 @@
 
 import { settingsService } from './core/settings-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
-import { getAllToolFullConfigs } from './tool-registry.js';
+import { getAllToolFullConfigs, patchToolRuntime } from './tool-registry.js';
 import { toolOutputService } from './tool-output-service.js';
-import { buildExecutionContextForMessage } from './tool-execution-context.js';
+import {
+  buildExecutionContextForMessage,
+  buildAssistantContentFingerprint,
+  buildSlotRevisionKey,
+  stripKnownToolBlocks
+} from './tool-execution-context.js';
 
 // ─── 工具函数 ───────────────────────────────────────────────
 
@@ -247,6 +252,10 @@ function isSameSlotEvent(eventName) {
   return SAME_SLOT_EVENTS.has(normalizeEventName(eventName));
 }
 
+function isMessageReceivedEvent(eventName) {
+  return normalizeEventName(eventName) === 'MESSAGE_RECEIVED';
+}
+
 // ─── Transaction 事务对象 ───────────────────────────────────
 
 class Transaction {
@@ -286,7 +295,17 @@ class ToolAutomationService {
     this._stopCallbacks = [];
     this._pendingTimers = new Map();
     this._completedGenerationKeys = new Map(); // generationKey → timestamp
+    this._cancelledGenerationKeys = new Map(); // generationKey → timestamp
     this._slotQueues = new Map();
+    this._activeTransactions = new Map(); // traceId -> transaction state
+    this._messageReceivedFallback = {
+      armed: false,
+      armedAt: 0,
+      baselineMessageId: '',
+      baselineRevisionKey: '',
+      baselineMessageCount: 0,
+      baselineHadContent: false
+    };
     this._currentChatId = '';
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
@@ -418,20 +437,27 @@ class ToolAutomationService {
           return;
         }
 
+        if (isMessageReceivedEvent(normalizedEvent)) {
+          this._log(`事件 "${normalizedEvent}" 仅保留兼容兜底，不直接按 messageId 调度`, { messageId });
+          return;
+        }
+
         this._scheduleMessageProcessing(messageId, swipeId, {
           settleMs: this._getSettleMs(),
-          sourceEvent: normalizedEvent
+          sourceEvent: normalizedEvent,
+          allowMessageReceivedFallback: false
         });
         return;
       }
 
-      if (isSameSlotEvent(normalizedEvent)) {
+      if (isSameSlotEvent(normalizedEvent) || isMessageReceivedEvent(normalizedEvent)) {
         const latestAssistantTarget = getLatestAssistantTarget(api);
 
         if (latestAssistantTarget?.messageId) {
           this._scheduleMessageProcessing(latestAssistantTarget.messageId, latestAssistantTarget.swipeId, {
             settleMs: this._getSettleMs(),
-            sourceEvent: normalizedEvent
+            sourceEvent: normalizedEvent,
+            allowMessageReceivedFallback: isMessageReceivedEvent(normalizedEvent)
           });
         } else {
           this._log(`事件 "${normalizedEvent}" 无 assistant 目标，跳过 fallback`);
@@ -439,7 +465,7 @@ class ToolAutomationService {
         return;
       }
 
-      this._log(`事件 "${normalizedEvent}" 无 messageId 且非 same-slot 类型，跳过`);
+      this._log(`事件 "${normalizedEvent}" 无 messageId 且非受支持类型，跳过`);
     };
 
     bindHostEvent(eventTypes.MESSAGE_SENT || 'message_sent', () => {
@@ -447,6 +473,7 @@ class ToolAutomationService {
       this._isDuringExtraAnalysis = false;
       this._pendingTimers.forEach(id => clearTimeout(id));
       this._pendingTimers.clear();
+      this._armMessageReceivedFallback();
     });
 
     bindHostEvent(eventTypes.MESSAGE_RECEIVED || 'message_received', (...args) => {
@@ -506,6 +533,10 @@ class ToolAutomationService {
     this._pendingTimers.clear();
     this._slotQueues.clear();
     this._completedGenerationKeys.clear();
+    this._cancelledGenerationKeys.clear();
+    this._resetMessageReceivedFallback();
+    this._cancelActiveTransactions('service_stopped');
+    this._activeTransactions.clear();
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
     this._enabled = false;
@@ -535,6 +566,7 @@ class ToolAutomationService {
 
   getRuntimeSnapshot() {
     this._pruneCompletedKeys();
+    this._pruneCancelledKeys();
     return {
       currentChatId: this._currentChatId,
       enabled: this._enabled,
@@ -543,6 +575,8 @@ class ToolAutomationService {
       pendingTimerCount: this._pendingTimers.size,
       queuedSlotCount: this._slotQueues.size,
       completedGenerationKeyCount: this._completedGenerationKeys.size,
+      cancelledGenerationKeyCount: this._cancelledGenerationKeys.size,
+      activeTransactionCount: this._activeTransactions.size,
       recentTransactions: this._transactionHistory.slice(-10).map(tx => tx.toSnapshot()),
       hostBinding: {
         ...this._hostBindingStatus,
@@ -570,7 +604,8 @@ class ToolAutomationService {
     return this.processAssistantMessage(targetMessageId, {
       force: options.force === true,
       swipeId: normalizeIdentityValue(context?.sourceSwipeId),
-      sourceEvent: options.sourceEvent || 'MANUAL_CURRENT_ASSISTANT'
+      sourceEvent: options.sourceEvent || 'MANUAL_CURRENT_ASSISTANT',
+      allowMessageReceivedFallback: options.allowMessageReceivedFallback === true
     });
   }
 
@@ -582,7 +617,12 @@ class ToolAutomationService {
    * 2. 自动写回：将工具输出结果追加到原消息（类似 MVU 的 setChatMessages）
    * 3. 自动刷新：更新消息的 variables 字段（类似 MVU 的 handleVariablesInMessage）
    */
-  async processAssistantMessage(messageId, { force = false, swipeId = '', sourceEvent = 'AUTO' } = {}) {
+  async processAssistantMessage(messageId, {
+    force = false,
+    swipeId = '',
+    sourceEvent = 'AUTO',
+    allowMessageReceivedFallback = false
+  } = {}) {
     const tx = new Transaction({
       chatId: this._currentChatId,
       messageId,
@@ -598,6 +638,10 @@ class ToolAutomationService {
 
       if (!this._checkEnabled() && !force) {
         return this._skipTransaction(tx, 'automation_disabled');
+      }
+
+      if (isMessageReceivedEvent(sourceEvent) && !allowMessageReceivedFallback && !force) {
+        return this._skipTransaction(tx, 'message_received_filtered');
       }
 
       // 重roll/swipe 时不应被 _isDuringExtraAnalysis 阻塞
@@ -625,6 +669,10 @@ class ToolAutomationService {
         return this._skipTransaction(tx, 'assistant_message_too_short');
       }
 
+      if (isMessageReceivedEvent(sourceEvent) && !this._shouldAllowMessageReceivedFallback(targetMessage, context, { force })) {
+        return this._skipTransaction(tx, 'message_received_not_new_generation');
+      }
+
       // ── Phase: CONTEXT_BUILT → generation-aware 去重 ──
       tx.transition(TX_PHASE.CONTEXT_BUILT);
 
@@ -637,14 +685,23 @@ class ToolAutomationService {
         return this._skipTransaction(tx, 'duplicate_generation', { generationKey });
       }
 
+      if (!force && this._isGenerationCancelled(generationKey)) {
+        return this._skipTransaction(tx, 'cancelled_generation', { generationKey });
+      }
+
       // 获取需要自动运行的工具
       const tools = toolOutputService.filterAutoPostResponseTools(getAllToolFullConfigs());
       if (!tools.length) {
-        return this._skipTransaction(tx, 'no_auto_tools');
+        return this._skipTransaction(tx, 'no_auto_tools', { tools });
       }
 
       // ── Phase: REQUEST_STARTED → 排队执行 ──
       const slotKey = `${normalizeIdentityValue(context.sourceMessageId)}::${normalizeIdentityValue(context.sourceSwipeId || swipeId)}`;
+
+      tx.slotKey = slotKey;
+      tx.slotRevisionKey = context.slotRevisionKey || '';
+      tx.sourceMessageId = context.sourceMessageId || messageId;
+      tx.sourceSwipeId = context.sourceSwipeId || swipeId || '';
 
       return this._enqueueSlot(slotKey, async () => {
         // 进入排他执行区域前再次检查（防止排队期间状态变化）
@@ -652,9 +709,22 @@ class ToolAutomationService {
           return this._skipTransaction(tx, 'duplicate_generation_after_queue', { generationKey });
         }
 
+        if (this._isGenerationCancelled(generationKey) && !force) {
+          return this._skipTransaction(tx, 'cancelled_generation_after_queue', { generationKey });
+        }
+
         this._isProcessingMessage = true;
         this._isDuringExtraAnalysis = true;
         tx.transition(TX_PHASE.REQUEST_STARTED);
+        const controller = new AbortController();
+        this._registerActiveTransaction(tx, {
+          controller,
+          generationKey,
+          slotKey,
+          sourceMessageId: context.sourceMessageId || messageId,
+          sourceSwipeId: context.sourceSwipeId || swipeId || '',
+          slotRevisionKey: context.slotRevisionKey || ''
+        });
 
         try {
           const results = [];
@@ -664,6 +734,24 @@ class ToolAutomationService {
           for (const tool of tools) {
             const toolContext = {
               ...context,
+              signal: controller.signal,
+              isAutoRun: true,
+              abortMeta: {
+                traceId: tx.traceId,
+                generationKey,
+                slotKey,
+                sourceMessageId: context.sourceMessageId || messageId,
+                sourceSwipeId: context.sourceSwipeId || swipeId || '',
+                slotRevisionKey: context.slotRevisionKey || ''
+              },
+              shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
+                traceId: tx.traceId,
+                generationKey,
+                slotKey,
+                sourceMessageId: context.sourceMessageId || messageId,
+                sourceSwipeId: context.sourceSwipeId || swipeId || '',
+                slotRevisionKey: context.slotRevisionKey || ''
+              }),
               input: {
                 ...(context.input || {}),
                 lastAiMessage: context.lastAiMessage,
@@ -701,6 +789,7 @@ class ToolAutomationService {
 
           // ── Phase: WRITEBACK_COMMITTED ──
           const allSuccess = results.every(r => r?.success !== false);
+          const aborted = results.some(r => r?.meta?.aborted === true || r?.meta?.stale === true || r?.error === '请求已取消');
           if (allSuccess) {
             tx.transition(TX_PHASE.WRITEBACK_COMMITTED);
           }
@@ -710,10 +799,11 @@ class ToolAutomationService {
           // 这确保了工具执行后的状态变化被持久化到聊天记录中
           const finalPhase = allSuccess ? TX_PHASE.REFRESH_CONFIRMED : TX_PHASE.FAILED;
           tx.transition(finalPhase, {
-            verdict: allSuccess ? 'success' : 'partial_failure'
+            verdict: aborted ? 'aborted' : (allSuccess ? 'success' : 'partial_failure')
           });
 
           this._recordTransaction(tx);
+          this._updateAutoRuntimeForResults(tools, context, tx, results);
 
           return {
             success: allSuccess,
@@ -725,6 +815,7 @@ class ToolAutomationService {
             results
           };
         } finally {
+          this._unregisterActiveTransaction(tx.traceId);
           this._isDuringExtraAnalysis = false;
           this._isProcessingMessage = false;
         }
@@ -732,6 +823,7 @@ class ToolAutomationService {
     } catch (error) {
       tx.transition(TX_PHASE.FAILED, { error: error?.message || String(error) });
       this._recordTransaction(tx);
+      this._unregisterActiveTransaction(tx.traceId);
       this._isDuringExtraAnalysis = false;
       this._isProcessingMessage = false;
       this._log('processAssistantMessage 异常', error);
@@ -801,7 +893,8 @@ class ToolAutomationService {
       this._pendingTimers.delete(timerKey);
       this.processAssistantMessage(messageId, {
         swipeId,
-        sourceEvent: options.sourceEvent || 'AUTO'
+        sourceEvent: options.sourceEvent || 'AUTO',
+        allowMessageReceivedFallback: options.allowMessageReceivedFallback === true
       }).catch(error => {
         this._log('调度执行失败', { messageId, error });
       });
@@ -821,13 +914,38 @@ class ToolAutomationService {
 
     const timerId = setTimeout(() => {
       this._pendingTimers.delete(timerKey);
-      this.processCurrentAssistantMessage({ sourceEvent }).catch(error => {
+      this.processCurrentAssistantMessage({
+        sourceEvent,
+        allowMessageReceivedFallback: options.allowMessageReceivedFallback === true
+      }).catch(error => {
         this._log('当前 assistant 处理失败', error);
       });
     }, Math.max(0, settleMs));
 
     this._pendingTimers.set(timerKey, timerId);
     this._log('已调度当前 assistant 处理', { timerKey, settleMs, sourceEvent });
+  }
+
+  cancelAutomation(options = {}) {
+    const reason = options.reason || 'manual_cancel';
+    const messageId = normalizeIdentityValue(options.messageId);
+    const slotKey = normalizeIdentityValue(options.slotKey);
+    const traceId = normalizeIdentityValue(options.traceId);
+    let cancelledCount = 0;
+
+    for (const [timerKey, timerId] of this._pendingTimers) {
+      const matchesMessage = messageId && timerKey.includes(`::${messageId}::`);
+      const matchesSlot = slotKey && timerKey.includes(slotKey);
+      const matchesAll = !messageId && !slotKey && !traceId;
+      if (matchesMessage || matchesSlot || matchesAll) {
+        clearTimeout(timerId);
+        this._pendingTimers.delete(timerKey);
+        cancelledCount += 1;
+      }
+    }
+
+    cancelledCount += this._cancelActiveTransactions(reason, { messageId, slotKey, traceId });
+    return { success: cancelledCount > 0, cancelledCount, reason };
   }
 
   // ── Generation-Aware 去重 ────────────────────────────────
@@ -846,11 +964,34 @@ class ToolAutomationService {
     this._pruneCompletedKeys();
   }
 
+  _markGenerationCancelled(generationKey) {
+    if (!generationKey) return;
+    this._cancelledGenerationKeys.set(generationKey, Date.now());
+    this._pruneCancelledKeys();
+  }
+
+  _isGenerationCancelled(generationKey) {
+    if (!generationKey) return false;
+    this._pruneCancelledKeys();
+    const cancelledAt = this._cancelledGenerationKeys.get(generationKey);
+    if (!cancelledAt) return false;
+    return (Date.now() - cancelledAt) < this._getDedupeWindowMs();
+  }
+
   _pruneCompletedKeys() {
     const cutoff = Date.now() - this._getDedupeWindowMs();
     for (const [key, ts] of this._completedGenerationKeys) {
       if (!Number.isFinite(ts) || ts < cutoff) {
         this._completedGenerationKeys.delete(key);
+      }
+    }
+  }
+
+  _pruneCancelledKeys() {
+    const cutoff = Date.now() - this._getDedupeWindowMs();
+    for (const [key, ts] of this._cancelledGenerationKeys) {
+      if (!Number.isFinite(ts) || ts < cutoff) {
+        this._cancelledGenerationKeys.delete(key);
       }
     }
   }
@@ -874,6 +1015,9 @@ class ToolAutomationService {
   _skipTransaction(tx, reason, extra = {}) {
     tx.transition(TX_PHASE.SKIPPED, { verdict: reason, ...extra });
     this._recordTransaction(tx);
+    if (Array.isArray(extra?.tools) && extra.tools.length > 0) {
+      this._updateAutoRuntimeForSkip(extra.tools, tx, reason, extra);
+    }
     return { success: false, skipped: true, reason, traceId: tx.traceId, ...extra };
   }
 
@@ -893,6 +1037,212 @@ class ToolAutomationService {
     return next;
   }
 
+  _registerActiveTransaction(tx, state = {}) {
+    if (!tx?.traceId) return;
+    this._activeTransactions.set(tx.traceId, {
+      traceId: tx.traceId,
+      generationKey: state.generationKey || tx.generationKey || '',
+      slotKey: state.slotKey || tx.slotKey || '',
+      sourceMessageId: state.sourceMessageId || tx.sourceMessageId || '',
+      sourceSwipeId: state.sourceSwipeId || tx.sourceSwipeId || '',
+      slotRevisionKey: state.slotRevisionKey || tx.slotRevisionKey || '',
+      controller: state.controller || null,
+      cancelled: false,
+      cancelReason: ''
+    });
+  }
+
+  _unregisterActiveTransaction(traceId) {
+    if (!traceId) return;
+    this._activeTransactions.delete(traceId);
+  }
+
+  _cancelActiveTransactions(reason = 'manual_cancel', filters = {}) {
+    const targetMessageId = normalizeIdentityValue(filters.messageId);
+    const targetSlotKey = normalizeIdentityValue(filters.slotKey);
+    const targetTraceId = normalizeIdentityValue(filters.traceId);
+    let cancelledCount = 0;
+
+    for (const [traceId, state] of this._activeTransactions) {
+      const matchesTrace = targetTraceId && traceId === targetTraceId;
+      const matchesMessage = targetMessageId && normalizeIdentityValue(state?.sourceMessageId) === targetMessageId;
+      const matchesSlot = targetSlotKey && normalizeIdentityValue(state?.slotKey) === targetSlotKey;
+      const matchesAll = !targetTraceId && !targetMessageId && !targetSlotKey;
+      if (!matchesTrace && !matchesMessage && !matchesSlot && !matchesAll) {
+        continue;
+      }
+
+      state.cancelled = true;
+      state.cancelReason = reason;
+      if (state?.generationKey) {
+        this._markGenerationCancelled(state.generationKey);
+      }
+      try {
+        state?.controller?.abort?.();
+      } catch (_) {
+        // ignore abort errors
+      }
+      cancelledCount += 1;
+    }
+
+    return cancelledCount;
+  }
+
+  _shouldAbortAutoWriteback(meta = {}) {
+    const traceId = normalizeIdentityValue(meta.traceId);
+    const generationKey = normalizeIdentityValue(meta.generationKey);
+    const sourceMessageId = normalizeIdentityValue(meta.sourceMessageId);
+    const sourceSwipeId = normalizeIdentityValue(meta.sourceSwipeId);
+    const slotRevisionKey = normalizeIdentityValue(meta.slotRevisionKey);
+
+    if (traceId) {
+      const activeState = this._activeTransactions.get(traceId);
+      if (!activeState || activeState.cancelled) {
+        return true;
+      }
+    }
+
+    if (generationKey && this._isGenerationCancelled(generationKey)) {
+      return true;
+    }
+
+    if (sourceMessageId && slotRevisionKey) {
+      const currentContext = this._buildCurrentSlotContext(sourceMessageId, sourceSwipeId);
+      if (!currentContext || normalizeIdentityValue(currentContext.slotRevisionKey) !== slotRevisionKey) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  _buildCurrentSlotContext(messageId, swipeId = '') {
+    const api = getHostApi();
+    const targetMessage = getChatMessageById(api, messageId);
+    if (!targetMessage || !isAssistantMessage(targetMessage)) {
+      return null;
+    }
+
+    const messageText = String(targetMessage.content || targetMessage.mes || targetMessage.message || targetMessage.text || '').trim();
+    const baseText = stripKnownToolBlocks(messageText, targetMessage);
+    const effectiveSwipeId = normalizeIdentityValue(
+      swipeId
+      || targetMessage?.swipeId
+      || targetMessage?.swipe_id
+      || targetMessage?.swipe
+      || 'swipe:current'
+    ) || 'swipe:current';
+    const assistantBaseFingerprint = buildAssistantContentFingerprint(baseText);
+    const chatId = this._currentChatId || getCurrentChatId(api);
+
+    return {
+      slotRevisionKey: buildSlotRevisionKey({
+        chatId,
+        messageId: normalizeIdentityValue(messageId),
+        effectiveSwipeId,
+        assistantContentFingerprint: assistantBaseFingerprint
+      })
+    };
+  }
+
+  _shouldAllowMessageReceivedFallback(targetMessage, context, { force = false } = {}) {
+    if (force) return true;
+    if (!targetMessage || !context) return false;
+
+    const fallback = this._messageReceivedFallback || {};
+    if (!fallback.armed) {
+      return false;
+    }
+
+    const currentMessageId = normalizeIdentityValue(context.sourceMessageId || context.messageId);
+    const latestTarget = getLatestAssistantTarget(getHostApi());
+    const latestMessageId = normalizeIdentityValue(latestTarget?.messageId);
+    if (!currentMessageId || !latestMessageId || currentMessageId !== latestMessageId) {
+      return false;
+    }
+
+    if (!String(context.assistantBaseText || '').trim()) {
+      return false;
+    }
+
+    const currentRevisionKey = normalizeIdentityValue(context.slotRevisionKey);
+    if (!currentRevisionKey) {
+      return false;
+    }
+
+    const currentMessages = getCurrentChatMessages(getHostApi());
+    const currentMessageCount = Array.isArray(currentMessages) ? currentMessages.length : 0;
+    const messageText = String(targetMessage.content || targetMessage.mes || '').trim();
+    const generationKey = `${currentMessageId}::${quickContentHash(messageText)}`;
+
+    if (this._hasCompletedGeneration(generationKey) || this._isGenerationCancelled(generationKey)) {
+      return false;
+    }
+
+    const matchesBaselineMessage = !fallback.baselineMessageId || fallback.baselineMessageId === currentMessageId;
+    const revisionChanged = !fallback.baselineRevisionKey || fallback.baselineRevisionKey !== currentRevisionKey;
+    const messageCountIncreased = currentMessageCount > Number(fallback.baselineMessageCount || 0);
+    const contentBecameAvailable = fallback.baselineHadContent === false;
+    const armedRecently = (Date.now() - Number(fallback.armedAt || 0)) < Math.max(this._getSettleMs() * 4, 4000);
+
+    if (!matchesBaselineMessage || !armedRecently) {
+      return false;
+    }
+
+    return revisionChanged && (messageCountIncreased || contentBecameAvailable);
+  }
+
+  _updateAutoRuntimeForSkip(tools, tx, reason, extra = {}) {
+    tools.forEach((tool) => {
+      if (!tool?.id) return;
+      patchToolRuntime(tool.id, {
+        lastAutoRunAt: Date.now(),
+        lastAutoStatus: 'skipped',
+        lastAutoMessageId: tx?.sourceMessageId || tx?.messageId || '',
+        lastAutoSwipeId: tx?.sourceSwipeId || tx?.swipeId || '',
+        lastAutoRevisionKey: tx?.slotRevisionKey || extra?.slotRevisionKey || '',
+        lastAutoWritebackStatus: '',
+        lastAutoRefreshConfirmed: false,
+        lastAutoSkipReason: reason || ''
+      }, {
+        touchLastRunAt: false,
+        emitEvent: false,
+        emitRuntimeEvent: true
+      });
+    });
+  }
+
+  _updateAutoRuntimeForResults(tools, context, tx, results = []) {
+    tools.forEach((tool, index) => {
+      if (!tool?.id) return;
+      const result = results[index] || {};
+      const writebackDetails = result?.meta?.writebackDetails || {};
+      const autoStatus = result?.meta?.aborted === true || result?.meta?.stale === true
+        ? 'aborted'
+        : (result?.success === false ? 'failed' : 'success');
+      const skipReason = result?.meta?.aborted === true
+        ? (result?.meta?.stale === true ? 'stale_writeback_blocked' : 'cancelled')
+        : '';
+
+      patchToolRuntime(tool.id, {
+        lastAutoRunAt: Date.now(),
+        lastAutoStatus: autoStatus,
+        lastAutoMessageId: context?.sourceMessageId || tx?.sourceMessageId || tx?.messageId || '',
+        lastAutoSwipeId: context?.sourceSwipeId || tx?.sourceSwipeId || tx?.swipeId || '',
+        lastAutoRevisionKey: context?.slotRevisionKey || tx?.slotRevisionKey || '',
+        lastAutoWritebackStatus: result?.meta?.writebackStatus || '',
+        lastAutoRefreshConfirmed: !!writebackDetails.refreshConfirmed,
+        lastAutoSkipReason: skipReason
+      }, {
+        touchLastRunAt: false,
+        emitEvent: false,
+        emitRuntimeEvent: true
+      });
+    });
+
+    this._resetMessageReceivedFallback();
+  }
+
   // ── 状态管理 ──────────────────────────────────────────────
 
   _resetForChatChange() {
@@ -904,8 +1254,42 @@ class ToolAutomationService {
     this._pendingTimers.clear();
     this._slotQueues.clear();
     this._completedGenerationKeys.clear();
+    this._cancelledGenerationKeys.clear();
+    this._resetMessageReceivedFallback();
+    this._cancelActiveTransactions('chat_changed');
+    this._activeTransactions.clear();
     this._isDuringExtraAnalysis = false;
     this._isProcessingMessage = false;
+  }
+
+  _armMessageReceivedFallback() {
+    const api = getHostApi();
+    const latestTarget = getLatestAssistantTarget(api);
+    const currentMessages = getCurrentChatMessages(api);
+    const baselineContext = latestTarget?.messageId
+      ? this._buildCurrentSlotContext(latestTarget.messageId, latestTarget.swipeId)
+      : null;
+    const baselineText = String(latestTarget?.message?.content || latestTarget?.message?.mes || '').trim();
+
+    this._messageReceivedFallback = {
+      armed: true,
+      armedAt: Date.now(),
+      baselineMessageId: normalizeIdentityValue(latestTarget?.messageId),
+      baselineRevisionKey: normalizeIdentityValue(baselineContext?.slotRevisionKey),
+      baselineMessageCount: Array.isArray(currentMessages) ? currentMessages.length : 0,
+      baselineHadContent: Boolean(baselineText)
+    };
+  }
+
+  _resetMessageReceivedFallback() {
+    this._messageReceivedFallback = {
+      armed: false,
+      armedAt: 0,
+      baselineMessageId: '',
+      baselineRevisionKey: '',
+      baselineMessageCount: 0,
+      baselineHadContent: false
+    };
   }
 
   _scheduleInitRetry(retryDelayMs, attempt) {

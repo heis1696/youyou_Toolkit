@@ -1,6 +1,6 @@
 # FRAMEWORK ARCHITECTURE
 
-本文档基于当前 `1.0.48` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
+本文档基于当前 `1.0.64` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
 
 它不是按文件列表罗列细节，而是按“遇到问题时应该先理解哪条主线”来组织内容。
 
@@ -59,7 +59,6 @@
 `bootstrap.js` 是当前应用启动中心，负责：
 
 - 加载主线模块
-- 按需加载 compatibility 模块
 - 注入基础样式与主题变量
 - 初始化 UI 模块
 - 注册菜单入口
@@ -87,7 +86,7 @@ window.YouYouToolkit
 - 模块 getter：`getToolRegistry()` / `getToolOutputService()` / `getToolAutomationService()` 等
 - 自动化控制：`startAutomation()` / `stopAutomation()` / `getAutomationRuntime()` / `processCurrentAssistantMessage()`
 
-因此，判断“什么算公开 API”时，不要看旧笔记，要先看 `modules/app/public-api.js`。
+因此，判断“什么算公开 API”时，不要看旧笔记，要先看 `modules/app/public-api.js`；`loadLegacyModule()`、`getUiComponents()`、`getPromptEditor()` 已不属于当前接口面。
 
 ## 3. UI 壳层与面板注册
 
@@ -472,7 +471,9 @@ window.YouYouToolkit
 - 主线工具模型：`tool-manager.js + tool-registry.js`
 - 主线上下文与执行：`tool-execution-context.js + tool-trigger.js + tool-automation-service.js + tool-output-service.js`
 - 主线写回：`context-injector.js`
-- compatibility / lazy-load：其余旧模块
+- 旧执行回退与历史兼容残留：`tool-executor.js`、`storage.js`、`inline` 旧模式名等
+
+其中 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 已从 popup 主路径与 public API 中收口，不应再被理解成当前主线路径依赖。 
 
 维护时不要因为文件名旧，就默认它仍在主链上。
 

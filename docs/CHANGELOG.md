@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+## [1.0.64] - 2026-04-23
+
+### 修复
+
+- 🐛 **收口自动工具误触发、取消无效与过期写回问题，稳定 post-response 自动链路** (`modules/tool-automation-service.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `modules/ui/components/tool-config-panel-factory.js`, `modules/app/public-api.js`)
+  - 自动执行现在只对显式开启工具级自动化的 `post_response_api` 工具生效，避免全局自动化开启后所有额外模型工具一起误触发
+  - `MESSAGE_RECEIVED` 兼容兜底改为仅在用户发言后的短窗口内、且最新 assistant 槽位确实形成新 generation 时才放行，不再把编辑保存现有 AI 楼层当作新触发
+  - 自动事务补上 `AbortController`、公开取消入口与写回前过期校验，用户打断后不再补发、不再把已过期结果插回上下文
+
+### 文档
+
+- 📝 **同步 1.0.64 版本基线与自动化公开接口说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`)
+  - 更新 README 与架构文档中的当前版本号
+  - 在 API 文档中补充 `cancelAutomation(options = {})` 的公开接口说明
+
 ## [1.0.63] - 2026-04-21
 
 ### 修复

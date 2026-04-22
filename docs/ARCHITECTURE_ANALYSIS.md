@@ -1,6 +1,6 @@
 # 架构分析
 
-本文档基于当前 `1.0.48` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
+本文档基于当前 `1.0.64` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
 
 结论先行：当前仓库已经不是“旧 trigger 管理器驱动的一组散模块”，而是围绕薄入口、bootstrap 装配、popup shell、运行时 tool registry、统一 execution context、自动化事务服务与写回链组织起来的一条主线。
 
@@ -16,7 +16,7 @@
 6. `modules/tool-automation-service.js` 是自动执行唯一入口，基于 generation-aware 事务模型处理宿主消息事件。
 7. `modules/tool-trigger.js` 现在主要负责手动执行与提取预览入口。
 8. `post_response_api` 与 `follow_ai` 的主执行/写回链集中在 `tool-output-service.js -> tool-prompt-service.js -> api-connection.js -> context-injector.js`。
-9. `modules/tool-executor.js`、`modules/ui-components.js`、`modules/prompt-editor.js` 等仍在，但已偏向 compatibility / lazy-load 路径。
+9. `modules/tool-executor.js` 仍在并承担旧执行回退；而 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 已从 popup 主路径与 public API 中收口，不应再被当成当前主线入口。
 
 ## 2. 启动层与应用装配
 
@@ -41,7 +41,6 @@
 `bootstrap.js` 的职责包括：
 
 - `loadModules()`：加载当前主线模块
-- `loadLegacyModule()`：按需加载 compatibility 模块
 - 注入基础样式与主题变量
 - 初始化 UI 模块
 - 注册菜单入口
@@ -426,7 +425,7 @@
 - `modules/storage.js`
 - `inline` 旧模式名
 
-这些对象仍然存在，但存在不等于它们是当前优先入口。
+这些对象的存在不等于它们仍是当前优先入口。
 
 当前更准确的理解方式是：
 
@@ -435,7 +434,9 @@
 - 主线工具模型：`tool-manager.js + tool-registry.js`
 - 主线上下文与执行：`tool-execution-context.js + tool-trigger.js + tool-automation-service.js + tool-output-service.js`
 - 主线写回：`context-injector.js`
-- compatibility / lazy-load：其余旧模块
+- 旧执行回退与历史兼容残留：`tool-executor.js`、`storage.js`、`inline` 旧模式名等
+
+其中 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 虽然仍可在仓库中看到文件名，但已不再是 popup 主路径或 public API 的当前依赖。 
 
 ## 11. 建议的排查顺序
 

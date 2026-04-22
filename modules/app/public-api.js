@@ -106,6 +106,11 @@ export function createPublicApi(context, services = {}) {
       return modules.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.() || null;
     },
 
+    cancelAutomation(options = {}) {
+      return modules.toolAutomationServiceModule?.toolAutomationService?.cancelAutomation?.(options)
+        || { success: false, error: '自动化服务未加载' };
+    },
+
     async processCurrentAssistantMessage(options = {}) {
       return modules.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(options)
         || { success: false, error: '自动化服务未加载' };

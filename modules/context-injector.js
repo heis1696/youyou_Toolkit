@@ -155,6 +155,23 @@ class ContextInjector {
       return writebackResult;
     }
 
+    if (mergedOptions?.signal?.aborted) {
+      writebackResult.error = '工具结果已取消，跳过写回';
+      return writebackResult;
+    }
+
+    if (typeof mergedOptions?.shouldAbortWriteback === 'function') {
+      try {
+        if (mergedOptions.shouldAbortWriteback() === true) {
+          writebackResult.error = '工具结果已过期，跳过写回';
+          return writebackResult;
+        }
+      } catch (_) {
+        writebackResult.error = '工具结果已过期，跳过写回';
+        return writebackResult;
+      }
+    }
+
     const chatId = writebackResult.chatId;
     
     // 创建注入条目
@@ -1030,6 +1047,23 @@ class ContextInjector {
         this._log('未找到可写入的最新 AI 回复消息');
         result.error = '未找到可写入的最新 AI 回复消息';
         return result;
+      }
+
+      if (options?.signal?.aborted) {
+        result.error = '工具结果已取消，跳过写回';
+        return result;
+      }
+
+      if (typeof options?.shouldAbortWriteback === 'function') {
+        try {
+          if (options.shouldAbortWriteback() === true) {
+            result.error = '工具结果已过期，跳过写回';
+            return result;
+          }
+        } catch (_) {
+          result.error = '工具结果已过期，跳过写回';
+          return result;
+        }
       }
 
       result.messageIndex = messageIndex;
