@@ -106,6 +106,24 @@ function appendUniqueMethod(list, method) {
   return list;
 }
 
+function getWritebackAbortError(options = {}) {
+  if (options?.signal?.aborted) {
+    return '工具结果已取消，跳过写回';
+  }
+
+  if (typeof options?.shouldAbortWriteback === 'function') {
+    try {
+      if (options.shouldAbortWriteback() === true) {
+        return '工具结果已过期，跳过写回';
+      }
+    } catch (_) {
+      return '工具结果已过期，跳过写回';
+    }
+  }
+
+  return '';
+}
+
 // ============================================================
 // 上下文注入器类
 // ============================================================
@@ -624,9 +642,21 @@ class ContextInjector {
 
     let hostWriteCompleted = false;
 
+    const abortErrorBeforeCommit = getWritebackAbortError(options);
+    if (abortErrorBeforeCommit) {
+      refreshResult.error = abortErrorBeforeCommit;
+      return refreshResult;
+    }
+
     if (typeof setChatMessage === 'function') {
       appendUniqueMethod(refreshResult.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGE);
       try {
+        const abortError = getWritebackAbortError(options);
+        if (abortError) {
+          refreshResult.error = abortError;
+          return refreshResult;
+        }
+
         await setChatMessage.call(context || api || runtime?.topWindow, {
           message: nextText,
           mes: nextText,
@@ -651,6 +681,12 @@ class ContextInjector {
     if (!hostWriteCompleted && typeof setChatMessages === 'function') {
       appendUniqueMethod(refreshResult.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGES);
       try {
+        const abortError = getWritebackAbortError(options);
+        if (abortError) {
+          refreshResult.error = abortError;
+          return refreshResult;
+        }
+
         await setChatMessages.call(context || api || runtime?.topWindow, [{
           message_id: normalizeIdentityValue(options.sourceMessageId) || messageIndex,
           chat_index: messageIndex,
@@ -682,6 +718,12 @@ class ContextInjector {
     if (prefersAppendRefreshAssist && typeof setChatMessages === 'function') {
       appendUniqueMethod(refreshResult.commit.attemptedMethods, 'setChatMessages_refresh_assist');
       try {
+        const abortError = getWritebackAbortError(options);
+        if (abortError) {
+          refreshResult.error = abortError;
+          return refreshResult;
+        }
+
         await setChatMessages.call(context || api || runtime?.topWindow, [{
           message_id: normalizeIdentityValue(options.sourceMessageId) || messageIndex,
           chat_index: messageIndex,
@@ -1158,6 +1200,12 @@ class ContextInjector {
         }
       };
 
+      const abortErrorBeforeLocalCommit = getWritebackAbortError(options);
+      if (abortErrorBeforeLocalCommit) {
+        result.error = abortErrorBeforeLocalCommit;
+        return result;
+      }
+
       targetMessage[key] = nextText;
       this._applyMessageText(targetMessage, nextText, options);
       targetMessage[MESSAGE_TOOL_OUTPUTS_KEY] = mergedOutputs;
@@ -1169,6 +1217,12 @@ class ContextInjector {
 
       this._syncMessageToRuntimeChats(runtime, messageIndex, targetMessage);
       result.steps.runtimeSynced = true;
+
+      const abortErrorBeforeRefresh = getWritebackAbortError(options);
+      if (abortErrorBeforeRefresh) {
+        result.error = abortErrorBeforeRefresh;
+        return result;
+      }
 
       await this._requestAssistantMessageRefresh(runtime, messageIndex, nextText, options, result);
 

@@ -54,14 +54,22 @@ export const TOOL_WRITEBACK_STATUS = {
 
 function shouldAbortAutoWriteback(rawContext) {
   if (rawContext?.signal?.aborted) {
-    return true;
+    return {
+      aborted: true,
+      stale: false,
+      reason: 'cancelled_before_host_commit'
+    };
   }
 
   if (typeof rawContext?.shouldAbortWriteback === 'function') {
     try {
-      return rawContext.shouldAbortWriteback() === true;
+      return rawContext.shouldAbortWriteback() || false;
     } catch (_) {
-      return true;
+      return {
+        aborted: true,
+        stale: true,
+        reason: 'stale_base_changed'
+      };
     }
   }
 
@@ -197,7 +205,8 @@ class ToolOutputService {
       
       this._log(`构建了 ${messages.length} 条消息`);
 
-      if (shouldAbortAutoWriteback(rawContext)) {
+      const abortStateAfterBuild = shouldAbortAutoWriteback(rawContext);
+      if (abortStateAfterBuild) {
         const duration = Date.now() - startTime;
         return {
           success: false,
@@ -216,8 +225,9 @@ class ToolOutputService {
             writebackStatus,
             failureStage,
             writebackDetails,
-            aborted: true,
-            stale: false,
+            aborted: abortStateAfterBuild.aborted === true,
+            stale: abortStateAfterBuild.stale === true,
+            abortReason: abortStateAfterBuild.reason || '',
             phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
           }
         };
@@ -237,7 +247,8 @@ class ToolOutputService {
       failureStage = TOOL_FAILURE_STAGES.EXTRACT_OUTPUT;
       outputContent = this._extractOutputContent(result, toolConfig);
 
-      if (shouldAbortAutoWriteback(rawContext)) {
+      const abortStateAfterExtract = shouldAbortAutoWriteback(rawContext);
+      if (abortStateAfterExtract) {
         const duration = Date.now() - startTime;
         return {
           success: false,
@@ -256,8 +267,9 @@ class ToolOutputService {
             writebackStatus,
             failureStage,
             writebackDetails,
-            aborted: true,
-            stale: true,
+            aborted: abortStateAfterExtract.aborted === true,
+            stale: abortStateAfterExtract.stale === true,
+            abortReason: abortStateAfterExtract.reason || '',
             phases: buildToolPipelineMeta(messages, outputContent, writebackDetails)
           }
         };

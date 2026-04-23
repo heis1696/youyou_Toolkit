@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.65] - 2026-04-23
+
+### 修复
+
+- 🐛 **继续收口自动链路宿主级回归，补齐 generation 门控、事务基线与最终提交取消守卫** (`modules/tool-automation-service.js`, `modules/tool-output-service.js`, `modules/context-injector.js`, `dist/bundle.js`)
+  - 自动链写回前的 stale 判定改为基于 assistant base fingerprint，而不是直接把同事务前一个工具的写回误判成 revision 变化
+  - 宿主最终提交点现在会在本地改写、`setChatMessage`、`setChatMessages` 和补充 refresh 前重复检查取消/过期状态，避免请求已返回后仍完成写回
+  - 自动运行态补充明确的 `cancelled_before_host_commit` / `stale_base_changed` 语义，便于继续做宿主回归排查
+
+### 文档
+
+- 📝 **同步 1.0.65 版本基线** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`)
+  - 更新当前发布版本与代码基线说明
+
 ## [1.0.64] - 2026-04-23
 
 ### 修复
