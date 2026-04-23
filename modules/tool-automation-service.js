@@ -293,6 +293,15 @@ function hasPendingToolOutputs(message) {
   return !!(toolOutputs && typeof toolOutputs === 'object' && Object.keys(toolOutputs).length > 0);
 }
 
+function isAssistantMessageResolvedFromLatest(messageId, api) {
+  const latestTarget = getLatestAssistantTarget(api);
+  if (!latestTarget?.messageId) {
+    return false;
+  }
+
+  return normalizeIdentityValue(latestTarget.messageId) === normalizeIdentityValue(messageId);
+}
+
 // ─── Transaction 事务对象 ───────────────────────────────────
 
 class Transaction {
@@ -484,11 +493,6 @@ class ToolAutomationService {
           return;
         }
 
-        if (isMessageReceivedEvent(normalizedEvent)) {
-          this._log(`事件 "${normalizedEvent}" 仅保留兼容兜底，不直接按 messageId 调度`, { messageId });
-          return;
-        }
-
         if (!this._shouldScheduleEvent(normalizedEvent, {
           messageId,
           swipeId,
@@ -501,7 +505,7 @@ class ToolAutomationService {
         this._scheduleMessageProcessing(messageId, swipeId, {
           settleMs: this._getSettleMs(),
           sourceEvent: normalizedEvent,
-          allowMessageReceivedFallback: false
+          allowMessageReceivedFallback: isMessageReceivedEvent(normalizedEvent)
         });
         return;
       }
@@ -1421,13 +1425,15 @@ class ToolAutomationService {
     const targetMessage = meta?.targetMessage || null;
     const messageId = normalizeIdentityValue(meta?.messageId);
     const currentChatId = normalizeIdentityValue(meta?.currentChatId || this._currentChatId);
+    const api = getHostApi();
+    const isLatestAssistantTarget = isAssistantMessageResolvedFromLatest(messageId, api);
 
     if (!targetMessage || !isAssistantMessage(targetMessage)) {
       this._log(`事件 "${eventName}" 缺少 assistant 目标，跳过调度`, { messageId });
       return false;
     }
 
-    if (hasPendingToolOutputs(targetMessage) && eventName !== 'MESSAGE_SWIPED') {
+    if (hasPendingToolOutputs(targetMessage) && eventName !== 'MESSAGE_SWIPED' && !isMessageReceivedEvent(eventName)) {
       this._log(`事件 "${eventName}" 命中已带工具块的 assistant 楼层，跳过`, { messageId });
       return false;
     }
@@ -1444,6 +1450,11 @@ class ToolAutomationService {
     const gate = this._generationGate || {};
     if (normalizeIdentityValue(gate.sourceChatId) && normalizeIdentityValue(gate.sourceChatId) !== currentChatId) {
       this._log(`事件 "${eventName}" 命中不同聊天，跳过`, { messageId, gateChatId: gate.sourceChatId, currentChatId });
+      return false;
+    }
+
+    if (messageId && gate.baselineMessageId && normalizeIdentityValue(gate.baselineMessageId) === messageId && !isLatestAssistantTarget) {
+      this._log(`事件 "${eventName}" 仍命中 gate 基线楼层，跳过`, { messageId });
       return false;
     }
 

@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.66] - 2026-04-23
+
+### 修复
+
+- 🐛 **恢复自动触发主入口，避免 generation gate 收口后把真实新回复一并挡掉** (`modules/tool-automation-service.js`, `dist/bundle.js`)
+  - `MESSAGE_RECEIVED` 重新允许带 `messageId` 的真实 assistant 新回复直接进入调度，不再被入口分支提前短路
+  - “已有工具块”过滤改为不拦截 `MESSAGE_RECEIVED`，避免最新 assistant 在真实生成后因为已带写回块而完全无法自动重跑
+  - 新增 gate 基线楼层过滤，继续避免聊天打开或旧楼层事件误穿透到自动链路
+
+### 文档
+
+- 📝 **同步 1.0.66 版本基线** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`)
+  - 更新当前发布版本与代码基线说明
+
 ## [1.0.65] - 2026-04-23
 
 ### 修复
