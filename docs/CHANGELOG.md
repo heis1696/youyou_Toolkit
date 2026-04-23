@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+## [1.0.67] - 2026-04-23
+
+### 修复
+
+- 🐛 **修复自动触发对真实新 assistant 楼层的错误拦截，恢复新回复自动执行入口** (`modules/tool-automation-service.js`, `dist/bundle.js`)
+  - `MESSAGE_RECEIVED` fallback 不再错误要求真实新回复沿用基线 `messageId`，避免新 assistant 楼层被误判成非新 generation
+  - 自动门控现在区分“新 assistant 楼层”和“同楼层 revision 变化”两条路径，只对后者继续要求 revision 变化，从而维持对编辑现有楼层与打开聊天回放的拦截
+
+### 文档
+
+- 📝 **同步 1.0.67 版本基线** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`)
+  - 更新当前发布版本与代码基线说明
+
 ## [1.0.66] - 2026-04-23
 
 ### 修复

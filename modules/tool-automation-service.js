@@ -1260,15 +1260,26 @@ class ToolAutomationService {
       return false;
     }
 
-    const matchesGateMessage = !gate.baselineMessageId || gate.baselineMessageId === currentMessageId;
-    const matchesBaselineMessage = !fallback.baselineMessageId || fallback.baselineMessageId === currentMessageId;
-    const revisionChanged = !fallback.baselineRevisionKey || fallback.baselineRevisionKey !== currentRevisionKey;
-    const messageCountIncreased = currentMessageCount > Number(fallback.baselineMessageCount || 0);
-    const contentBecameAvailable = fallback.baselineHadContent === false;
     const armedRecently = (Date.now() - Number(fallback.armedAt || 0)) < Math.max(this._getSettleMs() * 4, 4000);
-
-    if (!matchesGateMessage || !matchesBaselineMessage || !armedRecently) {
+    if (!armedRecently) {
       return false;
+    }
+
+    if (normalizeIdentityValue(gate.sourceChatId) && normalizeIdentityValue(gate.sourceChatId) !== normalizeIdentityValue(this._currentChatId)) {
+      return false;
+    }
+
+    const baselineMessageId = normalizeIdentityValue(fallback.baselineMessageId || gate.baselineMessageId);
+    const baselineRevisionKey = normalizeIdentityValue(fallback.baselineRevisionKey || gate.baselineRevisionKey);
+    const baselineMessageCount = Number(fallback.baselineMessageCount || gate.baselineMessageCount || 0);
+    const baselineHadContent = (fallback.baselineHadContent === true) || (gate.baselineHadContent === true);
+    const messageCountIncreased = currentMessageCount > baselineMessageCount;
+    const revisionChanged = !baselineRevisionKey || baselineRevisionKey !== currentRevisionKey;
+    const contentBecameAvailable = baselineHadContent === false;
+    const isNewAssistantMessage = Boolean(baselineMessageId && currentMessageId && baselineMessageId !== currentMessageId);
+
+    if (isNewAssistantMessage) {
+      return messageCountIncreased;
     }
 
     return revisionChanged && (messageCountIncreased || contentBecameAvailable);
