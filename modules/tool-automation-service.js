@@ -1404,12 +1404,8 @@ class ToolAutomationService {
       return false;
     }
 
-    const now = Date.now();
-    if (Number(gate.expiresAt) && now > Number(gate.expiresAt)) {
-      this._resetGenerationGate();
-      return false;
-    }
-
+    // 不设置时间过期：AI 生成耗时不可控，门控生命周期由 MESSAGE_SENT 武装、
+    // 执行完成后显式 reset 管理，超时反而会在慢生成场景误拦合法事件。
     if (normalizeIdentityValue(gate.sourceChatId) && normalizeIdentityValue(gate.sourceChatId) !== normalizeIdentityValue(this._currentChatId)) {
       this._resetGenerationGate();
       return false;
