@@ -1260,11 +1260,8 @@ class ToolAutomationService {
       return false;
     }
 
-    const armedRecently = (Date.now() - Number(fallback.armedAt || 0)) < Math.max(this._getSettleMs() * 4, 4000);
-    if (!armedRecently) {
-      return false;
-    }
-
+    // 不限制 fallback 武装时效：AI 生成耗时不可控，content-based 检查（revision/messageCount）
+    // 已足以区分"新 AI 回复"和"加载历史消息"，无需额外的时间窗口。
     if (normalizeIdentityValue(gate.sourceChatId) && normalizeIdentityValue(gate.sourceChatId) !== normalizeIdentityValue(this._currentChatId)) {
       return false;
     }
@@ -1567,9 +1564,7 @@ class ToolAutomationService {
   // ── 日志 ──────────────────────────────────────────────────
 
   _log(...args) {
-    if (this.debugMode || settingsService.getDebugSettings?.()?.enableDebugLog) {
-      console.log('[ToolAutomation]', ...args);
-    }
+    console.log('[ToolAutomation]', ...args);
   }
 }
 
