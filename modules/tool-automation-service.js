@@ -38,7 +38,11 @@ function getTopWindow() {
 }
 
 function getHostApi() {
-  return getTopWindow()?.SillyTavern || null;
+  try {
+    return getTopWindow()?.SillyTavern || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 function getHostContext(api) {
@@ -1429,9 +1433,6 @@ class ToolAutomationService {
     const targetMessage = meta?.targetMessage || null;
     const messageId = normalizeIdentityValue(meta?.messageId);
     const currentChatId = normalizeIdentityValue(meta?.currentChatId || this._currentChatId);
-    const api = getHostApi();
-    const isLatestAssistantTarget = isAssistantMessageResolvedFromLatest(messageId, api);
-
     if (!targetMessage || !isAssistantMessage(targetMessage)) {
       this._log(`事件 "${eventName}" 缺少 assistant 目标，跳过调度`, { messageId });
       return false;
@@ -1457,9 +1458,17 @@ class ToolAutomationService {
       return false;
     }
 
-    if (messageId && gate.baselineMessageId && normalizeIdentityValue(gate.baselineMessageId) === messageId && !isLatestAssistantTarget) {
-      this._log(`事件 "${eventName}" 仍命中 gate 基线楼层，跳过`, { messageId });
-      return false;
+    // 仅当事件 messageId 与门控基线楼层重合时才检查是否仍指向旧 assistant
+    if (messageId && gate.baselineMessageId && normalizeIdentityValue(gate.baselineMessageId) === messageId) {
+      let isLatestAssistantTarget = false;
+      try {
+        const api = getHostApi();
+        isLatestAssistantTarget = isAssistantMessageResolvedFromLatest(messageId, api);
+      } catch (_) { /* 宿主 API 不可达时放行，避免误拦正常事件 */ }
+      if (!isLatestAssistantTarget) {
+        this._log(`事件 "${eventName}" 仍命中 gate 基线楼层，跳过`, { messageId });
+        return false;
+      }
     }
 
     return true;
