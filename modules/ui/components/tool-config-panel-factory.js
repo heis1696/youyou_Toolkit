@@ -37,12 +37,6 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     gap: 16px;
   }
 
-  .yyt-tool-panel-scroll {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
-  }
-
   .yyt-tool-panel-hero {
     position: relative;
     overflow: hidden;
@@ -98,100 +92,6 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-save-top {
     white-space: nowrap;
-  }
-
-  /* ---- Sticky action bar ---- */
-  .yyt-tool-sticky-bar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 16px;
-    flex-shrink: 0;
-    border-radius: 18px;
-    background:
-      linear-gradient(180deg, rgba(11, 15, 21, 0.96) 0%, rgba(11, 15, 21, 0.85) 100%);
-    backdrop-filter: blur(12px) saturate(1.2);
-    -webkit-backdrop-filter: blur(12px) saturate(1.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    transition: padding 0.22s var(--ease-in-out), gap 0.22s var(--ease-in-out);
-  }
-
-  .yyt-tool-sticky-bar.yyt-compressed {
-    padding: 6px 14px;
-    gap: 8px;
-  }
-
-  .yyt-tool-sticky-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .yyt-tool-sticky-name {
-    font-size: var(--yyt-text-md);
-    font-weight: 800;
-    color: var(--yyt-color-text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: font-size 0.22s var(--ease-in-out);
-  }
-
-  .yyt-tool-sticky-bar.yyt-compressed .yyt-tool-sticky-name {
-    font-size: var(--yyt-text-base);
-  }
-
-  .yyt-tool-sticky-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .yyt-tool-sticky-bar.yyt-compressed .yyt-sticky-btn-label {
-    display: none;
-  }
-
-  .yyt-tool-sticky-bar.yyt-compressed .yyt-tool-sticky-actions .yyt-btn {
-    padding: 6px 10px;
-    min-height: 30px;
-    font-size: var(--yyt-text-sm);
-    gap: 4px;
-  }
-
-  /* ---- Section anchor nav ---- */
-  .yyt-tool-section-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 4px 0;
-  }
-
-  .yyt-tool-section-nav-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 7px 11px;
-    border-radius: 10px;
-    font-size: var(--yyt-text-sm);
-    font-weight: 600;
-    color: var(--yyt-color-text-secondary);
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-
-  .yyt-tool-section-nav-item:hover {
-    color: var(--yyt-color-text-primary);
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .yyt-tool-hero-chip {
@@ -708,15 +608,22 @@ export function createToolConfigPanel(options) {
         <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
           <div class="yyt-tool-panel-hero">
             <div class="yyt-tool-panel-hero-copy">
+              <div class="yyt-tool-panel-hero-title">${escapeHtml(config.name || this.toolId)}</div>
               <div class="yyt-tool-panel-hero-desc">${escapeHtml(config.description || '配置模板、提取规则、API 预设与手动调试能力。')}</div>
             </div>
             <div class="yyt-tool-panel-hero-tags">
               <span class="yyt-tool-hero-chip">模式 ${escapeHtml(outputModeLabel)}</span>
               <span class="yyt-tool-hero-chip">预设 ${escapeHtml(apiPresetLabel)}</span>
+              <span class="yyt-tool-hero-chip">最近状态 ${escapeHtml(runtimeStatus)}</span>
+              <div class="yyt-tool-panel-hero-actions">
+                <button class="yyt-btn yyt-btn-primary yyt-btn-small yyt-tool-save-top" id="${SCRIPT_ID}-tool-save-top">
+                  <i class="fa-solid fa-save"></i> 保存配置
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-output-mode">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
               <span>输出模式</span>
@@ -731,7 +638,7 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-api-preset">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-database"></i>
               <span>API 预设</span>
@@ -750,7 +657,7 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-bypass">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-shield-halved"></i>
               <span>Ai指令预设</span>
@@ -775,7 +682,7 @@ export function createToolConfigPanel(options) {
           </div>
 
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-worldbook">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-book-open"></i>
               <span>世界书注入</span>
@@ -817,7 +724,7 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-extraction">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-filter"></i>
               <span>提取配置</span>
@@ -838,7 +745,7 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-automation">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-bolt"></i>
               <span>自动触发</span>
@@ -862,7 +769,7 @@ export function createToolConfigPanel(options) {
             <div class="yyt-tool-compact-hint">只有同时满足“当前工具启用自动触发”“输出模式为额外 AI 模型解析”“全局自动化开启”时，才会在 AI 回复后自动执行。</div>
           </div>
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-template">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-file-code"></i>
               <span>模板修改框</span>
@@ -881,7 +788,7 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section" id="${SCRIPT_ID}-section-manual">
+          <div class="yyt-panel-section">
             <div class="yyt-section-title">
               <i class="fa-solid fa-hand-pointer"></i>
               <span>手动操作区</span>
@@ -916,6 +823,14 @@ export function createToolConfigPanel(options) {
                 </button>
                 <div class="yyt-tool-compact-hint">用于手动验证当前模板、API预设和 Ai 指令预设是否能正常工作。</div>
               </div>
+            </div>
+          </div>
+
+          <div class="yyt-panel-footer yyt-panel-footer-end">
+            <div class="yyt-footer-right">
+              <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-tool-save">
+                <i class="fa-solid fa-save"></i> 保存配置
+              </button>
             </div>
           </div>
 
@@ -1170,26 +1085,6 @@ export function createToolConfigPanel(options) {
         self._saveConfig($container, { silent: false });
       });
 
-      // Custom events triggered by shell sticky bar (outside scroll container)
-      $container.on('yyt-tool-save', () => {
-        self._saveConfig($container, { silent: false });
-      });
-
-      $container.on('yyt-tool-execute', async () => {
-        const saveSuccess = self._saveConfig($container, { silent: true });
-        if (!saveSuccess) return;
-        try {
-          const result = await runToolManually(self.toolId);
-          if (!self._isRenderSessionActive($container, sessionId)) return;
-          if (!result?.success && result?.error) {
-            showTopNotice('warning', result.error, { duration: 3200, noticeId: `yyt-tool-run-${self.toolId}` });
-          }
-        } catch (error) {
-          if (!self._isRenderSessionActive($container, sessionId)) return;
-          showToast('error', error?.message || '手动执行失败');
-        }
-      });
-
       $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-reset-template`, () => {
         const baseConfig = getToolBaseConfig(self.toolId);
         if (baseConfig?.promptTemplate) {
@@ -1198,7 +1093,7 @@ export function createToolConfigPanel(options) {
         }
       });
 
-      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-run-manual, #${SCRIPT_ID}-tool-run-manual-top`, async () => {
+      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-run-manual`, async () => {
         const saveSuccess = self._saveConfig($container, { silent: true });
         if (!saveSuccess) {
           return;
@@ -1225,7 +1120,7 @@ export function createToolConfigPanel(options) {
         }
       });
 
-      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-preview-extraction, #${SCRIPT_ID}-tool-preview-extraction-top`, async () => {
+      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-preview-extraction`, async () => {
         const saveSuccess = self._saveConfig($container, { silent: true });
         if (!saveSuccess) {
           return;
@@ -1257,7 +1152,6 @@ export function createToolConfigPanel(options) {
           `#${SCRIPT_ID}-tool-bypass-preset`
         ]
       });
-
     },
 
     _saveConfig($container, options = {}) {
