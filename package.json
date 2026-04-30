@@ -1,6 +1,6 @@
 {
   "name": "youyou-toolkit",
-  "version": "1.0.79",
+  "version": "1.0.80",
   "description": "YouYou工具箱 - SillyTavern工具插件，支持API连接、预设管理与正则提取",
   "main": "index.js",
   "type": "module",

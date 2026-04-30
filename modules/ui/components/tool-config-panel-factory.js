@@ -706,6 +706,24 @@ export function createToolConfigPanel(options) {
 
       return `
         <div class="yyt-tool-panel" data-tool-id="${this.toolId}">
+          <div class="yyt-tool-sticky-bar" id="${SCRIPT_ID}-tool-sticky-bar">
+            <div class="yyt-tool-sticky-left">
+              <span class="yyt-tool-sticky-name">${escapeHtml(config.name || this.toolId)}</span>
+              <span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(runtimeStatus)}">${escapeHtml(runtimeStatus)}</span>
+            </div>
+            <div class="yyt-tool-sticky-actions">
+              <button class="yyt-btn yyt-btn-primary yyt-btn-small" id="${SCRIPT_ID}-tool-run-manual-top">
+                <i class="fa-solid fa-play"></i> <span class="yyt-sticky-btn-label">立即执行</span>
+              </button>
+              <button class="yyt-btn yyt-btn-secondary yyt-btn-small" id="${SCRIPT_ID}-tool-preview-extraction-top">
+                <i class="fa-solid fa-vial"></i> <span class="yyt-sticky-btn-label">测试提取</span>
+              </button>
+              <button class="yyt-btn yyt-btn-small" id="${SCRIPT_ID}-tool-save-top">
+                <i class="fa-solid fa-save"></i> <span class="yyt-sticky-btn-label">保存</span>
+              </button>
+            </div>
+          </div>
+
           <div class="yyt-tool-panel-hero">
             <div class="yyt-tool-panel-hero-copy">
               <div class="yyt-tool-panel-hero-desc">${escapeHtml(config.description || '配置模板、提取规则、API 预设与手动调试能力。')}</div>
@@ -717,12 +735,12 @@ export function createToolConfigPanel(options) {
           </div>
 
           <div class="yyt-tool-section-nav">
-            <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-output-mode"><i class="fa-solid fa-wand-magic-sparkles"></i> 输出模式</span>
-            <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-api-preset"><i class="fa-solid fa-database"></i> API预设</span>
+            <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-output-mode"><i class="fa-solid fa-wand-magic-sparkles"></i> 输出</span>
+            <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-api-preset"><i class="fa-solid fa-database"></i> API</span>
             <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-bypass"><i class="fa-solid fa-shield-halved"></i> Ai指令</span>
             <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-worldbook"><i class="fa-solid fa-book-open"></i> 世界书</span>
             <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-extraction"><i class="fa-solid fa-filter"></i> 提取</span>
-            <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-automation"><i class="fa-solid fa-bolt"></i> 自动触发</span>
+            <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-automation"><i class="fa-solid fa-bolt"></i> 触发</span>
             <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-template"><i class="fa-solid fa-file-code"></i> 模板</span>
             <span class="yyt-tool-section-nav-item" data-scroll-to="${SCRIPT_ID}-section-manual"><i class="fa-solid fa-hand-pointer"></i> 操作</span>
           </div>
@@ -1249,6 +1267,17 @@ export function createToolConfigPanel(options) {
         ]
       });
 
+      // ---- Scroll compression: sticky bar shrinks when hero scrolls out ----
+      const $stickyBar = $container.find('.yyt-tool-sticky-bar');
+      const $hero = $container.find('.yyt-tool-panel-hero');
+      if ($stickyBar.length && $hero.length) {
+        const heroObserver = new IntersectionObserver((entries) => {
+          $stickyBar.toggleClass('yyt-compressed', !entries[0].isIntersecting);
+        }, { threshold: 0 });
+        heroObserver.observe($hero[0]);
+        $container.data('yytHeroObserver', heroObserver);
+      }
+
       // ---- Section nav: smooth scroll to section ----
       $container.on('click.yytToolPanel', '.yyt-tool-section-nav-item', function() {
         const targetId = $(this).data('scroll-to');
@@ -1285,6 +1314,11 @@ export function createToolConfigPanel(options) {
       if (!$ || !isContainerValid($container)) return;
       this.renderSessionId = (this.renderSessionId || 0) + 1;
       $container.removeData('yytRenderSessionId');
+      const heroObserver = $container.data('yytHeroObserver');
+      if (heroObserver) {
+        heroObserver.disconnect();
+        $container.removeData('yytHeroObserver');
+      }
       destroyEnhancedCustomSelects($container, 'yytToolPanelSelect');
       $container.off('.yytToolPanel');
     },
