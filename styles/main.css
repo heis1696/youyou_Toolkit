@@ -1651,7 +1651,6 @@
   min-width: 148px;
 }
 
-.yyt-popup-shell[data-yyt-startup-visible="true"] .yyt-shell-topbar,
 .yyt-popup-shell[data-yyt-startup-visible="true"] .yyt-shell-workspace {
   filter: blur(1px);
   pointer-events: none;
@@ -2393,5 +2392,207 @@
 
   .yyt-popup-footer-note {
     text-align: center;
+  }
+}
+
+/* ============================================================
+   Shell polish: tab transitions, sidebar collapse, micro-interactions
+   ============================================================ */
+
+/* ---- Tab content enter animation ---- */
+.yyt-tab-content.active {
+  animation: yytTabFadeIn 0.22s ease-out;
+}
+
+@keyframes yytTabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Sidebar collapse system ---- */
+.yyt-shell-sidebar {
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  width: var(--yyt-shell-sidebar-width);
+}
+
+.yyt-shell-sidebar.yyt-collapsed {
+  width: 56px;
+}
+
+.yyt-shell-workspace {
+  transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.yyt-shell-workspace.yyt-sidebar-collapsed {
+  grid-template-columns: 56px minmax(0, 1fr);
+}
+
+/* Collapsed sidebar: hide all text, keep icons only */
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-name,
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-desc,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-note,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-title,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-hint,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-stats {
+  display: none;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-item {
+  padding: 14px 10px;
+  justify-content: center;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-copy {
+  display: none;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-card {
+  padding: 12px 8px;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-item::before {
+  display: none;
+}
+
+/* ---- Sidebar collapse toggle button ---- */
+.yyt-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--yyt-text-muted);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.yyt-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--yyt-text);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.yyt-sidebar-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring);
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-sidebar-toggle i {
+  transform: rotate(180deg);
+}
+
+/* ---- Compact sidebar stats ---- */
+.yyt-shell-sidebar-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.yyt-shell-sidebar-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.yyt-shell-sidebar-stat-value {
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--yyt-text);
+}
+
+.yyt-shell-sidebar-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--yyt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ---- Shell main header compact ---- */
+.yyt-shell-main-header {
+  padding: 14px 18px;
+}
+
+.yyt-shell-main-heading-block {
+  gap: 6px;
+}
+
+.yyt-shell-breadcrumb {
+  /* breadcrumb removed from main header — now only sidebar active state shows location */
+}
+
+/* ---- Footer compact ---- */
+.yyt-popup-footer {
+  padding: 10px 20px;
+}
+
+.yyt-popup-footer-left {
+  gap: 8px;
+}
+
+/* ---- Sub-content enter animation ---- */
+.yyt-sub-content {
+  animation: yytTabFadeIn 0.2s ease-out;
+}
+
+/* ---- Nav item micro-interactions ---- */
+.yyt-shell-sidebar .yyt-main-nav-item {
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item::before {
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item:hover {
+  transform: translateX(2px);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring);
+}
+
+/* ---- Shell workspace gap ---- */
+.yyt-shell-workspace {
+  gap: 12px;
+}
+
+/* ---- Responsive: collapsed sidebar on narrow screens ---- */
+@media screen and (max-width: 860px) {
+  .yyt-shell-sidebar.yyt-collapsed {
+    width: 100%;
+  }
+
+  .yyt-shell-workspace.yyt-sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .yyt-sidebar-toggle {
+    display: none;
   }
 }

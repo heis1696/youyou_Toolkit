@@ -23,6 +23,35 @@ export function createPopupShell(context) {
     current: null
   };
 
+  function isSidebarCollapsed() {
+    return Boolean(uiState.sidebarCollapsed);
+  }
+
+  function toggleSidebar() {
+    uiState.sidebarCollapsed = !uiState.sidebarCollapsed;
+
+    const popup = uiState.currentPopup;
+    if (!popup) return;
+
+    const sidebar = popup.querySelector('.yyt-shell-sidebar');
+    const workspace = popup.querySelector('.yyt-shell-workspace');
+    const toggleBtn = popup.querySelector('.yyt-sidebar-toggle i');
+
+    if (sidebar) {
+      sidebar.classList.toggle('yyt-collapsed', uiState.sidebarCollapsed);
+    }
+    if (workspace) {
+      workspace.classList.toggle('yyt-sidebar-collapsed', uiState.sidebarCollapsed);
+    }
+    if (toggleBtn) {
+      toggleBtn.className = uiState.sidebarCollapsed
+        ? 'fa-solid fa-angles-right'
+        : 'fa-solid fa-angles-left';
+    }
+
+    refreshScrollableSurfaces();
+  }
+
   function log(...args) {
     console.log(`[${SCRIPT_ID}]`, ...args);
   }
@@ -252,10 +281,12 @@ export function createPopupShell(context) {
     const defaultToolCount = toolSubTabs.filter(tab => !tab?.isCustom).length;
 
     const $popup = $(uiState.currentPopup);
-    $popup.find('.yyt-shell-topbar-meta').text(`主页面 ${tools.length} / 默认工具 ${defaultToolCount} / 自定义工具 ${customToolCount}`);
-    $popup.find('.yyt-shell-stat').eq(0).find('.yyt-shell-stat-value').text(String(tools.length));
-    $popup.find('.yyt-shell-stat').eq(1).find('.yyt-shell-stat-value').text(String(defaultToolCount));
-    $popup.find('.yyt-shell-stat').eq(2).find('.yyt-shell-stat-value').text(String(customToolCount));
+    const $stats = $popup.find('.yyt-shell-sidebar-stats');
+    if ($stats.length) {
+      $stats.find('.yyt-shell-sidebar-stat').eq(0).find('.yyt-shell-sidebar-stat-value').text(String(tools.length));
+      $stats.find('.yyt-shell-sidebar-stat').eq(1).find('.yyt-shell-sidebar-stat-value').text(String(defaultToolCount));
+      $stats.find('.yyt-shell-sidebar-stat').eq(2).find('.yyt-shell-sidebar-stat-value').text(String(customToolCount));
+    }
   }
 
   function ensureActiveMainTabStillExists() {
@@ -1296,6 +1327,127 @@ export function createPopupShell(context) {
     `);
   }
 
+  // ============================================================
+  // Shell HTML builders
+  // ============================================================
+
+  function buildShellHeaderHtml() {
+    return `
+      <div class="yyt-popup-header">
+        <div class="yyt-popup-brand">
+          <div class="yyt-popup-title-row">
+            <div class="yyt-popup-title">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>YouYou 工具箱</span>
+            </div>
+            <span class="yyt-popup-version">v${SCRIPT_VERSION}</span>
+          </div>
+          <div class="yyt-popup-subtitle">工具编排、配置与调试工作台</div>
+        </div>
+        <div class="yyt-popup-header-actions">
+          <div class="yyt-popup-drag-hint">
+            <i class="fa-solid fa-grip-lines"></i>
+            <span>拖动窗口</span>
+          </div>
+          <button class="yyt-popup-close" title="关闭">
+            <i class="fa-solid fa-times"></i>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function buildShellSidebarHtml(tools, defaultToolCount, customToolCount) {
+    const collapsed = isSidebarCollapsed();
+    const mainNavHtml = tools.map(tool => `
+      <div class="yyt-main-nav-item ${tool.id === uiState.currentMainTab ? 'active' : ''}" data-tab="${tool.id}">
+        <div class="yyt-main-nav-icon">
+          <i class="fa-solid ${escapeHtml(tool.icon || 'fa-file')}"></i>
+        </div>
+        <div class="yyt-main-nav-copy">
+          <span class="yyt-main-nav-name">${escapeHtml(tool.name || tool.id)}</span>
+          <span class="yyt-main-nav-desc">${escapeHtml(tool.description || '进入此页面进行配置、查看或维护。')}</span>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <aside class="yyt-shell-sidebar${collapsed ? ' yyt-collapsed' : ''}">
+        <div class="yyt-shell-sidebar-card">
+          <div class="yyt-shell-sidebar-title-row">
+            <span class="yyt-shell-sidebar-title">页面导航</span>
+            <span class="yyt-shell-sidebar-hint">${tools.length} tabs</span>
+            <button class="yyt-sidebar-toggle" title="${collapsed ? '展开侧栏' : '折叠侧栏'}">
+              <i class="fa-solid ${collapsed ? 'fa-angles-right' : 'fa-angles-left'}"></i>
+            </button>
+          </div>
+          <div class="yyt-main-nav">
+            ${mainNavHtml}
+          </div>
+          <div class="yyt-shell-sidebar-note">
+            保存后，手动执行与写回链都会以最新配置为准。
+          </div>
+          <div class="yyt-shell-sidebar-stats">
+            <div class="yyt-shell-sidebar-stat">
+              <span class="yyt-shell-sidebar-stat-value">${tools.length}</span>
+              <span class="yyt-shell-sidebar-stat-label">主页面</span>
+            </div>
+            <div class="yyt-shell-sidebar-stat">
+              <span class="yyt-shell-sidebar-stat-value">${defaultToolCount}</span>
+              <span class="yyt-shell-sidebar-stat-label">默认工具</span>
+            </div>
+            <div class="yyt-shell-sidebar-stat">
+              <span class="yyt-shell-sidebar-stat-value">${customToolCount}</span>
+              <span class="yyt-shell-sidebar-stat-label">自定义工具</span>
+            </div>
+          </div>
+        </div>
+      </aside>`;
+  }
+
+  function buildShellMainHeaderHtml(displayName, description) {
+    return `
+      <div class="yyt-shell-main-header">
+        <div class="yyt-shell-main-heading-block">
+          <div class="yyt-shell-main-title">${escapeHtml(displayName)}</div>
+          <div class="yyt-shell-main-description">${escapeHtml(description)}</div>
+        </div>
+        <div class="yyt-shell-main-actions">
+          <div class="yyt-shell-main-meta">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>保存后执行链会立即使用最新配置</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function buildShellContentHtml(tools, currentMainTab) {
+    return tools.map(tool => `
+      <div class="yyt-tab-content ${tool.id === currentMainTab ? 'active' : ''}" data-tab="${tool.id}">
+      </div>
+    `).join('');
+  }
+
+  function buildShellFooterHtml(displayName) {
+    return `
+      <div class="yyt-popup-footer">
+        <div class="yyt-popup-footer-left">
+          <div class="yyt-popup-status-cluster">
+            <div class="yyt-popup-status">
+              <i class="fa-solid fa-compass"></i>
+              <span class="yyt-popup-active-label">当前：${escapeHtml(displayName)}</span>
+            </div>
+            <div class="yyt-popup-footer-note">
+              API、工具、提取与诊断统一入口。
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ============================================================
+  // Popup open / close
+  // ============================================================
+
   async function openPopup() {
     if (uiState.currentPopup) {
       log('弹窗已存在');
@@ -1341,116 +1493,21 @@ export function createPopupShell(context) {
     });
     targetDoc.body.appendChild(uiState.currentOverlay);
 
-    const mainNavHtml = tools.map(tool => `
-      <div class="yyt-main-nav-item ${tool.id === uiState.currentMainTab ? 'active' : ''}" data-tab="${tool.id}">
-        <div class="yyt-main-nav-icon">
-          <i class="fa-solid ${escapeHtml(tool.icon || 'fa-file')}"></i>
-        </div>
-        <div class="yyt-main-nav-copy">
-          <span class="yyt-main-nav-name">${escapeHtml(tool.name || tool.id)}</span>
-          <span class="yyt-main-nav-desc">${escapeHtml(tool.description || '进入此页面进行配置、查看或维护。')}</span>
-        </div>
-      </div>
-    `).join('');
-
-    const contentHtml = tools.map(tool => `
-      <div class="yyt-tab-content ${tool.id === uiState.currentMainTab ? 'active' : ''}" data-tab="${tool.id}">
-        <!-- 内容将动态渲染 -->
-      </div>
-    `).join('');
-
+    const sidebarCollapsed = isSidebarCollapsed();
     const popupHtml = `
       <div class="yyt-popup" id="${POPUP_ID}">
-        <div class="yyt-popup-header">
-          <div class="yyt-popup-brand">
-            <div class="yyt-popup-title-row">
-              <div class="yyt-popup-title">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                <span>YouYou 工具箱</span>
-              </div>
-              <span class="yyt-popup-version">v${SCRIPT_VERSION}</span>
-            </div>
-            <div class="yyt-popup-subtitle">工具编排、配置与调试工作台</div>
-          </div>
-          <div class="yyt-popup-header-actions">
-            <div class="yyt-popup-drag-hint">
-              <i class="fa-solid fa-grip-lines"></i>
-              <span>拖动窗口</span>
-            </div>
-            <button class="yyt-popup-close" title="关闭">
-              <i class="fa-solid fa-times"></i>
-            </button>
-          </div>
-        </div>
-
+        ${buildShellHeaderHtml()}
         <div class="yyt-popup-body">
           <div class="yyt-popup-shell">
-            <div class="yyt-shell-topbar">
-              <div class="yyt-shell-topbar-main">
-                <div class="yyt-shell-kicker">Workspace</div>
-                <div class="yyt-shell-topbar-summary">
-                  <div class="yyt-shell-topbar-title">工作台概览</div>
-                  <div class="yyt-shell-topbar-meta">主页面 ${tools.length} / 默认工具 ${defaultToolCount} / 自定义工具 ${customToolCount}</div>
-                </div>
-              </div>
-              <div class="yyt-shell-stats">
-                <div class="yyt-shell-stat">
-                  <span class="yyt-shell-stat-label">主页面</span>
-                  <strong class="yyt-shell-stat-value">${tools.length}</strong>
-                </div>
-                <div class="yyt-shell-stat">
-                  <span class="yyt-shell-stat-label">默认工具</span>
-                  <strong class="yyt-shell-stat-value">${defaultToolCount}</strong>
-                </div>
-                <div class="yyt-shell-stat">
-                  <span class="yyt-shell-stat-label">自定义工具</span>
-                  <strong class="yyt-shell-stat-value">${customToolCount}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div class="yyt-shell-workspace">
-              <aside class="yyt-shell-sidebar">
-                <div class="yyt-shell-sidebar-card">
-                  <div class="yyt-shell-sidebar-title-row">
-                    <span class="yyt-shell-sidebar-title">页面导航</span>
-                    <span class="yyt-shell-sidebar-hint">${tools.length} tabs</span>
-                  </div>
-                  <div class="yyt-main-nav">
-                    ${mainNavHtml}
-                  </div>
-                  <div class="yyt-shell-sidebar-note">
-                    保存后，手动执行与写回链都会以最新配置为准。
-                  </div>
-                </div>
-              </aside>
-
+            <div class="yyt-shell-workspace${sidebarCollapsed ? ' yyt-sidebar-collapsed' : ''}">
+              ${buildShellSidebarHtml(tools, defaultToolCount, customToolCount)}
               <section class="yyt-shell-main">
-                <div class="yyt-shell-main-header">
-                  <div class="yyt-shell-main-heading-block">
-                    <div class="yyt-shell-main-label-row">
-                      <div class="yyt-shell-main-label">当前页面</div>
-                      <div class="yyt-shell-breadcrumb">${escapeHtml(currentDisplayName)}</div>
-                    </div>
-                    <div class="yyt-shell-main-title">${escapeHtml(currentDisplayName)}</div>
-                    <div class="yyt-shell-main-description">${escapeHtml(currentDescription)}</div>
-                  </div>
-                  <div class="yyt-shell-main-actions">
-                    <div class="yyt-shell-main-meta">
-                      <i class="fa-solid fa-circle-info"></i>
-                      <span>保存后执行链会立即使用最新配置</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="yyt-sub-nav" style="display: none;">
-                  <!-- 次级顶栏将动态渲染 -->
-                </div>
-
+                ${buildShellMainHeaderHtml(currentDisplayName, currentDescription)}
+                <div class="yyt-sub-nav" style="display: none;"></div>
                 <div class="yyt-content-frame">
                   <div class="yyt-content">
                     <div class="yyt-content-inner">
-                      ${contentHtml}
+                      ${buildShellContentHtml(tools, uiState.currentMainTab)}
                     </div>
                   </div>
                 </div>
@@ -1458,23 +1515,7 @@ export function createPopupShell(context) {
             </div>
           </div>
         </div>
-
-        <div class="yyt-popup-footer">
-          <div class="yyt-popup-footer-left">
-            <div class="yyt-popup-status-cluster">
-              <div class="yyt-popup-status">
-                <i class="fa-solid fa-compass"></i>
-                <span class="yyt-popup-active-label">当前：${escapeHtml(currentDisplayName)}</span>
-              </div>
-              <div class="yyt-popup-footer-note">
-                API、工具、提取与诊断统一入口。
-              </div>
-            </div>
-          </div>
-          <div class="yyt-popup-footer-right">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-close-btn">关闭</button>
-          </div>
-        </div>
+        ${buildShellFooterHtml(currentDisplayName)}
       </div>
     `;
 
@@ -1484,7 +1525,7 @@ export function createPopupShell(context) {
     targetDoc.body.appendChild(uiState.currentPopup);
 
     $(uiState.currentPopup).find('.yyt-popup-close').on('click', closePopup);
-    $(uiState.currentPopup).find(`#${SCRIPT_ID}-close-btn`).on('click', closePopup);
+    $(uiState.currentPopup).find('.yyt-sidebar-toggle').on('click', toggleSidebar);
     bindPopupEvents();
     $(uiState.currentPopup).find('.yyt-main-nav-item').on('click', function onMainTabClick() {
       const tab = $(this).data('tab');
