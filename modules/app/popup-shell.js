@@ -668,7 +668,7 @@ export function createPopupShell(context) {
     const surfaces = [
       ...popup.querySelectorAll('.yyt-shell-sidebar .yyt-main-nav'),
       ...popup.querySelectorAll('.yyt-sub-nav'),
-      ...popup.querySelectorAll('.yyt-content'),
+      ...popup.querySelectorAll('.yyt-tab-content.active'),
       ...popup.querySelectorAll('.yyt-settings-content'),
       ...popup.querySelectorAll('.yyt-tool-list')
     ];

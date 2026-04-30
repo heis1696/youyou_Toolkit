@@ -327,8 +327,7 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
   padding: 6px;
   border-radius: calc(var(--yyt-radius-lg) - 2px);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0.03) 100%);
@@ -2133,8 +2132,7 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow-y: auto;
-  height: 100%;
+  overflow: visible;
 }
 
 .yyt-content-inner {
