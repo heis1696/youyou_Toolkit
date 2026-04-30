@@ -42,6 +42,30 @@
   --yyt-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
   --yyt-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.18);
   --yyt-shadow-glow: 0 0 24px var(--yyt-accent-glow);
+  /* —— Phase C1: 语义化表面/边框别名（底层仍引用现有 token，不破坏旧代码）—— */
+  --yyt-surface-raised: var(--yyt-surface-2);
+  --yyt-surface-overlay: var(--yyt-surface-3);
+  --yyt-surface-elevated: var(--yyt-surface-active);
+  --yyt-border-subtle: var(--yyt-border-soft);
+  --yyt-border-default: var(--yyt-border);
+  --yyt-border-emphasis: var(--yyt-border-strong);
+  --yyt-border-focus: rgba(123, 183, 255, 0.52);
+  --yyt-color-text-primary: var(--yyt-text);
+  --yyt-color-text-secondary: var(--yyt-text-secondary);
+  --yyt-color-text-muted: var(--yyt-text-muted);
+  --yyt-color-accent: var(--yyt-accent);
+  /* —— Phase C2: 缓动 token —— */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  /* —— Phase C3: 字号 scale —— */
+  --yyt-text-xs: 10px;
+  --yyt-text-sm: 11px;
+  --yyt-text-base: 13px;
+  --yyt-text-md: 14px;
+  --yyt-text-lg: 16px;
+  --yyt-text-xl: 20px;
+  --yyt-text-2xl: 24px;
   --yyt-control-radius: 14px;
   --yyt-control-radius-sm: 11px;
   --yyt-control-bg: linear-gradient(180deg, #1d2737 0%, #151d2a 100%);
@@ -182,13 +206,13 @@
 }
 
 .yyt-main-nav-name {
-  font-size: 13px;
+  font-size: var(--yyt-text-base);
   font-weight: 800;
   color: inherit;
 }
 
 .yyt-main-nav-desc {
-  font-size: 11px;
+  font-size: var(--yyt-text-sm);
   line-height: 1.5;
   color: inherit;
   opacity: 0.74;
@@ -272,7 +296,7 @@
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   color: var(--yyt-text-secondary);
   font-weight: 700;
-  font-size: 12px;
+  font-size: var(--yyt-text-sm);
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.015);
 }
@@ -396,8 +420,8 @@
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  font-size: 12px;
-  color: var(--yyt-text);
+  font-size: var(--yyt-text-sm);
+  color: var(--yyt-color-text-primary);
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
@@ -550,9 +574,9 @@
 }
 
 .yyt-form-group label {
-  font-size: 12px;
+  font-size: var(--yyt-text-sm);
   font-weight: 600;
-  color: var(--yyt-text-secondary);
+  color: var(--yyt-color-text-secondary);
   letter-spacing: 0.3px;
 }
 
@@ -804,7 +828,7 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.28s var(--ease-in-out);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
@@ -817,7 +841,7 @@
   bottom: 3px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(232, 238, 245, 0.88) 100%);
   border-radius: 50%;
-  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.28s var(--ease-in-out);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
@@ -943,7 +967,7 @@
   z-index: 3200;
   opacity: 0;
   pointer-events: none;
-  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
+  transition: max-height 0.25s var(--ease-in-out), opacity 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
 }
 
 .yyt-custom-select.yyt-open .yyt-select-dropdown,
@@ -1110,11 +1134,11 @@
   gap: 4px;
   padding: 5px 10px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--yyt-text-sm);
   font-weight: 700;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-  color: var(--yyt-text-secondary);
+  color: var(--yyt-color-text-secondary);
 }
 
 .yyt-badge-small {
@@ -2417,7 +2441,7 @@
 
 /* ---- Sidebar collapse system ---- */
 .yyt-shell-sidebar {
-  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.28s var(--ease-in-out);
   width: var(--yyt-shell-sidebar-width);
 }
 
@@ -2426,7 +2450,7 @@
 }
 
 .yyt-shell-workspace {
-  transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: grid-template-columns 0.28s var(--ease-in-out);
 }
 
 .yyt-shell-workspace.yyt-sidebar-collapsed {
@@ -2553,7 +2577,7 @@
 
 /* ---- Nav item micro-interactions ---- */
 .yyt-shell-sidebar .yyt-main-nav-item {
-  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, padding 0.28s var(--ease-in-out);
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item::before {

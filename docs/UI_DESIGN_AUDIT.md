@@ -213,37 +213,33 @@
 |---|------|------|
 | — | Sidebar 折叠图标 CSS rotate(180deg) 与 JS 类名切换冲突 | ✅ 删除 CSS rotate 规则 |
 
-### Phase C: 工具面板 UX 重构（下一阶段 — 需解决滚动层级）
-
-**背景**：当前工具配置面板是一个长滚动表单（输出模式 → API 预设 → Ai 指令 → 世界书 → 提取 → 自动触发 → 模板 → 手动操作），用户必须滚动到底部才能操作模板或执行按钮。
-
-**约束**：工具面板渲染在 `.yyt-content` (overflow:auto) 内部，`position: sticky` 会被该 overflow 容器阻断。任何 sticky 方案都需要先解决滚动层级问题。
-
-| # | 项目 | 前置依赖 | 说明 |
-|---|------|---------|------|
-| C1 | **滚动层级重构** | — | `.yyt-content` 的 `overflow: auto` 改为由 `.yyt-sub-content` 承接滚动，`.yyt-content` 变为 `overflow: visible`，使 sticky 元素可以穿透。 |
-| C2 | **常驻操作顶栏** | C1 | 工具名 + 状态指示 + 立即执行 + 测试提取 + 保存，不随滚动消失。滚动压缩：hero 滚出视口后字号缩小、按钮文字隐藏。使用 IntersectionObserver。 |
-| C3 | **移除底部重复按钮** | C2 | 当前 hero 区和 footer 区各有一个"保存配置"按钮，与 C2 顶栏合并后移除两者。 |
-| C4 | **分区导航** | C1 | 水平锚点栏（输出模式 / API预设 / Ai指令 / 世界书 / 提取 / 自动触发 / 模板 / 操作），点击平滑滚动到对应 section。每个 section 有唯一 `id`。 |
-| C5 | **section 可折叠** | C4 | 每个分区卡可折叠/展开，默认展开常用区（输出模式、模板、操作），收起高级区（世界书、自动触发）。状态记忆在实例内。 |
-
-### Phase D: 设计系统升级（需宿主回归）
+### Phase C: 设计系统升级（当前阶段）
 
 | # | 项目 | 说明 |
 |---|------|------|
-| D1 | Token 语义化 | `--yyt-surface` → `--yyt-surface-raised` 等，旧名保留为别名 |
-| D2 | Easing token 统一 | 3 个缓动变量 `--ease-out` / `--ease-in` / `--ease-in-out` |
-| D3 | Type scale token | 6 级字号变量，替代散落各处的硬编码字号 |
-| D4 | 面板依赖注入 | ApiPresetPanel 改为通过 `dependencies` 获取 preset-manager / api-connection |
+| C1 | **Token 语义化** | `--yyt-surface` → `--yyt-surface-raised` 等，旧名保留为别名，不破坏现有引用 |
+| C2 | **Easing token 统一** | 3 个缓动变量 `--ease-out` / `--ease-in` / `--ease-in-out`，替换散落各处的 cubic-bezier |
+| C3 | **Type scale token** | 6 级字号变量，替代硬编码的 10/11/12/13/14/16/18/24/26px |
+| C4 | **面板依赖注入** | ApiPresetPanel 改为通过 `dependencies` 获取 preset-manager / api-connection |
+
+### Phase D: 工具面板 UX 重构（需先解滚动层级）
+
+| # | 项目 | 前置 | 说明 |
+|---|------|------|------|
+| D1 | 滚动层级重构 | — | `.yyt-content` 的 `overflow: auto` 移到 `.yyt-sub-content`，使 sticky 穿透 |
+| D2 | 常驻操作顶栏 + 滚动压缩 | D1 | IntersectionObserver，hero 滚出后压缩 |
+| D3 | 移除底部重复保存按钮 | D2 | hero 和 footer 两处保存按钮合并到顶栏 |
+| D4 | 分区锚点导航 + 平滑滚动 | D1 | 8 段水平锚点栏 |
+| D5 | Section 可折叠 | D4 | 常用区默认展开，高级区默认收起 |
 
 ### Phase E: 长期（需全量回归）
 
 | # | 项目 | 说明 |
 |---|------|------|
-| E1 | OKLCH 色彩空间迁移 | 感知均匀色彩，主题生成自动化 |
-| E2 | 动画 @keyframes 合并 | 7 个 keyframes → 3 个（fade-in / slide-up / scale-in） |
-| E3 | PanelState 基类 | 轻量 get/set/reset API，替代 `$container.data()` 拼接 |
-| E4 | Content wrapper 合并 | `.yyt-content-frame` + `.yyt-content` + `.yyt-content-inner` 三层合并为一层 |
+| E1 | OKLCH 色彩空间迁移 | 感知均匀色彩 |
+| E2 | 动画 @keyframes 合并 | 7 → 3 |
+| E3 | PanelState 基类 | 替代 `$container.data()` |
+| E4 | Content wrapper 合并 | 三层 → 一层 |
 
 ---
 
