@@ -8,48 +8,49 @@
    ============================================================ */
 
 :root {
-  --yyt-accent: #7bb7ff;
-  --yyt-accent-glow: rgba(123, 183, 255, 0.4);
-  --yyt-accent-soft: rgba(123, 183, 255, 0.15);
-  --yyt-accent-strong: #a5d4ff;
-  --yyt-on-accent: #0b0f15;
-  --yyt-success: #4ade80;
-  --yyt-success-glow: rgba(74, 222, 128, 0.3);
-  --yyt-error: #f87171;
+  /* —— Phase E1: OKLCH 色彩空间 —— */
+  --yyt-accent: oklch(0.733 0.144 265);
+  --yyt-accent-glow: oklch(0.733 0.144 265 / 0.4);
+  --yyt-accent-soft: oklch(0.733 0.144 265 / 0.15);
+  --yyt-accent-strong: oklch(0.818 0.092 257);
+  --yyt-on-accent: oklch(0.155 0.015 262);
+  --yyt-success: oklch(0.747 0.180 155);
+  --yyt-success-glow: oklch(0.747 0.180 155 / 0.3);
+  --yyt-error: oklch(0.653 0.207 23);
   --yyt-danger: var(--yyt-error);
-  --yyt-danger-soft: rgba(248, 113, 113, 0.16);
-  --yyt-error-glow: rgba(248, 113, 113, 0.3);
-  --yyt-warning: #fbbf24;
-  --yyt-bg-base: #0b0f15;
-  --yyt-bg-gradient-1: rgba(123, 183, 255, 0.12);
-  --yyt-bg-gradient-2: rgba(155, 123, 255, 0.10);
-  --yyt-surface: rgba(255, 255, 255, 0.035);
-  --yyt-surface-2: rgba(255, 255, 255, 0.055);
-  --yyt-surface-3: rgba(255, 255, 255, 0.07);
-  --yyt-surface-hover: rgba(255, 255, 255, 0.09);
-  --yyt-surface-active: rgba(255, 255, 255, 0.12);
-  --yyt-border: rgba(255, 255, 255, 0.06);
-  --yyt-border-soft: rgba(255, 255, 255, 0.04);
-  --yyt-border-strong: rgba(255, 255, 255, 0.14);
-  --yyt-text: rgba(255, 255, 255, 0.93);
-  --yyt-text-secondary: rgba(255, 255, 255, 0.68);
-  --yyt-text-muted: rgba(255, 255, 255, 0.45);
-  --yyt-focus-ring: 0 0 0 2px rgba(123, 183, 255, 0.52);
+  --yyt-danger-soft: oklch(0.653 0.207 23 / 0.16);
+  --yyt-error-glow: oklch(0.653 0.207 23 / 0.3);
+  --yyt-warning: oklch(0.803 0.161 88);
+  --yyt-bg-base: oklch(0.155 0.015 262);
+  --yyt-bg-gradient-1: oklch(0.733 0.144 265 / 0.12);
+  --yyt-bg-gradient-2: oklch(0.637 0.152 295 / 0.10);
+  --yyt-surface: oklch(1 0 0 / 0.035);
+  --yyt-surface-2: oklch(1 0 0 / 0.055);
+  --yyt-surface-3: oklch(1 0 0 / 0.07);
+  --yyt-surface-hover: oklch(1 0 0 / 0.09);
+  --yyt-surface-active: oklch(1 0 0 / 0.12);
+  --yyt-border: oklch(1 0 0 / 0.06);
+  --yyt-border-soft: oklch(1 0 0 / 0.04);
+  --yyt-border-strong: oklch(1 0 0 / 0.14);
+  --yyt-text: oklch(1 0 0 / 0.93);
+  --yyt-text-secondary: oklch(1 0 0 / 0.68);
+  --yyt-text-muted: oklch(1 0 0 / 0.45);
+  --yyt-focus-ring: 0 0 0 2px oklch(0.733 0.144 265 / 0.52);
   --yyt-radius: 14px;
   --yyt-radius-sm: 10px;
   --yyt-radius-lg: 18px;
   --yyt-radius-xl: 24px;
-  --yyt-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
-  --yyt-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.18);
+  --yyt-shadow: 0 18px 48px oklch(0 0 0 / 0.28);
+  --yyt-shadow-soft: 0 10px 28px oklch(0 0 0 / 0.18);
   --yyt-shadow-glow: 0 0 24px var(--yyt-accent-glow);
-  /* —— Phase C1: 语义化表面/边框别名（底层仍引用现有 token，不破坏旧代码）—— */
+  /* —— Phase C1: 语义化表面/边框别名 —— */
   --yyt-surface-raised: var(--yyt-surface-2);
   --yyt-surface-overlay: var(--yyt-surface-3);
   --yyt-surface-elevated: var(--yyt-surface-active);
   --yyt-border-subtle: var(--yyt-border-soft);
   --yyt-border-default: var(--yyt-border);
   --yyt-border-emphasis: var(--yyt-border-strong);
-  --yyt-border-focus: rgba(123, 183, 255, 0.52);
+  --yyt-border-focus: oklch(0.733 0.144 265 / 0.52);
   --yyt-color-text-primary: var(--yyt-text);
   --yyt-color-text-secondary: var(--yyt-text-secondary);
   --yyt-color-text-muted: var(--yyt-text-muted);
@@ -68,45 +69,45 @@
   --yyt-text-2xl: 24px;
   --yyt-control-radius: 14px;
   --yyt-control-radius-sm: 11px;
-  --yyt-control-bg: linear-gradient(180deg, #1d2737 0%, #151d2a 100%);
-  --yyt-control-bg-hover: linear-gradient(180deg, #243247 0%, #1a2638 100%);
-  --yyt-control-bg-active: linear-gradient(180deg, #2a3951 0%, #1d2b3f 100%);
-  --yyt-control-bg-strong: linear-gradient(180deg, #243247 0%, #192435 100%);
-  --yyt-control-bg-focus: linear-gradient(180deg, #243a57 0%, #1a2a3f 100%);
-  --yyt-control-border: rgba(146, 173, 212, 0.24);
-  --yyt-control-border-hover: rgba(146, 173, 212, 0.36);
-  --yyt-control-border-focus: rgba(123, 183, 255, 0.72);
-  --yyt-control-shadow: 0 12px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --yyt-control-shadow-hover: 0 16px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --yyt-control-shadow-focus: 0 18px 30px rgba(8, 14, 24, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --yyt-control-shadow-active: 0 10px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --yyt-select-surface: #121a26;
-  --yyt-select-option-bg: #192334;
-  --yyt-select-option-hover-bg: #233249;
-  --yyt-select-option-selected-bg: #2a3f60;
-  --yyt-select-option-border: rgba(123, 183, 255, 0.22);
-  --yyt-select-option-selected-border: rgba(123, 183, 255, 0.4);
-  --yyt-select-dropdown-shadow: 0 24px 44px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(8, 12, 18, 0.82);
-  --yyt-select-arrow-color: rgba(255, 255, 255, 0.52);
-  --yyt-startup-overlay: rgba(5, 8, 12, 0.78);
-  --yyt-startup-panel-border: rgba(255, 255, 255, 0.12);
+  --yyt-control-bg: linear-gradient(180deg, oklch(0.246 0.026 265) 0%, oklch(0.210 0.022 266) 100%);
+  --yyt-control-bg-hover: linear-gradient(180deg, oklch(0.284 0.033 264) 0%, oklch(0.242 0.029 266) 100%);
+  --yyt-control-bg-active: linear-gradient(180deg, oklch(0.314 0.040 264) 0%, oklch(0.263 0.035 264) 100%);
+  --yyt-control-bg-strong: linear-gradient(180deg, oklch(0.284 0.033 264) 0%, oklch(0.229 0.029 267) 100%);
+  --yyt-control-bg-focus: linear-gradient(180deg, oklch(0.309 0.048 262) 0%, oklch(0.258 0.038 264) 100%);
+  --yyt-control-border: oklch(0.726 0.057 260 / 0.24);
+  --yyt-control-border-hover: oklch(0.726 0.057 260 / 0.36);
+  --yyt-control-border-focus: oklch(0.733 0.144 265 / 0.72);
+  --yyt-control-shadow: 0 12px 24px oklch(0 0 0 / 0.24), inset 0 1px 0 oklch(1 0 0 / 0.04);
+  --yyt-control-shadow-hover: 0 16px 28px oklch(0 0 0 / 0.28), inset 0 1px 0 oklch(1 0 0 / 0.06);
+  --yyt-control-shadow-focus: 0 18px 30px oklch(0.176 0.019 264 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.06);
+  --yyt-control-shadow-active: 0 10px 20px oklch(0 0 0 / 0.22), inset 0 1px 0 oklch(1 0 0 / 0.04);
+  --yyt-select-surface: oklch(0.192 0.024 264);
+  --yyt-select-option-bg: oklch(0.219 0.030 266);
+  --yyt-select-option-hover-bg: oklch(0.282 0.034 265);
+  --yyt-select-option-selected-bg: oklch(0.337 0.055 261);
+  --yyt-select-option-border: oklch(0.733 0.144 265 / 0.22);
+  --yyt-select-option-selected-border: oklch(0.733 0.144 265 / 0.4);
+  --yyt-select-dropdown-shadow: 0 24px 44px oklch(0 0 0 / 0.52), 0 0 0 1px oklch(0.148 0.017 264 / 0.82);
+  --yyt-select-arrow-color: oklch(1 0 0 / 0.52);
+  --yyt-startup-overlay: oklch(0.124 0.012 262 / 0.78);
+  --yyt-startup-panel-border: oklch(1 0 0 / 0.12);
   --yyt-startup-panel-bg:
-    radial-gradient(640px 260px at 0% 0%, rgba(123, 183, 255, 0.2), transparent 62%),
-    radial-gradient(420px 220px at 100% 0%, rgba(155, 123, 255, 0.12), transparent 58%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 42%, rgba(255, 255, 255, 0.015) 100%);
-  --yyt-startup-panel-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 42px rgba(0, 0, 0, 0.24);
-  --yyt-startup-chip-bg: rgba(255, 255, 255, 0.06);
-  --yyt-startup-chip-border: rgba(255, 255, 255, 0.1);
-  --yyt-startup-status-bg: rgba(255, 255, 255, 0.08);
-  --yyt-startup-status-border: rgba(255, 255, 255, 0.1);
-  --yyt-startup-status-text: rgba(255, 255, 255, 0.84);
-  --yyt-startup-kicker-bg: rgba(123, 183, 255, 0.14);
-  --yyt-startup-kicker-border: rgba(123, 183, 255, 0.22);
+    radial-gradient(640px 260px at 0% 0%, oklch(0.733 0.144 265 / 0.2), transparent 62%),
+    radial-gradient(420px 220px at 100% 0%, oklch(0.637 0.152 295 / 0.12), transparent 58%),
+    linear-gradient(160deg, oklch(1 0 0 / 0.085) 0%, oklch(1 0 0 / 0.03) 42%, oklch(1 0 0 / 0.015) 100%);
+  --yyt-startup-panel-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08), 0 18px 42px oklch(0 0 0 / 0.24);
+  --yyt-startup-chip-bg: oklch(1 0 0 / 0.06);
+  --yyt-startup-chip-border: oklch(1 0 0 / 0.1);
+  --yyt-startup-status-bg: oklch(1 0 0 / 0.08);
+  --yyt-startup-status-border: oklch(1 0 0 / 0.1);
+  --yyt-startup-status-text: oklch(1 0 0 / 0.84);
+  --yyt-startup-kicker-bg: oklch(0.733 0.144 265 / 0.14);
+  --yyt-startup-kicker-border: oklch(0.733 0.144 265 / 0.22);
   --yyt-shell-sidebar-width: 248px;
   --yyt-shell-topbar-gap: 14px;
   --yyt-shell-gap: 12px;
   --yyt-panel-gap: 12px;
-  --yyt-backdrop: rgba(5, 8, 12, 0.72);
+  --yyt-backdrop: oklch(0.124 0.012 262 / 0.72);
 }
 
 /* ============================================================
