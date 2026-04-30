@@ -6,7 +6,16 @@
       "Read(//c/Users/16961/.claude/**)",
       "Read(//c/Users/16961/.claude/plans/**)",
       "Bash(git:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:getdesign.md)",
+      "Bash(python:*)",
+      "Bash(echo \"# UI Regression Fixes Implementation Plan\")",
+      "Read(//tmp/**)",
+      "Bash(find modules/ui/components -name \"*.js\" -exec grep -l \"yyt-select\\\\|yyt-textarea\" {} \\\\;)",
+      "Bash(npm *)",
+      "Bash(grep -E \"\\\\.js$\")",
+      "WebSearch"
     ]
-  }
+  },
+  "spinnerTipsEnabled": false
 }

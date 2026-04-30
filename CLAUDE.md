@@ -129,7 +129,8 @@ Do not casually simplify message identity, swipe handling, content fingerprintin
 
 ## Documentation to consult
 
-- `README.md` — current product overview
+- `README.md` — current product overview and active feature scope
+- `docs/FRAMEWORK_ARCHITECTURE.md` — maintainer-oriented framework map and routing between major runtime layers
 - `docs/ARCHITECTURE_ANALYSIS.md` — architecture walkthrough
 - `docs/API_DOCUMENTATION.md` — public API and execution model
 - `docs/CHANGELOG.md` — recent behavior changes and migration history

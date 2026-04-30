@@ -124,15 +124,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     font-size: 13px;
     line-height: 1.7;
     tab-size: 2;
-    color: var(--yyt-text);
-    caret-color: var(--yyt-accent-strong);
-    background:
-      linear-gradient(180deg, rgba(7, 11, 18, 0.9) 0%, rgba(9, 13, 18, 0.72) 100%),
-      rgba(3, 7, 12, 0.3);
-    border-color: rgba(255, 255, 255, 0.12);
-    resize: vertical;
     min-height: 180px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 22px rgba(0, 0, 0, 0.18);
   }
 
   .yyt-code-textarea-small {
