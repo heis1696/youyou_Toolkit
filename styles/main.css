@@ -2493,10 +2493,6 @@
   box-shadow: var(--yyt-focus-ring);
 }
 
-.yyt-shell-sidebar.yyt-collapsed .yyt-sidebar-toggle i {
-  transform: rotate(180deg);
-}
-
 /* ---- Compact sidebar stats ---- */
 .yyt-shell-sidebar-stats {
   display: grid;
