@@ -667,10 +667,6 @@ export const ToolManagePanel = {
         padding-top: 2px;
       }
 
-      .yyt-dialog-wide {
-        width: 480px;
-      }
-
       @media screen and (max-width: 768px) {
         .yyt-tool-manage-hero-grid {
           grid-template-columns: 1fr;

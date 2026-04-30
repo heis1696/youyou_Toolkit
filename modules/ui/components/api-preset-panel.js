@@ -411,13 +411,13 @@ export const ApiPresetPanel = {
       showToast('info', `已加载预设 "${value}"，修改后点击“保存配置”会覆盖该预设`);
     };
 
-    $trigger.on('click', (e) => {
+    $trigger.on('click.yytApiPreset', (e) => {
       e.preventDefault();
       e.stopPropagation();
       toggleCustomSelectDropdown($dropdown);
     });
 
-    $dropdown.find('.yyt-select-option').on('click', (e) => {
+    $dropdown.find('.yyt-select-option').on('click.yytApiPreset', (e) => {
       if ($(e.target).closest('.yyt-option-star, .yyt-option-delete').length) return;
 
       const $option = $(e.currentTarget);
@@ -436,7 +436,7 @@ export const ApiPresetPanel = {
       loadSelectedPreset();
     });
 
-    $dropdown.find('.yyt-option-star').on('click', (e) => {
+    $dropdown.find('.yyt-option-star').on('click.yytApiPreset', (e) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -452,7 +452,7 @@ export const ApiPresetPanel = {
       }
     });
 
-    $dropdown.find('.yyt-option-delete').on('click', (e) => {
+    $dropdown.find('.yyt-option-delete').on('click.yytApiPreset', (e) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -486,7 +486,7 @@ export const ApiPresetPanel = {
    * @private
    */
   _bindPresetListEvents($container, $) {
-    $container.find('.yyt-preset-item').on('click', (e) => {
+    $container.find('.yyt-preset-item').on('click.yytApiPreset', (e) => {
       const $item = $(e.currentTarget);
       const presetName = normalizePresetName($item.data('preset-name'));
       const action = $(e.target).closest('[data-action]').data('action');
@@ -527,7 +527,7 @@ export const ApiPresetPanel = {
    */
   _bindApiConfigEvents($container, $) {
     // 切换主API
-    $container.find(`#${SCRIPT_ID}-use-main-api`).on('change', function() {
+    $container.find(`#${SCRIPT_ID}-use-main-api`).on('change.yytApiPreset', function() {
       const useMainApi = $(this).is(':checked');
       const $customFields = $container.find(`#${SCRIPT_ID}-custom-api-fields`);
       
@@ -572,7 +572,7 @@ export const ApiPresetPanel = {
             $modelSelect.val(currentModel);
           }
           
-          $modelSelect.off('change').on('change', function() {
+          $modelSelect.off('change.yytApiPreset').on('change.yytApiPreset', function() {
             $modelInput.val($(this).val());
           });
           
@@ -588,7 +588,7 @@ export const ApiPresetPanel = {
     });
     
     // 点击输入框时切换回输入模式
-    $container.find(`#${SCRIPT_ID}-model`).on('focus', function() {
+    $container.find(`#${SCRIPT_ID}-model`).on('focus.yytApiPreset', function() {
       const $modelSelect = $container.find(`#${SCRIPT_ID}-model-select`);
       $(this).show();
       $modelSelect.hide();
@@ -790,7 +790,7 @@ export const ApiPresetPanel = {
       }
     });
 
-    $nameInput.on('keypress', function(e) {
+    $nameInput.on('keypress.yytApiPreset', function(e) {
       if (e.which === 13) {
         $overlay.find(`#${SCRIPT_ID}-dialog-save`).click();
       }
@@ -812,7 +812,7 @@ export const ApiPresetPanel = {
     this._removeDialog($container);
     closeActiveCustomSelectDropdown($container);
     $container.removeData(PANEL_STATE_KEY);
-    $container.off();
+    $container.off('.yytApiPreset');
   },
   
   // ============================================================

@@ -14,7 +14,9 @@ import {
   getJQuery,
   isContainerValid,
   downloadJson,
-  readFileContent
+  readFileContent,
+  createDialogHtml,
+  bindDialogEvents
 } from '../utils.js';
 
 // 正则提取功能导入
@@ -450,7 +452,20 @@ Phase 4: 应用黑名单过滤
 • 提取花括号内容: 类型=包含, 值=story
       `;
       
-      alert(examples);
+      const examplesDialogId = `${SCRIPT_ID}-examples-dialog`;
+      const $existingOverlay = $container.find(`#${examplesDialogId}-overlay`);
+      if ($existingOverlay.length) $existingOverlay.remove();
+
+      const examplesDialogHtml = createDialogHtml({
+        id: examplesDialogId,
+        title: '提取规则语法说明',
+        body: `<div style="white-space: pre-wrap; font-size: 13px; line-height: 1.7; max-height: 60vh; overflow-y: auto;">${escapeHtml(examples)}</div>`,
+        wide: true
+      });
+      const $examplesOverlay = $(examplesDialogHtml).appendTo($container);
+      $examplesOverlay.find(`#${examplesDialogId}-cancel`).text('关闭');
+      $examplesOverlay.find(`#${examplesDialogId}-save`).remove();
+      bindDialogEvents($examplesOverlay, examplesDialogId, {});
     });
   },
   
@@ -480,19 +495,40 @@ Phase 4: 应用黑名单过滤
     
     // 保存规则预设
     $container.on('click.yytRegex', `#${SCRIPT_ID}-save-rule-preset`, () => {
-      const name = prompt('请输入预设名称:');
-      if (!name || !name.trim()) return;
-      
-      const result = saveRulesAsPreset(name.trim());
-      if (result.success) {
-        this.renderTo($container);
-        showToast('success', `预设 "${name.trim()}" 已保存`);
-      } else {
-        showToast('error', result.message);
-      }
+      const presetDialogId = `${SCRIPT_ID}-preset-name-dialog`;
+      const $existingOverlay = $container.find(`#${presetDialogId}-overlay`);
+      if ($existingOverlay.length) $existingOverlay.remove();
+
+      const presetDialogHtml = createDialogHtml({
+        id: presetDialogId,
+        title: '保存规则预设',
+        body: `<div class="yyt-form-group">
+          <label>预设名称</label>
+          <input type="text" class="yyt-input" id="${presetDialogId}-name" placeholder="输入预设名称...">
+        </div>`
+      });
+      const $presetOverlay = $(presetDialogHtml).appendTo($container);
+      bindDialogEvents($presetOverlay, presetDialogId, {
+        onSave: (closeDialog) => {
+          const name = $presetOverlay.find(`#${presetDialogId}-name`).val();
+          if (!name || !name.trim()) {
+            showToast('error', '请输入预设名称');
+            return;
+          }
+          closeDialog();
+
+          const result = saveRulesAsPreset(name.trim());
+          if (result.success) {
+            this.renderTo($container);
+            showToast('success', `预设 "${name.trim()}" 已保存`);
+          } else {
+            showToast('error', result.message);
+          }
+        }
+      });
     });
   },
-  
+
   /**
    * 绑定测试事件
    * @private
@@ -747,25 +783,6 @@ Phase 4: 应用黑名单过滤
         text-align: center;
         color: var(--yyt-text-muted);
         padding: 20px;
-      }
-      
-      .yyt-empty-state-small {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-        color: var(--yyt-text-muted);
-        gap: 8px;
-      }
-      
-      .yyt-empty-state-small i {
-        font-size: 24px;
-        opacity: 0.4;
-      }
-      
-      .yyt-empty-state-small span {
-        font-size: 12px;
       }
     `;
   },
