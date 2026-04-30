@@ -952,68 +952,23 @@ export function createPopupShell(context) {
 
     const toolConfig = modules.toolRegistryModule?.getToolConfig(tabName);
 
-    switch (tabName) {
-      case 'apiPresets':
-        if (modules.uiModule?.renderApiPanel) {
-          modules.uiModule.renderApiPanel($content);
-        } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>API 预设面板加载失败</span></div>');
-        }
-        break;
-
-      case 'toolManage':
-        if (modules.uiModule?.renderToolPanel) {
-          modules.uiModule.renderToolPanel($content);
-        } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具管理面板加载失败</span></div>');
-        }
-        break;
-
-      case 'regexExtract':
-        if (modules.uiModule?.renderRegexPanel) {
-          modules.uiModule.renderRegexPanel($content);
-        } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>正则提取面板加载失败</span></div>');
-        }
-        break;
-
-      case 'tools': {
-        const activeSubTab = resolveActiveSubTabId(tabName);
-        if (toolConfig?.hasSubTabs && activeSubTab) {
-          await renderSubTabContent(tabName, activeSubTab);
-        } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置加载失败</span></div>');
-        }
-        break;
+    // tools 页走 sub-tab 路由
+    if (tabName === 'tools') {
+      const activeSubTab = resolveActiveSubTabId(tabName);
+      if (toolConfig?.hasSubTabs && activeSubTab) {
+        await renderSubTabContent(tabName, activeSubTab);
+      } else {
+        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置加载失败</span></div>');
       }
+      refreshScrollableSurfaces();
+      return;
+    }
 
-      case 'tableWorkbench':
-        if (modules.uiModule?.renderTableWorkbenchPanel) {
-          modules.uiModule.renderTableWorkbenchPanel($content);
-        } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>填表工作台加载失败</span></div>');
-        }
-        break;
-
-      case 'bypass':
-        if (modules.uiModule?.renderBypassPanel) {
-          modules.uiModule.renderBypassPanel($content);
-        } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>Ai指令预设面板加载失败</span></div>');
-        }
-        break;
-
-      case 'settings':
-        if (modules.uiModule?.renderSettingsPanel) {
-          modules.uiModule.renderSettingsPanel($content);
-        } else {
-          $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>设置面板加载失败</span></div>');
-        }
-        break;
-
-      default:
-        renderToolWindow(tabName, $content);
-        break;
+    // 查主 tab 路由表
+    const handled = modules.uiModule?.renderMainTab?.(tabName, $content);
+    if (!handled) {
+      // 未注册在路由表中的 tab → 通用工具窗口
+      renderToolWindow(tabName, $content);
     }
 
     refreshScrollableSurfaces();
@@ -1043,69 +998,25 @@ export function createPopupShell(context) {
         return;
       }
 
-      switch (subToolConfig.component) {
-          case 'SummaryToolPanel': {
-            destroyActivePanelHost({ container: $subContent });
-            if (modules.uiModule?.renderSummaryToolPanel) {
-              modules.uiModule.renderSummaryToolPanel($subContent);
-              registerActivePanelHost($subContent, { key: 'SummaryToolPanel' });
-            } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>摘要工具加载失败</span></div>');
-            }
-            break;
-          }
+      const componentName = subToolConfig.component;
 
-          case 'StatusBlockPanel': {
-            destroyActivePanelHost({ container: $subContent });
-            if (modules.uiModule?.renderStatusBlockPanel) {
-              modules.uiModule.renderStatusBlockPanel($subContent);
-              registerActivePanelHost($subContent, { key: 'StatusBlockPanel' });
-            } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>主角状态栏加载失败</span></div>');
-            }
-            break;
-          }
+      // GenericToolConfigPanel 由 panel factory 动态创建
+      if (componentName === 'GenericToolConfigPanel') {
+        await renderGenericToolConfigPanel(subToolConfig, $subContent);
+        resetPopupScrollState({ mainTab, includeSubContent: true });
+        refreshScrollableSurfaces();
+        return;
+      }
 
-          case 'YouyouReviewPanel': {
-            destroyActivePanelHost({ container: $subContent });
-            if (modules.uiModule?.renderYouyouReviewPanel) {
-              modules.uiModule.renderYouyouReviewPanel($subContent);
-              registerActivePanelHost($subContent, { key: 'YouyouReviewPanel' });
-            } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>小幽点评加载失败</span></div>');
-            }
-            break;
-          }
+      // 查子 tab 路由表
+      destroyActivePanelHost({ container: $subContent });
+      const hostKey = modules.uiModule?.renderSubTabComponent?.(componentName, $subContent);
 
-          case 'EscapeTransformToolPanel': {
-            destroyActivePanelHost({ container: $subContent });
-            if (modules.uiModule?.renderEscapeTransformToolPanel) {
-              modules.uiModule.renderEscapeTransformToolPanel($subContent);
-              registerActivePanelHost($subContent, { key: 'EscapeTransformToolPanel' });
-            } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>转义处理工具加载失败</span></div>');
-            }
-            break;
-          }
-
-          case 'PunctuationTransformToolPanel': {
-            destroyActivePanelHost({ container: $subContent });
-            if (modules.uiModule?.renderPunctuationTransformToolPanel) {
-              modules.uiModule.renderPunctuationTransformToolPanel($subContent);
-              registerActivePanelHost($subContent, { key: 'PunctuationTransformToolPanel' });
-            } else {
-              $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>中文标点替换工具加载失败</span></div>');
-            }
-            break;
-          }
-
-          case 'GenericToolConfigPanel':
-            await renderGenericToolConfigPanel(subToolConfig, $subContent);
-            break;
-
-          default:
-            $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>');
-        }
+      if (hostKey) {
+        registerActivePanelHost($subContent, { key: hostKey });
+      } else {
+        $subContent.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-tools"></i><span>功能开发中...</span></div>');
+      }
       resetPopupScrollState({ mainTab, includeSubContent: true });
       refreshScrollableSurfaces();
       return;

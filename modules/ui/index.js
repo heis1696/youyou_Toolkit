@@ -187,6 +187,103 @@ export function renderTableWorkbenchPanel(container) {
 }
 
 // ============================================================
+// 路由表（Phase B：路由解耦）
+// ============================================================
+
+/**
+ * 主 tab 路由表：tabId → { render, failMessage }
+ * 壳层通过查表调用，不再硬编码 switch-case。
+ * tools 页不在此表中——它由 sub-tab 路由处理。
+ */
+export const MAIN_TAB_RENDERERS = Object.freeze({
+  apiPresets: {
+    render: (container) => renderApiPanel(container),
+    failMessage: 'API 预设面板加载失败'
+  },
+  toolManage: {
+    render: (container) => renderToolPanel(container),
+    failMessage: '工具管理面板加载失败'
+  },
+  regexExtract: {
+    render: (container) => renderRegexPanel(container),
+    failMessage: '正则提取面板加载失败'
+  },
+  tableWorkbench: {
+    render: (container) => renderTableWorkbenchPanel(container),
+    failMessage: '填表工作台加载失败'
+  },
+  bypass: {
+    render: (container) => renderBypassPanel(container),
+    failMessage: 'Ai指令预设面板加载失败'
+  },
+  settings: {
+    render: (container) => renderSettingsPanel(container),
+    failMessage: '设置面板加载失败'
+  }
+});
+
+/**
+ * 子 tab（内置工具）组件路由表：componentName → { render, failMessage }
+ * GenericToolConfigPanel 不在此表中——它由 popup-shell 的 panel factory 动态创建。
+ */
+export const SUB_TAB_RENDERERS = Object.freeze({
+  SummaryToolPanel: {
+    render: (container) => renderSummaryToolPanel(container),
+    failMessage: '摘要工具加载失败'
+  },
+  StatusBlockPanel: {
+    render: (container) => renderStatusBlockPanel(container),
+    failMessage: '主角状态栏加载失败'
+  },
+  YouyouReviewPanel: {
+    render: (container) => renderYouyouReviewPanel(container),
+    failMessage: '小幽点评加载失败'
+  },
+  EscapeTransformToolPanel: {
+    render: (container) => renderEscapeTransformToolPanel(container),
+    failMessage: '转义处理工具加载失败'
+  },
+  PunctuationTransformToolPanel: {
+    render: (container) => renderPunctuationTransformToolPanel(container),
+    failMessage: '中文标点替换工具加载失败'
+  }
+});
+
+/**
+ * 渲染主 tab 内容。
+ * 返回 true 表示已处理；返回 false 表示 tabId 不在路由表中（交由调用方走 fallback）。
+ */
+export function renderMainTab(tabId, $container) {
+  const route = MAIN_TAB_RENDERERS[tabId];
+  if (!route) return false;
+
+  ensureComponentsRegistered();
+  try {
+    route.render($container);
+  } catch (_) {
+    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>${route.failMessage}</span></div>`);
+  }
+  return true;
+}
+
+/**
+ * 渲染内置工具子 tab 组件。
+ * 返回渲染用的 hostKey（供壳层 registerActivePanelHost），null 表示未匹配。
+ */
+export function renderSubTabComponent(componentName, $container) {
+  const route = SUB_TAB_RENDERERS[componentName];
+  if (!route) return null;
+
+  ensureComponentsRegistered();
+  try {
+    route.render($container);
+  } catch (_) {
+    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>${route.failMessage}</span></div>`);
+  }
+  return componentName;
+}
+
+// ============================================================
 // 获取所有样式
 // ============================================================
 
@@ -228,5 +325,9 @@ export default {
   renderBypassPanel,
   renderSettingsPanel,
   renderTableWorkbenchPanel,
+  MAIN_TAB_RENDERERS,
+  SUB_TAB_RENDERERS,
+  renderMainTab,
+  renderSubTabComponent,
   getAllStyles
 };
