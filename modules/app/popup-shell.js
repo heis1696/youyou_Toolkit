@@ -668,7 +668,7 @@ export function createPopupShell(context) {
     const surfaces = [
       ...popup.querySelectorAll('.yyt-shell-sidebar .yyt-main-nav'),
       ...popup.querySelectorAll('.yyt-sub-nav'),
-      ...popup.querySelectorAll('.yyt-tab-content.active'),
+      ...popup.querySelectorAll('.yyt-content'),
       ...popup.querySelectorAll('.yyt-settings-content'),
       ...popup.querySelectorAll('.yyt-tool-list')
     ];
@@ -1065,7 +1065,7 @@ export function createPopupShell(context) {
         createPanel = () => createToolConfigPanel({
           id: `${subToolConfig.id}Panel`,
           toolId: subToolConfig.id,
-          postResponseHint: `点击“立即执行一次”后，调用额外模型执行“${subToolConfig.name || subToolConfig.id}”。`,
+          postResponseHint: `点击”立即执行一次”后，调用额外模型执行”${subToolConfig.name || subToolConfig.id}”。`,
           extractionPlaceholder: '每行一个标签，如 custom_tag\n或 regex:<custom_tag>([\\s\\S]*?)</custom_tag>',
           previewDialogId: `${subToolConfig.id}-extraction-preview`,
           previewTitle: `${subToolConfig.name || subToolConfig.id} 提取预览`
@@ -1074,19 +1074,61 @@ export function createPopupShell(context) {
         caches.dynamicToolPanelCache.set(subToolConfig.id, createPanel);
       }
 
+      // Build sticky bar (shell level, outside panel scroll area)
+      const toolConfig = modules.toolRegistryModule?.getToolConfig(subToolConfig.id);
+      const runtime = toolConfig?.runtime || {};
+      const lastStatus = runtime.lastStatus || 'idle';
+      const runtimeLabelMap = { idle: '空闲', running: '运行中', success: '成功', error: '失败' };
+      const runtimeLabel = runtimeLabelMap[lastStatus] || lastStatus;
+
+      $container.html(`
+        <div class=”yyt-tool-sticky-bar” id=”${SCRIPT_ID}-tool-sticky-bar”>
+          <div class=”yyt-tool-sticky-left”>
+            <span class=”yyt-tool-sticky-name”>${escapeHtml(subToolConfig.name || subToolConfig.id)}</span>
+            <span class=”yyt-tool-runtime-badge yyt-status-${escapeHtml(lastStatus)}”>${escapeHtml(runtimeLabel)}</span>
+          </div>
+          <div class=”yyt-tool-sticky-actions”>
+            <button class=”yyt-btn yyt-btn-primary yyt-btn-small” id=”${SCRIPT_ID}-tool-run-manual-top”>
+              <i class=”fa-solid fa-play”></i> <span class=”yyt-sticky-btn-label”>立即执行</span>
+            </button>
+            <button class=”yyt-btn yyt-btn-secondary yyt-btn-small” id=”${SCRIPT_ID}-tool-preview-extraction-top”>
+              <i class=”fa-solid fa-vial”></i> <span class=”yyt-sticky-btn-label”>测试提取</span>
+            </button>
+            <button class=”yyt-btn yyt-btn-small” id=”${SCRIPT_ID}-tool-save-top” style=”min-height:30px;”>
+              <i class=”fa-solid fa-save”></i> <span class=”yyt-sticky-btn-label”>保存</span>
+            </button>
+          </div>
+        </div>
+        <div class=”yyt-tool-panel-scroll” id=”${SCRIPT_ID}-tool-panel-scroll”></div>
+      `);
+
+      const $panelScroll = $container.find(`#${SCRIPT_ID}-tool-panel-scroll`);
       const panel = createPanel();
-      panel.renderTo($container);
+      panel.renderTo($panelScroll);
+
+      // Scroll compression: watch hero in panel-scroll area
+      const $stickyBar = $container.find('.yyt-tool-sticky-bar');
+      const heroObserver = new IntersectionObserver((entries) => {
+        $stickyBar.toggleClass('yyt-compressed', !entries[0].isIntersecting);
+      }, { threshold: 0, root: $container[0] });
+      // Observe after a frame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        const $hero = $panelScroll.find('.yyt-tool-panel-hero');
+        if ($hero.length) heroObserver.observe($hero[0]);
+      });
+
       registerActivePanelHost($container, {
         key: subToolConfig.id,
-        destroy: typeof panel?.destroy === 'function'
-          ? ($hostContainer) => panel.destroy($hostContainer)
-          : null
+        destroy: ($hostContainer) => {
+          heroObserver.disconnect();
+          if (typeof panel?.destroy === 'function') panel.destroy($hostContainer.find('.yyt-tool-panel-scroll'));
+        }
       });
       refreshScrollableSurfaces();
     } catch (error) {
       panelHostState.current = null;
       console.error(`[${SCRIPT_ID}] 自定义工具面板加载失败:`, error);
-      $container.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>自定义工具面板加载失败</span></div>');
+      $container.html('<div class=”yyt-empty-state-small”><i class=”fa-solid fa-exclamation-triangle”></i><span>自定义工具面板加载失败</span></div>');
     }
   }
 

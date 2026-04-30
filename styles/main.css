@@ -327,7 +327,8 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow: visible;
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 6px;
   border-radius: calc(var(--yyt-radius-lg) - 2px);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0.03) 100%);
@@ -2132,7 +2133,8 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow: visible;
+  overflow-y: auto;
+  height: 100%;
 }
 
 .yyt-content-inner {
@@ -2620,4 +2622,106 @@
   .yyt-sidebar-toggle {
     display: none;
   }
+}
+
+/* ============================================================
+   Tool panel: sticky bar + section nav (Phase D)
+   ============================================================ */
+
+.yyt-tool-sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(11, 15, 21, 0.96) 0%, rgba(11, 15, 21, 0.85) 100%);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: padding 0.22s var(--ease-in-out), gap 0.22s var(--ease-in-out);
+}
+
+.yyt-tool-sticky-bar.yyt-compressed {
+  padding: 6px 14px;
+  gap: 8px;
+}
+
+.yyt-tool-sticky-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.yyt-tool-sticky-name {
+  font-size: var(--yyt-text-md);
+  font-weight: 800;
+  color: var(--yyt-color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: font-size 0.22s var(--ease-in-out);
+}
+
+.yyt-tool-sticky-bar.yyt-compressed .yyt-tool-sticky-name {
+  font-size: var(--yyt-text-base);
+}
+
+.yyt-tool-sticky-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.yyt-tool-sticky-bar.yyt-compressed .yyt-sticky-btn-label {
+  display: none;
+}
+
+.yyt-tool-sticky-bar.yyt-compressed .yyt-tool-sticky-actions .yyt-btn {
+  padding: 6px 10px;
+  min-height: 30px;
+  font-size: var(--yyt-text-sm);
+  gap: 4px;
+}
+
+.yyt-tool-panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.yyt-tool-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.yyt-tool-section-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  font-size: var(--yyt-text-sm);
+  font-weight: 600;
+  color: var(--yyt-color-text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.yyt-tool-section-nav-item:hover {
+  color: var(--yyt-color-text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
 }
