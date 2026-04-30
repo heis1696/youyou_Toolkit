@@ -23,18 +23,18 @@
   --yyt-bg-base: #0b0f15;
   --yyt-bg-gradient-1: rgba(123, 183, 255, 0.12);
   --yyt-bg-gradient-2: rgba(155, 123, 255, 0.10);
-  --yyt-surface: rgba(255, 255, 255, 0.03);
-  --yyt-surface-2: rgba(255, 255, 255, 0.05);
-  --yyt-surface-3: rgba(255, 255, 255, 0.075);
-  --yyt-surface-hover: rgba(255, 255, 255, 0.08);
-  --yyt-surface-active: rgba(255, 255, 255, 0.11);
-  --yyt-border: rgba(255, 255, 255, 0.08);
-  --yyt-border-soft: rgba(255, 255, 255, 0.05);
-  --yyt-border-strong: rgba(255, 255, 255, 0.16);
-  --yyt-text: rgba(255, 255, 255, 0.95);
-  --yyt-text-secondary: rgba(255, 255, 255, 0.72);
-  --yyt-text-muted: rgba(255, 255, 255, 0.5);
-  --yyt-focus-ring: 0 0 0 3px rgba(123, 183, 255, 0.18);
+  --yyt-surface: rgba(255, 255, 255, 0.035);
+  --yyt-surface-2: rgba(255, 255, 255, 0.055);
+  --yyt-surface-3: rgba(255, 255, 255, 0.07);
+  --yyt-surface-hover: rgba(255, 255, 255, 0.09);
+  --yyt-surface-active: rgba(255, 255, 255, 0.12);
+  --yyt-border: rgba(255, 255, 255, 0.06);
+  --yyt-border-soft: rgba(255, 255, 255, 0.04);
+  --yyt-border-strong: rgba(255, 255, 255, 0.14);
+  --yyt-text: rgba(255, 255, 255, 0.93);
+  --yyt-text-secondary: rgba(255, 255, 255, 0.68);
+  --yyt-text-muted: rgba(255, 255, 255, 0.45);
+  --yyt-focus-ring: 0 0 0 2px rgba(123, 183, 255, 0.52);
   --yyt-radius: 14px;
   --yyt-radius-sm: 10px;
   --yyt-radius-lg: 18px;
@@ -81,7 +81,7 @@
   --yyt-shell-sidebar-width: 248px;
   --yyt-shell-topbar-gap: 14px;
   --yyt-shell-gap: 12px;
-  --yyt-panel-gap: 16px;
+  --yyt-panel-gap: 12px;
   --yyt-backdrop: rgba(5, 8, 12, 0.72);
 }
 
@@ -368,8 +368,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  padding: 18px;
+  gap: 12px;
+  padding: 16px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.038) 0%, rgba(255, 255, 255, 0.015) 100%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.028) 0%, transparent 62%);
@@ -394,12 +394,12 @@
 .yyt-section-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--yyt-text);
   text-transform: uppercase;
-  letter-spacing: 0.55px;
+  letter-spacing: 0.6px;
 }
 
 .yyt-section-title i {
@@ -466,7 +466,7 @@
 }
 
 .yyt-btn:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
   background: var(--yyt-control-bg-active);
   box-shadow: var(--yyt-control-shadow-active);
   filter: saturate(0.98);
@@ -546,7 +546,7 @@
 .yyt-form-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .yyt-form-group label {
@@ -739,7 +739,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
-  padding: 19px 20px;
+  padding: 16px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 17px;
@@ -1135,8 +1135,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(12px) saturate(1.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1362,8 +1362,8 @@
   position: fixed;
   inset: 0;
   background: var(--yyt-backdrop);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
   z-index: 9999;
   animation: yytOverlayFadeIn 0.2s ease-out;
 }
@@ -1417,7 +1417,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 22px;
+  padding: 12px 20px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.03) 100%);
   border-bottom: 1px solid var(--yyt-border);
   border-radius: 22px 22px 0 0;
@@ -1534,7 +1534,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 16px 18px;
+  padding: 12px 16px;
   overflow: hidden;
 }
 
@@ -1914,9 +1914,9 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 20px;
+  padding: 12px 16px;
   border-radius: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   background:
     radial-gradient(420px 180px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 65%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
@@ -2532,11 +2532,7 @@
   letter-spacing: 0.4px;
 }
 
-/* ---- Shell main header compact ---- */
-.yyt-shell-main-header {
-  padding: 14px 18px;
-}
-
+/* ---- Shell main heading block ---- */
 .yyt-shell-main-heading-block {
   gap: 6px;
 }
@@ -2547,7 +2543,7 @@
 
 /* ---- Footer compact ---- */
 .yyt-popup-footer {
-  padding: 10px 20px;
+  padding: 8px 20px;
 }
 
 .yyt-popup-footer-left {
@@ -2580,6 +2576,17 @@
 /* ---- Shell workspace gap ---- */
 .yyt-shell-workspace {
   gap: 12px;
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ---- Responsive: collapsed sidebar on narrow screens ---- */
