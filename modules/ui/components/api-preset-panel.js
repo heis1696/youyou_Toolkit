@@ -7,6 +7,7 @@
 import { eventBus, EVENTS } from '../../core/event-bus.js';
 import {
   SCRIPT_ID,
+  PanelState,
   escapeHtml,
   showToast,
   getJQuery,
@@ -49,11 +50,11 @@ import {
 // 状态
 // ============================================================
 
-const PANEL_STATE_KEY = 'yytApiPresetPanelState';
-
 function normalizePresetName(value) {
   return String(value || '').trim();
 }
+
+const PANEL_STATE_DEFAULTS = { selectedPresetName: null };
 
 // ============================================================
 // 组件定义
@@ -62,23 +63,22 @@ function normalizePresetName(value) {
 export const ApiPresetPanel = {
   id: 'apiPresetPanel',
 
-  _getSelectedPresetName($container) {
-    if (!$container?.length) {
-      return null;
+  _getState($container) {
+    if (!$container?.length) return new PanelState(PANEL_STATE_DEFAULTS);
+    let state = $container.data('yytPanelState');
+    if (!state) {
+      state = new PanelState(PANEL_STATE_DEFAULTS);
+      $container.data('yytPanelState', state);
     }
+    return state;
+  },
 
-    const state = $container.data(PANEL_STATE_KEY);
-    return state ? state.selectedPresetName : null;
+  _getSelectedPresetName($container) {
+    return this._getState($container).get('selectedPresetName');
   },
 
   _setSelectedPresetName($container, value) {
-    if (!$container?.length) {
-      return;
-    }
-
-    $container.data(PANEL_STATE_KEY, {
-      selectedPresetName: value === null ? null : normalizePresetName(value)
-    });
+    this._getState($container).set('selectedPresetName', value === null ? null : normalizePresetName(value));
   },
 
   _rerender($container) {
@@ -811,7 +811,7 @@ export const ApiPresetPanel = {
 
     this._removeDialog($container);
     closeActiveCustomSelectDropdown($container);
-    $container.removeData(PANEL_STATE_KEY);
+    $container.removeData('yytPanelState');
     $container.off('.yytApiPreset');
   },
   

@@ -10,6 +10,34 @@
 
 export const SCRIPT_ID = 'youyou_toolkit';
 
+// ============================================================
+// PanelState — 轻量面板实例状态
+// ============================================================
+
+export class PanelState {
+  constructor(defaults = {}) {
+    this._state = { ...defaults };
+  }
+
+  get(key) {
+    return this._state[key];
+  }
+
+  set(key, value) {
+    this._state[key] = value;
+    return this;
+  }
+
+  reset(defaults = {}) {
+    this._state = { ...defaults };
+    return this;
+  }
+
+  toJSON() {
+    return { ...this._state };
+  }
+}
+
 export function getTargetDocument() {
   if (typeof window.parent !== 'undefined' && window.parent !== window && window.parent.document) {
     return window.parent.document;

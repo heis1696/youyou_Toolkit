@@ -360,18 +360,23 @@
 
 .yyt-page {
   display: none;
-  animation: yytPageIn 0.3s ease-out;
+  animation: yytSlideUp 0.3s var(--ease-out);
 }
 
-@keyframes yytPageIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* —— Phase E2: 统一动画 keyframes —— */
+@keyframes yytFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes yytSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes yytScaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .yyt-page.active {
@@ -1168,12 +1173,7 @@
   box-sizing: border-box;
   overflow-y: auto;
   z-index: 10001;
-  animation: yytFadeIn 0.2s ease-out;
-}
-
-@keyframes yytFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  animation: yytFadeIn 0.2s var(--ease-out);
 }
 
 .yyt-dialog {
@@ -1187,18 +1187,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: yytSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes yytSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  animation: yytScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .yyt-dialog-header {
@@ -1359,19 +1348,8 @@
    动画
    ============================================================ */
 
-@keyframes yytFadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .yyt-panel-section {
-  animation: yytFadeSlideIn 0.25s ease-out backwards;
+  animation: yytSlideUp 0.25s var(--ease-out) backwards;
 }
 
 .yyt-panel-section:nth-child(1) { animation-delay: 0s; }
@@ -1389,12 +1367,7 @@
   backdrop-filter: blur(16px) saturate(1.15);
   -webkit-backdrop-filter: blur(16px) saturate(1.15);
   z-index: 9999;
-  animation: yytOverlayFadeIn 0.2s ease-out;
-}
-
-@keyframes yytOverlayFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  animation: yytFadeIn 0.2s var(--ease-out);
 }
 
 .yyt-popup {
@@ -1419,21 +1392,10 @@
     0 0 0 1px rgba(255, 255, 255, 0.05),
     0 28px 84px rgba(0, 0, 0, 0.58),
     0 0 80px rgba(123, 183, 255, 0.1);
-  animation: yytPopupSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: yytScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
   color: var(--yyt-text);
   z-index: 10000;
-}
-
-@keyframes yytPopupSlideIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
 }
 
 .yyt-popup-header {
@@ -2425,18 +2387,7 @@
 
 /* ---- Tab content enter animation ---- */
 .yyt-tab-content.active {
-  animation: yytTabFadeIn 0.22s ease-out;
-}
-
-@keyframes yytTabFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: yytSlideUp 0.22s var(--ease-out);
 }
 
 /* ---- Sidebar collapse system ---- */
@@ -2572,7 +2523,7 @@
 
 /* ---- Sub-content enter animation ---- */
 .yyt-sub-content {
-  animation: yytTabFadeIn 0.2s ease-out;
+  animation: yytSlideUp 0.2s var(--ease-out);
 }
 
 /* ---- Nav item micro-interactions ---- */
