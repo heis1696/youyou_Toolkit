@@ -2629,80 +2629,61 @@
    ============================================================ */
 
 .yyt-tool-sticky-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 8px 14px;
   flex-shrink: 0;
-  border-radius: 14px;
   background: linear-gradient(180deg, rgba(18, 24, 34, 0.94) 0%, rgba(14, 19, 28, 0.9) 100%);
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 4px 12px rgba(0, 0, 0, 0.18);
-  transition: padding 0.22s var(--ease-in-out), gap 0.22s var(--ease-in-out);
+  backdrop-filter: blur(8px) saturate(1.1);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: padding 0.18s var(--ease-in-out);
 }
 
 .yyt-tool-sticky-bar.yyt-compressed {
-  padding: 6px 14px;
-  gap: 8px;
+  padding: 4px 12px;
 }
 
 .yyt-tool-sticky-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .yyt-tool-sticky-name {
-  font-size: var(--yyt-text-md);
+  font-size: var(--yyt-text-base);
   font-weight: 800;
   color: var(--yyt-color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: font-size 0.22s var(--ease-in-out);
 }
 
-.yyt-tool-sticky-bar.yyt-compressed .yyt-tool-sticky-name {
-  font-size: var(--yyt-text-base);
+.yyt-sticky-section-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.yyt-sticky-section-nav .yyt-tool-section-nav-item {
+  font-size: var(--yyt-text-xs);
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
 }
 
 .yyt-tool-sticky-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.yyt-tool-sticky-bar.yyt-compressed .yyt-sticky-btn-label {
-  display: none;
-}
-
-.yyt-tool-sticky-bar.yyt-compressed .yyt-tool-sticky-actions .yyt-btn {
-  padding: 6px 10px;
-  min-height: 30px;
-  font-size: var(--yyt-text-sm);
-  gap: 4px;
-}
-
-.yyt-tool-panel-scroll {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.yyt-tool-section-nav {
-  display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  padding: 4px 0;
+  flex-shrink: 0;
 }
 
 .yyt-tool-section-nav-item {
