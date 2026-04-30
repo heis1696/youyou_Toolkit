@@ -187,34 +187,63 @@
 
 ---
 
-## 五、优化路线图
+## 五、优化路线图与施工进度
 
-### Phase A: 统一与收口（低风险，高收益）
+### Phase A: 统一与收口 ✅ 已完成（v1.0.74）
 
-1. **ApiPresetPanel 事件命名空间** —— `$container.off()` → `$container.off('.yytApiPreset')`
-2. **CSS 重复定义清理** —— 面板 `getStyles()` 中删除已在 `main.css` 定义的类
-3. **弹窗统一** —— ApiPresetPanel / ToolManagePanel 改用 `utils.js` 的 `createDialogHtml()` / `bindDialogEvents()`
-4. **RegexExtractPanel 弹窗** —— `alert()` / `prompt()` → 自定义弹窗
-5. **ID 前缀统一** —— 全部使用 `${SCRIPT_ID}-*` 格式
+| # | 项目 | 状态 |
+|---|------|------|
+| 1 | ApiPresetPanel 事件命名空间 `.yytApiPreset` | ✅ |
+| 2 | CSS 重复定义清理（3 处） | ✅ |
+| 3 | RegexExtractPanel `alert()`/`prompt()` → 自定义弹窗 | ✅ |
+| 4 | 弹窗统一（ApiPresetPanel / ToolManagePanel → utils 工具函数） | ⏸ 延后 — 改动面大，需宿主回归 |
+| 5 | ID 前缀统一 `${SCRIPT_ID}-*` | ⏸ 延后 — 涉及全部面板，改动面大 |
 
-### Phase B: 路由解耦（中风险）
+### Phase B: 路由解耦 ✅ 已完成（v1.0.75）
 
-6. **主 tab 路由表化** —— `renderTabContent()` switch-case → `Map<tabId, routeConfig>`
-7. **子 tab 组件注册表** —— `renderSubTabContent()` switch-case → 组件名→renderer 映射
-8. **壳层不再直接调用 `modules.uiModule.renderXxxPanel()`** —— 改为 `uiModule.renderByRoute(tabId, container)`
+| # | 项目 | 状态 |
+|---|------|------|
+| 6 | 主 tab 路由表 `MAIN_TAB_RENDERERS` | ✅ |
+| 7 | 子 tab 路由表 `SUB_TAB_RENDERERS` | ✅ |
+| 8 | 壳层不再硬编码 `renderXxxPanel()` 调用 | ✅ |
 
-### Phase C: 设计系统升级（需宿主回归）
+### Phase B.5: 快速修复 ✅ 已完成（v1.0.76 部分保留）
 
-9. **Token 语义化** —— `--yyt-surface` → `--yyt-surface-raised` 等，保留旧名作为别名
-10. **Easing token 统一** —— 3 个缓动变量
-11. **Type scale token** —— 6 级字号变量
-12. **面板依赖注入** —— ApiPresetPanel 改为通过 `dependencies` 获取服务
+| # | 项目 | 状态 |
+|---|------|------|
+| — | Sidebar 折叠图标 CSS rotate(180deg) 与 JS 类名切换冲突 | ✅ 删除 CSS rotate 规则 |
 
-### Phase D: 长期（需全量回归）
+### Phase C: 工具面板 UX 重构（下一阶段 — 需解决滚动层级）
 
-13. **OKLCH 色彩空间迁移**
-14. **动画 @keyframes 合并**
-15. **PanelState 基类**
+**背景**：当前工具配置面板是一个长滚动表单（输出模式 → API 预设 → Ai 指令 → 世界书 → 提取 → 自动触发 → 模板 → 手动操作），用户必须滚动到底部才能操作模板或执行按钮。
+
+**约束**：工具面板渲染在 `.yyt-content` (overflow:auto) 内部，`position: sticky` 会被该 overflow 容器阻断。任何 sticky 方案都需要先解决滚动层级问题。
+
+| # | 项目 | 前置依赖 | 说明 |
+|---|------|---------|------|
+| C1 | **滚动层级重构** | — | `.yyt-content` 的 `overflow: auto` 改为由 `.yyt-sub-content` 承接滚动，`.yyt-content` 变为 `overflow: visible`，使 sticky 元素可以穿透。 |
+| C2 | **常驻操作顶栏** | C1 | 工具名 + 状态指示 + 立即执行 + 测试提取 + 保存，不随滚动消失。滚动压缩：hero 滚出视口后字号缩小、按钮文字隐藏。使用 IntersectionObserver。 |
+| C3 | **移除底部重复按钮** | C2 | 当前 hero 区和 footer 区各有一个"保存配置"按钮，与 C2 顶栏合并后移除两者。 |
+| C4 | **分区导航** | C1 | 水平锚点栏（输出模式 / API预设 / Ai指令 / 世界书 / 提取 / 自动触发 / 模板 / 操作），点击平滑滚动到对应 section。每个 section 有唯一 `id`。 |
+| C5 | **section 可折叠** | C4 | 每个分区卡可折叠/展开，默认展开常用区（输出模式、模板、操作），收起高级区（世界书、自动触发）。状态记忆在实例内。 |
+
+### Phase D: 设计系统升级（需宿主回归）
+
+| # | 项目 | 说明 |
+|---|------|------|
+| D1 | Token 语义化 | `--yyt-surface` → `--yyt-surface-raised` 等，旧名保留为别名 |
+| D2 | Easing token 统一 | 3 个缓动变量 `--ease-out` / `--ease-in` / `--ease-in-out` |
+| D3 | Type scale token | 6 级字号变量，替代散落各处的硬编码字号 |
+| D4 | 面板依赖注入 | ApiPresetPanel 改为通过 `dependencies` 获取 preset-manager / api-connection |
+
+### Phase E: 长期（需全量回归）
+
+| # | 项目 | 说明 |
+|---|------|------|
+| E1 | OKLCH 色彩空间迁移 | 感知均匀色彩，主题生成自动化 |
+| E2 | 动画 @keyframes 合并 | 7 个 keyframes → 3 个（fade-in / slide-up / scale-in） |
+| E3 | PanelState 基类 | 轻量 get/set/reset API，替代 `$container.data()` 拼接 |
+| E4 | Content wrapper 合并 | `.yyt-content-frame` + `.yyt-content` + `.yyt-content-inner` 三层合并为一层 |
 
 ---
 
