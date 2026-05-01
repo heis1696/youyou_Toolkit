@@ -4,6 +4,10 @@
  * @version 1.0.0
  */
 
+import { logger } from './logger-service.js';
+
+const log = logger.createScope('StorageService');
+
 // ============================================================
 // 存储服务类
 // ============================================================
@@ -65,7 +69,7 @@ class StorageService {
         }
       }
     } catch (e) {
-      console.warn(`[${this.namespaceKey}] SillyTavern存储不可用，使用localStorage`);
+      log.warn('SillyTavern存储不可用，使用localStorage');
     }
 
     // 回退到localStorage
@@ -81,7 +85,7 @@ class StorageService {
         try {
           localStorage.setItem(key, value);
         } catch (e) {
-          console.error(`[${this.namespaceKey}] localStorage写入失败:`, e);
+          log.error('localStorage写入失败:', e);
         }
       },
       removeItem: (key) => {
@@ -159,7 +163,7 @@ class StorageService {
     try {
       storage.setItem(fullKey, JSON.stringify(value));
     } catch (e) {
-      console.error(`[${this.namespaceKey}] 存储失败:`, e);
+      log.error('存储失败:', e);
     }
   }
 

@@ -5,6 +5,9 @@
 
 import { storage } from './core/storage-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ToolRegistry');
 import {
   getAllTools as getManagedTools,
   normalizeToolDefinitionToRuntimeConfig
@@ -466,6 +469,15 @@ export const TOOL_REGISTRY = {
     description: '全局设置',
     component: 'SettingsPanel',
     order: 7
+  },
+  logger: {
+    id: 'logger',
+    name: '日志',
+    icon: 'fa-terminal',
+    hasSubTabs: false,
+    description: '查看插件运行日志，支持过滤与导出',
+    component: 'LoggerPanel',
+    order: 8
   }
 };
 
@@ -727,12 +739,12 @@ function mergeToolRuntimeConfig(baseConfig, userConfig = {}, legacyApiPresetBind
  */
 export function registerTool(id, toolConfig) {
   if (!id || typeof id !== 'string') {
-    console.error('[ToolRegistry] 工具ID无效');
+    log.error('工具ID无效');
     return false;
   }
   
   if (!toolConfig || typeof toolConfig !== 'object') {
-    console.error('[ToolRegistry] 工具配置无效');
+    log.error('工具配置无效');
     return false;
   }
   
@@ -740,7 +752,7 @@ export function registerTool(id, toolConfig) {
   const requiredFields = ['name', 'icon', 'component'];
   for (const field of requiredFields) {
     if (!toolConfig[field]) {
-      console.error(`[ToolRegistry] 工具缺少必需字段: ${field}`);
+      log.error(` 工具缺少必需字段: ${field}`);
       return false;
     }
   }
@@ -751,7 +763,7 @@ export function registerTool(id, toolConfig) {
     order: toolConfig.order ?? Object.keys(registeredTools).length
   };
   
-  console.log(`[ToolRegistry] 工具已注册: ${id}`);
+  log.log(` 工具已注册: ${id}`);
   return true;
 }
 
@@ -762,12 +774,12 @@ export function registerTool(id, toolConfig) {
  */
 export function unregisterTool(id) {
   if (!registeredTools[id]) {
-    console.warn(`[ToolRegistry] 工具不存在: ${id}`);
+    log.warn(` 工具不存在: ${id}`);
     return false;
   }
   
   delete registeredTools[id];
-  console.log(`[ToolRegistry] 工具已注销: ${id}`);
+  log.log(` 工具已注销: ${id}`);
   return true;
 }
 
@@ -838,7 +850,7 @@ export function getToolSubTabs(toolId) {
  */
 export function resetToolRegistry() {
   registeredTools = { ...TOOL_REGISTRY };
-  console.log('[ToolRegistry] 工具注册表已重置');
+  log.log('工具注册表已重置');
 }
 
 // ============================================================
@@ -852,7 +864,7 @@ export function resetToolRegistry() {
  */
 export function setToolApiPreset(toolId, presetName) {
   if (!hasTool(toolId)) {
-    console.warn(`[ToolRegistry] 工具不存在: ${toolId}`);
+    log.warn(` 工具不存在: ${toolId}`);
     return false;
   }
   
@@ -860,7 +872,7 @@ export function setToolApiPreset(toolId, presetName) {
   bindings[toolId] = presetName || '';
   storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
   
-  console.log(`[ToolRegistry] 工具 "${toolId}" 绑定到预设 "${presetName || '当前配置'}"`);
+  log.log(` 工具 "${toolId}" 绑定到预设 "${presetName || '当前配置'}"`);
   return true;
 }
 
@@ -882,7 +894,7 @@ export function clearToolApiPreset(toolId) {
   const bindings = storage.get(TOOL_API_PRESET_BINDING_KEY) || {};
   delete bindings[toolId];
   storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
-  console.log(`[ToolRegistry] 工具 "${toolId}" 的API预设绑定已清除`);
+  log.log(` 工具 "${toolId}" 的API预设绑定已清除`);
 }
 
 /**
@@ -905,7 +917,7 @@ export function onPresetDeleted(presetName) {
     if (bindings[toolId] === presetName) {
       bindings[toolId] = '';
       changed = true;
-      console.log(`[ToolRegistry] 工具 "${toolId}" 的API预设绑定已清除（预设被删除）`);
+      log.log(` 工具 "${toolId}" 的API预设绑定已清除（预设被删除）`);
     }
   }
   
@@ -1004,7 +1016,7 @@ export function ensureToolRuntimeConfig(toolId) {
  */
 export function saveToolConfig(toolId, config, options = {}) {
   if (!toolId || !getToolFullConfig(toolId)) {
-    console.warn('[ToolRegistry] 工具不存在:', toolId);
+    log.warn('工具不存在:', toolId);
     return false;
   }
 
@@ -1069,7 +1081,7 @@ export function saveToolConfig(toolId, config, options = {}) {
     eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });
   }
   
-  console.log(`[ToolRegistry] 工具配置已保存: ${toolId}`);
+  log.log(` 工具配置已保存: ${toolId}`);
   return true;
 }
 
@@ -1278,7 +1290,7 @@ export function updateToolRuntime(toolId, runtimePartial, options = {}) {
  */
 export function resetToolConfig(toolId) {
   if (!toolId || !DEFAULT_TOOL_CONFIGS[toolId]) {
-    console.warn('[ToolRegistry] 工具不存在:', toolId);
+    log.warn('工具不存在:', toolId);
     return false;
   }
   
@@ -1287,7 +1299,7 @@ export function resetToolConfig(toolId) {
   storage.set(TOOL_CONFIG_STORAGE_KEY, userConfigs);
   
   eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: null });
-  console.log(`[ToolRegistry] 工具配置已重置: ${toolId}`);
+  log.log(` 工具配置已重置: ${toolId}`);
   return true;
 }
 

@@ -4,7 +4,10 @@
  * @version 1.1.0
  */
 
+import { logger } from '../core/logger-service.js';
 import { uiManager } from './ui-manager.js';
+
+const log = logger.createScope('UI');
 import { ApiPresetPanel } from './components/api-preset-panel.js';
 import { RegexExtractPanel } from './components/regex-extract-panel.js';
 import { ToolManagePanel } from './components/tool-manage-panel.js';
@@ -16,6 +19,7 @@ import { PunctuationTransformToolPanel } from './components/punctuation-transfor
 import { BypassPanel } from './components/bypass-panel.js';
 import { SettingsPanel } from './components/settings-panel.js';
 import { TableWorkbenchPanel } from './components/table-workbench-panel.js';
+import { LoggerPanel } from './components/logger-panel.js';
 
 // ============================================================
 // 工具导出
@@ -44,6 +48,7 @@ export { PunctuationTransformToolPanel } from './components/punctuation-transfor
 export { BypassPanel } from './components/bypass-panel.js';
 export { SettingsPanel } from './components/settings-panel.js';
 export { TableWorkbenchPanel } from './components/table-workbench-panel.js';
+export { LoggerPanel } from './components/logger-panel.js';
 
 // ============================================================
 // 组件注册
@@ -64,8 +69,9 @@ export function registerComponents() {
   uiManager.register(BypassPanel.id, BypassPanel);
   uiManager.register(SettingsPanel.id, SettingsPanel);
   uiManager.register(TableWorkbenchPanel.id, TableWorkbenchPanel);
+  uiManager.register(LoggerPanel.id, LoggerPanel);
 
-  console.log('[UI] 组件注册完成');
+  log.log('组件注册完成');
 }
 
 /**
@@ -90,7 +96,7 @@ export function initUI(options = {}) {
     uiManager.injectStyles(targetDocument);
   }
   
-  console.log('[UI] 模块初始化完成');
+  log.log('模块初始化完成');
 }
 
 function ensureComponentsRegistered() {
@@ -186,6 +192,10 @@ export function renderTableWorkbenchPanel(container) {
   renderRegisteredPanel(TableWorkbenchPanel.id, container);
 }
 
+export function renderLoggerPanel(container) {
+  renderRegisteredPanel(LoggerPanel.id, container);
+}
+
 // ============================================================
 // 路由表（Phase B：路由解耦）
 // ============================================================
@@ -219,6 +229,10 @@ export const MAIN_TAB_RENDERERS = Object.freeze({
   settings: {
     render: (container) => renderSettingsPanel(container),
     failMessage: '设置面板加载失败'
+  },
+  logger: {
+    render: (container) => renderLoggerPanel(container),
+    failMessage: '日志面板加载失败'
   }
 });
 
@@ -312,6 +326,7 @@ export default {
   BypassPanel,
   SettingsPanel,
   TableWorkbenchPanel,
+  LoggerPanel,
   registerComponents,
   initUI,
   renderApiPanel,
@@ -325,6 +340,7 @@ export default {
   renderBypassPanel,
   renderSettingsPanel,
   renderTableWorkbenchPanel,
+  renderLoggerPanel,
   MAIN_TAB_RENDERERS,
   SUB_TAB_RENDERERS,
   renderMainTab,

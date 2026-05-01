@@ -21,6 +21,9 @@ import {
 import { contextInjector } from './context-injector.js';
 import { runLocalTextTransform } from './tool-local-transform-service.js';
 import { showToast, showTopNotice } from './ui/utils.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ToolTrigger');
 
 export const TOOL_EXECUTION_PATHS = {
   MANUAL_POST_RESPONSE_API: 'manual_post_response_api',
@@ -70,7 +73,7 @@ function updateRuntime(toolId, runtimePartial) {
   try {
     updateToolRuntime(toolId, runtimePartial);
   } catch (error) {
-    console.warn('[ManualTool] 更新工具运行时状态失败:', toolId, error);
+    log.warn('更新工具运行时状态失败:', { toolId, error });
   }
 }
 

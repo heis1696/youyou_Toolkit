@@ -1,4 +1,7 @@
 import { getTopWindow } from './tool-execution-context.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ToolWorldbookService');
 
 let cachedWorldbooks = [];
 let lastWorldbookDiagnostics = null;
@@ -103,7 +106,7 @@ async function resolveCharacterWorldbooks(helper) {
       ...(Array.isArray(charLorebooks?.additional) ? charLorebooks.additional : [])
     ]);
   } catch (error) {
-    console.warn('[ToolWorldbookService] 获取角色绑定世界书失败:', error);
+    log.warn('获取角色绑定世界书失败:', error);
     return [];
   }
 }
@@ -116,7 +119,7 @@ async function resolveAllWorldbooks(helper, stApi) {
         return books;
       }
     } catch (error) {
-      console.warn('[ToolWorldbookService] 获取全部世界书列表失败:', error);
+      log.warn('获取全部世界书列表失败:', error);
     }
   }
 
@@ -130,7 +133,7 @@ async function resolveAllWorldbooks(helper, stApi) {
         return names;
       }
     } catch (error) {
-      console.warn('[ToolWorldbookService] 从 SillyTavern 获取世界书列表失败:', error);
+      log.warn('从 SillyTavern 获取世界书列表失败:', error);
     }
   }
 
@@ -217,7 +220,7 @@ export async function buildSelectedWorldbookContent(toolConfig) {
 
   const helper = getTavernHelper();
   if (!helper || typeof helper.getLorebookEntries !== 'function') {
-    console.warn('[ToolWorldbookService] TavernHelper.getLorebookEntries 不可用，无法读取世界书内容。');
+    log.warn('TavernHelper.getLorebookEntries 不可用，无法读取世界书内容。');
     return '';
   }
 
@@ -238,7 +241,7 @@ export async function buildSelectedWorldbookContent(toolConfig) {
         blocks.push(`[世界书：${bookName}]\n${entryText}`);
       }
     } catch (error) {
-      console.warn(`[ToolWorldbookService] 读取世界书失败: ${bookName}`, error);
+      log.warn(`读取世界书失败: ${bookName}`, error);
     }
   }
 

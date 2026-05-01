@@ -4,6 +4,9 @@
  */
 
 import { destroyEnhancedCustomSelects, enhanceNativeSelects } from './ui/utils.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('PromptEditor');
 
 // ============================================================
 // 常量定义
@@ -80,7 +83,7 @@ export class PromptEditor {
   init($container) {
     this.$ = window.jQuery || window.parent?.jQuery;
     if (!this.$) {
-      console.error('[PromptEditor] jQuery not available');
+      log.error('jQuery not available');
       return;
     }
     
@@ -333,7 +336,7 @@ export class PromptEditor {
     
     const segment = this.segments[index];
     if (segment.deletable === false) {
-      console.warn('[PromptEditor] 该段落不可删除');
+      log.warn('该段落不可删除');
       return;
     }
     
@@ -381,12 +384,12 @@ export class PromptEditor {
           
           if (Array.isArray(data)) {
             this.setSegments(data);
-            console.log('[PromptEditor] 提示词导入成功');
+            log.log('提示词导入成功');
           } else {
-            console.error('[PromptEditor] 无效的提示词格式');
+            log.error('无效的提示词格式');
           }
         } catch (err) {
-          console.error('[PromptEditor] 导入失败:', err);
+          log.error('导入失败:', err);
         }
       };
       reader.readAsText(file);
@@ -410,7 +413,7 @@ export class PromptEditor {
     a.click();
 
     URL.revokeObjectURL(url);
-    console.log('[PromptEditor] 提示词已导出');
+    log.log('提示词已导出');
   }
 
   destroy() {

@@ -8,6 +8,9 @@ import { eventBus, EVENTS } from './core/event-bus.js';
 import { bypassManager } from './bypass-manager.js';
 import { variableResolver } from './variable-resolver.js';
 import { buildSelectedWorldbookContent } from './tool-worldbook-service.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ToolPromptService');
 
 // ============================================================
 // 默认提示词模板
@@ -185,9 +188,7 @@ class ToolPromptService {
    * @private
    */
   _log(...args) {
-    if (this.debugMode) {
-      console.log('[ToolPromptService]', ...args);
-    }
+    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
   }
 
   // ============================================================

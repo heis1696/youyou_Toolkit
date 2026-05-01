@@ -4,6 +4,10 @@
  * @version 1.0.0
  */
 
+import { logger } from '../core/logger-service.js';
+
+const log = logger.createScope('UIUtils');
+
 // ============================================================
 // 常量定义
 // ============================================================
@@ -95,7 +99,7 @@ export function showToast(type, message, duration = 3000) {
   _showFallbackToast(type, message, duration);
   
   // 同时输出到console
-  console.log(`[YouYou 工具箱] [${type.toUpperCase()}] ${message}`);
+  log.log(`[${type.toUpperCase()}] ${message}`);
 }
 
 /**

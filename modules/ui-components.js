@@ -9,7 +9,8 @@
 // 从新的模块化结构导入
 // ============================================================
 
-import { 
+import { logger } from './core/logger-service.js';
+import {
   uiManager,
   ApiPresetPanel,
   RegexExtractPanel,
@@ -33,6 +34,8 @@ import {
   fillFormWithConfig
 } from './ui/index.js';
 
+const log = logger.createScope('UIComponents');
+
 // ============================================================
 // 状态管理（向后兼容）
 // ============================================================
@@ -44,7 +47,7 @@ let $toolContainer = null;
 function resolveContainer(container, currentContainer) {
   const $ = getJQuery();
   if (!$) {
-    console.error('[YouYouToolkit] jQuery not available');
+    log.error('jQuery not available');
     return null;
   }
 
@@ -75,7 +78,7 @@ export function render(container) {
   $container = resolveContainer(container, $container);
   
   if (!$container || !$container.length) {
-    console.error('[YouYouToolkit] Container not found or invalid');
+    log.error('Container not found or invalid');
     return;
   }
   
@@ -94,7 +97,7 @@ export function renderRegex(container) {
   $regexContainer = resolveContainer(container, $regexContainer);
   
   if (!$regexContainer || !$regexContainer.length) {
-    console.error('[YouYouToolkit] Regex container not found');
+    log.error('Regex container not found');
     return;
   }
   
@@ -113,7 +116,7 @@ export function renderTool(container) {
   $toolContainer = resolveContainer(container, $toolContainer);
   
   if (!$toolContainer || !$toolContainer.length) {
-    console.error('[YouYouToolkit] Tool container not found');
+    log.error('Tool container not found');
     return;
   }
   

@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
- * @version 1.0.67
+ * @version 1.0.86
  * @description 一个运行在 SillyTavern / TavernHelper 宿主中的可配置工具链平台，支持 API 预设、工具管理、自动触发、楼层写回与统一 UI 装配
  * @author YouYou
  */
@@ -10,7 +10,7 @@ import { createPopupShell } from './modules/app/popup-shell.js';
 import { createPublicApi } from './modules/app/public-api.js';
 
 const SCRIPT_ID = 'youyou_toolkit';
-const SCRIPT_VERSION = '1.0.67';
+const SCRIPT_VERSION = '1.0.86';
 const MENU_ITEM_ID = `${SCRIPT_ID}-menu-item`;
 const MENU_CONTAINER_ID = `${SCRIPT_ID}-menu-container`;
 const POPUP_ID = `${SCRIPT_ID}-popup`;
@@ -89,4 +89,6 @@ export default YouYouToolkit;
 
 bootstrap.init();
 
-console.log(`[${SCRIPT_ID}] 模块加载完成`);
+import('./modules/core/logger-service.js').then(({ logger }) => {
+  logger.createScope('Bootstrap').log('模块加载完成');
+});

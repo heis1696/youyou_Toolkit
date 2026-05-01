@@ -6,6 +6,9 @@
 
 import { storage } from './core/storage-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('BypassManager');
 
 // ============================================================
 // 存储键
@@ -705,9 +708,7 @@ class BypassManager {
    * @private
    */
   _log(...args) {
-    if (this.debugMode) {
-      console.log('[BypassManager]', ...args);
-    }
+    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
   }
 }
 

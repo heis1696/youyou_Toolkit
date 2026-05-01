@@ -5,6 +5,9 @@
  */
 
 import { storage } from './core/storage-service.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('RegexExtractor');
 
 const SETTINGS_STORAGE_KEY = 'settings';
 
@@ -194,7 +197,7 @@ export function extractSimpleTag(text, tag) {
   const openTags = (text.match(new RegExp(`<${escapedTag}>`, 'gi')) || []).length;
   const closeTags = (text.match(new RegExp(`<\\/${escapedTag}>`, 'gi')) || []).length;
   if (openTags > closeTags) {
-    console.warn(`[YouYouToolkit] 警告: 发现 ${openTags - closeTags} 个未闭合的 <${tag}> 标签`);
+    log.warn(`发现 ${openTags - closeTags} 个未闭合的 <${tag}> 标签`);
   }
 
   return extractedContent;
@@ -271,7 +274,7 @@ export function extractComplexTag(text, tag) {
   
   const parts = tag.split(',');
   if (parts.length !== 2) {
-    console.error(`[YouYouToolkit] 复杂标签配置格式错误，应该包含一个逗号: ${tag}`);
+    log.error(`复杂标签配置格式错误，应该包含一个逗号: ${tag}`);
     return [];
   }
 
@@ -281,7 +284,7 @@ export function extractComplexTag(text, tag) {
   // 提取结束标签名
   const endTagMatch = endPattern.match(/<\/(\w+)>/);
   if (!endTagMatch) {
-    console.error(`[YouYouToolkit] 无法解析结束标签: ${endPattern}`);
+    log.error(`无法解析结束标签: ${endPattern}`);
     return [];
   }
   const endTagName = endTagMatch[1];
@@ -318,7 +321,7 @@ export function extractHtmlFormatTag(text, tag) {
   // 提取标签名，处理可能的属性
   const tagMatch = tag.match(/<(\w+)(?:\s[^>]*)?>/);
   if (!tagMatch) {
-    console.error(`[YouYouToolkit] 无法解析HTML格式标签: ${tag}`);
+    log.error(`无法解析HTML格式标签: ${tag}`);
     return [];
   }
   const tagName = tagMatch[1];
@@ -338,7 +341,7 @@ export function extractHtmlFormatTag(text, tag) {
   const closeTags = (text.match(new RegExp(`<\\/${tagName}>`, 'gi')) || []).length;
 
   if (openTags > closeTags) {
-    console.warn(`[YouYouToolkit] 警告: 发现 ${openTags - closeTags} 个未闭合的 <${tagName}> 标签`);
+    log.warn(`发现 ${openTags - closeTags} 个未闭合的 <${tagName}> 标签`);
   }
 
   return extractedContent;
@@ -384,7 +387,7 @@ export function extractTagContent(text, rules, blacklist = []) {
       );
       workingText = workingText.replace(tagRegex, '');
     } catch (error) {
-      console.error(`[YouYouToolkit] Error applying block exclusion rule:`, { rule, error });
+      log.error('Error applying block exclusion rule:', { rule, error });
     }
   }
 
@@ -410,7 +413,7 @@ export function extractTagContent(text, rules, blacklist = []) {
           });
         }
       } catch (error) {
-        console.error(`[YouYouToolkit] Error applying inclusion rule:`, { rule, error });
+        log.error('Error applying inclusion rule:', { rule, error });
       }
       
       results.forEach(content => extractedContents.push(content.trim()));
@@ -432,7 +435,7 @@ export function extractTagContent(text, rules, blacklist = []) {
         const regex = new RegExp(rule.value, 'gi');
         contentBlock = contentBlock.replace(regex, '');
       } catch (error) {
-        console.error(`[YouYouToolkit] Error applying cleanup rule:`, { rule, error });
+        log.error('Error applying cleanup rule:', { rule, error });
       }
     }
 
@@ -490,7 +493,7 @@ export async function scanTextForTags(text, options = {}) {
 
     // 超时检查
     if (performance.now() - startTime > timeoutMs) {
-      console.warn(`[YouYouToolkit] Tag scanning timed out after ${timeoutMs}ms`);
+      log.warn(`Tag scanning timed out after ${timeoutMs}ms`);
       break;
     }
 

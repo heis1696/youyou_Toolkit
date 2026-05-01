@@ -4,6 +4,9 @@
  */
 
 import { storage } from './core/storage-service.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ApiConnection');
 
 const SETTINGS_STORAGE_KEY = 'settings';
 const API_PRESETS_STORAGE_KEY = 'api_presets';
@@ -356,7 +359,7 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
     try {
       return await sendViaTavernHelperCustomApi(messages, config, options, abortSignal, topWindow);
     } catch (error) {
-      console.warn('[youyou_toolkit] TavernHelper 自定义请求失败，回退到后备链路:', error);
+      log.warn('TavernHelper 自定义请求失败，回退到后备链路:', error);
     }
   }
 

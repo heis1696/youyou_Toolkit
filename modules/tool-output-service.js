@@ -6,6 +6,9 @@
 
 import { eventBus, EVENTS } from './core/event-bus.js';
 import { settingsService } from './core/settings-service.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ToolOutputService');
 import { contextInjector } from './context-injector.js';
 import { toolPromptService } from './tool-prompt-service.js';
 import { extractTagContent, getTagRules, getContentBlacklist } from './regex-extractor.js';
@@ -1089,9 +1092,7 @@ class ToolOutputService {
    * @private
    */
   _log(...args) {
-    if (this.debugMode || settingsService.getDebugSettings()?.enableDebugLog) {
-      console.log('[ToolOutputService]', ...args);
-    }
+    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
   }
 }
 

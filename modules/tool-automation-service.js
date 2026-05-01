@@ -12,6 +12,9 @@
 
 import { settingsService } from './core/settings-service.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ToolAutomation');
 import { getAllToolFullConfigs, patchToolRuntime } from './tool-registry.js';
 import { toolOutputService } from './tool-output-service.js';
 import {
@@ -1193,7 +1196,7 @@ class ToolAutomationService {
   // ── 日志 ──────────────────────────────────────────────────
 
   _log(...args) {
-    console.log('[ToolAutomation]', ...args);
+    log.log(args[0], args.length > 1 ? args.slice(1) : undefined);
   }
 }
 

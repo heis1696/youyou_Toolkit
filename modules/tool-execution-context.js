@@ -3,6 +3,10 @@
  * @description 为手动执行与自动执行提供统一的 assistant 楼层快照与上下文构建能力
  */
 
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ExecutionContext');
+
 function getTopWindow() {
   try {
     if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
@@ -197,7 +201,7 @@ export async function getCurrentCharacter() {
       };
     }
   } catch (error) {
-    console.error('[YouYouToolkit:ExecutionContext] 获取角色信息失败:', error);
+    log.error('获取角色信息失败:', error);
   }
 
   return null;

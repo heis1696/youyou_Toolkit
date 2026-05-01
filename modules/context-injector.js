@@ -5,6 +5,9 @@
  */
 
 import { eventBus, EVENTS } from './core/event-bus.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ContextInjector');
 
 // ============================================================
 // 存储键
@@ -1383,9 +1386,7 @@ class ContextInjector {
    * @private
    */
   _log(...args) {
-    if (this.debugMode) {
-      console.log('[ContextInjector]', ...args);
-    }
+    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
   }
 }
 

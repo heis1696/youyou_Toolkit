@@ -4,6 +4,9 @@
  */
 
 import { windowStorage } from './core/storage-service.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('WindowManager');
 
 // ============================================================
 // 常量定义
@@ -479,7 +482,7 @@ export function createWindow(options) {
   // 获取jQuery
   const $ = window.jQuery || window.parent?.jQuery;
   if (!$) {
-    console.error('[WindowManager] jQuery not available');
+    log.error('jQuery not available');
     return null;
   }
 

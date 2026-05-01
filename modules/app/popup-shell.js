@@ -6,10 +6,12 @@
 import { eventBus, EVENTS } from '../core/event-bus.js';
 import { destroyEnhancedCustomSelects, enhanceNativeSelects } from '../ui/utils.js';
 import { PromptEditor, DEFAULT_PROMPT_SEGMENTS, messagesToSegments, segmentsToMessages, getPromptEditorStyles } from '../prompt-editor.js';
+import { logger } from '../core/logger-service.js';
 
 export function createPopupShell(context) {
   const { constants, topLevelWindow, modules, caches, uiState } = context;
   const { SCRIPT_ID, SCRIPT_VERSION, POPUP_ID } = constants;
+  const scopeLogger = logger.createScope('PopupShell');
   const popupDragState = {
     cleanup: null
   };
@@ -53,11 +55,11 @@ export function createPopupShell(context) {
   }
 
   function log(...args) {
-    console.log(`[${SCRIPT_ID}]`, ...args);
+    scopeLogger.log(args.join(' '));
   }
 
   function logError(...args) {
-    console.error(`[${SCRIPT_ID}]`, ...args);
+    scopeLogger.error(args.join(' '));
   }
 
   function escapeHtml(unsafe) {
@@ -1085,7 +1087,7 @@ export function createPopupShell(context) {
       refreshScrollableSurfaces();
     } catch (error) {
       panelHostState.current = null;
-      console.error(`[${SCRIPT_ID}] 自定义工具面板加载失败:`, error);
+      logError('自定义工具面板加载失败:', error);
       $container.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>自定义工具面板加载失败</span></div>');
     }
   }

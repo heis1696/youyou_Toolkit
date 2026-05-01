@@ -6,6 +6,9 @@
 
 import { eventBus, EVENTS } from '../core/event-bus.js';
 import { getJQuery, isContainerValid } from './utils.js';
+import { logger } from '../core/logger-service.js';
+
+const log = logger.createScope('UIManager');
 
 // ============================================================
 // UI管理器类
@@ -51,7 +54,7 @@ class UIManager {
     this.initialized = true;
     eventBus.emit(EVENTS.UI_INITIALIZED);
     
-    console.log('[UIManager] 初始化完成');
+    log.log('初始化完成');
   }
 
   // ============================================================
@@ -66,7 +69,7 @@ class UIManager {
    */
   register(id, component) {
     if (!id || !component) {
-      console.warn('[UIManager] 无效的组件注册');
+      log.warn('无效的组件注册');
       return false;
     }
     
@@ -113,13 +116,13 @@ class UIManager {
   render(id, container, props = {}) {
     const $ = getJQuery();
     if (!$) {
-      console.error('[UIManager] jQuery不可用');
+      log.error('jQuery不可用');
       return;
     }
 
     const component = this.components.get(id);
     if (!component) {
-      console.error(`[UIManager] 组件不存在: ${id}`);
+      log.error(`组件不存在: ${id}`);
       if ($container?.length) {
         $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>组件未注册：${id}</span></div>`);
       }
@@ -136,7 +139,7 @@ class UIManager {
     }
 
     if (!isContainerValid($container)) {
-      console.warn(`[UIManager] 容器不存在`);
+      log.warn('容器不存在');
       return;
     }
 
@@ -169,7 +172,7 @@ class UIManager {
         component.bindEvents($container, this.dependencies);
       }
     } catch (error) {
-      console.error(`[UIManager] 组件渲染失败: ${id}`, error);
+      log.error(`组件渲染失败: ${id}`, error);
       $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>组件渲染失败：${id}${error?.message ? ` - ${error.message}` : ''}</span></div>`);
       return;
     }

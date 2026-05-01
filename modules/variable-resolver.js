@@ -5,6 +5,9 @@
  */
 
 import { eventBus, EVENTS } from './core/event-bus.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('VariableResolver');
 
 // ============================================================
 // 变量定义
@@ -522,9 +525,7 @@ class VariableResolver {
    * @private
    */
   _log(...args) {
-    if (this.debugMode) {
-      console.log('[VariableResolver]', ...args);
-    }
+    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
   }
 }
 

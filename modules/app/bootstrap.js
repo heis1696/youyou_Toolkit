@@ -3,6 +3,8 @@
  * @description 负责模块加载、样式注入、启动初始化与菜单入口注册
  */
 
+import { logger } from '../core/logger-service.js';
+
 export function createBootstrap(context, options = {}) {
   const { constants, topLevelWindow, modules } = context;
   const {
@@ -15,12 +17,14 @@ export function createBootstrap(context, options = {}) {
   let moduleLoadPromise = null;
   let uiInitialized = false;
 
+  const scopeLogger = logger.createScope('Bootstrap');
+
   function log(...args) {
-    console.log(`[${SCRIPT_ID}]`, ...args);
+    scopeLogger.log(args.join(' '));
   }
 
   function logError(...args) {
-    console.error(`[${SCRIPT_ID}]`, ...args);
+    scopeLogger.error(args.join(' '));
   }
 
   async function loadModules() {
@@ -54,8 +58,8 @@ export function createBootstrap(context, options = {}) {
         return true;
       } catch (error) {
         moduleLoadPromise = null;
-        console.warn(`[${SCRIPT_ID}] 模块加载失败，使用内置功能:`, error);
-        console.warn(`[${SCRIPT_ID}] 已加载模块:`, Object.keys(modules).filter((key) => modules[key]));
+        logError('模块加载失败，使用内置功能:', error);
+        logError('已加载模块:', Object.keys(modules).filter((key) => modules[key]));
         return false;
       }
     })();
@@ -1407,7 +1411,7 @@ export function createBootstrap(context, options = {}) {
         uiInitialized = true;
         log('UI 装配中心已初始化');
       } catch (uiError) {
-        console.error(`[${SCRIPT_ID}] UI 模块初始化失败:`, uiError);
+        logError('UI 模块初始化失败:', uiError);
       }
     }
 
