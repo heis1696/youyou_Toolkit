@@ -6,6 +6,7 @@
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { settingsService, DEFAULT_SETTINGS } from '../../core/settings-service.js';
+import { logger, LOG_LEVEL } from '../../core/logger-service.js';
 import { variableResolver } from '../../variable-resolver.js';
 import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuery, isContainerValid } from '../utils.js';
 
@@ -389,16 +390,22 @@ export const SettingsPanel = {
     return `
       <div class="yyt-settings-tab-content" data-tab="debug">
         <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">日志设置</div>
+          <div class="yyt-settings-section-title">日志级别</div>
           <div class="yyt-form-group">
             ${renderToggleControl({
               id: 'yyt-setting-enableDebugLog',
               checked: debug.enableDebugLog,
               title: '启用调试日志',
-              hint: '在控制台输出详细的调试信息'
+              hint: '开启后 Logger 面板将记录 DEBUG 级别日志，关闭仅记录 INFO 及以上'
             })}
           </div>
+          <div class="yyt-settings-hint" style="margin-top: 8px;">
+            <i class="fa-solid fa-terminal"></i> 在「日志」面板中查看、搜索和导出插件运行日志
+          </div>
+        </div>
 
+        <div class="yyt-settings-section">
+          <div class="yyt-settings-section-title">执行记录</div>
           <div class="yyt-form-group">
             ${renderToggleControl({
               id: 'yyt-setting-saveExecutionHistory',
@@ -517,6 +524,10 @@ export const SettingsPanel = {
         '#yyt-setting-theme'
       ]
     });
+
+    // 同步当前保存的 logger 级别
+    const savedDebug = settingsService.getDebugSettings();
+    logger.setLevel(savedDebug.enableDebugLog ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
   },
 
   _saveSettings($container) {
@@ -547,6 +558,7 @@ export const SettingsPanel = {
     };
 
     settingsService.saveSettings(settings);
+    logger.setLevel(settings.debug.enableDebugLog ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
     applyUiPreferences(settings.ui, getTargetDocument());
     showToast('success', '设置已保存');
   },
