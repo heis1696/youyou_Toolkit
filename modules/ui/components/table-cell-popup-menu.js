@@ -59,6 +59,10 @@ export class TableCellPopupMenu {
   }
 
   _buildItems(context) {
+    if (Array.isArray(context.items) && context.items.length > 0) {
+      return context.items;
+    }
+
     const items = [];
     const rowIndex = Number.isFinite(context.rowIndex) ? context.rowIndex : -1;
     const colKey = context.colKey || '';
@@ -69,9 +73,9 @@ export class TableCellPopupMenu {
     }
 
     if (rowIndex >= 0) {
-      items.push({ label: '上方插入行', action: `insert-row-above:${rowIndex}` });
-      items.push({ label: '下方插入行', action: `insert-row-below:${rowIndex}` });
-      items.push({ label: '删除此行', action: `delete-row:${rowIndex}` });
+      items.push({ label: '上方插入行', action: 'insert-row-above' });
+      items.push({ label: '下方插入行', action: 'insert-row-below' });
+      items.push({ label: '删除此行', action: 'delete-row' });
     }
 
     return items;
