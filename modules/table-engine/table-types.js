@@ -18,6 +18,31 @@ export const TABLE_STATE_LOAD_MODE = Object.freeze({
   EMPTY: 'empty'
 });
 
+export const TABLE_EDIT_OPERATIONS = Object.freeze({
+  INSERT_ROW: 'insertRow',
+  UPDATE_ROW: 'updateRow',
+  DELETE_ROW: 'deleteRow'
+});
+
+export const TABLE_LOCK_SCOPE = Object.freeze({
+  CELL: 'cell',
+  ROW: 'row',
+  COLUMN: 'column'
+});
+
+export function createEditOperation(op, tableIndex, rowIndex, data) {
+  return {
+    op: normalizeIdentityValue(op),
+    tableIndex: Number.isFinite(tableIndex) ? tableIndex : -1,
+    rowIndex: Number.isFinite(rowIndex) ? rowIndex : -1,
+    data: data && typeof data === 'object' ? cloneTableValue(data) : {}
+  };
+}
+
+export function computeCellHash(tableIndex, rowIndex, columnKey) {
+  return `${Number.isFinite(tableIndex) ? tableIndex : -1}:${Number.isFinite(rowIndex) ? rowIndex : -1}:${normalizeIdentityValue(columnKey) || '*'}`;
+}
+
 function normalizeIdentityValue(value) {
   if (value === undefined || value === null) return '';
   return String(value).trim();
@@ -120,10 +145,14 @@ export default {
   TABLE_MESSAGE_BINDINGS_KEY,
   TABLE_RUN_SOURCES,
   TABLE_STATE_LOAD_MODE,
+  TABLE_EDIT_OPERATIONS,
+  TABLE_LOCK_SCOPE,
   cloneTableValue,
   createTableTargetPointer,
   createTableTargetSnapshot,
   normalizeTableBoundState,
   createEmptyTableBoundState,
-  normalizeTableBindings
+  normalizeTableBindings,
+  createEditOperation,
+  computeCellHash
 };

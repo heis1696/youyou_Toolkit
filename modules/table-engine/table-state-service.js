@@ -261,9 +261,18 @@ export async function commitBoundState(targetSnapshot, nextState, options = {}) 
     };
   }
 
+  const baseState = createEmptyTableBoundState(targetForCommit);
+  const mergedMeta = {
+    ...(baseState.meta || {}),
+    ...(nextState.meta || {}),
+    ...(options.locks ? { locks: options.locks } : {}),
+    ...(options.previousSnapshot ? { previousSnapshot: options.previousSnapshot } : {})
+  };
+
   const normalizedState = normalizeTableBoundState({
-    ...createEmptyTableBoundState(targetForCommit),
+    ...baseState,
     ...nextState,
+    meta: mergedMeta,
     slotBindingKey: targetForCommit.slotBindingKey,
     slotRevisionKey: targetForCommit.slotRevisionKey,
     sourceMessageId: targetForCommit.sourceMessageId,
@@ -308,11 +317,32 @@ export function getAssistantTableSnapshot(sourceMessageId = null) {
   };
 }
 
+export function getPreviousTableState(targetSnapshot) {
+  const { runtime, messageIndex } = getMessageForTarget(targetSnapshot);
+  if (messageIndex < 0) return null;
+
+  for (let i = messageIndex - 1; i >= 0; i--) {
+    const msg = runtime.chat[i];
+    if (!msg || msg.is_user === true) continue;
+    const state = normalizeTableBoundState(msg[TABLE_MESSAGE_STATE_KEY]);
+    if (state && Array.isArray(state.tables) && state.tables.length > 0) {
+      return {
+        state,
+        messageIndex: i,
+        sourceMessageId: state.sourceMessageId || ''
+      };
+    }
+  }
+
+  return null;
+}
+
 export default {
   getBoundTableState,
   getTableBindings,
   loadBoundStateOrTemplate,
   recordResolvedTarget,
   commitBoundState,
-  getAssistantTableSnapshot
+  getAssistantTableSnapshot,
+  getPreviousTableState
 };

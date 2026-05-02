@@ -20,44 +20,7 @@ import {
   DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE
 } from '../../table-engine/table-schema-service.js';
 
-export const TABLE_FORM_RENDERER_STYLES = `
-  .yyt-dialog.yyt-table-editor-dialog {
-    border-radius: 24px;
-    border-color: rgba(123, 183, 255, 0.18);
-    background:
-      radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 62%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 28%),
-      var(--yyt-bg-base);
-    box-shadow: 0 30px 84px rgba(0, 0, 0, 0.6), 0 0 48px rgba(123, 183, 255, 0.08);
-  }
-
-  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-header {
-    padding: 18px 22px;
-    border-bottom-color: rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 100%);
-  }
-
-  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-title {
-    font-size: 16px;
-    font-weight: 800;
-  }
-
-  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-body.yyt-table-editor-dialog-body {
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.01);
-  }
-
-  .yyt-dialog.yyt-table-editor-dialog .yyt-dialog-footer.yyt-table-editor-dialog-footer {
-    justify-content: space-between;
-    border-top-color: rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.014) 100%);
-  }
-
-  .yyt-table-editor-dialog-note {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.62);
-    line-height: 1.65;
-  }
+const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-form-grid {
     display: grid;
@@ -1328,15 +1291,5 @@ export function readTableFormValues($container, schema = []) {
 }
 
 export default {
-  TABLE_FORM_RENDERER_STYLES,
-  bindTableFormEvents,
-  destroyTableFormEvents,
-  renderTableForm,
-  renderTableEditorCard,
-  renderTableDefinitionsEditorField,
-  renderTableAuxiliaryFields,
-  readTableDefinitionsDraft,
-  readTableFormValues,
-  applyDraftValidationState,
-  buildMoveControls
+  renderTableAuxiliaryFields
 };

@@ -36,12 +36,13 @@ export function buildTableMirrorContent(boundState = {}, options = {}) {
   ].join('\n');
 }
 
-export async function writeTableState({ targetSnapshot, nextTables, config, loadResult = null } = {}) {
+export async function writeTableState({ targetSnapshot, nextTables, config, loadResult = null, diff = null, fillMode = '' } = {}) {
   const normalizedConfig = normalizeTableWorkbenchConfig(config);
   const commitResult = await commitBoundState(targetSnapshot, {
     tables: Array.isArray(nextTables) ? cloneTableValue(nextTables) : [],
     meta: {
       lastLoadMode: normalizeString(loadResult?.loadMode, ''),
+      lastFillMode: normalizeString(fillMode),
       mergeBaseOnly: false,
       updatedBy: normalizeString(targetSnapshot?.runSource, 'MANUAL_TABLE')
     }
@@ -86,6 +87,8 @@ export async function writeTableState({ targetSnapshot, nextTables, config, load
     success: true,
     state: commitResult.state,
     bindings: commitResult.bindings,
+    diff,
+    fillMode,
     commitResult,
     mirrorResult,
     warning

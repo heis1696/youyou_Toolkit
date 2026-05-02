@@ -16,6 +16,11 @@ export const TABLE_WORKBENCH_RUNTIME_STATUS = Object.freeze({
   ERROR: 'error'
 });
 
+export const TABLE_FILL_MODE = Object.freeze({
+  INCREMENTAL: 'incremental',
+  FULL: 'full'
+});
+
 export const DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE = `请根据当前对话与当前表格基底，更新结构化 tables 数据。
 
 要求：
@@ -633,6 +638,7 @@ export function getTableWorkbenchDefaultConfig() {
     tables: [],
     promptTemplate: DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE,
     apiPreset: '',
+    fillMode: TABLE_FILL_MODE.INCREMENTAL,
     mirrorToMessage: false,
     mirrorTag: 'yyt-table-workbench',
     runtime: normalizeRuntime()
@@ -647,6 +653,7 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     tables: normalizeTables(nextValue.tables),
     promptTemplate: normalizeString(nextValue.promptTemplate, defaults.promptTemplate),
     apiPreset: normalizeString(nextValue.apiPreset, ''),
+    fillMode: nextValue.fillMode === TABLE_FILL_MODE.FULL ? TABLE_FILL_MODE.FULL : defaults.fillMode,
     mirrorToMessage: normalizeBoolean(nextValue.mirrorToMessage, defaults.mirrorToMessage),
     mirrorTag: normalizeString(nextValue.mirrorTag, defaults.mirrorTag),
     runtime: normalizeRuntime({
@@ -785,6 +792,7 @@ export default {
   TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
   DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE,
   TABLE_WORKBENCH_RUNTIME_STATUS,
+  TABLE_FILL_MODE,
   DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE,
   TABLE_WORKBENCH_RESPONSE_CONTRACT,
   createEmptyTableColumn,
