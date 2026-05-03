@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.94] - 2026-05-04
+
+### 优化
+
+- ✨ **重做填表工作台视觉层级，强化表格导航与单表编辑抽屉** (`modules/ui/components/table-workbench-panel.js`, `dist/bundle.js`)
+  - 引入填表工作台 scoped dark card language，统一运行控制台、设置卡片、表格概览、字段卡片、数据行卡片和诊断折叠区的边框、阴影、强调色与响应式节奏
+  - 表格概览改为更接近数据库导航的 active table card，补充 `T01` 序号、字段/行数 chip、运行状态与校验问题提示
+  - 手动更新表格选择改为 checkbox-card grid，配置抽屉增加表格 meta 信息，并优化字段结构、行数据、搜索筛选和诊断区的可读性
+
+### 文档
+
+- 📝 **同步 1.0.94 版本基线与填表工作台视觉重做说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`, `package-lock.json`)
+  - 更新当前版本号，并记录填表工作台视觉层级与单表编辑抽屉优化
+
 ## [1.0.93] - 2026-05-04
 
 ### 修复
