@@ -28,7 +28,9 @@ export const DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE = `请根据当前对话与
 2. 保持原有表结构；没有依据时保留原值。
 3. 如果某字段需要清空，请显式输出空字符串、空数组或 null。
 4. 优先参考当前 assistant 回复：{{lastAiMessage}}
-5. 当前表格基底 JSON：
+5. 表格级 AI 操作说明：
+{{tableGuidance}}
+6. 当前表格基底 JSON：
 {{toolContentMacro}}`;
 
 export const TABLE_WORKBENCH_RESPONSE_CONTRACT = `输出要求：
@@ -229,6 +231,17 @@ function normalizeDraftRow(value = {}, columns = [], index = 0) {
   };
 }
 
+function normalizeTableAiInstructions(value = {}) {
+  const sourceValue = value && typeof value === 'object' ? value : {};
+
+  return {
+    init: normalizeString(sourceValue.init, ''),
+    create: normalizeString(sourceValue.create, ''),
+    update: normalizeString(sourceValue.update, ''),
+    delete: normalizeString(sourceValue.delete, '')
+  };
+}
+
 function normalizeDraftTable(value = {}, index = 0) {
   const sourceValue = value && typeof value === 'object' ? value : {};
   const usedKeys = new Set();
@@ -241,8 +254,11 @@ function normalizeDraftTable(value = {}, index = 0) {
     : [];
 
   return {
+    id: normalizeString(sourceValue.id, ''),
     name: normalizeString(sourceValue.name || sourceValue.title, `表${index + 1}`),
     note: normalizeString(sourceValue.note || sourceValue.description, ''),
+    enabled: sourceValue.enabled !== false,
+    aiInstructions: normalizeTableAiInstructions(sourceValue.aiInstructions),
     columns: columns.map((column) => ({
       key: column.key,
       title: column.title,
@@ -323,8 +339,11 @@ export function createEmptyTableDefinition(tableIndex = 1) {
   const firstColumn = createEmptyTableColumn(1);
 
   return {
+    id: '',
     name: `表${tableIndex}`,
     note: '',
+    enabled: true,
+    aiInstructions: normalizeTableAiInstructions(),
     columns: [firstColumn],
     rows: [createEmptyTableRow([firstColumn], 1)]
   };
@@ -638,6 +657,11 @@ export function getTableWorkbenchDefaultConfig() {
     tables: [],
     promptTemplate: DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE,
     apiPreset: '',
+    promptPreset: '',
+    activeTemplate: '',
+    autoUpdateEnabled: false,
+    autoUpdateTrigger: 'assistantMessage',
+    runScope: 'enabled',
     fillMode: TABLE_FILL_MODE.INCREMENTAL,
     mirrorToMessage: false,
     mirrorTag: 'yyt-table-workbench',
@@ -653,6 +677,11 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     tables: normalizeTables(nextValue.tables),
     promptTemplate: normalizeString(nextValue.promptTemplate, defaults.promptTemplate),
     apiPreset: normalizeString(nextValue.apiPreset, ''),
+    promptPreset: normalizeString(nextValue.promptPreset, defaults.promptPreset),
+    activeTemplate: normalizeString(nextValue.activeTemplate, defaults.activeTemplate),
+    autoUpdateEnabled: normalizeBoolean(nextValue.autoUpdateEnabled, defaults.autoUpdateEnabled),
+    autoUpdateTrigger: normalizeString(nextValue.autoUpdateTrigger, defaults.autoUpdateTrigger),
+    runScope: normalizeString(nextValue.runScope, defaults.runScope),
     fillMode: nextValue.fillMode === TABLE_FILL_MODE.FULL ? TABLE_FILL_MODE.FULL : defaults.fillMode,
     mirrorToMessage: normalizeBoolean(nextValue.mirrorToMessage, defaults.mirrorToMessage),
     mirrorTag: normalizeString(nextValue.mirrorTag, defaults.mirrorTag),

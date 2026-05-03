@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - 填表工作台面板
- * 侧边栏表列表 + 主编辑区（列定义 + 行卡片）+ 收起诊断
+ * 主界面运行控制台 + 单表配置抽屉
  */
 import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice } from '../utils.js';
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
@@ -14,198 +14,295 @@ import {
 } from '../../table-engine/table-schema-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 
-// ---------- CSS ----------
 const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
-.yyt-twb { display:flex; flex-direction:column; gap:0; }
-
-.yyt-twb-topbar {
-  display:flex; align-items:center; gap:8px; padding:0 0 10px; flex-wrap:wrap;
-  border-bottom:1px solid rgba(255,255,255,0.06);
-}
-.yyt-twb-topbar .spacer { flex:1; }
-.yyt-twb-status { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-.yyt-twb-status.idle { background:rgba(255,255,255,0.25); }
-.yyt-twb-status.success { background:#4ade80; }
-.yyt-twb-status.error { background:#f87171; }
-.yyt-twb-status.running { background:#fbbf24; }
-
-.yyt-twb-body { display:grid; grid-template-columns:200px minmax(0,1fr); gap:0; min-height:0; }
-
-.yyt-twb-sidebar {
-  padding:10px 10px 10px 0; border-right:1px solid rgba(255,255,255,0.06);
-  display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:calc(100vh - 220px);
-}
-.yyt-twb-sidebar-item {
-  display:flex; align-items:center; gap:6px; padding:8px 10px; border-radius:8px;
-  color:rgba(255,255,255,0.65); font-size:12px; font-weight:600; cursor:pointer;
-  transition:all 0.12s; user-select:none;
-}
-.yyt-twb-sidebar-item:hover { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.88); }
-.yyt-twb-sidebar-item.active {
-  background:rgba(123,183,255,0.12); color:var(--yyt-text);
-  border:1px solid rgba(123,183,255,0.18);
-}
-.yyt-twb-sidebar-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.yyt-twb-sidebar-del {
-  opacity:0; font-size:14px; color:rgba(255,255,255,0.3); cursor:pointer; line-height:1;
-}
-.yyt-twb-sidebar-item:hover .yyt-twb-sidebar-del { opacity:0.5; }
-.yyt-twb-sidebar-del:hover { opacity:1; color:#f87171; }
-.yyt-twb-sidebar-add {
-  padding:6px 10px; border-radius:6px; border:1px dashed rgba(255,255,255,0.1);
-  color:rgba(123,183,255,0.65); font-size:11px; font-weight:700; cursor:pointer;
-  text-align:center; transition:all 0.12s; margin-top:4px;
-}
-.yyt-twb-sidebar-add:hover { border-color:rgba(123,183,255,0.25); background:rgba(123,183,255,0.05); }
-
-.yyt-twb-main { padding:10px 0 10px 14px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
-
-.yyt-twb-meta { display:flex; gap:8px; flex-wrap:wrap; }
-.yyt-twb-meta input {
-  padding:5px 10px; border:1px solid rgba(255,255,255,0.08); border-radius:6px;
-  background:rgba(255,255,255,0.03); color:var(--yyt-text); font-size:12px; font-family:inherit;
-}
-.yyt-twb-meta input:focus { border-color:rgba(123,183,255,0.35); outline:none; }
-.yyt-twb-meta .name-input { width:160px; }
-.yyt-twb-meta .note-input { flex:1; min-width:120px; }
-
-.yyt-twb-section-label {
-  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
-  color:rgba(255,255,255,0.35); margin-bottom:2px;
+.yyt-twb {
+  --twb-bg:#24221f;
+  --twb-panel:rgba(193,185,173,0.045);
+  --twb-panel-strong:#211f1c;
+  --twb-panel-soft:rgba(0,0,0,0.14);
+  --twb-border:#36332e;
+  --twb-border-soft:rgba(193,185,173,0.12);
+  --twb-text:#c1b9ad;
+  --twb-text-dim:#9e978e;
+  --twb-text-muted:#645e55;
+  --twb-accent:#7d4940;
+  --twb-accent-hover:#92574c;
+  --twb-accent-soft:rgba(125,73,64,0.14);
+  --twb-success:#6f8f68;
+  --twb-warning:#a68a55;
+  --twb-error:#9a514b;
+  --twb-radius:12px;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  color:var(--twb-text);
+  min-height:620px;
+  overflow:hidden;
 }
 
-.yyt-twb-col-table { width:100%; border-collapse:collapse; font-size:11px; }
-.yyt-twb-col-table th {
-  padding:5px 6px; text-align:left; font-weight:600; color:rgba(255,255,255,0.4);
-  border-bottom:1px solid rgba(255,255,255,0.06); font-size:10px;
+.yyt-twb input,
+.yyt-twb select,
+.yyt-twb textarea {
+  font-family:inherit;
 }
-.yyt-twb-col-table td { padding:3px 4px; border-bottom:1px solid rgba(255,255,255,0.03); }
-.yyt-twb-col-table input, .yyt-twb-col-table select {
-  width:100%; padding:4px 6px; box-sizing:border-box;
-  border:1px solid transparent; border-radius:4px;
-  background:rgba(255,255,255,0.02); color:var(--yyt-text); font-size:11px; font-family:inherit;
-}
-.yyt-twb-col-table input:focus, .yyt-twb-col-table select:focus {
-  border-color:rgba(123,183,255,0.3); outline:none; background:rgba(123,183,255,0.04);
-}
-.yyt-twb-col-table input:hover:not(:focus), .yyt-twb-col-table select:hover { border-color:rgba(255,255,255,0.06); }
-.yyt-twb-col-table .del-btn {
-  background:none; border:none; color:rgba(255,255,255,0.2); cursor:pointer; font-size:14px; padding:2px 4px;
-}
-.yyt-twb-col-table .del-btn:hover { color:#f87171; }
 
-.yyt-twb-add-btn {
-  padding:4px 10px; border:1px dashed rgba(255,255,255,0.1); border-radius:5px;
-  background:transparent; color:rgba(255,255,255,0.4); font-size:11px; cursor:pointer;
-  transition:all 0.12s; display:inline-block; margin-top:4px;
+.yyt-twb .yyt-input,
+.yyt-twb .yyt-select,
+.yyt-twb .yyt-textarea,
+.yyt-twb .yyt-code-textarea,
+.yyt-twb input:not([type="checkbox"]):not([type="radio"]),
+.yyt-twb select,
+.yyt-twb textarea {
+  border-color:var(--twb-border-soft);
+  background:rgba(0,0,0,0.12);
+  color:var(--twb-text);
 }
-.yyt-twb-add-btn:hover { border-color:rgba(123,183,255,0.22); color:rgba(123,183,255,0.7); }
 
-.yyt-twb-rows { display:flex; flex-direction:column; gap:8px; }
+.yyt-twb textarea { resize:vertical; }
 
+.yyt-twb input:focus,
+.yyt-twb select:focus,
+.yyt-twb textarea:focus,
+.yyt-twb button:focus-visible,
+.yyt-twb [tabindex]:focus-visible {
+  outline:none;
+  border-color:var(--twb-accent);
+  box-shadow:0 0 0 2px var(--twb-accent-soft);
+}
+
+.yyt-twb-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  padding:16px;
+  border:1px solid var(--twb-border);
+  border-radius:var(--twb-radius);
+  background:linear-gradient(135deg, rgba(125,73,64,0.12), rgba(0,0,0,0.12)), var(--twb-panel-strong);
+}
+
+.yyt-twb-title-group { display:flex; align-items:center; gap:12px; min-width:0; }
+.yyt-twb-icon {
+  width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+  border:1px solid rgba(125,73,64,0.45); border-radius:10px;
+  background:var(--twb-accent-soft); color:var(--twb-text);
+}
+.yyt-twb-title-group h2 { margin:0; font-size:18px; line-height:1.25; color:var(--twb-text); }
+.yyt-twb-title-group p { margin:4px 0 0; font-size:12px; color:var(--twb-text-dim); }
+.yyt-twb-header-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+
+.yyt-twb-status-chip {
+  display:inline-flex; align-items:center; gap:6px; min-height:26px; padding:3px 9px;
+  border:1px solid var(--twb-border-soft); border-radius:999px;
+  background:rgba(0,0,0,0.12); color:var(--twb-text-dim); font-size:12px; font-weight:700;
+  white-space:nowrap;
+}
+.yyt-twb-status-chip.idle { color:var(--twb-text-dim); }
+.yyt-twb-status-chip.running { color:var(--twb-warning); border-color:rgba(166,138,85,0.45); background:rgba(166,138,85,0.1); }
+.yyt-twb-status-chip.success { color:var(--twb-success); border-color:rgba(111,143,104,0.42); background:rgba(111,143,104,0.1); }
+.yyt-twb-status-chip.error { color:var(--twb-error); border-color:rgba(154,81,75,0.48); background:rgba(154,81,75,0.12); }
+.yyt-twb-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+.yyt-twb-muted { color:var(--twb-text-muted); font-size:12px; }
+.yyt-twb-help { margin:0; color:var(--twb-text-dim); font-size:12px; line-height:1.6; }
+
+.yyt-twb-dashboard { display:flex; flex-direction:column; gap:16px; min-height:0; overflow:auto; padding-bottom:8px; }
+.yyt-twb-dashboard-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.yyt-twb-card,
+.yyt-twb-editor-section {
+  background:var(--twb-panel);
+  border:1px solid var(--twb-border);
+  border-radius:var(--twb-radius);
+  padding:14px;
+}
+.yyt-twb-card-header,
+.yyt-twb-section-header {
+  display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px;
+}
+.yyt-twb-card-header h3,
+.yyt-twb-section-header h3,
+.yyt-twb-section-header h4 { margin:0; color:var(--twb-text); font-size:14px; }
+.yyt-twb-section-header p,
+.yyt-twb-card-header p { margin:4px 0 0; color:var(--twb-text-dim); font-size:12px; line-height:1.5; }
+.yyt-twb-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.yyt-twb-metrics > div { padding:10px; border:1px solid var(--twb-border-soft); border-radius:10px; background:var(--twb-panel-soft); }
+.yyt-twb-metrics span { display:block; color:var(--twb-text-muted); font-size:11px; margin-bottom:4px; }
+.yyt-twb-metrics strong { color:var(--twb-text); font-size:13px; }
+.yyt-twb-runtime-message { margin-top:10px; color:var(--twb-text-dim); font-size:12px; line-height:1.6; }
+
+.yyt-twb-field { display:flex; flex-direction:column; gap:6px; margin:0 0 10px; }
+.yyt-twb-field > span { color:var(--twb-text-dim); font-size:12px; font-weight:700; }
+.yyt-twb-field small { color:var(--twb-text-muted); font-size:11px; line-height:1.45; }
+.yyt-twb-check-row,
+.yyt-twb-radio-group label,
+.yyt-twb-table-chip {
+  display:flex; align-items:center; gap:8px; color:var(--twb-text-dim); font-size:12px;
+}
+.yyt-twb-radio-group { display:flex; flex-direction:column; gap:7px; margin-bottom:10px; }
+.yyt-twb-segmented { display:inline-flex; gap:4px; padding:3px; border:1px solid var(--twb-border-soft); border-radius:999px; background:rgba(0,0,0,0.14); }
+.yyt-twb-segmented button {
+  border:none; border-radius:999px; padding:5px 10px; background:transparent; color:var(--twb-text-dim);
+  cursor:pointer; font-size:12px; font-weight:700;
+}
+.yyt-twb-segmented button.active { background:var(--twb-accent-soft); color:var(--twb-text); }
+.yyt-twb-action-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.yyt-twb-table-chip-list { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+.yyt-twb-table-chip { padding:6px 9px; border:1px solid var(--twb-border-soft); border-radius:999px; background:rgba(0,0,0,0.1); }
+
+.yyt-twb-table-card-list { display:flex; flex-direction:column; gap:10px; }
+.yyt-twb-table-card {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px;
+  padding:14px; border:1px solid var(--twb-border); border-radius:var(--twb-radius); background:var(--twb-panel-strong);
+}
+.yyt-twb-table-card-main h4 { margin:0; color:var(--twb-text); font-size:14px; }
+.yyt-twb-table-card-main p { margin:5px 0 0; color:var(--twb-text-dim); font-size:12px; line-height:1.5; }
+.yyt-twb-table-card-meta { display:flex; flex-wrap:wrap; gap:8px; color:var(--twb-text-dim); font-size:12px; margin-top:10px; }
+.yyt-twb-table-card-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.yyt-twb-empty {
+  padding:22px; border:1px dashed var(--twb-border); border-radius:var(--twb-radius);
+  color:var(--twb-text-dim); background:rgba(0,0,0,0.1); text-align:center;
+}
+.yyt-twb-empty h4 { margin:0 0 6px; color:var(--twb-text); font-size:14px; }
+.yyt-twb-empty p { margin:0 0 12px; font-size:12px; line-height:1.6; }
+
+.yyt-twb-editor-drawer {
+  position:absolute; inset:0 0 0 auto; width:min(920px,92%);
+  background:rgba(20,18,16,0.78); backdrop-filter:blur(10px);
+  border-left:1px solid var(--twb-border); transform:translateX(100%);
+  transition:transform 180ms ease; z-index:20;
+}
+.yyt-twb-editor-drawer.is-open { transform:translateX(0); }
+.yyt-twb-editor { height:100%; display:flex; flex-direction:column; background:var(--twb-bg); }
+.yyt-twb-editor-header,
+.yyt-twb-editor-footer {
+  display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  padding:14px 16px; border-bottom:1px solid var(--twb-border);
+}
+.yyt-twb-editor-footer { border-top:1px solid var(--twb-border); border-bottom:none; justify-content:flex-end; }
+.yyt-twb-editor-header h3 { margin:0; color:var(--twb-text); font-size:16px; }
+.yyt-twb-editor-header p { margin:4px 0 0; color:var(--twb-text-dim); font-size:12px; }
+.yyt-twb-editor-body { overflow:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
+
+.yyt-twb-ai-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.yyt-twb-field-card-list { display:flex; flex-direction:column; gap:10px; }
+.yyt-twb-field-card {
+  position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px;
+  padding:12px; border:1px solid var(--twb-border-soft); border-radius:var(--twb-radius); background:var(--twb-panel-soft);
+}
+.yyt-twb-field-card-main { display:grid; grid-template-columns:220px minmax(0,1fr); gap:10px; }
+.yyt-twb-field-advanced { grid-column:1 / -1; border-top:1px solid var(--twb-border-soft); padding-top:8px; }
+.yyt-twb-field-advanced summary { cursor:pointer; color:var(--twb-text-dim); font-size:12px; font-weight:700; }
+.yyt-twb-advanced-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:10px; }
+
+.yyt-twb-rows-workspace { background:rgba(0,0,0,0.12); }
+.yyt-twb-row-toolbar { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+.yyt-twb-row-toolbar .yyt-input { flex:1; min-width:180px; }
+.yyt-twb-row-list { display:flex; flex-direction:column; gap:12px; }
 .yyt-twb-row-card {
-  padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.07);
-  background:rgba(255,255,255,0.015); transition:border-color 0.12s;
+  border:1px solid var(--twb-border); border-radius:var(--twb-radius); background:var(--twb-panel-strong); padding:14px;
 }
-.yyt-twb-row-card:hover { border-color:rgba(255,255,255,0.12); }
-.yyt-twb-row-card.row-new { border-color:rgba(74,222,128,0.25); background:rgba(74,222,128,0.04); }
-.yyt-twb-row-card.row-updated { border-color:rgba(96,165,250,0.25); background:rgba(96,165,250,0.04); }
-.yyt-twb-row-card.row-deleted { border-color:rgba(248,113,113,0.25); background:rgba(248,113,113,0.04); }
-.yyt-twb-row-card.row-new::after { content:'新增'; position:absolute; top:4px; right:8px; font-size:9px; color:#4ade80; font-weight:700; }
-.yyt-twb-row-card.row-updated::after { content:'已更新'; position:absolute; top:4px; right:8px; font-size:9px; color:#60a5fa; font-weight:700; }
+.yyt-twb-row-card.row-new { border-color:rgba(111,143,104,0.55); }
+.yyt-twb-row-card.row-updated { border-color:rgba(166,138,85,0.55); }
+.yyt-twb-row-card.row-deleted { border-color:rgba(154,81,75,0.55); opacity:0.72; }
+.yyt-twb-row-card-header { display:flex; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.yyt-twb-row-card-header > div:first-child { display:flex; align-items:center; gap:8px; min-width:0; flex:1; }
+.yyt-twb-row-index { color:var(--twb-text-muted); font-size:12px; font-weight:800; white-space:nowrap; }
+.yyt-twb-row-name { max-width:260px; }
+.yyt-twb-row-actions { display:flex; align-items:center; gap:8px; }
+.yyt-twb-row-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.yyt-twb-span-2 { grid-column:span 2; }
+.yyt-twb-diagnostics details { border:1px solid var(--twb-border-soft); border-radius:10px; background:rgba(0,0,0,0.1); }
+.yyt-twb-diagnostics summary { cursor:pointer; padding:10px 12px; color:var(--twb-text-dim); font-size:12px; font-weight:800; }
+.yyt-twb-diagnostic-grid { display:grid; grid-template-columns:minmax(220px,0.8fr) minmax(0,1.2fr); gap:12px; padding:0 12px 12px; }
+.yyt-twb-diagnostic-grid h5 { margin:0 0 8px; color:var(--twb-text); font-size:12px; }
+.yyt-twb-pre { margin:0; padding:10px; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-word; border:1px solid var(--twb-border-soft); border-radius:10px; background:rgba(0,0,0,0.18); color:var(--twb-text-dim); font-family:'Fira Code','Consolas',monospace; font-size:11px; line-height:1.6; }
 
-.yyt-twb-row-header {
-  display:flex; align-items:center; gap:8px; margin-bottom:6px; position:relative;
-}
-.yyt-twb-row-header .row-index { font-size:10px; font-weight:800; color:rgba(255,255,255,0.3); min-width:40px; }
-.yyt-twb-row-header .spacer { flex:1; }
-.yyt-twb-row-header .row-delete {
-  background:none; border:none; color:rgba(255,255,255,0.2); cursor:pointer; font-size:13px;
-  padding:2px 4px; transition:color 0.12s;
-}
-.yyt-twb-row-header .row-delete:hover { color:#f87171; }
-
-.yyt-twb-row-fields { display:flex; flex-wrap:wrap; gap:8px; }
-.yyt-twb-row-field { display:flex; flex-direction:column; gap:2px; min-width:120px; flex:1; }
-.yyt-twb-row-field label {
-  font-size:10px; font-weight:600; color:rgba(255,255,255,0.4); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.yyt-twb-row-field input, .yyt-twb-row-field select {
-  padding:5px 8px; border:1px solid rgba(255,255,255,0.06); border-radius:5px;
-  background:rgba(255,255,255,0.025); color:var(--yyt-text); font-size:12px; font-family:inherit;
-}
-.yyt-twb-row-field input:focus, .yyt-twb-row-field select:focus {
-  border-color:rgba(123,183,255,0.3); outline:none; background:rgba(123,183,255,0.04);
-}
-.yyt-twb-row-field input:hover:not(:focus) { border-color:rgba(255,255,255,0.08); }
-
-.yyt-twb-diagnostics { border-top:1px solid rgba(255,255,255,0.06); margin-top:4px; }
-.yyt-twb-diagnostics > summary {
-  list-style:none; padding:8px 0; cursor:pointer; font-size:11px; font-weight:600;
-  color:rgba(255,255,255,0.4); user-select:none;
-}
-.yyt-twb-diagnostics > summary::-webkit-details-marker { display:none; }
-.yyt-twb-diagnostics > summary:hover { color:rgba(255,255,255,0.65); }
-.yyt-twb-diag-body { padding:0 0 12px; display:flex; flex-direction:column; gap:10px; }
-
-.yyt-twb-pre {
-  margin:0; padding:10px; border-radius:6px; max-height:260px; overflow:auto;
-  white-space:pre-wrap; word-break:break-word;
-  background:rgba(8,12,18,0.7); border:1px solid rgba(255,255,255,0.05);
-  color:rgba(255,255,255,0.82); font-family:'Fira Code','Consolas',monospace; font-size:11px; line-height:1.6;
-}
-
-.yyt-twb-empty { padding:24px; text-align:center; color:rgba(255,255,255,0.3); font-size:13px; }
-
-@media (max-width:860px) {
-  .yyt-twb-body { grid-template-columns:1fr; }
-  .yyt-twb-sidebar { border-right:none; border-bottom:1px solid rgba(255,255,255,0.06); padding:0 0 8px; flex-direction:row; flex-wrap:wrap; max-height:none; }
-  .yyt-twb-sidebar-item { font-size:11px; padding:5px 8px; }
-  .yyt-twb-main { padding:8px 0; }
+@media (max-width:980px) {
+  .yyt-twb-dashboard-grid { grid-template-columns:1fr; }
+  .yyt-twb-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .yyt-twb-table-card { grid-template-columns:1fr; }
+  .yyt-twb-table-card-actions { justify-content:flex-start; }
+  .yyt-twb-editor-drawer { width:100%; }
+  .yyt-twb-ai-grid,
+  .yyt-twb-field-card-main,
+  .yyt-twb-advanced-grid,
+  .yyt-twb-row-fields,
+  .yyt-twb-diagnostic-grid { grid-template-columns:1fr; }
+  .yyt-twb-span-2 { grid-column:auto; }
 }
 `;
 
-// ---------- helpers ----------
 function S(v, fb = '') { return typeof v === 'string' && v.trim() ? v.trim() : fb; }
 function idx(tables, i) { const n = (Array.isArray(tables) ? tables.length : 0); if (n <= 0) return 0; if (!Number.isInteger(i) || i < 0) return 0; return Math.min(i, n - 1); }
 function dump(v) { try { return JSON.stringify(v, null, 2); } catch (_) { return String(v ?? ''); } }
-
 function schema() { return getTableWorkbenchFormSchema({ apiPresets: getAllPresets() }); }
+function instruction(table, key) { return S(table?.aiInstructions?.[key], ''); }
+function ensureInstructions(table = {}) {
+  return {
+    init: instruction(table, 'init'),
+    create: instruction(table, 'create'),
+    update: instruction(table, 'update'),
+    delete: instruction(table, 'delete')
+  };
+}
+function statusLabel(status) {
+  const s = S(status, 'idle');
+  if (s === 'running') return '运行中';
+  if (s === 'success') return '最近成功';
+  if (s === 'error') return '最近失败';
+  return '未运行';
+}
+function formatTime(ts) { return ts ? new Date(ts).toLocaleString() : '—'; }
+function formatDuration(ms) { return Number.isFinite(ms) && ms > 0 ? `${(ms / 1000).toFixed(ms >= 1000 ? 1 : 2)}s` : '—'; }
+function tableId(table, index) { return S(table?.id || table?.key, `table_${index}`); }
+function tableSummary(table) {
+  const columns = Array.isArray(table?.columns) ? table.columns.length : 0;
+  const rows = Array.isArray(table?.rows) ? table.rows.length : 0;
+  return `${columns} 字段 · ${rows} 行`;
+}
 
 function collect($c, fb) {
   const $ = getJQuery();
   const base = fb && typeof fb === 'object' ? fb : getTableWorkbenchConfig();
   if (!$ || !isContainerValid($c)) return base;
   const cfg = { ...base, runtime: base.runtime || {} };
-
-  const ti = idx(cfg.tables, cfg.__activeTableIndex ?? 0);
   const tables = Array.isArray(cfg.tables) ? [...cfg.tables] : [];
+  const ti = idx(tables, cfg.__activeTableIndex ?? 0);
 
   if (tables[ti]) {
-    const t = { ...tables[ti] };
+    const source = tables[ti] || {};
+    const t = { ...source, aiInstructions: ensureInstructions(source) };
     const $tn = $c.find('[data-twb-name]'); if ($tn.length) t.name = String($tn.val() || '').trim();
     const $nt = $c.find('[data-twb-note]'); if ($nt.length) t.note = String($nt.val() || '').trim();
+    $c.find('[data-twb-table-instruction]').each(function () {
+      const key = String($(this).attr('data-twb-table-instruction') || '').trim();
+      if (key) t.aiInstructions[key] = String($(this).val() || '').trim();
+    });
 
-    t.columns = []; t.rows = Array.isArray(t.rows) ? [...t.rows] : [];
-    $c.find('[data-twb-col]').each(function () {
-      const r = $(this);
-      t.columns.push({
-        key: S(r.find('[data-twb-col-key]').val(), ''),
-        title: S(r.find('[data-twb-col-title]').val(), ''),
-        type: S(r.find('[data-twb-col-type]').val(), 'text'),
-        required: r.find('[data-twb-col-req]').is(':checked'),
-        description: S(r.find('[data-twb-col-desc]').val(), '')
+    if ($c.find('[data-twb-col]').length) {
+      t.columns = [];
+      $c.find('[data-twb-col]').each(function () {
+        const r = $(this);
+        t.columns.push({
+          key: S(r.find('[data-twb-col-key]').val(), ''),
+          title: S(r.find('[data-twb-col-title]').val(), ''),
+          type: S(r.find('[data-twb-col-type]').val(), 'text'),
+          required: r.find('[data-twb-col-req]').is(':checked'),
+          description: S(r.find('[data-twb-col-desc]').val(), '')
+        });
       });
-    });
+    }
 
-    t.rows = [];
-    $c.find('[data-twb-row]').each(function () {
-      const r = $(this);
-      const cells = {};
-      t.columns.forEach(c => { cells[c.key] = S(r.find(`[data-twb-cell="${c.key}"]`).val(), ''); });
-      t.rows.push({ name: S(r.find('[data-twb-row-name]').val(), ''), cells });
-    });
+    if ($c.find('[data-twb-row]').length) {
+      t.rows = [];
+      $c.find('[data-twb-row]').each(function () {
+        const r = $(this);
+        const cells = {};
+        (t.columns || []).forEach(c => { cells[c.key] = S(r.find(`[data-twb-cell="${c.key}"]`).val(), ''); });
+        t.rows.push({ name: S(r.find('[data-twb-row-name]').val(), ''), cells });
+      });
+    }
 
     tables[ti] = t;
   }
@@ -214,165 +311,413 @@ function collect($c, fb) {
   const $ap = $c.find('[data-twb-field="apiPreset"]'); if ($ap.length) cfg.apiPreset = String($ap.val() || '');
   const $fm = $c.find('[data-twb-field="fillMode"]'); if ($fm.length) cfg.fillMode = String($fm.val() || '');
   const $mm = $c.find('[data-twb-field="mirrorToMessage"]'); if ($mm.length) cfg.mirrorToMessage = $mm.is(':checked');
+  const $au = $c.find('[data-twb-field="autoUpdateEnabled"]'); if ($au.length) cfg.autoUpdateEnabled = $au.is(':checked');
+  const $at = $c.find('[data-twb-field="autoUpdateTrigger"]'); if ($at.length) cfg.autoUpdateTrigger = String($at.val() || 'assistantMessage');
+  const $rs = $c.find('[data-twb-field="runScope"]:checked'); if ($rs.length) cfg.runScope = String($rs.val() || 'enabled');
+  const $pt = $c.find('[data-twb-field="promptPreset"]'); if ($pt.length) cfg.promptPreset = String($pt.val() || '');
+  const $tm = $c.find('[data-twb-field="activeTemplate"]'); if ($tm.length) cfg.activeTemplate = String($tm.val() || '');
 
   cfg.tables = tables;
   return cfg;
 }
 
-// ---------- render parts ----------
-function renderTopbar(cfg) {
-  const s = S(cfg?.runtime?.lastStatus, 'idle');
-  return `
-    <div class="yyt-twb-topbar">
-      <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="save"><i class="fa-solid fa-save"></i> 保存</button>
-      <button class="yyt-btn yyt-btn-primary yyt-btn-small" data-twb-action="run"><i class="fa-solid fa-play"></i> 立即填表</button>
-      <div class="spacer"></div>
-      <select class="yyt-table-wb-inline-select" data-twb-field="fillMode" style="padding:4px 8px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;background:rgba(255,255,255,0.05);color:var(--yyt-text);font-size:11px;">
-        <option value="${TABLE_FILL_MODE.INCREMENTAL}" ${cfg.fillMode !== TABLE_FILL_MODE.FULL ? 'selected' : ''}>增量</option>
-        <option value="${TABLE_FILL_MODE.FULL}" ${cfg.fillMode === TABLE_FILL_MODE.FULL ? 'selected' : ''}>全量</option>
-      </select>
-      <span class="yyt-twb-status ${s}" title="状态: ${s}"></span>
-    </div>`;
+function renderStatusChip(status) {
+  const s = S(status, 'idle');
+  return `<span class="yyt-twb-status-chip ${escapeHtml(s)}"><span class="yyt-twb-dot"></span>${escapeHtml(statusLabel(s))}</span>`;
 }
 
-function renderSidebar(tables, cur) {
-  const items = Array.isArray(tables) ? tables : [];
+function renderHeader(cfg) {
   return `
-    <div class="yyt-twb-sidebar">
-      ${items.map((t, i) => `
-        <div class="yyt-twb-sidebar-item${i === cur ? ' active' : ''}" data-twb-select="${i}">
-          <span class="yyt-twb-sidebar-item-name">${escapeHtml(S(t?.name, `表 ${i + 1}`))}</span>
-          ${items.length > 1 ? `<span class="yyt-twb-sidebar-del" data-twb-action="delete-table" data-twb-ti="${i}">&times;</span>` : ''}
+    <header class="yyt-twb-header">
+      <div class="yyt-twb-title-group">
+        <div class="yyt-twb-icon"><i class="fa-solid fa-table-cells"></i></div>
+        <div>
+          <h2>填表工作台</h2>
+          <p>结构化状态与关系数据工作台</p>
         </div>
-      `).join('')}
-      <div class="yyt-twb-sidebar-add" data-twb-action="add-table">+ 新增表格</div>
-    </div>`;
+      </div>
+      <div class="yyt-twb-header-actions">
+        ${renderStatusChip(cfg?.runtime?.lastStatus)}
+        <button class="yyt-btn yyt-btn-secondary" data-twb-action="save"><i class="fa-solid fa-save"></i> 保存</button>
+        <button class="yyt-btn yyt-btn-primary" data-twb-action="run"><i class="fa-solid fa-play"></i> 立即填表</button>
+      </div>
+    </header>`;
 }
 
-function renderColumns(table) {
-  const cols = Array.isArray(table?.columns) ? table.columns : [];
-  const typeLabel = {};
-  TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS.forEach(o => { typeLabel[o.value] = o.label; });
-
+function renderRuntimeOverview(cfg) {
+  const rt = cfg?.runtime || {};
   return `
-    <div class="yyt-twb-section-label">列定义 · ${cols.length} 列</div>
-    <table class="yyt-twb-col-table"><thead><tr>
-      <th>列名</th><th>键</th><th style="width:72px">类型</th><th style="width:36px">必填</th><th>说明</th><th style="width:24px"></th>
-    </tr></thead><tbody>
-      ${cols.map(c => `
-        <tr data-twb-col>
-          <td><input data-twb-col-title value="${escapeHtml(c.title || '')}" placeholder="列名"></td>
-          <td><input data-twb-col-key value="${escapeHtml(c.key || '')}" placeholder="键"></td>
-          <td><select data-twb-col-type>${TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS.map(o => `<option value="${o.value}" ${c.type === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}</select></td>
-          <td style="text-align:center"><input type="checkbox" data-twb-col-req ${c.required ? 'checked' : ''}></td>
-          <td><input data-twb-col-desc value="${escapeHtml(c.description || '')}" placeholder="可选"></td>
-          <td><button class="del-btn" data-twb-action="delete-col" data-twb-ci="${c.key}">&times;</button></td>
-        </tr>
-      `).join('')}
-    </tbody></table>
-    <button class="yyt-twb-add-btn" data-twb-action="add-col">+ 添加列</button>`;
+    <article class="yyt-twb-card yyt-twb-runtime-card">
+      <div class="yyt-twb-card-header">
+        <div><h3>运行概览</h3><p>最近一次填表执行结果。</p></div>
+        ${renderStatusChip(rt.lastStatus)}
+      </div>
+      <div class="yyt-twb-metrics">
+        <div><span>最近运行</span><strong>${escapeHtml(formatTime(rt.lastRunAt))}</strong></div>
+        <div><span>耗时</span><strong>${escapeHtml(formatDuration(rt.lastDurationMs))}</strong></div>
+        <div><span>成功</span><strong>${Number(rt.successCount) || 0}</strong></div>
+        <div><span>失败</span><strong>${Number(rt.errorCount) || 0}</strong></div>
+      </div>
+      <div class="yyt-twb-runtime-message">最近错误：${escapeHtml(S(rt.lastError, '无'))}</div>
+    </article>`;
 }
 
-function renderRows(table, diff) {
+function renderAutoUpdateSettings(cfg) {
+  return `
+    <article class="yyt-twb-card">
+      <div class="yyt-twb-card-header">
+        <div><h3>自动更新</h3><p>控制默认运行方式与写回策略。</p></div>
+        <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="autoUpdateEnabled" ${cfg.autoUpdateEnabled ? 'checked' : ''}><span>启用</span></label>
+      </div>
+      <label class="yyt-twb-field">
+        <span>触发时机</span>
+        <select class="yyt-select" data-twb-field="autoUpdateTrigger">
+          <option value="assistantMessage" ${cfg.autoUpdateTrigger !== 'manual' && cfg.autoUpdateTrigger !== 'custom' ? 'selected' : ''}>assistant 消息后</option>
+          <option value="manual" ${cfg.autoUpdateTrigger === 'manual' ? 'selected' : ''}>仅手动</option>
+          <option value="custom" ${cfg.autoUpdateTrigger === 'custom' ? 'selected' : ''}>自定义</option>
+        </select>
+      </label>
+      <label class="yyt-twb-field">
+        <span>默认更新模式</span>
+        <select class="yyt-select" data-twb-field="fillMode">
+          <option value="${TABLE_FILL_MODE.INCREMENTAL}" ${cfg.fillMode !== TABLE_FILL_MODE.FULL ? 'selected' : ''}>增量更新</option>
+          <option value="${TABLE_FILL_MODE.FULL}" ${cfg.fillMode === TABLE_FILL_MODE.FULL ? 'selected' : ''}>全量重写</option>
+        </select>
+      </label>
+      <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="mirrorToMessage" ${cfg.mirrorToMessage ? 'checked' : ''}><span>镜像写回正文</span></label>
+    </article>`;
+}
+
+function renderAiBindingSettings(cfg) {
+  const presets = getAllPresets();
+  return `
+    <article class="yyt-twb-card">
+      <div class="yyt-twb-card-header">
+        <div><h3>AI 绑定</h3><p>选择填表使用的 API 与提示词。</p></div>
+        <span class="yyt-twb-muted">API 与提示词</span>
+      </div>
+      <label class="yyt-twb-field">
+        <span>API 预设</span>
+        <select class="yyt-select" data-twb-field="apiPreset">
+          <option value="" ${!cfg.apiPreset ? 'selected' : ''}>使用当前 API 配置</option>
+          ${presets.map(p => `<option value="${escapeHtml(p?.name || '')}" ${cfg.apiPreset === p?.name ? 'selected' : ''}>${escapeHtml(p?.name || '')}</option>`).join('')}
+        </select>
+      </label>
+      <label class="yyt-twb-field">
+        <span>提示词预设</span>
+        <select class="yyt-select" data-twb-field="promptPreset">
+          <option value="" ${!cfg.promptPreset ? 'selected' : ''}>使用当前提示词</option>
+        </select>
+      </label>
+      <details>
+        <summary class="yyt-twb-muted" style="cursor:pointer;font-weight:700;">查看 / 编辑提示词</summary>
+        <label class="yyt-twb-field" style="margin-top:10px;">
+          <span>填表 Prompt</span>
+          <textarea class="yyt-code-textarea" rows="9" data-twb-field="promptTemplate">${escapeHtml(cfg.promptTemplate || '')}</textarea>
+        </label>
+      </details>
+    </article>`;
+}
+
+function renderTemplateManager(cfg) {
+  return `
+    <article class="yyt-twb-card yyt-twb-template-card">
+      <div class="yyt-twb-card-header">
+        <div><h3>模板管理</h3><p>复用表格结构与 AI 操作说明。</p></div>
+        <span class="yyt-twb-muted">结构模板</span>
+      </div>
+      <label class="yyt-twb-field">
+        <span>当前模板</span>
+        <select class="yyt-select" data-twb-field="activeTemplate">
+          <option value="" ${!cfg.activeTemplate ? 'selected' : ''}>未选择模板</option>
+        </select>
+      </label>
+      <p class="yyt-twb-help">模板能力先保留入口；导入/导出会在后续模板库阶段接入。</p>
+      <div class="yyt-twb-action-grid">
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="apply-template">应用模板</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="save-template">保存为模板</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="import-template">导入模板</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="export-template">导出模板</button>
+      </div>
+    </article>`;
+}
+
+function renderManualRunPanel(cfg) {
+  const tables = Array.isArray(cfg.tables) ? cfg.tables : [];
+  const runScope = S(cfg.runScope, 'enabled');
+  return `
+    <article class="yyt-twb-card yyt-twb-manual-card">
+      <div class="yyt-twb-card-header">
+        <div><h3>手动更新</h3><p>选择本次想让 AI 关注的表。</p></div>
+        <span class="yyt-twb-muted">${tables.length} 张表</span>
+      </div>
+      <div class="yyt-twb-radio-group">
+        <label><input type="radio" name="twbRunScope" value="enabled" data-twb-field="runScope" ${runScope === 'enabled' ? 'checked' : ''}>所有启用表格</label>
+        <label><input type="radio" name="twbRunScope" value="selected" data-twb-field="runScope" ${runScope === 'selected' ? 'checked' : ''}>仅选中表格</label>
+        <label><input type="radio" name="twbRunScope" value="current" data-twb-field="runScope" ${runScope === 'current' ? 'checked' : ''}>当前打开表格</label>
+      </div>
+      <div class="yyt-twb-table-chip-list">
+        ${tables.length ? tables.map((t, i) => `<label class="yyt-twb-table-chip"><input type="checkbox" data-twb-run-table="${escapeHtml(tableId(t, i))}"><span>${escapeHtml(S(t?.name, `表格 ${i + 1}`))}</span></label>`).join('') : '<span class="yyt-twb-muted">还没有可更新的表格。</span>'}
+      </div>
+      <div class="yyt-twb-card-actions">
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="run-selected">仅更新选中表格</button>
+        <button class="yyt-btn yyt-btn-primary yyt-btn-small" data-twb-action="run">立即填表</button>
+      </div>
+    </article>`;
+}
+
+function renderTableOverviewList(cfg) {
+  const tables = Array.isArray(cfg.tables) ? cfg.tables : [];
+  const validation = validateTableDraftDeep({ tables });
+  return `
+    <section class="yyt-twb-table-overview">
+      <div class="yyt-twb-section-header">
+        <div><h3>表格</h3><p>管理需要 AI 维护的结构化表格。</p></div>
+        <button class="yyt-btn yyt-btn-secondary" data-twb-action="add-table"><i class="fa-solid fa-plus"></i> 新建表格</button>
+      </div>
+      ${tables.length ? `
+        <div class="yyt-twb-table-card-list">
+          ${tables.map((table, i) => {
+            const issues = (validation.issues || []).filter(issue => issue.tableIndex === i);
+            return `
+              <article class="yyt-twb-table-card" data-twb-select="${i}">
+                <div class="yyt-twb-table-card-main">
+                  <h4>${escapeHtml(S(table?.name, `表格 ${i + 1}`))}</h4>
+                  <p>${escapeHtml(S(table?.note, '还没有表格说明。'))}</p>
+                  <div class="yyt-twb-table-card-meta">
+                    <span>${escapeHtml(tableSummary(table))}</span>
+                    ${renderStatusChip(cfg?.runtime?.lastStatus)}
+                    <span>${issues.length} 个问题</span>
+                  </div>
+                </div>
+                <div class="yyt-twb-table-card-actions">
+                  <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="open-table-editor" data-twb-ti="${i}">配置表格</button>
+                  <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="run-table" data-twb-ti="${i}">更新此表</button>
+                  ${tables.length > 1 ? `<button class="yyt-btn yyt-btn-danger yyt-btn-small" data-twb-action="delete-table" data-twb-ti="${i}" title="删除表格">删除</button>` : ''}
+                </div>
+              </article>`;
+          }).join('')}
+        </div>` : `
+        <div class="yyt-twb-empty">
+          <h4>还没有表格</h4>
+          <p>先新建一张表，再定义字段和数据行。</p>
+          <button class="yyt-btn yyt-btn-primary" data-twb-action="add-table">新建第一张表</button>
+        </div>`}
+    </section>`;
+}
+
+function renderDashboard(cfg) {
+  return `
+    <main class="yyt-twb-dashboard">
+      <section class="yyt-twb-dashboard-grid">
+        ${renderRuntimeOverview(cfg)}
+        ${renderAutoUpdateSettings(cfg)}
+        ${renderAiBindingSettings(cfg)}
+        ${renderTemplateManager(cfg)}
+        ${renderManualRunPanel(cfg)}
+      </section>
+      ${renderTableOverviewList(cfg)}
+    </main>`;
+}
+
+function renderTableBaseInfo(table) {
+  return `
+    <section class="yyt-twb-editor-section">
+      <div class="yyt-twb-section-header"><div><h4>表格基础信息</h4><p>告诉 AI 这张表代表什么，以及它应该追踪哪类信息。</p></div></div>
+      <label class="yyt-twb-field"><span>表名</span><input class="yyt-input" data-twb-name value="${escapeHtml(table?.name || '')}" placeholder="表名"></label>
+      <label class="yyt-twb-field"><span>表格说明</span><textarea class="yyt-textarea" rows="3" data-twb-note placeholder="例如：记录角色基础信息、状态和关系变化。">${escapeHtml(table?.note || '')}</textarea></label>
+    </section>`;
+}
+
+function renderTableAiInstructions(table) {
+  const items = [
+    ['init', '初始化说明', '当表格为空时，AI 应该如何创建初始数据。'],
+    ['create', '新增说明', '什么时候应该新增一行。'],
+    ['update', '更新说明', '什么时候应该更新已有行。'],
+    ['delete', '删除说明', '什么时候应该删除或标记删除一行。']
+  ];
+  return `
+    <section class="yyt-twb-editor-section yyt-twb-ai-instructions">
+      <div class="yyt-twb-section-header"><div><h4>AI 理解与操作说明</h4><p>让 AI 自行判断是否需要初始化、新增、更新或删除这张表的数据。</p></div></div>
+      <div class="yyt-twb-ai-grid">
+        ${items.map(([key, label, help]) => `
+          <label class="yyt-twb-field">
+            <span>${label}</span>
+            <small>${help}</small>
+            <textarea class="yyt-textarea" rows="3" data-twb-table-instruction="${key}">${escapeHtml(instruction(table, key))}</textarea>
+          </label>`).join('')}
+      </div>
+    </section>`;
+}
+
+function renderFieldStructure(table) {
+  const cols = Array.isArray(table?.columns) ? table.columns : [];
+  return `
+    <section class="yyt-twb-editor-section">
+      <div class="yyt-twb-section-header">
+        <div><h4>字段结构</h4><p>告诉 AI 每一行需要填写哪些信息。默认只展示用户可理解的字段名和填写说明。</p></div>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="add-col">添加字段</button>
+      </div>
+      ${cols.length ? `
+        <div class="yyt-twb-field-card-list">
+          ${cols.map((c) => `
+            <article class="yyt-twb-field-card" data-twb-col>
+              <div class="yyt-twb-field-card-main">
+                <label class="yyt-twb-field"><span>字段名</span><input class="yyt-input" data-twb-col-title value="${escapeHtml(c.title || '')}" placeholder="字段名"></label>
+                <label class="yyt-twb-field"><span>AI 填写说明</span><textarea class="yyt-textarea" rows="2" data-twb-col-desc placeholder="告诉 AI 这个字段该填什么。">${escapeHtml(c.description || '')}</textarea></label>
+              </div>
+              <button class="yyt-btn yyt-btn-icon" data-twb-action="delete-col" data-twb-ci="${escapeHtml(c.key || '')}" title="删除字段" aria-label="删除字段"><i class="fa-solid fa-trash"></i></button>
+              <details class="yyt-twb-field-advanced">
+                <summary>高级设置</summary>
+                <div class="yyt-twb-advanced-grid">
+                  <label class="yyt-twb-field"><span>内部标识 key</span><input class="yyt-input" data-twb-col-key value="${escapeHtml(c.key || '')}" placeholder="col_key"></label>
+                  <label class="yyt-twb-field"><span>内容格式</span><select class="yyt-select" data-twb-col-type>${TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS.map(o => `<option value="${o.value}" ${c.type === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}</select></label>
+                  <label class="yyt-twb-check-row"><input type="checkbox" data-twb-col-req ${c.required ? 'checked' : ''}><span>AI 必须尝试填写</span></label>
+                </div>
+              </details>
+            </article>`).join('')}
+        </div>` : `
+        <div class="yyt-twb-empty"><h4>还没有字段</h4><p>字段决定 AI 输出格式，也决定每行可填写的内容。</p><button class="yyt-btn yyt-btn-secondary" data-twb-action="add-col">添加字段</button></div>`}
+    </section>`;
+}
+
+function renderRowField(column, row) {
+  const key = column?.key || '';
+  const title = column?.title || key;
+  const val = row?.cells && row.cells[key] !== undefined ? row.cells[key] : '';
+  const required = column?.required ? ' *' : '';
+  if (column?.type === 'boolean') {
+    return `
+      <label class="yyt-twb-field">
+        <span>${escapeHtml(title)}${required}</span>
+        <select class="yyt-select" data-twb-cell="${escapeHtml(key)}">
+          <option value="" ${val === '' ? 'selected' : ''}>—</option>
+          <option value="true" ${val === 'true' ? 'selected' : ''}>是</option>
+          <option value="false" ${val === 'false' ? 'selected' : ''}>否</option>
+        </select>
+      </label>`;
+  }
+  if (column?.type === 'json') {
+    return `<label class="yyt-twb-field yyt-twb-span-2"><span>${escapeHtml(title)}${required}</span><textarea class="yyt-textarea" rows="4" data-twb-cell="${escapeHtml(key)}">${escapeHtml(val)}</textarea></label>`;
+  }
+  return `<label class="yyt-twb-field ${column?.type === 'text' && String(val).length > 80 ? 'yyt-twb-span-2' : ''}"><span>${escapeHtml(title)}${required}</span><input class="yyt-input" type="${column?.type === 'number' ? 'number' : 'text'}" data-twb-cell="${escapeHtml(key)}" value="${escapeHtml(val)}" placeholder="${escapeHtml(title)}"></label>`;
+}
+
+function rowStatus(diff, row, ri) {
+  const rowName = row?.name || `__row_${ri}`;
+  const rd = diff?.[rowName];
+  if (rd?.__rowStatus === 'new') return 'new';
+  if (rd && Object.entries(rd).some(([k, v]) => k !== '__rowStatus' && (v === 'updated' || v === 'new'))) return 'updated';
+  return '';
+}
+function rowStatusLabel(status) { return status === 'new' ? '新增' : (status === 'updated' ? '已更新' : '手动'); }
+
+function renderDataRowsWorkspace(table, diff) {
   const cols = Array.isArray(table?.columns) ? table.columns : [];
   const rows = Array.isArray(table?.rows) ? table.rows : [];
-
-  if (!rows.length) return '<div class="yyt-twb-empty">暂无数据行，点击下方按钮或"立即填表"由 AI 生成</div>';
-
   return `
-    <div class="yyt-twb-section-label">数据行 · ${rows.length} 行</div>
-    <div class="yyt-twb-rows">
-      ${rows.map((row, ri) => {
-        const rowName = row.name || `__row_${ri}`;
-        const rd = diff?.[rowName];
-        let rowClass = '';
-        if (rd?.__rowStatus === 'new') rowClass = ' row-new';
-        else if (rd && Object.entries(rd).some(([k, v]) => k !== '__rowStatus' && (v === 'updated' || v === 'new'))) rowClass = ' row-updated';
-
-        return `
-          <div class="yyt-twb-row-card${rowClass}" data-twb-row data-twb-ri="${ri}">
-            <div class="yyt-twb-row-header">
-              <span class="row-index">#${ri + 1}</span>
-              <input data-twb-row-name value="${escapeHtml(row.name || '')}" placeholder="行名（可选）" style="padding:3px 6px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--yyt-text);font-size:12px;width:140px;">
-              <div class="spacer"></div>
-              <button class="row-delete" data-twb-action="delete-row" data-twb-ri="${ri}" title="删除此行">&times;</button>
-            </div>
-            <div class="yyt-twb-row-fields">
-              ${cols.map(c => {
-                const val = (row.cells && row.cells[c.key]) ? row.cells[c.key] : '';
-                if (c.type === 'boolean') {
-                  return `
-                    <div class="yyt-twb-row-field" style="min-width:80px;flex:0 1 auto;">
-                      <label>${escapeHtml(c.title || c.key)}${c.required ? ' *' : ''}</label>
-                      <select data-twb-cell="${escapeHtml(c.key)}">
-                        <option value="" ${val === '' ? 'selected' : ''}>—</option>
-                        <option value="true" ${val === 'true' ? 'selected' : ''}>是</option>
-                        <option value="false" ${val === 'false' ? 'selected' : ''}>否</option>
-                      </select>
-                    </div>`;
-                }
-                return `
-                  <div class="yyt-twb-row-field">
-                    <label>${escapeHtml(c.title || c.key)}${c.required ? ' *' : ''}</label>
-                    <input type="${c.type === 'number' ? 'number' : 'text'}" data-twb-cell="${escapeHtml(c.key)}" value="${escapeHtml(val)}" placeholder="${escapeHtml(c.title || c.key)}">
-                  </div>`;
-              }).join('')}
-            </div>
-          </div>`;
-      }).join('')}
-    </div>`;
+    <section class="yyt-twb-editor-section yyt-twb-rows-workspace">
+      <div class="yyt-twb-section-header">
+        <div><h4>数据行</h4><p>共 ${rows.length} 行 · 最近 AI 更新 ${rows.filter((row, ri) => rowStatus(diff, row, ri)).length} 行</p></div>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="add-row">添加行</button>
+      </div>
+      <div class="yyt-twb-row-toolbar">
+        <input class="yyt-input" placeholder="搜索行名或内容" data-twb-row-search>
+        <div class="yyt-twb-segmented" data-twb-field="rowFilter">
+          <button class="active" data-twb-row-filter="all">全部</button>
+          <button data-twb-row-filter="new">新增</button>
+          <button data-twb-row-filter="updated">已更新</button>
+        </div>
+      </div>
+      ${rows.length ? `
+        <div class="yyt-twb-row-list">
+          ${rows.map((row, ri) => {
+            const status = rowStatus(diff, row, ri);
+            return `
+              <article class="yyt-twb-row-card${status ? ` row-${status}` : ''}" data-twb-row data-twb-ri="${ri}">
+                <header class="yyt-twb-row-card-header">
+                  <div><span class="yyt-twb-row-index">第 ${ri + 1} 行</span><input class="yyt-input yyt-twb-row-name" data-twb-row-name value="${escapeHtml(row?.name || '')}" placeholder="行名（可选）"></div>
+                  <div class="yyt-twb-row-actions">
+                    <span class="yyt-twb-status-chip ${status === 'new' ? 'success' : (status === 'updated' ? 'running' : 'idle')}">${rowStatusLabel(status)}</span>
+                    <button class="yyt-btn yyt-btn-icon" data-twb-action="delete-row" data-twb-ri="${ri}" title="删除此行" aria-label="删除此行"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                </header>
+                <div class="yyt-twb-row-fields">${cols.map(c => renderRowField(c, row)).join('')}</div>
+              </article>`;
+          }).join('')}
+        </div>` : `
+        <div class="yyt-twb-empty"><h4>暂无数据行</h4><p>可以手动添加一行，或点击“立即填表”让 AI 根据当前对话生成。</p><button class="yyt-btn yyt-btn-secondary" data-twb-action="add-row">添加行</button></div>`}
+    </section>`;
 }
 
-function renderMain(table, diff) {
-  if (!table) return '<div class="yyt-twb-empty">← 从左侧选择或新建一张表格</div>';
-
+function renderSingleTableDiagnostics(table, tableIndex, cfg) {
+  const validation = validateTableDraftDeep({ tables: Array.isArray(cfg.tables) ? cfg.tables : [] });
+  const issues = (validation.issues || []).filter(issue => issue.tableIndex === tableIndex);
   return `
-    <div class="yyt-twb-meta">
-      <input class="name-input" data-twb-name value="${escapeHtml(table.name || '')}" placeholder="表名">
-      <input class="note-input" data-twb-note value="${escapeHtml(table.note || '')}" placeholder="备注（可选）">
-    </div>
-    ${renderColumns(table)}
-    ${renderRows(table, diff)}
-    <button class="yyt-twb-add-btn" data-twb-action="add-row" style="align-self:flex-start;">+ 添加行</button>`;
+    <section class="yyt-twb-editor-section yyt-twb-diagnostics">
+      <details>
+        <summary>单表诊断 <span class="yyt-twb-muted">${issues.length} 个校验问题 · JSON 预览</span></summary>
+        <div class="yyt-twb-diagnostic-grid">
+          <div>
+            <h5>校验问题</h5>
+            ${issues.length ? `<div class="yyt-twb-pre">${escapeHtml(issues.map(i => i.message).join('\n'))}</div>` : '<div class="yyt-twb-muted">暂无校验问题。</div>'}
+          </div>
+          <div>
+            <h5>JSON 预览</h5>
+            <pre class="yyt-twb-pre">${escapeHtml(dump(table || {}))}</pre>
+          </div>
+        </div>
+      </details>
+    </section>`;
 }
 
-function renderDiagnostics(cfg) {
+function renderAdvancedDiagnostics(cfg) {
   const draft = { tables: Array.isArray(cfg.tables) ? cfg.tables : [] };
   const v = validateTableDraftDeep(draft);
   const ec = v?.summary?.errorCount || 0;
-  const rt = cfg?.runtime || {};
-  const lines = [
-    `状态: ${S(rt.lastStatus, 'idle')}`,
-    `最近运行: ${rt.lastRunAt ? new Date(rt.lastRunAt).toLocaleString() : '—'}`,
-    `耗时: ${rt.lastDurationMs ? rt.lastDurationMs + ' ms' : '—'}`,
-    `成功/失败: ${rt.successCount || 0} / ${rt.errorCount || 0}`,
-    `模式: ${S(rt.lastFillMode, '—')}`,
-    `载入: ${S(rt.lastLoadMode, '—')}`,
-    `镜像: ${rt.lastMirrorApplied ? '是' : '否'}`
-  ];
-
   return `
-    <details class="yyt-twb-diagnostics">
-      <summary>${ec > 0 ? `校验有 ${ec} 个错误` : '提示词模板与诊断'} <i class="fa-solid fa-chevron-right" style="font-size:9px;margin-left:4px;"></i></summary>
-      <div class="yyt-twb-diag-body">
-        ${renderTableAuxiliaryFields(schema(), cfg)}
-        <div class="yyt-twb-section-label">运行时信息</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.5);display:flex;flex-direction:column;gap:2px;">
-          ${lines.map(l => `<div>${escapeHtml(l)}</div>`).join('')}
-          ${rt.lastError ? `<div style="color:#f87171;">错误: ${escapeHtml(rt.lastError)}</div>` : ''}
+    <section class="yyt-twb-editor-section yyt-twb-diagnostics">
+      <details>
+        <summary>${ec > 0 ? `需要处理：${ec} 个校验问题` : '全局高级设置与运行诊断'}</summary>
+        <div style="padding:0 12px 12px;display:flex;flex-direction:column;gap:12px;">
+          ${renderTableAuxiliaryFields(schema(), cfg)}
+          <div><h5>变量帮助</h5><pre class="yyt-twb-pre">${escapeHtml(variableResolver.getVariableHelp())}</pre></div>
         </div>
-        <div class="yyt-twb-section-label">JSON 预览</div>
-        <pre class="yyt-twb-pre">${escapeHtml(dump(v.tables || []))}</pre>
-        <div class="yyt-twb-section-label">变量帮助</div>
-        <pre class="yyt-twb-pre">${escapeHtml(variableResolver.getVariableHelp())}</pre>
-      </div>
-    </details>`;
+      </details>
+    </section>`;
 }
 
-// ---------- panel object ----------
+function renderTableEditorDrawer(cfg, currentIndex, isOpen, diff) {
+  const tables = Array.isArray(cfg.tables) ? cfg.tables : [];
+  const table = tables[currentIndex] || null;
+  if (!isOpen || !table) return '<aside class="yyt-twb-editor-drawer"></aside>';
+  return `
+    <aside class="yyt-twb-editor-drawer is-open">
+      <div class="yyt-twb-editor">
+        <header class="yyt-twb-editor-header">
+          <div><h3>配置表格：${escapeHtml(S(table.name, `表格 ${currentIndex + 1}`))}</h3><p>${escapeHtml(tableSummary(table))} · ${escapeHtml(statusLabel(cfg?.runtime?.lastStatus))}</p></div>
+          <button class="yyt-btn yyt-btn-icon" data-twb-action="close-table-editor" title="关闭" aria-label="关闭"><i class="fa-solid fa-xmark"></i></button>
+        </header>
+        <div class="yyt-twb-editor-body">
+          ${renderTableBaseInfo(table)}
+          ${renderTableAiInstructions(table)}
+          ${renderFieldStructure(table)}
+          ${renderDataRowsWorkspace(table, diff)}
+          ${renderSingleTableDiagnostics(table, currentIndex, cfg)}
+          ${renderAdvancedDiagnostics(cfg)}
+        </div>
+        <footer class="yyt-twb-editor-footer">
+          <button class="yyt-btn yyt-btn-secondary" data-twb-action="close-table-editor">关闭</button>
+          <button class="yyt-btn yyt-btn-primary" data-twb-action="save">保存表格</button>
+        </footer>
+      </div>
+    </aside>`;
+}
+
 export const TableWorkbenchPanel = {
   id: 'tableWorkbenchPanel',
   currentTableIndex: 0,
+  editorOpen: false,
   lastDiff: null,
 
   render({ config } = {}) {
@@ -380,18 +725,12 @@ export const TableWorkbenchPanel = {
     const tables = Array.isArray(cfg.tables) ? cfg.tables : [];
     this.currentTableIndex = idx(tables, cfg.__activeTableIndex ?? this.currentTableIndex);
     const ti = this.currentTableIndex;
-    const active = tables[ti] || null;
 
     return `
       <div class="yyt-tool-panel yyt-twb" data-tool-id="tableWorkbench">
-        ${renderTopbar(cfg)}
-        <div class="yyt-twb-body">
-          ${renderSidebar(tables, ti)}
-          <div class="yyt-twb-main">
-            ${renderMain(active, this.lastDiff?.[ti])}
-          </div>
-        </div>
-        ${renderDiagnostics(cfg)}
+        ${renderHeader(cfg)}
+        ${renderDashboard(cfg)}
+        ${renderTableEditorDrawer(cfg, ti, this.editorOpen, this.lastDiff?.[ti])}
       </div>`;
   },
 
@@ -401,7 +740,23 @@ export const TableWorkbenchPanel = {
     const self = this;
     $container.off('.twb');
 
-    // sidebar: select table
+    $container.on('click.twb', '[data-twb-action="open-table-editor"]', function (e) {
+      e.stopPropagation();
+      const cfg = collect($container);
+      const i = Number($(this).attr('data-twb-ti'));
+      cfg.__activeTableIndex = i;
+      self.currentTableIndex = idx(cfg.tables, i);
+      self.editorOpen = true;
+      self.renderTo($container, { config: cfg });
+    });
+
+    $container.on('click.twb', '[data-twb-action="close-table-editor"]', function () {
+      const cfg = collect($container);
+      saveTableWorkbenchConfig(cfg);
+      self.editorOpen = false;
+      self.renderTo($container, { config: cfg });
+    });
+
     $container.on('click.twb', '[data-twb-select]', function () {
       const i = Number($(this).attr('data-twb-select'));
       const cfg = collect($container);
@@ -410,20 +765,27 @@ export const TableWorkbenchPanel = {
       self.renderTo($container, { config: cfg });
     });
 
-    // sidebar: add table
     $container.on('click.twb', '[data-twb-action="add-table"]', function (e) {
       e.stopPropagation();
       const cfg = collect($container);
       const tables = Array.isArray(cfg.tables) ? [...cfg.tables] : [];
-      tables.push({ name: `表格 ${tables.length + 1}`, note: '', columns: [{ key: 'col_1', title: '属性', type: 'text', required: false, description: '' }], rows: [] });
+      tables.push({
+        id: `table_${Date.now()}`,
+        name: `表格 ${tables.length + 1}`,
+        note: '',
+        enabled: true,
+        aiInstructions: { init: '', create: '', update: '', delete: '' },
+        columns: [{ key: 'col_1', title: '属性', type: 'text', required: false, description: '' }],
+        rows: []
+      });
       cfg.tables = tables;
       cfg.__activeTableIndex = tables.length - 1;
       saveTableWorkbenchConfig(cfg);
       self.currentTableIndex = tables.length - 1;
+      self.editorOpen = true;
       self.renderTo($container, { config: cfg });
     });
 
-    // sidebar: delete table
     $container.on('click.twb', '[data-twb-action="delete-table"]', function (e) {
       e.stopPropagation();
       const ti = Number($(this).attr('data-twb-ti'));
@@ -432,13 +794,14 @@ export const TableWorkbenchPanel = {
       if (ti < 0 || ti >= tables.length) return;
       tables.splice(ti, 1);
       const next = idx(tables, ti > 0 ? ti - 1 : 0);
-      cfg.tables = tables; cfg.__activeTableIndex = next;
+      cfg.tables = tables;
+      cfg.__activeTableIndex = next;
       saveTableWorkbenchConfig(cfg);
       self.currentTableIndex = next;
+      self.editorOpen = false;
       self.renderTo($container, { config: cfg });
     });
 
-    // save
     $container.on('click.twb', '[data-twb-action="save"]', () => {
       const cfg = collect($container);
       const r = saveTableWorkbenchConfig(cfg);
@@ -446,13 +809,17 @@ export const TableWorkbenchPanel = {
       else showTopNotice('warning', r.error || '保存失败', { duration: 4000, noticeId: 'twb-save' });
     });
 
-    // run
-    $container.on('click.twb', '[data-twb-action="run"]', async () => {
+    $container.on('click.twb', '[data-twb-action="run"], [data-twb-action="run-selected"], [data-twb-action="run-table"]', async function () {
+      const action = $(this).attr('data-twb-action');
+      const ti = Number($(this).attr('data-twb-ti'));
       const cfg = collect($container);
+      if (Number.isInteger(ti)) cfg.__activeTableIndex = ti;
       const r = saveTableWorkbenchConfig(cfg);
       if (!r.success) { showTopNotice('warning', r.error || '保存失败', { duration: 4000, noticeId: 'twb-save' }); return; }
+      if (action !== 'run') showTopNotice('warning', '当前执行链仍按完整 tables 上下文运行；单表/选中表范围已保留为 UI 入口。', { duration: 3600, noticeId: 'twb-run-scope' });
 
       try {
+        $(this).prop('disabled', true).text('填表中...');
         const result = await runManualTableUpdate();
         if (!result?.success) {
           showTopNotice('warning', result?.error || '填表失败', { duration: 4000, noticeId: 'twb-run' });
@@ -469,7 +836,6 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    // add row
     $container.on('click.twb', '[data-twb-action="add-row"]', () => {
       const cfg = collect($container);
       const ti = idx(cfg.tables, self.currentTableIndex);
@@ -478,13 +844,12 @@ export const TableWorkbenchPanel = {
       const t = { ...tables[ti] };
       t.rows = Array.isArray(t.rows) ? [...t.rows] : [];
       const cells = {}; (t.columns || []).forEach(c => { cells[c.key] = ''; });
-      t.rows.push({ name: '', cells });
+      t.rows.push({ name: `行${t.rows.length + 1}`, cells });
       tables[ti] = t; cfg.tables = tables; cfg.__activeTableIndex = ti;
       saveTableWorkbenchConfig(cfg);
       self.renderTo($container, { config: cfg });
     });
 
-    // delete row
     $container.on('click.twb', '[data-twb-action="delete-row"]', function () {
       const ri = Number($(this).attr('data-twb-ri'));
       const cfg = collect($container);
@@ -499,7 +864,6 @@ export const TableWorkbenchPanel = {
       self.renderTo($container, { config: cfg });
     });
 
-    // add col
     $container.on('click.twb', '[data-twb-action="add-col"]', () => {
       const cfg = collect($container);
       const ti = idx(cfg.tables, self.currentTableIndex);
@@ -508,13 +872,12 @@ export const TableWorkbenchPanel = {
       const t = { ...tables[ti] };
       t.columns = Array.isArray(t.columns) ? [...t.columns] : [];
       const n = t.columns.length + 1;
-      t.columns.push({ key: `col_${n}`, title: `列 ${n}`, type: 'text', required: false, description: '' });
+      t.columns.push({ key: `col_${n}`, title: `字段 ${n}`, type: 'text', required: false, description: '' });
       tables[ti] = t; cfg.tables = tables; cfg.__activeTableIndex = ti;
       saveTableWorkbenchConfig(cfg);
       self.renderTo($container, { config: cfg });
     });
 
-    // delete col
     $container.on('click.twb', '[data-twb-action="delete-col"]', function () {
       const key = $(this).attr('data-twb-ci');
       const cfg = collect($container);
@@ -534,7 +897,6 @@ export const TableWorkbenchPanel = {
       self.renderTo($container, { config: cfg });
     });
 
-    // right-click on row card
     $container.on('contextmenu.twb', '[data-twb-row]', function (e) {
       e.preventDefault();
       const ri = Number($(this).attr('data-twb-ri'));
@@ -551,7 +913,7 @@ export const TableWorkbenchPanel = {
             const t = { ...tables[ti] };
             t.rows = Array.isArray(t.rows) ? [...t.rows] : [];
             const cells = {}; (t.columns || []).forEach(c => { cells[c.key] = ''; });
-            t.rows.splice(Math.max(at, 0), 0, { name: '', cells });
+            t.rows.splice(Math.max(at, 0), 0, { name: `行${t.rows.length + 1}`, cells });
             tables[ti] = t; cfg.tables = tables; cfg.__activeTableIndex = ti;
             saveTableWorkbenchConfig(cfg);
             self.renderTo($container, { config: cfg });
@@ -562,15 +924,28 @@ export const TableWorkbenchPanel = {
       });
     });
 
-    // fillMode change
-    $container.on('change.twb', '[data-twb-field="fillMode"]', () => {
-      const cfg = collect($container);
-      saveTableWorkbenchConfig(cfg);
+    $container.on('click.twb', '[data-twb-row-filter]', function () {
+      const filter = $(this).attr('data-twb-row-filter');
+      $container.find('[data-twb-row-filter]').removeClass('active');
+      $(this).addClass('active');
+      $container.find('[data-twb-row]').each(function () {
+        const show = filter === 'all' || $(this).hasClass(`row-${filter}`);
+        $(this).toggle(show);
+      });
     });
 
-    // auto-save on blur/change for inline inputs
-    $container.on('blur.twb change.twb', '[data-twb-name], [data-twb-note], [data-twb-col] input, [data-twb-col] select, [data-twb-col] checkbox, [data-twb-row] input, [data-twb-row] select, [data-twb-field]', function () {
-      if ($(this).attr('data-twb-field') === 'fillMode') return;
+    $container.on('input.twb', '[data-twb-row-search]', function () {
+      const q = String($(this).val() || '').toLowerCase().trim();
+      $container.find('[data-twb-row]').each(function () {
+        $(this).toggle(!q || $(this).text().toLowerCase().includes(q));
+      });
+    });
+
+    $container.on('click.twb', '[data-twb-action="apply-template"], [data-twb-action="save-template"], [data-twb-action="import-template"], [data-twb-action="export-template"]', function () {
+      showTopNotice('warning', '模板库入口已预留，导入导出会在模板阶段接入。', { duration: 3000, noticeId: 'twb-template' });
+    });
+
+    $container.on('blur.twb change.twb', '[data-twb-name], [data-twb-note], [data-twb-table-instruction], [data-twb-col] input, [data-twb-col] select, [data-twb-col] textarea, [data-twb-row] input, [data-twb-row] select, [data-twb-row] textarea, [data-twb-field]', function () {
       const cfg = collect($container);
       saveTableWorkbenchConfig(cfg);
     });

@@ -44,6 +44,29 @@ function formatRecentMessages(messages = [], limit = 8) {
     .join('\n\n');
 }
 
+function formatTableGuidance(tables = []) {
+  if (!Array.isArray(tables) || tables.length === 0) return '';
+  return tables.map((table, tableIndex) => {
+    const instructions = table?.aiInstructions && typeof table.aiInstructions === 'object'
+      ? table.aiInstructions
+      : {};
+    const columns = Array.isArray(table?.columns) ? table.columns : [];
+    const lines = [
+      `表 ${tableIndex}: ${normalizeString(table?.name, `表${tableIndex + 1}`)}`,
+      `表格说明: ${normalizeString(table?.note, '无')}`,
+      `初始化说明: ${normalizeString(instructions.init, '无')}`,
+      `新增说明: ${normalizeString(instructions.create, '无')}`,
+      `更新说明: ${normalizeString(instructions.update, '无')}`,
+      `删除说明: ${normalizeString(instructions.delete, '无')}`,
+      '字段:'
+    ];
+    columns.forEach((column) => {
+      lines.push(`- ${normalizeString(column?.title || column?.key, '未命名字段')} (${normalizeString(column?.key, '')}): ${normalizeString(column?.description, '无')}`);
+    });
+    return lines.join('\n');
+  }).join('\n\n');
+}
+
 function buildRequestPayload(targetSnapshot, loadResult) {
   return {
     target: {
@@ -188,6 +211,7 @@ export async function buildRequest({ executionContext, targetSnapshot, loadResul
     lastAiMessage: executionContext?.assistantBaseText || executionContext?.lastAiMessage || '',
     recentMessagesText: formatRecentMessages(executionContext?.chatHistory || executionContext?.chatMessages || []),
     rawRecentMessagesText: formatRecentMessages(executionContext?.chatHistory || executionContext?.chatMessages || [], 20),
+    tableGuidance: formatTableGuidance(normalizedConfig.tables),
     injectedContext: assistantSnapshot?.injectedContext || contextInjector.getLatestMessageInjectedContext(targetSnapshot?.sourceMessageId),
     toolContentMacro: JSON.stringify(requestPayload, null, 2),
     extractedContent: JSON.stringify(requestPayload, null, 2),

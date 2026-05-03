@@ -9,6 +9,28 @@
 
 ## [Unreleased]
 
+## [1.0.90] - 2026-05-03
+
+### 优化
+
+- ✨ **重构填表工作台为主控制台 + 单表配置抽屉，降低首屏信息密度** (`modules/ui/components/table-workbench-panel.js`, `dist/bundle.js`)
+  - 主界面收口为运行概览、自动更新设置、AI 绑定、模板入口、手动更新和表格概览列表
+  - 单张表的基础信息、字段结构、数据行、单表诊断移入右侧配置抽屉，避免字段和行数据挤占主控制台
+  - 字段结构默认只展示字段名与 AI 填写说明，内部 key、类型、必填项下沉到高级设置
+  - 数据行改为纵向大卡片工作区，补充搜索、状态筛选和显式新增/更新状态 chip
+
+### 新增
+
+- ✨ **新增表格级 AI 操作说明并接入填表 prompt 上下文** (`modules/table-engine/table-schema-service.js`, `modules/table-engine/table-update-service.js`)
+  - 每张表兼容保存 `aiInstructions.init/create/update/delete`，用于描述初始化、新增、更新和删除判断
+  - 默认填表 prompt 新增 `{{tableGuidance}}`，请求构建时会汇总表格说明、操作说明和字段说明
+  - 配置归一化兼容旧表结构，缺失 `aiInstructions` 时自动补空对象
+
+### 文档
+
+- 📝 **同步 1.0.90 版本基线与填表工作台新结构说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`, `package-lock.json`)
+  - 更新当前版本号与填表工作台说明
+
 ## [1.0.67] - 2026-04-23
 
 ### 修复
