@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+## [1.0.91] - 2026-05-04
+
+### 优化
+
+- ✨ **统一填表工作台视觉控件并补齐默认模板与 Ai 指令预设联动** (`modules/ui/components/table-workbench-panel.js`, `modules/table-engine/table-schema-service.js`, `dist/bundle.js`)
+  - 填表工作台移除独立 `--twb-*` 主题 token 与共享输入控件覆盖，回归工具箱既有按钮、输入框、选择框、文本域、section 与运行态 badge 风格
+  - 新增内置“默认剧情状态模板”，包含全局数据、主角、重要角色、技能、背包、任务、纪要和选项 8 张表，新配置开箱即用
+  - 模板管理支持显式应用内置模板；已有表格时需要二次点击确认，避免静默覆盖旧配置
+  - AI 绑定接入破限模块的 Ai 指令预设，启用后会作为填表请求前置消息发送，填表主 prompt 继续保留为独立配置
+
+### 文档
+
+- 📝 **同步 1.0.91 版本基线与填表工作台模板/预设说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`, `package-lock.json`)
+  - 更新当前版本号与填表工作台默认模板、Ai 指令预设联动说明
+
 ## [1.0.90] - 2026-05-03
 
 ### 优化

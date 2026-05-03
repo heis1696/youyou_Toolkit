@@ -8,113 +8,31 @@ import { renderTableAuxiliaryFields } from './table-form-renderer.js';
 import { TableCellPopupMenu, getPopupMenuStyles } from './table-cell-popup-menu.js';
 import { variableResolver } from '../../variable-resolver.js';
 import { getAllPresets } from '../../preset-manager.js';
+import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
 import {
   getTableWorkbenchConfig, getTableWorkbenchFormSchema, saveTableWorkbenchConfig,
-  validateTableDraftDeep, TABLE_FILL_MODE, TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS
+  validateTableDraftDeep, TABLE_FILL_MODE, TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
+  getTableWorkbenchBuiltinTemplates
 } from '../../table-engine/table-schema-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 
 const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
 .yyt-twb {
-  --twb-bg:#24221f;
-  --twb-panel:rgba(193,185,173,0.045);
-  --twb-panel-strong:#211f1c;
-  --twb-panel-soft:rgba(0,0,0,0.14);
-  --twb-border:#36332e;
-  --twb-border-soft:rgba(193,185,173,0.12);
-  --twb-text:#c1b9ad;
-  --twb-text-dim:#9e978e;
-  --twb-text-muted:#645e55;
-  --twb-accent:#7d4940;
-  --twb-accent-hover:#92574c;
-  --twb-accent-soft:rgba(125,73,64,0.14);
-  --twb-success:#6f8f68;
-  --twb-warning:#a68a55;
-  --twb-error:#9a514b;
-  --twb-radius:12px;
   position:relative;
   display:flex;
   flex-direction:column;
   gap:16px;
-  color:var(--twb-text);
   min-height:620px;
   overflow:hidden;
 }
 
-.yyt-twb input,
-.yyt-twb select,
-.yyt-twb textarea {
-  font-family:inherit;
-}
-
-.yyt-twb .yyt-input,
-.yyt-twb .yyt-select,
-.yyt-twb .yyt-textarea,
-.yyt-twb .yyt-code-textarea,
-.yyt-twb input:not([type="checkbox"]):not([type="radio"]),
-.yyt-twb select,
-.yyt-twb textarea {
-  border-color:var(--twb-border-soft);
-  background:rgba(0,0,0,0.12);
-  color:var(--twb-text);
-}
-
 .yyt-twb textarea { resize:vertical; }
-
-.yyt-twb input:focus,
-.yyt-twb select:focus,
-.yyt-twb textarea:focus,
-.yyt-twb button:focus-visible,
-.yyt-twb [tabindex]:focus-visible {
-  outline:none;
-  border-color:var(--twb-accent);
-  box-shadow:0 0 0 2px var(--twb-accent-soft);
-}
-
-.yyt-twb-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:16px;
-  padding:16px;
-  border:1px solid var(--twb-border);
-  border-radius:var(--twb-radius);
-  background:linear-gradient(135deg, rgba(125,73,64,0.12), rgba(0,0,0,0.12)), var(--twb-panel-strong);
-}
-
-.yyt-twb-title-group { display:flex; align-items:center; gap:12px; min-width:0; }
-.yyt-twb-icon {
-  width:38px; height:38px; display:flex; align-items:center; justify-content:center;
-  border:1px solid rgba(125,73,64,0.45); border-radius:10px;
-  background:var(--twb-accent-soft); color:var(--twb-text);
-}
-.yyt-twb-title-group h2 { margin:0; font-size:18px; line-height:1.25; color:var(--twb-text); }
-.yyt-twb-title-group p { margin:4px 0 0; font-size:12px; color:var(--twb-text-dim); }
-.yyt-twb-header-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
-
-.yyt-twb-status-chip {
-  display:inline-flex; align-items:center; gap:6px; min-height:26px; padding:3px 9px;
-  border:1px solid var(--twb-border-soft); border-radius:999px;
-  background:rgba(0,0,0,0.12); color:var(--twb-text-dim); font-size:12px; font-weight:700;
-  white-space:nowrap;
-}
-.yyt-twb-status-chip.idle { color:var(--twb-text-dim); }
-.yyt-twb-status-chip.running { color:var(--twb-warning); border-color:rgba(166,138,85,0.45); background:rgba(166,138,85,0.1); }
-.yyt-twb-status-chip.success { color:var(--twb-success); border-color:rgba(111,143,104,0.42); background:rgba(111,143,104,0.1); }
-.yyt-twb-status-chip.error { color:var(--twb-error); border-color:rgba(154,81,75,0.48); background:rgba(154,81,75,0.12); }
-.yyt-twb-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
-.yyt-twb-muted { color:var(--twb-text-muted); font-size:12px; }
-.yyt-twb-help { margin:0; color:var(--twb-text-dim); font-size:12px; line-height:1.6; }
-
 .yyt-twb-dashboard { display:flex; flex-direction:column; gap:16px; min-height:0; overflow:auto; padding-bottom:8px; }
 .yyt-twb-dashboard-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .yyt-twb-card,
 .yyt-twb-editor-section {
-  background:var(--twb-panel);
-  border:1px solid var(--twb-border);
-  border-radius:var(--twb-radius);
-  padding:14px;
+  border-radius:18px;
 }
 .yyt-twb-card-header,
 .yyt-twb-section-header {
@@ -122,101 +40,103 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 }
 .yyt-twb-card-header h3,
 .yyt-twb-section-header h3,
-.yyt-twb-section-header h4 { margin:0; color:var(--twb-text); font-size:14px; }
+.yyt-twb-section-header h4 { margin:0; color:var(--yyt-text); font-size:14px; }
 .yyt-twb-section-header p,
-.yyt-twb-card-header p { margin:4px 0 0; color:var(--twb-text-dim); font-size:12px; line-height:1.5; }
+.yyt-twb-card-header p { margin:4px 0 0; color:var(--yyt-text-secondary); font-size:12px; line-height:1.5; }
 .yyt-twb-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
-.yyt-twb-metrics > div { padding:10px; border:1px solid var(--twb-border-soft); border-radius:10px; background:var(--twb-panel-soft); }
-.yyt-twb-metrics span { display:block; color:var(--twb-text-muted); font-size:11px; margin-bottom:4px; }
-.yyt-twb-metrics strong { color:var(--twb-text); font-size:13px; }
-.yyt-twb-runtime-message { margin-top:10px; color:var(--twb-text-dim); font-size:12px; line-height:1.6; }
+.yyt-twb-metrics > div { padding:10px; border:1px solid rgba(255,255,255,0.08); border-radius:14px; background:rgba(255,255,255,0.04); }
+.yyt-twb-metrics span { display:block; color:var(--yyt-text-muted); font-size:11px; margin-bottom:4px; }
+.yyt-twb-metrics strong { color:var(--yyt-text); font-size:13px; }
+.yyt-twb-runtime-message { margin-top:10px; color:var(--yyt-text-secondary); font-size:12px; line-height:1.6; }
 
 .yyt-twb-field { display:flex; flex-direction:column; gap:6px; margin:0 0 10px; }
-.yyt-twb-field > span { color:var(--twb-text-dim); font-size:12px; font-weight:700; }
-.yyt-twb-field small { color:var(--twb-text-muted); font-size:11px; line-height:1.45; }
+.yyt-twb-field > span { color:var(--yyt-text-secondary); font-size:12px; font-weight:700; }
+.yyt-twb-field small { color:var(--yyt-text-muted); font-size:11px; line-height:1.45; }
 .yyt-twb-check-row,
 .yyt-twb-radio-group label,
 .yyt-twb-table-chip {
-  display:flex; align-items:center; gap:8px; color:var(--twb-text-dim); font-size:12px;
+  display:flex; align-items:center; gap:8px; color:var(--yyt-text-secondary); font-size:12px;
 }
 .yyt-twb-radio-group { display:flex; flex-direction:column; gap:7px; margin-bottom:10px; }
-.yyt-twb-segmented { display:inline-flex; gap:4px; padding:3px; border:1px solid var(--twb-border-soft); border-radius:999px; background:rgba(0,0,0,0.14); }
+.yyt-twb-segmented { display:inline-flex; gap:4px; padding:3px; border:1px solid rgba(255,255,255,0.08); border-radius:999px; background:rgba(255,255,255,0.04); }
 .yyt-twb-segmented button {
-  border:none; border-radius:999px; padding:5px 10px; background:transparent; color:var(--twb-text-dim);
+  border:none; border-radius:999px; padding:5px 10px; background:transparent; color:var(--yyt-text-secondary);
   cursor:pointer; font-size:12px; font-weight:700;
 }
-.yyt-twb-segmented button.active { background:var(--twb-accent-soft); color:var(--twb-text); }
+.yyt-twb-segmented button.active { background:rgba(123,183,255,0.16); color:var(--yyt-text); }
 .yyt-twb-action-grid { display:flex; flex-wrap:wrap; gap:8px; }
 .yyt-twb-table-chip-list { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
-.yyt-twb-table-chip { padding:6px 9px; border:1px solid var(--twb-border-soft); border-radius:999px; background:rgba(0,0,0,0.1); }
+.yyt-twb-table-chip { padding:6px 9px; border:1px solid rgba(255,255,255,0.08); border-radius:999px; background:rgba(255,255,255,0.04); }
+.yyt-twb-muted { color:var(--yyt-text-muted); font-size:12px; }
+.yyt-twb-help { margin:0; color:var(--yyt-text-secondary); font-size:12px; line-height:1.6; }
 
 .yyt-twb-table-card-list { display:flex; flex-direction:column; gap:10px; }
 .yyt-twb-table-card {
   display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px;
-  padding:14px; border:1px solid var(--twb-border); border-radius:var(--twb-radius); background:var(--twb-panel-strong);
+  padding:14px; border:1px solid rgba(255,255,255,0.08); border-radius:18px; background:rgba(255,255,255,0.04);
 }
-.yyt-twb-table-card-main h4 { margin:0; color:var(--twb-text); font-size:14px; }
-.yyt-twb-table-card-main p { margin:5px 0 0; color:var(--twb-text-dim); font-size:12px; line-height:1.5; }
-.yyt-twb-table-card-meta { display:flex; flex-wrap:wrap; gap:8px; color:var(--twb-text-dim); font-size:12px; margin-top:10px; }
+.yyt-twb-table-card-main h4 { margin:0; color:var(--yyt-text); font-size:14px; }
+.yyt-twb-table-card-main p { margin:5px 0 0; color:var(--yyt-text-secondary); font-size:12px; line-height:1.5; }
+.yyt-twb-table-card-meta { display:flex; flex-wrap:wrap; gap:8px; color:var(--yyt-text-secondary); font-size:12px; margin-top:10px; }
 .yyt-twb-table-card-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .yyt-twb-empty {
-  padding:22px; border:1px dashed var(--twb-border); border-radius:var(--twb-radius);
-  color:var(--twb-text-dim); background:rgba(0,0,0,0.1); text-align:center;
+  padding:22px; border:1px dashed rgba(255,255,255,0.16); border-radius:18px;
+  color:var(--yyt-text-secondary); background:rgba(255,255,255,0.035); text-align:center;
 }
-.yyt-twb-empty h4 { margin:0 0 6px; color:var(--twb-text); font-size:14px; }
+.yyt-twb-empty h4 { margin:0 0 6px; color:var(--yyt-text); font-size:14px; }
 .yyt-twb-empty p { margin:0 0 12px; font-size:12px; line-height:1.6; }
 
 .yyt-twb-editor-drawer {
   position:absolute; inset:0 0 0 auto; width:min(920px,92%);
-  background:rgba(20,18,16,0.78); backdrop-filter:blur(10px);
-  border-left:1px solid var(--twb-border); transform:translateX(100%);
+  background:rgba(8,12,18,0.72); backdrop-filter:blur(10px);
+  border-left:1px solid rgba(255,255,255,0.1); transform:translateX(100%);
   transition:transform 180ms ease; z-index:20;
 }
 .yyt-twb-editor-drawer.is-open { transform:translateX(0); }
-.yyt-twb-editor { height:100%; display:flex; flex-direction:column; background:var(--twb-bg); }
+.yyt-twb-editor { height:100%; display:flex; flex-direction:column; background:var(--yyt-bg); }
 .yyt-twb-editor-header,
 .yyt-twb-editor-footer {
   display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
-  padding:14px 16px; border-bottom:1px solid var(--twb-border);
+  padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.08);
 }
-.yyt-twb-editor-footer { border-top:1px solid var(--twb-border); border-bottom:none; justify-content:flex-end; }
-.yyt-twb-editor-header h3 { margin:0; color:var(--twb-text); font-size:16px; }
-.yyt-twb-editor-header p { margin:4px 0 0; color:var(--twb-text-dim); font-size:12px; }
+.yyt-twb-editor-footer { border-top:1px solid rgba(255,255,255,0.08); border-bottom:none; justify-content:flex-end; }
+.yyt-twb-editor-header h3 { margin:0; color:var(--yyt-text); font-size:16px; }
+.yyt-twb-editor-header p { margin:4px 0 0; color:var(--yyt-text-secondary); font-size:12px; }
 .yyt-twb-editor-body { overflow:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
 
 .yyt-twb-ai-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .yyt-twb-field-card-list { display:flex; flex-direction:column; gap:10px; }
 .yyt-twb-field-card {
   position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px;
-  padding:12px; border:1px solid var(--twb-border-soft); border-radius:var(--twb-radius); background:var(--twb-panel-soft);
+  padding:12px; border:1px solid rgba(255,255,255,0.08); border-radius:18px; background:rgba(255,255,255,0.035);
 }
 .yyt-twb-field-card-main { display:grid; grid-template-columns:220px minmax(0,1fr); gap:10px; }
-.yyt-twb-field-advanced { grid-column:1 / -1; border-top:1px solid var(--twb-border-soft); padding-top:8px; }
-.yyt-twb-field-advanced summary { cursor:pointer; color:var(--twb-text-dim); font-size:12px; font-weight:700; }
+.yyt-twb-field-advanced { grid-column:1 / -1; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px; }
+.yyt-twb-field-advanced summary { cursor:pointer; color:var(--yyt-text-secondary); font-size:12px; font-weight:700; }
 .yyt-twb-advanced-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:10px; }
 
-.yyt-twb-rows-workspace { background:rgba(0,0,0,0.12); }
+.yyt-twb-rows-workspace { background:rgba(255,255,255,0.035); }
 .yyt-twb-row-toolbar { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
 .yyt-twb-row-toolbar .yyt-input { flex:1; min-width:180px; }
 .yyt-twb-row-list { display:flex; flex-direction:column; gap:12px; }
 .yyt-twb-row-card {
-  border:1px solid var(--twb-border); border-radius:var(--twb-radius); background:var(--twb-panel-strong); padding:14px;
+  border:1px solid rgba(255,255,255,0.08); border-radius:18px; background:rgba(255,255,255,0.04); padding:14px;
 }
-.yyt-twb-row-card.row-new { border-color:rgba(111,143,104,0.55); }
-.yyt-twb-row-card.row-updated { border-color:rgba(166,138,85,0.55); }
-.yyt-twb-row-card.row-deleted { border-color:rgba(154,81,75,0.55); opacity:0.72; }
+.yyt-twb-row-card.row-new { border-color:rgba(80,200,120,0.5); }
+.yyt-twb-row-card.row-updated { border-color:rgba(255,190,80,0.5); }
+.yyt-twb-row-card.row-deleted { border-color:rgba(255,90,90,0.5); opacity:0.72; }
 .yyt-twb-row-card-header { display:flex; justify-content:space-between; gap:12px; margin-bottom:12px; }
 .yyt-twb-row-card-header > div:first-child { display:flex; align-items:center; gap:8px; min-width:0; flex:1; }
-.yyt-twb-row-index { color:var(--twb-text-muted); font-size:12px; font-weight:800; white-space:nowrap; }
+.yyt-twb-row-index { color:var(--yyt-text-muted); font-size:12px; font-weight:800; white-space:nowrap; }
 .yyt-twb-row-name { max-width:260px; }
 .yyt-twb-row-actions { display:flex; align-items:center; gap:8px; }
 .yyt-twb-row-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .yyt-twb-span-2 { grid-column:span 2; }
-.yyt-twb-diagnostics details { border:1px solid var(--twb-border-soft); border-radius:10px; background:rgba(0,0,0,0.1); }
-.yyt-twb-diagnostics summary { cursor:pointer; padding:10px 12px; color:var(--twb-text-dim); font-size:12px; font-weight:800; }
+.yyt-twb-diagnostics details { border:1px solid rgba(255,255,255,0.08); border-radius:14px; background:rgba(255,255,255,0.035); }
+.yyt-twb-diagnostics summary { cursor:pointer; padding:10px 12px; color:var(--yyt-text-secondary); font-size:12px; font-weight:800; }
 .yyt-twb-diagnostic-grid { display:grid; grid-template-columns:minmax(220px,0.8fr) minmax(0,1.2fr); gap:12px; padding:0 12px 12px; }
-.yyt-twb-diagnostic-grid h5 { margin:0 0 8px; color:var(--twb-text); font-size:12px; }
-.yyt-twb-pre { margin:0; padding:10px; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-word; border:1px solid var(--twb-border-soft); border-radius:10px; background:rgba(0,0,0,0.18); color:var(--twb-text-dim); font-family:'Fira Code','Consolas',monospace; font-size:11px; line-height:1.6; }
+.yyt-twb-diagnostic-grid h5 { margin:0 0 8px; color:var(--yyt-text); font-size:12px; }
+.yyt-twb-pre { margin:0; padding:10px; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-word; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:rgba(0,0,0,0.18); color:var(--yyt-text-secondary); font-family:'Fira Code','Consolas',monospace; font-size:11px; line-height:1.6; }
 
 @media (max-width:980px) {
   .yyt-twb-dashboard-grid { grid-template-columns:1fr; }
@@ -315,6 +235,13 @@ function collect($c, fb) {
   const $at = $c.find('[data-twb-field="autoUpdateTrigger"]'); if ($at.length) cfg.autoUpdateTrigger = String($at.val() || 'assistantMessage');
   const $rs = $c.find('[data-twb-field="runScope"]:checked'); if ($rs.length) cfg.runScope = String($rs.val() || 'enabled');
   const $pt = $c.find('[data-twb-field="promptPreset"]'); if ($pt.length) cfg.promptPreset = String($pt.val() || '');
+  const $be = $c.find('[data-twb-field="bypassEnabled"]');
+  const bypassPresetId = String(cfg.promptPreset || '');
+  cfg.bypass = {
+    ...(cfg.bypass || {}),
+    enabled: $be.length ? $be.is(':checked') : cfg.bypass?.enabled === true,
+    presetId: bypassPresetId
+  };
   const $tm = $c.find('[data-twb-field="activeTemplate"]'); if ($tm.length) cfg.activeTemplate = String($tm.val() || '');
 
   cfg.tables = tables;
@@ -323,22 +250,19 @@ function collect($c, fb) {
 
 function renderStatusChip(status) {
   const s = S(status, 'idle');
-  return `<span class="yyt-twb-status-chip ${escapeHtml(s)}"><span class="yyt-twb-dot"></span>${escapeHtml(statusLabel(s))}</span>`;
+  return `<span class="yyt-tool-runtime-badge yyt-status-${escapeHtml(s)}">${escapeHtml(statusLabel(s))}</span>`;
 }
 
 function renderHeader(cfg) {
   return `
-    <header class="yyt-twb-header">
-      <div class="yyt-twb-title-group">
-        <div class="yyt-twb-icon"><i class="fa-solid fa-table-cells"></i></div>
-        <div>
-          <h2>填表工作台</h2>
-          <p>结构化状态与关系数据工作台</p>
-        </div>
+    <header class="yyt-tool-panel-hero">
+      <div class="yyt-tool-panel-hero-copy">
+        <div class="yyt-tool-panel-hero-title"><i class="fa-solid fa-table-cells"></i> 填表工作台</div>
+        <div class="yyt-tool-panel-hero-desc">结构化状态与关系数据工作台，按当前 assistant 消息执行 AI 填表。</div>
       </div>
-      <div class="yyt-twb-header-actions">
+      <div class="yyt-tool-panel-hero-tags">
         ${renderStatusChip(cfg?.runtime?.lastStatus)}
-        <button class="yyt-btn yyt-btn-secondary" data-twb-action="save"><i class="fa-solid fa-save"></i> 保存</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-tool-save-top" data-twb-action="save"><i class="fa-solid fa-save"></i> 保存</button>
         <button class="yyt-btn yyt-btn-primary" data-twb-action="run"><i class="fa-solid fa-play"></i> 立即填表</button>
       </div>
     </header>`;
@@ -347,7 +271,7 @@ function renderHeader(cfg) {
 function renderRuntimeOverview(cfg) {
   const rt = cfg?.runtime || {};
   return `
-    <article class="yyt-twb-card yyt-twb-runtime-card">
+    <article class="yyt-panel-section yyt-twb-card yyt-twb-runtime-card">
       <div class="yyt-twb-card-header">
         <div><h3>运行概览</h3><p>最近一次填表执行结果。</p></div>
         ${renderStatusChip(rt.lastStatus)}
@@ -364,7 +288,7 @@ function renderRuntimeOverview(cfg) {
 
 function renderAutoUpdateSettings(cfg) {
   return `
-    <article class="yyt-twb-card">
+    <article class="yyt-panel-section yyt-twb-card">
       <div class="yyt-twb-card-header">
         <div><h3>自动更新</h3><p>控制默认运行方式与写回策略。</p></div>
         <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="autoUpdateEnabled" ${cfg.autoUpdateEnabled ? 'checked' : ''}><span>启用</span></label>
@@ -390,11 +314,14 @@ function renderAutoUpdateSettings(cfg) {
 
 function renderAiBindingSettings(cfg) {
   const presets = getAllPresets();
+  const bypassPresets = getBypassPresetList() || [];
+  const bypassEnabled = cfg?.bypass?.enabled === true;
+  const bypassPresetId = S(cfg?.bypass?.presetId || cfg?.promptPreset, '');
   return `
-    <article class="yyt-twb-card">
+    <article class="yyt-panel-section yyt-twb-card">
       <div class="yyt-twb-card-header">
-        <div><h3>AI 绑定</h3><p>选择填表使用的 API 与提示词。</p></div>
-        <span class="yyt-twb-muted">API 与提示词</span>
+        <div><h3>AI 绑定</h3><p>选择填表使用的 API、Ai 指令预设与填表 Prompt。</p></div>
+        <span class="yyt-twb-muted">API 与 Ai 指令</span>
       </div>
       <label class="yyt-twb-field">
         <span>API 预设</span>
@@ -403,14 +330,20 @@ function renderAiBindingSettings(cfg) {
           ${presets.map(p => `<option value="${escapeHtml(p?.name || '')}" ${cfg.apiPreset === p?.name ? 'selected' : ''}>${escapeHtml(p?.name || '')}</option>`).join('')}
         </select>
       </label>
-      <label class="yyt-twb-field">
-        <span>提示词预设</span>
+      <label class="yyt-twb-check-row">
+        <input type="checkbox" data-twb-field="bypassEnabled" ${bypassEnabled ? 'checked' : ''}>
+        <span>启用 Ai 指令预设</span>
+      </label>
+      <label class="yyt-twb-field yyt-twb-bypass-preset ${bypassEnabled ? '' : 'yyt-hidden'}">
+        <span>绑定 Ai 指令预设</span>
         <select class="yyt-select" data-twb-field="promptPreset">
-          <option value="" ${!cfg.promptPreset ? 'selected' : ''}>使用当前提示词</option>
+          <option value="" ${!bypassPresetId ? 'selected' : ''}>选择预设</option>
+          ${bypassPresets.map(preset => `<option value="${escapeHtml(preset?.id || '')}" ${bypassPresetId === preset?.id ? 'selected' : ''}>${escapeHtml(preset?.name || preset?.id || '')}</option>`).join('')}
         </select>
+        <small>启用后会作为填表请求的前置消息发送，复用破限模块中的 Ai 指令预设。</small>
       </label>
       <details>
-        <summary class="yyt-twb-muted" style="cursor:pointer;font-weight:700;">查看 / 编辑提示词</summary>
+        <summary class="yyt-twb-muted" style="cursor:pointer;font-weight:700;">查看 / 编辑填表 Prompt</summary>
         <label class="yyt-twb-field" style="margin-top:10px;">
           <span>填表 Prompt</span>
           <textarea class="yyt-code-textarea" rows="9" data-twb-field="promptTemplate">${escapeHtml(cfg.promptTemplate || '')}</textarea>
@@ -420,8 +353,9 @@ function renderAiBindingSettings(cfg) {
 }
 
 function renderTemplateManager(cfg) {
+  const templates = getTableWorkbenchBuiltinTemplates();
   return `
-    <article class="yyt-twb-card yyt-twb-template-card">
+    <article class="yyt-panel-section yyt-twb-card yyt-twb-template-card">
       <div class="yyt-twb-card-header">
         <div><h3>模板管理</h3><p>复用表格结构与 AI 操作说明。</p></div>
         <span class="yyt-twb-muted">结构模板</span>
@@ -429,10 +363,11 @@ function renderTemplateManager(cfg) {
       <label class="yyt-twb-field">
         <span>当前模板</span>
         <select class="yyt-select" data-twb-field="activeTemplate">
-          <option value="" ${!cfg.activeTemplate ? 'selected' : ''}>未选择模板</option>
+          <option value="" ${!cfg.activeTemplate ? 'selected' : ''}>不切换模板</option>
+          ${templates.map(template => `<option value="${escapeHtml(template.id)}" ${cfg.activeTemplate === template.id ? 'selected' : ''}>${escapeHtml(template.name)}</option>`).join('')}
         </select>
       </label>
-      <p class="yyt-twb-help">模板能力先保留入口；导入/导出会在后续模板库阶段接入。</p>
+      <p class="yyt-twb-help">内置默认模板可直接应用；导入/导出会在后续模板库阶段接入。</p>
       <div class="yyt-twb-action-grid">
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="apply-template">应用模板</button>
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="save-template">保存为模板</button>
@@ -446,7 +381,7 @@ function renderManualRunPanel(cfg) {
   const tables = Array.isArray(cfg.tables) ? cfg.tables : [];
   const runScope = S(cfg.runScope, 'enabled');
   return `
-    <article class="yyt-twb-card yyt-twb-manual-card">
+    <article class="yyt-panel-section yyt-twb-card yyt-twb-manual-card">
       <div class="yyt-twb-card-header">
         <div><h3>手动更新</h3><p>选择本次想让 AI 关注的表。</p></div>
         <span class="yyt-twb-muted">${tables.length} 张表</span>
@@ -522,7 +457,7 @@ function renderDashboard(cfg) {
 
 function renderTableBaseInfo(table) {
   return `
-    <section class="yyt-twb-editor-section">
+    <section class="yyt-panel-section yyt-twb-editor-section">
       <div class="yyt-twb-section-header"><div><h4>表格基础信息</h4><p>告诉 AI 这张表代表什么，以及它应该追踪哪类信息。</p></div></div>
       <label class="yyt-twb-field"><span>表名</span><input class="yyt-input" data-twb-name value="${escapeHtml(table?.name || '')}" placeholder="表名"></label>
       <label class="yyt-twb-field"><span>表格说明</span><textarea class="yyt-textarea" rows="3" data-twb-note placeholder="例如：记录角色基础信息、状态和关系变化。">${escapeHtml(table?.note || '')}</textarea></label>
@@ -537,7 +472,7 @@ function renderTableAiInstructions(table) {
     ['delete', '删除说明', '什么时候应该删除或标记删除一行。']
   ];
   return `
-    <section class="yyt-twb-editor-section yyt-twb-ai-instructions">
+    <section class="yyt-panel-section yyt-twb-editor-section yyt-twb-ai-instructions">
       <div class="yyt-twb-section-header"><div><h4>AI 理解与操作说明</h4><p>让 AI 自行判断是否需要初始化、新增、更新或删除这张表的数据。</p></div></div>
       <div class="yyt-twb-ai-grid">
         ${items.map(([key, label, help]) => `
@@ -553,7 +488,7 @@ function renderTableAiInstructions(table) {
 function renderFieldStructure(table) {
   const cols = Array.isArray(table?.columns) ? table.columns : [];
   return `
-    <section class="yyt-twb-editor-section">
+    <section class="yyt-panel-section yyt-twb-editor-section">
       <div class="yyt-twb-section-header">
         <div><h4>字段结构</h4><p>告诉 AI 每一行需要填写哪些信息。默认只展示用户可理解的字段名和填写说明。</p></div>
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="add-col">添加字段</button>
@@ -616,7 +551,7 @@ function renderDataRowsWorkspace(table, diff) {
   const cols = Array.isArray(table?.columns) ? table.columns : [];
   const rows = Array.isArray(table?.rows) ? table.rows : [];
   return `
-    <section class="yyt-twb-editor-section yyt-twb-rows-workspace">
+    <section class="yyt-panel-section yyt-twb-editor-section yyt-twb-rows-workspace">
       <div class="yyt-twb-section-header">
         <div><h4>数据行</h4><p>共 ${rows.length} 行 · 最近 AI 更新 ${rows.filter((row, ri) => rowStatus(diff, row, ri)).length} 行</p></div>
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="add-row">添加行</button>
@@ -638,7 +573,7 @@ function renderDataRowsWorkspace(table, diff) {
                 <header class="yyt-twb-row-card-header">
                   <div><span class="yyt-twb-row-index">第 ${ri + 1} 行</span><input class="yyt-input yyt-twb-row-name" data-twb-row-name value="${escapeHtml(row?.name || '')}" placeholder="行名（可选）"></div>
                   <div class="yyt-twb-row-actions">
-                    <span class="yyt-twb-status-chip ${status === 'new' ? 'success' : (status === 'updated' ? 'running' : 'idle')}">${rowStatusLabel(status)}</span>
+                    <span class="yyt-tool-runtime-badge yyt-status-${status === 'new' ? 'success' : (status === 'updated' ? 'running' : 'idle')}">${rowStatusLabel(status)}</span>
                     <button class="yyt-btn yyt-btn-icon" data-twb-action="delete-row" data-twb-ri="${ri}" title="删除此行" aria-label="删除此行"><i class="fa-solid fa-trash"></i></button>
                   </div>
                 </header>
@@ -719,6 +654,7 @@ export const TableWorkbenchPanel = {
   currentTableIndex: 0,
   editorOpen: false,
   lastDiff: null,
+  pendingTemplateApplyId: '',
 
   render({ config } = {}) {
     const cfg = config && typeof config === 'object' ? config : getTableWorkbenchConfig();
@@ -941,8 +877,43 @@ export const TableWorkbenchPanel = {
       });
     });
 
-    $container.on('click.twb', '[data-twb-action="apply-template"], [data-twb-action="save-template"], [data-twb-action="import-template"], [data-twb-action="export-template"]', function () {
-      showTopNotice('warning', '模板库入口已预留，导入导出会在模板阶段接入。', { duration: 3000, noticeId: 'twb-template' });
+    $container.on('click.twb', '[data-twb-action="apply-template"]', function () {
+      const cfg = collect($container);
+      const templateId = S(cfg.activeTemplate, '');
+      const template = getTableWorkbenchBuiltinTemplates().find(item => item.id === templateId);
+      if (!template) {
+        showTopNotice('warning', '请选择一个可应用的内置模板。', { duration: 3000, noticeId: 'twb-template' });
+        return;
+      }
+
+      const hasTables = Array.isArray(cfg.tables) && cfg.tables.length > 0;
+      if (hasTables && self.pendingTemplateApplyId !== templateId) {
+        self.pendingTemplateApplyId = templateId;
+        showTopNotice('warning', '应用模板会替换当前表格。再次点击“应用模板”确认。', { duration: 4200, noticeId: 'twb-template' });
+        return;
+      }
+
+      cfg.tables = template.tables || [];
+      cfg.activeTemplate = template.id;
+      cfg.__activeTableIndex = 0;
+      const r = saveTableWorkbenchConfig(cfg);
+      self.pendingTemplateApplyId = '';
+      self.currentTableIndex = 0;
+      self.editorOpen = false;
+      if (r.success) {
+        showTopNotice('success', `已应用模板：${template.name}`, { duration: 2800, noticeId: 'twb-template' });
+        self.renderTo($container, { config: r.config });
+      } else {
+        showTopNotice('warning', r.error || '应用模板失败', { duration: 4000, noticeId: 'twb-template' });
+      }
+    });
+
+    $container.on('click.twb', '[data-twb-action="save-template"], [data-twb-action="import-template"], [data-twb-action="export-template"]', function () {
+      showTopNotice('warning', '模板库入口已预留，导入导出会在后续模板阶段接入。', { duration: 3000, noticeId: 'twb-template' });
+    });
+
+    $container.on('change.twb', '[data-twb-field="bypassEnabled"]', function () {
+      $container.find('.yyt-twb-bypass-preset').toggleClass('yyt-hidden', !$(this).is(':checked'));
     });
 
     $container.on('blur.twb change.twb', '[data-twb-name], [data-twb-note], [data-twb-table-instruction], [data-twb-col] input, [data-twb-col] select, [data-twb-col] textarea, [data-twb-row] input, [data-twb-row] select, [data-twb-row] textarea, [data-twb-field]', function () {
