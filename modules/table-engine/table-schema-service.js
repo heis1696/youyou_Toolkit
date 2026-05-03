@@ -245,7 +245,45 @@ function normalizeBoolean(value, fallback = false) {
   return value === true;
 }
 
+function isLegacyPlaceholderTables(value) {
+  if (!Array.isArray(value) || value.length !== 1) return false;
+
+  const table = value[0] && typeof value[0] === 'object' ? value[0] : null;
+  if (!table) return false;
+
+  const name = normalizeString(table.name || table.title, '');
+  const note = normalizeString(table.note || table.description, '');
+  const columns = Array.isArray(table.columns) ? table.columns : [];
+  const rows = Array.isArray(table.rows) ? table.rows : [];
+
+  if (name && !['表1', '表格 1', '表格1'].includes(name)) return false;
+  if (note || columns.length !== 1 || rows.length > 1) return false;
+
+  const column = columns[0] && typeof columns[0] === 'object' ? columns[0] : {};
+  const columnKey = normalizeString(column.key || column.id, '');
+  const columnTitle = normalizeString(column.title || column.name || column.label, '');
+  const columnDescription = normalizeString(column.description || column.note, '');
+  if (columnDescription) return false;
+  if (columnKey && columnKey !== 'col_1') return false;
+  if (columnTitle && !['列1', 'col_1'].includes(columnTitle)) return false;
+
+  if (rows.length === 0) return true;
+
+  const row = rows[0] && typeof rows[0] === 'object' ? rows[0] : {};
+  const rowName = normalizeString(row.name || row.title || row.label, '');
+  const cells = row.cells && typeof row.cells === 'object' && !Array.isArray(row.cells) ? row.cells : {};
+  const values = Array.isArray(row.values) ? row.values : [];
+  const hasCellValue = Object.values(cells).some((cellValue) => normalizeString(cellValue, ''))
+    || values.some((cellValue) => normalizeString(cellValue, ''));
+
+  return (!rowName || rowName === '行1') && !hasCellValue;
+}
+
 function normalizeTables(value, { seedDefaultWhenMissing = false } = {}) {
+  if (isLegacyPlaceholderTables(value)) {
+    return cloneTableValue(DEFAULT_TABLE_WORKBENCH_TABLES);
+  }
+
   if (Array.isArray(value)) {
     return cloneTableValue(value);
   }

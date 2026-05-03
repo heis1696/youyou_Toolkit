@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.93] - 2026-05-04
+
+### 修复
+
+- 🐛 **迁移填表工作台旧版单空表占位配置，避免默认模板仍显示“表格 1”** (`modules/table-engine/table-schema-service.js`, `dist/bundle.js`)
+  - 检测仅包含“表格 1 / 列1 / 行1”且无真实内容的旧占位表时，自动替换为内置 8 张默认剧情状态表
+  - 保留已有真实自定义表，不覆盖包含实际字段、说明或单元格内容的用户配置
+  - 补充 smoke test 覆盖旧占位表迁移与真实自定义表保留两条路径
+
+### 文档
+
+- 📝 **同步 1.0.93 版本基线与旧占位表迁移说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`, `package-lock.json`)
+  - 更新当前版本号，并记录旧版空占位“表格 1”会自动迁移为默认模板
+
 ## [1.0.92] - 2026-05-04
 
 ### 修复
