@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+## [1.0.92] - 2026-05-04
+
+### 修复
+
+- 🐛 **补齐填表工作台默认模板加载与 shujuku 风格模板解析口径** (`modules/table-engine/table-schema-service.js`, `dist/bundle.js`)
+  - 新增 `sheet_*` 模板适配解析，按 `orderNo` 排序，读取 `content[0]` 表头、`sourceData.note` 字段说明与 `initNode/insertNode/updateNode/deleteNode` 操作说明
+  - 补齐双重 JSON 字符串模板解析口径，兼容 shujuku 默认模板的包裹格式
+  - 修正缺失 `tables` 的配置归一化逻辑，新配置或空对象配置会正确种入内置 8 张默认表
+  - 导出 `parseTableWorkbenchTemplate()` 作为后续模板导入/迁移入口
+
+### 文档
+
+- 📝 **同步 1.0.92 版本基线与模板解析说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`, `package-lock.json`)
+  - 更新当前版本号，并记录填表工作台支持解析 shujuku 风格模板
+
 ## [1.0.91] - 2026-05-04
 
 ### 优化

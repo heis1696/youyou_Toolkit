@@ -245,12 +245,142 @@ function normalizeBoolean(value, fallback = false) {
   return value === true;
 }
 
-function normalizeTables(value) {
-  if (!Array.isArray(value)) {
-    return [];
+function normalizeTables(value, { seedDefaultWhenMissing = false } = {}) {
+  if (Array.isArray(value)) {
+    return cloneTableValue(value);
   }
 
-  return cloneTableValue(value);
+  if (value && typeof value === 'object') {
+    return convertShujukuTemplateToTables(value);
+  }
+
+  return seedDefaultWhenMissing ? cloneTableValue(DEFAULT_TABLE_WORKBENCH_TABLES) : [];
+}
+
+function parseShujukuNoteColumns(note = '') {
+  const columns = [];
+  const text = normalizeString(note, '');
+  const pattern = /-\s*列\d+\s*[:：]\s*([^\n\-–—]+?)\s*[-–—]\s*([^\n]+)/g;
+  let match;
+
+  while ((match = pattern.exec(text))) {
+    columns.push({
+      title: normalizeString(match[1], ''),
+      description: normalizeString(match[2], '')
+    });
+  }
+
+  return columns;
+}
+
+function convertShujukuTemplateToTables(value = {}) {
+  const sourceValue = value && typeof value === 'object' ? value : {};
+  const sheetEntries = Object.keys(sourceValue)
+    .filter((key) => key.startsWith('sheet_') && sourceValue[key] && typeof sourceValue[key] === 'object')
+    .map((key, index) => ({ key, table: sourceValue[key], fallbackOrder: index }))
+    .sort((left, right) => {
+      const leftOrder = Number.isFinite(left.table.orderNo) ? left.table.orderNo : left.fallbackOrder;
+      const rightOrder = Number.isFinite(right.table.orderNo) ? right.table.orderNo : right.fallbackOrder;
+      return leftOrder - rightOrder;
+    });
+
+  return sheetEntries.map(({ key, table }, index) => {
+    const sourceData = table.sourceData && typeof table.sourceData === 'object' ? table.sourceData : {};
+    const content = Array.isArray(table.content) ? table.content : [];
+    const headerRow = Array.isArray(content[0]) ? content[0] : [];
+    const noteColumns = parseShujukuNoteColumns(sourceData.note);
+    const usedKeys = new Set();
+    const columns = headerRow.slice(1).map((title, columnIndex) => {
+      const noteColumn = noteColumns[columnIndex] || {};
+      const safeTitle = normalizeString(title || noteColumn.title, `列${columnIndex + 1}`);
+      return {
+        key: ensureUniqueColumnKey(safeTitle || `col_${columnIndex + 1}`, usedKeys),
+        title: safeTitle,
+        description: normalizeString(noteColumn.description, ''),
+        type: DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE,
+        required: false
+      };
+    });
+
+    const rows = content.slice(1).map((row, rowIndex) => {
+      const sourceRow = Array.isArray(row) ? row : [];
+      const cells = {};
+      columns.forEach((column, columnIndex) => {
+        cells[column.key] = normalizeCellValue(sourceRow[columnIndex + 1]);
+      });
+      return {
+        name: normalizeString(sourceRow[0], `行${rowIndex + 1}`),
+        cells
+      };
+    });
+
+    return {
+      id: normalizeString(table.uid || key, `sheet_${index + 1}`),
+      name: normalizeString(table.name, `表${index + 1}`),
+      note: normalizeString(sourceData.note, ''),
+      enabled: table.enabled !== false,
+      aiInstructions: {
+        init: normalizeString(sourceData.initNode, ''),
+        create: normalizeString(sourceData.insertNode, ''),
+        update: normalizeString(sourceData.updateNode, ''),
+        delete: normalizeString(sourceData.deleteNode, '')
+      },
+      columns,
+      rows
+    };
+  });
+}
+
+function parseTableTemplateValue(value) {
+  if (Array.isArray(value)) {
+    return normalizeTables(value);
+  }
+
+  if (value && typeof value === 'object') {
+    return normalizeTables(value);
+  }
+
+  const source = normalizeString(value, '');
+  if (!source) return [];
+
+  const withoutComments = source.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+  const candidates = [withoutComments];
+
+  try {
+    const parsed = JSON.parse(withoutComments);
+    candidates.push(parsed);
+  } catch (_) {
+    try {
+      const innerContent = withoutComments.startsWith('"') && withoutComments.endsWith('"')
+        ? withoutComments.slice(1, -1)
+        : withoutComments;
+      const escapedContent = innerContent
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+      candidates.push(JSON.parse(`"${escapedContent}"`));
+    } catch (_) {}
+  }
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) || (candidate && typeof candidate === 'object')) {
+      const tables = normalizeTables(candidate);
+      if (tables.length) return tables;
+      continue;
+    }
+
+    if (typeof candidate === 'string' && candidate !== withoutComments) {
+      try {
+        const parsed = JSON.parse(candidate);
+        const tables = normalizeTables(parsed);
+        if (tables.length) return tables;
+      } catch (_) {}
+    }
+  }
+
+  return [];
 }
 
 function normalizeCellValue(value) {
@@ -841,6 +971,10 @@ export function validateTableDraftDeep(draft = {}) {
   };
 }
 
+export function parseTableWorkbenchTemplate(value) {
+  return parseTableTemplateValue(value);
+}
+
 export function getTableWorkbenchBuiltinTemplates() {
   return [
     {
@@ -879,7 +1013,7 @@ export function normalizeTableWorkbenchConfig(value = {}) {
   const bypass = normalizeBypassConfig(nextValue.bypass, nextValue.promptPreset);
 
   return {
-    tables: normalizeTables(nextValue.tables),
+    tables: normalizeTables(nextValue.tables, { seedDefaultWhenMissing: !Object.prototype.hasOwnProperty.call(nextValue, 'tables') }),
     promptTemplate: normalizeString(nextValue.promptTemplate, defaults.promptTemplate),
     apiPreset: normalizeString(nextValue.apiPreset, ''),
     promptPreset: bypass.presetId,
@@ -1045,6 +1179,7 @@ export default {
   validateTableDraft,
   validateTableDraftDeep,
   getTableWorkbenchBuiltinTemplates,
+  parseTableWorkbenchTemplate,
   getTableWorkbenchDefaultConfig,
   normalizeTableWorkbenchConfig,
   validateTableWorkbenchConfig,
