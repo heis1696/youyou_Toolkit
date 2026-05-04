@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明当前 `1.0.94` 代码基线下的公开 API、执行入口与运行模型。
+本文档说明当前 `1.0.95` 代码基线下的公开 API、执行入口与运行模型。
 
 当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 

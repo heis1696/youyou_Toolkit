@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+## [1.0.95] - 2026-05-04
+
+### 优化
+
+- ✨ **回退填表工作台过重视觉层，恢复工具箱原生控件语言** (`modules/ui/components/table-workbench-panel.js`, `dist/bundle.js`)
+  - 移除 1.0.94 引入的填表工作台 scoped dark card token、强渐变、重阴影、hover lift 与装饰性 active card/chip 样式
+  - Dashboard 从 6 栅格压缩布局恢复为 2 列；手动更新、模板按钮和表格选择恢复为更宽松的纵向/换行布局
+  - 表格概览恢复为纵向列表，单行展示字段数、行数、运行状态和校验问题；单表编辑抽屉回到更轻的原生面板表面
+  - 字段结构恢复 220px + 1fr 编辑宽度，数据行恢复稳定双列布局，减少字段卡片和行卡片的装饰负担
+
+### 文档
+
+- 📝 **同步 1.0.95 版本基线与填表工作台视觉纠偏说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`, `package-lock.json`)
+  - 更新当前版本号，并记录填表工作台回到工具箱原生控件与更宽松布局
+
 ## [1.0.94] - 2026-05-04
 
 ### 优化
