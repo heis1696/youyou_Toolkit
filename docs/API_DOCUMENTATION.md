@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明当前 `1.0.95` 代码基线下的公开 API、执行入口与运行模型。
+本文档说明当前 `1.0.96` 代码基线下的公开 API、执行入口与运行模型。
 
 当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 
@@ -231,12 +231,13 @@ const result = await window.YouYouToolkit.processCurrentAssistantMessage({ force
   -> buildExecutionContextForMessage()
   -> 筛选 automation.enabled === true 的 post_response_api 工具
   -> 按 slot 串行执行 runToolPostResponse()
-  -> context-injector.injectDetailed()
+  -> 若 tableWorkbench.autoUpdateEnabled === true 且 trigger=assistantMessage，则继续执行 runAutoTableUpdate()
+  -> context-injector.injectDetailed() / table structured commit
   -> 以 refreshConfirmed 等结果更新事务状态
 ```
 
 说明：
-- 自动链当前只执行自动条件满足的 `post_response_api` 工具。
+- 自动链当前主线执行自动条件满足的 `post_response_api` 工具，以及挂在同一事务里的 tableWorkbench 自动填表。
 - 自动链不把 `follow_ai`、`local_transform`、compatibility 路径作为主线自动执行入口。
 
 ### 5.2 手动执行链

@@ -3,8 +3,15 @@
  * @description 管理 tableWorkbench 的最小配置、schema 与运行时状态
  */
 
-import { storage } from '../core/storage-service.js';
-import { cloneTableValue } from './table-types.js';
+import {
+  cloneTableValue,
+  createRuntimeTableId,
+  createRuntimeTableRowId,
+  ensureTableId,
+  ensureTableRowId,
+  TABLE_RUN_SCOPE
+} from './table-types.js';
+import { normalizeRunScopeConfig } from './table-scope-service.js';
 
 const tableWorkbenchStorage = storage.namespace('tableWorkbench');
 const TABLE_WORKBENCH_CONFIG_KEY = 'config';
@@ -13,7 +20,9 @@ export const TABLE_WORKBENCH_RUNTIME_STATUS = Object.freeze({
   IDLE: 'idle',
   RUNNING: 'running',
   SUCCESS: 'success',
-  ERROR: 'error'
+  ERROR: 'error',
+  ABORTED: 'aborted',
+  SKIPPED: 'skipped'
 });
 
 export const TABLE_FILL_MODE = Object.freeze({
@@ -30,7 +39,9 @@ export const DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE = `请根据当前对话与
 4. 优先参考当前 assistant 回复：{{lastAiMessage}}
 5. 表格级 AI 操作说明：
 {{tableGuidance}}
-6. 当前表格基底 JSON：
+6. 本次运行 scope：
+{{tableScopeGuidance}}
+7. 当前表格基底 JSON：
 {{toolContentMacro}}`;
 
 export const TABLE_WORKBENCH_RESPONSE_CONTRACT = `输出要求：
@@ -573,6 +584,7 @@ function normalizeDraftRow(value = {}, columns = [], index = 0) {
   });
 
   return {
+    id: ensureTableRowId(sourceValue.id || sourceValue.rowId, index),
     name: normalizeString(sourceValue.name || sourceValue.title || sourceValue.label, `行${index + 1}`),
     cells
   };
@@ -611,7 +623,7 @@ function normalizeDraftTable(value = {}, index = 0) {
     : [];
 
   return {
-    id: normalizeString(sourceValue.id, ''),
+    id: ensureTableId(sourceValue.id || sourceValue.key, index),
     name: normalizeString(sourceValue.name || sourceValue.title, `表${index + 1}`),
     note: normalizeString(sourceValue.note || sourceValue.description, ''),
     enabled: sourceValue.enabled !== false,
@@ -653,7 +665,17 @@ function normalizeRuntime(runtime = {}) {
     lastSourceMessageId: normalizeString(value.lastSourceMessageId, ''),
     lastSlotRevisionKey: normalizeString(value.lastSlotRevisionKey, ''),
     lastLoadMode: normalizeString(value.lastLoadMode, ''),
-    lastMirrorApplied: value.lastMirrorApplied === true
+    lastFillMode: normalizeString(value.lastFillMode, ''),
+    lastMirrorApplied: value.lastMirrorApplied === true,
+    lastResolvedFromMessageId: normalizeString(value.lastResolvedFromMessageId, ''),
+    lastResolvedFromRevisionKey: normalizeString(value.lastResolvedFromRevisionKey, ''),
+    lastSourceKind: normalizeString(value.lastSourceKind, ''),
+    lastScopeMode: normalizeString(value.lastScopeMode, ''),
+    lastAutoRunAt: Number.isFinite(value.lastAutoRunAt) ? value.lastAutoRunAt : 0,
+    lastAutoStatus: normalizeString(value.lastAutoStatus, TABLE_WORKBENCH_RUNTIME_STATUS.IDLE),
+    lastAutoMessageId: normalizeString(value.lastAutoMessageId, ''),
+    lastAutoRevisionKey: normalizeString(value.lastAutoRevisionKey, ''),
+    lastAutoSkipReason: normalizeString(value.lastAutoSkipReason, '')
   };
 }
 
@@ -687,6 +709,7 @@ export function createEmptyTableRow(columns = [], rowIndex = 1) {
   });
 
   return {
+    id: createRuntimeTableRowId('row'),
     name: `行${rowIndex}`,
     cells
   };
@@ -696,7 +719,7 @@ export function createEmptyTableDefinition(tableIndex = 1) {
   const firstColumn = createEmptyTableColumn(1);
 
   return {
-    id: '',
+    id: createRuntimeTableId('table'),
     name: `表${tableIndex}`,
     note: '',
     enabled: true,
@@ -1037,7 +1060,12 @@ export function getTableWorkbenchDefaultConfig() {
     activeTemplate: DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID,
     autoUpdateEnabled: false,
     autoUpdateTrigger: 'assistantMessage',
-    runScope: 'enabled',
+    runScope: TABLE_RUN_SCOPE.ENABLED,
+    scope: {
+      mode: TABLE_RUN_SCOPE.ENABLED,
+      selectedTableIds: [],
+      activeTableId: ''
+    },
     fillMode: TABLE_FILL_MODE.INCREMENTAL,
     mirrorToMessage: false,
     mirrorTag: 'yyt-table-workbench',
@@ -1049,9 +1077,15 @@ export function normalizeTableWorkbenchConfig(value = {}) {
   const defaults = getTableWorkbenchDefaultConfig();
   const nextValue = value && typeof value === 'object' ? value : {};
   const bypass = normalizeBypassConfig(nextValue.bypass, nextValue.promptPreset);
+  const tables = normalizeTables(nextValue.tables, { seedDefaultWhenMissing: !Object.prototype.hasOwnProperty.call(nextValue, 'tables') });
+  const scope = normalizeRunScopeConfig(nextValue.scope, {
+    mode: nextValue.runScope,
+    selectedTableIds: nextValue.selectedTableIds,
+    activeTableId: nextValue.activeTableId
+  });
 
   return {
-    tables: normalizeTables(nextValue.tables, { seedDefaultWhenMissing: !Object.prototype.hasOwnProperty.call(nextValue, 'tables') }),
+    tables,
     promptTemplate: normalizeString(nextValue.promptTemplate, defaults.promptTemplate),
     apiPreset: normalizeString(nextValue.apiPreset, ''),
     promptPreset: bypass.presetId,
@@ -1059,7 +1093,8 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     activeTemplate: normalizeString(nextValue.activeTemplate, defaults.activeTemplate),
     autoUpdateEnabled: normalizeBoolean(nextValue.autoUpdateEnabled, defaults.autoUpdateEnabled),
     autoUpdateTrigger: normalizeString(nextValue.autoUpdateTrigger, defaults.autoUpdateTrigger),
-    runScope: normalizeString(nextValue.runScope, defaults.runScope),
+    runScope: scope.mode,
+    scope,
     fillMode: nextValue.fillMode === TABLE_FILL_MODE.FULL ? TABLE_FILL_MODE.FULL : defaults.fillMode,
     mirrorToMessage: normalizeBoolean(nextValue.mirrorToMessage, defaults.mirrorToMessage),
     mirrorTag: normalizeString(nextValue.mirrorTag, defaults.mirrorTag),

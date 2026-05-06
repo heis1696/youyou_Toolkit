@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - 填表工作台类型与常量
- * @description 为 table domain 提供最小 Phase 1 数据模型定义
+ * @description 为 table domain 提供基础数据模型定义
  */
 
 export const TABLE_MESSAGE_STATE_KEY = 'YouYouToolkit_tableState';
@@ -11,9 +11,24 @@ export const TABLE_RUN_SOURCES = Object.freeze({
   AUTO: 'AUTO_TABLE'
 });
 
+export const TABLE_RUN_SCOPE = Object.freeze({
+  ENABLED: 'enabled',
+  SELECTED: 'selected',
+  CURRENT: 'current'
+});
+
 export const TABLE_STATE_LOAD_MODE = Object.freeze({
   EXACT: 'exact',
   BINDING_FALLBACK: 'binding_fallback',
+  HISTORY: 'history',
+  TEMPLATE: 'template',
+  EMPTY: 'empty'
+});
+
+export const TABLE_STATE_SOURCE_KIND = Object.freeze({
+  EXACT: 'exact',
+  BINDING: 'binding',
+  HISTORY: 'history',
   TEMPLATE: 'template',
   EMPTY: 'empty'
 });
@@ -30,6 +45,36 @@ export const TABLE_LOCK_SCOPE = Object.freeze({
   COLUMN: 'column'
 });
 
+function normalizeIdentityValue(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+}
+
+function createRuntimeId(prefix = 'table') {
+  const normalizedPrefix = normalizeIdentityValue(prefix) || 'table';
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${normalizedPrefix}_${ts}_${rand}`;
+}
+
+export function createRuntimeTableId(prefix = 'table') {
+  return createRuntimeId(prefix);
+}
+
+export function createRuntimeTableRowId(prefix = 'row') {
+  return createRuntimeId(prefix);
+}
+
+export function ensureTableId(value, tableIndex = 0) {
+  const normalized = normalizeIdentityValue(value);
+  return normalized || `table_${Number.isFinite(tableIndex) ? tableIndex + 1 : 1}`;
+}
+
+export function ensureTableRowId(value, rowIndex = 0) {
+  const normalized = normalizeIdentityValue(value);
+  return normalized || `row_${Number.isFinite(rowIndex) ? rowIndex + 1 : 1}`;
+}
+
 export function createEditOperation(op, tableIndex, rowIndex, data) {
   return {
     op: normalizeIdentityValue(op),
@@ -41,11 +86,6 @@ export function createEditOperation(op, tableIndex, rowIndex, data) {
 
 export function computeCellHash(tableIndex, rowIndex, columnKey) {
   return `${Number.isFinite(tableIndex) ? tableIndex : -1}:${Number.isFinite(rowIndex) ? rowIndex : -1}:${normalizeIdentityValue(columnKey) || '*'}`;
-}
-
-function normalizeIdentityValue(value) {
-  if (value === undefined || value === null) return '';
-  return String(value).trim();
 }
 
 export function cloneTableValue(value) {
@@ -100,6 +140,7 @@ export function normalizeTableBoundState(value) {
   }
 
   return {
+    chatId: normalizeIdentityValue(value.chatId),
     slotBindingKey: normalizeIdentityValue(value.slotBindingKey),
     slotRevisionKey: normalizeIdentityValue(value.slotRevisionKey),
     sourceMessageId: normalizeIdentityValue(value.sourceMessageId),
@@ -112,15 +153,20 @@ export function normalizeTableBoundState(value) {
 
 export function createEmptyTableBoundState(targetSnapshot = {}, overrides = {}) {
   const snapshot = createTableTargetSnapshot(targetSnapshot);
+  const overrideMeta = overrides.meta && typeof overrides.meta === 'object' ? cloneTableValue(overrides.meta) : {};
 
   return {
+    chatId: snapshot.chatId,
     slotBindingKey: snapshot.slotBindingKey,
     slotRevisionKey: snapshot.slotRevisionKey,
     sourceMessageId: snapshot.sourceMessageId,
     sourceSwipeId: snapshot.sourceSwipeId || snapshot.effectiveSwipeId,
     tables: Array.isArray(overrides.tables) ? cloneTableValue(overrides.tables) : [],
     updatedAt: Number.isFinite(overrides.updatedAt) ? overrides.updatedAt : Date.now(),
-    meta: overrides.meta && typeof overrides.meta === 'object' ? cloneTableValue(overrides.meta) : {}
+    meta: {
+      sourceKind: overrideMeta.sourceKind || TABLE_STATE_SOURCE_KIND.EMPTY,
+      ...overrideMeta
+    }
   };
 }
 
@@ -144,10 +190,16 @@ export default {
   TABLE_MESSAGE_STATE_KEY,
   TABLE_MESSAGE_BINDINGS_KEY,
   TABLE_RUN_SOURCES,
+  TABLE_RUN_SCOPE,
   TABLE_STATE_LOAD_MODE,
+  TABLE_STATE_SOURCE_KIND,
   TABLE_EDIT_OPERATIONS,
   TABLE_LOCK_SCOPE,
   cloneTableValue,
+  createRuntimeTableId,
+  createRuntimeTableRowId,
+  ensureTableId,
+  ensureTableRowId,
   createTableTargetPointer,
   createTableTargetSnapshot,
   normalizeTableBoundState,

@@ -17,9 +17,9 @@ import { logger } from './core/logger-service.js';
 const log = logger.createScope('ToolAutomation');
 import { getAllToolFullConfigs, patchToolRuntime } from './tool-registry.js';
 import { toolOutputService } from './tool-output-service.js';
-import {
-  buildExecutionContextForMessage
-} from './tool-execution-context.js';
+import { buildExecutionContextForMessage } from './tool-execution-context.js';
+import { runAutoTableUpdate } from './table-engine/table-update-service.js';
+import { getTableWorkbenchConfig } from './table-engine/table-schema-service.js';
 
 // ─── 工具函数 ───────────────────────────────────────────────
 
@@ -665,7 +665,10 @@ class ToolAutomationService {
 
       // 获取需要自动运行的工具
       const tools = toolOutputService.filterAutoPostResponseTools(getAllToolFullConfigs());
-      if (!tools.length) {
+      const tableWorkbenchConfig = getTableWorkbenchConfig();
+      const shouldRunTableAuto = tableWorkbenchConfig?.autoUpdateEnabled === true
+        && normalizeIdentityValue(tableWorkbenchConfig?.autoUpdateTrigger || 'assistantMessage') === 'assistantMessage';
+      if (!tools.length && !shouldRunTableAuto) {
         return this._skipTransaction(tx, 'no_auto_tools', { tools });
       }
 
@@ -701,6 +704,7 @@ class ToolAutomationService {
         try {
           const results = [];
           let hasWriteback = false;
+          let tableResult = null;
 
           // ── 执行工具并收集结果 ──
           for (const tool of tools) {
@@ -734,8 +738,26 @@ class ToolAutomationService {
             }
           }
 
+          if (shouldRunTableAuto) {
+            tableResult = await runAutoTableUpdate({
+              messageId: context.sourceMessageId || messageId,
+              swipeId: context.sourceSwipeId || swipeId || '',
+              sourceEvent,
+              configInput: tableWorkbenchConfig,
+              signal: controller.signal,
+              shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
+                traceId: tx.traceId,
+                generationKey
+              })
+            });
+
+            if (tableResult?.state || tableResult?.mirrorResult?.success === true) {
+              hasWriteback = true;
+            }
+          }
+
           // ── Phase: REQUEST_FINISHED ──
-          tx.transition(TX_PHASE.REQUEST_FINISHED, { toolResults: results });
+          tx.transition(TX_PHASE.REQUEST_FINISHED, { toolResults: results, tableResult });
 
           if (hasWriteback) {
             tx.transition(TX_PHASE.WRITEBACK_STARTED);
@@ -749,8 +771,16 @@ class ToolAutomationService {
           this._markGenerationCompleted(generationKey);
 
           // ── Phase: WRITEBACK_COMMITTED ──
-          const allSuccess = results.every(r => r?.success !== false);
-          const aborted = results.some(r => r?.meta?.aborted === true || r?.meta?.stale === true || r?.error === '请求已取消');
+          const toolSuccess = results.every(r => r?.success !== false);
+          const tableSuccess = !shouldRunTableAuto
+            || !!tableResult?.success
+            || tableResult?.skipped === true
+            || tableResult?.meta?.aborted === true
+            || tableResult?.meta?.stale === true;
+          const allSuccess = toolSuccess && tableSuccess;
+          const aborted = results.some(r => r?.meta?.aborted === true || r?.meta?.stale === true || r?.error === '请求已取消')
+            || tableResult?.meta?.aborted === true
+            || tableResult?.meta?.stale === true;
           if (allSuccess) {
             tx.transition(TX_PHASE.WRITEBACK_COMMITTED);
           }
@@ -770,7 +800,8 @@ class ToolAutomationService {
             sourceEvent,
             messageId: context.sourceMessageId || messageId,
             phase: tx.phase,
-            results
+            results,
+            tableResult
           };
         } finally {
           this._unregisterActiveTransaction(tx.traceId);

@@ -1,6 +1,6 @@
 # YouYou Toolkit - SillyTavern 工具插件
 
-> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.95`。
+> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.96`。
 
 YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配置工具链插件。
 
@@ -64,7 +64,7 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 - `local_transform`
 - compatibility fallback
 
-当前自动主线只执行自动条件满足的 `post_response_api` 工具；其他路径仍存在，但不应再被描述成当前自动执行主入口。
+当前自动主线会先执行自动条件满足的 `post_response_api` 工具；若 `tableWorkbench.autoUpdateEnabled === true` 且触发时机为 `assistantMessage`，同一 generation 事务内还会继续执行自动填表。
 
 ## 目录结构
 
@@ -130,5 +130,5 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 
 ## 版本说明
 
-- 当前 `package.json` 版本：`1.0.95`
-- 当前发布版本：`1.0.95`
+- 当前 `package.json` 版本：`1.0.96`
+- 当前发布版本：`1.0.96`

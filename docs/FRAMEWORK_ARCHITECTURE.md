@@ -1,6 +1,6 @@
 # FRAMEWORK ARCHITECTURE
 
-本文档基于当前 `1.0.95` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
+本文档基于当前 `1.0.96` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
 
 它不是按文件列表罗列细节，而是按“遇到问题时应该先理解哪条主线”来组织内容。
 
@@ -312,8 +312,9 @@ window.YouYouToolkit
 1. 根据自动化设置判断是否启用
 2. 构建指定 assistant 消息的 execution context
 3. 筛选 `automation.enabled === true` 的自动工具
-4. 只执行符合条件的 `post_response_api` 工具
-5. 记录事务历史与宿主绑定状态
+4. 执行符合条件的 `post_response_api` 工具
+5. 若 `tableWorkbench.autoUpdateEnabled === true` 且 `autoUpdateTrigger === assistantMessage`，在同一 generation 事务内继续执行自动填表
+6. 记录事务历史、宿主绑定状态与 table auto 结果
 
 ### 6.4 自动链当前不做什么
 
@@ -527,6 +528,7 @@ window.YouYouToolkit
 
 - `modules/tool-automation-service.js`
 - `modules/tool-execution-context.js`
+- `modules/table-engine/table-update-service.js`
 - `getAutomationRuntime()` 输出
 
 ### 10.6 写回问题

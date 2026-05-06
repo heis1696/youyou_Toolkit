@@ -12,7 +12,7 @@ import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
 import {
   getTableWorkbenchConfig, getTableWorkbenchFormSchema, saveTableWorkbenchConfig,
   validateTableDraftDeep, TABLE_FILL_MODE, TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
-  getTableWorkbenchBuiltinTemplates
+  getTableWorkbenchBuiltinTemplates, createEmptyTableDefinition, createEmptyTableRow, createEmptyTableColumn
 } from '../../table-engine/table-schema-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 
@@ -176,6 +176,8 @@ function statusLabel(status) {
   if (s === 'running') return '运行中';
   if (s === 'success') return '最近成功';
   if (s === 'error') return '最近失败';
+  if (s === 'aborted') return '已中止';
+  if (s === 'skipped') return '已跳过';
   return '未运行';
 }
 function formatTime(ts) { return ts ? new Date(ts).toLocaleString() : '—'; }
@@ -196,7 +198,21 @@ function collect($c, fb) {
   const $ = getJQuery();
   const base = fb && typeof fb === 'object' ? fb : getTableWorkbenchConfig();
   if (!$ || !isContainerValid($c)) return base;
-  const cfg = { ...base, runtime: base.runtime || {} };
+  const cfg = {
+    ...base,
+    runtime: base.runtime || {},
+    scope: base.scope && typeof base.scope === 'object'
+      ? {
+        mode: S(base.scope.mode || base.runScope, 'enabled'),
+        selectedTableIds: Array.isArray(base.scope.selectedTableIds) ? [...base.scope.selectedTableIds] : [],
+        activeTableId: S(base.scope.activeTableId, '')
+      }
+      : {
+        mode: S(base.runScope, 'enabled'),
+        selectedTableIds: [],
+        activeTableId: ''
+      }
+  };
   const tables = Array.isArray(cfg.tables) ? [...cfg.tables] : [];
   const ti = idx(tables, cfg.__activeTableIndex ?? 0);
 
@@ -226,11 +242,15 @@ function collect($c, fb) {
 
     if ($c.find('[data-twb-row]').length) {
       t.rows = [];
-      $c.find('[data-twb-row]').each(function () {
+      $c.find('[data-twb-row]').each(function (rowIndex) {
         const r = $(this);
         const cells = {};
         (t.columns || []).forEach(c => { cells[c.key] = S(r.find(`[data-twb-cell="${c.key}"]`).val(), ''); });
-        t.rows.push({ name: S(r.find('[data-twb-row-name]').val(), ''), cells });
+        t.rows.push({
+          id: S(r.attr('data-twb-row-id'), source.rows?.[rowIndex]?.id || ''),
+          name: S(r.find('[data-twb-row-name]').val(), ''),
+          cells
+        });
       });
     }
 
@@ -244,6 +264,16 @@ function collect($c, fb) {
   const $au = $c.find('[data-twb-field="autoUpdateEnabled"]'); if ($au.length) cfg.autoUpdateEnabled = $au.is(':checked');
   const $at = $c.find('[data-twb-field="autoUpdateTrigger"]'); if ($at.length) cfg.autoUpdateTrigger = String($at.val() || 'assistantMessage');
   const $rs = $c.find('[data-twb-field="runScope"]:checked'); if ($rs.length) cfg.runScope = String($rs.val() || 'enabled');
+  const selectedTableIds = [];
+  $c.find('[data-twb-run-table]:checked').each(function () {
+    const value = S($(this).attr('data-twb-run-table'), '');
+    if (value) selectedTableIds.push(value);
+  });
+  cfg.scope = {
+    mode: cfg.runScope,
+    selectedTableIds,
+    activeTableId: tables[ti] ? tableId(tables[ti], ti) : ''
+  };
   const $pt = $c.find('[data-twb-field="promptPreset"]'); if ($pt.length) cfg.promptPreset = String($pt.val() || '');
   const $be = $c.find('[data-twb-field="bypassEnabled"]');
   const bypassPresetId = String(cfg.promptPreset || '');
@@ -297,6 +327,7 @@ function renderRuntimeOverview(cfg) {
 }
 
 function renderAutoUpdateSettings(cfg) {
+  const rt = cfg?.runtime || {};
   return `
     <article class="yyt-panel-section yyt-twb-card">
       <div class="yyt-twb-card-header">
@@ -319,6 +350,7 @@ function renderAutoUpdateSettings(cfg) {
         </select>
       </label>
       <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="mirrorToMessage" ${cfg.mirrorToMessage ? 'checked' : ''}><span>镜像写回正文</span></label>
+      <div class="yyt-twb-runtime-message">自动最近状态：${escapeHtml(statusLabel(rt.lastAutoStatus))} · 最近触发：${escapeHtml(formatTime(rt.lastAutoRunAt))} · 目标消息：${escapeHtml(S(rt.lastAutoMessageId, '—'))}${rt.lastAutoSkipReason ? ` · 原因：${escapeHtml(rt.lastAutoSkipReason)}` : ''}</div>
     </article>`;
 }
 
@@ -389,7 +421,8 @@ function renderTemplateManager(cfg) {
 
 function renderManualRunPanel(cfg) {
   const tables = Array.isArray(cfg.tables) ? cfg.tables : [];
-  const runScope = S(cfg.runScope, 'enabled');
+  const runScope = S(cfg.scope?.mode || cfg.runScope, 'enabled');
+  const selectedIds = new Set(Array.isArray(cfg.scope?.selectedTableIds) ? cfg.scope.selectedTableIds : []);
   return `
     <article class="yyt-panel-section yyt-twb-card yyt-twb-manual-card">
       <div class="yyt-twb-card-header">
@@ -402,7 +435,7 @@ function renderManualRunPanel(cfg) {
         <label><input type="radio" name="twbRunScope" value="current" data-twb-field="runScope" ${runScope === 'current' ? 'checked' : ''}>当前打开表格</label>
       </div>
       <div class="yyt-twb-table-chip-list">
-        ${tables.length ? tables.map((t, i) => `<label class="yyt-twb-table-chip"><input type="checkbox" data-twb-run-table="${escapeHtml(tableId(t, i))}"><span>${escapeHtml(S(t?.name, `表格 ${i + 1}`))}</span></label>`).join('') : '<span class="yyt-twb-muted">还没有可更新的表格。</span>'}
+        ${tables.length ? tables.map((t, i) => `<label class="yyt-twb-table-chip"><input type="checkbox" data-twb-run-table="${escapeHtml(tableId(t, i))}" ${selectedIds.has(tableId(t, i)) ? 'checked' : ''}><span>${escapeHtml(S(t?.name, `表格 ${i + 1}`))}</span></label>`).join('') : '<span class="yyt-twb-muted">还没有可更新的表格。</span>'}
       </div>
       <div class="yyt-twb-card-actions">
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="run-selected">仅更新选中表格</button>
@@ -581,7 +614,7 @@ function renderDataRowsWorkspace(table, diff) {
           ${rows.map((row, ri) => {
             const status = rowStatus(diff, row, ri);
             return `
-              <article class="yyt-twb-row-card${status ? ` row-${status}` : ''}" data-twb-row data-twb-ri="${ri}">
+              <article class="yyt-twb-row-card${status ? ` row-${status}` : ''}" data-twb-row data-twb-ri="${ri}" data-twb-row-id="${escapeHtml(row?.id || '')}">
                 <header class="yyt-twb-row-card-header">
                   <div><span class="yyt-twb-row-index">第 ${ri + 1} 行</span><input class="yyt-input yyt-twb-row-name" data-twb-row-name value="${escapeHtml(row?.name || '')}" placeholder="行名（可选）"></div>
                   <div class="yyt-twb-row-actions">
@@ -720,15 +753,7 @@ export const TableWorkbenchPanel = {
       e.stopPropagation();
       const cfg = collect($container);
       const tables = Array.isArray(cfg.tables) ? [...cfg.tables] : [];
-      tables.push({
-        id: `table_${Date.now()}`,
-        name: `表格 ${tables.length + 1}`,
-        note: '',
-        enabled: true,
-        aiInstructions: { init: '', create: '', update: '', delete: '' },
-        columns: [{ key: 'col_1', title: '属性', type: 'text', required: false, description: '' }],
-        rows: []
-      });
+      tables.push(createEmptyTableDefinition(tables.length + 1));
       cfg.tables = tables;
       cfg.__activeTableIndex = tables.length - 1;
       saveTableWorkbenchConfig(cfg);
@@ -764,14 +789,35 @@ export const TableWorkbenchPanel = {
       const action = $(this).attr('data-twb-action');
       const ti = Number($(this).attr('data-twb-ti'));
       const cfg = collect($container);
-      if (Number.isInteger(ti)) cfg.__activeTableIndex = ti;
+      if (Number.isInteger(ti)) {
+        cfg.__activeTableIndex = ti;
+        const targetTable = Array.isArray(cfg.tables) ? cfg.tables[ti] : null;
+        if (targetTable) {
+          cfg.scope = {
+            ...(cfg.scope || {}),
+            activeTableId: tableId(targetTable, ti)
+          };
+        }
+      }
+      if (action === 'run-selected') {
+        cfg.runScope = 'selected';
+        cfg.scope = {
+          ...(cfg.scope || {}),
+          mode: 'selected'
+        };
+      } else if (action === 'run-table') {
+        cfg.runScope = 'current';
+        cfg.scope = {
+          ...(cfg.scope || {}),
+          mode: 'current'
+        };
+      }
       const r = saveTableWorkbenchConfig(cfg);
       if (!r.success) { showTopNotice('warning', r.error || '保存失败', { duration: 4000, noticeId: 'twb-save' }); return; }
-      if (action !== 'run') showTopNotice('warning', '当前执行链仍按完整 tables 上下文运行；单表/选中表范围已保留为 UI 入口。', { duration: 3600, noticeId: 'twb-run-scope' });
 
       try {
         $(this).prop('disabled', true).text('填表中...');
-        const result = await runManualTableUpdate();
+        const result = await runManualTableUpdate(r.config);
         if (!result?.success) {
           showTopNotice('warning', result?.error || '填表失败', { duration: 4000, noticeId: 'twb-run' });
         } else if (result.warning) {
@@ -794,8 +840,8 @@ export const TableWorkbenchPanel = {
       if (!tables[ti]) return;
       const t = { ...tables[ti] };
       t.rows = Array.isArray(t.rows) ? [...t.rows] : [];
-      const cells = {}; (t.columns || []).forEach(c => { cells[c.key] = ''; });
-      t.rows.push({ name: `行${t.rows.length + 1}`, cells });
+      const nextRow = createEmptyTableRow(t.columns || [], t.rows.length + 1);
+      t.rows.push(nextRow);
       tables[ti] = t; cfg.tables = tables; cfg.__activeTableIndex = ti;
       saveTableWorkbenchConfig(cfg);
       self.renderTo($container, { config: cfg });
@@ -823,7 +869,8 @@ export const TableWorkbenchPanel = {
       const t = { ...tables[ti] };
       t.columns = Array.isArray(t.columns) ? [...t.columns] : [];
       const n = t.columns.length + 1;
-      t.columns.push({ key: `col_${n}`, title: `字段 ${n}`, type: 'text', required: false, description: '' });
+      const nextColumn = createEmptyTableColumn(n, t.columns);
+      t.columns.push(nextColumn);
       tables[ti] = t; cfg.tables = tables; cfg.__activeTableIndex = ti;
       saveTableWorkbenchConfig(cfg);
       self.renderTo($container, { config: cfg });
@@ -863,8 +910,8 @@ export const TableWorkbenchPanel = {
             if (!tables[ti]) return;
             const t = { ...tables[ti] };
             t.rows = Array.isArray(t.rows) ? [...t.rows] : [];
-            const cells = {}; (t.columns || []).forEach(c => { cells[c.key] = ''; });
-            t.rows.splice(Math.max(at, 0), 0, { name: `行${t.rows.length + 1}`, cells });
+            const nextRow = createEmptyTableRow(t.columns || [], t.rows.length + 1);
+            t.rows.splice(Math.max(at, 0), 0, nextRow);
             tables[ti] = t; cfg.tables = tables; cfg.__activeTableIndex = ti;
             saveTableWorkbenchConfig(cfg);
             self.renderTo($container, { config: cfg });

@@ -1,6 +1,6 @@
 # 架构分析
 
-本文档基于当前 `1.0.95` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
+本文档基于当前 `1.0.96` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
 
 结论先行：当前仓库已经不是“旧 trigger 管理器驱动的一组散模块”，而是围绕薄入口、bootstrap 装配、popup shell、运行时 tool registry、统一 execution context、自动化事务服务与写回链组织起来的一条主线。
 
@@ -310,8 +310,9 @@
 - 基于自动化设置判断是否启用
 - 构建指定 assistant 消息的 execution context
 - 筛选 `automation.enabled === true` 的自动工具
-- 只执行符合条件的 `post_response_api` 工具
-- 记录事务历史和宿主绑定状态
+- 执行符合条件的 `post_response_api` 工具
+- 当 `tableWorkbench.autoUpdateEnabled === true` 且 `autoUpdateTrigger === assistantMessage` 时，在同一 generation 事务内继续执行自动填表
+- 记录事务历史、宿主绑定状态与 table auto 结果
 
 当前自动链不会把以下路径当成主线自动执行：
 

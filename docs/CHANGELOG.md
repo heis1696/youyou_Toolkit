@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.96] - 2026-05-06
+
+### 修复
+
+- 🐛 **自动填表正式挂入 generation-aware 自动链，并补齐请求取消传递** (`modules/tool-automation-service.js`, `modules/table-engine/table-update-service.js`, `modules/table-engine/table-schema-service.js`, `modules/ui/components/table-workbench-panel.js`)
+  - `tableWorkbench.autoUpdateEnabled` / `autoUpdateTrigger` 现在会复用 `tool-automation-service.js` 的同槽位串行、generation 去重与事务取消链路
+  - 自动填表请求现会透传自动事务的 `AbortSignal`，用户取消或事务过期时不再继续把已取消请求发完再落到写回阶段
+  - 运行态新增 `lastAutoRunAt`、`lastAutoStatus`、`lastAutoMessageId`、`lastAutoRevisionKey`、`lastAutoSkipReason`，并在工作台自动更新卡片中直接展示
+
+### 文档
+
+- 📝 **同步自动填表接入自动执行主线后的架构口径** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`)
+  - 统一说明当前自动主线除了自动 `post_response_api` 工具外，还会在同一 generation 事务内执行 tableWorkbench 自动填表
+
 ## [1.0.95] - 2026-05-04
 
 ### 优化

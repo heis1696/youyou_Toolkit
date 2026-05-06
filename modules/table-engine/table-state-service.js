@@ -7,13 +7,13 @@ import { contextInjector } from '../context-injector.js';
 import {
   TABLE_MESSAGE_STATE_KEY,
   TABLE_MESSAGE_BINDINGS_KEY,
-  TABLE_STATE_LOAD_MODE,
   cloneTableValue,
   createEmptyTableBoundState,
   createTableTargetPointer,
   normalizeTableBindings,
   normalizeTableBoundState
 } from './table-types.js';
+import { resolveHistoricalTableState } from './table-history-service.js';
 import { resolveFreshTableTarget, validateTableTargetSnapshot } from './table-target-resolver.js';
 
 function normalizeIdentityValue(value) {
@@ -162,52 +162,13 @@ export function getTableBindings(targetSnapshot) {
 }
 
 export function loadBoundStateOrTemplate(targetSnapshot, options = {}) {
-  const state = getBoundTableState(targetSnapshot);
-  if (state && normalizeIdentityValue(state.slotRevisionKey) === normalizeIdentityValue(targetSnapshot?.slotRevisionKey)) {
-    return {
-      loadMode: TABLE_STATE_LOAD_MODE.EXACT,
-      mergeBaseOnly: false,
-      state
-    };
-  }
-
-  if (state && normalizeIdentityValue(state.slotBindingKey) === normalizeIdentityValue(targetSnapshot?.slotBindingKey)) {
-    return {
-      loadMode: TABLE_STATE_LOAD_MODE.BINDING_FALLBACK,
-      mergeBaseOnly: true,
-      state: normalizeTableBoundState({
-        ...state,
-        slotRevisionKey: normalizeIdentityValue(targetSnapshot?.slotRevisionKey) || state.slotRevisionKey,
-        sourceSwipeId: normalizeIdentityValue(targetSnapshot?.sourceSwipeId || targetSnapshot?.effectiveSwipeId) || state.sourceSwipeId,
-        meta: {
-          ...(state.meta || {}),
-          mergeBaseOnly: true,
-          fallbackFromBinding: true,
-          fallbackFromRevisionKey: normalizeIdentityValue(state.slotRevisionKey),
-          requestedRevisionKey: normalizeIdentityValue(targetSnapshot?.slotRevisionKey)
-        }
-      })
-    };
-  }
-
-  if (Array.isArray(options.templateTables)) {
-    return {
-      loadMode: TABLE_STATE_LOAD_MODE.TEMPLATE,
-      mergeBaseOnly: false,
-      state: createEmptyTableBoundState(targetSnapshot, {
-        tables: cloneTableValue(options.templateTables),
-        meta: {
-          fromTemplate: true
-        }
-      })
-    };
-  }
-
-  return {
-    loadMode: TABLE_STATE_LOAD_MODE.EMPTY,
-    mergeBaseOnly: false,
-    state: createEmptyTableBoundState(targetSnapshot)
-  };
+  const { runtime, messageIndex } = getMessageForTarget(targetSnapshot);
+  return resolveHistoricalTableState({
+    runtime,
+    targetSnapshot,
+    currentMessageIndex: messageIndex,
+    templateTables: Array.isArray(options.templateTables) ? options.templateTables : []
+  });
 }
 
 export async function recordResolvedTarget(targetSnapshot) {
