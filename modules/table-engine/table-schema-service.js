@@ -3,6 +3,7 @@
  * @description 管理 tableWorkbench 的最小配置、schema 与运行时状态
  */
 
+import { storage } from '../core/storage-service.js';
 import {
   cloneTableValue,
   createRuntimeTableId,

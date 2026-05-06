@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.97] - 2026-05-06
+
+### 修复
+
+- 🐛 **修复 tableWorkbench 配置服务缺失 storage 导入导致整个内容区空白** (`modules/table-engine/table-schema-service.js`, `dist/bundle.js`)
+  - 恢复 `table-schema-service.js` 对 `core/storage-service.js` 的导入，避免模块初始化阶段直接抛错
+  - 修复 `TableWorkbenchPanel` 导入链报错后连带阻断 `toolManage` 与侧边导航内容渲染的问题
+
 ## [1.0.96] - 2026-05-06
 
 ### 修复
