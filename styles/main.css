@@ -631,6 +631,8 @@
 .yyt-input,
 .yyt-select,
 .yyt-textarea {
+  width: 100%;
+  box-sizing: border-box;
   min-height: 42px;
   padding: 11px 15px;
   border: 1px solid var(--yyt-control-border);

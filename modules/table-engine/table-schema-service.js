@@ -21,6 +21,7 @@ import {
   getAllTablePromptPresets,
   getTablePromptPreset
 } from './table-prompt-preset-service.js';
+import { normalizeRunScopeConfig } from './table-scope-service.js';
 import { applyGuideToConfig, getCurrentTableGuide, saveCurrentTableGuide } from './table-guide-service.js';
 
 const tableWorkbenchStorage = storage.namespace('tableWorkbench');
