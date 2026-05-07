@@ -17,6 +17,9 @@ import {
 } from '../../table-engine/table-schema-service.js';
 import { saveTableTemplate } from '../../table-engine/table-template-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
+import { resolveLatestTableTarget } from '../../table-engine/table-target-resolver.js';
+import { getBoundTableState } from '../../table-engine/table-state-service.js';
+import { ensureTableId, cloneTableValue } from '../../table-engine/table-types.js';
 
 const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
@@ -84,6 +87,9 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 .yyt-twb-table-card-meta.is-warning { color:#f6ad55; }
 .yyt-twb-table-card-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .yyt-twb-empty { padding:24px; border:1px dashed var(--yyt-border); border-radius:12px; color:var(--yyt-text-secondary); background:var(--yyt-bg-secondary); text-align:center; }
+.yyt-twb-live-badge { display:inline-block; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:700; }
+.yyt-twb-live-badge--live { background:rgba(56,178,172,.15); color:#38b2ac; }
+.yyt-twb-live-badge--template { background:rgba(160,174,192,.15); color:#a0aec0; }
 .yyt-twb-empty h4 { margin:0 0 6px; color:var(--yyt-text); font-size:15px; }
 .yyt-twb-empty p { margin:0 0 14px; font-size:12px; line-height:1.6; }
 
@@ -185,6 +191,27 @@ function statusLabel(status) {
 function formatTime(ts) { return ts ? new Date(ts).toLocaleString() : '—'; }
 function formatDuration(ms) { return Number.isFinite(ms) && ms > 0 ? `${(ms / 1000).toFixed(ms >= 1000 ? 1 : 2)}s` : '—'; }
 function tableId(table, index) { return S(table?.id || table?.key, `table_${index}`); }
+
+function mergeLiveRowsIntoConfig(configTables, stateTables, sourceKind) {
+  if (!Array.isArray(configTables)) return [];
+  const liveKinds = new Set(['exact', 'binding', 'history']);
+  const hasLive = liveKinds.has(sourceKind) && Array.isArray(stateTables) && stateTables.length > 0;
+  const stateById = new Map();
+  if (hasLive) {
+    stateTables.forEach((st, i) => {
+      const id = ensureTableId(st?.id || st?.key, i);
+      stateById.set(id, st);
+    });
+  }
+  return configTables.map((ct, i) => {
+    const id = ensureTableId(ct?.id || ct?.key, i);
+    const matched = stateById.get(id) || (hasLive && i < stateTables.length ? stateTables[i] : null);
+    if (matched && hasLive) {
+      return { ...ct, rows: cloneTableValue(Array.isArray(matched.rows) ? matched.rows : []), __liveSourceKind: 'live' };
+    }
+    return { ...ct, __liveSourceKind: 'template' };
+  });
+}
 function tableCounts(table) {
   return {
     columns: Array.isArray(table?.columns) ? table.columns.length : 0,
@@ -457,13 +484,16 @@ function renderTableOverviewList(cfg) {
             const issues = (validation.issues || []).filter(issue => issue.tableIndex === i);
             const issueText = issues.length ? `${issues.length} 个问题` : '无校验问题';
             const isActive = i === activeIndex;
+            const liveBadge = table.__liveSourceKind === 'live'
+              ? '<span class="yyt-twb-live-badge yyt-twb-live-badge--live">实时</span>'
+              : '<span class="yyt-twb-live-badge yyt-twb-live-badge--template">模板</span>';
             return `
               <article class="yyt-twb-table-card ${isActive ? 'is-active' : ''}" data-twb-select="${i}">
                 <div class="yyt-twb-table-card-main">
                   <div class="yyt-twb-table-copy">
                     <h4>${escapeHtml(S(table?.name, `表格 ${i + 1}`))}</h4>
                     <p>${escapeHtml(S(table?.note, '还没有表格说明。'))}</p>
-                    <div class="yyt-twb-table-card-meta ${issues.length ? 'is-warning' : ''}">${counts.columns} 字段 / ${counts.rows} 行 · ${escapeHtml(statusLabel(cfg?.runtime?.lastStatus))} · ${escapeHtml(issueText)}</div>
+                    <div class="yyt-twb-table-card-meta ${issues.length ? 'is-warning' : ''}">${counts.columns} 字段 / ${counts.rows} 行 · ${liveBadge} · ${escapeHtml(statusLabel(cfg?.runtime?.lastStatus))} · ${escapeHtml(issueText)}</div>
                   </div>
                 </div>
                 <div class="yyt-twb-table-card-actions">
@@ -817,15 +847,23 @@ export const TableWorkbenchPanel = {
         if (!result?.success) {
           showTopNotice('warning', result?.error || '填表失败', { duration: 4000, noticeId: 'twb-run' });
         } else if (result.warning) {
+          self.lastDiff = result.diff || null;
           showTopNotice('warning', `填表完成，镜像失败: ${result.warning}`, { duration: 4200, noticeId: 'twb-run' });
         } else {
           self.lastDiff = result.diff || null;
           showTopNotice('success', `填表完成 (${result.fillMode === 'incremental' ? '增量' : '全量'})`, { duration: 2800, noticeId: 'twb-run' });
         }
+        if (result?.success || result?.nextTables) {
+          const freshCfg = getTableWorkbenchConfig();
+          const liveTables = result.nextTables || result.state?.tables || [];
+          const mergedTables = mergeLiveRowsIntoConfig(freshCfg.tables, liveTables, 'exact');
+          self.lastLiveConfig = { ...freshCfg, tables: mergedTables, __liveSourceKind: 'exact' };
+          self.lastLiveTarget = result.targetSnapshot || null;
+        }
       } catch (e) {
         showToast('error', e?.message || '填表失败');
       } finally {
-        self.renderTo($container);
+        self.renderTo($container, { config: self.lastLiveConfig || undefined });
       }
     });
 
@@ -1046,13 +1084,42 @@ export const TableWorkbenchPanel = {
 
   getStyles() { return CSS; },
 
-  renderTo($container, { config } = {}) {
+  lastLiveConfig: null,
+  lastLiveTarget: null,
+  _liveRefreshPending: false,
+
+  async _refreshLiveState($container) {
+    if (this._liveRefreshPending) return;
+    this._liveRefreshPending = true;
+    try {
+      const targetSnapshot = await resolveLatestTableTarget({ runSource: 'MANUAL_TABLE' });
+      if (!targetSnapshot) return;
+      const boundState = getBoundTableState(targetSnapshot);
+      if (!boundState || !Array.isArray(boundState.tables) || boundState.tables.length === 0) return;
+      const configFromStorage = getTableWorkbenchConfig();
+      const sourceKind = boundState.meta?.sourceKind || 'exact';
+      const mergedTables = mergeLiveRowsIntoConfig(configFromStorage.tables, boundState.tables, sourceKind);
+      this.lastLiveConfig = { ...configFromStorage, tables: mergedTables, __liveSourceKind: sourceKind };
+      this.lastLiveTarget = targetSnapshot;
+      if (isContainerValid($container)) {
+        this.renderTo($container, { config: this.lastLiveConfig, _skipRefresh: true });
+      }
+    } catch (_) {
+    } finally {
+      this._liveRefreshPending = false;
+    }
+  },
+
+  renderTo($container, { config, _skipRefresh } = {}) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    const cfg = config && typeof config === 'object' ? config : getTableWorkbenchConfig();
+    const cfg = config && typeof config === 'object' ? config : (this.lastLiveConfig || getTableWorkbenchConfig());
     this.currentTableIndex = idx(cfg.tables, cfg.__activeTableIndex ?? this.currentTableIndex);
     $container.html(this.render({ config: cfg }));
     this.bindEvents($container);
+    if (!config && !_skipRefresh) {
+      this._refreshLiveState($container);
+    }
   }
 };
 
