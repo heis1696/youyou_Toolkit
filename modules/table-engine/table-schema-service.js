@@ -17,10 +17,6 @@ import {
   getTableTemplate,
   saveTableTemplate
 } from './table-template-service.js';
-import {
-  getAllTablePromptPresets,
-  getTablePromptPreset
-} from './table-prompt-preset-service.js';
 import { normalizeRunScopeConfig } from './table-scope-service.js';
 import { applyGuideToConfig, getCurrentTableGuide, saveCurrentTableGuide } from './table-guide-service.js';
 
@@ -1051,16 +1047,11 @@ export function getTableWorkbenchBuiltinTemplates() {
   return getAllTableTemplates();
 }
 
-export function getTableWorkbenchPromptPresets() {
-  return getAllTablePromptPresets();
-}
-
 export function getTableWorkbenchDefaultConfig() {
   return {
     tables: cloneTableValue(DEFAULT_TABLE_WORKBENCH_TABLES),
     promptTemplate: DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE,
     apiPreset: '',
-    activePromptPresetId: '',
     promptPreset: '',
     bypass: {
       enabled: false,
@@ -1097,7 +1088,6 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     tables,
     promptTemplate: normalizeString(nextValue.promptTemplate, defaults.promptTemplate),
     apiPreset: normalizeString(nextValue.apiPreset, ''),
-    activePromptPresetId: normalizeString(nextValue.activePromptPresetId || nextValue.tablePromptPresetId, ''),
     promptPreset: bypass.presetId,
     bypass,
     activeTemplate: normalizeString(nextValue.activeTemplate, defaults.activeTemplate),
@@ -1170,7 +1160,6 @@ export function saveTableWorkbenchConfig(config = {}) {
   tableWorkbenchStorage.set(TABLE_WORKBENCH_CONFIG_KEY, validation.config);
   saveCurrentTableGuide({
     templateId: validation.config.activeTemplate,
-    promptPresetId: validation.config.activePromptPresetId,
     scope: validation.config.scope
   });
   return {
@@ -1225,20 +1214,11 @@ export function buildTableWorkbenchPromptTemplate(config = {}) {
 
 export function buildTableWorkbenchToolConfig(config = {}) {
   const normalized = normalizeTableWorkbenchConfig(config);
-  const promptPreset = getTablePromptPreset(normalized.activePromptPresetId);
 
   return {
     id: 'tableWorkbench',
     name: '填表工作台',
-    promptTemplate: promptPreset ? '' : buildTableWorkbenchPromptTemplate(normalized),
-    promptMessages: promptPreset?.segments || null,
-    promptPresetMeta: promptPreset ? {
-      id: promptPreset.id,
-      name: promptPreset.name,
-      responseFormat: promptPreset.responseFormat,
-      recommendedFillMode: promptPreset.recommendedFillMode,
-      warnings: promptPreset.warnings || []
-    } : null,
+    promptTemplate: buildTableWorkbenchPromptTemplate(normalized),
     bypass: {
       enabled: normalized.bypass?.enabled === true,
       presetId: normalized.bypass?.presetId || normalized.promptPreset || ''

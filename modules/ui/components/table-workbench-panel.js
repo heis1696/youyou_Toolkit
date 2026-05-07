@@ -16,13 +16,6 @@ import {
   applyTableWorkbenchTemplate, saveCurrentTableWorkbenchAsTemplate
 } from '../../table-engine/table-schema-service.js';
 import { saveTableTemplate } from '../../table-engine/table-template-service.js';
-import {
-  getAllTablePromptPresets,
-  getTablePromptPreset,
-  saveTablePromptPreset,
-  importShujukuPromptGroup,
-  exportShujukuPromptGroup
-} from '../../table-engine/table-prompt-preset-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 
 const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
@@ -283,7 +276,6 @@ function collect($c, fb) {
     selectedTableIds,
     activeTableId: tables[ti] ? tableId(tables[ti], ti) : ''
   };
-  const $tpp = $c.find('[data-twb-field="activePromptPresetId"]'); if ($tpp.length) cfg.activePromptPresetId = String($tpp.val() || '');
   const $pt = $c.find('[data-twb-field="promptPreset"]'); if ($pt.length) cfg.promptPreset = String($pt.val() || '');
   const $be = $c.find('[data-twb-field="bypassEnabled"]');
   const bypassPresetId = String(cfg.promptPreset || '');
@@ -430,35 +422,6 @@ function renderTemplateManager(cfg) {
     </article>`;
 }
 
-function renderPromptPresetManager(cfg) {
-  const presets = getAllTablePromptPresets();
-  const activePresetId = S(cfg.activePromptPresetId || cfg?.guide?.promptPresetId, '');
-  const activePreset = presets.find(preset => preset.id === activePresetId);
-  const warnings = activePreset?.warnings || [];
-  return `
-    <article class="yyt-panel-section yyt-twb-card yyt-twb-prompt-preset-card">
-      <div class="yyt-twb-card-header">
-        <div><h3>填表提示词预设</h3><p>导入/导出 shujuku 填表 prompt group，或把当前 Prompt 保存为 YouYou 预设。</p></div>
-        <span class="yyt-twb-muted">Prompt asset</span>
-      </div>
-      <label class="yyt-twb-field">
-        <span>当前填表提示词预设</span>
-        <select class="yyt-select" data-twb-field="activePromptPresetId">
-          <option value="" ${!activePresetId ? 'selected' : ''}>使用下方 legacy Prompt</option>
-          ${presets.map(preset => `<option value="${escapeHtml(preset.id)}" ${activePresetId === preset.id ? 'selected' : ''}>${escapeHtml(preset.name)}</option>`).join('')}
-        </select>
-        <small>提示词预设只影响填表请求消息，不会修改 live tables。</small>
-      </label>
-      ${activePreset ? `<div class="yyt-twb-runtime-message">当前预设：${escapeHtml(activePreset.name)} · ${escapeHtml(activePreset.sourceFormat)} · ${escapeHtml(activePreset.responseFormat)}${warnings.length ? `<br>${warnings.map(warning => escapeHtml(warning)).join('<br>')}` : ''}</div>` : ''}
-      <div class="yyt-twb-action-grid">
-        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="save-prompt-preset">保存当前 Prompt 为预设</button>
-        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="import-shujuku-prompt">导入 shujuku 提示词</button>
-        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="export-shujuku-prompt" ${activePreset ? '' : 'disabled'}>导出 shujuku JSON</button>
-        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="clear-prompt-preset" ${activePresetId ? '' : 'disabled'}>清空预设</button>
-      </div>
-    </article>`;
-}
-
 function renderManualRunPanel(cfg) {
   const tables = Array.isArray(cfg.tables) ? cfg.tables : [];
   const runScope = S(cfg.scope?.mode || cfg.runScope, 'enabled');
@@ -534,7 +497,6 @@ function renderDashboard(cfg) {
         ${renderAutoUpdateSettings(cfg)}
         ${renderAiBindingSettings(cfg)}
         ${renderTemplateManager(cfg)}
-        ${renderPromptPresetManager(cfg)}
         ${renderManualRunPanel(cfg)}
       </section>
       ${renderTableOverviewList(cfg)}
@@ -1070,68 +1032,6 @@ export const TableWorkbenchPanel = {
       } catch (error) {
         showTopNotice('warning', error?.message || '模板 JSON 无效', { duration: 4000, noticeId: 'twb-template' });
       }
-    });
-
-    $container.on('click.twb', '[data-twb-action="save-prompt-preset"]', function () {
-      const cfg = collect($container);
-      const name = prompt('提示词预设名称', `填表提示词 ${new Date().toLocaleString()}`);
-      if (!name) return;
-      const saved = saveTablePromptPreset({
-        name,
-        description: '从填表工作台 legacy Prompt 保存。',
-        sourceFormat: 'youyou',
-        responseFormat: 'json',
-        recommendedFillMode: cfg.fillMode || '',
-        segments: [{
-          role: 'user',
-          content: cfg.promptTemplate || '',
-          deletable: false,
-          mainSlot: 'B'
-        }]
-      });
-      if (!saved.success) {
-        showTopNotice('warning', saved.error || '保存提示词预设失败', { duration: 4000, noticeId: 'twb-prompt-preset' });
-        return;
-      }
-      const r = saveTableWorkbenchConfig({ ...cfg, activePromptPresetId: saved.preset.id });
-      showTopNotice('success', `已保存并选择提示词预设：${saved.preset.name}`, { duration: 2800, noticeId: 'twb-prompt-preset' });
-      self.renderTo($container, { config: r.config });
-    });
-
-    $container.on('click.twb', '[data-twb-action="import-shujuku-prompt"]', function () {
-      const raw = prompt('粘贴 shujuku 填表提示词 JSON');
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw);
-        const name = prompt('导入后的预设名称', 'shujuku 填表提示词');
-        if (!name) return;
-        const imported = importShujukuPromptGroup(parsed, { name });
-        if (!imported.success) throw new Error(imported.error || '导入失败');
-        const cfg = collect($container);
-        const r = saveTableWorkbenchConfig({ ...cfg, activePromptPresetId: imported.preset.id });
-        showTopNotice('success', `已导入并选择提示词预设：${imported.preset.name}`, { duration: 2800, noticeId: 'twb-prompt-preset' });
-        self.renderTo($container, { config: r.config });
-      } catch (error) {
-        showTopNotice('warning', error?.message || 'shujuku 提示词 JSON 无效', { duration: 4000, noticeId: 'twb-prompt-preset' });
-      }
-    });
-
-    $container.on('click.twb', '[data-twb-action="export-shujuku-prompt"]', function () {
-      const cfg = collect($container);
-      const preset = getTablePromptPreset(cfg.activePromptPresetId);
-      if (!preset) {
-        showTopNotice('warning', '请选择一个提示词预设。', { duration: 3000, noticeId: 'twb-prompt-preset' });
-        return;
-      }
-      navigator.clipboard?.writeText(dump(exportShujukuPromptGroup(preset)));
-      showTopNotice('success', 'shujuku 提示词 JSON 已复制到剪贴板。', { duration: 2800, noticeId: 'twb-prompt-preset' });
-    });
-
-    $container.on('click.twb', '[data-twb-action="clear-prompt-preset"]', function () {
-      const cfg = collect($container);
-      const r = saveTableWorkbenchConfig({ ...cfg, activePromptPresetId: '' });
-      showTopNotice('success', '已切回 legacy 填表 Prompt。', { duration: 2400, noticeId: 'twb-prompt-preset' });
-      self.renderTo($container, { config: r.config });
     });
 
     $container.on('change.twb', '[data-twb-field="bypassEnabled"]', function () {

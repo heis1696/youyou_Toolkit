@@ -41,7 +41,6 @@ export function normalizeTableGuide(value = {}, fallback = {}) {
     templateId: normalizeString(source.templateId, normalizeString(fallback.templateId, DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID)),
     enabledTableIds: Array.isArray(source.enabledTableIds) ? source.enabledTableIds.map(id => normalizeString(id, '')).filter(Boolean) : [],
     focusedTableId: normalizeString(source.focusedTableId, scope.activeTableId),
-    promptPresetId: normalizeString(source.promptPresetId || source.activePromptPresetId, normalizeString(fallback.promptPresetId || fallback.activePromptPresetId, '')),
     scope,
     seedNote: normalizeString(source.seedNote, ''),
     updatedAt: normalizeString(source.updatedAt, new Date().toISOString())
@@ -80,13 +79,11 @@ export function applyGuideToConfig(config = {}, guideInput = null) {
     templateId: config.activeTemplate,
     runScope: config.runScope,
     selectedTableIds: config.scope?.selectedTableIds,
-    activeTableId: config.scope?.activeTableId,
-    activePromptPresetId: config.activePromptPresetId
+    activeTableId: config.scope?.activeTableId
   });
   return {
     ...config,
     activeTemplate: guide.templateId || config.activeTemplate,
-    activePromptPresetId: guide.promptPresetId || config.activePromptPresetId || '',
     runScope: guide.scope.mode,
     scope: guide.scope
   };

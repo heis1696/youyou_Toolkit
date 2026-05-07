@@ -28,6 +28,33 @@ const LEGACY_SAMPLE_PRESET_NAMES = new Set([
   '增强破限'
 ]);
 
+function normalizeImportedRole(role) {
+  const normalized = String(role || '').trim().toLowerCase();
+  if (normalized === 'system') return 'SYSTEM';
+  if (normalized === 'assistant' || normalized === 'ai') return 'assistant';
+  return 'USER';
+}
+
+function looksLikePromptGroupMessage(item) {
+  return item
+    && typeof item === 'object'
+    && typeof item.content === 'string'
+    && !item.name
+    && !Array.isArray(item.messages);
+}
+
+function normalizeImportedMessage(message, index, presetId) {
+  const mainSlot = message.mainSlot || (message.isMain ? 'A' : (message.isMain2 ? 'B' : ''));
+  return {
+    id: typeof message.id === 'string' && message.id.trim() ? message.id.trim() : `${presetId}_msg_${index + 1}`,
+    role: normalizeImportedRole(message.role),
+    content: typeof message.content === 'string' ? message.content : '',
+    enabled: message.enabled !== false,
+    deletable: message.deletable !== false,
+    ...(mainSlot ? { mainSlot, isMain: mainSlot === 'A', isMain2: mainSlot === 'B' } : {})
+  };
+}
+
 // ============================================================
 // 破限词管理器类
 // ============================================================
@@ -272,10 +299,11 @@ class BypassManager {
 
     const newMessage = {
       id: `msg_${Date.now()}`,
-      role: message.role || 'SYSTEM',
+      role: normalizeImportedRole(message.role || 'SYSTEM'),
       content: message.content || '',
       enabled: message.enabled !== false,
-      deletable: message.deletable !== false
+      deletable: message.deletable !== false,
+      ...(message.mainSlot ? { mainSlot: message.mainSlot } : {})
     };
 
     const updatedMessages = [...(preset.messages || []), newMessage];
@@ -434,7 +462,7 @@ class BypassManager {
    * @returns {Object} { success: boolean, message: string, imported: number }
    */
   importPresets(jsonString, options = {}) {
-    const { overwrite = false } = options;
+    const { overwrite = false, name = '' } = options;
 
     let data;
     try {
@@ -443,29 +471,36 @@ class BypassManager {
       return { success: false, message: 'JSON解析失败', imported: 0 };
     }
 
-    // 支持单个预设或预设数组
-    const presetsToImport = Array.isArray(data) ? data : 
-      (data.presets ? data.presets : [data]);
+    const saved = storage.get(BYPASS_PRESETS_KEY, {});
+    const rawPromptGroup = Array.isArray(data) && data.every(looksLikePromptGroupMessage);
+    const presetsToImport = rawPromptGroup
+      ? [{
+        id: this._generatePresetId(name || '导入填表指令预设', saved),
+        name: name || '导入填表指令预设',
+        description: '由外部填表提示词组导入。',
+        enabled: true,
+        messages: data
+      }]
+      : (Array.isArray(data) ? data : (data.presets ? data.presets : [data]));
 
     if (presetsToImport.length === 0) {
       return { success: false, message: '没有找到有效的预设数据', imported: 0 };
     }
 
-    const saved = storage.get(BYPASS_PRESETS_KEY, {});
     let imported = 0;
 
     for (const preset of presetsToImport) {
-      if (!preset.id || typeof preset.id !== 'string') continue;
-      if (!preset.name) continue;
+      const normalized = this._normalizePreset(preset?.id, preset, saved);
+      if (!normalized) continue;
 
       // 跳过默认预设
-      if (DEFAULT_BYPASS_PRESETS[preset.id] && !overwrite) continue;
+      if (DEFAULT_BYPASS_PRESETS[normalized.id] && !overwrite) continue;
 
       // 如果不覆盖且已存在，跳过
-      if (!overwrite && saved[preset.id]) continue;
+      if (!overwrite && saved[normalized.id]) continue;
 
-      saved[preset.id] = {
-        ...preset,
+      saved[normalized.id] = {
+        ...normalized,
         updatedAt: Date.now()
       };
       imported++;
@@ -612,13 +647,7 @@ class BypassManager {
     const messages = Array.isArray(preset.messages)
       ? preset.messages
           .filter(msg => msg && typeof msg === 'object')
-          .map((msg, index) => ({
-            id: typeof msg.id === 'string' && msg.id.trim() ? msg.id.trim() : `${id}_msg_${index + 1}`,
-            role: msg.role || 'SYSTEM',
-            content: typeof msg.content === 'string' ? msg.content : '',
-            enabled: msg.enabled !== false,
-            deletable: msg.deletable !== false
-          }))
+          .map((msg, index) => normalizeImportedMessage(msg, index, id))
       : [];
 
     return {
