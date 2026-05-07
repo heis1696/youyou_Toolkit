@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.99] - 2026-05-07
+
+### 修复
+
+- 🐛 **修复 1.0.98 填表工作台渲染失败与基础控件宽度回归** (`modules/table-engine/table-schema-service.js`, `styles/main.css`, `dist/bundle.js`)
+  - 补回 `normalizeRunScopeConfig` 导入，避免 tableWorkbench 配置归一化时抛出 `normalizeRunScopeConfig is not defined`
+  - 恢复 `.yyt-input` / `.yyt-select` / `.yyt-textarea` 的全宽与 `box-sizing: border-box`，避免 API 预设等界面输入框收缩
+
 ## [1.0.98] - 2026-05-07
 
 ### 新增
