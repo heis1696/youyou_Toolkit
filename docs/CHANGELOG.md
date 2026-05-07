@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.105] - 2026-05-08
+
+### 修复
+
+- 🐛 **修复 `getTableWorkbenchPromptPresets is not defined` 模块加载报错** (`modules/table-engine/table-schema-service.js`)
+  - export 列表中残留了已删除函数的具名导出，导致模块加载时 ReferenceError
+- 🐛 **修复填表执行 `Cannot read properties of undefined (reading 'info')` 报错** (`modules/table-engine/table-update-service.js`)
+  - `const log = logger.createScope(...)` 在 esbuild `__esm` 延迟初始化时 `logger` 尚未赋值；改为 `getLog()` 惰性调用
+
 ## [1.0.104] - 2026-05-07
 
 ### 修复

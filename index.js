@@ -1,6 +1,6 @@
 /**
  * YouYou Toolkit - SillyTavern 工具插件
- * @version 1.0.104
+ * @version 1.0.105
  * @description 一个运行在 SillyTavern / TavernHelper 宿主中的可配置工具链平台，支持 API 预设、工具管理、自动触发、楼层写回与统一 UI 装配
  * @author YouYou
  */
