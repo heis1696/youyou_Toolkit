@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.101] - 2026-05-07
+
+### 修复
+
+- 🐛 **将外部填表提示词导入收口到既有 Ai 指令预设管理** (`modules/bypass-manager.js`, `modules/table-engine/table-schema-service.js`, `modules/table-engine/table-guide-service.js`, `modules/ui/components/table-workbench-panel.js`, `dist/bundle.js`)
+  - 移除填表工作台中独立的“填表提示词预设”入口与并行选择字段，避免与已有“绑定 Ai 指令预设”功能重复
+  - 外部填表 prompt group JSON 现在导入为普通 Ai 指令预设消息，可在原有 Ai 指令预设面板继续编辑
+  - 填表执行链继续使用 `promptTemplate + bypass/Ai 指令预设`，不再读取独立 table prompt preset 资产
+
 ## [1.0.100] - 2026-05-07
 
 ### 修复
