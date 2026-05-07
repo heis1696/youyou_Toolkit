@@ -752,7 +752,7 @@ export const TableWorkbenchPanel = {
 
     $container.on('click.twb', '[data-twb-action="open-table-editor"]', function (e) {
       e.stopPropagation();
-      const cfg = collect($container);
+      const cfg = collect($container, self.lastLiveConfig);
       const i = Number($(this).attr('data-twb-ti'));
       cfg.__activeTableIndex = i;
       self.currentTableIndex = idx(cfg.tables, i);
@@ -761,15 +761,22 @@ export const TableWorkbenchPanel = {
     });
 
     $container.on('click.twb', '[data-twb-action="close-table-editor"]', function () {
-      const cfg = collect($container);
+      const cfg = collect($container, self.lastLiveConfig);
       saveTableWorkbenchConfig(cfg);
       self.editorOpen = false;
-      self.renderTo($container, { config: cfg });
+      if (self.lastLiveConfig) {
+        const freshCfg = getTableWorkbenchConfig();
+        const liveTables = mergeLiveRowsIntoConfig(freshCfg.tables, self.lastLiveConfig.tables, self.lastLiveConfig.__liveSourceKind || 'exact');
+        self.lastLiveConfig = { ...freshCfg, tables: liveTables, __liveSourceKind: self.lastLiveConfig.__liveSourceKind || 'exact' };
+        self.renderTo($container, { config: self.lastLiveConfig });
+      } else {
+        self.renderTo($container, { config: cfg });
+      }
     });
 
     $container.on('click.twb', '[data-twb-select]', function () {
       const i = Number($(this).attr('data-twb-select'));
-      const cfg = collect($container);
+      const cfg = collect($container, self.lastLiveConfig);
       cfg.__activeTableIndex = i;
       self.currentTableIndex = idx(cfg.tables, i);
       self.renderTo($container, { config: cfg });
@@ -777,7 +784,7 @@ export const TableWorkbenchPanel = {
 
     $container.on('click.twb', '[data-twb-action="add-table"]', function (e) {
       e.stopPropagation();
-      const cfg = collect($container);
+      const cfg = collect($container, self.lastLiveConfig);
       const tables = Array.isArray(cfg.tables) ? [...cfg.tables] : [];
       tables.push(createEmptyTableDefinition(tables.length + 1));
       cfg.tables = tables;
