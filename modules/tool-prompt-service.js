@@ -99,7 +99,7 @@ class ToolPromptService {
           content
         });
       }
-    } else {
+    } else if (!hasMainSlotMessages) {
       const userContent = this._buildUserContent(this._getPromptTemplate(toolConfig), variableContext);
       if (userContent) {
         messages.push({

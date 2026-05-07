@@ -3,13 +3,9 @@
  * @description 为 tableWorkbench 预留执行 provider seam，首版仍接当前 native 链
  */
 
-export const TABLE_PROVIDER_MODES = Object.freeze({
-  NATIVE: 'native'
-});
-
 class NativeTableProvider {
   constructor() {
-    this.mode = TABLE_PROVIDER_MODES.NATIVE;
+    this.mode = 'native';
   }
 
   async buildRequest(deps = {}, options = {}) {
@@ -34,15 +30,6 @@ class NativeTableProvider {
   }
 }
 
-export function getTableProvider(mode = TABLE_PROVIDER_MODES.NATIVE) {
-  if (mode === TABLE_PROVIDER_MODES.NATIVE) {
-    return new NativeTableProvider();
-  }
-
+export function getTableProvider() {
   return new NativeTableProvider();
 }
-
-export default {
-  TABLE_PROVIDER_MODES,
-  getTableProvider
-};

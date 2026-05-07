@@ -67,7 +67,7 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 .yyt-twb-table-chip span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .yyt-twb-muted { color:var(--yyt-text-muted); font-size:12px; }
 .yyt-twb-help { margin:0; color:var(--yyt-text-secondary); font-size:12px; line-height:1.6; }
-.yyt-twb-prompt-summary { cursor:pointer; font-weight:700; padding:8px 0; }
+.yyt-twb-prompt-summary { cursor:pointer; font-weight:700; padding:8px 0; display:none; }
 .yyt-twb-prompt-field { margin-top:10px; }
 
 .yyt-twb-table-overview { border:1px solid var(--yyt-border); border-radius:12px; background:var(--yyt-bg); padding:14px; }
@@ -364,7 +364,7 @@ function renderAiBindingSettings(cfg) {
   return `
     <article class="yyt-panel-section yyt-twb-card">
       <div class="yyt-twb-card-header">
-        <div><h3>AI 绑定</h3><p>选择填表使用的 API、Ai 指令预设与填表 Prompt。</p></div>
+        <div><h3>AI 绑定</h3><p>选择填表使用的 API 与 Ai 指令预设。</p></div>
         <span class="yyt-twb-muted">API 与 Ai 指令</span>
       </div>
       <label class="yyt-twb-field">
@@ -386,13 +386,6 @@ function renderAiBindingSettings(cfg) {
         </select>
         <small>启用后会作为填表请求的前置消息发送，复用破限模块中的 Ai 指令预设。</small>
       </label>
-      <details>
-        <summary class="yyt-twb-muted yyt-twb-prompt-summary">查看 / 编辑填表 Prompt</summary>
-        <label class="yyt-twb-field yyt-twb-prompt-field">
-          <span>填表 Prompt</span>
-          <textarea class="yyt-code-textarea" rows="9" data-twb-field="promptTemplate">${escapeHtml(cfg.promptTemplate || '')}</textarea>
-        </label>
-      </details>
     </article>`;
 }
 

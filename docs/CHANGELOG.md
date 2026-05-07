@@ -9,6 +9,23 @@
 
 ## [Unreleased]
 
+## [1.0.103] - 2026-05-07
+
+### 修复
+
+- 🐛 **修复填表执行报错 `Cannot read properties of undefined (reading 'NATIVE')`** (`modules/table-engine/table-provider-service.js`)
+  - `getTableProvider()` 默认参数引用了 esbuild `__esm` 延迟初始化变量 `TABLE_PROVIDER_MODES.NATIVE`，在函数默认参数求值时该常量尚未初始化
+  - 移除多余的 `TABLE_PROVIDER_MODES` 枚举和间接层，`getTableProvider()` 直接返回 `NativeTableProvider` 实例
+- 🐛 **移除填表工作台 AI 绑定区多余的"查看 / 编辑填表 Prompt"折叠区** (`modules/ui/components/table-workbench-panel.js`)
+  - 该入口与已有的"绑定 Ai 指令预设"功能完全重合，填表 promptTemplate 现在由 Ai 指令预设统一管理
+- 🐛 **当绑定的 Ai 指令预设已包含 mainSlot 消息时不再追加 promptTemplate** (`modules/tool-prompt-service.js`)
+  - 避免填表请求中同时发送 Ai 指令预设的多段消息和 legacy promptTemplate 用户消息
+
+### 移除
+
+- 🗑️ **删除死代码 `modules/table-engine/table-prompt-preset-service.js`**
+  - 该文件自 1.0.101 起已无任何模块导入，现正式删除
+
 ## [1.0.102] - 2026-05-07
 
 ### 修复
