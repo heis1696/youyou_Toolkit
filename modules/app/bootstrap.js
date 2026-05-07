@@ -1403,7 +1403,7 @@ export function createBootstrap(context, options = {}) {
 
     if (!uiInitialized && modules.uiModule?.initUI) {
       try {
-        modules.uiModule.initUI({
+        await modules.uiModule.initUI({
           services: modules,
           autoInjectStyles: false,
           targetDocument: topLevelWindow.document || document

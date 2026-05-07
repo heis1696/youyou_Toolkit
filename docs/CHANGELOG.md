@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.100] - 2026-05-07
+
+### 修复
+
+- 🐛 **恢复 popup 内容壳层与异步 UI 初始化时序** (`modules/app/bootstrap.js`, `modules/app/popup-shell.js`, `styles/main.css`, `dist/bundle.js`)
+  - `bootstrap` 现在会等待 `uiModule.initUI()` 完成后再注入组件样式，避免动态 panel 注册尚未完成时提前聚合空样式
+  - 恢复 `.yyt-content-frame > .yyt-content > .yyt-content-inner > .yyt-tab-content` 内容壳层结构，避免 1.0.98/1.0.99 中内容界面壳子整体塌缩
+  - 保留 1.0.99 的基础控件全宽修复，避免 API 预设等表单控件继续收缩
+
 ## [1.0.99] - 2026-05-07
 
 ### 修复

@@ -320,7 +320,7 @@ export function createPopupShell(context) {
     const toolConfig = modules.toolRegistryModule?.getToolConfig(activeMainTab);
     const hasSubTabs = Boolean(toolConfig?.hasSubTabs);
     const $subNav = $(uiState.currentPopup).find('.yyt-sub-nav');
-    const $content = $(uiState.currentPopup).find('.yyt-content');
+    const $content = $(uiState.currentPopup).find('.yyt-content-inner');
 
     if (rebuildNavigation && $content.length) {
       const knownTabs = new Set($content.find('.yyt-tab-content').map((_, el) => $(el).data('tab')).get());
@@ -1417,8 +1417,12 @@ export function createPopupShell(context) {
               <section class="yyt-shell-main">
                 ${buildShellMainHeaderHtml(currentDisplayName, currentDescription)}
                 <div class="yyt-sub-nav" style="display: none;"></div>
-                <div class="yyt-content">
-                  ${buildShellContentHtml(tools, uiState.currentMainTab)}
+                <div class="yyt-content-frame">
+                  <div class="yyt-content">
+                    <div class="yyt-content-inner">
+                      ${buildShellContentHtml(tools, uiState.currentMainTab)}
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>

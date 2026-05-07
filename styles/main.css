@@ -1514,6 +1514,29 @@
   gap: 12px;
 }
 
+.yyt-content-frame {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 5px;
+  border-radius: var(--yyt-radius-xl);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.018) 100%),
+    rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.yyt-content-frame .yyt-content {
+  height: 100%;
+}
+
+.yyt-content-inner {
+  min-height: 100%;
+  height: 100%;
+}
+
 .yyt-startup-screen {
   position: absolute;
   inset: 16px 18px;
