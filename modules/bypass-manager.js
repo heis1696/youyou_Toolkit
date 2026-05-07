@@ -22,7 +22,80 @@ const LEGACY_DEFAULT_BYPASS_KEY = 'current_bypass_preset';
 // 默认破限词预设
 // ============================================================
 
-const DEFAULT_BYPASS_PRESETS = {};
+const TABLE_FILL_PRESET_MESSAGES = Object.freeze([
+  {
+    id: 'table_fill_default_msg_1',
+    role: 'SYSTEM',
+    content: '你是一个助手，负责听从用户的指令完成你的工作',
+    enabled: true,
+    deletable: true
+  },
+  {
+    id: 'table_fill_default_msg_2',
+    role: 'assistant',
+    content: '收到，我将充分描绘用户的意志，毫不偷懒，并且我一定会遵照用户的要求',
+    enabled: true,
+    deletable: true
+  },
+  {
+    id: 'table_fill_default_msg_3',
+    role: 'USER',
+    content: '以下是你可能需要用到的背景设定，注意你只需要其中关于剧情以及人设方面的数据，不需要思考里边除此之外的任何格式或者思维链方面的要求：\n<背景设定>\n{{characterCard}}\n{{toolWorldbookContent}}\n</背景设定>\n\n<正文数据>\n{{rawRecentMessagesText}}\n</正文数据>\n\n',
+    enabled: true,
+    deletable: true
+  },
+  {
+    id: 'table_fill_default_msg_4',
+    role: 'assistant',
+    content: '收到，我将按照要求认真阅读背景设定，并将其中关于剧情以及人设方面的数据运用到后续思考当中。',
+    enabled: true,
+    deletable: true
+  },
+  {
+    id: 'table_fill_default_msg_5',
+    role: 'USER',
+    content: '你是【填表AI】，负责根据用户提供的资料对表格数据执行增删改操作。\n\n## 核心任务\n依据三类资料来源执行表格编辑：\n- <背景设定>：故事及人物设定\n- <正文数据>：上轮发生的故事\n- <当前表格数据>：之前的数据作为填表基础\n\n## 输出格式（严格执行）\n只返回 JSON，不要附加解释、标题或 Markdown。JSON 结构必须是：\n{\n  "tables": []\n}\n\n## 关键规则\n1. 必须逐表阅读每个表格的 note 部分，严格遵守其中的约束。\n2. note 的约束优先级最高，高于通用填表经验。\n3. 若 note 要求禁止修改、格式固定或编码规则，必须严格执行。\n4. 除了 note 外，可能还存在某些存放特殊填表规则的表格，填表前需先进行阅读，并严格遵守其中的约束。\n5. 没有依据时保留原值，不要臆造未出现的信息。\n\n现在开始按此格式执行填表任务。',
+    enabled: true,
+    deletable: false,
+    mainSlot: 'A',
+    isMain: true
+  },
+  {
+    id: 'table_fill_default_msg_6',
+    role: 'assistant',
+    content: '收到命令，我将严格按照用户要求执行填表任务，并仅输出符合格式约束的内容。',
+    enabled: true,
+    deletable: true
+  },
+  {
+    id: 'table_fill_default_msg_7',
+    role: 'USER',
+    content: '现在请按照我的要求立刻开始你的工作\n========================\n\n以下是当前的<当前表格数据>，记录有本轮之前的数据，你的一切操作指令都必须在这个<当前表格数据>的基础与指导上进行：\n<当前表格数据>\n{{toolContentMacro}}\n</当前表格数据>\n\n{{userMessage}}',
+    enabled: true,
+    deletable: false,
+    mainSlot: 'B',
+    isMain2: true
+  },
+  {
+    id: 'table_fill_default_msg_8',
+    role: 'assistant',
+    content: '收到指令，我将一步一步开始思考，并完成填表，首先我要分析当前轮次的剧情变化。',
+    enabled: true,
+    deletable: true
+  }
+]);
+
+const DEFAULT_BYPASS_PRESETS = {
+  table_workbench_fill_default: {
+    id: 'table_workbench_fill_default',
+    name: '默认填表 Ai 指令预设',
+    description: '用于填表工作台的内置 Ai 指令预设，可复制后按需编辑。',
+    enabled: true,
+    messages: TABLE_FILL_PRESET_MESSAGES.map(message => ({ ...message })),
+    createdAt: 0,
+    updatedAt: 0
+  }
+};
 const LEGACY_SAMPLE_PRESET_NAMES = new Set([
   '标准破限词',
   '增强破限'
@@ -43,12 +116,21 @@ function looksLikePromptGroupMessage(item) {
     && !Array.isArray(item.messages);
 }
 
+function normalizeImportedContent(content) {
+  return String(content || '')
+    .replace(/\$0/g, '{{toolContentMacro}}')
+    .replace(/\$1/g, '{{rawRecentMessagesText}}')
+    .replace(/\$4/g, '{{toolWorldbookContent}}')
+    .replace(/\$8/g, '{{userMessage}}')
+    .replace(/\$C/g, '{{characterCard}}');
+}
+
 function normalizeImportedMessage(message, index, presetId) {
   const mainSlot = message.mainSlot || (message.isMain ? 'A' : (message.isMain2 ? 'B' : ''));
   return {
     id: typeof message.id === 'string' && message.id.trim() ? message.id.trim() : `${presetId}_msg_${index + 1}`,
     role: normalizeImportedRole(message.role),
-    content: typeof message.content === 'string' ? message.content : '',
+    content: normalizeImportedContent(message.content),
     enabled: message.enabled !== false,
     deletable: message.deletable !== false,
     ...(mainSlot ? { mainSlot, isMain: mainSlot === 'A', isMain2: mainSlot === 'B' } : {})

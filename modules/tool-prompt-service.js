@@ -76,6 +76,8 @@ class ToolPromptService {
     // 1. 获取破限词消息（如果启用）
     const bypassMessages = this._getBypassMessages(toolConfig);
 
+    const hasMainSlotMessages = bypassMessages?.some(msg => msg.mainSlot === 'A' || msg.mainSlot === 'B' || msg.isMain || msg.isMain2);
+
     // 2. 添加破限词消息（在前面）
     if (bypassMessages && bypassMessages.length > 0) {
       for (const msg of bypassMessages) {
@@ -88,7 +90,7 @@ class ToolPromptService {
       }
     }
 
-    if (promptSegments.length > 0) {
+    if (!hasMainSlotMessages && promptSegments.length > 0) {
       for (const segment of promptSegments) {
         const content = variableResolver.resolveTemplate(segment?.content || '', variableContext).trim();
         if (!content) continue;

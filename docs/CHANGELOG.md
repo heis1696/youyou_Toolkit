@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.102] - 2026-05-07
+
+### 修复
+
+- 🐛 **补回 Ai 指令预设中的默认填表预设** (`modules/bypass-manager.js`, `modules/tool-prompt-service.js`, `dist/bundle.js`)
+  - 在既有 Ai 指令预设管理中提供内置“默认填表 Ai 指令预设”，打开预设列表即可直接看到并用于填表工作台绑定
+  - 外部填表 prompt group 导入时会把 `$0` / `$1` / `$4` / `$8` / `$C` 映射为 YouYou 现有变量，避免导入后仍保留不可解析占位符
+  - 绑定带 `mainSlot` 的多段 Ai 指令预设时，不再额外追加 legacy `promptTemplate` 用户消息，避免填表请求重复拼接两套提示词
+
 ## [1.0.101] - 2026-05-07
 
 ### 修复
