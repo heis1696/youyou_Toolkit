@@ -1285,7 +1285,6 @@ export default {
   validateTableDraft,
   validateTableDraftDeep,
   getTableWorkbenchBuiltinTemplates,
-  getTableWorkbenchPromptPresets,
   parseTableWorkbenchTemplate,
   getTableWorkbenchDefaultConfig,
   normalizeTableWorkbenchConfig,

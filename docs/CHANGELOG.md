@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.104] - 2026-05-07
+
+### 修复
+
+- 🐛 **修复填表执行 `Ca is not a constructor`** (`modules/table-engine/table-provider-service.js`)
+  - esbuild `__esm` 延迟初始化模式下 class 声明被 hoisted 到赋值之前，导致 `new NativeTableProvider()` 报错 `is not a constructor`
+  - 改用工厂函数返回普通对象，彻底消除 class 在延迟模块边界的 hoisting 问题
+
+### 改进
+
+- 📝 **填表执行链接入统一日志系统** (`modules/table-engine/table-update-service.js`)
+  - 填表全链路关键节点（配置校验、上下文构建、目标解析、状态加载、请求构建、API 发送、响应解析、差异计算、写回结果、错误）均写入 `logger` scope `TableUpdate`
+  - 可在日志面板中按 scope 过滤查看填表执行过程，方便定位错误
+
 ## [1.0.103] - 2026-05-07
 
 ### 修复

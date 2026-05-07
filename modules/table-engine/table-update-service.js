@@ -7,6 +7,7 @@ import { buildExecutionContextForLatestAssistant, buildExecutionContextForMessag
 import { contextInjector } from '../context-injector.js';
 import { hasEffectiveApiPreset, sendApiRequest, sendWithPreset } from '../api-connection.js';
 import { toolPromptService } from '../tool-prompt-service.js';
+import { logger } from '../core/logger-service.js';
 import {
   cloneTableValue,
   TABLE_RUN_SOURCES,
@@ -36,6 +37,10 @@ import { computeTableDiff } from './table-diff-service.js';
 import { resolveTableRunScope } from './table-scope-service.js';
 import { getTableProvider } from './table-provider-service.js';
 import { getLocks, isLocked, isRowLocked } from './table-lock-service.js';
+
+function getLog() {
+  return logger.createScope('TableUpdate');
+}
 
 function normalizeString(value, fallback = '') {
   if (value === undefined || value === null) return fallback;
@@ -543,8 +548,11 @@ async function runTableUpdate({
   const isAutoRun = runSource === TABLE_RUN_SOURCES.AUTO;
   const startedAt = Date.now();
 
+  getLog().info(`开始填表 [${runSource}]`, { isAutoRun, fillMode: config.fillMode });
+
   if (!validation.valid || !draftValidation.valid) {
     const errors = [...validation.errors, ...draftValidation.errors];
+    getLog().error('配置校验失败', { errors });
     applyRuntimePatch({
       lastStatus: TABLE_WORKBENCH_RUNTIME_STATUS.ERROR,
       lastRunAt: startedAt,
@@ -600,12 +608,14 @@ async function runTableUpdate({
     }
 
     const executionContext = await executionContextBuilder();
+    getLog().info('执行上下文已构建');
     const targetSnapshot = targetResolver(executionContext);
 
     if (!targetSnapshot) {
       throw new Error('当前没有可用的 assistant 目标楼层。');
     }
     activeTargetSnapshot = targetSnapshot;
+    getLog().info('目标消息已解析', { sourceMessageId: targetSnapshot.sourceMessageId, slotRevisionKey: targetSnapshot.slotRevisionKey });
 
     if (isAutoRun) {
       applyRuntimePatch(buildAutoRuntimePatch({
@@ -679,6 +689,7 @@ async function runTableUpdate({
     const previousTables = normalizeRuntimeTables(loadResult?.state?.tables || []);
     const provider = getTableProvider();
     const abortSignal = autoMeta?.signal || executionContext?.signal || null;
+    getLog().info('状态已加载', { loadMode: loadResult?.loadMode, sourceKind: loadResult?.sourceKind, tableCount: previousTables.length });
 
     const request = await provider.buildRequest({ buildRequest }, {
       executionContext,
@@ -688,11 +699,14 @@ async function runTableUpdate({
       assistantSnapshot,
       runScope
     });
+    getLog().info('请求已构建', { messageCount: request?.messages?.length, fillMode: request?.fillMode });
     const responseText = await provider.sendRequest({ sendRequest }, request, {
       config,
       abortSignal
     });
+    getLog().info('API 响应已收到', { responseLength: responseText?.length || 0 });
     const parsed = provider.parseResponse({ parseResponse: sanitizeAIResponse }, responseText);
+    getLog().info('响应已解析', { mode: parsed?.mode, hasEdits: !!parsed?.edits, hasTables: !!parsed?.tables });
 
     let nextTables;
     let diff = null;
@@ -713,6 +727,7 @@ async function runTableUpdate({
     }
 
     diff = computeTableDiff(previousTables, nextTables);
+    getLog().info('差异已计算', { fillMode });
 
     const writeback = await writeTableState({
       targetSnapshot,
@@ -770,6 +785,7 @@ async function runTableUpdate({
     }
 
     const durationMs = Date.now() - startedAt;
+    getLog().info(`填表完成 [${fillMode}] ${durationMs}ms`, { success: true, writebackSuccess: writeback?.success, mirrorSuccess: writeback?.mirrorResult?.success });
     const runtimePatch = {
       lastStatus: TABLE_WORKBENCH_RUNTIME_STATUS.SUCCESS,
       lastRunAt: Date.now(),
@@ -825,6 +841,7 @@ async function runTableUpdate({
     };
   } catch (error) {
     const durationMs = Date.now() - startedAt;
+    getLog().error(`填表失败 ${durationMs}ms: ${error?.message || error}`, { stack: error?.stack });
     const abortState = isAutoRun ? resolveAutoAbortState(autoMeta) : false;
     const isAbortError = error?.name === 'AbortError'
       || error?.message === '请求已取消'
