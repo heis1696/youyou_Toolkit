@@ -967,7 +967,7 @@ export function createPopupShell(context) {
     }
 
     // 查主 tab 路由表
-    const handled = modules.uiModule?.renderMainTab?.(tabName, $content);
+    const handled = await modules.uiModule?.renderMainTab?.(tabName, $content);
     if (!handled) {
       // 未注册在路由表中的 tab → 通用工具窗口
       renderToolWindow(tabName, $content);
@@ -1012,7 +1012,7 @@ export function createPopupShell(context) {
 
       // 查子 tab 路由表
       destroyActivePanelHost({ container: $subContent });
-      const hostKey = modules.uiModule?.renderSubTabComponent?.(componentName, $subContent);
+      const hostKey = await modules.uiModule?.renderSubTabComponent?.(componentName, $subContent);
 
       if (hostKey) {
         registerActivePanelHost($subContent, { key: hostKey });

@@ -8,18 +8,49 @@ import { logger } from '../core/logger-service.js';
 import { uiManager } from './ui-manager.js';
 
 const log = logger.createScope('UI');
-import { ApiPresetPanel } from './components/api-preset-panel.js';
-import { RegexExtractPanel } from './components/regex-extract-panel.js';
-import { ToolManagePanel } from './components/tool-manage-panel.js';
-import { SummaryToolPanel } from './components/summary-tool-panel.js';
-import { StatusBlockPanel } from './components/status-block-panel.js';
-import { YouyouReviewPanel } from './components/youyou-review-panel.js';
-import { EscapeTransformToolPanel } from './components/escape-transform-tool-panel.js';
-import { PunctuationTransformToolPanel } from './components/punctuation-transform-tool-panel.js';
-import { BypassPanel } from './components/bypass-panel.js';
-import { SettingsPanel } from './components/settings-panel.js';
-import { TableWorkbenchPanel } from './components/table-workbench-panel.js';
-import { LoggerPanel } from './components/logger-panel.js';
+
+const PANEL_MODULE_LOADERS = Object.freeze({
+  ApiPresetPanel: () => import('./components/api-preset-panel.js'),
+  RegexExtractPanel: () => import('./components/regex-extract-panel.js'),
+  ToolManagePanel: () => import('./components/tool-manage-panel.js'),
+  SummaryToolPanel: () => import('./components/summary-tool-panel.js'),
+  StatusBlockPanel: () => import('./components/status-block-panel.js'),
+  YouyouReviewPanel: () => import('./components/youyou-review-panel.js'),
+  EscapeTransformToolPanel: () => import('./components/escape-transform-tool-panel.js'),
+  PunctuationTransformToolPanel: () => import('./components/punctuation-transform-tool-panel.js'),
+  BypassPanel: () => import('./components/bypass-panel.js'),
+  SettingsPanel: () => import('./components/settings-panel.js'),
+  TableWorkbenchPanel: () => import('./components/table-workbench-panel.js'),
+  LoggerPanel: () => import('./components/logger-panel.js')
+});
+
+const panelModuleCache = new Map();
+
+async function loadPanel(panelName) {
+  if (!panelModuleCache.has(panelName)) {
+    const loader = PANEL_MODULE_LOADERS[panelName];
+    if (typeof loader !== 'function') {
+      throw new Error(`unknown_panel:${panelName}`);
+    }
+    panelModuleCache.set(panelName, loader().then((module) => {
+      const panel = module?.[panelName] || module?.default;
+      if (!panel?.id) {
+        throw new Error(`invalid_panel:${panelName}`);
+      }
+      return panel;
+    }).catch((error) => {
+      panelModuleCache.delete(panelName);
+      throw error;
+    }));
+  }
+
+  return panelModuleCache.get(panelName);
+}
+
+function panelErrorHtml(message, error = null) {
+  const detail = error?.message ? `：${escapeHtml(error.message)}` : '';
+  return `<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>${escapeHtml(message)}${detail}</span></div>`;
+}
 
 // ============================================================
 // 工具导出
@@ -34,51 +65,32 @@ export * from './utils.js';
 export { uiManager, UIManager } from './ui-manager.js';
 
 // ============================================================
-// 组件导出
-// ============================================================
-
-export { ApiPresetPanel } from './components/api-preset-panel.js';
-export { RegexExtractPanel } from './components/regex-extract-panel.js';
-export { ToolManagePanel } from './components/tool-manage-panel.js';
-export { SummaryToolPanel } from './components/summary-tool-panel.js';
-export { StatusBlockPanel } from './components/status-block-panel.js';
-export { YouyouReviewPanel } from './components/youyou-review-panel.js';
-export { EscapeTransformToolPanel } from './components/escape-transform-tool-panel.js';
-export { PunctuationTransformToolPanel } from './components/punctuation-transform-tool-panel.js';
-export { BypassPanel } from './components/bypass-panel.js';
-export { SettingsPanel } from './components/settings-panel.js';
-export { TableWorkbenchPanel } from './components/table-workbench-panel.js';
-export { LoggerPanel } from './components/logger-panel.js';
-
-// ============================================================
 // 组件注册
 // ============================================================
 
 /**
  * 注册所有UI组件
  */
-export function registerComponents() {
-  uiManager.register(ApiPresetPanel.id, ApiPresetPanel);
-  uiManager.register(RegexExtractPanel.id, RegexExtractPanel);
-  uiManager.register(ToolManagePanel.id, ToolManagePanel);
-  uiManager.register(SummaryToolPanel.id, SummaryToolPanel);
-  uiManager.register(StatusBlockPanel.id, StatusBlockPanel);
-  uiManager.register(YouyouReviewPanel.id, YouyouReviewPanel);
-  uiManager.register(EscapeTransformToolPanel.id, EscapeTransformToolPanel);
-  uiManager.register(PunctuationTransformToolPanel.id, PunctuationTransformToolPanel);
-  uiManager.register(BypassPanel.id, BypassPanel);
-  uiManager.register(SettingsPanel.id, SettingsPanel);
-  uiManager.register(TableWorkbenchPanel.id, TableWorkbenchPanel);
-  uiManager.register(LoggerPanel.id, LoggerPanel);
+export async function registerComponents() {
+  const results = await Promise.allSettled(Object.keys(PANEL_MODULE_LOADERS).map(async (panelName) => {
+    const panel = await loadPanel(panelName);
+    uiManager.register(panel.id, panel);
+    return panel.id;
+  }));
 
-  log.log('组件注册完成');
+  const failed = results.filter(result => result.status === 'rejected');
+  if (failed.length) {
+    failed.forEach((result) => log.error('组件注册失败', result.reason));
+  }
+
+  log.log(`组件注册完成，成功 ${results.length - failed.length} 个，失败 ${failed.length} 个`);
 }
 
 /**
  * 初始化UI模块
  * @param {Object} options - 初始化选项
  */
-export function initUI(options = {}) {
+export async function initUI(options = {}) {
   const {
     autoInjectStyles = true,
     targetDocument,
@@ -87,29 +99,29 @@ export function initUI(options = {}) {
 
   // 初始化管理器
   uiManager.init(managerOptions);
-  
+
   // 注册组件
-  registerComponents();
-  
+  await registerComponents();
+
   // 注入样式
   if (autoInjectStyles) {
     uiManager.injectStyles(targetDocument);
   }
-  
+
   log.log('模块初始化完成');
 }
 
-function ensureComponentsRegistered() {
-  if (uiManager.getComponent(ApiPresetPanel.id)) {
-    return;
+async function ensurePanelRegistered(panelName) {
+  const cachedPanel = await loadPanel(panelName);
+  if (!uiManager.getComponent(cachedPanel.id)) {
+    uiManager.register(cachedPanel.id, cachedPanel);
   }
-
-  registerComponents();
+  return cachedPanel;
 }
 
-function renderRegisteredPanel(componentId, container, props = {}) {
-  ensureComponentsRegistered();
-  uiManager.render(componentId, container, props);
+async function renderRegisteredPanel(panelName, container, props = {}) {
+  const panel = await ensurePanelRegistered(panelName);
+  uiManager.render(panel.id, container, props);
 }
 
 // ============================================================
@@ -121,7 +133,7 @@ function renderRegisteredPanel(componentId, container, props = {}) {
  * @param {Object} container - 容器
  */
 export function renderApiPanel(container) {
-  renderRegisteredPanel(ApiPresetPanel.id, container);
+  return renderRegisteredPanel('ApiPresetPanel', container);
 }
 
 /**
@@ -129,7 +141,7 @@ export function renderApiPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderRegexPanel(container) {
-  renderRegisteredPanel(RegexExtractPanel.id, container);
+  return renderRegisteredPanel('RegexExtractPanel', container);
 }
 
 /**
@@ -137,7 +149,7 @@ export function renderRegexPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderToolPanel(container) {
-  renderRegisteredPanel(ToolManagePanel.id, container);
+  return renderRegisteredPanel('ToolManagePanel', container);
 }
 
 /**
@@ -145,7 +157,7 @@ export function renderToolPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderSummaryToolPanel(container) {
-  renderRegisteredPanel(SummaryToolPanel.id, container);
+  return renderRegisteredPanel('SummaryToolPanel', container);
 }
 
 /**
@@ -153,7 +165,7 @@ export function renderSummaryToolPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderStatusBlockPanel(container) {
-  renderRegisteredPanel(StatusBlockPanel.id, container);
+  return renderRegisteredPanel('StatusBlockPanel', container);
 }
 
 /**
@@ -161,15 +173,15 @@ export function renderStatusBlockPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderYouyouReviewPanel(container) {
-  renderRegisteredPanel(YouyouReviewPanel.id, container);
+  return renderRegisteredPanel('YouyouReviewPanel', container);
 }
 
 export function renderEscapeTransformToolPanel(container) {
-  renderRegisteredPanel(EscapeTransformToolPanel.id, container);
+  return renderRegisteredPanel('EscapeTransformToolPanel', container);
 }
 
 export function renderPunctuationTransformToolPanel(container) {
-  renderRegisteredPanel(PunctuationTransformToolPanel.id, container);
+  return renderRegisteredPanel('PunctuationTransformToolPanel', container);
 }
 
 /**
@@ -177,7 +189,7 @@ export function renderPunctuationTransformToolPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderBypassPanel(container) {
-  renderRegisteredPanel(BypassPanel.id, container);
+  return renderRegisteredPanel('BypassPanel', container);
 }
 
 /**
@@ -185,15 +197,15 @@ export function renderBypassPanel(container) {
  * @param {Object} container - 容器
  */
 export function renderSettingsPanel(container) {
-  renderRegisteredPanel(SettingsPanel.id, container);
+  return renderRegisteredPanel('SettingsPanel', container);
 }
 
 export function renderTableWorkbenchPanel(container) {
-  renderRegisteredPanel(TableWorkbenchPanel.id, container);
+  return renderRegisteredPanel('TableWorkbenchPanel', container);
 }
 
 export function renderLoggerPanel(container) {
-  renderRegisteredPanel(LoggerPanel.id, container);
+  return renderRegisteredPanel('LoggerPanel', container);
 }
 
 // ============================================================
@@ -267,15 +279,15 @@ export const SUB_TAB_RENDERERS = Object.freeze({
  * 渲染主 tab 内容。
  * 返回 true 表示已处理；返回 false 表示 tabId 不在路由表中（交由调用方走 fallback）。
  */
-export function renderMainTab(tabId, $container) {
+export async function renderMainTab(tabId, $container) {
   const route = MAIN_TAB_RENDERERS[tabId];
   if (!route) return false;
 
-  ensureComponentsRegistered();
   try {
-    route.render($container);
-  } catch (_) {
-    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>${route.failMessage}</span></div>`);
+    await route.render($container);
+  } catch (error) {
+    log.error(route.failMessage, error);
+    $container.html(panelErrorHtml(route.failMessage, error));
   }
   return true;
 }
@@ -284,15 +296,15 @@ export function renderMainTab(tabId, $container) {
  * 渲染内置工具子 tab 组件。
  * 返回渲染用的 hostKey（供壳层 registerActivePanelHost），null 表示未匹配。
  */
-export function renderSubTabComponent(componentName, $container) {
+export async function renderSubTabComponent(componentName, $container) {
   const route = SUB_TAB_RENDERERS[componentName];
   if (!route) return null;
 
-  ensureComponentsRegistered();
   try {
-    route.render($container);
-  } catch (_) {
-    $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>${route.failMessage}</span></div>`);
+    await route.render($container);
+  } catch (error) {
+    log.error(route.failMessage, error);
+    $container.html(panelErrorHtml(route.failMessage, error));
   }
   return componentName;
 }
@@ -315,18 +327,6 @@ export function getAllStyles() {
 
 export default {
   uiManager,
-  ApiPresetPanel,
-  RegexExtractPanel,
-  ToolManagePanel,
-  SummaryToolPanel,
-  StatusBlockPanel,
-  YouyouReviewPanel,
-  EscapeTransformToolPanel,
-  PunctuationTransformToolPanel,
-  BypassPanel,
-  SettingsPanel,
-  TableWorkbenchPanel,
-  LoggerPanel,
   registerComponents,
   initUI,
   renderApiPanel,

@@ -71,10 +71,11 @@ class ToolPromptService {
 
     const messages = [];
     const variableContext = await this._buildVariableContext(toolConfig, context);
-    
+    const promptSegments = Array.isArray(toolConfig.promptMessages) ? toolConfig.promptMessages : [];
+
     // 1. 获取破限词消息（如果启用）
     const bypassMessages = this._getBypassMessages(toolConfig);
-    
+
     // 2. 添加破限词消息（在前面）
     if (bypassMessages && bypassMessages.length > 0) {
       for (const msg of bypassMessages) {
@@ -87,14 +88,25 @@ class ToolPromptService {
       }
     }
 
-    const userContent = this._buildUserContent(this._getPromptTemplate(toolConfig), variableContext);
-    if (userContent) {
-      messages.push({
-        role: 'user',
-        content: userContent
-      });
+    if (promptSegments.length > 0) {
+      for (const segment of promptSegments) {
+        const content = variableResolver.resolveTemplate(segment?.content || '', variableContext).trim();
+        if (!content) continue;
+        messages.push({
+          role: this._normalizeRole(segment?.role),
+          content
+        });
+      }
+    } else {
+      const userContent = this._buildUserContent(this._getPromptTemplate(toolConfig), variableContext);
+      if (userContent) {
+        messages.push({
+          role: 'user',
+          content: userContent
+        });
+      }
     }
-    
+
     this._log(`构建消息: ${messages.length} 条`);
     return messages;
   }
@@ -107,6 +119,13 @@ class ToolPromptService {
    */
   async buildPromptText(toolConfig, context) {
     const variableContext = await this._buildVariableContext(toolConfig, context);
+    const promptSegments = Array.isArray(toolConfig?.promptMessages) ? toolConfig.promptMessages : [];
+    if (promptSegments.length > 0) {
+      return promptSegments
+        .map(segment => variableResolver.resolveTemplate(segment?.content || '', variableContext).trim())
+        .filter(Boolean)
+        .join('\n\n');
+    }
     return variableContext.toolPromptMacro || '';
   }
 

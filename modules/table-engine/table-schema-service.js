@@ -12,7 +12,16 @@ import {
   ensureTableRowId,
   TABLE_RUN_SCOPE
 } from './table-types.js';
-import { normalizeRunScopeConfig } from './table-scope-service.js';
+import {
+  getAllTableTemplates,
+  getTableTemplate,
+  saveTableTemplate
+} from './table-template-service.js';
+import {
+  getAllTablePromptPresets,
+  getTablePromptPreset
+} from './table-prompt-preset-service.js';
+import { applyGuideToConfig, getCurrentTableGuide, saveCurrentTableGuide } from './table-guide-service.js';
 
 const tableWorkbenchStorage = storage.namespace('tableWorkbench');
 const TABLE_WORKBENCH_CONFIG_KEY = 'config';
@@ -1038,14 +1047,11 @@ export function parseTableWorkbenchTemplate(value) {
 }
 
 export function getTableWorkbenchBuiltinTemplates() {
-  return [
-    {
-      id: DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID,
-      name: DEFAULT_TABLE_WORKBENCH_TEMPLATE_NAME,
-      description: '包含全局数据、主角、重要角色、技能、背包、任务、纪要和选项表。',
-      tables: cloneTableValue(DEFAULT_TABLE_WORKBENCH_TABLES)
-    }
-  ];
+  return getAllTableTemplates();
+}
+
+export function getTableWorkbenchPromptPresets() {
+  return getAllTablePromptPresets();
 }
 
 export function getTableWorkbenchDefaultConfig() {
@@ -1053,6 +1059,7 @@ export function getTableWorkbenchDefaultConfig() {
     tables: cloneTableValue(DEFAULT_TABLE_WORKBENCH_TABLES),
     promptTemplate: DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE,
     apiPreset: '',
+    activePromptPresetId: '',
     promptPreset: '',
     bypass: {
       enabled: false,
@@ -1089,6 +1096,7 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     tables,
     promptTemplate: normalizeString(nextValue.promptTemplate, defaults.promptTemplate),
     apiPreset: normalizeString(nextValue.apiPreset, ''),
+    activePromptPresetId: normalizeString(nextValue.activePromptPresetId || nextValue.tablePromptPresetId, ''),
     promptPreset: bypass.presetId,
     bypass,
     activeTemplate: normalizeString(nextValue.activeTemplate, defaults.activeTemplate),
@@ -1131,7 +1139,12 @@ export function validateTableWorkbenchConfig(config = {}) {
 
 export function getTableWorkbenchConfig() {
   const stored = tableWorkbenchStorage.get(TABLE_WORKBENCH_CONFIG_KEY, getTableWorkbenchDefaultConfig());
-  return normalizeTableWorkbenchConfig(stored);
+  const normalized = normalizeTableWorkbenchConfig(stored);
+  const guide = getCurrentTableGuide();
+  return {
+    ...applyGuideToConfig(normalized, guide),
+    guide
+  };
 }
 
 export function saveTableWorkbenchConfig(config = {}) {
@@ -1154,10 +1167,39 @@ export function saveTableWorkbenchConfig(config = {}) {
   }
 
   tableWorkbenchStorage.set(TABLE_WORKBENCH_CONFIG_KEY, validation.config);
+  saveCurrentTableGuide({
+    templateId: validation.config.activeTemplate,
+    promptPresetId: validation.config.activePromptPresetId,
+    scope: validation.config.scope
+  });
   return {
     success: true,
     config: validation.config
   };
+}
+
+export function applyTableWorkbenchTemplate(templateId) {
+  const template = getTableTemplate(templateId);
+  if (!template) {
+    return { success: false, error: '模板不存在。' };
+  }
+  const config = getTableWorkbenchConfig();
+  return saveTableWorkbenchConfig({
+    ...config,
+    tables: cloneTableValue(template.tables),
+    activeTemplate: template.id,
+    promptTemplate: template.promptTemplate || config.promptTemplate
+  });
+}
+
+export function saveCurrentTableWorkbenchAsTemplate({ name = '', description = '' } = {}) {
+  const config = getTableWorkbenchConfig();
+  return saveTableTemplate({
+    name: normalizeString(name, `${DEFAULT_TABLE_WORKBENCH_TEMPLATE_NAME}副本`),
+    description,
+    tables: cloneTableValue(config.tables),
+    promptTemplate: config.promptTemplate
+  });
 }
 
 export function updateTableWorkbenchRuntime(runtimePatch = {}) {
@@ -1182,11 +1224,20 @@ export function buildTableWorkbenchPromptTemplate(config = {}) {
 
 export function buildTableWorkbenchToolConfig(config = {}) {
   const normalized = normalizeTableWorkbenchConfig(config);
+  const promptPreset = getTablePromptPreset(normalized.activePromptPresetId);
 
   return {
     id: 'tableWorkbench',
     name: '填表工作台',
-    promptTemplate: buildTableWorkbenchPromptTemplate(normalized),
+    promptTemplate: promptPreset ? '' : buildTableWorkbenchPromptTemplate(normalized),
+    promptMessages: promptPreset?.segments || null,
+    promptPresetMeta: promptPreset ? {
+      id: promptPreset.id,
+      name: promptPreset.name,
+      responseFormat: promptPreset.responseFormat,
+      recommendedFillMode: promptPreset.recommendedFillMode,
+      warnings: promptPreset.warnings || []
+    } : null,
     bypass: {
       enabled: normalized.bypass?.enabled === true,
       presetId: normalized.bypass?.presetId || normalized.promptPreset || ''
@@ -1253,12 +1304,15 @@ export default {
   validateTableDraft,
   validateTableDraftDeep,
   getTableWorkbenchBuiltinTemplates,
+  getTableWorkbenchPromptPresets,
   parseTableWorkbenchTemplate,
   getTableWorkbenchDefaultConfig,
   normalizeTableWorkbenchConfig,
   validateTableWorkbenchConfig,
   getTableWorkbenchConfig,
   saveTableWorkbenchConfig,
+  applyTableWorkbenchTemplate,
+  saveCurrentTableWorkbenchAsTemplate,
   updateTableWorkbenchRuntime,
   buildTableWorkbenchPromptTemplate,
   buildTableWorkbenchToolConfig,

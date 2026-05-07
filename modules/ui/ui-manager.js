@@ -123,6 +123,14 @@ class UIManager {
     const component = this.components.get(id);
     if (!component) {
       log.error(`组件不存在: ${id}`);
+      let $container;
+      if (typeof container === 'string') {
+        $container = $(container);
+      } else if (container && container.jquery) {
+        $container = container;
+      } else if (container) {
+        $container = $(container);
+      }
       if ($container?.length) {
         $container.html(`<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>组件未注册：${id}</span></div>`);
       }

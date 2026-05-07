@@ -12,19 +12,21 @@
 import { logger } from './core/logger-service.js';
 import {
   uiManager,
-  ApiPresetPanel,
-  RegexExtractPanel,
-  ToolManagePanel,
-  SummaryToolPanel,
-  StatusBlockPanel,
-  YouyouReviewPanel,
-  EscapeTransformToolPanel,
-  PunctuationTransformToolPanel,
   registerComponents,
   initUI,
   renderApiPanel,
   renderRegexPanel,
   renderToolPanel,
+  renderSummaryToolPanel,
+  renderStatusBlockPanel,
+  renderYouyouReviewPanel,
+  renderEscapeTransformToolPanel,
+  renderPunctuationTransformToolPanel,
+  renderBypassPanel,
+  renderSettingsPanel,
+  renderTableWorkbenchPanel,
+  renderLoggerPanel,
+  getAllStyles,
   SCRIPT_ID,
   escapeHtml,
   showToast,
@@ -132,7 +134,7 @@ export function renderTool(container) {
  * @returns {string}
  */
 export function getStyles() {
-  return ApiPresetPanel.getStyles();
+  return getAllStyles();
 }
 
 /**
@@ -140,7 +142,7 @@ export function getStyles() {
  * @returns {string}
  */
 export function getRegexStyles() {
-  return RegexExtractPanel.getStyles();
+  return getAllStyles();
 }
 
 /**
@@ -148,14 +150,7 @@ export function getRegexStyles() {
  * @returns {string}
  */
 export function getToolStyles() {
-  return [
-    ToolManagePanel.getStyles(),
-    SummaryToolPanel.getStyles(),
-    StatusBlockPanel.getStyles(),
-    YouyouReviewPanel.getStyles(),
-    EscapeTransformToolPanel.getStyles(),
-    PunctuationTransformToolPanel.getStyles()
-  ].join('\n');
+  return getAllStyles();
 }
 
 // ============================================================
@@ -184,16 +179,21 @@ export function setCurrentTab(tab) {
 
 export {
   uiManager,
-  ApiPresetPanel,
-  RegexExtractPanel,
-  ToolManagePanel,
-  SummaryToolPanel,
-  StatusBlockPanel,
-  YouyouReviewPanel,
-  EscapeTransformToolPanel,
-  PunctuationTransformToolPanel,
   registerComponents,
   initUI,
+  renderApiPanel,
+  renderRegexPanel,
+  renderToolPanel,
+  renderSummaryToolPanel,
+  renderStatusBlockPanel,
+  renderYouyouReviewPanel,
+  renderEscapeTransformToolPanel,
+  renderPunctuationTransformToolPanel,
+  renderBypassPanel,
+  renderSettingsPanel,
+  renderTableWorkbenchPanel,
+  renderLoggerPanel,
+  getAllStyles,
   SCRIPT_ID,
   escapeHtml,
   showToast,
@@ -224,16 +224,21 @@ export default {
   
   // 新模块API
   uiManager,
-  ApiPresetPanel,
-  RegexExtractPanel,
-  ToolManagePanel,
-  SummaryToolPanel,
-  StatusBlockPanel,
-  YouyouReviewPanel,
-  EscapeTransformToolPanel,
-  PunctuationTransformToolPanel,
   registerComponents,
   initUI,
+  renderApiPanel,
+  renderRegexPanel,
+  renderToolPanel,
+  renderSummaryToolPanel,
+  renderStatusBlockPanel,
+  renderYouyouReviewPanel,
+  renderEscapeTransformToolPanel,
+  renderPunctuationTransformToolPanel,
+  renderBypassPanel,
+  renderSettingsPanel,
+  renderTableWorkbenchPanel,
+  renderLoggerPanel,
+  getAllStyles,
   
   // 工具函数
   SCRIPT_ID,

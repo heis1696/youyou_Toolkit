@@ -12,8 +12,17 @@ import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
 import {
   getTableWorkbenchConfig, getTableWorkbenchFormSchema, saveTableWorkbenchConfig,
   validateTableDraftDeep, TABLE_FILL_MODE, TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
-  getTableWorkbenchBuiltinTemplates, createEmptyTableDefinition, createEmptyTableRow, createEmptyTableColumn
+  getTableWorkbenchBuiltinTemplates, createEmptyTableDefinition, createEmptyTableRow, createEmptyTableColumn,
+  applyTableWorkbenchTemplate, saveCurrentTableWorkbenchAsTemplate
 } from '../../table-engine/table-schema-service.js';
+import { saveTableTemplate } from '../../table-engine/table-template-service.js';
+import {
+  getAllTablePromptPresets,
+  getTablePromptPreset,
+  saveTablePromptPreset,
+  importShujukuPromptGroup,
+  exportShujukuPromptGroup
+} from '../../table-engine/table-prompt-preset-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 
 const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
@@ -274,6 +283,7 @@ function collect($c, fb) {
     selectedTableIds,
     activeTableId: tables[ti] ? tableId(tables[ti], ti) : ''
   };
+  const $tpp = $c.find('[data-twb-field="activePromptPresetId"]'); if ($tpp.length) cfg.activePromptPresetId = String($tpp.val() || '');
   const $pt = $c.find('[data-twb-field="promptPreset"]'); if ($pt.length) cfg.promptPreset = String($pt.val() || '');
   const $be = $c.find('[data-twb-field="bypassEnabled"]');
   const bypassPresetId = String(cfg.promptPreset || '');
@@ -400,8 +410,9 @@ function renderTemplateManager(cfg) {
     <article class="yyt-panel-section yyt-twb-card yyt-twb-template-card">
       <div class="yyt-twb-card-header">
         <div><h3>模板管理</h3><p>复用表格结构与 AI 操作说明。</p></div>
-        <span class="yyt-twb-muted">结构模板</span>
+        <span class="yyt-twb-muted">结构模板 / 当前聊天 guide</span>
       </div>
+      <div class="yyt-twb-runtime-message">当前 guide：模板 ${escapeHtml(S(cfg?.guide?.templateId || cfg.activeTemplate, '—'))} · scope ${escapeHtml(S(cfg?.guide?.scope?.mode || cfg.runScope, 'enabled'))} · 焦点表 ${escapeHtml(S(cfg?.guide?.focusedTableId || cfg.scope?.activeTableId, '—'))}</div>
       <label class="yyt-twb-field">
         <span>当前模板</span>
         <select class="yyt-select" data-twb-field="activeTemplate">
@@ -415,6 +426,35 @@ function renderTemplateManager(cfg) {
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="save-template">保存为模板</button>
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="import-template">导入模板</button>
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="export-template">导出模板</button>
+      </div>
+    </article>`;
+}
+
+function renderPromptPresetManager(cfg) {
+  const presets = getAllTablePromptPresets();
+  const activePresetId = S(cfg.activePromptPresetId || cfg?.guide?.promptPresetId, '');
+  const activePreset = presets.find(preset => preset.id === activePresetId);
+  const warnings = activePreset?.warnings || [];
+  return `
+    <article class="yyt-panel-section yyt-twb-card yyt-twb-prompt-preset-card">
+      <div class="yyt-twb-card-header">
+        <div><h3>填表提示词预设</h3><p>导入/导出 shujuku 填表 prompt group，或把当前 Prompt 保存为 YouYou 预设。</p></div>
+        <span class="yyt-twb-muted">Prompt asset</span>
+      </div>
+      <label class="yyt-twb-field">
+        <span>当前填表提示词预设</span>
+        <select class="yyt-select" data-twb-field="activePromptPresetId">
+          <option value="" ${!activePresetId ? 'selected' : ''}>使用下方 legacy Prompt</option>
+          ${presets.map(preset => `<option value="${escapeHtml(preset.id)}" ${activePresetId === preset.id ? 'selected' : ''}>${escapeHtml(preset.name)}</option>`).join('')}
+        </select>
+        <small>提示词预设只影响填表请求消息，不会修改 live tables。</small>
+      </label>
+      ${activePreset ? `<div class="yyt-twb-runtime-message">当前预设：${escapeHtml(activePreset.name)} · ${escapeHtml(activePreset.sourceFormat)} · ${escapeHtml(activePreset.responseFormat)}${warnings.length ? `<br>${warnings.map(warning => escapeHtml(warning)).join('<br>')}` : ''}</div>` : ''}
+      <div class="yyt-twb-action-grid">
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="save-prompt-preset">保存当前 Prompt 为预设</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="import-shujuku-prompt">导入 shujuku 提示词</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="export-shujuku-prompt" ${activePreset ? '' : 'disabled'}>导出 shujuku JSON</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="clear-prompt-preset" ${activePresetId ? '' : 'disabled'}>清空预设</button>
       </div>
     </article>`;
 }
@@ -494,6 +534,7 @@ function renderDashboard(cfg) {
         ${renderAutoUpdateSettings(cfg)}
         ${renderAiBindingSettings(cfg)}
         ${renderTemplateManager(cfg)}
+        ${renderPromptPresetManager(cfg)}
         ${renderManualRunPanel(cfg)}
       </section>
       ${renderTableOverviewList(cfg)}
@@ -955,10 +996,7 @@ export const TableWorkbenchPanel = {
         return;
       }
 
-      cfg.tables = template.tables || [];
-      cfg.activeTemplate = template.id;
-      cfg.__activeTableIndex = 0;
-      const r = saveTableWorkbenchConfig(cfg);
+      const r = applyTableWorkbenchTemplate(templateId);
       self.pendingTemplateApplyId = '';
       self.currentTableIndex = 0;
       self.editorOpen = false;
@@ -970,8 +1008,130 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    $container.on('click.twb', '[data-twb-action="save-template"], [data-twb-action="import-template"], [data-twb-action="export-template"]', function () {
-      showTopNotice('warning', '模板库入口已预留，导入导出会在后续模板阶段接入。', { duration: 3000, noticeId: 'twb-template' });
+    $container.on('click.twb', '[data-twb-action="save-template"]', function () {
+      const cfg = collect($container);
+      const defaultName = `${S(cfg.tables?.[0]?.name, '填表模板')} ${new Date().toLocaleString()}`;
+      const name = prompt('模板名称', defaultName);
+      if (!name) return;
+      const r = saveTableWorkbenchConfig(cfg);
+      if (!r.success) {
+        showTopNotice('warning', r.error || '保存配置失败', { duration: 4000, noticeId: 'twb-template' });
+        return;
+      }
+      const saved = saveCurrentTableWorkbenchAsTemplate({ name, description: '从填表工作台保存。' });
+      if (saved.success) {
+        showTopNotice('success', `已保存模板：${saved.template.name}`, { duration: 2800, noticeId: 'twb-template' });
+        self.renderTo($container);
+      } else {
+        showTopNotice('warning', saved.error || '保存模板失败', { duration: 4000, noticeId: 'twb-template' });
+      }
+    });
+
+    $container.on('click.twb', '[data-twb-action="export-template"]', function () {
+      const cfg = collect($container);
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        template: {
+          id: S(cfg.activeTemplate, ''),
+          name: S(getTableWorkbenchBuiltinTemplates().find(item => item.id === cfg.activeTemplate)?.name, '当前填表模板'),
+          description: 'YouYou Toolkit 填表模板导出。',
+          tables: cfg.tables || [],
+          promptTemplate: cfg.promptTemplate || ''
+        }
+      };
+      navigator.clipboard?.writeText(dump(payload));
+      showTopNotice('success', '模板 JSON 已复制到剪贴板。', { duration: 2800, noticeId: 'twb-template' });
+    });
+
+    $container.on('click.twb', '[data-twb-action="import-template"]', function () {
+      const raw = prompt('粘贴模板 JSON');
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        const template = parsed?.template && typeof parsed.template === 'object' ? parsed.template : parsed;
+        const cfg = collect($container);
+        const saved = saveTableTemplate({
+          name: S(template.name, '导入模板'),
+          description: S(template.description, '从 JSON 导入。'),
+          tables: Array.isArray(template.tables) ? template.tables : cfg.tables,
+          promptTemplate: S(template.promptTemplate, cfg.promptTemplate)
+        });
+        if (!saved.success) throw new Error(saved.error || '保存模板失败');
+        const r = saveTableWorkbenchConfig({
+          ...cfg,
+          tables: Array.isArray(template.tables) ? template.tables : cfg.tables,
+          promptTemplate: S(template.promptTemplate, cfg.promptTemplate),
+          activeTemplate: saved.template.id
+        });
+        if (!r.success) throw new Error(r.error || '应用导入模板失败');
+        showTopNotice('success', `已导入模板：${saved.template.name}`, { duration: 2800, noticeId: 'twb-template' });
+        self.renderTo($container, { config: r.config });
+      } catch (error) {
+        showTopNotice('warning', error?.message || '模板 JSON 无效', { duration: 4000, noticeId: 'twb-template' });
+      }
+    });
+
+    $container.on('click.twb', '[data-twb-action="save-prompt-preset"]', function () {
+      const cfg = collect($container);
+      const name = prompt('提示词预设名称', `填表提示词 ${new Date().toLocaleString()}`);
+      if (!name) return;
+      const saved = saveTablePromptPreset({
+        name,
+        description: '从填表工作台 legacy Prompt 保存。',
+        sourceFormat: 'youyou',
+        responseFormat: 'json',
+        recommendedFillMode: cfg.fillMode || '',
+        segments: [{
+          role: 'user',
+          content: cfg.promptTemplate || '',
+          deletable: false,
+          mainSlot: 'B'
+        }]
+      });
+      if (!saved.success) {
+        showTopNotice('warning', saved.error || '保存提示词预设失败', { duration: 4000, noticeId: 'twb-prompt-preset' });
+        return;
+      }
+      const r = saveTableWorkbenchConfig({ ...cfg, activePromptPresetId: saved.preset.id });
+      showTopNotice('success', `已保存并选择提示词预设：${saved.preset.name}`, { duration: 2800, noticeId: 'twb-prompt-preset' });
+      self.renderTo($container, { config: r.config });
+    });
+
+    $container.on('click.twb', '[data-twb-action="import-shujuku-prompt"]', function () {
+      const raw = prompt('粘贴 shujuku 填表提示词 JSON');
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        const name = prompt('导入后的预设名称', 'shujuku 填表提示词');
+        if (!name) return;
+        const imported = importShujukuPromptGroup(parsed, { name });
+        if (!imported.success) throw new Error(imported.error || '导入失败');
+        const cfg = collect($container);
+        const r = saveTableWorkbenchConfig({ ...cfg, activePromptPresetId: imported.preset.id });
+        showTopNotice('success', `已导入并选择提示词预设：${imported.preset.name}`, { duration: 2800, noticeId: 'twb-prompt-preset' });
+        self.renderTo($container, { config: r.config });
+      } catch (error) {
+        showTopNotice('warning', error?.message || 'shujuku 提示词 JSON 无效', { duration: 4000, noticeId: 'twb-prompt-preset' });
+      }
+    });
+
+    $container.on('click.twb', '[data-twb-action="export-shujuku-prompt"]', function () {
+      const cfg = collect($container);
+      const preset = getTablePromptPreset(cfg.activePromptPresetId);
+      if (!preset) {
+        showTopNotice('warning', '请选择一个提示词预设。', { duration: 3000, noticeId: 'twb-prompt-preset' });
+        return;
+      }
+      navigator.clipboard?.writeText(dump(exportShujukuPromptGroup(preset)));
+      showTopNotice('success', 'shujuku 提示词 JSON 已复制到剪贴板。', { duration: 2800, noticeId: 'twb-prompt-preset' });
+    });
+
+    $container.on('click.twb', '[data-twb-action="clear-prompt-preset"]', function () {
+      const cfg = collect($container);
+      const r = saveTableWorkbenchConfig({ ...cfg, activePromptPresetId: '' });
+      showTopNotice('success', '已切回 legacy 填表 Prompt。', { duration: 2400, noticeId: 'twb-prompt-preset' });
+      self.renderTo($container, { config: r.config });
     });
 
     $container.on('change.twb', '[data-twb-field="bypassEnabled"]', function () {

@@ -9,6 +9,28 @@
 
 ## [Unreleased]
 
+## [1.0.98] - 2026-05-07
+
+### 新增
+
+- ✨ **接入 tableWorkbench 提示词预设资产层，并支持 shujuku 填表 prompt group 导入 / 导出** (`modules/table-engine/table-prompt-preset-service.js`, `modules/table-engine/table-schema-service.js`, `modules/table-engine/table-guide-service.js`, `modules/ui/components/table-workbench-panel.js`, `modules/tool-prompt-service.js`, `dist/bundle.js`)
+  - 新增独立的填表提示词预设存储层，提示词资产只影响请求消息构建，不写入 live table rows
+  - 内置 shujuku 默认填表提示词预设，支持 raw prompt group JSON 导入、导出兼容数组，以及 `isMain` / `isMain2` 到 `mainSlot` 的兼容映射
+  - shujuku 占位符会保守映射到 YouYou 宏；暂未支持的 `$6`、`$U` 会保留原文并显示 warning
+  - `tool-prompt-service` 支持 ordered message segments，选择填表提示词预设后按 segment 顺序发送；未选择预设时继续沿用 legacy `promptTemplate`
+
+### 修复
+
+- 🐛 **加固 tableWorkbench WIP 发布边界，避免 UI 兼容层与模板导入再次引发空白或错存** (`modules/ui-components.js`, `modules/ui/index.js`, `modules/ui/ui-manager.js`, `modules/app/popup-shell.js`, `modules/table-engine/table-template-service.js`, `modules/ui/components/table-workbench-panel.js`)
+  - `ui-components.js` 不再导入已经不存在的 eager panel 对象，兼容层改走动态 render helper 与安全样式聚合
+  - tableWorkbench 模板导入先解析 pasted JSON，再保存导入 payload，避免模板库条目错误保存导入前的当前配置
+  - 模板资产、聊天 guide、提示词预设与 live table state 的边界进一步明确，避免资产操作静默污染已提交表格状态
+
+### 文档
+
+- 📝 **同步 1.0.98 版本基线与填表提示词预设说明** (`README.md`, `docs/API_DOCUMENTATION.md`, `docs/ARCHITECTURE_ANALYSIS.md`, `docs/FRAMEWORK_ARCHITECTURE.md`, `index.js`, `package.json`, `package-lock.json`)
+  - 更新当前版本号，并记录 template / guide / prompt preset / live state 的分层口径
+
 ## [1.0.97] - 2026-05-06
 
 ### 修复

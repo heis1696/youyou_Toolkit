@@ -1,6 +1,6 @@
 # FRAMEWORK ARCHITECTURE
 
-本文档基于当前 `1.0.97` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
+本文档基于当前 `1.0.98` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
 
 它不是按文件列表罗列细节，而是按“遇到问题时应该先理解哪条主线”来组织内容。
 
@@ -440,6 +440,8 @@ window.YouYouToolkit
 - 独立顶级导航位置
 - 面向表定义的结构化编辑入口
 - draft 到 runtime tables 的编译/校验链
+- 模板资产、聊天 guide 与提示词预设三类非 live-state 资产
+- shujuku 风格模板解析，以及 shujuku 填表 prompt group 导入 / 导出
 - 手动执行入口
 - target resolve 与 bound state 相关能力
 

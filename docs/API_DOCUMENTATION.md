@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明当前 `1.0.97` 代码基线下的公开 API、执行入口与运行模型。
+本文档说明当前 `1.0.98` 代码基线下的公开 API、执行入口与运行模型。
 
 当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 
@@ -265,6 +265,8 @@ runToolManually(toolId)
 补充：
 - `follow_ai` 的手动执行由 `executeToolByResolvedPath()` 分派到 `runToolFollowAiManual()`。
 - 因此 `follow_ai` 不是“什么都不做”的占位模式，而是手动链上的独立额外请求路径。
+- 当 tableWorkbench 选择了填表提示词预设时，`buildTableWorkbenchToolConfig()` 会把预设 segments 作为 `promptMessages` 交给 `tool-prompt-service`，请求会按 segment 顺序构建；未选择预设时继续使用 legacy `promptTemplate`。
+- 填表提示词预设属于 prompt asset，只影响请求消息，不写入 live table rows；shujuku `tableEdit` 预设当前仍会提示兼容边界，原生提交链以 JSON / incremental edits 解析为准。
 
 ### 5.3 提取预览链
 

@@ -1,6 +1,6 @@
 # 架构分析
 
-本文档基于当前 `1.0.97` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
+本文档基于当前 `1.0.98` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
 
 结论先行：当前仓库已经不是“旧 trigger 管理器驱动的一组散模块”，而是围绕薄入口、bootstrap 装配、popup shell、运行时 tool registry、统一 execution context、自动化事务服务与写回链组织起来的一条主线。
 
@@ -393,6 +393,8 @@
 - 独立顶级导航位置
 - 面向表定义的结构化编辑入口
 - draft 到 runtime tables 的编译/校验链
+- 模板资产、聊天 guide 与提示词预设三类非 live-state 资产
+- shujuku 风格模板解析，以及 shujuku 填表 prompt group 导入 / 导出
 - 手动执行入口
 - target resolve 与 bound state 相关能力
 - `config / runtime / preview` 三视图工作台壳层
