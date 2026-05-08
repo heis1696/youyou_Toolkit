@@ -1149,16 +1149,13 @@ export const TableWorkbenchPanel = {
     this._liveRefreshPending = true;
     try {
       const targetSnapshot = await resolveLatestTableTarget({ runSource: 'MANUAL_TABLE' });
+      console.log('[YYT-TWB] _refreshLiveState targetSnapshot:', targetSnapshot ? { sourceMessageId: targetSnapshot.sourceMessageId, slotBindingKey: targetSnapshot.slotBindingKey, slotRevisionKey: targetSnapshot.slotRevisionKey, chatId: targetSnapshot.chatId } : null);
       if (!targetSnapshot) {
-        this.lastLiveConfig = null;
-        this.lastLiveTarget = null;
+        this._clearLiveCache();
         return;
       }
-      if (this.lastLiveTarget?.chatId && targetSnapshot.chatId && this.lastLiveTarget.chatId !== targetSnapshot.chatId) {
-        this.lastLiveConfig = null;
-        this.lastLiveTarget = null;
-      }
       const boundState = getBoundTableState(targetSnapshot);
+      console.log('[YYT-TWB] _refreshLiveState boundState:', boundState ? { hasTables: Array.isArray(boundState.tables), tableCount: boundState.tables?.length, rowCounts: boundState.tables?.map(t => t?.rows?.length), sourceKind: boundState.meta?.sourceKind } : null);
       if (!boundState || !Array.isArray(boundState.tables) || boundState.tables.length === 0) {
         this.lastLiveTarget = targetSnapshot;
         if (this.lastLiveConfig) {
