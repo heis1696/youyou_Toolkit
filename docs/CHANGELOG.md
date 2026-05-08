@@ -9,6 +9,22 @@
 
 ## [Unreleased]
 
+## [1.0.111] - 2026-05-08
+
+### 修复
+
+- 🐛 **重写自动执行触发与去重链** (`modules/tool-automation-service.js`, `modules/tool-output-service.js`, `modules/context-injector.js`)
+  - 自动链不再同时监听 `GENERATION_ENDED`，改为仅以 `MESSAGE_RECEIVED` 作为执行触发入口并加入 3 秒节流
+  - 去重从 message content hash 改为 `messageId::swipeId` slot 级短期去重，避免工具写回后 content hash 改变导致自激重复执行
+  - 增加 own-write 短期黑名单，自动工具或自动填表刚写回的 assistant 消息不会再次触发本插件自动执行
+  - 监听 `GENERATION_STOPPED` / `generation_stopped` 时 abort 活跃事务并清空待处理队列，写回前检查取消状态
+  - 自动写回向 `contextInjector` 传递 `skipNotify`，跳过主动 `MESSAGE_UPDATED` 广播以减少自触发和外部插件干扰
+
+- 🐛 **修复工具写回后界面不刷新（需点编辑才显示）** (`modules/context-injector.js`)
+  - 写回刷新路径统一为 `setChatMessages([{message_id, message}], { refresh: 'affected' })`，与 MagVarUpdate-beta 一致
+  - 移除非标 `setChatMessage` 首选路径和多余的 `setChatMessages_refresh_assist` 重复调用
+  - 不再传递 `refresh: 'display_and_render_current'`（宿主不识别该值导致静默忽略刷新）
+
 ## [1.0.110] - 2026-05-08
 
 ### 新增

@@ -294,7 +294,8 @@ class ToolOutputService {
           sessionKey,
           signal: rawContext.signal,
           shouldAbortWriteback: rawContext.shouldAbortWriteback,
-          isAutoRun: rawContext.isAutoRun === true
+          isAutoRun: rawContext.isAutoRun === true,
+          skipNotify: rawContext.skipNotify === true
         });
 
         if (!writebackDetails?.success) {

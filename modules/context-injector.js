@@ -498,7 +498,7 @@ class ContextInjector {
    * @private
    */
   _createWritebackResult(toolId, options = {}) {
-    const preferredCommitMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
+    const preferredCommitMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
 
     return {
       success: false,
@@ -636,12 +636,10 @@ class ContextInjector {
     const refreshResult = result || this._createWritebackResult('', options);
     const { api, context } = runtime || {};
     const setChatMessages = context?.setChatMessages || api?.setChatMessages || runtime?.topWindow?.setChatMessages || null;
-    const setChatMessage = context?.setChatMessage || api?.setChatMessage || runtime?.topWindow?.setChatMessage || null;
-    const prefersAppendRefreshAssist = options.replaceFullMessage !== true;
 
-    refreshResult.commit.preferredMethod = typeof setChatMessage === 'function'
-      ? WRITEBACK_METHODS.SET_CHAT_MESSAGE
-      : (typeof setChatMessages === 'function' ? WRITEBACK_METHODS.SET_CHAT_MESSAGES : WRITEBACK_METHODS.LOCAL_ONLY);
+    refreshResult.commit.preferredMethod = typeof setChatMessages === 'function'
+      ? WRITEBACK_METHODS.SET_CHAT_MESSAGES
+      : WRITEBACK_METHODS.LOCAL_ONLY;
 
     let hostWriteCompleted = false;
 
@@ -651,37 +649,7 @@ class ContextInjector {
       return refreshResult;
     }
 
-    if (typeof setChatMessage === 'function') {
-      appendUniqueMethod(refreshResult.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGE);
-      try {
-        const abortError = getWritebackAbortError(options);
-        if (abortError) {
-          refreshResult.error = abortError;
-          return refreshResult;
-        }
-
-        await setChatMessage.call(context || api || runtime?.topWindow, {
-          message: nextText,
-          mes: nextText,
-          content: nextText,
-          text: nextText
-        }, messageIndex, {
-          swipe_id: normalizeIdentityValue(options.sourceSwipeId || options.effectiveSwipeId) || 'current',
-          refresh: 'display_and_render_current'
-        });
-        refreshResult.steps.hostSetChatMessage = true;
-        refreshResult.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
-        refreshResult.hostCommitApplied = true;
-        refreshResult.commit.appliedMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGE;
-        refreshResult.commit.hostCommitApplied = true;
-        hostWriteCompleted = true;
-      } catch (error) {
-        this._log('setChatMessage 写回失败，回退本地同步', error);
-        refreshResult.errors.push(`setChatMessage: ${error?.message || String(error)}`);
-      }
-    }
-
-    if (!hostWriteCompleted && typeof setChatMessages === 'function') {
+    if (typeof setChatMessages === 'function') {
       appendUniqueMethod(refreshResult.commit.attemptedMethods, WRITEBACK_METHODS.SET_CHAT_MESSAGES);
       try {
         const abortError = getWritebackAbortError(options);
@@ -705,7 +673,6 @@ class ContextInjector {
         refreshResult.hostCommitApplied = true;
         refreshResult.commit.appliedMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
         refreshResult.commit.hostCommitApplied = true;
-        refreshResult.commit.fallbackUsed = true;
         hostWriteCompleted = true;
       } catch (error) {
         this._log('setChatMessages 写回失败，回退本地同步', error);
@@ -718,37 +685,10 @@ class ContextInjector {
       appendUniqueMethod(refreshResult.refresh.requestMethods, refreshResult.hostUpdateMethod);
     }
 
-    if (prefersAppendRefreshAssist && typeof setChatMessages === 'function') {
-      appendUniqueMethod(refreshResult.commit.attemptedMethods, 'setChatMessages_refresh_assist');
-      try {
-        const abortError = getWritebackAbortError(options);
-        if (abortError) {
-          refreshResult.error = abortError;
-          return refreshResult;
-        }
-
-        await setChatMessages.call(context || api || runtime?.topWindow, [{
-          message_id: normalizeIdentityValue(options.sourceMessageId) || messageIndex,
-          chat_index: messageIndex,
-          message: nextText,
-          mes: nextText,
-          content: nextText,
-          text: nextText
-        }], {
-          refresh: 'affected'
-        });
-        refreshResult.refreshRequested = true;
-        appendUniqueMethod(refreshResult.refresh.requestMethods, 'setChatMessages_refresh_assist');
-      } catch (error) {
-        this._log('append 写回补充刷新失败', error);
-        refreshResult.errors.push(`setChatMessages_refresh_assist: ${error?.message || String(error)}`);
-      }
-    }
-
     if (!hostWriteCompleted) {
       appendUniqueMethod(refreshResult.commit.attemptedMethods, WRITEBACK_METHODS.LOCAL_ONLY);
       refreshResult.commit.appliedMethod = WRITEBACK_METHODS.LOCAL_ONLY;
-      refreshResult.commit.fallbackUsed = refreshResult.commit.preferredMethod !== WRITEBACK_METHODS.LOCAL_ONLY;
+      refreshResult.commit.fallbackUsed = true;
       refreshResult.hostUpdateMethod = refreshResult.commit.appliedMethod;
     }
 
@@ -837,7 +777,10 @@ class ContextInjector {
    * 尝试触发聊天消息刷新
    * @private
    */
-  _notifyMessageUpdated(runtime, messageIndex) {
+  _notifyMessageUpdated(runtime, messageIndex, options = {}) {
+    if (options.skipNotify === true) {
+      return { emitted: false, source: 'skipped_by_caller', eventName: '' };
+    }
     try {
       const hostBridge = resolveHostEventBridge();
       const topWindow = hostBridge?.topWindow || runtime?.topWindow;
@@ -1246,7 +1189,7 @@ class ContextInjector {
         appendUniqueMethod(result.refresh.requestMethods, 'saveChat');
       }
 
-      const notifyResult = this._notifyMessageUpdated(runtime, messageIndex);
+      const notifyResult = this._notifyMessageUpdated(runtime, messageIndex, options);
       result.steps.notifiedMessageUpdated = notifyResult?.emitted === true;
       result.refresh.eventSource = notifyResult?.source || '';
       result.refresh.eventName = notifyResult?.eventName || '';

@@ -283,17 +283,15 @@ class ToolAutomationService {
   constructor() {
     this._stopCallbacks = [];
     this._pendingTimers = new Map();
-    this._completedGenerationKeys = new Map(); // generationKey → timestamp
-    this._cancelledGenerationKeys = new Map(); // generationKey → timestamp
+    this._recentlyProcessedSlots = new Map();
+    this._ownWriteMessageIds = new Map();
     this._slotQueues = new Map();
-    this._activeTransactions = new Map(); // traceId -> transaction state
+    this._activeTransactions = new Map();
     this._isProcessing = false;
     this._currentChatId = '';
     this._enabled = false;
-    this._enabledCheckedOnce = false; // 用于首次诊断
+    this._enabledCheckedOnce = false;
     this.debugMode = false;
-
-    // 事务历史（最近 N 条），用于诊断
     this._transactionHistory = [];
     this._maxHistorySize = 30;
     this._hostBindingStatus = {
@@ -465,6 +463,19 @@ class ToolAutomationService {
         return;
       }
 
+      // own-write 防自激：如果这个消息是自己刚写回的，跳过
+      if (this._isOwnWrite(targetMessageId)) {
+        this._log(`事件 "${normalizedEvent}" 命中 own-write 黑名单，跳过`, { messageId: targetMessageId });
+        return;
+      }
+
+      // recently-processed 防重复：同一 slot 短期内不再处理
+      const slotKey = `${targetMessageId}::${targetSwipeId}`;
+      if (this._isRecentlyProcessed(slotKey)) {
+        this._log(`事件 "${normalizedEvent}" slot 已近期处理过，跳过`, { slotKey });
+        return;
+      }
+
       this._scheduleMessageProcessing(targetMessageId, targetSwipeId, {
         settleMs: this._getSettleMs(),
         sourceEvent: normalizedEvent
@@ -481,8 +492,13 @@ class ToolAutomationService {
       scheduleFromEvent(eventTypes.MESSAGE_RECEIVED || 'message_received', ...args);
     });
 
-    bindHostEvent(eventTypes.GENERATION_ENDED || 'generation_ended', (...args) => {
-      scheduleFromEvent(eventTypes.GENERATION_ENDED || 'generation_ended', ...args);
+    const stoppedEvent = eventTypes.GENERATION_STOPPED || eventTypes.generation_stopped || 'generation_stopped';
+    bindHostEvent(stoppedEvent, () => {
+      this._log('GENERATION_STOPPED → 取消所有活跃事务');
+      this._cancelActiveTransactions('generation_stopped');
+      this._pendingTimers.forEach(id => clearTimeout(id));
+      this._pendingTimers.clear();
+      this._isProcessing = false;
     });
 
     bindHostEvent(eventTypes.CHAT_CHANGED || 'chat_changed', () => {
@@ -525,8 +541,8 @@ class ToolAutomationService {
     this._pendingTimers.forEach(id => clearTimeout(id));
     this._pendingTimers.clear();
     this._slotQueues.clear();
-    this._completedGenerationKeys.clear();
-    this._cancelledGenerationKeys.clear();
+    this._recentlyProcessedSlots.clear();
+    this._ownWriteMessageIds.clear();
     this._cancelActiveTransactions('service_stopped');
     this._activeTransactions.clear();
     this._isProcessing = false;
@@ -556,16 +572,16 @@ class ToolAutomationService {
   }
 
   getRuntimeSnapshot() {
-    this._pruneCompletedKeys();
-    this._pruneCancelledKeys();
+    this._pruneRecentSlots();
+    this._pruneOwnWrites();
     return {
       currentChatId: this._currentChatId,
       enabled: this._enabled,
       isProcessing: this._isProcessing,
       pendingTimerCount: this._pendingTimers.size,
       queuedSlotCount: this._slotQueues.size,
-      completedGenerationKeyCount: this._completedGenerationKeys.size,
-      cancelledGenerationKeyCount: this._cancelledGenerationKeys.size,
+      recentlyProcessedSlotCount: this._recentlyProcessedSlots.size,
+      ownWriteMessageIdCount: this._ownWriteMessageIds.size,
       activeTransactionCount: this._activeTransactions.size,
       recentTransactions: this._transactionHistory.slice(-10).map(tx => tx.toSnapshot()),
       hostBinding: {
@@ -647,20 +663,14 @@ class ToolAutomationService {
         return this._skipTransaction(tx, 'assistant_message_too_short');
       }
 
-      // ── Phase: CONTEXT_BUILT → generation-aware 去重 ──
+      // ── Phase: CONTEXT_BUILT → 去重 ──
       tx.transition(TX_PHASE.CONTEXT_BUILT);
 
-      // 生成 generationKey = messageId::contentHash
-      const contentHash = quickContentHash(messageText);
-      const generationKey = `${normalizeIdentityValue(context.sourceMessageId)}::${contentHash}`;
-      tx.generationKey = generationKey;
+      const slotKey = `${normalizeIdentityValue(context.sourceMessageId)}::${normalizeIdentityValue(context.sourceSwipeId || swipeId)}`;
+      tx.generationKey = slotKey;
 
-      if (!force && this._hasCompletedGeneration(generationKey)) {
-        return this._skipTransaction(tx, 'duplicate_generation', { generationKey });
-      }
-
-      if (!force && this._isGenerationCancelled(generationKey)) {
-        return this._skipTransaction(tx, 'cancelled_generation', { generationKey });
+      if (!force && this._isRecentlyProcessed(slotKey)) {
+        return this._skipTransaction(tx, 'duplicate_slot', { slotKey });
       }
 
       // 获取需要自动运行的工具
@@ -673,29 +683,22 @@ class ToolAutomationService {
       }
 
       // ── Phase: REQUEST_STARTED → 排队执行 ──
-      const slotKey = `${normalizeIdentityValue(context.sourceMessageId)}::${normalizeIdentityValue(context.sourceSwipeId || swipeId)}`;
-
       tx.slotKey = slotKey;
       tx.slotRevisionKey = context.slotRevisionKey || '';
       tx.sourceMessageId = context.sourceMessageId || messageId;
       tx.sourceSwipeId = context.sourceSwipeId || swipeId || '';
 
       return this._enqueueSlot(slotKey, async () => {
-        // 进入排他执行区域前再次检查（防止排队期间状态变化）
-        if (this._hasCompletedGeneration(generationKey) && !force) {
-          return this._skipTransaction(tx, 'duplicate_generation_after_queue', { generationKey });
-        }
-
-        if (this._isGenerationCancelled(generationKey) && !force) {
-          return this._skipTransaction(tx, 'cancelled_generation_after_queue', { generationKey });
+        if (!force && this._isRecentlyProcessed(slotKey)) {
+          return this._skipTransaction(tx, 'duplicate_slot_after_queue', { slotKey });
         }
 
         this._isProcessing = true;
+        this._markSlotProcessed(slotKey);
         tx.transition(TX_PHASE.REQUEST_STARTED);
         const controller = new AbortController();
         this._registerActiveTransaction(tx, {
           controller,
-          generationKey,
           slotKey,
           sourceMessageId: context.sourceMessageId || messageId,
           sourceSwipeId: context.sourceSwipeId || swipeId || ''
@@ -714,15 +717,14 @@ class ToolAutomationService {
               isAutoRun: true,
               abortMeta: {
                 traceId: tx.traceId,
-                generationKey,
                 slotKey,
                 sourceMessageId: context.sourceMessageId || messageId,
                 sourceSwipeId: context.sourceSwipeId || swipeId || ''
               },
               shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
-                traceId: tx.traceId,
-                generationKey
+                traceId: tx.traceId
               }),
+              skipNotify: true,
               input: {
                 ...(context.input || {}),
                 lastAiMessage: context.lastAiMessage,
@@ -735,6 +737,7 @@ class ToolAutomationService {
 
             if (result?.writebackState || result?.output) {
               hasWriteback = true;
+              this._markOwnWrite(context.sourceMessageId || messageId);
             }
           }
 
@@ -746,13 +749,13 @@ class ToolAutomationService {
               configInput: tableWorkbenchConfig,
               signal: controller.signal,
               shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
-                traceId: tx.traceId,
-                generationKey
+                traceId: tx.traceId
               })
             });
 
             if (tableResult?.state || tableResult?.mirrorResult?.success === true) {
               hasWriteback = true;
+              this._markOwnWrite(context.sourceMessageId || messageId);
             }
           }
 
@@ -768,7 +771,7 @@ class ToolAutomationService {
             };
           }
 
-          this._markGenerationCompleted(generationKey);
+          this._markSlotProcessed(slotKey);
 
           // ── Phase: WRITEBACK_COMMITTED ──
           const toolSuccess = results.every(r => r?.success !== false);
@@ -796,7 +799,7 @@ class ToolAutomationService {
           return {
             success: allSuccess,
             traceId: tx.traceId,
-            generationKey,
+            slotKey,
             sourceEvent,
             messageId: context.sourceMessageId || messageId,
             phase: tx.phase,
@@ -912,52 +915,60 @@ class ToolAutomationService {
     return { success: cancelledCount > 0, cancelledCount, reason };
   }
 
-  // ── Generation-Aware 去重 ────────────────────────────────
+  // ── Slot-based 去重（替代旧 generationKey hash 去重）────────
 
-  _hasCompletedGeneration(generationKey) {
-    if (!generationKey) return false;
-    this._pruneCompletedKeys();
-    const completedAt = this._completedGenerationKeys.get(generationKey);
-    if (!completedAt) return false;
-    return (Date.now() - completedAt) < this._getDedupeWindowMs();
+  _isRecentlyProcessed(slotKey) {
+    if (!slotKey) return false;
+    this._pruneRecentSlots();
+    const processedAt = this._recentlyProcessedSlots.get(slotKey);
+    if (!processedAt) return false;
+    return (Date.now() - processedAt) < this._getDedupeWindowMs();
   }
 
-  _markGenerationCompleted(generationKey) {
-    if (!generationKey) return;
-    this._completedGenerationKeys.set(generationKey, Date.now());
-    this._pruneCompletedKeys();
+  _markSlotProcessed(slotKey) {
+    if (!slotKey) return;
+    this._recentlyProcessedSlots.set(slotKey, Date.now());
+    this._pruneRecentSlots();
   }
 
-  _markGenerationCancelled(generationKey) {
-    if (!generationKey) return;
-    this._cancelledGenerationKeys.set(generationKey, Date.now());
-    this._pruneCancelledKeys();
-  }
-
-  _isGenerationCancelled(generationKey) {
-    if (!generationKey) return false;
-    this._pruneCancelledKeys();
-    const cancelledAt = this._cancelledGenerationKeys.get(generationKey);
-    if (!cancelledAt) return false;
-    return (Date.now() - cancelledAt) < this._getDedupeWindowMs();
-  }
-
-  _pruneCompletedKeys() {
+  _pruneRecentSlots() {
     const cutoff = Date.now() - this._getDedupeWindowMs();
-    for (const [key, ts] of this._completedGenerationKeys) {
+    for (const [key, ts] of this._recentlyProcessedSlots) {
       if (!Number.isFinite(ts) || ts < cutoff) {
-        this._completedGenerationKeys.delete(key);
+        this._recentlyProcessedSlots.delete(key);
+      }
+    }
+  }
+
+  // ── Own-write 防自激 ─────────────────────────────────────────
+
+  _markOwnWrite(messageId) {
+    const key = normalizeIdentityValue(messageId);
+    if (!key) return;
+    this._ownWriteMessageIds.set(key, Date.now());
+    this._pruneOwnWrites();
+  }
+
+  _isOwnWrite(messageId) {
+    const key = normalizeIdentityValue(messageId);
+    if (!key) return false;
+    this._pruneOwnWrites();
+    const writtenAt = this._ownWriteMessageIds.get(key);
+    if (!writtenAt) return false;
+    return (Date.now() - writtenAt) < 5000;
+  }
+
+  _pruneOwnWrites() {
+    const cutoff = Date.now() - 5000;
+    for (const [key, ts] of this._ownWriteMessageIds) {
+      if (!Number.isFinite(ts) || ts < cutoff) {
+        this._ownWriteMessageIds.delete(key);
       }
     }
   }
 
   _pruneCancelledKeys() {
-    const cutoff = Date.now() - this._getDedupeWindowMs();
-    for (const [key, ts] of this._cancelledGenerationKeys) {
-      if (!Number.isFinite(ts) || ts < cutoff) {
-        this._cancelledGenerationKeys.delete(key);
-      }
-    }
+    // Legacy stub — no longer used but kept for compat
   }
 
   // ── 事务历史 ─────────────────────────────────────────────
@@ -1040,9 +1051,6 @@ class ToolAutomationService {
 
       state.cancelled = true;
       state.cancelReason = reason;
-      if (state?.generationKey) {
-        this._markGenerationCancelled(state.generationKey);
-      }
       try {
         state?.controller?.abort?.();
       } catch (_) {
@@ -1056,17 +1064,12 @@ class ToolAutomationService {
 
   _shouldAbortAutoWriteback(meta = {}) {
     const traceId = normalizeIdentityValue(meta.traceId);
-    const generationKey = normalizeIdentityValue(meta.generationKey);
 
     if (traceId) {
       const activeState = this._activeTransactions.get(traceId);
       if (!activeState || activeState.cancelled) {
         return { aborted: true, reason: 'cancelled_before_host_commit' };
       }
-    }
-
-    if (generationKey && this._isGenerationCancelled(generationKey)) {
-      return { aborted: true, reason: 'cancelled_before_host_commit' };
     }
 
     return false;
@@ -1131,8 +1134,8 @@ class ToolAutomationService {
     this._pendingTimers.forEach(id => clearTimeout(id));
     this._pendingTimers.clear();
     this._slotQueues.clear();
-    this._completedGenerationKeys.clear();
-    this._cancelledGenerationKeys.clear();
+    this._recentlyProcessedSlots.clear();
+    this._ownWriteMessageIds.clear();
     this._cancelActiveTransactions('chat_changed');
     this._activeTransactions.clear();
     this._isProcessing = false;
@@ -1169,12 +1172,14 @@ class ToolAutomationService {
         this._pendingTimers.delete(key);
       }
     }
-    // 清理相关的已完成 generationKey
-    for (const key of this._completedGenerationKeys.keys()) {
+
+    for (const key of this._recentlyProcessedSlots.keys()) {
       if (key.startsWith(`${messageId}::`)) {
-        this._completedGenerationKeys.delete(key);
+        this._recentlyProcessedSlots.delete(key);
       }
     }
+
+    this._ownWriteMessageIds.delete(normalizeIdentityValue(messageId));
   }
 
   // ── 启用状态 ──────────────────────────────────────────────
