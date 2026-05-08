@@ -1100,9 +1100,26 @@ export const TableWorkbenchPanel = {
     this._liveRefreshPending = true;
     try {
       const targetSnapshot = await resolveLatestTableTarget({ runSource: 'MANUAL_TABLE' });
-      if (!targetSnapshot) return;
+      if (!targetSnapshot) {
+        this.lastLiveConfig = null;
+        this.lastLiveTarget = null;
+        return;
+      }
+      if (this.lastLiveTarget?.chatId && targetSnapshot.chatId && this.lastLiveTarget.chatId !== targetSnapshot.chatId) {
+        this.lastLiveConfig = null;
+        this.lastLiveTarget = null;
+      }
       const boundState = getBoundTableState(targetSnapshot);
-      if (!boundState || !Array.isArray(boundState.tables) || boundState.tables.length === 0) return;
+      if (!boundState || !Array.isArray(boundState.tables) || boundState.tables.length === 0) {
+        this.lastLiveTarget = targetSnapshot;
+        if (this.lastLiveConfig) {
+          this.lastLiveConfig = null;
+          if (isContainerValid($container)) {
+            this.renderTo($container, { config: getTableWorkbenchConfig(), _skipRefresh: true });
+          }
+        }
+        return;
+      }
       const configFromStorage = getTableWorkbenchConfig();
       const sourceKind = boundState.meta?.sourceKind || 'exact';
       const mergedTables = mergeLiveRowsIntoConfig(configFromStorage.tables, boundState.tables, sourceKind);
@@ -1120,6 +1137,17 @@ export const TableWorkbenchPanel = {
   renderTo($container, { config, _skipRefresh } = {}) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
+    if (!config && this.lastLiveConfig) {
+      try {
+        const topWin = window.parent !== undefined && window.parent !== window ? window.parent : window;
+        const ctx = topWin?.SillyTavern?.getContext?.();
+        const currentChatId = ctx?.chatId || ctx?.chat_id || '';
+        if (currentChatId && this.lastLiveTarget?.chatId && currentChatId !== this.lastLiveTarget.chatId) {
+          this.lastLiveConfig = null;
+          this.lastLiveTarget = null;
+        }
+      } catch (_) {}
+    }
     const cfg = config && typeof config === 'object' ? config : (this.lastLiveConfig || getTableWorkbenchConfig());
     this.currentTableIndex = idx(cfg.tables, cfg.__activeTableIndex ?? this.currentTableIndex);
     $container.html(this.render({ config: cfg }));

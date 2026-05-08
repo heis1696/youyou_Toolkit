@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.108] - 2026-05-08
+
+### 修复
+
+- 🐛 **实时行数据按聊天隔离** (`modules/ui/components/table-workbench-panel.js`)
+  - `renderTo` 同步检查当前 chatId 是否与缓存的 `lastLiveTarget.chatId` 一致，不一致立即清空缓存，fallback 到模板配置
+  - `_refreshLiveState` 异步检测 chatId 变更后清空缓存并重新从当前聊天的绑定态加载
+  - 切换到无填表数据的聊天时，面板正确显示 0 行模板而非旧聊天数据
+
 ## [1.0.107] - 2026-05-08
 
 ### 修复
