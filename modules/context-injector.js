@@ -636,7 +636,8 @@ class ContextInjector {
     const refreshResult = result || this._createWritebackResult('', options);
     const { api, context } = runtime || {};
     const topWindow = runtime?.topWindow || (typeof window.parent !== 'undefined' && window.parent !== window ? window.parent : window);
-    const setChatMessages = context?.setChatMessages || api?.setChatMessages || topWindow?.setChatMessages || null;
+    const setChatMessages = topWindow?.TavernHelper?.setChatMessages
+      || context?.setChatMessages || api?.setChatMessages || topWindow?.setChatMessages || null;
 
     refreshResult.commit.preferredMethod = typeof setChatMessages === 'function'
       ? WRITEBACK_METHODS.SET_CHAT_MESSAGES
@@ -660,15 +661,8 @@ class ContextInjector {
         }
 
         const msgId = normalizeIdentityValue(options.sourceMessageId) || messageIndex;
-        this._log('setChatMessages 调用参数:', {
-          message_id: msgId,
-          messageLength: nextText?.length,
-          refresh: 'affected',
-          calledOn: context ? 'context' : (api ? 'api' : 'topWindow'),
-          fnSource: context?.setChatMessages ? 'context' : (api?.setChatMessages ? 'api' : 'topWindow')
-        });
 
-        await setChatMessages.call(context || api || topWindow, [{
+        await setChatMessages([{
           message_id: msgId,
           message: nextText
         }], {
