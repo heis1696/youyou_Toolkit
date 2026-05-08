@@ -359,7 +359,14 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
     try {
       return await sendViaTavernHelperCustomApi(messages, config, options, abortSignal, topWindow);
     } catch (error) {
-      if (error?.name === 'AbortError' || abortSignal?.aborted) {
+      const errMsg = String(error?.message || error || '');
+      const isCancelled = error?.name === 'AbortError'
+        || abortSignal?.aborted
+        || errMsg.includes('停止按钮')
+        || errMsg.includes('stop button')
+        || errMsg.includes('Clicked stop')
+        || errMsg === '请求已取消';
+      if (isCancelled) {
         throw error;
       }
       log.warn('TavernHelper 自定义请求失败，回退到后备链路:', error);

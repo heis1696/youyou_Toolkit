@@ -16,10 +16,11 @@
 - 🐛 **修复写回后界面仍不刷新** (`modules/context-injector.js`)
   - `setChatMessages` 参数结构精简为 `{ message_id, message }`，与 MVU / TavernHelper 原生调用方式一致
   - 移除多余的 `mes` / `content` / `text` / `chat_index` 字段，避免宿主因非标字段忽略刷新
+  - `setChatMessages` 函数解析增加 `topWindow` 全局直查（MVU 中 `setChatMessages` 注册在 `globalThis` 上，而非 `SillyTavern.getContext()` 返回的对象上）
 
 - 🐛 **修复用户点击停止后工具仍通过后备链路继续请求** (`modules/api-connection.js`)
-  - `sendViaCustomApi` 的 TavernHelper catch 块新增 `AbortError` 检查，取消操作不再静默回退到 SillyTavern / Direct 后备链路
-  - TavernHelper 抛出的 `"点击停止按钮"` 错误现在会正确传播为取消，不再被当作普通 API 失败
+  - `sendViaCustomApi` 的 TavernHelper catch 块新增取消检测：`AbortError`、`signal.aborted`、以及错误消息包含"停止按钮"/"stop button"/"Clicked stop"/"请求已取消"
+  - 取消操作不再静默回退到 SillyTavern / Direct 后备链路
 
 ## [1.0.111] - 2026-05-08
 

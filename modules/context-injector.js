@@ -635,7 +635,8 @@ class ContextInjector {
   async _requestAssistantMessageRefresh(runtime, messageIndex, nextText, options = {}, result = null) {
     const refreshResult = result || this._createWritebackResult('', options);
     const { api, context } = runtime || {};
-    const setChatMessages = context?.setChatMessages || api?.setChatMessages || runtime?.topWindow?.setChatMessages || null;
+    const topWindow = runtime?.topWindow || (typeof window.parent !== 'undefined' && window.parent !== window ? window.parent : window);
+    const setChatMessages = context?.setChatMessages || api?.setChatMessages || topWindow?.setChatMessages || null;
 
     refreshResult.commit.preferredMethod = typeof setChatMessages === 'function'
       ? WRITEBACK_METHODS.SET_CHAT_MESSAGES
@@ -658,7 +659,7 @@ class ContextInjector {
           return refreshResult;
         }
 
-        await setChatMessages.call(context || api || runtime?.topWindow, [{
+        await setChatMessages.call(context || api || topWindow, [{
           message_id: normalizeIdentityValue(options.sourceMessageId) || messageIndex,
           message: nextText
         }], {
