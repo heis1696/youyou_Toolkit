@@ -230,7 +230,7 @@ export async function buildSelectedWorldbookContent(toolConfig) {
     try {
       const entries = await helper.getLorebookEntries(bookName);
       const activeEntries = Array.isArray(entries)
-        ? entries.filter(entry => entry?.enabled !== false)
+        ? entries.filter(entry => entry?.enabled !== false && !entry?.disable)
         : [];
       const entryText = activeEntries
         .map(getEntryText)
@@ -245,7 +245,7 @@ export async function buildSelectedWorldbookContent(toolConfig) {
     }
   }
 
-  return blocks.join('\n\n');
+  return blocks.join('\n\n---\n\n');
 }
 
 export default {
