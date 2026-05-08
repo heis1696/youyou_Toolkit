@@ -659,8 +659,17 @@ class ContextInjector {
           return refreshResult;
         }
 
+        const msgId = normalizeIdentityValue(options.sourceMessageId) || messageIndex;
+        this._log('setChatMessages 调用参数:', {
+          message_id: msgId,
+          messageLength: nextText?.length,
+          refresh: 'affected',
+          calledOn: context ? 'context' : (api ? 'api' : 'topWindow'),
+          fnSource: context?.setChatMessages ? 'context' : (api?.setChatMessages ? 'api' : 'topWindow')
+        });
+
         await setChatMessages.call(context || api || topWindow, [{
-          message_id: normalizeIdentityValue(options.sourceMessageId) || messageIndex,
+          message_id: msgId,
           message: nextText
         }], {
           refresh: 'affected'
