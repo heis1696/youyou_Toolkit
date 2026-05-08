@@ -9,6 +9,18 @@
 
 ## [Unreleased]
 
+## [1.0.122] - 2026-05-08
+
+### 新增
+
+- ✨ **Phase 6：模板库管理与文件导入导出** (`modules/table-engine/table-template-service.js`, `modules/ui/components/table-workbench-panel.js`)
+  - 模板下拉列表展示全部模板（内置 + 用户），内置模板标记 `(内置)`
+  - 用户模板列表：显示模板名称、表数量，每条带删除按钮（二次确认）
+  - 导出当前模板：下载为 JSON 文件（不再只复制到剪贴板）
+  - 导出全部用户模板：一键导出整个模板库为 JSON 文件
+  - 导入模板：文件选择器 → 解析 JSON → 支持单模板/批量/裸数组三种格式
+  - `table-template-service` 新增 `exportUserTemplates()`、`importTemplates(payload, options)`、`renameTableTemplate(id, name)`
+
 ## [1.0.121] - 2026-05-08
 
 ### 改进

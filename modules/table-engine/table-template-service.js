@@ -91,11 +91,62 @@ export function deleteTableTemplate(templateId) {
   return { success: true };
 }
 
+export function renameTableTemplate(templateId, newName) {
+  const id = normalizeString(templateId, '');
+  if (!id || id === DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID) {
+    return { success: false, error: '内置模板不能重命名。' };
+  }
+  const name = normalizeString(newName, '');
+  if (!name) return { success: false, error: '名称不能为空。' };
+  const existing = getTableTemplate(id);
+  if (!existing) return { success: false, error: '模板不存在。' };
+  return saveTableTemplate({ ...existing, name });
+}
+
+export function exportUserTemplates() {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    templates: getUserTableTemplates()
+  };
+}
+
+export function importTemplates(payload, { overwrite = false } = {}) {
+  let rawList;
+  if (Array.isArray(payload)) {
+    rawList = payload;
+  } else if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.templates)) rawList = payload.templates;
+    else if (payload.template && typeof payload.template === 'object') rawList = [payload.template];
+    else rawList = [payload];
+  } else {
+    return { success: false, imported: 0, skipped: 0, errors: ['无效的导入数据格式。'] };
+  }
+  const existingIds = new Set(getUserTableTemplates().map(t => t.id));
+  let imported = 0, skipped = 0;
+  const errors = [];
+  for (const raw of rawList) {
+    try {
+      const template = normalizeTemplate(raw);
+      if (!overwrite && existingIds.has(template.id)) { skipped++; continue; }
+      saveTableTemplate(template);
+      existingIds.add(template.id);
+      imported++;
+    } catch (e) {
+      errors.push(normalizeString(e?.message, '未知错误'));
+    }
+  }
+  return { success: true, imported, skipped, errors };
+}
+
 export default {
   getBuiltinTableTemplates,
   getUserTableTemplates,
   getAllTableTemplates,
   getTableTemplate,
   saveTableTemplate,
-  deleteTableTemplate
+  deleteTableTemplate,
+  renameTableTemplate,
+  exportUserTemplates,
+  importTemplates
 };

@@ -2,7 +2,7 @@
  * YouYou Toolkit - 填表工作台面板
  * 主界面运行控制台 + 单表配置抽屉
  */
-import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice } from '../utils.js';
+import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice, downloadJson, readFileContent } from '../utils.js';
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
 import { renderTableAuxiliaryFields } from './table-form-renderer.js';
 import { TableCellPopupMenu, getPopupMenuStyles } from './table-cell-popup-menu.js';
@@ -13,9 +13,10 @@ import {
   getTableWorkbenchConfig, getTableWorkbenchFormSchema, saveTableWorkbenchConfig,
   validateTableDraftDeep, TABLE_FILL_MODE, TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
   getTableWorkbenchBuiltinTemplates, createEmptyTableDefinition, createEmptyTableRow, createEmptyTableColumn,
-  applyTableWorkbenchTemplate, saveCurrentTableWorkbenchAsTemplate
+  applyTableWorkbenchTemplate, saveCurrentTableWorkbenchAsTemplate,
+  DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID
 } from '../../table-engine/table-schema-service.js';
-import { saveTableTemplate } from '../../table-engine/table-template-service.js';
+import { saveTableTemplate, deleteTableTemplate, importTemplates, exportUserTemplates } from '../../table-engine/table-template-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 import { resolveLatestTableTarget } from '../../table-engine/table-target-resolver.js';
 import { getBoundTableState } from '../../table-engine/table-state-service.js';
@@ -25,6 +26,11 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
 [data-twb-wb-selector] { margin-top:8px; padding:10px; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); }
 [data-twb-wb-list] { max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
+
+.yyt-twb-template-list { margin:8px 0; max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+.yyt-twb-template-item { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; background:var(--yyt-bg-secondary); border:1px solid var(--yyt-border); }
+.yyt-twb-template-item-name { flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.yyt-twb-template-item-meta { font-size:11px; color:var(--yyt-text-muted); white-space:nowrap; }
 
 .yyt-twb {
   position:relative;
@@ -442,6 +448,7 @@ function renderAiBindingSettings(cfg) {
 
 function renderTemplateManager(cfg) {
   const templates = getTableWorkbenchBuiltinTemplates();
+  const builtinId = DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID;
   return `
     <article class="yyt-panel-section yyt-twb-card yyt-twb-template-card">
       <div class="yyt-twb-card-header">
@@ -453,16 +460,25 @@ function renderTemplateManager(cfg) {
         <span>当前模板</span>
         <select class="yyt-select" data-twb-field="activeTemplate">
           <option value="" ${!cfg.activeTemplate ? 'selected' : ''}>不切换模板</option>
-          ${templates.map(template => `<option value="${escapeHtml(template.id)}" ${cfg.activeTemplate === template.id ? 'selected' : ''}>${escapeHtml(template.name)}</option>`).join('')}
+          ${templates.map(t => `<option value="${escapeHtml(t.id)}" ${cfg.activeTemplate === t.id ? 'selected' : ''}>${escapeHtml(t.name)}${t.id === builtinId ? ' (内置)' : ''}</option>`).join('')}
         </select>
       </label>
-      <p class="yyt-twb-help">内置默认模板可直接应用；导入/导出会在后续模板库阶段接入。</p>
+      <div class="yyt-twb-template-list" data-twb-template-list>
+        ${templates.filter(t => t.id !== builtinId).map(t => `
+          <div class="yyt-twb-template-item" data-twb-template-id="${escapeHtml(t.id)}">
+            <span class="yyt-twb-template-item-name">${escapeHtml(t.name)}</span>
+            <span class="yyt-twb-template-item-meta">${(t.tables?.length || 0)} 表</span>
+            <button class="yyt-btn yyt-btn-icon yyt-btn-danger yyt-btn-small" data-twb-action="delete-template" data-twb-template-id="${escapeHtml(t.id)}" title="删除"><i class="fa-solid fa-trash"></i></button>
+          </div>`).join('') || '<div class="yyt-twb-muted" style="padding:6px 0;font-size:12px">暂无用户模板。保存当前表结构为模板后会在此显示。</div>'}
+      </div>
       <div class="yyt-twb-action-grid">
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="apply-template">应用模板</button>
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="save-template">保存为模板</button>
         <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="import-template">导入模板</button>
-        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="export-template">导出模板</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="export-template">导出当前</button>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" data-twb-action="export-all-templates">导出全部</button>
       </div>
+      <input type="file" data-twb-import-file accept=".json" style="display:none">
     </article>`;
 }
 
@@ -802,6 +818,7 @@ export const TableWorkbenchPanel = {
   editorOpen: false,
   lastDiff: null,
   pendingTemplateApplyId: '',
+  _pendingDeleteTemplateId: '',
   availableWorldbooks: [],
   worldbookLoadState: 'idle',
 
@@ -1081,19 +1098,19 @@ export const TableWorkbenchPanel = {
       });
     });
 
-    $container.on('click.twb', '[data-twb-action="apply-template"]', function () {
+    $container.on('click.twb', '[data-twb-action=”apply-template”]', function () {
       const cfg = collect($container);
       const templateId = S(cfg.activeTemplate, '');
       const template = getTableWorkbenchBuiltinTemplates().find(item => item.id === templateId);
       if (!template) {
-        showTopNotice('warning', '请选择一个可应用的内置模板。', { duration: 3000, noticeId: 'twb-template' });
+        showTopNotice('warning', '请先在下拉列表中选择一个模板。', { duration: 3000, noticeId: 'twb-template' });
         return;
       }
 
       const hasTables = Array.isArray(cfg.tables) && cfg.tables.length > 0;
       if (hasTables && self.pendingTemplateApplyId !== templateId) {
         self.pendingTemplateApplyId = templateId;
-        showTopNotice('warning', '应用模板会替换当前表格。再次点击“应用模板”确认。', { duration: 4200, noticeId: 'twb-template' });
+        showTopNotice('warning', '应用模板会替换当前表格。再次点击”应用模板”确认。', { duration: 4200, noticeId: 'twb-template' });
         return;
       }
 
@@ -1109,7 +1126,7 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    $container.on('click.twb', '[data-twb-action="save-template"]', function () {
+    $container.on('click.twb', '[data-twb-action=”save-template”]', function () {
       const cfg = collect($container);
       const defaultName = `${S(cfg.tables?.[0]?.name, '填表模板')} ${new Date().toLocaleString()}`;
       const name = prompt('模板名称', defaultName);
@@ -1128,48 +1145,75 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    $container.on('click.twb', '[data-twb-action="export-template"]', function () {
+    $container.on('click.twb', '[data-twb-action=”delete-template”]', function () {
+      const tid = S($(this).attr('data-twb-template-id'), '');
+      if (!tid) return;
+      const template = getTableWorkbenchBuiltinTemplates().find(t => t.id === tid);
+      if (!template) { showTopNotice('warning', '模板不存在。', { duration: 3000, noticeId: 'twb-template' }); return; }
+      if (self._pendingDeleteTemplateId !== tid) {
+        self._pendingDeleteTemplateId = tid;
+        showTopNotice('warning', `确认删除模板”${template.name}”？再次点击删除按钮确认。`, { duration: 4200, noticeId: 'twb-template' });
+        return;
+      }
+      self._pendingDeleteTemplateId = '';
+      const r = deleteTableTemplate(tid);
+      if (r.success) {
+        showTopNotice('success', '已删除模板。', { duration: 2800, noticeId: 'twb-template' });
+        self.renderTo($container);
+      } else {
+        showTopNotice('warning', r.error || '删除失败', { duration: 4000, noticeId: 'twb-template' });
+      }
+    });
+
+    $container.on('click.twb', '[data-twb-action=”export-template”]', function () {
       const cfg = collect($container);
+      const templateName = S(getTableWorkbenchBuiltinTemplates().find(item => item.id === cfg.activeTemplate)?.name, '当前填表模板');
       const payload = {
         version: 1,
         exportedAt: new Date().toISOString(),
         template: {
           id: S(cfg.activeTemplate, ''),
-          name: S(getTableWorkbenchBuiltinTemplates().find(item => item.id === cfg.activeTemplate)?.name, '当前填表模板'),
+          name: templateName,
           description: 'YouYou Toolkit 填表模板导出。',
           tables: cfg.tables || [],
           promptTemplate: cfg.promptTemplate || ''
         }
       };
-      navigator.clipboard?.writeText(dump(payload));
-      showTopNotice('success', '模板 JSON 已复制到剪贴板。', { duration: 2800, noticeId: 'twb-template' });
+      downloadJson(dump(payload), `youyou_table_template_${Date.now()}.json`);
+      showTopNotice('success', '模板已导出为文件。', { duration: 2800, noticeId: 'twb-template' });
     });
 
-    $container.on('click.twb', '[data-twb-action="import-template"]', function () {
-      const raw = prompt('粘贴模板 JSON');
-      if (!raw) return;
+    $container.on('click.twb', '[data-twb-action=”export-all-templates”]', function () {
+      const payload = exportUserTemplates();
+      if (!payload.templates || payload.templates.length === 0) {
+        showTopNotice('warning', '没有用户模板可导出。', { duration: 3000, noticeId: 'twb-template' });
+        return;
+      }
+      downloadJson(dump(payload), `youyou_table_templates_all_${Date.now()}.json`);
+      showTopNotice('success', `已导出 ${payload.templates.length} 个用户模板。`, { duration: 2800, noticeId: 'twb-template' });
+    });
+
+    $container.on('click.twb', '[data-twb-action=”import-template”]', function () {
+      $container.find('[data-twb-import-file]').val('').trigger('click');
+    });
+
+    $container.on('change.twb', '[data-twb-import-file]', async function () {
+      const file = this.files?.[0];
+      if (!file) return;
       try {
-        const parsed = JSON.parse(raw);
-        const template = parsed?.template && typeof parsed.template === 'object' ? parsed.template : parsed;
-        const cfg = collect($container);
-        const saved = saveTableTemplate({
-          name: S(template.name, '导入模板'),
-          description: S(template.description, '从 JSON 导入。'),
-          tables: Array.isArray(template.tables) ? template.tables : cfg.tables,
-          promptTemplate: S(template.promptTemplate, cfg.promptTemplate)
-        });
-        if (!saved.success) throw new Error(saved.error || '保存模板失败');
-        const r = saveTableWorkbenchConfig({
-          ...cfg,
-          tables: Array.isArray(template.tables) ? template.tables : cfg.tables,
-          promptTemplate: S(template.promptTemplate, cfg.promptTemplate),
-          activeTemplate: saved.template.id
-        });
-        if (!r.success) throw new Error(r.error || '应用导入模板失败');
-        showTopNotice('success', `已导入模板：${saved.template.name}`, { duration: 2800, noticeId: 'twb-template' });
-        self.renderTo($container, { config: r.config });
+        const text = await readFileContent(file);
+        const parsed = JSON.parse(text);
+        const r = importTemplates(parsed, { overwrite: false });
+        if (r.imported > 0) {
+          showTopNotice('success', `已导入 ${r.imported} 个模板${r.skipped ? `，跳过 ${r.skipped} 个已存在` : ''}。`, { duration: 3500, noticeId: 'twb-template' });
+          self.renderTo($container);
+        } else if (r.skipped > 0) {
+          showTopNotice('warning', `${r.skipped} 个模板已存在，全部跳过。`, { duration: 3500, noticeId: 'twb-template' });
+        } else {
+          showTopNotice('warning', r.errors?.[0] || '未导入任何模板。', { duration: 4000, noticeId: 'twb-template' });
+        }
       } catch (error) {
-        showTopNotice('warning', error?.message || '模板 JSON 无效', { duration: 4000, noticeId: 'twb-template' });
+        showTopNotice('warning', error?.message || '模板文件解析失败', { duration: 4000, noticeId: 'twb-template' });
       }
     });
 
