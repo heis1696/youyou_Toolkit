@@ -99,7 +99,7 @@ class ToolPromptService {
           content
         });
       }
-    } else if (!hasMainSlotMessages) {
+    } else if (!hasMainSlotMessages && !bypassMessages?.length) {
       const userContent = this._buildUserContent(this._getPromptTemplate(toolConfig), variableContext);
       if (userContent) {
         messages.push({
