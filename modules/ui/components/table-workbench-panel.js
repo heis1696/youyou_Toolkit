@@ -194,8 +194,8 @@ function tableId(table, index) { return S(table?.id || table?.key, `table_${inde
 
 function mergeLiveRowsIntoConfig(configTables, stateTables, sourceKind) {
   if (!Array.isArray(configTables)) return [];
-  const liveKinds = new Set(['exact', 'binding', 'history']);
-  const hasLive = liveKinds.has(sourceKind) && Array.isArray(stateTables) && stateTables.length > 0;
+  const hasLive = Array.isArray(stateTables) && stateTables.length > 0
+    && stateTables.some(t => Array.isArray(t?.rows) && t.rows.length > 0);
   const stateById = new Map();
   if (hasLive) {
     stateTables.forEach((st, i) => {
@@ -206,8 +206,8 @@ function mergeLiveRowsIntoConfig(configTables, stateTables, sourceKind) {
   return configTables.map((ct, i) => {
     const id = ensureTableId(ct?.id || ct?.key, i);
     const matched = stateById.get(id) || (hasLive && i < stateTables.length ? stateTables[i] : null);
-    if (matched && hasLive) {
-      return { ...ct, rows: cloneTableValue(Array.isArray(matched.rows) ? matched.rows : []), __liveSourceKind: 'live' };
+    if (matched && hasLive && Array.isArray(matched.rows)) {
+      return { ...ct, rows: cloneTableValue(matched.rows), __liveSourceKind: 'live' };
     }
     return { ...ct, __liveSourceKind: 'template' };
   });
