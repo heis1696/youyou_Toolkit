@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.109] - 2026-05-08
+
+### 修复
+
+- 🐛 **加强聊天隔离检测** (`modules/ui/components/table-workbench-panel.js`)
+  - chatId 解析增加 `chat_filename` 和 `this_chid` 回退路径，与 automation service 一致
+  - 当 `currentChatId` 或 `cachedChatId` 任一为空时也清空缓存（之前空值会跳过检查）
+  - try-catch 内异常时也清空缓存，防止极端情况下残留旧数据
+
 ## [1.0.108] - 2026-05-08
 
 ### 修复

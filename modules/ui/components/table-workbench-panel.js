@@ -1140,13 +1140,18 @@ export const TableWorkbenchPanel = {
     if (!config && this.lastLiveConfig) {
       try {
         const topWin = window.parent !== undefined && window.parent !== window ? window.parent : window;
-        const ctx = topWin?.SillyTavern?.getContext?.();
-        const currentChatId = ctx?.chatId || ctx?.chat_id || '';
-        if (currentChatId && this.lastLiveTarget?.chatId && currentChatId !== this.lastLiveTarget.chatId) {
+        const api = topWin?.SillyTavern || null;
+        const ctx = api?.getContext?.() || null;
+        const currentChatId = ctx?.chatId || ctx?.chat_id || api?.chat_filename || api?.this_chid || '';
+        const cachedChatId = this.lastLiveTarget?.chatId || '';
+        if (!currentChatId || !cachedChatId || currentChatId !== cachedChatId) {
           this.lastLiveConfig = null;
           this.lastLiveTarget = null;
         }
-      } catch (_) {}
+      } catch (_) {
+        this.lastLiveConfig = null;
+        this.lastLiveTarget = null;
+      }
     }
     const cfg = config && typeof config === 'object' ? config : (this.lastLiveConfig || getTableWorkbenchConfig());
     this.currentTableIndex = idx(cfg.tables, cfg.__activeTableIndex ?? this.currentTableIndex);
