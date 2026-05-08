@@ -749,6 +749,7 @@ export const TableWorkbenchPanel = {
     if (!$ || !isContainerValid($container)) return;
     const self = this;
     $container.off('.twb');
+    this._subscribeChatChanged($container);
 
     $container.on('click.twb', '[data-twb-action="open-table-editor"]', function (e) {
       e.stopPropagation();
@@ -1097,6 +1098,10 @@ export const TableWorkbenchPanel = {
     if (!$ || !isContainerValid($container)) return;
     TableCellPopupMenu.destroy();
     $container.off('.twb');
+    if (typeof this._chatChangedUnsubscribe === 'function') {
+      this._chatChangedUnsubscribe();
+    }
+    this._clearLiveCache();
   },
 
   getStyles() { return CSS; },
@@ -1104,6 +1109,37 @@ export const TableWorkbenchPanel = {
   lastLiveConfig: null,
   lastLiveTarget: null,
   _liveRefreshPending: false,
+  _chatChangedUnsubscribe: null,
+
+  _clearLiveCache() {
+    this.lastLiveConfig = null;
+    this.lastLiveTarget = null;
+  },
+
+  _subscribeChatChanged($container) {
+    if (this._chatChangedUnsubscribe) return;
+    try {
+      const topWin = window.parent !== undefined && window.parent !== window ? window.parent : window;
+      const api = topWin?.SillyTavern || null;
+      const ctx = api?.getContext?.() || null;
+      const eventSource = api?.eventSource || topWin?.eventSource || ctx?.eventSource || null;
+      const eventTypes = api?.eventTypes || ctx?.eventTypes || topWin?.event_types || {};
+      const chatChangedEvent = eventTypes.CHAT_CHANGED || eventTypes.chat_changed || 'chat_changed';
+      if (eventSource && typeof eventSource.on === 'function') {
+        const handler = () => {
+          this._clearLiveCache();
+          if (isContainerValid($container)) {
+            this.renderTo($container);
+          }
+        };
+        eventSource.on(chatChangedEvent, handler);
+        this._chatChangedUnsubscribe = () => {
+          try { eventSource.off(chatChangedEvent, handler); } catch (_) {}
+          this._chatChangedUnsubscribe = null;
+        };
+      }
+    } catch (_) {}
+  },
 
   async _refreshLiveState($container) {
     if (this._liveRefreshPending) return;
@@ -1147,22 +1183,6 @@ export const TableWorkbenchPanel = {
   renderTo($container, { config, _skipRefresh } = {}) {
     const $ = getJQuery();
     if (!$ || !isContainerValid($container)) return;
-    if (!config && this.lastLiveConfig) {
-      try {
-        const topWin = window.parent !== undefined && window.parent !== window ? window.parent : window;
-        const api = topWin?.SillyTavern || null;
-        const ctx = api?.getContext?.() || null;
-        const currentChatId = ctx?.chatId || ctx?.chat_id || api?.chat_filename || api?.this_chid || '';
-        const cachedChatId = this.lastLiveTarget?.chatId || '';
-        if (!currentChatId || !cachedChatId || currentChatId !== cachedChatId) {
-          this.lastLiveConfig = null;
-          this.lastLiveTarget = null;
-        }
-      } catch (_) {
-        this.lastLiveConfig = null;
-        this.lastLiveTarget = null;
-      }
-    }
     const cfg = config && typeof config === 'object' ? config : (this.lastLiveConfig || getTableWorkbenchConfig());
     this.currentTableIndex = idx(cfg.tables, cfg.__activeTableIndex ?? this.currentTableIndex);
     $container.html(this.render({ config: cfg }));
