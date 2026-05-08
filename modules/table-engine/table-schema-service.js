@@ -1075,6 +1075,7 @@ export function getTableWorkbenchDefaultConfig() {
     sendLatestRows: -1,
     mirrorToMessage: false,
     mirrorTag: 'yyt-table-workbench',
+    worldbookSync: { enabled: false, targetBook: '', entryComment: 'YYT-填表数据' },
     runtime: normalizeRuntime()
   };
 }
@@ -1121,6 +1122,11 @@ export function normalizeTableWorkbenchConfig(value = {}) {
       ? Math.floor(Number(nextValue.sendLatestRows)) : -1,
     mirrorToMessage: normalizeBoolean(nextValue.mirrorToMessage, defaults.mirrorToMessage),
     mirrorTag: normalizeString(nextValue.mirrorTag, defaults.mirrorTag),
+    worldbookSync: {
+      enabled: normalizeBoolean(nextValue.worldbookSync?.enabled, false),
+      targetBook: normalizeString(nextValue.worldbookSync?.targetBook, ''),
+      entryComment: normalizeString(nextValue.worldbookSync?.entryComment, defaults.worldbookSync.entryComment)
+    },
     runtime: normalizeRuntime({
       ...defaults.runtime,
       ...(nextValue.runtime || {})

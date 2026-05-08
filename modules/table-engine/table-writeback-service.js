@@ -7,6 +7,7 @@ import { contextInjector } from '../context-injector.js';
 import { cloneTableValue } from './table-types.js';
 import { commitBoundState } from './table-state-service.js';
 import { normalizeTableWorkbenchConfig } from './table-schema-service.js';
+import { syncTablesToWorldbook } from './table-worldbook-sync-service.js';
 
 const TABLE_WORKBENCH_MIRROR_TOOL_ID = 'tableWorkbenchMirror';
 
@@ -59,6 +60,7 @@ export async function writeTableState({ targetSnapshot, nextTables, config, load
   }
 
   let mirrorResult = null;
+  let worldbookSyncResult = null;
   let warning = '';
 
   if (normalizedConfig.mirrorToMessage) {
@@ -83,6 +85,16 @@ export async function writeTableState({ targetSnapshot, nextTables, config, load
     }
   }
 
+  if (normalizedConfig.worldbookSync?.enabled) {
+    worldbookSyncResult = await syncTablesToWorldbook(
+      Array.isArray(nextTables) ? nextTables : [],
+      normalizedConfig
+    );
+    if (worldbookSyncResult && !worldbookSyncResult.success && !worldbookSyncResult.skipped) {
+      warning = warning ? `${warning}; ${worldbookSyncResult.error}` : (worldbookSyncResult.error || '世界书同步失败');
+    }
+  }
+
   return {
     success: true,
     state: commitResult.state,
@@ -91,6 +103,7 @@ export async function writeTableState({ targetSnapshot, nextTables, config, load
     fillMode,
     commitResult,
     mirrorResult,
+    worldbookSyncResult,
     warning
   };
 }

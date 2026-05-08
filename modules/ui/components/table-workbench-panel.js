@@ -343,6 +343,15 @@ function collect($c, fb) {
     selected: wbSelected.length > 0 ? wbSelected : (Array.isArray(cfg.worldbooks?.selected) ? cfg.worldbooks.selected : [])
   };
 
+  const $wbse = $c.find('[data-twb-field="worldbookSyncEnabled"]');
+  const $wbst = $c.find('[data-twb-field="worldbookSyncTarget"]');
+  const $wbsc = $c.find('[data-twb-field="worldbookSyncComment"]');
+  cfg.worldbookSync = {
+    enabled: $wbse.length ? $wbse.is(':checked') : (cfg.worldbookSync?.enabled === true),
+    targetBook: $wbst.length ? String($wbst.val() || '') : (cfg.worldbookSync?.targetBook || ''),
+    entryComment: $wbsc.length ? String($wbsc.val() || '').trim() || 'YYT-填表数据' : (cfg.worldbookSync?.entryComment || 'YYT-填表数据')
+  };
+
   cfg.tables = tables;
   return cfg;
 }
@@ -597,6 +606,24 @@ function renderContextConfigCard(cfg) {
           <div class="yyt-twb-worldbook-list" data-twb-wb-list></div>
         </div>
       </div>
+      <div class="yyt-twb-field">
+        <span>世界书同步（填表 → 世界书）</span>
+        <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="worldbookSyncEnabled" ${cfg.worldbookSync?.enabled ? 'checked' : ''}><span>填表后自动同步数据到世界书条目</span></label>
+        <div class="yyt-twb-worldbook-sync-opts ${cfg.worldbookSync?.enabled ? '' : 'yyt-hidden'}" data-twb-wbsync-opts>
+          <label class="yyt-twb-field" style="margin-top:8px">
+            <span>目标世界书</span>
+            <select class="yyt-select" data-twb-field="worldbookSyncTarget">
+              <option value="">请选择…</option>
+            </select>
+            <small>填表数据将写入此世界书的一个常驻条目中。</small>
+          </label>
+          <label class="yyt-twb-field">
+            <span>条目标识</span>
+            <input class="yyt-input" type="text" data-twb-field="worldbookSyncComment" value="${escapeHtml(cfg.worldbookSync?.entryComment || 'YYT-填表数据')}">
+            <small>世界书条目的 comment 字段，用于定位更新。</small>
+          </label>
+        </div>
+      </div>
     </article>`;
 }
 
@@ -848,6 +875,17 @@ export const TableWorkbenchPanel = {
       $container.find('[data-twb-wb-selector]').toggleClass('yyt-hidden', !checked);
       if (checked && self.availableWorldbooks.length === 0 && self.worldbookLoadState === 'idle') {
         self._loadTableWorldbooks($container);
+      }
+    });
+
+    $container.on('change.twb', '[data-twb-field="worldbookSyncEnabled"]', function () {
+      const checked = $(this).is(':checked');
+      $container.find('[data-twb-wbsync-opts]').toggleClass('yyt-hidden', !checked);
+      if (checked && self.availableWorldbooks.length === 0 && self.worldbookLoadState === 'idle') {
+        self._loadTableWorldbooks($container);
+      }
+      if (checked && self.availableWorldbooks.length > 0) {
+        self._renderWorldbookSyncTargetSelect($container);
       }
     });
 
@@ -1287,6 +1325,7 @@ export const TableWorkbenchPanel = {
     }
     this.worldbookLoadState = 'ready';
     this._renderWorldbookList($container);
+    this._renderWorldbookSyncTargetSelect($container);
   },
 
   _renderWorldbookList($container) {
@@ -1318,6 +1357,16 @@ export const TableWorkbenchPanel = {
       const name = String($(this).attr('data-twb-wb-name') || '').trim();
       if (name) selected.push(name);
     });
+  },
+
+  _renderWorldbookSyncTargetSelect($container) {
+    const $ = getJQuery();
+    const $sel = $container.find('[data-twb-field="worldbookSyncTarget"]');
+    if (!$sel.length) return;
+    const cfg = this.lastLiveConfig || getTableWorkbenchConfig();
+    const current = cfg.worldbookSync?.targetBook || '';
+    const books = this.availableWorldbooks;
+    $sel.html(`<option value="">请选择…</option>${books.map(b => `<option value="${escapeHtml(b)}" ${b === current ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}`);
   },
 
   async _refreshLiveState($container) {
@@ -1366,6 +1415,11 @@ export const TableWorkbenchPanel = {
     if (cfg.worldbooks?.enabled && this.availableWorldbooks.length > 0) {
       this._renderWorldbookList($container);
     } else if (cfg.worldbooks?.enabled && this.worldbookLoadState === 'idle') {
+      this._loadTableWorldbooks($container);
+    }
+    if (cfg.worldbookSync?.enabled && this.availableWorldbooks.length > 0) {
+      this._renderWorldbookSyncTargetSelect($container);
+    } else if (cfg.worldbookSync?.enabled && this.worldbookLoadState === 'idle') {
       this._loadTableWorldbooks($container);
     }
     if (!config && !_skipRefresh) {

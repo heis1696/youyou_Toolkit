@@ -9,6 +9,18 @@
 
 ## [Unreleased]
 
+## [1.0.124] - 2026-05-09
+
+### 新增
+
+- ✨ **世界书注入过滤禁用条目** (`modules/table-engine/table-worldbook-sync-service.js`, `modules/table-engine/table-writeback-service.js`, `modules/table-engine/table-schema-service.js`, `modules/ui/components/table-workbench-panel.js`)
+  - 新增 `worldbookSync` 配置：`{ enabled, targetBook, entryComment }`
+  - 填表成功后自动将表数据同步为目标世界书的一个常驻条目（`type: 'constant'`）
+  - 支持 upsert 模式：按 `entryComment` 查找已有条目，存在则更新，不存在则创建
+  - 表数据格式化为 Markdown 表格，便于 AI 阅读
+  - UI 新增"世界书同步"区域：启用开关、目标世界书下拉、条目标识输入
+  - 手动和自动填表都会触发同步
+
 ## [1.0.122] - 2026-05-08
 
 ### 新增
