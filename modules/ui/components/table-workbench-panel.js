@@ -320,10 +320,10 @@ function collect($c, fb) {
   if ($cd.length) cfg.contextDepth = Math.max(1, parseInt($cd.val(), 10) || 8);
   const $cr = $c.find('[data-twb-field="contextRoles"]:checked');
   if ($cr.length) cfg.contextRoles = String($cr.val() || 'all');
-  const $cer = $c.find('[data-twb-field="contextUseExtractRules"]');
-  if ($cer.length) cfg.contextUseExtractRules = $cer.is(':checked');
-  const $cee = $c.find('[data-twb-field="contextUseExcludeRules"]');
-  if ($cee.length) cfg.contextUseExcludeRules = $cee.is(':checked');
+  const $cet = $c.find('[data-twb-field="contextExtractTags"]');
+  if ($cet.length) cfg.contextExtractTags = String($cet.val() || '').split('\n').map(l => l.trim()).filter(Boolean);
+  const $cug = $c.find('[data-twb-field="contextUseGlobalRules"]');
+  if ($cug.length) cfg.contextUseGlobalRules = $cug.is(':checked');
   const $slr = $c.find('[data-twb-field="sendLatestRows"]');
   if ($slr.length) { cfg.sendLatestRows = parseInt($slr.val(), 10); if (!Number.isFinite(cfg.sendLatestRows)) cfg.sendLatestRows = -1; }
   const $wbe = $c.find('[data-twb-field="worldbooksEnabled"]');
@@ -539,8 +539,8 @@ function renderTableOverviewList(cfg) {
 function renderContextConfigCard(cfg) {
   const depth = Number.isFinite(cfg.contextDepth) ? cfg.contextDepth : 8;
   const roles = cfg.contextRoles === 'assistant_only' ? 'assistant_only' : 'all';
-  const useExtract = cfg.contextUseExtractRules === true;
-  const useExclude = cfg.contextUseExcludeRules === true;
+  const extractTags = Array.isArray(cfg.contextExtractTags) ? cfg.contextExtractTags.join('\n') : '';
+  const useGlobal = cfg.contextUseGlobalRules === true;
   const sendLatestRows = Number.isFinite(cfg.sendLatestRows) ? cfg.sendLatestRows : -1;
   const wbEnabled = cfg.worldbooks?.enabled === true;
   return `
@@ -561,10 +561,13 @@ function renderContextConfigCard(cfg) {
         </div>
       </label>
       <div class="yyt-twb-field">
-        <span>正则规则过滤</span>
-        <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="contextUseExtractRules" ${useExtract ? 'checked' : ''}><span>应用全局提取规则（include / regex_include）</span></label>
-        <label class="yyt-twb-check-row" style="margin-top:6px"><input type="checkbox" data-twb-field="contextUseExcludeRules" ${useExclude ? 'checked' : ''}><span>应用全局排除规则（exclude / regex_exclude + 黑名单）</span></label>
-        <small>与"正则提取"面板中的全局规则共享同一规则集。</small>
+        <span>提取标签 / 正则</span>
+        <textarea class="yyt-textarea yyt-code-textarea yyt-code-textarea-small" data-twb-field="contextExtractTags" rows="4" placeholder="每行一个规则。普通文本按标签提取；以 regex: 开头时按正则第一捕获组提取。">${escapeHtml(extractTags)}</textarea>
+        <small>自定义提取规则，对消息上下文进行 include / regex 提取。</small>
+      </div>
+      <div class="yyt-twb-field">
+        <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="contextUseGlobalRules" ${useGlobal ? 'checked' : ''}><span>同时应用全局正则规则（提取 + 排除 + 黑名单）</span></label>
+        <small>启用后，将合并"正则提取"面板中的全局规则一起应用。</small>
       </div>
       <label class="yyt-twb-field">
         <span>发送最新行数</span>
@@ -1316,6 +1319,11 @@ export const TableWorkbenchPanel = {
     this.currentTableIndex = idx(cfg.tables, cfg.__activeTableIndex ?? this.currentTableIndex);
     $container.html(this.render({ config: cfg }));
     this.bindEvents($container);
+    if (cfg.worldbooks?.enabled && this.availableWorldbooks.length > 0) {
+      this._renderWorldbookList($container);
+    } else if (cfg.worldbooks?.enabled && this.worldbookLoadState === 'idle') {
+      this._loadTableWorldbooks($container);
+    }
     if (!config && !_skipRefresh) {
       this._refreshLiveState($container);
     }

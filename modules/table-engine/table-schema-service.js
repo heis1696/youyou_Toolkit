@@ -1069,8 +1069,8 @@ export function getTableWorkbenchDefaultConfig() {
     fillMode: TABLE_FILL_MODE.INCREMENTAL,
     contextDepth: 8,
     contextRoles: 'all',
-    contextUseExtractRules: false,
-    contextUseExcludeRules: false,
+    contextExtractTags: [],
+    contextUseGlobalRules: false,
     worldbooks: { enabled: false, selected: [] },
     sendLatestRows: -1,
     mirrorToMessage: false,
@@ -1105,8 +1105,12 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     contextDepth: Number.isFinite(Number(nextValue.contextDepth)) && Number(nextValue.contextDepth) > 0
       ? Math.floor(Number(nextValue.contextDepth)) : defaults.contextDepth,
     contextRoles: nextValue.contextRoles === 'assistant_only' ? 'assistant_only' : 'all',
-    contextUseExtractRules: normalizeBoolean(nextValue.contextUseExtractRules, false),
-    contextUseExcludeRules: normalizeBoolean(nextValue.contextUseExcludeRules, false),
+    contextExtractTags: Array.isArray(nextValue.contextExtractTags)
+      ? nextValue.contextExtractTags.filter(v => typeof v === 'string' && v.trim())
+      : (typeof nextValue.contextExtractTags === 'string' && nextValue.contextExtractTags.trim()
+        ? nextValue.contextExtractTags.split('\n').map(l => l.trim()).filter(Boolean)
+        : []),
+    contextUseGlobalRules: normalizeBoolean(nextValue.contextUseGlobalRules ?? nextValue.contextUseExtractRules ?? nextValue.contextUseExcludeRules, false),
     worldbooks: {
       enabled: normalizeBoolean(nextValue.worldbooks?.enabled, false),
       selected: Array.isArray(nextValue.worldbooks?.selected)

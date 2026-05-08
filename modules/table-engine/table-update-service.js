@@ -62,20 +62,32 @@ function formatRecentMessages(messages = [], limit = 8, roles = 'all') {
     .join('\n\n');
 }
 
-function applyContextExtractionRules(text, { useExtractRules = false, useExcludeRules = false } = {}) {
-  if (!text || (!useExtractRules && !useExcludeRules)) return text;
+function applyContextExtractionRules(text, { extractTags = [], useGlobalRules = false } = {}) {
+  if (!text) return text;
+  const hasCustomTags = Array.isArray(extractTags) && extractTags.length > 0;
+  if (!hasCustomTags && !useGlobalRules) return text;
   try {
-    const allRules = getTagRules() || [];
-    const blacklist = useExcludeRules ? (getContentBlacklist() || []) : [];
-    const activeRules = allRules.filter(rule => {
-      if (!rule?.enabled) return false;
-      const type = rule.type || '';
-      if (useExtractRules && (type === 'include' || type === 'regex_include')) return true;
-      if (useExcludeRules && (type === 'exclude' || type === 'regex_exclude')) return true;
-      return false;
-    });
-    if (activeRules.length === 0 && blacklist.length === 0) return text;
-    return extractTagContent(text, activeRules, blacklist) || text;
+    let rules = [];
+    let blacklist = [];
+
+    if (hasCustomTags) {
+      rules = extractTags.map(tag => {
+        const t = String(tag || '').trim();
+        if (t.startsWith('regex:')) {
+          return { type: 'regex_include', value: t.slice(6).trim(), enabled: true };
+        }
+        return { type: 'include', value: t, enabled: true };
+      }).filter(r => r.value);
+    }
+
+    if (useGlobalRules) {
+      const globalRules = getTagRules() || [];
+      rules = [...rules, ...globalRules.filter(r => r?.enabled)];
+      blacklist = getContentBlacklist() || [];
+    }
+
+    if (rules.length === 0 && blacklist.length === 0) return text;
+    return extractTagContent(text, rules, blacklist) || text;
   } catch (e) {
     getLog().warn('applyContextExtractionRules 失败，回退原始文本', e);
     return text;
@@ -401,18 +413,18 @@ export async function buildRequest({ executionContext, targetSnapshot, loadResul
   const isIncremental = fillMode === 'incremental' || (!fillMode && normalizedConfig.fillMode !== 'full');
 
   const rawMessages = executionContext?.chatHistory || executionContext?.chatMessages || [];
-  const { contextDepth, contextRoles, contextUseExtractRules, contextUseExcludeRules, sendLatestRows } = normalizedConfig;
+  const { contextDepth, contextRoles, contextExtractTags, contextUseGlobalRules, sendLatestRows } = normalizedConfig;
 
   const recentText = formatRecentMessages(rawMessages, contextDepth, contextRoles);
   const rawRecentText = formatRecentMessages(rawMessages, contextDepth, 'all');
 
   const processedRecentText = applyContextExtractionRules(recentText, {
-    useExtractRules: contextUseExtractRules,
-    useExcludeRules: contextUseExcludeRules
+    extractTags: contextExtractTags,
+    useGlobalRules: contextUseGlobalRules
   });
   const processedRawRecentText = applyContextExtractionRules(rawRecentText, {
-    useExtractRules: contextUseExtractRules,
-    useExcludeRules: contextUseExcludeRules
+    extractTags: contextExtractTags,
+    useGlobalRules: contextUseGlobalRules
   });
 
   const worldbookContent = await buildSelectedWorldbookContent({ worldbooks: normalizedConfig.worldbooks });

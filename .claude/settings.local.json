@@ -14,8 +14,24 @@
       "Bash(find modules/ui/components -name \"*.js\" -exec grep -l \"yyt-select\\\\|yyt-textarea\" {} \\\\;)",
       "Bash(npm *)",
       "Bash(grep -E \"\\\\.js$\")",
-      "WebSearch"
+      "WebSearch",
+      "Bash(cat rollup.config.mjs)",
+      "Bash(cat rollup.config.js)",
+      "Bash(grep -v 'yyt-native\\\\|native-select\\\\|enhanceNative\\\\|destroyEnhanced\\\\|$native\\\\|nativeTag\\\\|nativeType\\\\|nativeAttr\\\\|nativeMarkup\\\\|includeNative')",
+      "Bash(grep -oE \".{0,20}new [A-Z][a-z]\\\\b.{0,20}\" dist/bundle.js)",
+      "Bash(sed -i 's/ \\\\* @version 1\\\\.0\\\\.106/ * @version 1.0.107/' index.js)",
+      "Bash(sed -i 's/1\\\\.0\\\\.106/1.0.107/g' README.md)",
+      "Bash(sed -i 's/ \\\\* @version 1\\\\.0\\\\.107/ * @version 1.0.108/' index.js)",
+      "Bash(sed -i 's/1\\\\.0\\\\.107/1.0.108/g' README.md)",
+      "Bash(sed -i 's/ \\\\* @version 1\\\\.0\\\\.108/ * @version 1.0.109/' index.js)",
+      "Bash(sed -i 's/1\\\\.0\\\\.108/1.0.109/g' README.md)",
+      "Bash(sed -i 's/ \\\\* @version 1\\\\.0\\\\.109/ * @version 1.0.110/' index.js)",
+      "Bash(sed -i 's/1\\\\.0\\\\.109/1.0.110/g' README.md)",
+      "Bash(xargs grep -l \"handleVariablesInMessage\\\\|setChatMessages\\\\|MESSAGE_RECEIVED\\\\|MESSAGE_UPDATED\\\\|generation_ended\\\\|GENERATION_ENDED\")",
+      "Bash(sed -i \"s/SCRIPT_VERSION = '1.0.119'/SCRIPT_VERSION = '1.0.120'/\" index.js)",
+      "Bash(sed -i 's/1\\\\.0\\\\.119/1.0.120/;s/1\\\\.0\\\\.118/1.0.120/;s/1\\\\.0\\\\.117/1.0.120/' README.md)"
     ]
   },
-  "spinnerTipsEnabled": false
+  "spinnerTipsEnabled": false,
+  "prefersReducedMotion": true
 }

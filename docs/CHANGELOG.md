@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.121] - 2026-05-08
+
+### 改进
+
+- 🔧 **正则规则改为自定义 textarea** (`modules/ui/components/table-workbench-panel.js`)
+  - 原有 `contextUseExtractRules` / `contextUseExcludeRules` 两个全局复选框替换为自定义提取标签 textarea（`contextExtractTags`）+ 一个"同时应用全局规则"复选框（`contextUseGlobalRules`）
+  - textarea 支持每行一个规则，格式与工具配置面板的提取标签一致（普通文本 / `regex:` 前缀）
+  - `table-schema-service.js` `normalizeTableWorkbenchConfig` 自动向后兼容旧字段
+
 ## [1.0.120] - 2026-05-08
 
 ### 新增
