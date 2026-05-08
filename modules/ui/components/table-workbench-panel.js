@@ -874,7 +874,10 @@ export const TableWorkbenchPanel = {
         if (result?.success || result?.nextTables) {
           const freshCfg = getTableWorkbenchConfig();
           const liveTables = result.nextTables || result.state?.tables || [];
+          console.log('[YYT-TWB] nextTables:', JSON.stringify(liveTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
+          console.log('[YYT-TWB] configTables:', JSON.stringify(freshCfg.tables?.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
           const mergedTables = mergeLiveRowsIntoConfig(freshCfg.tables, liveTables, 'exact');
+          console.log('[YYT-TWB] mergedTables:', JSON.stringify(mergedTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length, source: t?.__liveSourceKind }))));
           self.lastLiveConfig = { ...freshCfg, tables: mergedTables, __liveSourceKind: 'exact' };
           self.lastLiveTarget = result.targetSnapshot || null;
         }
