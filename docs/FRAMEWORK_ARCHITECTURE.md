@@ -1,6 +1,6 @@
 # FRAMEWORK ARCHITECTURE
 
-本文档基于当前 `1.0.100` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
+本文档基于当前 `1.0.121` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
 
 它不是按文件列表罗列细节，而是按“遇到问题时应该先理解哪条主线”来组织内容。
 
@@ -15,6 +15,8 @@
 - `modules/tool-automation-service.js`
 - `modules/tool-output-service.js`
 - `modules/context-injector.js`
+- `modules/table-engine/table-schema-service.js`
+- `modules/table-engine/table-update-service.js`
 
 ## 1. 一句话框架结论
 
@@ -280,17 +282,26 @@ window.YouYouToolkit
 - 提取 message identity
 - 对 same-slot 事件做 fallback 目标解析
 - 调度 assistant 消息处理
-- 维护 slot queue 与 completed generation keys
+- 维护 slot dedup 状态与 own-write 黑名单
 - 记录 transaction history 与 host binding 状态
 
-### 6.2 generation-aware 是核心设计
+当前监听的事件：
 
-自动链当前不是“收到事件就盲跑”，而是 generation-aware：
+- `MESSAGE_RECEIVED`（主触发，leading-edge 3s 节流）
+- `CHAT_CHANGED`（teardown / rebuild 当前聊天绑定）
+- `GENERATION_STOPPED`（取消正在进行中的请求）
 
-- 用 `messageId + contentHash` 区分 generation
-- 同一楼层 reroll/swipe 产生新内容时，不把它误判成旧事务
-- 同一槽位内维持串行化
-- 用 transaction 记录阶段、结果、错误与写回状态
+以下事件已在 1.0.111 重写后移除，不再作为自动触发源：`GENERATION_ENDED`、`MESSAGE_SWIPED`、`GENERATION_AFTER_COMMANDS`、`MESSAGE_DELETED`。
+
+### 6.2 slot-based dedup 是核心设计
+
+自动链当前不是”收到事件就盲跑”，而是基于槽位身份的去重模型：
+
+- 用 `messageId::swipeId` 作为槽位键区分不同 generation（不是 `messageId + contentHash`）
+- 模块级 `_isProcessing` 互斥锁保证同一时刻只有一次执行
+- `_ownWriteMessageIds` 短 TTL 黑名单，防止工具写回触发的消息事件再次激活自动链（避免自触发循环）
+- `_recentlyProcessedSlots` Map 记录近期已处理的槽位键，替代旧的 `_completedGenerationKeys`
+- 取消路径：`GENERATION_STOPPED` 事件 → `controller.abort()` 中止正在进行的请求
 
 当前事务阶段包括：
 
@@ -332,7 +343,7 @@ window.YouYouToolkit
 
 - 当前 chatId
 - enabled 状态
-- pending timer / slot queue / completed generation key 统计
+- pending timer / `recentlyProcessedSlotCount` / `ownWriteBlacklistSize` 统计
 - 最近事务快照
 - host event binding 状态
 - 当前自动化设置
@@ -433,27 +444,65 @@ window.YouYouToolkit
 
 ## 8. tableWorkbench / table domain 的当前定位
 
-当前 tableWorkbench 已经不是旧的 JSON-only 文本试验区，而是一个独立的 table domain 工作台。
+当前 tableWorkbench 是一个独立的 table domain 工作台，有自己的模块层级和 UI 结构。
 
-从现有结构看，它至少具备：
+### 8.1 资产类型
 
-- 独立顶级导航位置
-- 面向表定义的结构化编辑入口
-- draft 到 runtime tables 的编译/校验链
-- 模板资产、聊天 guide 与提示词预设三类非 live-state 资产
-- shujuku 风格模板解析，以及 shujuku 填表 prompt group 导入 / 导出
-- 手动执行入口
-- target resolve 与 bound state 相关能力
+tableWorkbench 管理两类非 live-state 资产：
 
-但仍应把它理解为：
+- **模板资产**（template assets）：可复用的表格结构模板
+- **聊天 guide**（chat guide）：与当前聊天绑定的填表引导
 
-- 当前主 execution / writeback 架构中的一个 domain
-- 在既有稳定边界上推进 authoring UX 的工作台
+独立提示词预设层已在 1.0.103 移除。AI 指令预设现通过 bypass-manager 绑定。
 
-而不是：
+### 8.2 table engine 模块映射
 
-- 脱离主线的一套新状态机
-- 可以绕开 revision-safe / writeback-safe 设计的旁路系统
+- `table-schema-service.js` — 配置/运行时入口，表格 schema 解析与归一化
+- `table-update-service.js` — 手动与自动填表执行
+- `table-state-service.js` — 绑定状态与模板加载
+- `table-target-resolver.js` — 目标消息解析
+- `table-history-service.js` — 5 级 cascade 重建
+- `table-diff-service.js` — diff 计算
+- `table-writeback-service.js` — 结构化写回提交
+- `table-lock-service.js` — 单元格/行/列锁定
+- `table-scope-service.js` — runScope 执行域约束
+- `table-guide-service.js` — 聊天 guide 管理
+- `table-template-service.js` — 模板资产管理
+- `table-types.js` — 共享类型与工具函数
+- `table-json-sanitizer.js` — AI 响应解析与清洗
+
+### 8.3 UI 结构
+
+- **主控制台**：运行开关、自动更新、AI 绑定、上下文配置、模板入口、手动运行、表格概览
+- **单表配置抽屉**：各表的详细配置（不再是 config / runtime / preview 三视图）
+
+### 8.4 runScope
+
+runScope 支持三个值：`current` / `selected` / `all`。
+
+- prompt 会告知 AI 哪些表可编辑、哪些只读
+- parse 层在写回前执行 scope 约束检查
+
+### 8.5 上下文增强
+
+填表请求支持以下上下文字段：
+
+- `contextDepth`
+- `contextRoles`
+- `contextExtractTags`
+- `contextUseGlobalRules`
+- `worldbooks`
+- `sendLatestRows`
+
+### 8.6 运行时隔离与写回
+
+- **聊天隔离**：`CHAT_CHANGED` 事件触发各面板的 live 缓存清除
+- **实时行显示**：`mergeLiveRowsIntoConfig` 检查实际行数据是否存在后再合并
+- **写回**：通过 `TavernHelper.setChatMessages` 提交，自动化写回使用 `skipNotify`
+
+### 8.7 定位约束
+
+tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是独立的状态机，也不是绕过 revision-safe / writeback-safe 设计的旁路系统。
 
 ## 9. compatibility 模块与非主线路径
 
@@ -551,7 +600,14 @@ window.YouYouToolkit
 
 ### 10.8 tableWorkbench 问题
 
-先看 table domain 模块本身，再回看是否触碰了：
+先看对应 table engine 模块：
+
+- `modules/table-engine/table-schema-service.js` — 配置解析与 schema 问题
+- `modules/table-engine/table-scope-service.js` — runScope 约束问题
+- `modules/table-engine/table-update-service.js` — 执行与填表问题
+- `modules/table-engine/table-state-service.js` — 绑定状态与模板加载问题
+
+再回看是否触碰了：
 
 - execution context
 - slot identity

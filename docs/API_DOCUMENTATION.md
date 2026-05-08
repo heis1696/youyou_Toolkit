@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明当前 `1.0.100` 代码基线下的公开 API、执行入口与运行模型。
+本文档说明当前 `1.0.121` 代码基线下的公开 API、执行入口与运行模型。
 
 当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 
@@ -159,12 +159,13 @@ const toolkit = window.YouYouToolkit;
 
 ### 4.3 `modules/tool-automation-service.js`
 
-这是当前自动执行唯一入口，负责：
+这是当前自动执行唯一入口（1.0.111 重写），负责：
 
-- 绑定宿主消息事件
-- 统一事件名到 `UPPER_SNAKE_CASE`
-- 基于 `messageId + contentHash` 区分 generation
-- 以 assistant 槽位为单位做串行化处理
+- 绑定宿主消息事件：仅订阅 `MESSAGE_RECEIVED`（3s 节流）、`CHAT_CHANGED`、`GENERATION_STOPPED`
+- 基于 `messageId::swipeId` 槽位去重，去重状态存储在 `_recentlyProcessedSlots` Map 中
+- 模块级互斥锁 `_isProcessing` boolean 保证同一时刻只有一条执行链在运行
+- Own-write 黑名单 `_ownWriteMessageIds` Set 防止自写消息触发再次自动执行循环
+- 取消：`GENERATION_STOPPED` 事件通过 `controller.abort()` 终止进行中的请求
 - 过滤可自动执行工具
 - 驱动自动 `post_response_api` 执行与结果诊断
 
@@ -173,7 +174,8 @@ const toolkit = window.YouYouToolkit;
 - `enabled`
 - `pendingTimerCount`
 - `queuedSlotCount`
-- `completedGenerationKeyCount`
+- `recentlyProcessedSlotCount`
+- `ownWriteBlacklistSize`
 - `recentTransactions`
 - `hostBinding`
 - `settings`
@@ -226,14 +228,18 @@ const result = await window.YouYouToolkit.processCurrentAssistantMessage({ force
 当前自动执行流程：
 
 ```text
-宿主事件
-  -> tool-automation-service 归一化事件 / 解析 messageId
+宿主事件（MESSAGE_RECEIVED / CHAT_CHANGED / GENERATION_STOPPED）
+  -> tool-automation-service 归一化事件 / 解析 messageId::swipeId
+  -> _isProcessing 互斥检查（若已占用则跳过）
+  -> _ownWriteMessageIds 黑名单检查（自写消息跳过）
+  -> _recentlyProcessedSlots 槽位去重检查
   -> buildExecutionContextForMessage()
   -> 筛选 automation.enabled === true 的 post_response_api 工具
   -> 按 slot 串行执行 runToolPostResponse()
   -> 若 tableWorkbench.autoUpdateEnabled === true 且 trigger=assistantMessage，则继续执行 runAutoTableUpdate()
   -> context-injector.injectDetailed() / table structured commit
   -> 以 refreshConfirmed 等结果更新事务状态
+  -> GENERATION_STOPPED 事件到达时 controller.abort() 终止进行中请求
 ```
 
 说明：
@@ -264,9 +270,8 @@ runToolManually(toolId)
 
 补充：
 - `follow_ai` 的手动执行由 `executeToolByResolvedPath()` 分派到 `runToolFollowAiManual()`。
-- 因此 `follow_ai` 不是“什么都不做”的占位模式，而是手动链上的独立额外请求路径。
-- 当 tableWorkbench 选择了填表提示词预设时，`buildTableWorkbenchToolConfig()` 会把预设 segments 作为 `promptMessages` 交给 `tool-prompt-service`，请求会按 segment 顺序构建；未选择预设时继续使用 legacy `promptTemplate`。
-- 填表提示词预设属于 prompt asset，只影响请求消息，不写入 live table rows；shujuku `tableEdit` 预设当前仍会提示兼容边界，原生提交链以 JSON / incremental edits 解析为准。
+- 因此 `follow_ai` 不是”什么都不做”的占位模式，而是手动链上的独立额外请求路径。
+- 填表工作台的 AI 指令预设通过 bypass-manager 绑定，走统一的 Ai 指令预设管理。手动填表入口是 `runManualTableUpdate()`，构建 context 时读取 contextDepth / contextRoles / contextExtractTags / contextUseGlobalRules / worldbooks / sendLatestRows 等上下文增强配置。
 
 ### 5.3 提取预览链
 
@@ -295,6 +300,30 @@ previewToolExtraction(toolId)
 - `primaryEntry`
 - `selectors`
 - `maxMessages`
+
+### 5.4 填表执行链
+
+手动入口：`table-update-service.js` 中的 `runManualTableUpdate()`。
+自动入口：`tool-automation-service.js` 在收到 assistant 消息时，若 `tableWorkbench.autoUpdateEnabled === true`，则在工具执行链末尾继续调用 `runAutoTableUpdate()`。
+
+上下文增强字段：
+
+- `contextDepth`：向上取消息层数，默认 8
+- `contextRoles`：消息角色范围，`'all'` 或 `'assistant_only'`
+- `contextExtractTags`：每行自定义提取规则
+- `contextUseGlobalRules`：是否合并全局正则规则
+- `worldbooks`：`{ enabled, selected }`，控制世界书内容注入
+- `sendLatestRows`：`-1` 为全量发送，`>0` 为每张表最多发送的行数
+
+runScope 模式（控制 AI 可编辑哪些表）：
+
+- `current`：仅当前选中表
+- `selected`：已勾选的多张表
+- `all`：所有已启用表
+
+聊天隔离：`CHAT_CHANGED` 事件触发时清空实时行缓存，防止跨聊天串数据。
+
+写回：使用 `TavernHelper.setChatMessages` 刷新宿主 UI；自动填表写回时附带 `skipNotify` 标记，避免触发二次自动执行循环。
 
 ## 6. 输出模式说明
 

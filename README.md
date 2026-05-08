@@ -1,6 +1,6 @@
 # YouYou Toolkit - SillyTavern 工具插件
 
-> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.111`。
+> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.121`。
 
 YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配置工具链插件。
 
@@ -35,10 +35,15 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 - 工作台顶部信息区进一步瘦身，释放主内容区域空间
 - 工具运行态显示最近状态、错误、执行路径、写回状态等信息
 - 工具页与工具列表页共享统一配置模型
-- 填表工作台改为“主界面运行控制台 + 单表配置子窗口”：运行、自动更新、AI 绑定、模板入口、手动更新与表格概览留在主界面，字段结构、数据行、表格级 AI 操作说明进入右侧配置抽屉
+- 填表工作台改为”主界面运行控制台 + 单表配置子窗口”：运行、自动更新、AI 绑定、模板入口、手动更新与表格概览留在主界面，字段结构、数据行、表格级 AI 操作说明进入右侧配置抽屉
 - 填表工作台视觉回退到工具箱原生控件语言：运行控制台、设置卡片、表格概览、单表编辑抽屉、字段卡片、数据行卡片和诊断折叠区统一使用更扁平、更宽松的原生面板/按钮/输入控件样式
-- 填表工作台提供内置默认剧情状态模板，支持显式应用模板，可解析 shujuku 风格 `sheet_*` 模板；模板库、聊天 guide 与 live table rows 分层保存。
-- 外部填表提示词组可导入到现有 Ai 指令预设管理中，再通过填表工作台的“绑定 Ai 指令预设”使用；Ai 指令预设内置默认填表预设，可直接选择或复制编辑。
+- 填表工作台提供内置默认剧情状态模板，支持显式应用模板，可解析 shujuku 风格 `sheet_*` 模板；模板库、聊天 guide 与 live table rows 三层分层保存（prompt preset 第三层已移除）。
+- 外部填表提示词组可导入到现有 Ai 指令预设管理中，再通过填表工作台的”绑定 Ai 指令预设”经 bypass-manager 使用；Ai 指令预设内置默认填表预设，可直接选择或复制编辑。Ai 指令预设不再作为独立 prompt preset 管理。
+- 填表工作台上下文增强：可配置消息深度（`contextDepth`）、角色过滤（`contextRoles`）、自定义正则提取规则（`contextExtractTags`）、全局规则开关（`contextUseGlobalRules`）、世界书注入（`worldbooks`）与 `sendLatestRows`。
+- 填表工作台支持按聊天隔离面板状态，监听 `CHAT_CHANGED` 事件切换上下文。
+- 填表工作台实时行数据通过 `mergeLiveRowsIntoConfig` 展示，与持久化行分开跟踪。
+- 填表工作台 `runScope` 约束执行范围为 current / selected / all 三档，防止越界操作。
+- 填表写回通过 `TavernHelper.setChatMessages` 完成刷新确认。
 - 兼容模块按需加载，降低启动期负担
 
 ## 当前架构
@@ -67,6 +72,8 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 
 当前自动主线会先执行自动条件满足的 `post_response_api` 工具；若 `tableWorkbench.autoUpdateEnabled === true` 且触发时机为 `assistantMessage`，同一 generation 事务内还会继续执行自动填表。
 
+1.0.111 自动化链进行了完整重写：事件模型收口为仅监听 `MESSAGE_RECEIVED`，基于 `messageId::swipeId` 的槽位级去重，自身写回黑名单（own-write blacklist）防止写回触发递归，支持 `GENERATION_STOPPED` 取消检测，写回使用 `skipNotify` 标志。
+
 ## 目录结构
 
 ```text
@@ -84,7 +91,22 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 │   ├── tool-output-service.js
 │   ├── tool-prompt-service.js
 │   ├── context-injector.js
-│   └── tool-executor.js
+│   ├── tool-executor.js
+│   └── table-engine/
+│       ├── table-schema-service.js
+│       ├── table-update-service.js
+│       ├── table-state-service.js
+│       ├── table-target-resolver.js
+│       ├── table-history-service.js
+│       ├── table-diff-service.js
+│       ├── table-writeback-service.js
+│       ├── table-lock-service.js
+│       ├── table-scope-service.js
+│       ├── table-provider-service.js
+│       ├── table-guide-service.js
+│       ├── table-template-service.js
+│       ├── table-types.js
+│       └── table-json-sanitizer.js
 ├── docs/
 │   ├── API_DOCUMENTATION.md
 │   ├── ARCHITECTURE_ANALYSIS.md
@@ -131,5 +153,5 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 
 ## 版本说明
 
-- 当前 `package.json` 版本：`1.0.111`
-- 当前发布版本：`1.0.120`
+- 当前 `package.json` 版本：`1.0.121`
+- 当前发布版本：`1.0.121`

@@ -1,6 +1,6 @@
 # 架构分析
 
-本文档基于当前 `1.0.100` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
+本文档基于当前 `1.0.121` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
 
 结论先行：当前仓库已经不是“旧 trigger 管理器驱动的一组散模块”，而是围绕薄入口、bootstrap 装配、popup shell、运行时 tool registry、统一 execution context、自动化事务服务与写回链组织起来的一条主线。
 
@@ -273,35 +273,23 @@
 
 当前自动执行唯一主入口是 `tool-automation-service.js`。它负责：
 
-- 绑定宿主 `MESSAGE_RECEIVED` / `MESSAGE_SWIPED` / `GENERATION_AFTER_COMMANDS` / `GENERATION_ENDED` / `CHAT_CHANGED` / `MESSAGE_DELETED`
+- 只监听 `MESSAGE_RECEIVED`（3 秒 throttle，leading edge），不再监听 `GENERATION_ENDED`
+- 监听 `CHAT_CHANGED` 做 teardown + rebuild
+- 监听 `GENERATION_STOPPED` 做 cancel（`controller.abort()`）
 - 把事件名统一归一化成 `UPPER_SNAKE_CASE`
 - 从事件参数提取 message identity
-- 对 same-slot 事件做 fallback 目标解析
 - 调度 assistant 消息处理
-- 维护 slot queue 与 completed generation keys
+- 维护 `_recentlyProcessedSlots` Map 与 `_ownWriteMessageIds` Set
 - 输出 transaction history 与 host binding 状态
 
-### 7.2 generation-aware 事务模型
+### 7.2 slot-based 去重与 own-write 防循环
 
-这个服务当前最重要的设计是 generation-aware：
+1.0.111 重写后，去重模型从 `messageId + contentHash` 改为 slot-based：
 
-- 使用 `messageId + contentHash` 区分 generation
-- 同一楼层 reroll/swipe 产生新内容时，不把它误认成旧事务
-- 同一槽位内维持串行化
-- 通过 `Transaction` 对象跟踪 phase、verdict、error、toolResults、writebackState、refreshState
-
-事务阶段当前包含：
-
-- `received`
-- `confirmed`
-- `context_built`
-- `request_started`
-- `request_finished`
-- `writeback_started`
-- `writeback_committed`
-- `refresh_confirmed`
-- `skipped`
-- `failed`
+- 去重键为 `messageId::swipeId`，存入 `_recentlyProcessedSlots` Map（带 TTL）
+- 模块级 `_isProcessing` boolean mutex 阻止并发执行
+- `_ownWriteMessageIds` Set 记录自己刚写回的 messageId，throttle 窗口内同 messageId 事件直接跳过，防止写回 → 事件 → 重触发的自激循环
+- `GENERATION_STOPPED` 事件触发 `controller.abort()` + cancelled 标志，写回前检查
 
 ### 7.3 自动链做什么，不做什么
 
@@ -326,7 +314,7 @@
 
 - 当前 chatId
 - enabled 状态
-- pending timer / slot queue / completed generation key 统计
+- pending timer / `_recentlyProcessedSlots` / `_ownWriteMessageIds` 统计
 - 最近事务快照
 - host event binding 状态
 - 当前自动化设置
@@ -388,35 +376,74 @@
 
 当前 tableWorkbench 已经不是早期的 JSON-only textarea 试验区，而是一个独立顶级页签与 table domain 工作台。
 
-从现有结构看，它至少已经具备：
+### 9.1 资产分层
 
-- 独立顶级导航位置
-- 面向表定义的结构化编辑入口
-- draft 到 runtime tables 的编译/校验链
-- 模板资产、聊天 guide 与提示词预设三类非 live-state 资产
-- shujuku 风格模板解析，以及 shujuku 填表 prompt group 导入 / 导出
-- 手动执行入口
-- target resolve 与 bound state 相关能力
-- `config / runtime / preview` 三视图工作台壳层
+填表系统维护两类非 live-state 资产：
 
-但它仍应被理解为：
+- **模板资产**（template）：表结构定义、默认行/种子行、AI 操作说明。由 `table-template-service.js` 管理。
+- **聊天 guide**：当前聊天启用哪些表、表顺序、局部结构调整。由 `table-guide-service.js` 管理。
 
-- 当前主 execution / writeback 架构上的一个 domain
-- 在现有稳定边界上推进 authoring UX 的工作台
+AI 指令预设通过 bypass-manager 绑定到工作台，不再作为独立的第三类资产（独立 prompt preset 层已在 1.0.103 移除）。
 
-而不应被理解为：
+Live committed rows 保存在绑定态中，不混回模板配置。
 
-- 一套独立于主线之外的新状态机
-- 可以绕开现有 revision-safe / writeback-safe 设计的旁路系统
+### 9.2 table-engine 模块
 
-更细的模块化优化方案与 UI / authoring / runtime / template / automation 分层口径，见：
-- `docs/TABLE_WORKBENCH_IMPLEMENTATION_DRAFT.md`
-- `docs/TABLE_WORKBENCH_STATUS_SUMMARY.md`
+`modules/table-engine/` 下的核心模块：
 
-当前更准确的 UI 演进方向是：
-- 保留顶层 `config / runtime / preview` 三视图
-- 在 `config` 内部向 visualizer MVP 推进
-- 吸收参考项目里的“当前对象焦点 + 主辅分区 + 渐进展开”，而不是把 tableWorkbench 重写成独立状态机
+| 模块 | 职责 |
+|------|------|
+| `table-schema-service.js` | 配置/运行时入口，默认模板，规范化/校验 |
+| `table-update-service.js` | 手动填表 (`runManualTableUpdate`) 与自动填表执行 |
+| `table-state-service.js` | 绑定态加载、template fallback |
+| `table-target-resolver.js` | 目标 assistant 消息解析 |
+| `table-history-service.js` | 5 级 cascade 历史重建 |
+| `table-diff-service.js` | 表差异计算 |
+| `table-writeback-service.js` | 结构化写回提交 |
+| `table-lock-service.js` | cell/row/column 锁定 |
+| `table-scope-service.js` | runScope 执行约束 |
+| `table-guide-service.js` | 聊天 guide 管理 |
+| `table-template-service.js` | 模板资产存取 |
+| `table-types.js` | 共享类型与工具函数 |
+| `table-json-sanitizer.js` | AI 响应解析与清洗 |
+
+### 9.3 UI 结构
+
+当前 UI 为**主界面运行控制台 + 单表配置抽屉**：
+
+- 主界面：运行按钮、自动更新设置、AI 绑定、上下文配置、模板入口、手动更新与表格概览
+- 抽屉：字段结构、数据行、表格级 AI 操作说明
+
+不再是旧 `config / runtime / preview` 三视图布局。
+
+### 9.4 runScope
+
+runScope 模式为 current / selected / all：
+
+- Prompt 构建层显式告诉 AI 哪些表可编辑、哪些只读
+- Parse/apply 层强约束：scope 外表格的编辑一律忽略，锁定字段不可修改
+- Full mode 对 scope 外表格从 merge base 恢复
+
+### 9.5 上下文增强
+
+`buildRequest()` 根据以下配置构建填表上下文：
+
+- `contextDepth`：消息深度（默认 8）
+- `contextRoles`：`'all'` | `'assistant_only'`
+- `contextExtractTags`：自定义提取标签（每行一个规则）
+- `contextUseGlobalRules`：合并全局正则提取/排除/黑名单规则
+- `worldbooks`：世界书注入（`{ enabled, selected }`）
+- `sendLatestRows`：每表发送最新 N 行（-1 = 全部）
+
+### 9.6 聊天隔离与实时数据
+
+- `CHAT_CHANGED` 事件清空面板 live cache
+- `mergeLiveRowsIntoConfig` 按实际 row 数据存在性合并，不依赖 sourceKind 白名单
+- 写回通过 `TavernHelper.setChatMessages` 刷新 UI，自动链写回传 `skipNotify` 避免重触发
+
+### 9.7 定位约束
+
+tableWorkbench 仍应被理解为当前主 execution / writeback 架构上的一个 domain，而不是脱离主线的独立状态机或可以绕开 revision-safe / writeback-safe 设计的旁路系统。
 
 ## 10. compatibility 与非主线路径
 
@@ -452,7 +479,7 @@
 5. 自动执行问题：看 `modules/tool-automation-service.js` -> `modules/tool-execution-context.js`
 6. 写回问题：看 `modules/context-injector.js`
 7. UI 面板渲染问题：看 `modules/ui/index.js`、`modules/ui/ui-manager.js`、`modules/ui/components/tool-config-panel-factory.js`
-8. tableWorkbench 问题：在 table domain 模块基础上，再回看是否触碰了 execution context / writeback 边界
+8. tableWorkbench 问题：先看具体 table-engine 模块（`table-schema-service.js` 配置问题、`table-scope-service.js` 作用域问题、`table-update-service.js` 执行问题、`table-state-service.js` 绑定态问题），再回看是否触碰了 execution context / slot identity / writeback 边界
 
 ## 12. 结论
 
