@@ -37,6 +37,8 @@ import { computeTableDiff } from './table-diff-service.js';
 import { resolveTableRunScope } from './table-scope-service.js';
 import { getTableProvider } from './table-provider-service.js';
 import { getLocks, isLocked, isRowLocked } from './table-lock-service.js';
+import { buildSelectedWorldbookContent } from '../tool-worldbook-service.js';
+import { extractTagContent, getTagRules, getContentBlacklist } from '../regex-extractor.js';
 
 function getLog() {
   return logger.createScope('TableUpdate');
@@ -48,13 +50,45 @@ function normalizeString(value, fallback = '') {
   return normalized || fallback;
 }
 
-function formatRecentMessages(messages = [], limit = 8) {
+function formatRecentMessages(messages = [], limit = 8, roles = 'all') {
   if (!Array.isArray(messages) || messages.length === 0) return '';
-  return messages
-    .slice(Math.max(messages.length - limit, 0))
+  const filtered = roles === 'assistant_only'
+    ? messages.filter(m => m?.role === 'assistant')
+    : messages;
+  return filtered
+    .slice(Math.max(filtered.length - limit, 0))
     .map((message) => `[${normalizeString(message?.role, 'unknown')}] ${String(message?.content || '').trim()}`)
     .filter(Boolean)
     .join('\n\n');
+}
+
+function applyContextExtractionRules(text, { useExtractRules = false, useExcludeRules = false } = {}) {
+  if (!text || (!useExtractRules && !useExcludeRules)) return text;
+  try {
+    const allRules = getTagRules() || [];
+    const blacklist = useExcludeRules ? (getContentBlacklist() || []) : [];
+    const activeRules = allRules.filter(rule => {
+      if (!rule?.enabled) return false;
+      const type = rule.type || '';
+      if (useExtractRules && (type === 'include' || type === 'regex_include')) return true;
+      if (useExcludeRules && (type === 'exclude' || type === 'regex_exclude')) return true;
+      return false;
+    });
+    if (activeRules.length === 0 && blacklist.length === 0) return text;
+    return extractTagContent(text, activeRules, blacklist) || text;
+  } catch (e) {
+    getLog().warn('applyContextExtractionRules 失败，回退原始文本', e);
+    return text;
+  }
+}
+
+function buildSendLatestRowsTables(tables = [], sendLatestRows = -1) {
+  if (!Number.isFinite(sendLatestRows) || sendLatestRows < 0) return tables;
+  return tables.map(table => {
+    const rows = Array.isArray(table?.rows) ? table.rows : [];
+    if (sendLatestRows === 0 || rows.length <= sendLatestRows) return table;
+    return { ...table, rows: rows.slice(rows.length - sendLatestRows) };
+  });
 }
 
 function formatTableGuidance(tables = []) {
@@ -366,18 +400,38 @@ export async function buildRequest({ executionContext, targetSnapshot, loadResul
 
   const isIncremental = fillMode === 'incremental' || (!fillMode && normalizedConfig.fillMode !== 'full');
 
+  const rawMessages = executionContext?.chatHistory || executionContext?.chatMessages || [];
+  const { contextDepth, contextRoles, contextUseExtractRules, contextUseExcludeRules, sendLatestRows } = normalizedConfig;
+
+  const recentText = formatRecentMessages(rawMessages, contextDepth, contextRoles);
+  const rawRecentText = formatRecentMessages(rawMessages, contextDepth, 'all');
+
+  const processedRecentText = applyContextExtractionRules(recentText, {
+    useExtractRules: contextUseExtractRules,
+    useExcludeRules: contextUseExcludeRules
+  });
+  const processedRawRecentText = applyContextExtractionRules(rawRecentText, {
+    useExtractRules: contextUseExtractRules,
+    useExcludeRules: contextUseExcludeRules
+  });
+
+  const worldbookContent = await buildSelectedWorldbookContent({ worldbooks: normalizedConfig.worldbooks });
+  const slicedTables = buildSendLatestRowsTables(requestPayload.tables, sendLatestRows);
+  const slicedPayload = { ...requestPayload, tables: slicedTables };
+
   const context = {
     ...executionContext,
     toolName: '填表工作台',
     toolId: 'tableWorkbench',
     lastAiMessage: executionContext?.assistantBaseText || executionContext?.lastAiMessage || '',
-    recentMessagesText: formatRecentMessages(executionContext?.chatHistory || executionContext?.chatMessages || []),
-    rawRecentMessagesText: formatRecentMessages(executionContext?.chatHistory || executionContext?.chatMessages || [], 20),
+    recentMessagesText: processedRecentText,
+    rawRecentMessagesText: processedRawRecentText,
+    toolWorldbookContent: worldbookContent,
     tableGuidance: formatTableGuidance(normalizedConfig.tables),
     tableScopeGuidance: formatScopeGuidance(runScope, requestPayload.tables),
     injectedContext: assistantSnapshot?.injectedContext || contextInjector.getLatestMessageInjectedContext(targetSnapshot?.sourceMessageId),
-    toolContentMacro: JSON.stringify(requestPayload, null, 2),
-    extractedContent: JSON.stringify(requestPayload, null, 2),
+    toolContentMacro: JSON.stringify(slicedPayload, null, 2),
+    extractedContent: JSON.stringify(slicedPayload, null, 2),
     previousToolOutput: JSON.stringify(previousTables, null, 2)
   };
 

@@ -23,6 +23,9 @@ import { ensureTableId, cloneTableValue } from '../../table-engine/table-types.j
 
 const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
+[data-twb-wb-selector] { margin-top:8px; padding:10px; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); }
+[data-twb-wb-list] { max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
+
 .yyt-twb {
   position:relative;
   display:flex;
@@ -313,6 +316,27 @@ function collect($c, fb) {
   };
   const $tm = $c.find('[data-twb-field="activeTemplate"]'); if ($tm.length) cfg.activeTemplate = String($tm.val() || '');
 
+  const $cd = $c.find('[data-twb-field="contextDepth"]');
+  if ($cd.length) cfg.contextDepth = Math.max(1, parseInt($cd.val(), 10) || 8);
+  const $cr = $c.find('[data-twb-field="contextRoles"]:checked');
+  if ($cr.length) cfg.contextRoles = String($cr.val() || 'all');
+  const $cer = $c.find('[data-twb-field="contextUseExtractRules"]');
+  if ($cer.length) cfg.contextUseExtractRules = $cer.is(':checked');
+  const $cee = $c.find('[data-twb-field="contextUseExcludeRules"]');
+  if ($cee.length) cfg.contextUseExcludeRules = $cee.is(':checked');
+  const $slr = $c.find('[data-twb-field="sendLatestRows"]');
+  if ($slr.length) { cfg.sendLatestRows = parseInt($slr.val(), 10); if (!Number.isFinite(cfg.sendLatestRows)) cfg.sendLatestRows = -1; }
+  const $wbe = $c.find('[data-twb-field="worldbooksEnabled"]');
+  const wbSelected = [];
+  $c.find('[data-twb-wb-item]:checked').each(function () {
+    const name = String($(this).attr('data-twb-wb-name') || '').trim();
+    if (name) wbSelected.push(name);
+  });
+  cfg.worldbooks = {
+    enabled: $wbe.length ? $wbe.is(':checked') : (cfg.worldbooks?.enabled === true),
+    selected: wbSelected.length > 0 ? wbSelected : (Array.isArray(cfg.worldbooks?.selected) ? cfg.worldbooks.selected : [])
+  };
+
   cfg.tables = tables;
   return cfg;
 }
@@ -512,6 +536,51 @@ function renderTableOverviewList(cfg) {
     </section>`;
 }
 
+function renderContextConfigCard(cfg) {
+  const depth = Number.isFinite(cfg.contextDepth) ? cfg.contextDepth : 8;
+  const roles = cfg.contextRoles === 'assistant_only' ? 'assistant_only' : 'all';
+  const useExtract = cfg.contextUseExtractRules === true;
+  const useExclude = cfg.contextUseExcludeRules === true;
+  const sendLatestRows = Number.isFinite(cfg.sendLatestRows) ? cfg.sendLatestRows : -1;
+  const wbEnabled = cfg.worldbooks?.enabled === true;
+  return `
+    <article class="yyt-panel-section yyt-twb-card">
+      <div class="yyt-twb-card-header">
+        <div><h3>上下文配置</h3><p>控制发给填表 AI 的消息深度、角色过滤与世界书注入。</p></div>
+      </div>
+      <label class="yyt-twb-field">
+        <span>消息深度</span>
+        <input class="yyt-input" type="number" min="1" max="100" data-twb-field="contextDepth" value="${escapeHtml(String(depth))}">
+        <small>向 AI 发送最近 N 条消息作为上下文。默认 8。</small>
+      </label>
+      <label class="yyt-twb-field">
+        <span>消息角色</span>
+        <div class="yyt-twb-radio-group">
+          <label><input type="radio" name="twbContextRoles" value="all" data-twb-field="contextRoles" ${roles === 'all' ? 'checked' : ''}>全部消息（user + assistant）</label>
+          <label><input type="radio" name="twbContextRoles" value="assistant_only" data-twb-field="contextRoles" ${roles === 'assistant_only' ? 'checked' : ''}>仅 AI 消息</label>
+        </div>
+      </label>
+      <div class="yyt-twb-field">
+        <span>正则规则过滤</span>
+        <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="contextUseExtractRules" ${useExtract ? 'checked' : ''}><span>应用全局提取规则（include / regex_include）</span></label>
+        <label class="yyt-twb-check-row" style="margin-top:6px"><input type="checkbox" data-twb-field="contextUseExcludeRules" ${useExclude ? 'checked' : ''}><span>应用全局排除规则（exclude / regex_exclude + 黑名单）</span></label>
+        <small>与"正则提取"面板中的全局规则共享同一规则集。</small>
+      </div>
+      <label class="yyt-twb-field">
+        <span>发送最新行数</span>
+        <input class="yyt-input" type="number" min="-1" data-twb-field="sendLatestRows" value="${escapeHtml(String(sendLatestRows))}">
+        <small>每张表最多发送最后 N 行给 AI。-1 表示全部发送。</small>
+      </label>
+      <div class="yyt-twb-field">
+        <span>世界书注入</span>
+        <label class="yyt-twb-check-row"><input type="checkbox" data-twb-field="worldbooksEnabled" ${wbEnabled ? 'checked' : ''}><span>启用世界书注入</span></label>
+        <div class="yyt-twb-worldbook-selector ${wbEnabled ? '' : 'yyt-hidden'}" data-twb-wb-selector>
+          <div class="yyt-twb-worldbook-list" data-twb-wb-list></div>
+        </div>
+      </div>
+    </article>`;
+}
+
 function renderDashboard(cfg) {
   return `
     <main class="yyt-twb-dashboard">
@@ -519,6 +588,7 @@ function renderDashboard(cfg) {
         ${renderRuntimeOverview(cfg)}
         ${renderAutoUpdateSettings(cfg)}
         ${renderAiBindingSettings(cfg)}
+        ${renderContextConfigCard(cfg)}
         ${renderTemplateManager(cfg)}
         ${renderManualRunPanel(cfg)}
       </section>
@@ -729,6 +799,8 @@ export const TableWorkbenchPanel = {
   editorOpen: false,
   lastDiff: null,
   pendingTemplateApplyId: '',
+  availableWorldbooks: [],
+  worldbookLoadState: 'idle',
 
   render({ config } = {}) {
     const cfg = config && typeof config === 'object' ? config : getTableWorkbenchConfig();
@@ -750,6 +822,18 @@ export const TableWorkbenchPanel = {
     const self = this;
     $container.off('.twb');
     this._subscribeChatChanged($container);
+
+    $container.on('change.twb', '[data-twb-field="worldbooksEnabled"]', function () {
+      const checked = $(this).is(':checked');
+      $container.find('[data-twb-wb-selector]').toggleClass('yyt-hidden', !checked);
+      if (checked && self.availableWorldbooks.length === 0 && self.worldbookLoadState === 'idle') {
+        self._loadTableWorldbooks($container);
+      }
+    });
+
+    $container.on('change.twb', '[data-twb-wb-item]', function () {
+      self._updateWorldbookSummary($container);
+    });
 
     $container.on('click.twb', '[data-twb-action="open-table-editor"]', function (e) {
       e.stopPropagation();
@@ -1142,6 +1226,51 @@ export const TableWorkbenchPanel = {
         };
       }
     } catch (_) {}
+  },
+
+  async _loadTableWorldbooks($container) {
+    this.worldbookLoadState = 'loading';
+    this._renderWorldbookList($container);
+    try {
+      const { getAvailableWorldbooks } = await import('../../tool-worldbook-service.js');
+      const books = await getAvailableWorldbooks();
+      this.availableWorldbooks = Array.isArray(books) ? books : [];
+    } catch (_) {
+      this.availableWorldbooks = [];
+    }
+    this.worldbookLoadState = 'ready';
+    this._renderWorldbookList($container);
+  },
+
+  _renderWorldbookList($container) {
+    const $ = getJQuery();
+    const $list = $container.find('[data-twb-wb-list]');
+    if (!$list.length) return;
+    const cfg = this.lastLiveConfig || getTableWorkbenchConfig();
+    const selected = new Set(Array.isArray(cfg.worldbooks?.selected) ? cfg.worldbooks.selected : []);
+    const books = this.availableWorldbooks;
+
+    if (this.worldbookLoadState === 'loading') {
+      $list.html('<div style="padding:6px;color:var(--yyt-text-muted);font-size:12px">世界书加载中…</div>');
+      return;
+    }
+    if (books.length === 0) {
+      $list.html('<div style="padding:6px;color:var(--yyt-text-muted);font-size:12px">无可用世界书。</div>');
+      return;
+    }
+    $list.html(books.map(b => `<label class="yyt-twb-check-row" style="margin-bottom:4px">
+      <input type="checkbox" data-twb-wb-item data-twb-wb-name="${escapeHtml(b)}" ${selected.has(b) ? 'checked' : ''}>
+      <span>${escapeHtml(b)}</span>
+    </label>`).join(''));
+  },
+
+  _updateWorldbookSummary($container) {
+    const $ = getJQuery();
+    const selected = [];
+    $container.find('[data-twb-wb-item]:checked').each(function () {
+      const name = String($(this).attr('data-twb-wb-name') || '').trim();
+      if (name) selected.push(name);
+    });
   },
 
   async _refreshLiveState($container) {

@@ -1067,6 +1067,12 @@ export function getTableWorkbenchDefaultConfig() {
       activeTableId: ''
     },
     fillMode: TABLE_FILL_MODE.INCREMENTAL,
+    contextDepth: 8,
+    contextRoles: 'all',
+    contextUseExtractRules: false,
+    contextUseExcludeRules: false,
+    worldbooks: { enabled: false, selected: [] },
+    sendLatestRows: -1,
     mirrorToMessage: false,
     mirrorTag: 'yyt-table-workbench',
     runtime: normalizeRuntime()
@@ -1096,6 +1102,19 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     runScope: scope.mode,
     scope,
     fillMode: nextValue.fillMode === TABLE_FILL_MODE.FULL ? TABLE_FILL_MODE.FULL : defaults.fillMode,
+    contextDepth: Number.isFinite(Number(nextValue.contextDepth)) && Number(nextValue.contextDepth) > 0
+      ? Math.floor(Number(nextValue.contextDepth)) : defaults.contextDepth,
+    contextRoles: nextValue.contextRoles === 'assistant_only' ? 'assistant_only' : 'all',
+    contextUseExtractRules: normalizeBoolean(nextValue.contextUseExtractRules, false),
+    contextUseExcludeRules: normalizeBoolean(nextValue.contextUseExcludeRules, false),
+    worldbooks: {
+      enabled: normalizeBoolean(nextValue.worldbooks?.enabled, false),
+      selected: Array.isArray(nextValue.worldbooks?.selected)
+        ? nextValue.worldbooks.selected.filter(v => typeof v === 'string' && v.trim())
+        : []
+    },
+    sendLatestRows: Number.isFinite(Number(nextValue.sendLatestRows))
+      ? Math.floor(Number(nextValue.sendLatestRows)) : -1,
     mirrorToMessage: normalizeBoolean(nextValue.mirrorToMessage, defaults.mirrorToMessage),
     mirrorTag: normalizeString(nextValue.mirrorTag, defaults.mirrorTag),
     runtime: normalizeRuntime({

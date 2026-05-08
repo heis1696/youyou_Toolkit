@@ -9,6 +9,18 @@
 
 ## [Unreleased]
 
+## [1.0.120] - 2026-05-08
+
+### 新增
+
+- ✨ **填表上下文增强** (`modules/table-engine/table-schema-service.js`, `modules/table-engine/table-update-service.js`, `modules/ui/components/table-workbench-panel.js`)
+  - `contextDepth`：可配置消息深度（默认 8），控制发送最近多少条消息给填表 AI
+  - `contextRoles`：消息角色过滤（全部 / 仅 AI 消息），避免发送无关用户消息
+  - `contextUseExtractRules` / `contextUseExcludeRules`：复用工具箱已有的全局正则提取/排除规则过滤消息内容
+  - `worldbooks`：世界书注入，复用已有 `buildSelectedWorldbookContent` 基础设施
+  - `sendLatestRows`：每表只发送最新 N 行给 AI（-1 = 全部），减少 token 消耗
+  - 工作台新增"上下文配置"卡片，包含上述所有设置的 UI 控件
+
 ## [1.0.112] - 2026-05-08
 
 ### 修复
