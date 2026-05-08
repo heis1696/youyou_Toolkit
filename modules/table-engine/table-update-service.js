@@ -82,11 +82,18 @@ function formatTableGuidance(tables = []) {
 
 function formatScopeGuidance(runScope, tables = []) {
   if (!runScope || !Array.isArray(tables) || tables.length === 0) return '';
-  return tables.map((table, tableIndex) => {
+  const lines = tables.map((table, tableIndex) => {
     const tableName = normalizeString(table?.name, `表${tableIndex + 1}`);
     const editable = runScope.includes(table, tableIndex);
     return `表 ${tableIndex}: ${tableName} - ${editable ? '允许编辑' : '只读，禁止修改'}`;
-  }).join('\n');
+  });
+  const hasReadonly = tables.some((table, tableIndex) => !runScope.includes(table, tableIndex));
+  if (hasReadonly) {
+    lines.push('');
+    lines.push('【重要约束】标记为"只读"的表格，你必须在输出中原样保留其所有行数据，不得新增、修改或删除任何行。');
+    lines.push('全量输出时，只读表格的 rows 必须与输入中的完全一致。');
+  }
+  return lines.join('\n');
 }
 
 function normalizeRuntimeRow(row = {}, rowIndex = 0, columns = []) {
@@ -152,15 +159,17 @@ function mergeTablesByScope(baseTables = [], scopedTables = [], runScope) {
 }
 
 function filterIncrementalEditsByScope(edits = [], tables = [], runScope, locks = {}) {
-  if (!Array.isArray(edits) || !runScope) return [];
+  if (!Array.isArray(edits) || !runScope) return { edits: [], stats: { total: 0, passed: 0, droppedByScope: 0, droppedByLock: 0 } };
   const normalizedTables = normalizeRuntimeTables(tables);
   const filtered = [];
+  let droppedByScope = 0;
+  let droppedByLock = 0;
 
   for (const edit of edits) {
     const ti = Number.isFinite(edit?.tableIndex) ? edit.tableIndex : -1;
-    if (ti < 0 || ti >= normalizedTables.length) continue;
+    if (ti < 0 || ti >= normalizedTables.length) { droppedByScope++; continue; }
     const table = normalizedTables[ti];
-    if (!runScope.includes(table, ti)) continue;
+    if (!runScope.includes(table, ti)) { droppedByScope++; continue; }
 
     if (edit.op === TABLE_EDIT_OPERATIONS.INSERT_ROW) {
       filtered.push(edit);
@@ -168,10 +177,10 @@ function filterIncrementalEditsByScope(edits = [], tables = [], runScope, locks 
     }
 
     const ri = Number.isFinite(edit?.rowIndex) ? edit.rowIndex : -1;
-    if (ri < 0 || ri >= (Array.isArray(table?.rows) ? table.rows.length : 0)) continue;
+    if (ri < 0 || ri >= (Array.isArray(table?.rows) ? table.rows.length : 0)) { droppedByScope++; continue; }
 
     if (edit.op === TABLE_EDIT_OPERATIONS.DELETE_ROW) {
-      if (isRowLocked(locks, ti, ri)) continue;
+      if (isRowLocked(locks, ti, ri)) { droppedByLock++; continue; }
       filtered.push(edit);
       continue;
     }
@@ -179,7 +188,10 @@ function filterIncrementalEditsByScope(edits = [], tables = [], runScope, locks 
     filtered.push(edit);
   }
 
-  return filtered;
+  return {
+    edits: filtered,
+    stats: { total: edits.length, passed: filtered.length, droppedByScope, droppedByLock }
+  };
 }
 
 function buildScopedRequestTables(tables = [], runScope) {
@@ -585,6 +597,18 @@ async function runTableUpdate({
 
   const runtime = config.runtime || {};
   const runScope = resolveTableRunScope(config.scope || config, config.tables);
+  if ((runScope.mode === 'current' || runScope.mode === 'selected') && runScope.allowedTableIds.length === 0) {
+    const scopeError = runScope.mode === 'current' ? '未指定当前表格，无法执行。' : '未选择任何表格，无法执行。';
+    getLog().warn(scopeError, { mode: runScope.mode });
+    applyRuntimePatch({
+      lastStatus: TABLE_WORKBENCH_RUNTIME_STATUS.ERROR,
+      lastRunAt: startedAt,
+      lastDurationMs: 0,
+      lastError: scopeError,
+      lastErrorDetails: [scopeError]
+    }, runSource);
+    return { success: false, error: scopeError, errors: [scopeError] };
+  }
   let activeTargetSnapshot = null;
   applyRuntimePatch({
     lastStatus: TABLE_WORKBENCH_RUNTIME_STATUS.RUNNING,
@@ -711,13 +735,18 @@ async function runTableUpdate({
     let nextTables;
     let diff = null;
     let fillMode = request.fillMode || 'full';
+    let scopeStats = null;
 
     if (parsed.mode === 'incremental' && parsed.edits) {
       const locks = getLocks(loadResult?.state);
-      const scopedEdits = filterIncrementalEditsByScope(parsed.edits, previousTables, runScope, locks);
-      const sortedEdits = sortEdits(scopedEdits);
+      const filterResult = filterIncrementalEditsByScope(parsed.edits, previousTables, runScope, locks);
+      scopeStats = filterResult.stats;
+      const sortedEdits = sortEdits(filterResult.edits);
       nextTables = applyIncrementalEdits(previousTables, sortedEdits, locks, runScope);
       fillMode = 'incremental';
+      if (scopeStats.droppedByScope > 0 || scopeStats.droppedByLock > 0) {
+        getLog().info('scope 过滤', scopeStats);
+      }
     } else if (parsed.mode === 'full' && parsed.tables) {
       const scopedTables = normalizeRuntimeTables(parsed.tables);
       nextTables = mergeTablesByScope(previousTables, scopedTables, runScope);
@@ -825,6 +854,7 @@ async function runTableUpdate({
       previousTables,
       nextTables,
       runScope,
+      scopeStats,
       state: writeback.state,
       bindings: writeback.bindings,
       mirrorResult: writeback.mirrorResult,

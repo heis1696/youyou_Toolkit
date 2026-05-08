@@ -58,12 +58,11 @@ export function resolveTableRunScope(config = {}, tables = []) {
   }
 
   const allowedIdSet = new Set(allowedTableIds);
-  const effectiveTableIds = allowedTableIds.length > 0 ? allowedTableIds : allTableIds;
 
   return {
     ...normalized,
     allTableIds,
-    allowedTableIds: effectiveTableIds,
+    allowedTableIds,
     allowedIdSet,
     includes(table = {}, index = -1) {
       return allowedIdSet.has(tableId(table, index));
@@ -77,7 +76,7 @@ export function resolveTableRunScope(config = {}, tables = []) {
         mode: normalized.mode,
         selectedTableIds: cloneTableValue(normalized.selectedTableIds),
         activeTableId: normalized.activeTableId,
-        allowedTableIds: [...effectiveTableIds]
+        allowedTableIds: [...allowedTableIds]
       };
     }
   };

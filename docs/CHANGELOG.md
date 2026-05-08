@@ -9,6 +9,17 @@
 
 ## [Unreleased]
 
+## [1.0.110] - 2026-05-08
+
+### 新增
+
+- ✨ **Phase 3：加固 runScope 与 AI 编辑边界** (`modules/table-engine/table-update-service.js`, `modules/table-engine/table-scope-service.js`, `modules/ui/components/table-workbench-panel.js`)
+  - AI prompt 中对只读表追加强约束指令：明确告知模型不得修改只读表的任何行，全量输出时必须原样保留
+  - `current` / `selected` 模式下若无有效目标表，直接报错中止，不再静默回退到全部运行
+  - `filterIncrementalEditsByScope` 返回过滤统计（total / passed / droppedByScope / droppedByLock）
+  - 填表成功 toast 中显示因 scope 或锁定被过滤的编辑数量
+  - 日志 scope `TableUpdate` 中记录过滤详情
+
 ## [1.0.109] - 2026-05-08
 
 ### 修复

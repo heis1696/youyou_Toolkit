@@ -853,12 +853,22 @@ export const TableWorkbenchPanel = {
         const result = await runManualTableUpdate(r.config);
         if (!result?.success) {
           showTopNotice('warning', result?.error || '填表失败', { duration: 4000, noticeId: 'twb-run' });
-        } else if (result.warning) {
-          self.lastDiff = result.diff || null;
-          showTopNotice('warning', `填表完成，镜像失败: ${result.warning}`, { duration: 4200, noticeId: 'twb-run' });
         } else {
           self.lastDiff = result.diff || null;
-          showTopNotice('success', `填表完成 (${result.fillMode === 'incremental' ? '增量' : '全量'})`, { duration: 2800, noticeId: 'twb-run' });
+          const modeLabel = result.fillMode === 'incremental' ? '增量' : '全量';
+          const stats = result.scopeStats;
+          let statsHint = '';
+          if (stats && (stats.droppedByScope > 0 || stats.droppedByLock > 0)) {
+            const parts = [];
+            if (stats.droppedByScope > 0) parts.push(`${stats.droppedByScope} 条因 scope 过滤`);
+            if (stats.droppedByLock > 0) parts.push(`${stats.droppedByLock} 条因锁定过滤`);
+            statsHint = `，${parts.join('、')}`;
+          }
+          if (result.warning) {
+            showTopNotice('warning', `填表完成 (${modeLabel}${statsHint})，镜像失败: ${result.warning}`, { duration: 4200, noticeId: 'twb-run' });
+          } else {
+            showTopNotice('success', `填表完成 (${modeLabel}${statsHint})`, { duration: 2800, noticeId: 'twb-run' });
+          }
         }
         if (result?.success || result?.nextTables) {
           const freshCfg = getTableWorkbenchConfig();
