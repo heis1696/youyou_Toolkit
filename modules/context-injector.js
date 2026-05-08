@@ -660,11 +660,7 @@ class ContextInjector {
 
         await setChatMessages.call(context || api || runtime?.topWindow, [{
           message_id: normalizeIdentityValue(options.sourceMessageId) || messageIndex,
-          chat_index: messageIndex,
-          message: nextText,
-          mes: nextText,
-          content: nextText,
-          text: nextText
+          message: nextText
         }], {
           refresh: 'affected'
         });

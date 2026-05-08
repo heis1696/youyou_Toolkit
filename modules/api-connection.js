@@ -359,6 +359,9 @@ async function sendViaCustomApi(messages, config, options, abortSignal) {
     try {
       return await sendViaTavernHelperCustomApi(messages, config, options, abortSignal, topWindow);
     } catch (error) {
+      if (error?.name === 'AbortError' || abortSignal?.aborted) {
+        throw error;
+      }
       log.warn('TavernHelper 自定义请求失败，回退到后备链路:', error);
     }
   }

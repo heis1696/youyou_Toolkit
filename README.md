@@ -132,4 +132,4 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 ## 版本说明
 
 - 当前 `package.json` 版本：`1.0.111`
-- 当前发布版本：`1.0.111`
+- 当前发布版本：`1.0.112`
