@@ -171,12 +171,8 @@ export const BypassPanel = {
 
     return `
       <div class="yyt-bypass-message ${message.enabled === false ? 'yyt-disabled' : ''}"
-           data-message-id="${message.id}" data-message-index="${index}"
-           draggable="true">
+           data-message-id="${message.id}" data-message-index="${index}">
         <div class="yyt-bypass-message-header">
-          <div class="yyt-bypass-message-handle" title="拖动排序">
-            <i class="fa-solid fa-grip-vertical"></i>
-          </div>
           <div class="yyt-bypass-message-role">
             <i class="fa-solid ${roleIcons[message.role] || 'fa-comment'}"></i>
             <select class="yyt-select yyt-bypass-role-select yyt-select-fixed-width">
@@ -186,8 +182,14 @@ export const BypassPanel = {
             </select>
           </div>
           <div class="yyt-bypass-message-controls">
+            <button class="yyt-btn yyt-btn-icon yyt-btn-secondary yyt-bypass-move-up" title="上移">
+              <i class="fa-solid fa-chevron-up"></i>
+            </button>
+            <button class="yyt-btn yyt-btn-icon yyt-btn-secondary yyt-bypass-move-down" title="下移">
+              <i class="fa-solid fa-chevron-down"></i>
+            </button>
             <button class="yyt-btn yyt-btn-icon yyt-btn-secondary yyt-bypass-insert-message" title="在此下方插入">
-              <i class="fa-solid fa-arrow-turn-down"></i>
+              <i class="fa-solid fa-plus"></i>
             </button>
             <label class="yyt-toggle yyt-small">
               <input type="checkbox" class="yyt-bypass-message-enabled" ${message.enabled !== false ? 'checked' : ''}>
@@ -312,6 +314,26 @@ export const BypassPanel = {
       this._addMessage($container, $);
     });
 
+    // 上移消息
+    $container.on('click.yytBypass', '.yyt-bypass-move-up', (e) => {
+      const $msg = $(e.currentTarget).closest('.yyt-bypass-message');
+      const $prev = $msg.prev('.yyt-bypass-message');
+      if ($prev.length) {
+        $prev.before($msg);
+        this._refreshMessageIndices($container, $);
+      }
+    });
+
+    // 下移消息
+    $container.on('click.yytBypass', '.yyt-bypass-move-down', (e) => {
+      const $msg = $(e.currentTarget).closest('.yyt-bypass-message');
+      const $next = $msg.next('.yyt-bypass-message');
+      if ($next.length) {
+        $next.after($msg);
+        this._refreshMessageIndices($container, $);
+      }
+    });
+
     // 在指定消息下方插入新消息
     $container.on('click.yytBypass', '.yyt-bypass-insert-message', (e) => {
       const $msg = $(e.currentTarget).closest('.yyt-bypass-message');
@@ -330,55 +352,6 @@ export const BypassPanel = {
       const $message = $(e.currentTarget).closest('.yyt-bypass-message');
       $message.toggleClass('yyt-disabled', !$(e.currentTarget).is(':checked'));
     });
-
-    // --- 拖拽排序 ---
-    const $messagesContainer = $container.find('.yyt-bypass-messages');
-    let dragSrcIndex = -1;
-
-    $container.on('dragstart.yytBypass', '.yyt-bypass-message', function(e) {
-      dragSrcIndex = parseInt($(this).data('messageIndex'), 10);
-      $(this).addClass('yyt-dragging');
-      e.originalEvent.dataTransfer.effectAllowed = 'move';
-      e.originalEvent.dataTransfer.setData('text/plain', String(dragSrcIndex));
-    });
-
-    $container.on('dragend.yytBypass', '.yyt-bypass-message', function() {
-      $(this).removeClass('yyt-dragging');
-      $container.find('.yyt-bypass-message').removeClass('yyt-drag-over');
-      dragSrcIndex = -1;
-    });
-
-    $container.on('dragover.yytBypass', '.yyt-bypass-message', function(e) {
-      e.preventDefault();
-      e.originalEvent.dataTransfer.dropEffect = 'move';
-      const currentIndex = parseInt($(this).data('messageIndex'), 10);
-      if (currentIndex !== dragSrcIndex) {
-        $container.find('.yyt-bypass-message').removeClass('yyt-drag-over');
-        $(this).addClass('yyt-drag-over');
-      }
-    });
-
-    $container.on('drop.yytBypass', '.yyt-bypass-message', function(e) {
-      e.preventDefault();
-      $container.find('.yyt-bypass-message').removeClass('yyt-drag-over');
-
-      const $target = $(this);
-      const targetIndex = parseInt($target.data('messageIndex'), 10);
-      if (dragSrcIndex < 0 || dragSrcIndex === targetIndex) return;
-
-      const $all = $container.find('.yyt-bypass-message');
-      const $src = $all.eq(dragSrcIndex);
-
-      if (dragSrcIndex < targetIndex) {
-        $target.after($src);
-      } else {
-        $target.before($src);
-      }
-
-      $src.removeClass('yyt-dragging');
-      dragSrcIndex = -1;
-      this._refreshMessageIndices($container, $);
-    }.bind(this));
   },
   
   /**
@@ -866,32 +839,6 @@ export const BypassPanel = {
         align-items: center;
         justify-content: space-between;
         margin-bottom: 10px;
-      }
-
-      .yyt-bypass-message-handle {
-        cursor: grab;
-        color: var(--yyt-text-muted);
-        padding: 0 4px;
-        opacity: 0.4;
-        transition: opacity 0.15s ease;
-        user-select: none;
-      }
-
-      .yyt-bypass-message-handle:active {
-        cursor: grabbing;
-      }
-
-      .yyt-bypass-message:hover .yyt-bypass-message-handle {
-        opacity: 0.8;
-      }
-
-      .yyt-bypass-message.yyt-dragging {
-        opacity: 0.4;
-      }
-
-      .yyt-bypass-message.yyt-drag-over {
-        border-color: var(--yyt-accent);
-        box-shadow: 0 0 0 1px var(--yyt-accent), 0 4px 12px rgba(0, 0, 0, 0.3);
       }
 
       .yyt-bypass-message-role {
