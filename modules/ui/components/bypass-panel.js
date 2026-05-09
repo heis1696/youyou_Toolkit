@@ -146,7 +146,7 @@ export const BypassPanel = {
         </div>
 
         <div class="yyt-bypass-messages">
-          ${(preset.messages || []).map(msg => this._renderMessageItem(msg)).join('')}
+          ${(preset.messages || []).map((msg, i) => this._renderMessageItem(msg, i)).join('')}
         </div>
 
         <div class="yyt-bypass-editor-footer">
@@ -162,16 +162,21 @@ export const BypassPanel = {
    * 渲染消息项
    * @private
    */
-  _renderMessageItem(message) {
+  _renderMessageItem(message, index = 0) {
     const roleIcons = {
       'SYSTEM': 'fa-server',
       'USER': 'fa-user',
       'assistant': 'fa-robot'
     };
-    
+
     return `
-      <div class="yyt-bypass-message ${message.enabled === false ? 'yyt-disabled' : ''}" data-message-id="${message.id}">
+      <div class="yyt-bypass-message ${message.enabled === false ? 'yyt-disabled' : ''}"
+           data-message-id="${message.id}" data-message-index="${index}"
+           draggable="true">
         <div class="yyt-bypass-message-header">
+          <div class="yyt-bypass-message-handle" title="拖动排序">
+            <i class="fa-solid fa-grip-vertical"></i>
+          </div>
           <div class="yyt-bypass-message-role">
             <i class="fa-solid ${roleIcons[message.role] || 'fa-comment'}"></i>
             <select class="yyt-select yyt-bypass-role-select yyt-select-fixed-width">
@@ -181,6 +186,9 @@ export const BypassPanel = {
             </select>
           </div>
           <div class="yyt-bypass-message-controls">
+            <button class="yyt-btn yyt-btn-icon yyt-btn-secondary yyt-bypass-insert-message" title="在此下方插入">
+              <i class="fa-solid fa-arrow-turn-down"></i>
+            </button>
             <label class="yyt-toggle yyt-small">
               <input type="checkbox" class="yyt-bypass-message-enabled" ${message.enabled !== false ? 'checked' : ''}>
               <span class="yyt-toggle-slider"></span>
@@ -192,7 +200,7 @@ export const BypassPanel = {
             ` : ''}
           </div>
         </div>
-        <textarea class="yyt-textarea yyt-bypass-message-content" rows="3" 
+        <textarea class="yyt-textarea yyt-bypass-message-content" rows="3"
                   placeholder="输入消息内容...">${escapeHtml(message.content || '')}</textarea>
       </div>
     `;
@@ -283,39 +291,94 @@ export const BypassPanel = {
     $container.on('click.yytBypass', '#yyt-bypass-save', () => {
       this._saveCurrentPreset($container, $);
     });
-    
+
     // 删除预设
     $container.on('click.yytBypass', '#yyt-bypass-delete', () => {
       this._deleteCurrentPreset($container, $);
     });
-    
+
     // 复制预设
     $container.on('click.yytBypass', '#yyt-bypass-duplicate', () => {
       this._duplicateCurrentPreset($container, $);
     });
-    
+
     // 设为默认
     $container.on('click.yytBypass', '#yyt-bypass-set-default', () => {
       this._setAsDefault($container, $);
     });
-    
-    // 添加消息
+
+    // 添加消息（追加到末尾）
     $container.on('click.yytBypass', '#yyt-bypass-add-message', () => {
       this._addMessage($container, $);
     });
-    
+
+    // 在指定消息下方插入新消息
+    $container.on('click.yytBypass', '.yyt-bypass-insert-message', (e) => {
+      const $msg = $(e.currentTarget).closest('.yyt-bypass-message');
+      this._insertMessageAfter($container, $, $msg);
+    });
+
     // 删除消息
     $container.on('click.yytBypass', '.yyt-bypass-delete-message', (e) => {
       const $message = $(e.currentTarget).closest('.yyt-bypass-message');
-      const messageId = $message.data('messageId');
       $message.remove();
+      this._refreshMessageIndices($container, $);
     });
-    
+
     // 消息启用/禁用
     $container.on('change.yytBypass', '.yyt-bypass-message-enabled', (e) => {
       const $message = $(e.currentTarget).closest('.yyt-bypass-message');
       $message.toggleClass('yyt-disabled', !$(e.currentTarget).is(':checked'));
     });
+
+    // --- 拖拽排序 ---
+    const $messagesContainer = $container.find('.yyt-bypass-messages');
+    let dragSrcIndex = -1;
+
+    $container.on('dragstart.yytBypass', '.yyt-bypass-message', function(e) {
+      dragSrcIndex = parseInt($(this).data('messageIndex'), 10);
+      $(this).addClass('yyt-dragging');
+      e.originalEvent.dataTransfer.effectAllowed = 'move';
+      e.originalEvent.dataTransfer.setData('text/plain', String(dragSrcIndex));
+    });
+
+    $container.on('dragend.yytBypass', '.yyt-bypass-message', function() {
+      $(this).removeClass('yyt-dragging');
+      $container.find('.yyt-bypass-message').removeClass('yyt-drag-over');
+      dragSrcIndex = -1;
+    });
+
+    $container.on('dragover.yytBypass', '.yyt-bypass-message', function(e) {
+      e.preventDefault();
+      e.originalEvent.dataTransfer.dropEffect = 'move';
+      const currentIndex = parseInt($(this).data('messageIndex'), 10);
+      if (currentIndex !== dragSrcIndex) {
+        $container.find('.yyt-bypass-message').removeClass('yyt-drag-over');
+        $(this).addClass('yyt-drag-over');
+      }
+    });
+
+    $container.on('drop.yytBypass', '.yyt-bypass-message', function(e) {
+      e.preventDefault();
+      $container.find('.yyt-bypass-message').removeClass('yyt-drag-over');
+
+      const $target = $(this);
+      const targetIndex = parseInt($target.data('messageIndex'), 10);
+      if (dragSrcIndex < 0 || dragSrcIndex === targetIndex) return;
+
+      const $all = $container.find('.yyt-bypass-message');
+      const $src = $all.eq(dragSrcIndex);
+
+      if (dragSrcIndex < targetIndex) {
+        $target.after($src);
+      } else {
+        $target.before($src);
+      }
+
+      $src.removeClass('yyt-dragging');
+      dragSrcIndex = -1;
+      this._refreshMessageIndices($container, $);
+    }.bind(this));
   },
   
   /**
@@ -517,7 +580,30 @@ export const BypassPanel = {
       enabled: true,
       deletable: true
     };
-    $messages.append(this._renderMessageItem(newMessage));
+    const currentCount = $messages.find('.yyt-bypass-message').length;
+    $messages.append(this._renderMessageItem(newMessage, currentCount));
+  },
+
+  _insertMessageAfter($container, $, $targetMsg) {
+    const $messages = $container.find('.yyt-bypass-messages');
+    const newMessage = {
+      id: `msg_${Date.now()}`,
+      role: 'SYSTEM',
+      content: '',
+      enabled: true,
+      deletable: true
+    };
+    // Render with a placeholder index; _refreshMessageIndices will fix it
+    const html = this._renderMessageItem(newMessage, 0);
+    const $newMsg = $(html);
+    $targetMsg.after($newMsg);
+    this._refreshMessageIndices($container, $);
+  },
+
+  _refreshMessageIndices($container, $) {
+    $container.find('.yyt-bypass-message').each(function(i) {
+      $(this).attr('data-message-index', i);
+    });
   },
   
   /**
@@ -781,7 +867,33 @@ export const BypassPanel = {
         justify-content: space-between;
         margin-bottom: 10px;
       }
-      
+
+      .yyt-bypass-message-handle {
+        cursor: grab;
+        color: var(--yyt-text-muted);
+        padding: 0 4px;
+        opacity: 0.4;
+        transition: opacity 0.15s ease;
+        user-select: none;
+      }
+
+      .yyt-bypass-message-handle:active {
+        cursor: grabbing;
+      }
+
+      .yyt-bypass-message:hover .yyt-bypass-message-handle {
+        opacity: 0.8;
+      }
+
+      .yyt-bypass-message.yyt-dragging {
+        opacity: 0.4;
+      }
+
+      .yyt-bypass-message.yyt-drag-over {
+        border-color: var(--yyt-accent);
+        box-shadow: 0 0 0 1px var(--yyt-accent), 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
       .yyt-bypass-message-role {
         display: flex;
         align-items: center;
@@ -799,7 +911,22 @@ export const BypassPanel = {
       .yyt-bypass-message-controls {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
+      }
+
+      .yyt-bypass-insert-message {
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        font-size: 11px !important;
+        padding: 2px 6px !important;
+      }
+
+      .yyt-bypass-message:hover .yyt-bypass-insert-message {
+        opacity: 0.7;
+      }
+
+      .yyt-bypass-insert-message:hover {
+        opacity: 1 !important;
       }
       
       .yyt-bypass-message-content {
