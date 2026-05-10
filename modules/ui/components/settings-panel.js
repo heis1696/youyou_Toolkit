@@ -15,113 +15,113 @@ import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuer
 // ============================================================
 
 const BASE_THEME_TOKENS = {
-  '--yyt-accent': '#7bb7ff',
-  '--yyt-accent-glow': 'rgba(123, 183, 255, 0.4)',
-  '--yyt-accent-soft': 'rgba(123, 183, 255, 0.15)',
-  '--yyt-accent-strong': '#a5d4ff',
-  '--yyt-bg-base': '#0b0f15',
-  '--yyt-bg-gradient-1': 'rgba(123, 183, 255, 0.12)',
-  '--yyt-bg-gradient-2': 'rgba(155, 123, 255, 0.10)',
-  '--yyt-surface': 'rgba(255, 255, 255, 0.03)',
-  '--yyt-surface-2': 'rgba(255, 255, 255, 0.05)',
-  '--yyt-surface-3': 'rgba(255, 255, 255, 0.075)',
-  '--yyt-surface-hover': 'rgba(255, 255, 255, 0.08)',
-  '--yyt-surface-active': 'rgba(255, 255, 255, 0.11)',
-  '--yyt-border': 'rgba(255, 255, 255, 0.08)',
-  '--yyt-border-soft': 'rgba(255, 255, 255, 0.05)',
-  '--yyt-border-strong': 'rgba(255, 255, 255, 0.16)',
-  '--yyt-text': 'rgba(255, 255, 255, 0.95)',
-  '--yyt-text-secondary': 'rgba(255, 255, 255, 0.72)',
-  '--yyt-text-muted': 'rgba(255, 255, 255, 0.5)',
-  '--yyt-focus-ring': '0 0 0 3px rgba(123, 183, 255, 0.18)',
-  '--yyt-on-accent': '#0b0f15',
-  '--yyt-control-bg': 'linear-gradient(180deg, #1d2737 0%, #151d2a 100%)',
-  '--yyt-control-bg-hover': 'linear-gradient(180deg, #243247 0%, #1a2638 100%)',
-  '--yyt-control-bg-active': 'linear-gradient(180deg, #2a3951 0%, #1d2b3f 100%)',
-  '--yyt-control-bg-strong': 'linear-gradient(180deg, #243247 0%, #192435 100%)',
-  '--yyt-control-bg-focus': 'linear-gradient(180deg, #243a57 0%, #1a2a3f 100%)',
-  '--yyt-control-border': 'rgba(146, 173, 212, 0.24)',
-  '--yyt-control-border-hover': 'rgba(146, 173, 212, 0.36)',
-  '--yyt-control-border-focus': 'rgba(123, 183, 255, 0.72)',
-  '--yyt-control-shadow': '0 12px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
-  '--yyt-control-shadow-hover': '0 16px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
-  '--yyt-control-shadow-focus': '0 18px 30px rgba(8, 14, 24, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
-  '--yyt-control-shadow-active': '0 10px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
-  '--yyt-select-surface': '#121a26',
-  '--yyt-select-option-bg': '#192334',
-  '--yyt-select-option-hover-bg': '#233249',
-  '--yyt-select-option-selected-bg': '#2a3f60',
-  '--yyt-select-option-border': 'rgba(123, 183, 255, 0.22)',
-  '--yyt-select-option-selected-border': 'rgba(123, 183, 255, 0.4)',
-  '--yyt-select-dropdown-shadow': '0 24px 44px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(8, 12, 18, 0.82)',
-  '--yyt-select-arrow-color': 'rgba(255, 255, 255, 0.52)'
+  '--yyt-accent': 'oklch(0.75 0.11 230)',
+  '--yyt-accent-glow': 'oklch(0.75 0.11 230 / 0.4)',
+  '--yyt-accent-soft': 'oklch(0.75 0.11 230 / 0.15)',
+  '--yyt-accent-strong': 'oklch(0.84 0.08 225)',
+  '--yyt-bg-base': 'oklch(0.13 0.02 250)',
+  '--yyt-bg-gradient-1': 'oklch(0.75 0.11 230 / 0.12)',
+  '--yyt-bg-gradient-2': 'oklch(0.66 0.15 290 / 0.10)',
+  '--yyt-surface': 'oklch(1 0 0 / 0.03)',
+  '--yyt-surface-2': 'oklch(1 0 0 / 0.05)',
+  '--yyt-surface-3': 'oklch(1 0 0 / 0.075)',
+  '--yyt-surface-hover': 'oklch(1 0 0 / 0.08)',
+  '--yyt-surface-active': 'oklch(1 0 0 / 0.11)',
+  '--yyt-border': 'oklch(1 0 0 / 0.08)',
+  '--yyt-border-soft': 'oklch(1 0 0 / 0.05)',
+  '--yyt-border-strong': 'oklch(1 0 0 / 0.16)',
+  '--yyt-text': 'oklch(1 0 0 / 0.95)',
+  '--yyt-text-secondary': 'oklch(1 0 0 / 0.72)',
+  '--yyt-text-muted': 'oklch(1 0 0 / 0.5)',
+  '--yyt-focus-ring': '0 0 0 3px oklch(0.75 0.11 230 / 0.18)',
+  '--yyt-on-accent': 'oklch(0.13 0.02 250)',
+  '--yyt-control-bg': 'linear-gradient(180deg, oklch(0.22 0.03 240) 0%, oklch(0.18 0.03 240) 100%)',
+  '--yyt-control-bg-hover': 'linear-gradient(180deg, oklch(0.27 0.03 235) 0%, oklch(0.21 0.03 235) 100%)',
+  '--yyt-control-bg-active': 'linear-gradient(180deg, oklch(0.30 0.03 235) 0%, oklch(0.23 0.03 235) 100%)',
+  '--yyt-control-bg-strong': 'linear-gradient(180deg, oklch(0.27 0.03 235) 0%, oklch(0.20 0.02 240) 100%)',
+  '--yyt-control-bg-focus': 'linear-gradient(180deg, oklch(0.29 0.04 235) 0%, oklch(0.22 0.03 235) 100%)',
+  '--yyt-control-border': 'oklch(0.74 0.04 230 / 0.24)',
+  '--yyt-control-border-hover': 'oklch(0.74 0.04 230 / 0.36)',
+  '--yyt-control-border-focus': 'oklch(0.75 0.11 230 / 0.72)',
+  '--yyt-control-shadow': '0 12px 24px oklch(0 0 0 / 0.24), inset 0 1px 0 oklch(1 0 0 / 0.04)',
+  '--yyt-control-shadow-hover': '0 16px 28px oklch(0 0 0 / 0.28), inset 0 1px 0 oklch(1 0 0 / 0.06)',
+  '--yyt-control-shadow-focus': '0 18px 30px oklch(0.11 0.02 250 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.06)',
+  '--yyt-control-shadow-active': '0 10px 20px oklch(0 0 0 / 0.22), inset 0 1px 0 oklch(1 0 0 / 0.04)',
+  '--yyt-select-surface': 'oklch(0.17 0.02 245)',
+  '--yyt-select-option-bg': 'oklch(0.20 0.03 240)',
+  '--yyt-select-option-hover-bg': 'oklch(0.26 0.03 235)',
+  '--yyt-select-option-selected-bg': 'oklch(0.31 0.05 235)',
+  '--yyt-select-option-border': 'oklch(0.75 0.11 230 / 0.22)',
+  '--yyt-select-option-selected-border': 'oklch(0.75 0.11 230 / 0.4)',
+  '--yyt-select-dropdown-shadow': '0 24px 44px oklch(0 0 0 / 0.52), 0 0 0 1px oklch(0.10 0.02 245 / 0.82)',
+  '--yyt-select-arrow-color': 'oklch(1 0 0 / 0.52)'
 };
 
 const THEME_CONFIGS = {
   'dark-blue': {
-    '--yyt-on-accent': '#0b0f15'
+    '--yyt-on-accent': 'oklch(0.13 0.02 250)'
   },
   'dark-purple': {
-    '--yyt-accent': '#a78bfa',
-    '--yyt-accent-glow': 'rgba(167, 139, 250, 0.4)',
-    '--yyt-accent-soft': 'rgba(167, 139, 250, 0.15)',
-    '--yyt-accent-strong': '#c4b5fd',
-    '--yyt-bg-base': '#0f0b15',
-    '--yyt-bg-gradient-1': 'rgba(167, 139, 250, 0.12)',
-    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)',
-    '--yyt-on-accent': '#120b1f'
+    '--yyt-accent': 'oklch(0.68 0.16 290)',
+    '--yyt-accent-glow': 'oklch(0.68 0.16 290 / 0.4)',
+    '--yyt-accent-soft': 'oklch(0.68 0.16 290 / 0.15)',
+    '--yyt-accent-strong': 'oklch(0.80 0.10 290)',
+    '--yyt-bg-base': 'oklch(0.13 0.03 290)',
+    '--yyt-bg-gradient-1': 'oklch(0.68 0.16 290 / 0.12)',
+    '--yyt-bg-gradient-2': 'oklch(0.75 0.11 230 / 0.10)',
+    '--yyt-on-accent': 'oklch(0.14 0.04 290)'
   },
   'dark-green': {
-    '--yyt-accent': '#4ade80',
-    '--yyt-accent-glow': 'rgba(74, 222, 128, 0.4)',
-    '--yyt-accent-soft': 'rgba(74, 222, 128, 0.15)',
-    '--yyt-accent-strong': '#86efac',
-    '--yyt-bg-base': '#0b150f',
-    '--yyt-bg-gradient-1': 'rgba(74, 222, 128, 0.12)',
-    '--yyt-bg-gradient-2': 'rgba(123, 183, 255, 0.10)',
-    '--yyt-on-accent': '#0b150f'
+    '--yyt-accent': 'oklch(0.79 0.17 155)',
+    '--yyt-accent-glow': 'oklch(0.79 0.17 155 / 0.4)',
+    '--yyt-accent-soft': 'oklch(0.79 0.17 155 / 0.15)',
+    '--yyt-accent-strong': 'oklch(0.87 0.13 155)',
+    '--yyt-bg-base': 'oklch(0.14 0.02 155)',
+    '--yyt-bg-gradient-1': 'oklch(0.79 0.17 155 / 0.12)',
+    '--yyt-bg-gradient-2': 'oklch(0.75 0.11 230 / 0.10)',
+    '--yyt-on-accent': 'oklch(0.14 0.02 155)'
   },
   'light': {
-    '--yyt-accent': '#3b82f6',
-    '--yyt-accent-glow': 'rgba(59, 130, 246, 0.3)',
-    '--yyt-accent-soft': 'rgba(59, 130, 246, 0.1)',
-    '--yyt-accent-strong': '#93c5fd',
-    '--yyt-bg-base': '#f8fafc',
-    '--yyt-bg-gradient-1': 'rgba(59, 130, 246, 0.08)',
-    '--yyt-bg-gradient-2': 'rgba(139, 92, 246, 0.06)',
-    '--yyt-text': 'rgba(15, 23, 42, 0.95)',
-    '--yyt-text-secondary': 'rgba(15, 23, 42, 0.72)',
-    '--yyt-text-muted': 'rgba(15, 23, 42, 0.52)',
-    '--yyt-surface': 'rgba(255, 255, 255, 0.66)',
-    '--yyt-surface-2': 'rgba(255, 255, 255, 0.86)',
-    '--yyt-surface-3': 'rgba(255, 255, 255, 0.94)',
-    '--yyt-surface-hover': 'rgba(255, 255, 255, 0.92)',
-    '--yyt-surface-active': 'rgba(255, 255, 255, 0.98)',
-    '--yyt-border': 'rgba(15, 23, 42, 0.08)',
-    '--yyt-border-soft': 'rgba(15, 23, 42, 0.05)',
-    '--yyt-border-strong': 'rgba(15, 23, 42, 0.14)',
-    '--yyt-focus-ring': '0 0 0 3px rgba(59, 130, 246, 0.14)',
-    '--yyt-on-accent': '#0f172a',
-    '--yyt-control-bg': 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%)',
-    '--yyt-control-bg-hover': 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(226, 232, 240, 0.98) 100%)',
-    '--yyt-control-bg-active': 'linear-gradient(180deg, rgba(239, 246, 255, 1) 0%, rgba(219, 234, 254, 0.98) 100%)',
-    '--yyt-control-bg-strong': 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(241, 245, 249, 0.98) 100%)',
-    '--yyt-control-bg-focus': 'linear-gradient(180deg, rgba(239, 246, 255, 1) 0%, rgba(219, 234, 254, 0.98) 100%)',
-    '--yyt-control-border': 'rgba(59, 130, 246, 0.18)',
-    '--yyt-control-border-hover': 'rgba(59, 130, 246, 0.28)',
-    '--yyt-control-border-focus': 'rgba(59, 130, 246, 0.58)',
-    '--yyt-control-shadow': '0 10px 22px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.75)',
-    '--yyt-control-shadow-hover': '0 12px 24px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85)',
-    '--yyt-control-shadow-focus': '0 14px 26px rgba(59, 130, 246, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-    '--yyt-control-shadow-active': '0 8px 18px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85)',
-    '--yyt-select-surface': '#ffffff',
-    '--yyt-select-option-bg': '#f8fafc',
-    '--yyt-select-option-hover-bg': '#eff6ff',
-    '--yyt-select-option-selected-bg': '#dbeafe',
-    '--yyt-select-option-border': 'rgba(59, 130, 246, 0.16)',
-    '--yyt-select-option-selected-border': 'rgba(59, 130, 246, 0.34)',
-    '--yyt-select-dropdown-shadow': '0 18px 32px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(148, 163, 184, 0.18)',
-    '--yyt-select-arrow-color': 'rgba(15, 23, 42, 0.45)'
+    '--yyt-accent': 'oklch(0.59 0.16 260)',
+    '--yyt-accent-glow': 'oklch(0.59 0.16 260 / 0.3)',
+    '--yyt-accent-soft': 'oklch(0.59 0.16 260 / 0.1)',
+    '--yyt-accent-strong': 'oklch(0.79 0.10 250)',
+    '--yyt-bg-base': 'oklch(0.98 0.005 255)',
+    '--yyt-bg-gradient-1': 'oklch(0.59 0.16 260 / 0.08)',
+    '--yyt-bg-gradient-2': 'oklch(0.59 0.16 290 / 0.06)',
+    '--yyt-text': 'oklch(0.19 0.03 260 / 0.95)',
+    '--yyt-text-secondary': 'oklch(0.19 0.03 260 / 0.72)',
+    '--yyt-text-muted': 'oklch(0.19 0.03 260 / 0.52)',
+    '--yyt-surface': 'oklch(1 0 0 / 0.66)',
+    '--yyt-surface-2': 'oklch(1 0 0 / 0.86)',
+    '--yyt-surface-3': 'oklch(1 0 0 / 0.94)',
+    '--yyt-surface-hover': 'oklch(1 0 0 / 0.92)',
+    '--yyt-surface-active': 'oklch(1 0 0 / 0.98)',
+    '--yyt-border': 'oklch(0.19 0.03 260 / 0.08)',
+    '--yyt-border-soft': 'oklch(0.19 0.03 260 / 0.05)',
+    '--yyt-border-strong': 'oklch(0.19 0.03 260 / 0.14)',
+    '--yyt-focus-ring': '0 0 0 3px oklch(0.59 0.16 260 / 0.14)',
+    '--yyt-on-accent': 'oklch(0.16 0.03 260)',
+    '--yyt-control-bg': 'linear-gradient(180deg, oklch(1 0 0 / 0.98) 0%, oklch(0.96 0.005 250 / 0.98) 100%)',
+    '--yyt-control-bg-hover': 'linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.92 0.005 250 / 0.98) 100%)',
+    '--yyt-control-bg-active': 'linear-gradient(180deg, oklch(0.97 0.01 250) 0%, oklch(0.91 0.02 250 / 0.98) 100%)',
+    '--yyt-control-bg-strong': 'linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.96 0.005 250 / 0.98) 100%)',
+    '--yyt-control-bg-focus': 'linear-gradient(180deg, oklch(0.97 0.01 250) 0%, oklch(0.91 0.02 250 / 0.98) 100%)',
+    '--yyt-control-border': 'oklch(0.59 0.16 260 / 0.18)',
+    '--yyt-control-border-hover': 'oklch(0.59 0.16 260 / 0.28)',
+    '--yyt-control-border-focus': 'oklch(0.59 0.16 260 / 0.58)',
+    '--yyt-control-shadow': '0 10px 22px oklch(0.19 0.03 260 / 0.08), inset 0 1px 0 oklch(1 0 0 / 0.75)',
+    '--yyt-control-shadow-hover': '0 12px 24px oklch(0.19 0.03 260 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.85)',
+    '--yyt-control-shadow-focus': '0 14px 26px oklch(0.59 0.16 260 / 0.14), inset 0 1px 0 oklch(1 0 0 / 0.9)',
+    '--yyt-control-shadow-active': '0 8px 18px oklch(0.19 0.03 260 / 0.1), inset 0 1px 0 oklch(1 0 0 / 0.85)',
+    '--yyt-select-surface': 'oklch(1 0 0)',
+    '--yyt-select-option-bg': 'oklch(0.98 0.005 255)',
+    '--yyt-select-option-hover-bg': 'oklch(0.97 0.01 250)',
+    '--yyt-select-option-selected-bg': 'oklch(0.92 0.02 250)',
+    '--yyt-select-option-border': 'oklch(0.59 0.16 260 / 0.16)',
+    '--yyt-select-option-selected-border': 'oklch(0.59 0.16 260 / 0.34)',
+    '--yyt-select-dropdown-shadow': '0 18px 32px oklch(0.19 0.03 260 / 0.12), 0 0 0 1px oklch(0.70 0.02 240 / 0.18)',
+    '--yyt-select-arrow-color': 'oklch(0.19 0.03 260 / 0.45)'
   }
 };
 
@@ -597,11 +597,11 @@ export const SettingsPanel = {
         gap: 16px;
         padding: 18px 20px;
         border-radius: 26px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid oklch(1 0 0 / 0.1);
         background:
-          radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
-          linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16);
+          radial-gradient(520px 220px at 0% 0%, oklch(0.75 0.11 230 / 0.16), transparent 62%),
+          linear-gradient(145deg, oklch(1 0 0 / 0.08) 0%, oklch(1 0 0 / 0.025) 100%);
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06), 0 18px 36px oklch(0 0 0 / 0.16);
       }
 
       .yyt-settings-hero-copy {
@@ -622,7 +622,7 @@ export const SettingsPanel = {
       .yyt-settings-hero-desc {
         font-size: 13px;
         line-height: 1.75;
-        color: rgba(255, 255, 255, 0.8);
+        color: oklch(1 0 0 / 0.8);
         max-width: 62ch;
       }
 
@@ -641,23 +641,23 @@ export const SettingsPanel = {
         border-radius: 999px;
         font-size: 10px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid oklch(1 0 0 / 0.12);
         letter-spacing: 0.4px;
         color: var(--yyt-text);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 16px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, oklch(1 0 0 / 0.1) 0%, oklch(1 0 0 / 0.04) 100%);
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.07), 0 8px 16px oklch(0 0 0 / 0.1);
       }
 
       .yyt-settings-status-chip.is-on {
-        color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.32);
-        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
+        color: oklch(0.79 0.17 155);
+        border-color: oklch(0.79 0.17 155 / 0.32);
+        background: linear-gradient(135deg, oklch(0.79 0.17 155 / 0.16) 0%, oklch(0.79 0.17 155 / 0.07) 100%);
       }
 
       .yyt-settings-status-chip.is-off {
-        color: #f87171;
-        border-color: rgba(248, 113, 113, 0.32);
-        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
+        color: oklch(0.70 0.17 20);
+        border-color: oklch(0.70 0.17 20 / 0.32);
+        background: linear-gradient(135deg, oklch(0.70 0.17 20 / 0.16) 0%, oklch(0.70 0.17 20 / 0.07) 100%);
       }
 
       .yyt-settings-status-chip.is-neutral {
@@ -669,12 +669,12 @@ export const SettingsPanel = {
         gap: 8px;
         padding: 7px;
         border-radius: 22px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.025) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.09);
+        background: linear-gradient(180deg, oklch(1 0 0 / 0.055) 0%, oklch(1 0 0 / 0.025) 100%);
+        border: 1px solid oklch(1 0 0 / 0.09);
         width: fit-content;
         max-width: 100%;
         flex-wrap: wrap;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 20px rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.05), 0 10px 20px oklch(0 0 0 / 0.1);
       }
 
       .yyt-settings-tab {
@@ -684,25 +684,25 @@ export const SettingsPanel = {
         padding: 12px 16px;
         border-radius: 15px;
         border: 1px solid transparent;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+        background: linear-gradient(180deg, oklch(1 0 0 / 0.035) 0%, oklch(1 0 0 / 0.01) 100%);
         color: var(--yyt-text-secondary);
         cursor: pointer;
         transition: all 0.18s ease;
         font-weight: 800;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.03);
       }
 
       .yyt-settings-tab:hover {
         color: var(--yyt-text);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-        border-color: rgba(255, 255, 255, 0.1);
+        background: linear-gradient(180deg, oklch(1 0 0 / 0.08) 0%, oklch(1 0 0 / 0.03) 100%);
+        border-color: oklch(1 0 0 / 0.1);
       }
 
       .yyt-settings-tab.yyt-active {
         color: var(--yyt-on-accent);
         background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
         border-color: transparent;
-        box-shadow: 0 14px 30px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        box-shadow: 0 14px 30px var(--yyt-accent-glow), inset 0 1px 0 oklch(1 0 0 / 0.24);
       }
 
       .yyt-settings-content {
@@ -733,11 +733,11 @@ export const SettingsPanel = {
         gap: 16px;
         padding: 18px;
         border-radius: 22px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid oklch(1 0 0 / 0.1);
         background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
-          rgba(255, 255, 255, 0.01);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 32px rgba(0, 0, 0, 0.12);
+          linear-gradient(180deg, oklch(1 0 0 / 0.07) 0%, oklch(1 0 0 / 0.025) 100%),
+          oklch(1 0 0 / 0.01);
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.05), 0 16px 32px oklch(0 0 0 / 0.12);
       }
 
       .yyt-settings-section-title {
@@ -768,8 +768,8 @@ export const SettingsPanel = {
         align-items: start;
         padding: 14px 16px;
         border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid oklch(1 0 0 / 0.1);
+        background: oklch(1 0 0 / 0.05);
       }
 
       .yyt-settings-macro-item code {
@@ -779,7 +779,7 @@ export const SettingsPanel = {
       }
 
       .yyt-settings-macro-item span {
-        color: rgba(255, 255, 255, 0.8);
+        color: oklch(1 0 0 / 0.8);
         font-size: 12px;
         line-height: 1.7;
       }
@@ -798,22 +798,22 @@ export const SettingsPanel = {
         border-radius: 999px;
         font-size: 11px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.035) 100%);
+        border: 1px solid oklch(1 0 0 / 0.12);
+        background: linear-gradient(135deg, oklch(1 0 0 / 0.09) 0%, oklch(1 0 0 / 0.035) 100%);
         color: var(--yyt-text);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 16px rgba(0, 0, 0, 0.08);
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06), 0 8px 16px oklch(0 0 0 / 0.08);
       }
 
       .yyt-settings-runtime-chip.is-on {
-        color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.35);
-        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
+        color: oklch(0.79 0.17 155);
+        border-color: oklch(0.79 0.17 155 / 0.35);
+        background: linear-gradient(135deg, oklch(0.79 0.17 155 / 0.16) 0%, oklch(0.79 0.17 155 / 0.07) 100%);
       }
 
       .yyt-settings-runtime-chip.is-off {
-        color: #f87171;
-        border-color: rgba(248, 113, 113, 0.35);
-        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
+        color: oklch(0.70 0.17 20);
+        border-color: oklch(0.70 0.17 20 / 0.35);
+        background: linear-gradient(135deg, oklch(0.70 0.17 20 / 0.16) 0%, oklch(0.70 0.17 20 / 0.07) 100%);
       }
 
       .yyt-settings-runtime-chip.is-neutral {
@@ -830,8 +830,8 @@ export const SettingsPanel = {
       .yyt-settings-runtime-item {
         padding: 14px 16px;
         border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid oklch(1 0 0 / 0.1);
+        background: oklch(1 0 0 / 0.05);
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -842,7 +842,7 @@ export const SettingsPanel = {
         gap: 10px;
         flex-wrap: wrap;
         font-size: 11px;
-        color: rgba(255, 255, 255, 0.72);
+        color: oklch(1 0 0 / 0.72);
       }
 
       .yyt-settings-runtime-main {
