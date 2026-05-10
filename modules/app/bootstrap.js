@@ -34,22 +34,41 @@ export function createBootstrap(context, options = {}) {
 
     moduleLoadPromise = (async () => {
       try {
-        modules.storageModule = await import('../storage.js');
-        modules.apiConnectionModule = await import('../api-connection.js');
-        modules.presetManagerModule = await import('../preset-manager.js');
-        modules.uiModule = await import('../ui/index.js');
-        modules.regexExtractorModule = await import('../regex-extractor.js');
-        modules.toolManagerModule = await import('../tool-manager.js');
-        modules.toolExecutorModule = await import('../tool-executor.js');
-        modules.windowManagerModule = await import('../window-manager.js');
-        modules.toolRegistryModule = await import('../tool-registry.js');
-        modules.settingsServiceModule = await import('../core/settings-service.js');
-        modules.bypassManagerModule = await import('../bypass-manager.js');
-        modules.variableResolverModule = await import('../variable-resolver.js');
-        modules.contextInjectorModule = await import('../context-injector.js');
-        modules.toolPromptServiceModule = await import('../tool-prompt-service.js');
-        modules.toolOutputServiceModule = await import('../tool-output-service.js');
-        modules.toolAutomationServiceModule = await import('../tool-automation-service.js');
+        [
+          modules.storageModule,
+          modules.apiConnectionModule,
+          modules.presetManagerModule,
+          modules.uiModule,
+          modules.regexExtractorModule,
+          modules.toolManagerModule,
+          modules.toolExecutorModule,
+          modules.windowManagerModule,
+          modules.toolRegistryModule,
+          modules.settingsServiceModule,
+          modules.bypassManagerModule,
+          modules.variableResolverModule,
+          modules.contextInjectorModule,
+          modules.toolPromptServiceModule,
+          modules.toolOutputServiceModule,
+          modules.toolAutomationServiceModule
+        ] = await Promise.all([
+          import('../storage.js'),
+          import('../api-connection.js'),
+          import('../preset-manager.js'),
+          import('../ui/index.js'),
+          import('../regex-extractor.js'),
+          import('../tool-manager.js'),
+          import('../tool-executor.js'),
+          import('../window-manager.js'),
+          import('../tool-registry.js'),
+          import('../core/settings-service.js'),
+          import('../bypass-manager.js'),
+          import('../variable-resolver.js'),
+          import('../context-injector.js'),
+          import('../tool-prompt-service.js'),
+          import('../tool-output-service.js'),
+          import('../tool-automation-service.js')
+        ]);
 
         if (modules.toolOutputServiceModule?.toolOutputService && modules.apiConnectionModule) {
           modules.toolOutputServiceModule.toolOutputService.setApiConnection(modules.apiConnectionModule);
