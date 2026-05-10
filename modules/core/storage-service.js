@@ -188,6 +188,10 @@ class StorageService {
    * @returns {boolean}
    */
   has(key) {
+    const cacheKey = `${this.namespaceKey}:${key}`;
+    if (this._cache.has(cacheKey)) {
+      return true;
+    }
     const storage = this._getStorage();
     const fullKey = this._getFullKey(key);
     return storage.getItem(fullKey) !== null;

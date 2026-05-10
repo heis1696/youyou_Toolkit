@@ -3,6 +3,9 @@
  * 主界面运行控制台 + 单表配置抽屉
  */
 import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice, downloadJson, readFileContent } from '../utils.js';
+import { logger } from '../../core/logger-service.js';
+
+const log = logger.createScope('TWB');
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
 import { renderTableAuxiliaryFields } from './table-form-renderer.js';
 import { TableCellPopupMenu, getPopupMenuStyles } from './table-cell-popup-menu.js';
@@ -1016,10 +1019,10 @@ export const TableWorkbenchPanel = {
         if (result?.success || result?.nextTables) {
           const freshCfg = getTableWorkbenchConfig();
           const liveTables = result.nextTables || result.state?.tables || [];
-          console.log('[YYT-TWB] nextTables:', JSON.stringify(liveTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
-          console.log('[YYT-TWB] configTables:', JSON.stringify(freshCfg.tables?.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
+          log.debug('nextTables:', JSON.stringify(liveTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
+          log.debug('configTables:', JSON.stringify(freshCfg.tables?.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
           const mergedTables = mergeLiveRowsIntoConfig(freshCfg.tables, liveTables, 'exact');
-          console.log('[YYT-TWB] mergedTables:', JSON.stringify(mergedTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length, source: t?.__liveSourceKind }))));
+          log.debug('mergedTables:', JSON.stringify(mergedTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length, source: t?.__liveSourceKind }))));
           self.lastLiveConfig = { ...freshCfg, tables: mergedTables, __liveSourceKind: 'exact' };
           self.lastLiveTarget = result.targetSnapshot || null;
         }
@@ -1374,13 +1377,13 @@ export const TableWorkbenchPanel = {
     this._liveRefreshPending = true;
     try {
       const targetSnapshot = await resolveLatestTableTarget({ runSource: 'MANUAL_TABLE' });
-      console.log('[YYT-TWB] _refreshLiveState targetSnapshot:', targetSnapshot ? { sourceMessageId: targetSnapshot.sourceMessageId, slotBindingKey: targetSnapshot.slotBindingKey, slotRevisionKey: targetSnapshot.slotRevisionKey, chatId: targetSnapshot.chatId } : null);
+      log.debug('_refreshLiveState targetSnapshot:', targetSnapshot ? { sourceMessageId: targetSnapshot.sourceMessageId, slotBindingKey: targetSnapshot.slotBindingKey, slotRevisionKey: targetSnapshot.slotRevisionKey, chatId: targetSnapshot.chatId } : null);
       if (!targetSnapshot) {
         this._clearLiveCache();
         return;
       }
       const boundState = getBoundTableState(targetSnapshot);
-      console.log('[YYT-TWB] _refreshLiveState boundState:', boundState ? { hasTables: Array.isArray(boundState.tables), tableCount: boundState.tables?.length, rowCounts: boundState.tables?.map(t => t?.rows?.length), sourceKind: boundState.meta?.sourceKind } : null);
+      log.debug('_refreshLiveState boundState:', boundState ? { hasTables: Array.isArray(boundState.tables), tableCount: boundState.tables?.length, rowCounts: boundState.tables?.map(t => t?.rows?.length), sourceKind: boundState.meta?.sourceKind } : null);
       if (!boundState || !Array.isArray(boundState.tables) || boundState.tables.length === 0) {
         this.lastLiveTarget = targetSnapshot;
         if (this.lastLiveConfig) {

@@ -29,8 +29,14 @@ export { EventBus, eventBus, EVENTS } from './event-bus.js';
 // 设置服务 (v0.5 新增)
 // ============================================================
 
-export { 
-  settingsService, 
-  SettingsService, 
-  DEFAULT_SETTINGS 
+export {
+  settingsService,
+  SettingsService,
+  DEFAULT_SETTINGS
 } from './settings-service.js';
+
+// ============================================================
+// 日志服务
+// ============================================================
+
+export { logger, LoggerService, LOG_LEVEL } from './logger-service.js';

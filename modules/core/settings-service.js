@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const SETTINGS_STORAGE_KEY = 'settings_v2';
+const LEGACY_SETTINGS_KEY = 'settings';
 
 // ============================================================
 // 设置服务类
@@ -47,6 +48,7 @@ const SETTINGS_STORAGE_KEY = 'settings_v2';
 class SettingsService {
   constructor() {
     this._cache = null;
+    this._migrated = false;
   }
 
   /**
@@ -58,9 +60,36 @@ class SettingsService {
       return this._cache;
     }
 
-    const saved = storage.get(SETTINGS_STORAGE_KEY, {});
-    this._cache = this._mergeWithDefaults(saved);
+    const saved = storage.get(SETTINGS_STORAGE_KEY, null);
+
+    if (saved === null && !this._migrated) {
+      this._migrated = true;
+      const legacy = storage.get(LEGACY_SETTINGS_KEY, null);
+      if (legacy && typeof legacy === 'object') {
+        const migrated = this._migrateLegacySettings(legacy);
+        this._cache = this._mergeWithDefaults(migrated);
+        storage.set(SETTINGS_STORAGE_KEY, this._cache);
+        return this._cache;
+      }
+    }
+
+    this._cache = this._mergeWithDefaults(saved || {});
     return this._cache;
+  }
+
+  /**
+   * 从旧 schema (settings) 迁移可映射字段到新 schema (settings_v2)
+   * @private
+   */
+  _migrateLegacySettings(legacy) {
+    const migrated = {};
+    if (legacy.uiSettings && typeof legacy.uiSettings === 'object') {
+      migrated.ui = {};
+      if (typeof legacy.uiSettings.theme === 'string') {
+        migrated.ui.theme = legacy.uiSettings.theme;
+      }
+    }
+    return migrated;
   }
 
   /**

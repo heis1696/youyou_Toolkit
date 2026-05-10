@@ -1,6 +1,6 @@
 # YouYou Toolkit - SillyTavern 工具插件
 
-> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.121`。
+> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.126`。
 
 YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配置工具链插件。
 
@@ -42,7 +42,7 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 - 填表工作台上下文增强：可配置消息深度（`contextDepth`）、角色过滤（`contextRoles`）、自定义正则提取规则（`contextExtractTags`）、全局规则开关（`contextUseGlobalRules`）、世界书注入（`worldbooks`）与 `sendLatestRows`。
 - 填表工作台支持按聊天隔离面板状态，监听 `CHAT_CHANGED` 事件切换上下文。
 - 填表工作台实时行数据通过 `mergeLiveRowsIntoConfig` 展示，与持久化行分开跟踪。
-- 填表工作台 `runScope` 约束执行范围为 current / selected / all 三档，防止越界操作。
+- 填表工作台 `runScope` 约束执行范围为 current / selected / enabled 三档，防止越界操作。
 - 填表写回通过 `TavernHelper.setChatMessages` 完成刷新确认。
 - 兼容模块按需加载，降低启动期负担
 
@@ -79,10 +79,32 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 ```text
 .
 ├── index.js
+├── styles/
+│   └── main.css
 ├── modules/
 │   ├── app/
+│   │   ├── bootstrap.js
+│   │   ├── popup-shell.js
+│   │   └── public-api.js
 │   ├── core/
+│   │   ├── index.js
+│   │   ├── event-bus.js
+│   │   ├── storage-service.js
+│   │   ├── settings-service.js
+│   │   └── logger-service.js
 │   ├── ui/
+│   │   ├── index.js
+│   │   ├── ui-manager.js
+│   │   ├── utils.js
+│   │   └── components/
+│   ├── api-connection.js
+│   ├── bypass-manager.js
+│   ├── preset-manager.js
+│   ├── prompt-editor.js
+│   ├── regex-extractor.js
+│   ├── storage.js
+│   ├── variable-resolver.js
+│   ├── window-manager.js
 │   ├── tool-manager.js
 │   ├── tool-registry.js
 │   ├── tool-execution-context.js
@@ -90,8 +112,11 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 │   ├── tool-automation-service.js
 │   ├── tool-output-service.js
 │   ├── tool-prompt-service.js
-│   ├── context-injector.js
+│   ├── tool-local-transform-service.js
+│   ├── tool-worldbook-service.js
 │   ├── tool-executor.js
+│   ├── context-injector.js
+│   ├── ui-components.js
 │   └── table-engine/
 │       ├── table-schema-service.js
 │       ├── table-update-service.js
@@ -106,12 +131,16 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 │       ├── table-guide-service.js
 │       ├── table-template-service.js
 │       ├── table-types.js
-│       └── table-json-sanitizer.js
+│       ├── table-json-sanitizer.js
+│       └── table-worldbook-sync-service.js
 ├── docs/
 │   ├── API_DOCUMENTATION.md
 │   ├── ARCHITECTURE_ANALYSIS.md
 │   ├── FRAMEWORK_ARCHITECTURE.md
-│   └── CHANGELOG.md
+│   ├── CHANGELOG.md
+│   ├── UI_DESIGN_AUDIT.md
+│   ├── UI_REFACTOR_PLAN.md
+│   └── UI_REFACTOR_PROGRESS.md
 └── dist/
 ```
 
@@ -153,5 +182,5 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 
 ## 版本说明
 
-- 当前 `package.json` 版本：`1.0.121`
-- 当前发布版本：`1.0.121`
+- 当前 `package.json` 版本：`1.0.126`
+- 当前发布版本：`1.0.126`

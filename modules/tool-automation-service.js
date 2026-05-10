@@ -1,10 +1,10 @@
 /**
  * YouYou Toolkit - 自动化生命周期服务 (MVU Transaction Rework)
- * @description 基于 generation-aware 事务模型的自动触发服务
+ * @description 基于 slot-based 事务模型的自动触发服务
  *
- * 核心改动（相对旧版）：
+ * 核心设计：
  *   1. 引入 Transaction 主模型，每次触发对应一个贯穿全链的事务对象
- *   2. generationKey = messageId + contentHash，同楼层 reroll/swipe 产生新内容视为新事务
+ *   2. 去重键 = messageId::swipeId（slot-based），同楼层 reroll/swipe 产生新内容视为新事务
  *   3. 宿主事件名统一归一化为大写，消除格式不匹配
  *   4. isEnabled() 增加首次失败诊断
  *   5. 提交点单一化，明确区分数据提交 vs UI 刷新确认

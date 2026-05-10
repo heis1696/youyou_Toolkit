@@ -35,8 +35,7 @@ class LoggerService {
     this._minLevel = LOG_LEVEL.INFO;
 
     this._eventKey = 'logger:entry';
-    this._statsEventKey = 'logger:statsChanged';
-    this._pendingFlush = false;
+    this._pendingEntries = [];
   }
 
   // ============================================================
@@ -60,11 +59,13 @@ class LoggerService {
 
     this._forwardToConsole(entry);
 
-    if (!this._pendingFlush) {
-      this._pendingFlush = true;
+    this._pendingEntries.push(entry);
+    if (this._pendingEntries.length === 1) {
       queueMicrotask(() => {
-        this._pendingFlush = false;
-        this._emitEntry(entry);
+        const batch = this._pendingEntries.splice(0);
+        for (const e of batch) {
+          this._emitEntry(e);
+        }
       });
     }
   }

@@ -85,12 +85,9 @@ export const EVENTS = {
 
 class EventBus {
   constructor() {
-    /** @type {Map<string, Set<Function>>} */
+    /** @type {Map<string, Array<{callback: Function, priority: number}>>} */
     this.listeners = new Map();
-    
-    /** @type {Map<string, Function>} */
-    this.onceCallbacks = new Map();
-    
+
     /** 事件历史记录 */
     this.history = [];
     
@@ -119,19 +116,27 @@ class EventBus {
     }
 
     const { priority = 0 } = options;
-    
+
     if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+      this.listeners.set(event, []);
     }
-    
+
     const listener = { callback, priority };
-    this.listeners.get(event).add(listener);
-    
+    const arr = this.listeners.get(event);
+
+    let lo = 0;
+    let hi = arr.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (arr[mid].priority > priority) lo = mid + 1;
+      else hi = mid;
+    }
+    arr.splice(lo, 0, listener);
+
     if (this.debugMode) {
       console.log(`[EventBus] 订阅: ${event}`);
     }
-    
-    // 返回取消订阅函数
+
     return () => this.off(event, callback);
   }
 
@@ -143,14 +148,12 @@ class EventBus {
   off(event, callback) {
     const listeners = this.listeners.get(event);
     if (!listeners) return;
-    
-    for (const listener of listeners) {
-      if (listener.callback === callback) {
-        listeners.delete(listener);
-        break;
-      }
+
+    const idx = listeners.findIndex(l => l.callback === callback);
+    if (idx !== -1) {
+      listeners.splice(idx, 1);
     }
-    
+
     if (this.debugMode) {
       console.log(`[EventBus] 取消订阅: ${event}`);
     }
@@ -170,13 +173,9 @@ class EventBus {
     this._addToHistory(event, data);
     
     const listeners = this.listeners.get(event);
-    if (!listeners || listeners.size === 0) return;
-    
-    // 按优先级排序
-    const sortedListeners = Array.from(listeners)
-      .sort((a, b) => b.priority - a.priority);
-    
-    for (const { callback } of sortedListeners) {
+    if (!listeners || listeners.length === 0) return;
+
+    for (const { callback } of listeners) {
       try {
         callback(data);
       } catch (error) {
@@ -235,7 +234,7 @@ class EventBus {
    */
   hasListeners(event) {
     const listeners = this.listeners.get(event);
-    return listeners && listeners.size > 0;
+    return listeners && listeners.length > 0;
   }
 
   /**
@@ -245,7 +244,7 @@ class EventBus {
    */
   listenerCount(event) {
     const listeners = this.listeners.get(event);
-    return listeners ? listeners.size : 0;
+    return listeners ? listeners.length : 0;
   }
 
   /**
