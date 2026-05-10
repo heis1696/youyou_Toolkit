@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明当前 `1.0.121` 代码基线下的公开 API、执行入口与运行模型。
+本文档说明当前 `1.0.126` 代码基线下的公开 API、执行入口与运行模型。
 
 当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 
@@ -95,7 +95,7 @@ const toolkit = window.YouYouToolkit;
 - `stopAutomation()` 实际调用 `toolAutomationService.stop()`。
 - `getAutomationRuntime()` 返回 `toolAutomationService.getRuntimeSnapshot()` 的快照。
 - `cancelAutomation()` 用于取消自动链路中的 pending timer 或 in-flight 事务，可按 `messageId`、`slotKey`、`traceId` 定位。
-- `processCurrentAssistantMessage()` 会解析“当前最新 assistant 楼层”，然后按自动链逻辑执行一次处理，可用 `force: true` 跳过未启用时的常规短路。
+- `processCurrentAssistantMessage()` 会解析"当前最新 assistant 楼层"，然后按自动链逻辑执行一次处理，可用 `force: true` 跳过未启用时的常规短路。
 
 ### 2.6 窗口接口
 
@@ -114,7 +114,7 @@ const toolkit = window.YouYouToolkit;
 - `getToolTrigger()`
 - `getAutoTriggerDiagnostics()`
 - `exportAutoTriggerDiagnostics()`
-- “旧 trigger 管理器就是自动主入口”
+- "旧 trigger 管理器就是自动主入口"
 
 当前自动执行主线已经切换到 `modules/tool-automation-service.js`，而 `modules/tool-trigger.js` 的职责已经收口为手动执行与提取预览入口。
 
@@ -153,29 +153,32 @@ const toolkit = window.YouYouToolkit;
 
 其中：
 - `post_response_api` 走 `toolOutputService.runToolPostResponse()`
-- `follow_ai` 手动执行走 `toolOutputService.runToolFollowAiManual()`
-- `local_transform` 或带 `processor.type` 的工具走本地 transform 链
+- `follow_ai` 手动执行走 `toolOutputService.runToolFollowAiManual()`（路径枚举归类为 `manual_compatibility`，但在 `executeToolByResolvedPath()` 分发时被拦截）
+- `local_transform` 或带 `processor.type` 的工具走 `modules/tool-local-transform-service.js` 本地 transform 链
 - 其他旧路径回退到 `modules/tool-executor.js`
 
 ### 4.3 `modules/tool-automation-service.js`
 
 这是当前自动执行唯一入口（1.0.111 重写），负责：
 
-- 绑定宿主消息事件：仅订阅 `MESSAGE_RECEIVED`（3s 节流）、`CHAT_CHANGED`、`GENERATION_STOPPED`
-- 基于 `messageId::swipeId` 槽位去重，去重状态存储在 `_recentlyProcessedSlots` Map 中
+- 绑定宿主消息事件：订阅 `MESSAGE_RECEIVED`（3s 节流）、`MESSAGE_SENT`（清理 pending 定时器）、`MESSAGE_DELETED`（清理消息关联状态）、`CHAT_CHANGED`、`GENERATION_STOPPED`（取消活跃事务 + 清除定时器 + 重置互斥锁）
+- 基于 `messageId::swipeId` 槽位去重，去重状态存储在 `_recentlyProcessedSlots` Map 中（TTL 由 `dedupeWindowMs` 控制，默认约 1400ms）
 - 模块级互斥锁 `_isProcessing` boolean 保证同一时刻只有一条执行链在运行
-- Own-write 黑名单 `_ownWriteMessageIds` Set 防止自写消息触发再次自动执行循环
-- 取消：`GENERATION_STOPPED` 事件通过 `controller.abort()` 终止进行中的请求
+- Own-write 黑名单 `_ownWriteMessageIds` **Map**（key = messageId, value = 写入时间戳），TTL **5000ms**（硬编码），防止自写消息触发再次自动执行循环
+- 取消：`GENERATION_STOPPED` 事件通过 `controller.abort()` 终止所有活跃事务，清除 pending 定时器，重置 `_isProcessing`
 - 过滤可自动执行工具
 - 驱动自动 `post_response_api` 执行与结果诊断
 
 公开可观察状态主要通过 `getRuntimeSnapshot()` 暴露，包括：
 
+- `currentChatId`
 - `enabled`
+- `isProcessing`
 - `pendingTimerCount`
 - `queuedSlotCount`
 - `recentlyProcessedSlotCount`
-- `ownWriteBlacklistSize`
+- `ownWriteMessageIdCount`
+- `activeTransactionCount`
 - `recentTransactions`
 - `hostBinding`
 - `settings`
@@ -199,7 +202,11 @@ const toolkit = window.YouYouToolkit;
 
 另外保留 `inline -> follow_ai` 的旧模式兼容映射。
 
-### 4.5 `modules/context-injector.js`
+### 4.5 `modules/tool-local-transform-service.js`
+
+本地 transform 工厂，提供 escape / punctuation 等纯本地文本变换。被 `tool-trigger.js` 导入使用，变换后通过 `context-injector.injectDetailed()` 写回。
+
+### 4.6 `modules/context-injector.js`
 
 负责把工具输出写回绑定 assistant 楼层，并返回分层写回结果。当前主入口是：
 
@@ -212,6 +219,20 @@ const toolkit = window.YouYouToolkit;
 - source message / swipe 身份
 - commit 方法与 refresh 请求信息
 - refresh 是否最终确认
+
+### 4.7 事件绑定
+
+`tool-automation-service.js` 当前绑定的宿主事件完整列表：
+
+| 事件 | 行为 |
+|------|------|
+| `MESSAGE_RECEIVED` | 主触发，3s leading-edge 节流，调度 assistant 消息处理 |
+| `MESSAGE_SENT` | 清理所有 pending 定时器 |
+| `MESSAGE_DELETED` | 清理被删除消息的关联状态 |
+| `CHAT_CHANGED` | teardown / rebuild 当前聊天绑定 |
+| `GENERATION_STOPPED` | 取消所有活跃事务、清除定时器、重置 `_isProcessing` |
+
+另有内部事件 `SETTINGS_UPDATED`（eventBus）用于重新评估自动化启用状态。
 
 ## 5. 执行模型
 
@@ -228,11 +249,11 @@ const result = await window.YouYouToolkit.processCurrentAssistantMessage({ force
 当前自动执行流程：
 
 ```text
-宿主事件（MESSAGE_RECEIVED / CHAT_CHANGED / GENERATION_STOPPED）
+宿主事件（MESSAGE_RECEIVED / MESSAGE_SENT / MESSAGE_DELETED / CHAT_CHANGED / GENERATION_STOPPED）
   -> tool-automation-service 归一化事件 / 解析 messageId::swipeId
   -> _isProcessing 互斥检查（若已占用则跳过）
-  -> _ownWriteMessageIds 黑名单检查（自写消息跳过）
-  -> _recentlyProcessedSlots 槽位去重检查
+  -> _ownWriteMessageIds 黑名单检查（自写消息跳过，TTL 5000ms）
+  -> _recentlyProcessedSlots 槽位去重检查（TTL 由 dedupeWindowMs 控制）
   -> buildExecutionContextForMessage()
   -> 筛选 automation.enabled === true 的 post_response_api 工具
   -> 按 slot 串行执行 runToolPostResponse()
@@ -262,15 +283,16 @@ const result = await runToolManually(toolId);
 runToolManually(toolId)
   -> buildExecutionContextForLatestAssistant()
   -> resolveExecutionPath()
-  -> 按路径分发
+  -> 按路径分发（executeToolByResolvedPath）
      -> manual_post_response_api: runToolPostResponse()
-     -> manual_local_transform: runLocalTextTransform() + injectDetailed()
+     -> follow_ai（枚举为 manual_compatibility 但分发时拦截）: runToolFollowAiManual()
+     -> manual_local_transform: tool-local-transform-service.runLocalTextTransform() + injectDetailed()
      -> manual_compatibility: executeToolWithConfig()
 ```
 
 补充：
 - `follow_ai` 的手动执行由 `executeToolByResolvedPath()` 分派到 `runToolFollowAiManual()`。
-- 因此 `follow_ai` 不是”什么都不做”的占位模式，而是手动链上的独立额外请求路径。
+- 因此 `follow_ai` 不是"什么都不做"的占位模式，而是手动链上的独立额外请求路径。
 - 填表工作台的 AI 指令预设通过 bypass-manager 绑定，走统一的 Ai 指令预设管理。手动填表入口是 `runManualTableUpdate()`，构建 context 时读取 contextDepth / contextRoles / contextExtractTags / contextUseGlobalRules / worldbooks / sendLatestRows 等上下文增强配置。
 
 ### 5.3 提取预览链
@@ -325,6 +347,8 @@ runScope 模式（控制 AI 可编辑哪些表）：
 
 写回：使用 `TavernHelper.setChatMessages` 刷新宿主 UI；自动填表写回时附带 `skipNotify` 标记，避免触发二次自动执行循环。
 
+worldbookSync：`table-writeback-service.js` 在写回时调用 `table-worldbook-sync-service.js` 的 `syncTablesToWorldbook()` 将结果同步到世界书条目。
+
 ## 6. 输出模式说明
 
 ### `post_response_api`
@@ -344,7 +368,7 @@ runScope 模式（控制 AI 可编辑哪些表）：
 ### `local_transform`
 
 - 当前只走手动链
-- 在本地对提取文本做 transform
+- 在本地对提取文本做 transform（由 `modules/tool-local-transform-service.js` 提供）
 - 之后仍通过 `context-injector` 写回
 
 ### compatibility fallback
@@ -378,9 +402,156 @@ runScope 模式（控制 AI 可编辑哪些表）：
 - `writebackDetails` 用于查看内容是否真正提交、宿主 commit 是否应用、refresh 是否请求及是否确认。
 - `phases` 汇总 request / extract / writeback / refresh 的阶段化结果。
 
+### `writebackDetails` 详细结构
+
+`injectDetailed()` 返回的 `writebackDetails` 包含以下关键字段：
+
+```text
+{
+  success,                          // boolean - 最终成功标志
+  toolId,                           // string
+  chatId,                           // string
+  traceId,                          // string
+  sourceMessageId,                  // string|null
+  sourceSwipeId,                    // string|null
+  effectiveSwipeId,                 // string|null
+  slotBindingKey,                   // string
+  slotRevisionKey,                  // string
+  slotTransactionId,                // string
+  messageIndex,                     // number - 解析到的消息索引
+  blockIdentity,                    // object|null - 工具写入块标识
+  commit: {
+    preferredMethod,                // string - 首选提交方法
+    attemptedMethods,               // string[] - 尝试过的方法列表
+    appliedMethod,                  // string - 实际使用的方法
+    fallbackUsed,                   // boolean - 是否使用了 fallback
+    contentCommitted,               // boolean - 内容是否已提交
+    hostCommitApplied               // boolean - 宿主 commit 是否已应用
+  },
+  refresh: {
+    requestMethods,                 // string[] - refresh 请求方法列表
+    requested,                      // boolean
+    confirmChecks,                  // number - 确认检查次数
+    confirmed,                      // boolean
+    confirmedBy,                    // string - 确认来源
+    eventSource,                    // string
+    eventName                       // string
+  },
+  contentCommitted,                 // boolean (顶层快捷)
+  hostCommitApplied,                // boolean (顶层快捷)
+  refreshRequested,                 // boolean (顶层快捷)
+  refreshConfirmed,                 // boolean (顶层快捷)
+  writebackStatus,                  // string - 'success' | 'failed'
+  replacedExistingBlock,            // boolean
+  insertedNewBlock,                 // boolean
+  conflictDetected,                 // boolean
+  conflictReason,                   // string
+  preservedOtherToolBlocks,         // boolean
+  steps: {
+    foundTargetMessage,             // boolean
+    contentCommitted,               // boolean
+    localTextApplied,               // boolean
+    runtimeSynced,                  // boolean
+    hostSetChatMessages,            // boolean
+    hostSetChatMessage,             // boolean
+    refreshForceSetChatMessage,     // boolean
+    saveChatDebounced,              // boolean
+    saveChat,                       // boolean
+    refreshRequested,               // boolean
+    notifiedMessageUpdated,         // boolean
+    verifiedAfterWrite,             // boolean
+    refreshConfirmed                // boolean
+  },
+  verification: {
+    textIncludesContent,            // boolean
+    mirrorStored,                   // boolean
+    refreshConfirmed                // boolean
+  }
+}
+```
+
+### `meta` 返回值完整字段
+
+`runToolPostResponse()` 成功路径返回的 `meta`：
+
+```text
+{
+  traceId,
+  sessionKey,
+  executionKey,
+  slotBindingKey,
+  slotTransactionId,
+  generationAction,
+  generationActionSource,
+  rawGenerationType,
+  normalizedGenerationType,
+  generationMessageBindingSource,
+  sourceMessageId,
+  sourceSwipeId,
+  confirmedAssistantSwipeId,
+  effectiveSwipeId,
+  slotRevisionKey,
+  messageCount,
+  selectors,
+  apiPreset,
+  writebackStatus,
+  failureStage,
+  writebackDetails,
+  phases: {
+    request: { built, messageCount },
+    extract: { completed, hasOutput },
+    writeback: {
+      attempted,
+      contentCommitted,
+      hostCommitApplied,
+      writebackStatus,
+      preferredCommitMethod,
+      appliedCommitMethod,
+      fallbackUsed
+    },
+    refresh: {
+      requested,
+      confirmed,
+      requestMethods,
+      confirmChecks,
+      confirmedBy
+    }
+  }
+}
+```
+
+中止路径额外包含：`aborted`（boolean）、`stale`（boolean）、`abortReason`（string）。
+
+### `getRuntimeSnapshot()` 返回值
+
+`getRuntimeSnapshot()` 返回的完整字段：
+
+```text
+{
+  currentChatId,                    // string - 当前聊天 ID
+  enabled,                          // boolean - 自动化是否启用
+  isProcessing,                     // boolean - 当前是否有执行链在运行
+  pendingTimerCount,                // number - 等待中的定时器数量
+  queuedSlotCount,                  // number - 排队中的槽位数量
+  recentlyProcessedSlotCount,       // number - 近期已处理槽位数量
+  ownWriteMessageIdCount,           // number - 当前 own-write 黑名单条目数量
+  activeTransactionCount,           // number - 活跃事务数量
+  recentTransactions,               // array - 最近 10 条事务快照
+  hostBinding: {
+    ...hostBindingStatus,
+    eventBindings                   // string[] - 已绑定的事件列表
+  },
+  settings: {
+    enabled,                        // boolean
+    settleMs,                       // number (默认 800)
+    dedupeWindowMs                  // number (默认 Math.max(1200, settleMs+600) ≈ 1400)
+  }
+}
+```
+
 ## 8. 调试顺序建议
 
-当用户反馈“工具执行了但没写回”或“自动化没有触发”时，建议按下面顺序排查：
+当用户反馈"工具执行了但没写回"或"自动化没有触发"时，建议按下面顺序排查：
 
 1. `modules/tool-execution-context.js` 是否解析到了正确 assistant 槽位与身份键
 2. `modules/tool-trigger.js` 或 `modules/tool-automation-service.js` 是否走到了预期入口
@@ -396,5 +567,6 @@ runScope 模式（控制 AI 可编辑哪些表）：
 - `tool-trigger.js` 仍在，但当前主要负责手动执行与提取预览
 - `tool-executor.js` 仍在，但主用途是 compatibility fallback
 - `inline` 模式仍可被识别，但会映射到 `follow_ai`
+- `prompt-editor.js` 仍在，仍被 `popup-shell.js` 用于 prompts 子页签渲染，但已不再通过 `public-api.js` 暴露
 
 判断当前行为时，应始终优先看实际导出与实际调用链，而不是沿用旧命名习惯。

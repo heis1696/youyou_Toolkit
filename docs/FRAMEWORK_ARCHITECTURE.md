@@ -1,8 +1,8 @@
 # FRAMEWORK ARCHITECTURE
 
-本文档基于当前 `1.0.121` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
+本文档基于当前 `1.0.126` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
 
-它不是按文件列表罗列细节，而是按“遇到问题时应该先理解哪条主线”来组织内容。
+它不是按文件列表罗列细节，而是按"遇到问题时应该先理解哪条主线"来组织内容。
 
 当历史讨论、旧文档、旧命名与当前实现不一致时，应优先以以下源码为准：
 
@@ -20,7 +20,7 @@
 
 ## 1. 一句话框架结论
 
-当前仓库的主线不是“旧 trigger 管理器 + 一组零散工具模块”，而是：
+当前仓库的主线不是"旧 trigger 管理器 + 一组零散工具模块"，而是：
 
 - 薄入口 `index.js`
 - 启动装配中心 `modules/app/bootstrap.js`
@@ -88,7 +88,7 @@ window.YouYouToolkit
 - 模块 getter：`getToolRegistry()` / `getToolOutputService()` / `getToolAutomationService()` 等
 - 自动化控制：`startAutomation()` / `stopAutomation()` / `getAutomationRuntime()` / `processCurrentAssistantMessage()`
 
-因此，判断“什么算公开 API”时，不要看旧笔记，要先看 `modules/app/public-api.js`；`loadLegacyModule()`、`getUiComponents()`、`getPromptEditor()` 已不属于当前接口面。
+因此，判断"什么算公开 API"时，不要看旧笔记，要先看 `modules/app/public-api.js`；`loadLegacyModule()`、`getUiComponents()`、`getPromptEditor()` 已不属于当前接口面。
 
 ## 3. UI 壳层与面板注册
 
@@ -138,6 +138,7 @@ window.YouYouToolkit
 - bypass
 - settings
 - tableWorkbench
+- LoggerPanel（日志面板，带级别过滤、搜索、暂停/恢复、导出与自动滚动）
 
 ### 3.3 `modules/ui/ui-manager.js`：生命周期与样式层
 
@@ -165,11 +166,23 @@ window.YouYouToolkit
 
 因此，很多工具面板表现一致，不是因为各自复制实现，而是因为它们复用了同一面板工厂。
 
+### 3.5 `modules/ui/components/logger-panel.js`：日志面板
+
+`LoggerPanel` 是独立的运行时日志查看面板，提供：
+
+- 级别过滤（DEBUG / INFO / WARN / ERROR）
+- 关键字搜索
+- 暂停 / 恢复实时流
+- 日志清除与导出
+- 自动滚动
+
+它由 `modules/ui/index.js` 懒加载注册，在 `tool-registry.js` 中以 `component: 'LoggerPanel'` 挂载为工具页签。
+
 ## 4. 工具定义层与运行时层
 
 ### 4.1 `modules/tool-manager.js`：定义层
 
-`tool-manager.js` 处理的是“工具定义如何被保存与标准化”，重点包括：
+`tool-manager.js` 处理的是"工具定义如何被保存与标准化"，重点包括：
 
 - 自定义工具定义结构
 - schema 归一化
@@ -187,7 +200,7 @@ window.YouYouToolkit
 
 ### 4.2 `modules/tool-registry.js`：运行时模型层
 
-`tool-registry.js` 处理的是“工具在 UI 与执行链里最终长什么样”，重点包括：
+`tool-registry.js` 处理的是"工具在 UI 与执行链里最终长什么样"，重点包括：
 
 - 合并 built-in 与 custom 工具
 - 规范化运行时 `output` / `automation` / `extraction` / `runtime`
@@ -204,8 +217,8 @@ window.YouYouToolkit
 
 ### 4.3 一个实用判断原则
 
-- 改“定义怎么存” -> `tool-manager.js`
-- 改“运行时怎么用、UI 怎么看见” -> `tool-registry.js`
+- 改"定义怎么存" -> `tool-manager.js`
+- 改"运行时怎么用、UI 怎么看见" -> `tool-registry.js`
 
 这两层不要混写，否则会把定义层和运行态层耦在一起。
 
@@ -225,7 +238,7 @@ window.YouYouToolkit
 
 ### 5.2 手动执行前会先做什么
 
-手动执行不会直接拿“当前消息全文”硬跑，而是先通过 `modules/tool-execution-context.js`：
+手动执行不会直接拿"当前消息全文"硬跑，而是先通过 `modules/tool-execution-context.js`：
 
 - 解析目标 assistant 楼层
 - 归一化 messageId / swipeId / chatId
@@ -235,24 +248,24 @@ window.YouYouToolkit
 
 ### 5.3 当前手动路径
 
-`resolveExecutionPath()` 当前将手动执行分成：
+`resolveExecutionPath()` 将手动执行分成三条命名路径：
 
 - `manual_post_response_api`
 - `manual_local_transform`
 - `manual_compatibility`
 
-但实际调度还包含一个关键分支：
+实际调度时 `executeToolByResolvedPath()` 会在加载 compatibility 模块之前拦截 `follow_ai`：
 
 - `post_response_api` -> `runToolPostResponse()`
-- `follow_ai` -> `runToolFollowAiManual()`
-- `local_transform` 或存在 `processor.type` -> 本地 transform
+- `follow_ai` -> `runToolFollowAiManual()`（`resolveExecutionPath()` 返回 `manual_compatibility`，但在分发时被拦截，不会落入旧 executor）
+- `local_transform` 或存在 `processor.type` -> `tool-local-transform-service.js` -> `injectDetailed()`
 - 其他旧路径 -> 回退到 `tool-executor.js`
 
 因此：
 
-- `manual_compatibility` 不是所有非 `post_response_api` 的唯一分支
-- `follow_ai` 现在是正式的手动执行路径
-- 不能再把 `follow_ai` 描述成“只是占位配置”
+- `follow_ai` 在路径枚举中归类为 `manual_compatibility`，但实际执行走独立 `runToolFollowAiManual()` 链
+- 不能再把 `follow_ai` 描述成"只是占位配置"
+- `tool-local-transform-service.js`（`modules/tool-local-transform-service.js`）是本地 transform 的具体工厂模块
 
 ### 5.4 本地 transform 的边界
 
@@ -261,7 +274,7 @@ window.YouYouToolkit
 它仍然会：
 
 - 基于提取快照得到目标文本
-- 在本地完成 transform
+- 在本地完成 transform（由 `modules/tool-local-transform-service.js` 提供 escape / punctuation 等变换）
 - 通过 `context-injector.injectDetailed()` 写回 assistant 槽位
 
 因此它仍共享：
@@ -288,20 +301,22 @@ window.YouYouToolkit
 当前监听的事件：
 
 - `MESSAGE_RECEIVED`（主触发，leading-edge 3s 节流）
+- `MESSAGE_SENT`（用户发送消息时清理所有 pending 定时器）
+- `MESSAGE_DELETED`（清理被删除消息的关联状态）
 - `CHAT_CHANGED`（teardown / rebuild 当前聊天绑定）
-- `GENERATION_STOPPED`（取消正在进行中的请求）
+- `GENERATION_STOPPED`（取消所有活跃事务，清除定时器，重置 `_isProcessing`）
 
-以下事件已在 1.0.111 重写后移除，不再作为自动触发源：`GENERATION_ENDED`、`MESSAGE_SWIPED`、`GENERATION_AFTER_COMMANDS`、`MESSAGE_DELETED`。
+以下事件已在 1.0.111 重写后移除，不再作为自动触发源：`GENERATION_ENDED`、`MESSAGE_SWIPED`、`GENERATION_AFTER_COMMANDS`。
 
 ### 6.2 slot-based dedup 是核心设计
 
-自动链当前不是”收到事件就盲跑”，而是基于槽位身份的去重模型：
+自动链当前不是"收到事件就盲跑"，而是基于槽位身份的去重模型：
 
 - 用 `messageId::swipeId` 作为槽位键区分不同 generation（不是 `messageId + contentHash`）
 - 模块级 `_isProcessing` 互斥锁保证同一时刻只有一次执行
-- `_ownWriteMessageIds` 短 TTL 黑名单，防止工具写回触发的消息事件再次激活自动链（避免自触发循环）
-- `_recentlyProcessedSlots` Map 记录近期已处理的槽位键，替代旧的 `_completedGenerationKeys`
-- 取消路径：`GENERATION_STOPPED` 事件 → `controller.abort()` 中止正在进行的请求
+- `_ownWriteMessageIds` Map（key = messageId, value = 写入时间戳），TTL 5000ms，防止工具写回触发的消息事件再次激活自动链（避免自触发循环）
+- `_recentlyProcessedSlots` Map 记录近期已处理的槽位键（TTL 由 `dedupeWindowMs` 控制，默认约 1400ms），替代旧的 `_completedGenerationKeys`
+- 取消路径：`GENERATION_STOPPED` 事件 → `controller.abort()` 中止所有活跃事务 → 清除 pending 定时器 → 重置 `_isProcessing`
 
 当前事务阶段包括：
 
@@ -341,12 +356,17 @@ window.YouYouToolkit
 
 排查自动化问题时，首选观测口是 `getRuntimeSnapshot()`，因为它会暴露：
 
-- 当前 chatId
-- enabled 状态
-- pending timer / `recentlyProcessedSlotCount` / `ownWriteBlacklistSize` 统计
-- 最近事务快照
-- host event binding 状态
-- 当前自动化设置
+- `currentChatId`：当前聊天 ID
+- `enabled`：自动化是否启用
+- `isProcessing`：当前是否有执行链在运行
+- `pendingTimerCount`：等待中的定时器数量
+- `queuedSlotCount`：排队中的槽位数量
+- `recentlyProcessedSlotCount`：近期已处理槽位数量
+- `ownWriteMessageIdCount`：当前 own-write 黑名单条目数量
+- `activeTransactionCount`：活跃事务数量
+- `recentTransactions`：最近 10 条事务快照
+- `hostBinding`：宿主事件绑定状态与绑定的事件列表
+- `settings`：当前自动化设置（`enabled` / `settleMs` / `dedupeWindowMs`）
 
 它适合回答：
 
@@ -357,7 +377,7 @@ window.YouYouToolkit
 
 ## 7. 写回与刷新确认
 
-### 7.1 统一执行上下文先解决“写到哪”
+### 7.1 统一执行上下文先解决"写到哪"
 
 `modules/tool-execution-context.js` 的重要作用不是单纯拼装上下文，而是先明确：
 
@@ -415,7 +435,7 @@ window.YouYouToolkit
 - 记录 source message / swipe / slot identity
 - 返回分层写回结果
 
-所以当用户反馈“执行成功但没看到写回”时，不能只看模型有没有返回字，还要看：
+所以当用户反馈"执行成功但没看到写回"时，不能只看模型有没有返回字，还要看：
 
 - source message 绑没绑对
 - host commit 是否真正应用
@@ -470,6 +490,8 @@ tableWorkbench 管理两类非 live-state 资产：
 - `table-template-service.js` — 模板资产管理
 - `table-types.js` — 共享类型与工具函数
 - `table-json-sanitizer.js` — AI 响应解析与清洗
+- `table-worldbook-sync-service.js` — worldbook 同步，将填表结果同步到世界书条目
+- `table-provider-service.js` — 表数据提供层
 
 ### 8.3 UI 结构
 
@@ -494,17 +516,45 @@ runScope 支持三个值：`current` / `selected` / `all`。
 - `worldbooks`
 - `sendLatestRows`
 
-### 8.6 运行时隔离与写回
+### 8.6 worldbookSync 配置层
+
+`table-schema-service.js` 为每张表维护 `worldbookSync` 配置：
+
+- `worldbookSync.enabled`：是否启用同步
+- `worldbookSync.targetBook`：目标世界书标识
+- `worldbookSync.entryComment`：同步条目注释
+
+`table-writeback-service.js` 在写回时调用 `table-worldbook-sync-service.js` 的 `syncTablesToWorldbook()` 执行实际同步。UI 层在 `table-workbench-panel.js` 中提供对应的表单控件。
+
+### 8.7 运行时隔离与写回
 
 - **聊天隔离**：`CHAT_CHANGED` 事件触发各面板的 live 缓存清除
 - **实时行显示**：`mergeLiveRowsIntoConfig` 检查实际行数据是否存在后再合并
 - **写回**：通过 `TavernHelper.setChatMessages` 提交，自动化写回使用 `skipNotify`
 
-### 8.7 定位约束
+### 8.8 定位约束
 
 tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是独立的状态机，也不是绕过 revision-safe / writeback-safe 设计的旁路系统。
 
-## 9. compatibility 模块与非主线路径
+## 9. 共享基础设施层（`modules/core/`）
+
+`modules/core/` 提供所有主线模块共用的基础设施：
+
+### 9.1 模块清单
+
+- `modules/core/event-bus.js` — 跨模块发布/订阅事件总线，导出 `EVENTS` 常量（43 种事件类型，覆盖 storage / preset / API / tool / UI / app / settings / context injection / bypass / output mode change 等类别）
+- `modules/core/storage-service.js` — 首选存储抽象层（新代码应优先使用，而非 `modules/storage.js`）
+- `modules/core/settings-service.js` — 缓存式全局设置（自动化 / 调试 / UI 设置等）
+- `modules/core/logger-service.js` — 带 scope / level / ring buffer 的日志服务
+- `modules/core/index.js` — 统一 re-export 入口
+
+### 9.2 使用原则
+
+- 新增持久化逻辑优先使用 `modules/core/storage-service.js`，而非兼容层 `modules/storage.js`
+- 跨模块事件通信通过 `event-bus.js` 的 `EVENTS` 常量引用事件名，避免硬编码字符串
+- 日志输出优先通过 `logger-service.js` 的 scoped logger，便于 `LoggerPanel` 聚合展示
+
+## 10. compatibility 模块与非主线路径
 
 仓库里仍保留一些旧名或兼容模块，例如：
 
@@ -519,19 +569,20 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 当前更准确的理解是：
 
 - 主线启动与宿主门面：`modules/app/*`
-- 主线 UI：`popup-shell.js + ui/index.js + ui-manager.js + tool-config-panel-factory.js`
+- 主线 UI：`popup-shell.js + ui/index.js + ui-manager.js + tool-config-panel-factory.js + logger-panel.js`
 - 主线工具模型：`tool-manager.js + tool-registry.js`
-- 主线上下文与执行：`tool-execution-context.js + tool-trigger.js + tool-automation-service.js + tool-output-service.js`
+- 主线上下文与执行：`tool-execution-context.js + tool-trigger.js + tool-automation-service.js + tool-output-service.js + tool-local-transform-service.js`
 - 主线写回：`context-injector.js`
+- 主线基础设施：`modules/core/*`（event-bus / storage-service / settings-service / logger-service）
 - 旧执行回退与历史兼容残留：`tool-executor.js`、`storage.js`、`inline` 旧模式名等
 
-其中 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 已从 popup 主路径与 public API 中收口，不应再被理解成当前主线路径依赖。 
+其中 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 已从 public API 中收口（`public-api.js` 不再暴露），但需注意 `prompt-editor.js` 仍被 `popup-shell.js` 直接导入并用于 prompts 子页签渲染，因此它仍在 popup 主 UI 路径上。
 
 维护时不要因为文件名旧，就默认它仍在主链上。
 
-## 10. 推荐排查顺序
+## 11. 推荐排查顺序
 
-### 10.1 启动类问题
+### 11.1 启动类问题
 
 先看：
 
@@ -545,7 +596,7 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 - 初始化后 API 不可用
 - 主题/样式未注入
 
-### 10.2 弹窗与导航问题
+### 11.2 弹窗与导航问题
 
 先看：
 
@@ -558,22 +609,23 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 - 动态工具页签不对
 - 当前面板刷新不对
 
-### 10.3 工具定义或工具配置问题
+### 11.3 工具定义或工具配置问题
 
 先分清：
 
 - `tool-manager.js`：定义层与持久化
 - `tool-registry.js`：运行时模型与 UI 显示
 
-### 10.4 手动执行问题
+### 11.4 手动执行问题
 
 先看：
 
 - `modules/tool-trigger.js`
 - `modules/tool-output-service.js`
+- `modules/tool-local-transform-service.js`
 - `modules/context-injector.js`
 
-### 10.5 自动执行问题
+### 11.5 自动执行问题
 
 先看：
 
@@ -582,7 +634,7 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 - `modules/table-engine/table-update-service.js`
 - `getAutomationRuntime()` 输出
 
-### 10.6 写回问题
+### 11.6 写回问题
 
 先看：
 
@@ -590,15 +642,16 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 - 相关 `writebackDetails`
 - `refreshConfirmed` / commit 结果
 
-### 10.7 UI 面板渲染问题
+### 11.7 UI 面板渲染问题
 
 先看：
 
 - `modules/ui/index.js`
 - `modules/ui/ui-manager.js`
 - `modules/ui/components/tool-config-panel-factory.js`
+- `modules/ui/components/logger-panel.js`
 
-### 10.8 tableWorkbench 问题
+### 11.8 tableWorkbench 问题
 
 先看对应 table engine 模块：
 
@@ -606,6 +659,7 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 - `modules/table-engine/table-scope-service.js` — runScope 约束问题
 - `modules/table-engine/table-update-service.js` — 执行与填表问题
 - `modules/table-engine/table-state-service.js` — 绑定状态与模板加载问题
+- `modules/table-engine/table-worldbook-sync-service.js` — 世界书同步问题
 
 再回看是否触碰了：
 
@@ -613,7 +667,7 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 - slot identity
 - writeback 边界
 
-## 11. 给后续维护者的简短原则
+## 12. 给后续维护者的简短原则
 
 1. 先判断问题属于启动、UI、定义层、运行时层、手动链、自动链还是写回链。
 2. 不要把 `index.js` 重新变胖。
@@ -623,7 +677,7 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 6. 不要随意简化 message identity、swipe、content fingerprint、slot key 与 refresh 确认逻辑。
 7. 当旧文档与源码冲突时，先信源码，再回写文档。
 
-## 12. 结论
+## 13. 结论
 
 当前仓库已经形成一条相对清晰的现代主线：
 
@@ -634,5 +688,6 @@ tableWorkbench 是主 execution / writeback 架构中的一个 domain，不是�
 - 自动执行依赖 generation-aware 事务模型
 - 额外请求、写回与 refresh 确认构成稳定输出主链
 - compatibility 模块被保留，但不再应被误认成主线
+- 共享基础设施层（`modules/core/`）为所有模块提供事件、存储、设置与日志能力
 
 后续维护如果始终围绕这条主线进行，而不是回到旧 trigger 口径或旧命名直觉，仓库的可维护性会稳定得多。
