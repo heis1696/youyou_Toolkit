@@ -96,6 +96,7 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 │   │   ├── index.js
 │   │   ├── ui-manager.js
 │   │   ├── utils.js
+│   │   ├── custom-select.js
 │   │   └── components/
 │   ├── api-connection.js
 │   ├── bypass-manager.js
@@ -138,6 +139,7 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 │   ├── ARCHITECTURE_ANALYSIS.md
 │   ├── FRAMEWORK_ARCHITECTURE.md
 │   ├── CHANGELOG.md
+│   ├── HOST_REGRESSION_CHECKLIST.md
 │   ├── UI_DESIGN_AUDIT.md
 │   ├── UI_REFACTOR_PLAN.md
 │   └── UI_REFACTOR_PROGRESS.md

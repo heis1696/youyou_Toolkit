@@ -179,7 +179,8 @@ The UI is centered on `modules/ui/index.js`, which registers panels with `ui-man
 Important pieces:
 - `modules/ui/index.js` — primary UI entry point and panel registration
 - `modules/ui/ui-manager.js` — component lifecycle and aggregated styles
-- `modules/ui/utils.js` — shared UI utilities: `PanelState` lightweight state container, HTML escaping (`escapeHtml`), toast/top-notice system, custom dropdown select rendering with portal-based positioning, dialog helpers, form I/O (`getFormApiConfig`/`fillFormWithConfig`), JSON download/file reading, jQuery access (`getJQuery`), and container validation; new UI components should import from here
+- `modules/ui/utils.js` — shared UI utilities: `PanelState` lightweight state container, HTML escaping (`escapeHtml`), toast/top-notice system, dialog helpers, form I/O (`getFormApiConfig`/`fillFormWithConfig`), JSON download/file reading, jQuery access (`getJQuery`), and container validation; also re-exports all custom-select functions from `custom-select.js` for backwards compatibility — new UI components should import from here
+- `modules/ui/custom-select.js` — extracted custom dropdown select widget with portal-based positioning; provides `enhanceNativeSelects`, `destroyEnhancedCustomSelects`, `renderCustomSelectControl`, and 6 other dropdown lifecycle functions
 - `modules/ui/components/tool-config-panel-factory.js` — shared config-panel factory used by built-in and dynamic custom tools
 - `modules/ui/components/logger-panel.js` — real-time log viewer panel; subscribes to `eventBus` logger entries, supports level filtering (DEBUG/INFO/WARN/ERROR), search, and log export
 - `modules/ui/components/local-transform-tool-panel-factory.js` — generic factory for local text-transform tool panels; produces config UI, extraction preview, and direction/option grids for any `local_transform` tool
@@ -214,7 +215,7 @@ Do not casually simplify message identity, swipe handling, content fingerprintin
 - `docs/API_DOCUMENTATION.md` — public API and execution model
 - `docs/CHANGELOG.md` — recent behavior changes and migration history
 
-There is currently no checked-in `docs/HOST_REGRESSION_CHECKLIST.md` even though older docs may mention it.
+- `docs/HOST_REGRESSION_CHECKLIST.md` — manual test cases for UI refactor phases and regression guard
 Some docs still refer to older version labels or earlier architecture wording. When docs and source disagree, prefer the current source in `index.js`, `package.json`, and `modules/`.
 
 ## Practical guidance for edits
