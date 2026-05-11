@@ -223,7 +223,7 @@ var Qy=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var re=(t,e)=>{f
           <!-- \u9884\u8BBE\u9009\u62E9\u533A -->
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="yyt-flow-heading-icon fa-solid fa-bookmark"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-bookmark"></i></span>
               <span>\u9884\u8BBE\u9009\u62E9</span>
             </div>
             
@@ -258,7 +258,7 @@ var Qy=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var re=(t,e)=>{f
           <!-- API\u914D\u7F6E\u533A -->
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="yyt-flow-heading-icon fa-solid fa-sliders"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-sliders"></i></span>
               <span>API\u914D\u7F6E</span>
               <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${b}-save-as-preset" style="margin-left: auto;">
                 <i class="fa-solid fa-save"></i> \u4FDD\u5B58\u4E3A\u9884\u8BBE
@@ -404,9 +404,9 @@ var Qy=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var re=(t,e)=>{f
           </div>
         </div>
       </div>
-    `},bindEvents(t,e){let s=O();!s||!K(t)||(this._bindDropdownEvents(t,s),this._bindPresetListEvents(t,s),this._bindApiConfigEvents(t,s),this._bindFileEvents(t,s))},_bindDropdownEvents(t,e){let s=t.find(`#${b}-preset-dropdown`),r=s.find(".yyt-select-trigger"),o=s.find(".yyt-select-value"),a=()=>{let n=nt(o.data("value"));if(!n){this._setSelectedPresetName(t,""),ms(""),fo(t,Lt(),b),t.find(".yyt-preset-item").removeClass("yyt-loaded"),s.find(".yyt-select-option").removeClass("yyt-selected"),s.find('.yyt-select-option[data-value=""]').addClass("yyt-selected"),E("info","\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E");return}let i=gs(n);if(!i){E("error",`\u9884\u8BBE "${n}" \u4E0D\u5B58\u5728`);return}this._setSelectedPresetName(t,n),ms(n),fo(t,i.apiConfig,b),t.find(".yyt-preset-item").removeClass("yyt-loaded"),t.find(`.yyt-preset-item[data-preset-name="${n.replace(/"/g,"&quot;")}"]`).addClass("yyt-loaded"),s.find(".yyt-select-option").removeClass("yyt-selected"),s.find(`.yyt-select-option[data-value=\u201D${n.replace(/”/g,"&quot;")}\u201D]`).addClass("yyt-selected")};r.on("click.yytApiPreset",n=>{n.preventDefault(),n.stopPropagation(),yo(s)}),s.find(".yyt-select-option").on("click.yytApiPreset",n=>{if(e(n.target).closest(".yyt-option-star, .yyt-option-delete").length)return;let i=e(n.currentTarget),l=nt(i.data("value")),c=i.find(".yyt-option-text").text(),d=i.closest(".yyt-select-dropdown").find(".yyt-select-option");this._setSelectedPresetName(t,l),o.text(c).data("value",l),d.removeClass("yyt-selected"),i.addClass("yyt-selected"),xr(s)}),t.find(`#${b}-load-preset`).on("click",()=>{a()}),s.find(".yyt-option-star").on("click.yytApiPreset",n=>{n.preventDefault(),n.stopPropagation();let i=nt(e(n.currentTarget).data("preset"));if(!i)return;let l=$a(i);l.success?(E("success",l.message),this._rerender(t)):E("error",l.message)}),s.find(".yyt-option-delete").on("click.yytApiPreset",async n=>{n.preventDefault(),n.stopPropagation();let i=nt(e(n.currentTarget).data("preset"));if(!i||!await he("\u5220\u9664\u9884\u8BBE",`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${i}" \u5417\uFF1F`,{danger:!0}))return;let l=hr(i);E(l.success?"info":"error",l.message),l.success&&(L.emit(P.PRESET_DELETED,{name:i}),nt(this._getSelectedPresetName(t))===i&&this._setSelectedPresetName(t,""),nt(o.data("value"))===i&&o.text("-- \u5F53\u524D\u914D\u7F6E --").data("value",""),this._rerender(t))})},_bindPresetListEvents(t,e){t.find(".yyt-preset-item").on("click.yytApiPreset",async s=>{let r=e(s.currentTarget),o=nt(r.data("preset-name")),a=e(s.target).closest("[data-action]").data("action");if(a)switch(s.stopPropagation(),a){case"load":this._setSelectedPresetName(t,o),t.find(".yyt-select-value").text(o).data("value",o),t.find(".yyt-select-option").removeClass("yyt-selected"),t.find(`.yyt-select-option[data-value="${o.replace(/"/g,"&quot;")}"]`).addClass("yyt-selected"),t.find(`#${b}-load-preset`).trigger("click");break;case"delete":if(await he("\u5220\u9664\u9884\u8BBE",`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${o}" \u5417\uFF1F`,{danger:!0})){let n=hr(o);E(n.success?"info":"error",n.message),n.success&&(L.emit(P.PRESET_DELETED,{name:o}),nt(this._getSelectedPresetName(t))===o&&this._setSelectedPresetName(t,""),this._rerender(t))}break}})},_bindApiConfigEvents(t,e){t.find(`#${b}-use-main-api`).on("change.yytApiPreset",function(){let s=e(this).is(":checked"),r=t.find(`#${b}-custom-api-fields`);s?r.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):r.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1)}),t.find(`#${b}-toggle-key-visibility`).on("click",function(){let s=t.find(`#${b}-api-key`),r=s.attr("type");s.attr("type",r==="password"?"text":"password"),e(this).find("i").toggleClass("fa-eye fa-eye-slash")}),t.find(`#${b}-load-models`).on("click",async()=>{let s=t.find(`#${b}-load-models`),r=t.find(`#${b}-model`),o=t.find(`#${b}-model-select`);s.prop("disabled",!0).find("i").addClass("fa-spin");try{let a=wr(t,b),n=await Ca(a);if(n.length>0){o.empty(),n.forEach(l=>{o.append(`<option value="${m(l)}">${m(l)}</option>`)}),r.hide(),o.show();let i=r.val();i&&n.includes(i)&&o.val(i),o.off("change.yytApiPreset").on("change.yytApiPreset",function(){r.val(e(this).val())}),E("success",`\u5DF2\u52A0\u8F7D ${n.length} \u4E2A\u6A21\u578B`)}else E("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(a){E("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${a.message}`)}finally{s.prop("disabled",!1).find("i").removeClass("fa-spin")}}),t.find(`#${b}-model`).on("focus.yytApiPreset",function(){let s=t.find(`#${b}-model-select`);e(this).show(),s.hide()}),t.find(`#${b}-save-api-config`).on("click",async()=>{let s=wr(t,b),r=nt(lo()),o=Us(s);if(!o.valid&&!s.useMainApi){E("error",o.errors.join(", "));return}if(r){if(!await he("\u8986\u76D6\u9884\u8BBE",`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE \u201C${r}\u201D \u7684\u914D\u7F6E\uFF1F
+    `},bindEvents(t,e){let s=O();!s||!K(t)||(this._bindDropdownEvents(t,s),this._bindPresetListEvents(t,s),this._bindApiConfigEvents(t,s),this._bindFileEvents(t,s))},_bindDropdownEvents(t,e){let s=t.find(`#${b}-preset-dropdown`),r=s.find(".yyt-select-trigger"),o=s.find(".yyt-select-value"),a=()=>{let n=nt(o.data("value"));if(!n){this._setSelectedPresetName(t,""),ms(""),fo(t,Lt(),b),t.find(".yyt-preset-item").removeClass("yyt-loaded"),s.find(".yyt-select-option").removeClass("yyt-selected"),s.find('.yyt-select-option[data-value=""]').addClass("yyt-selected"),E("info","\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E");return}let i=gs(n);if(!i){E("error",`\u9884\u8BBE "${n}" \u4E0D\u5B58\u5728`);return}this._setSelectedPresetName(t,n),ms(n),fo(t,i.apiConfig,b),t.find(".yyt-preset-item").removeClass("yyt-loaded"),t.find(`.yyt-preset-item[data-preset-name="${n.replace(/"/g,"&quot;")}"]`).addClass("yyt-loaded"),s.find(".yyt-select-option").removeClass("yyt-selected"),s.find(`.yyt-select-option[data-value="${n.replace(/"/g,"&quot;")}"]`).addClass("yyt-selected")};r.on("click.yytApiPreset",n=>{n.preventDefault(),n.stopPropagation(),yo(s)}),s.find(".yyt-select-option").on("click.yytApiPreset",n=>{if(e(n.target).closest(".yyt-option-star, .yyt-option-delete").length)return;let i=e(n.currentTarget),l=nt(i.data("value")),c=i.find(".yyt-option-text").text(),d=i.closest(".yyt-select-dropdown").find(".yyt-select-option");this._setSelectedPresetName(t,l),o.text(c).data("value",l),d.removeClass("yyt-selected"),i.addClass("yyt-selected"),xr(s)}),t.find(`#${b}-load-preset`).on("click",()=>{a()}),s.find(".yyt-option-star").on("click.yytApiPreset",n=>{n.preventDefault(),n.stopPropagation();let i=nt(e(n.currentTarget).data("preset"));if(!i)return;let l=$a(i);l.success?(E("success",l.message),this._rerender(t)):E("error",l.message)}),s.find(".yyt-option-delete").on("click.yytApiPreset",async n=>{n.preventDefault(),n.stopPropagation();let i=nt(e(n.currentTarget).data("preset"));if(!i||!await he("\u5220\u9664\u9884\u8BBE",`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${i}" \u5417\uFF1F`,{danger:!0}))return;let l=hr(i);E(l.success?"info":"error",l.message),l.success&&(L.emit(P.PRESET_DELETED,{name:i}),nt(this._getSelectedPresetName(t))===i&&this._setSelectedPresetName(t,""),nt(o.data("value"))===i&&o.text("-- \u5F53\u524D\u914D\u7F6E --").data("value",""),this._rerender(t))})},_bindPresetListEvents(t,e){t.find(".yyt-preset-item").on("click.yytApiPreset",async s=>{let r=e(s.currentTarget),o=nt(r.data("preset-name")),a=e(s.target).closest("[data-action]").data("action");if(a)switch(s.stopPropagation(),a){case"load":this._setSelectedPresetName(t,o),t.find(".yyt-select-value").text(o).data("value",o),t.find(".yyt-select-option").removeClass("yyt-selected"),t.find(`.yyt-select-option[data-value="${o.replace(/"/g,"&quot;")}"]`).addClass("yyt-selected"),t.find(`#${b}-load-preset`).trigger("click");break;case"delete":if(await he("\u5220\u9664\u9884\u8BBE",`\u786E\u5B9A\u8981\u5220\u9664\u9884\u8BBE "${o}" \u5417\uFF1F`,{danger:!0})){let n=hr(o);E(n.success?"info":"error",n.message),n.success&&(L.emit(P.PRESET_DELETED,{name:o}),nt(this._getSelectedPresetName(t))===o&&this._setSelectedPresetName(t,""),this._rerender(t))}break}})},_bindApiConfigEvents(t,e){t.find(`#${b}-use-main-api`).on("change.yytApiPreset",function(){let s=e(this).is(":checked"),r=t.find(`#${b}-custom-api-fields`);s?r.addClass("yyt-disabled").find("input, button, select").prop("disabled",!0):r.removeClass("yyt-disabled").find("input, button, select").prop("disabled",!1)}),t.find(`#${b}-toggle-key-visibility`).on("click",function(){let s=t.find(`#${b}-api-key`),r=s.attr("type");s.attr("type",r==="password"?"text":"password"),e(this).find("i").toggleClass("fa-eye fa-eye-slash")}),t.find(`#${b}-load-models`).on("click",async()=>{let s=t.find(`#${b}-load-models`),r=t.find(`#${b}-model`),o=t.find(`#${b}-model-select`);s.prop("disabled",!0).find("i").addClass("fa-spin");try{let a=wr(t,b),n=await Ca(a);if(n.length>0){o.empty(),n.forEach(l=>{o.append(`<option value="${m(l)}">${m(l)}</option>`)}),r.hide(),o.show();let i=r.val();i&&n.includes(i)&&o.val(i),o.off("change.yytApiPreset").on("change.yytApiPreset",function(){r.val(e(this).val())}),E("success",`\u5DF2\u52A0\u8F7D ${n.length} \u4E2A\u6A21\u578B`)}else E("warning","\u672A\u80FD\u83B7\u53D6\u6A21\u578B\u5217\u8868\uFF0C\u8BF7\u624B\u52A8\u8F93\u5165")}catch(a){E("error",`\u52A0\u8F7D\u6A21\u578B\u5931\u8D25: ${a.message}`)}finally{s.prop("disabled",!1).find("i").removeClass("fa-spin")}}),t.find(`#${b}-model`).on("focus.yytApiPreset",function(){let s=t.find(`#${b}-model-select`);e(this).show(),s.hide()}),t.find(`#${b}-save-api-config`).on("click",async()=>{let s=wr(t,b),r=nt(lo()),o=Us(s);if(!o.valid&&!s.useMainApi){E("error",o.errors.join(", "));return}if(r){if(!await he("\u8986\u76D6\u9884\u8BBE",`\u662F\u5426\u8981\u8986\u76D6\u9884\u8BBE "${r}" \u7684\u914D\u7F6E\uFF1F
 
-\u70B9\u51FB\u201D\u786E\u5B9A\u201D\u8986\u76D6\u9884\u8BBE\uFF0C\u70B9\u51FB\u201D\u53D6\u6D88\u201D\u4EC5\u4FDD\u5B58\u5F53\u524D\u914D\u7F6E\u5E76\u5207\u6362\u5230\u201D\u5F53\u524D\u914D\u7F6E\u201D`)){zs(s),ms(""),this._setSelectedPresetName(t,""),E("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u5E76\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E"),this._rerender(t);return}zs(s);let a=Ra(r,{apiConfig:s});a.success?(this._setSelectedPresetName(t,r),E("success",`\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u8986\u76D6\u9884\u8BBE "${r}"`),ms(r),L.emit(P.PRESET_UPDATED,{name:r}),this._rerender(t)):E("error",a.message);return}zs(s),E("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58")}),t.find(`#${b}-reset-api-config`).on("click",async()=>{await he("\u91CD\u7F6E\u914D\u7F6E","\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F",{danger:!0})&&(ms(""),this._setSelectedPresetName(t,""),zs({url:"",apiKey:"",model:"",useMainApi:!0,stream:!1,max_tokens:4096,temperature:.7,top_p:.9}),this._rerender(t),E("info","API\u914D\u7F6E\u5DF2\u91CD\u7F6E"))}),t.find(`#${b}-save-as-preset`).on("click",()=>{this._showSavePresetDialog(t,e)})},_bindFileEvents(t,e){t.find(`#${b}-export-presets`).on("click",()=>{try{let s=La();at(s,`youyou_toolkit_presets_${Date.now()}.json`),E("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(s){E("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),t.find(`#${b}-import-presets`).on("click",()=>{t.find(`#${b}-import-file`).click()}),t.find(`#${b}-import-file`).on("change",async s=>{let r=s.target.files[0];if(r){try{let o=await mt(r),a=Da(o,{overwrite:!0});E(a.success?"success":"error",a.message),a.imported>0&&this._rerender(t)}catch(o){E("error",`\u5BFC\u5165\u5931\u8D25: ${o.message}`)}e(s.target).val("")}})},_showSavePresetDialog(t,e){let r=Dt().map(d=>d.name),o=Na("\u65B0\u9884\u8BBE"),a=`
+\u70B9\u51FB"\u786E\u5B9A"\u8986\u76D6\u9884\u8BBE\uFF0C\u70B9\u51FB"\u53D6\u6D88"\u4EC5\u4FDD\u5B58\u5F53\u524D\u914D\u7F6E\u5E76\u5207\u6362\u5230"\u5F53\u524D\u914D\u7F6E"`)){zs(s),ms(""),this._setSelectedPresetName(t,""),E("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u5E76\u5DF2\u5207\u6362\u5230\u5F53\u524DAPI\u914D\u7F6E"),this._rerender(t);return}zs(s);let a=Ra(r,{apiConfig:s});a.success?(this._setSelectedPresetName(t,r),E("success",`\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u8986\u76D6\u9884\u8BBE "${r}"`),ms(r),L.emit(P.PRESET_UPDATED,{name:r}),this._rerender(t)):E("error",a.message);return}zs(s),E("success","API\u914D\u7F6E\u5DF2\u4FDD\u5B58")}),t.find(`#${b}-reset-api-config`).on("click",async()=>{await he("\u91CD\u7F6E\u914D\u7F6E","\u786E\u5B9A\u8981\u91CD\u7F6EAPI\u914D\u7F6E\u5417\uFF1F",{danger:!0})&&(ms(""),this._setSelectedPresetName(t,""),zs({url:"",apiKey:"",model:"",useMainApi:!0,stream:!1,max_tokens:4096,temperature:.7,top_p:.9}),this._rerender(t),E("info","API\u914D\u7F6E\u5DF2\u91CD\u7F6E"))}),t.find(`#${b}-save-as-preset`).on("click",()=>{this._showSavePresetDialog(t,e)})},_bindFileEvents(t,e){t.find(`#${b}-export-presets`).on("click",()=>{try{let s=La();at(s,`youyou_toolkit_presets_${Date.now()}.json`),E("success","\u9884\u8BBE\u5DF2\u5BFC\u51FA")}catch(s){E("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),t.find(`#${b}-import-presets`).on("click",()=>{t.find(`#${b}-import-file`).click()}),t.find(`#${b}-import-file`).on("change",async s=>{let r=s.target.files[0];if(r){try{let o=await mt(r),a=Da(o,{overwrite:!0});E(a.success?"success":"error",a.message),a.imported>0&&this._rerender(t)}catch(o){E("error",`\u5BFC\u5165\u5931\u8D25: ${o.message}`)}e(s.target).val("")}})},_showSavePresetDialog(t,e){let r=Dt().map(d=>d.name),o=Na("\u65B0\u9884\u8BBE"),a=`
       <div class="yyt-dialog-overlay" id="${b}-dialog-overlay">
         <div class="yyt-dialog">
           <div class="yyt-dialog-header">
@@ -493,7 +493,7 @@ var Qy=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var re=(t,e)=>{f
         <!-- \u89C4\u5219\u7F16\u8F91\u533A -->
         <div class="yyt-flow-section">
           <div class="yyt-flow-heading">
-            <i class="yyt-flow-heading-icon fa-solid fa-filter"></i>
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-filter"></i></span>
             <span>\u6807\u7B7E\u63D0\u53D6\u89C4\u5219</span>
             <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${b}-show-examples" style="margin-left: auto;">
               <i class="fa-solid fa-lightbulb"></i> \u67E5\u770B\u793A\u4F8B
@@ -506,7 +506,7 @@ var Qy=Object.defineProperty;var U=(t,e)=>()=>(t&&(e=t(t=0)),e);var re=(t,e)=>{f
         <!-- \u6D4B\u8BD5\u533A -->
         <div class="yyt-flow-section">
           <div class="yyt-flow-heading">
-            <i class="yyt-flow-heading-icon fa-solid fa-flask"></i>
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-flask"></i></span>
             <span>\u6D4B\u8BD5\u63D0\u53D6</span>
           </div>
 
@@ -844,90 +844,90 @@ ${s.content}`).join(`
 \u8FD9\u91CC\u662F\u4E00\u6574\u6BB5\u4E0D\u6362\u884C\u70B9\u8BC4\u6B63\u6587
 <gouzi>\u8FD9\u91CC\u5199\u5267\u60C5\u94A9\u5B50</gouzi>
 </youyou>`,runtime:{lastRunAt:0,lastStatus:"idle",lastError:"",lastDurationMs:0,successCount:0,errorCount:0},apiPreset:"",extractTags:["youyou"]},escapeTransformTool:{id:"escapeTransformTool",name:"\u8F6C\u4E49\u5904\u7406",icon:"fa-quote-left",description:"\u5BF9\u63D0\u53D6\u5185\u5BB9\u6267\u884C\u672C\u5730\u8F6C\u4E49\u6216\u53BB\u8F6C\u4E49",enabled:!0,order:6,output:{mode:"local_transform",apiPreset:"",overwrite:!0,enabled:!0},extraction:{enabled:!0,maxMessages:5,selectors:[]},processor:{type:"escape_transform",direction:"escape",options:{doubleQuote:!0,singleQuote:!1,newline:!1}},runtime:{lastRunAt:0,lastStatus:"idle",lastError:"",lastDurationMs:0,successCount:0,errorCount:0},extractTags:[]},punctuationTransformTool:{id:"punctuationTransformTool",name:"\u4E2D\u6587\u6807\u70B9\u66FF\u6362",icon:"fa-language",description:"\u5C06\u82F1\u6587\u6807\u70B9\u6309\u52FE\u9009\u9879\u66FF\u6362\u4E3A\u4E2D\u6587\u6807\u70B9",enabled:!0,order:7,output:{mode:"local_transform",apiPreset:"",overwrite:!0,enabled:!0},extraction:{enabled:!0,maxMessages:5,selectors:[]},processor:{type:"punctuation_transform",direction:"en_to_zh",options:{comma:!0,period:!0,exclamation:!0,question:!0,semicolon:!1,colon:!1,leftParen:!1,rightParen:!1}},runtime:{lastRunAt:0,lastStatus:"idle",lastError:"",lastDurationMs:0,successCount:0,errorCount:0},extractTags:[]}},Ys={apiPresets:{id:"apiPresets",name:"API\u9884\u8BBE",icon:"fa-database",hasSubTabs:!1,description:"\u7BA1\u7406API\u914D\u7F6E\u548C\u9884\u8BBE",component:"ApiPresetPanel",order:0},regexExtract:{id:"regexExtract",name:"\u6B63\u5219\u63D0\u53D6",icon:"fa-filter",hasSubTabs:!1,description:"\u4ECE\u6D88\u606F\u4E2D\u63D0\u53D6\u7279\u5B9A\u5185\u5BB9",component:"RegexExtractPanel",order:2,defaultConfig:{execution:{timeout:3e4,retries:1},api:{preset:""},extractRules:[],excludeRules:[]}},toolManage:{id:"toolManage",name:"\u5DE5\u5177\u5217\u8868",icon:"fa-screwdriver-wrench",hasSubTabs:!1,description:"\u521B\u5EFA\u3001\u7F16\u8F91\u548C\u7BA1\u7406\u81EA\u5B9A\u4E49\u5DE5\u5177",component:"ToolManagePanel",order:3},tools:{id:"tools",name:"\u5DE5\u5177",icon:"fa-tools",hasSubTabs:!0,description:"\u5DE5\u5177\u96C6\u5408",order:4,subTabs:[{id:"summaryTool",name:"\u6458\u8981\u5DE5\u5177",icon:"fa-file-lines",component:"SummaryToolPanel",toolKind:"ai"},{id:"statusBlock",name:"\u4E3B\u89D2\u72B6\u6001\u680F",icon:"fa-user-check",component:"StatusBlockPanel",toolKind:"ai"},{id:"youyouReview",name:"\u5C0F\u5E7D\u70B9\u8BC4",icon:"fa-comment-dots",component:"YouyouReviewPanel",toolKind:"ai"},{id:"escapeTransformTool",name:"\u8F6C\u4E49\u5904\u7406",icon:"fa-quote-left",component:"EscapeTransformToolPanel",toolKind:"script"},{id:"punctuationTransformTool",name:"\u4E2D\u6587\u6807\u70B9\u66FF\u6362",icon:"fa-language",component:"PunctuationTransformToolPanel",toolKind:"script"}]},tableWorkbench:{id:"tableWorkbench",name:"\u586B\u8868\u5DE5\u4F5C\u53F0",icon:"fa-table-cells",hasSubTabs:!1,description:"\u7ED3\u6784\u5316\u586B\u8868\u4E0E\u72B6\u6001\u9884\u89C8\u5DE5\u4F5C\u53F0",component:"TableWorkbenchPanel",order:5},bypass:{id:"bypass",name:"Ai\u6307\u4EE4\u9884\u8BBE",icon:"fa-shield-halved",hasSubTabs:!1,description:"\u7BA1\u7406 Ai \u6307\u4EE4\u9884\u8BBE",component:"BypassPanel",order:6},settings:{id:"settings",name:"\u8BBE\u7F6E",icon:"fa-cog",hasSubTabs:!1,description:"\u5168\u5C40\u8BBE\u7F6E",component:"SettingsPanel",order:7},logger:{id:"logger",name:"\u65E5\u5FD7",icon:"fa-terminal",hasSubTabs:!1,description:"\u67E5\u770B\u63D2\u4EF6\u8FD0\u884C\u65E5\u5FD7\uFF0C\u652F\u6301\u8FC7\u6EE4\u4E0E\u5BFC\u51FA",component:"LoggerPanel",order:8}},fl={api:{name:"API\u5DE5\u5177",icon:"fa-plug",order:0},prompt:{name:"\u63D0\u793A\u8BCD\u5DE5\u5177",icon:"fa-file-alt",order:1},utility:{name:"\u5B9E\u7528\u5DE5\u5177",icon:"fa-wrench",order:2}},Mt={...Ys};sp={TOOL_REGISTRY:Ys,TOOL_CATEGORIES:fl,registerTool:bl,unregisterTool:hl,getToolList:vl,getToolConfig:Ir,hasTool:Za,getToolSubTabs:xl,resetToolRegistry:wl,setToolApiPreset:Sl,getToolApiPreset:en,clearToolApiPreset:Tl,getAllToolApiBindings:_l,onPresetDeleted:Al,saveToolWindowState:Cl,getToolWindowState:Rl,getToolBaseConfig:Gs,ensureToolRuntimeConfig:Oo,getToolFullConfig:pe,patchToolRuntime:ss,appendToolRuntimeHistory:El,saveToolConfig:ct,resetToolConfig:kl,getAllDefaultToolConfigs:Il,getAllToolFullConfigs:Mr,getEnabledTools:Ml}});var Ol={};re(Ol,{ToolManagePanel:()=>Pl,default:()=>rp});var Pl,rp,Ll=U(()=>{Ce();Po();rs();Pl={id:"toolManagePanel",_removeDialog(t){if(!t?.length)return;let e=t.find("#yyt-tool-dialog-overlay");Ie(e,"yytToolManageDialogSelect"),e.remove()},_getToolkitWindow(){try{if(typeof window.parent<"u"&&window.parent&&window.parent!==window)return window.parent}catch{}return window},_openToolConfig(t){if(!t)return;let s=this._getToolkitWindow()?.YouYouToolkit||window.YouYouToolkit;if(!s){E("warning","\u672A\u627E\u5230\u5DE5\u5177\u7BB1\u5B9E\u4F8B\uFF0C\u65E0\u6CD5\u8DF3\u8F6C\u5230\u5DE5\u5177\u914D\u7F6E");return}s.switchMainTab("tools"),s.switchSubTab("tools",t)},render(t){let e=ts(),s=Object.entries(e),r=s.filter(([,o])=>o?.enabled!==!1).length;return`
-      <div class=\u201Dyyt-tool-manager\u201D>
+      <div class="yyt-tool-manager">
         <!-- Stats -->
-        <div class=\u201Dyyt-flow-section\u201D>
-          <div class=\u201Dyyt-stat-row\u201D style=\u201Dgrid-template-columns: 1fr 1fr;\u201D>
-            <div class=\u201Dyyt-stat-cell\u201D>
-              <div class=\u201Dyyt-stat-label\u201D>\u5DE5\u5177\u603B\u6570</div>
-              <div class=\u201Dyyt-stat-value\u201D>${s.length}</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-stat-row" style="grid-template-columns: 1fr 1fr;">
+            <div class="yyt-stat-cell">
+              <div class="yyt-stat-label">\u5DE5\u5177\u603B\u6570</div>
+              <div class="yyt-stat-value">${s.length}</div>
             </div>
-            <div class=\u201Dyyt-stat-cell\u201D>
-              <div class=\u201Dyyt-stat-label\u201D>\u5DF2\u542F\u7528</div>
-              <div class=\u201Dyyt-stat-value\u201D style=\u201Dcolor: var(--yyt-success);\u201D>${r}</div>
+            <div class="yyt-stat-cell">
+              <div class="yyt-stat-label">\u5DF2\u542F\u7528</div>
+              <div class="yyt-stat-value" style="color: var(--yyt-success);">${r}</div>
             </div>
           </div>
         </div>
 
         <!-- \u5DE5\u5177\u5217\u8868 -->
-        <div class=\u201Dyyt-flow-section\u201D>
-          <div class=\u201Dyyt-flow-heading\u201D>
-            <span class=\u201Dyyt-flow-heading-icon\u201D><i class=\u201Dfa-solid fa-tools\u201D></i></span>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-tools"></i></span>
             \u5DE5\u5177\u5217\u8868
-            <span class=\u201Dyyt-flow-heading-action\u201D>
-              <button class=\u201Dyyt-btn yyt-btn-small yyt-btn-primary\u201D id=\u201Dyyt-add-tool\u201D>
-                <i class=\u201Dfa-solid fa-plus\u201D></i> \u65B0\u5EFA\u5DE5\u5177
+            <span class="yyt-flow-heading-action">
+              <button class="yyt-btn yyt-btn-small yyt-btn-primary" id="yyt-add-tool">
+                <i class="fa-solid fa-plus"></i> \u65B0\u5EFA\u5DE5\u5177
               </button>
             </span>
           </div>
-          <div class=\u201Dyyt-tool-list\u201D>
+          <div class="yyt-tool-list">
             ${this._renderToolList(e)}
           </div>
         </div>
 
         <!-- \u5E95\u90E8\u64CD\u4F5C -->
-        <div class=\u201Dyyt-panel-footer\u201D>
-          <div class=\u201Dyyt-footer-left\u201D>
-            <button class=\u201Dyyt-btn yyt-btn-secondary\u201D id=\u201Dyyt-import-tools\u201D>
-              <i class=\u201Dfa-solid fa-file-import\u201D></i> \u5BFC\u5165
+        <div class="yyt-panel-footer">
+          <div class="yyt-footer-left">
+            <button class="yyt-btn yyt-btn-secondary" id="yyt-import-tools">
+              <i class="fa-solid fa-file-import"></i> \u5BFC\u5165
             </button>
-            <button class=\u201Dyyt-btn yyt-btn-secondary\u201D id=\u201Dyyt-export-tools\u201D>
-              <i class=\u201Dfa-solid fa-file-export\u201D></i> \u5BFC\u51FA
+            <button class="yyt-btn yyt-btn-secondary" id="yyt-export-tools">
+              <i class="fa-solid fa-file-export"></i> \u5BFC\u51FA
             </button>
-            <input type=\u201Dfile\u201D id=\u201Dyyt-import-tools-file\u201D accept=\u201D.json\u201D style=\u201Ddisplay:none\u201D>
+            <input type="file" id="yyt-import-tools-file" accept=".json" style="display:none">
           </div>
-          <div class=\u201Dyyt-footer-right\u201D>
-            <button class=\u201Dyyt-btn yyt-btn-secondary\u201D id=\u201Dyyt-reset-tools\u201D>
-              <i class=\u201Dfa-solid fa-undo\u201D></i> \u91CD\u7F6E
+          <div class="yyt-footer-right">
+            <button class="yyt-btn yyt-btn-secondary" id="yyt-reset-tools">
+              <i class="fa-solid fa-undo"></i> \u91CD\u7F6E
             </button>
           </div>
         </div>
       </div>
-    `},_renderToolList(t){let e=Object.entries(t);return e.length?`<div class=\u201Dyyt-list-table\u201D>${e.map(([r,o])=>`
-      <div class=\u201Dyyt-list-row ${o.enabled?"yyt-tool-item-enabled":"yyt-tool-item-disabled"}\u201D data-tool-id=\u201D${r}\u201D>
-        <div class=\u201Dyyt-list-row-icon\u201D style=\u201Dbackground: var(--yyt-accent-soft); color: var(--yyt-accent);\u201D>
-          <i class=\u201Dfa-solid fa-wrench\u201D></i>
+    `},_renderToolList(t){let e=Object.entries(t);return e.length?`<div class="yyt-list-table">${e.map(([r,o])=>`
+      <div class="yyt-list-row ${o.enabled?"yyt-tool-item-enabled":"yyt-tool-item-disabled"}" data-tool-id="${r}">
+        <div class="yyt-list-row-icon" style="background: var(--yyt-accent-soft); color: var(--yyt-accent);">
+          <i class="fa-solid fa-wrench"></i>
         </div>
-        <div class=\u201Dyyt-list-row-main\u201D>
-          <div class=\u201Dyyt-list-row-name\u201D>
+        <div class="yyt-list-row-main">
+          <div class="yyt-list-row-name">
             ${m(o.name)}
-            <span class=\u201Dyyt-badge\u201D style=\u201Dbackground: var(--yyt-accent-soft); color: var(--yyt-accent); margin-left: 6px;\u201D>${m(o.category)}</span>
+            <span class="yyt-badge" style="background: var(--yyt-accent-soft); color: var(--yyt-accent); margin-left: 6px;">${m(o.category)}</span>
           </div>
-          <div class=\u201Dyyt-list-row-desc\u201D>${m(o.description)}</div>
+          <div class="yyt-list-row-desc">${m(o.description)}</div>
         </div>
-        <span class=\u201Dyyt-status-dot ${o.enabled?"yyt-status-dot-on":"yyt-status-dot-off"}\u201D></span>
-        <label class=\u201Dyyt-toggle yyt-small yyt-tool-toggle\u201D>
-          <input type=\u201Dcheckbox\u201D ${o.enabled?"checked":""}>
-          <span class=\u201Dyyt-toggle-slider\u201D></span>
+        <span class="yyt-status-dot ${o.enabled?"yyt-status-dot-on":"yyt-status-dot-off"}"></span>
+        <label class="yyt-toggle yyt-small yyt-tool-toggle">
+          <input type="checkbox" ${o.enabled?"checked":""}>
+          <span class="yyt-toggle-slider"></span>
         </label>
-        <div class=\u201Dyyt-list-row-actions\u201D>
-          <button class=\u201Dyyt-btn yyt-btn-small yyt-btn-secondary\u201D data-action=\u201Dconfig\u201D>
-            <i class=\u201Dfa-solid fa-sliders\u201D></i>
+        <div class="yyt-list-row-actions">
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="config">
+            <i class="fa-solid fa-sliders"></i>
           </button>
-          <button class=\u201Dyyt-btn yyt-btn-small yyt-btn-secondary\u201D data-action=\u201Dedit\u201D>
-            <i class=\u201Dfa-solid fa-pen\u201D></i>
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="edit">
+            <i class="fa-solid fa-pen"></i>
           </button>
-          <button class=\u201Dyyt-btn yyt-btn-small yyt-btn-danger\u201D data-action=\u201Ddelete\u201D>
-            <i class=\u201Dfa-solid fa-trash\u201D></i>
+          <button class="yyt-btn yyt-btn-small yyt-btn-danger" data-action="delete">
+            <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
     `).join("")}</div>`:`
-        <div class=\u201Dyyt-empty-state-small\u201D>
-          <i class=\u201Dfa-solid fa-toolbox\u201D></i>
-          <span>\u8FD8\u6CA1\u6709\u81EA\u5B9A\u4E49\u5DE5\u5177\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u201D\u65B0\u5EFA\u5DE5\u5177\u201D\u5F00\u59CB\u521B\u5EFA</span>
+        <div class="yyt-empty-state-small">
+          <i class="fa-solid fa-toolbox"></i>
+          <span>\u8FD8\u6CA1\u6709\u81EA\u5B9A\u4E49\u5DE5\u5177\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2"\u65B0\u5EFA\u5DE5\u5177"\u5F00\u59CB\u521B\u5EFA</span>
         </div>
-      `},bindEvents(t,e){let s=O();!s||!K(t)||(t.off(".yytToolManage"),this._bindToolEvents(t,s),this._bindFileEvents(t,s))},_bindToolEvents(t,e){t.on("change.yytToolManage",".yyt-tool-toggle input",s=>{let r=e(s.currentTarget).closest(".yyt-list-row"),o=r.data("tool-id"),a=e(s.currentTarget).is(":checked");Mo(o,a),r.toggleClass("yyt-tool-item-enabled",a).toggleClass("yyt-tool-item-disabled",!a),r.find(".yyt-status-dot").toggleClass("yyt-status-dot-on",a).toggleClass("yyt-status-dot-off",!a),E("info",a?"\u5DE5\u5177\u5DF2\u542F\u7528":"\u5DE5\u5177\u5DF2\u7981\u7528")}),t.on("click.yytToolManage","#yyt-add-tool",()=>{this._showToolEditDialog(t,e,null)}),t.on("click.yytToolManage",".yyt-list-row [data-action=\u201Dconfig\u201D]",s=>{let r=e(s.currentTarget).closest(".yyt-list-row").data("tool-id");this._openToolConfig(r)}),t.on("click.yytToolManage",".yyt-list-row [data-action=\u201Dedit\u201D]",s=>{let r=e(s.currentTarget).closest(".yyt-list-row").data("tool-id");this._showToolEditDialog(t,e,r)}),t.on("click.yytToolManage",".yyt-list-row [data-action=\u201Ddelete\u201D]",async s=>{let r=e(s.currentTarget).closest(".yyt-list-row").data("tool-id"),o=qs(r);if(!r||!o||!await he("\u5220\u9664\u5DE5\u5177",`\u786E\u5B9A\u8981\u5220\u9664\u5DE5\u5177\u201D${o.name}\u201D\u5417\uFF1F`,{danger:!0}))return;if(!ko(r)){E("error","\u5220\u9664\u5931\u8D25");return}this.renderTo(t),E("success","\u5DE5\u5177\u5DF2\u5220\u9664")})},_bindFileEvents(t,e){t.on("click.yytToolManage","#yyt-import-tools",()=>{t.find("#yyt-import-tools-file").click()}),t.on("change.yytToolManage","#yyt-import-tools-file",async s=>{let r=s.target.files[0];if(r){try{let o=await mt(r),a=Ro(o,{overwrite:!1});E(a.success?"success":"error",a.message),a.success&&this.renderTo(t)}catch(o){E("error",`\u5BFC\u5165\u5931\u8D25: ${o.message}`)}e(s.target).val("")}}),t.on("click.yytToolManage","#yyt-export-tools",()=>{try{let s=Co();at(s,`youyou_toolkit_tools_${Date.now()}.json`),E("success","\u5DE5\u5177\u5DF2\u5BFC\u51FA")}catch(s){E("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),t.on("click.yytToolManage","#yyt-reset-tools",async()=>{await he("\u91CD\u7F6E\u5DE5\u5177","\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u5DE5\u5177\u5417\uFF1F",{danger:!0})&&($o(),this.renderTo(t),E("info","\u5DE5\u5177\u5DF2\u91CD\u7F6E"))})},_showToolEditDialog(t,e,s){let r=s?qs(s):null,o=!!r,a=`
+      `},bindEvents(t,e){let s=O();!s||!K(t)||(t.off(".yytToolManage"),this._bindToolEvents(t,s),this._bindFileEvents(t,s))},_bindToolEvents(t,e){t.on("change.yytToolManage",".yyt-tool-toggle input",s=>{let r=e(s.currentTarget).closest(".yyt-list-row"),o=r.data("tool-id"),a=e(s.currentTarget).is(":checked");Mo(o,a),r.toggleClass("yyt-tool-item-enabled",a).toggleClass("yyt-tool-item-disabled",!a),r.find(".yyt-status-dot").toggleClass("yyt-status-dot-on",a).toggleClass("yyt-status-dot-off",!a),E("info",a?"\u5DE5\u5177\u5DF2\u542F\u7528":"\u5DE5\u5177\u5DF2\u7981\u7528")}),t.on("click.yytToolManage","#yyt-add-tool",()=>{this._showToolEditDialog(t,e,null)}),t.on("click.yytToolManage",'.yyt-list-row [data-action="config"]',s=>{let r=e(s.currentTarget).closest(".yyt-list-row").data("tool-id");this._openToolConfig(r)}),t.on("click.yytToolManage",'.yyt-list-row [data-action="edit"]',s=>{let r=e(s.currentTarget).closest(".yyt-list-row").data("tool-id");this._showToolEditDialog(t,e,r)}),t.on("click.yytToolManage",'.yyt-list-row [data-action="delete"]',async s=>{let r=e(s.currentTarget).closest(".yyt-list-row").data("tool-id"),o=qs(r);if(!r||!o||!await he("\u5220\u9664\u5DE5\u5177",`\u786E\u5B9A\u8981\u5220\u9664\u5DE5\u5177"${o.name}"\u5417\uFF1F`,{danger:!0}))return;if(!ko(r)){E("error","\u5220\u9664\u5931\u8D25");return}this.renderTo(t),E("success","\u5DE5\u5177\u5DF2\u5220\u9664")})},_bindFileEvents(t,e){t.on("click.yytToolManage","#yyt-import-tools",()=>{t.find("#yyt-import-tools-file").click()}),t.on("change.yytToolManage","#yyt-import-tools-file",async s=>{let r=s.target.files[0];if(r){try{let o=await mt(r),a=Ro(o,{overwrite:!1});E(a.success?"success":"error",a.message),a.success&&this.renderTo(t)}catch(o){E("error",`\u5BFC\u5165\u5931\u8D25: ${o.message}`)}e(s.target).val("")}}),t.on("click.yytToolManage","#yyt-export-tools",()=>{try{let s=Co();at(s,`youyou_toolkit_tools_${Date.now()}.json`),E("success","\u5DE5\u5177\u5DF2\u5BFC\u51FA")}catch(s){E("error",`\u5BFC\u51FA\u5931\u8D25: ${s.message}`)}}),t.on("click.yytToolManage","#yyt-reset-tools",async()=>{await he("\u91CD\u7F6E\u5DE5\u5177","\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u5DE5\u5177\u5417\uFF1F",{danger:!0})&&($o(),this.renderTo(t),E("info","\u5DE5\u5177\u5DF2\u91CD\u7F6E"))})},_showToolEditDialog(t,e,s){let r=s?qs(s):null,o=!!r,a=`
       <div class="yyt-dialog-overlay" id="yyt-tool-dialog-overlay">
         <div class="yyt-dialog yyt-dialog-wide">
           <div class="yyt-dialog-header">
@@ -1107,7 +1107,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-wand-magic-sparkles yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
               <span>\u8F93\u51FA\u6A21\u5F0F</span>
             </div>
             <div class="yyt-form-group">
@@ -1122,7 +1122,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-database yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-database"></i></span>
               <span>API \u9884\u8BBE</span>
             </div>
             <div class="yyt-form-group">
@@ -1141,7 +1141,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-shield-halved yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-shield-halved"></i></span>
               <span>Ai\u6307\u4EE4\u9884\u8BBE</span>
             </div>
             <div class="yyt-form-group">
@@ -1166,7 +1166,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-book-open yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-book-open"></i></span>
               <span>\u4E16\u754C\u4E66\u6CE8\u5165</span>
             </div>
             <div class="yyt-form-group">
@@ -1205,7 +1205,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-filter yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-filter"></i></span>
               <span>\u63D0\u53D6\u914D\u7F6E</span>
             </div>
             <div class="yyt-form-row">
@@ -1226,7 +1226,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-bolt yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-bolt"></i></span>
               <span>\u81EA\u52A8\u89E6\u53D1</span>
             </div>
             <div class="yyt-form-group">
@@ -1250,7 +1250,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-file-code yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-file-code"></i></span>
               <span>\u6A21\u677F\u4FEE\u6539\u6846</span>
               <div class="yyt-title-actions">
                 <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${b}-tool-reset-template">
@@ -1269,7 +1269,7 @@ ${i}`}).filter(Boolean).join(`
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-hand-pointer yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-hand-pointer"></i></span>
               <span>\u624B\u52A8\u64CD\u4F5C\u533A</span>
             </div>
             <div class="yyt-tool-manual-area">
@@ -2645,29 +2645,29 @@ regex:<content>([\\s\\S]*?)</content>`,processorDirections:[{key:"en_to_zh",labe
             ${d?`<div class="yyt-form-hint">\u5237\u65B0\uFF1A<code>${l?.eventSource||"unavailable"}</code> / <code>${l?.eventName||"MESSAGE_UPDATED"}</code>\uFF1B\u8BF7\u6C42\uFF1A<code>${c||"none"}</code>\uFF1B\u786E\u8BA4\uFF1A<code>${l?.confirmed?l?.confirmedBy||"success":"pending_or_failed"}</code>\uFF1B\u68C0\u67E5\uFF1A<code>${l?.confirmChecks||0}</code></div>`:""}
           </div>
         `}).join(""):'<div class="yyt-form-hint">\u6682\u65E0\u81EA\u52A8\u5316\u4E8B\u52A1\u8BB0\u5F55\u3002</div>';return`
-      <div class=\u201Dyyt-settings-tab-content\u201D data-tab=\u201Dautomation\u201D>
-        <div class=\u201Dyyt-flow-section\u201D>
-          <div class=\u201Dyyt-flow-heading\u201D><span class=\u201Dyyt-flow-heading-icon\u201D><i class=\u201Dfa-solid fa-toggle-on\u201D></i></span>\u81EA\u52A8\u89E6\u53D1\u603B\u5F00\u5173</div>
-          <div class=\u201Dyyt-form-group\u201D>
-            ${sr({id:"yyt-setting-automationEnabled",checked:t.enabled,title:"\u542F\u7528\u5DE5\u5177\u81EA\u52A8\u89E6\u53D1",hint:"\u8FD9\u91CC\u53EA\u4FDD\u7559\u4E00\u4E2A\u5168\u5C40\u5F00\u5173\u3002\u5F00\u542F\u540E\uFF0C\u6240\u6709\u5904\u4E8E\u201D\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\u201D\u6A21\u5F0F\u7684\u5DE5\u5177\u90FD\u4F1A\u53C2\u4E0E\u81EA\u52A8\u89E6\u53D1\u3002"})}
+      <div class="yyt-settings-tab-content" data-tab="automation">
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-toggle-on"></i></span>\u81EA\u52A8\u89E6\u53D1\u603B\u5F00\u5173</div>
+          <div class="yyt-form-group">
+            ${sr({id:"yyt-setting-automationEnabled",checked:t.enabled,title:"\u542F\u7528\u5DE5\u5177\u81EA\u52A8\u89E6\u53D1",hint:'\u8FD9\u91CC\u53EA\u4FDD\u7559\u4E00\u4E2A\u5168\u5C40\u5F00\u5173\u3002\u5F00\u542F\u540E\uFF0C\u6240\u6709\u5904\u4E8E"\u989D\u5916 AI \u6A21\u578B\u89E3\u6790"\u6A21\u5F0F\u7684\u5DE5\u5177\u90FD\u4F1A\u53C2\u4E0E\u81EA\u52A8\u89E6\u53D1\u3002'})}
           </div>
-          <div class=\u201Dyyt-form-row\u201D>
-            <div class=\u201Dyyt-form-group yyt-flex-1\u201D>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
               <label>\u7B49\u5F85\u7A33\u5B9A\u65F6\u95F4 (ms)</label>
-              <input type=\u201Dnumber\u201D class=\u201Dyyt-input\u201D id=\u201Dyyt-setting-automationSettleMs\u201D
-                     value=\u201D${t.settleMs||1200}\u201D min=\u201D0\u201D max=\u201D10000\u201D step=\u201D100\u201D>
+              <input type="number" class="yyt-input" id="yyt-setting-automationSettleMs"
+                     value="${t.settleMs||1200}" min="0" max="10000" step="100">
             </div>
-            <div class=\u201Dyyt-form-group yyt-flex-1\u201D>
+            <div class="yyt-form-group yyt-flex-1">
               <label>\u81EA\u52A8\u5316\u51B7\u5374\u65F6\u95F4 (ms)</label>
-              <input type=\u201Dnumber\u201D class=\u201Dyyt-input\u201D id=\u201Dyyt-setting-automationCooldownMs\u201D
-                     value=\u201D${t.cooldownMs||5e3}\u201D min=\u201D0\u201D max=\u201D60000\u201D step=\u201D100\u201D>
+              <input type="number" class="yyt-input" id="yyt-setting-automationCooldownMs"
+                     value="${t.cooldownMs||5e3}" min="0" max="60000" step="100">
             </div>
           </div>
-          <div class=\u201Dyyt-form-hint\u201D>\u5F53\u524D\u72B6\u6001\uFF1A${s?"\u5DF2\u542F\u7528":"\u672A\u542F\u7528"}\u3002\u5F00\u542F\u540E\uFF0C\u6240\u6709\u201D\u989D\u5916 AI \u6A21\u578B\u89E3\u6790\u201D\u5DE5\u5177\u90FD\u4F1A\u5728 AI \u56DE\u590D\u540E\u81EA\u52A8\u6267\u884C\u3002</div>
+          <div class="yyt-form-hint">\u5F53\u524D\u72B6\u6001\uFF1A${s?"\u5DF2\u542F\u7528":"\u672A\u542F\u7528"}\u3002\u5F00\u542F\u540E\uFF0C\u6240\u6709"\u989D\u5916 AI \u6A21\u578B\u89E3\u6790"\u5DE5\u5177\u90FD\u4F1A\u5728 AI \u56DE\u590D\u540E\u81EA\u52A8\u6267\u884C\u3002</div>
         </div>
 
-        <div class=\u201Dyyt-flow-section\u201D>
-          <div class=\u201Dyyt-flow-heading\u201D><span class=\u201Dyyt-flow-heading-icon\u201D><i class=\u201Dfa-solid fa-stethoscope\u201D></i></span>\u81EA\u52A8\u5316\u8BCA\u65AD</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-stethoscope"></i></span>\u81EA\u52A8\u5316\u8BCA\u65AD</div>
           <div class="yyt-settings-runtime-grid">
             <div class="yyt-settings-runtime-chip ${e?.enabled?"is-on":"is-off"}">\u670D\u52A1 ${e?.enabled?"\u8FD0\u884C\u4E2D":"\u672A\u542F\u7528"}</div>
             <div class="yyt-settings-runtime-chip ${o.initialized?"is-on":"is-off"}">\u76D1\u542C ${o.initialized?"\u5DF2\u7ED1\u5B9A":"\u672A\u7ED1\u5B9A"}</div>
@@ -3582,7 +3582,7 @@ deleteRow(1, 0)
                 <div class="yyt-twb-row-fields">${s.map(i=>vm(i,o)).join("")}</div>
               </article>`}).join("")}
         </div>`:`
-        <div class="yyt-twb-empty"><h4>\u6682\u65E0\u6570\u636E\u884C</h4><p>\u53EF\u4EE5\u624B\u52A8\u6DFB\u52A0\u4E00\u884C\uFF0C\u6216\u70B9\u51FB\u201C\u7ACB\u5373\u586B\u8868\u201D\u8BA9 AI \u6839\u636E\u5F53\u524D\u5BF9\u8BDD\u751F\u6210\u3002</p><button class="yyt-btn yyt-btn-secondary" data-twb-action="add-row">\u6DFB\u52A0\u884C</button></div>`}
+        <div class="yyt-twb-empty"><h4>\u6682\u65E0\u6570\u636E\u884C</h4><p>\u53EF\u4EE5\u624B\u52A8\u6DFB\u52A0\u4E00\u884C\uFF0C\u6216\u70B9\u51FB"\u7ACB\u5373\u586B\u8868"\u8BA9 AI \u6839\u636E\u5F53\u524D\u5BF9\u8BDD\u751F\u6210\u3002</p><button class="yyt-btn yyt-btn-secondary" data-twb-action="add-row">\u6DFB\u52A0\u884C</button></div>`}
     </section>`}function Sm(t,e,s){let o=(Ft({tables:Array.isArray(s.tables)?s.tables:[]}).issues||[]).filter(a=>a.tableIndex===e);return`
     <section class="yyt-twb-editor-section yyt-twb-diagnostics">
       <details>
@@ -3787,7 +3787,7 @@ deleteRow(1, 0)
         ${im(e)}
         ${gm(e)}
         ${_m(e,r,this.editorOpen,this.lastDiff?.[r])}
-      </div>`},bindEvents(t){let e=O();if(!e||!K(t))return;let s=this;t.off(".twb"),this._subscribeChatChanged(t),t.on("change.twb",'[data-twb-field="worldbooksEnabled"]',function(){let r=e(this).is(":checked");t.find("[data-twb-wb-selector]").toggleClass("yyt-hidden",!r),r&&s.availableWorldbooks.length===0&&s.worldbookLoadState==="idle"&&s._loadTableWorldbooks(t)}),t.on("change.twb",'[data-twb-field="worldbookSyncEnabled"]',function(){let r=e(this).is(":checked");t.find("[data-twb-wbsync-opts]").toggleClass("yyt-hidden",!r),r&&s.availableWorldbooks.length===0&&s.worldbookLoadState==="idle"&&s._loadTableWorldbooks(t),r&&s.availableWorldbooks.length>0&&s._renderWorldbookSyncTargetSelect(t)}),t.on("change.twb","[data-twb-wb-item]",function(){s._updateWorldbookSummary(t)}),t.on("click.twb",'[data-twb-action="open-table-editor"]',function(r){r.stopPropagation();let o=Ue(t,s.lastLiveConfig),a=Number(e(this).attr("data-twb-ti"));o.__activeTableIndex=a,s.currentTableIndex=pt(o.tables,a),s.editorOpen=!0,s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="close-table-editor"]',function(){ry(t,s)}),t.on("keydown.twb",function(r){r.key==="Escape"&&s.editorOpen&&(r.stopPropagation(),ry(t,s))}),t.on("click.twb","[data-twb-select]",function(){let r=Number(e(this).attr("data-twb-select")),o=Ue(t,s.lastLiveConfig);o.__activeTableIndex=r,s.currentTableIndex=pt(o.tables,r),s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="add-table"]',function(r){r.stopPropagation();let o=Ue(t,s.lastLiveConfig),a=Array.isArray(o.tables)?[...o.tables]:[];a.push(On(a.length+1)),o.tables=a,o.__activeTableIndex=a.length-1,Je(o),s.currentTableIndex=a.length-1,s.editorOpen=!0,s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="delete-table"]',async function(r){r.stopPropagation();let o=Number(e(this).attr("data-twb-ti")),a=Ue(t),n=Array.isArray(a.tables)?[...a.tables]:[];if(o<0||o>=n.length)return;let i=n[o]?.name||`\u8868\u683C ${o+1}`;if(!await he("\u5220\u9664\u8868\u683C",`\u786E\u5B9A\u8981\u5220\u9664\u300C${i}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002`,{danger:!0}))return;n.splice(o,1);let l=pt(n,o>0?o-1:0);a.tables=n,a.__activeTableIndex=l,Je(a),s.currentTableIndex=l,s.editorOpen=!1,s.renderTo(t,{config:a})}),t.on("click.twb",'[data-twb-action="save"]',()=>{let r=Ue(t),o=Je(r);o.success?(E("success","\u5DF2\u4FDD\u5B58"),s.renderTo(t,{config:o.config})):Q("warning",o.error||"\u4FDD\u5B58\u5931\u8D25",{duration:4e3,noticeId:"twb-save"})}),t.on("click.twb",'[data-twb-action="run"], [data-twb-action="run-selected"], [data-twb-action="run-table"]',async function(){let r=e(this).attr("data-twb-action"),o=Number(e(this).attr("data-twb-ti")),a=Ue(t);if(Number.isInteger(o)){a.__activeTableIndex=o;let i=Array.isArray(a.tables)?a.tables[o]:null;i&&(a.scope={...a.scope||{},activeTableId:pa(i,o)})}r==="run-selected"?(a.runScope="selected",a.scope={...a.scope||{},mode:"selected"}):r==="run-table"&&(a.runScope="current",a.scope={...a.scope||{},mode:"current"});let n=Je(a);if(!n.success){Q("warning",n.error||"\u4FDD\u5B58\u5931\u8D25",{duration:4e3,noticeId:"twb-save"});return}try{e(this).prop("disabled",!0).text("\u586B\u8868\u4E2D...");let i=await Zd(n.config);if(!i?.success)Q("warning",i?.error||"\u586B\u8868\u5931\u8D25",{duration:4e3,noticeId:"twb-run"});else{s.lastDiff=i.diff||null;let l=i.fillMode==="incremental"?"\u589E\u91CF":"\u5168\u91CF",c=i.scopeStats,d="";if(c&&(c.droppedByScope>0||c.droppedByLock>0)){let y=[];c.droppedByScope>0&&y.push(`${c.droppedByScope} \u6761\u56E0 scope \u8FC7\u6EE4`),c.droppedByLock>0&&y.push(`${c.droppedByLock} \u6761\u56E0\u9501\u5B9A\u8FC7\u6EE4`),d=`\uFF0C${y.join("\u3001")}`}i.warning?Q("warning",`\u586B\u8868\u5B8C\u6210 (${l}${d})\uFF0C\u955C\u50CF\u5931\u8D25: ${i.warning}`,{duration:4200,noticeId:"twb-run"}):Q("success",`\u586B\u8868\u5B8C\u6210 (${l}${d})`,{duration:2800,noticeId:"twb-run"})}if(i?.success||i?.nextTables){let l=$e(),c=i.nextTables||i.state?.tables||[];Qr.debug("nextTables",c.map(y=>({id:y?.id,key:y?.key,name:y?.name,rowCount:y?.rows?.length}))),Qr.debug("configTables",l.tables?.map(y=>({id:y?.id,key:y?.key,name:y?.name,rowCount:y?.rows?.length})));let d=qn(l.tables,c,"exact");Qr.debug("mergedTables",d.map(y=>({id:y?.id,key:y?.key,name:y?.name,rowCount:y?.rows?.length,source:y?.__liveSourceKind}))),s.lastLiveConfig={...l,tables:d,__liveSourceKind:"exact"},s.lastLiveTarget=i.targetSnapshot||null}}catch(i){E("error",i?.message||"\u586B\u8868\u5931\u8D25")}finally{s.renderTo(t,{config:s.lastLiveConfig||void 0})}}),t.on("click.twb",'[data-twb-action="add-row"]',()=>{let r=Ue(t),o=pt(r.tables,s.currentTableIndex),a=Array.isArray(r.tables)?[...r.tables]:[];if(!a[o])return;let n={...a[o]};n.rows=Array.isArray(n.rows)?[...n.rows]:[];let i=la(n.columns||[],n.rows.length+1);n.rows.push(i),a[o]=n,r.tables=a,r.__activeTableIndex=o,Je(r),s.renderTo(t,{config:r})}),t.on("click.twb",'[data-twb-action="delete-row"]',function(){let r=Number(e(this).attr("data-twb-ri")),o=Ue(t),a=pt(o.tables,s.currentTableIndex),n=Array.isArray(o.tables)?[...o.tables]:[];if(!n[a]||r<0||r>=(n[a].rows?.length||0))return;let i={...n[a]};i.rows=Array.isArray(i.rows)?[...i.rows]:[],i.rows.splice(r,1),n[a]=i,o.tables=n,o.__activeTableIndex=a,Je(o),s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="add-col"]',()=>{let r=Ue(t),o=pt(r.tables,s.currentTableIndex),a=Array.isArray(r.tables)?[...r.tables]:[];if(!a[o])return;let n={...a[o]};n.columns=Array.isArray(n.columns)?[...n.columns]:[];let i=n.columns.length+1,l=ia(i,n.columns);n.columns.push(l),a[o]=n,r.tables=a,r.__activeTableIndex=o,Je(r),s.renderTo(t,{config:r})}),t.on("click.twb",'[data-twb-action="delete-col"]',async function(){let r=e(this).attr("data-twb-ci"),o=Ue(t),a=pt(o.tables,s.currentTableIndex),n=Array.isArray(o.tables)?[...o.tables]:[];if(!n[a])return;let i=n[a].columns?.find(d=>d.key===r),l=i?.name||i?.key||"\u6B64\u5B57\u6BB5";if(!await he("\u5220\u9664\u5B57\u6BB5",`\u786E\u5B9A\u8981\u5220\u9664\u300C${l}\u300D\u5417\uFF1F\u5173\u8054\u7684\u5355\u5143\u683C\u6570\u636E\u4E5F\u5C06\u88AB\u79FB\u9664\u3002`,{danger:!0}))return;let c={...n[a]};c.columns=Array.isArray(c.columns)?[...c.columns]:[],c.columns=c.columns.filter(d=>d.key!==r),c.rows=(c.rows||[]).map(d=>{let y={...d.cells||{}};return delete y[r],{...d,cells:y}}),n[a]=c,o.tables=n,o.__activeTableIndex=a,Je(o),s.renderTo(t,{config:o})}),t.on("contextmenu.twb","[data-twb-row]",function(r){r.preventDefault();let o=Number(e(this).attr("data-twb-ri"));new qr().show(r.clientX,r.clientY,{rowIndex:o,onAction(n){if(n==="insert-row-above"||n==="insert-row-below"){let i=n==="insert-row-above"?o:o+1,l=Ue(t),c=pt(l.tables,s.currentTableIndex),d=Array.isArray(l.tables)?[...l.tables]:[];if(!d[c])return;let y={...d[c]};y.rows=Array.isArray(y.rows)?[...y.rows]:[];let p=la(y.columns||[],y.rows.length+1);y.rows.splice(Math.max(i,0),0,p),d[c]=y,l.tables=d,l.__activeTableIndex=c,Je(l),s.renderTo(t,{config:l})}else n==="delete-row"&&t.find(`[data-twb-action="delete-row"][data-twb-ri="${o}"]`).trigger("click")}})}),t.on("click.twb","[data-twb-row-filter]",function(){let r=e(this).attr("data-twb-row-filter");t.find("[data-twb-row-filter]").removeClass("active"),e(this).addClass("active"),t.find("[data-twb-row]").each(function(){let o=r==="all"||e(this).hasClass(`row-${r}`);e(this).toggle(o)})}),t.on("input.twb","[data-twb-row-search]",function(){let r=String(e(this).val()||"").toLowerCase().trim();t.find("[data-twb-row]").each(function(){e(this).toggle(!r||e(this).text().toLowerCase().includes(r))})}),t.on("click.twb","[data-twb-action=\u201Dapply-template\u201D]",function(){let r=Ue(t),o=oe(r.activeTemplate,""),a=Hr().find(l=>l.id===o);if(!a){Q("warning","\u8BF7\u5148\u5728\u4E0B\u62C9\u5217\u8868\u4E2D\u9009\u62E9\u4E00\u4E2A\u6A21\u677F\u3002",{duration:3e3,noticeId:"twb-template"});return}if(Array.isArray(r.tables)&&r.tables.length>0&&s.pendingTemplateApplyId!==o){s.pendingTemplateApplyId=o,Q("warning","\u5E94\u7528\u6A21\u677F\u4F1A\u66FF\u6362\u5F53\u524D\u8868\u683C\u3002\u518D\u6B21\u70B9\u51FB\u201D\u5E94\u7528\u6A21\u677F\u201D\u786E\u8BA4\u3002",{duration:4200,noticeId:"twb-template"});return}let i=rd(o);s.pendingTemplateApplyId="",s.currentTableIndex=0,s.editorOpen=!1,i.success?(Q("success",`\u5DF2\u5E94\u7528\u6A21\u677F\uFF1A${a.name}`,{duration:2800,noticeId:"twb-template"}),s.renderTo(t,{config:i.config})):Q("warning",i.error||"\u5E94\u7528\u6A21\u677F\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}),t.on("click.twb","[data-twb-action=\u201Dsave-template\u201D]",async function(){let r=Ue(t),o=`${oe(r.tables?.[0]?.name,"\u586B\u8868\u6A21\u677F")} ${new Date().toLocaleString()}`,a=await ja("\u4FDD\u5B58\u6A21\u677F","\u8BF7\u8F93\u5165\u6A21\u677F\u540D\u79F0",{defaultValue:o});if(!a)return;let n=Je(r);if(!n.success){Q("warning",n.error||"\u4FDD\u5B58\u914D\u7F6E\u5931\u8D25",{duration:4e3,noticeId:"twb-template"});return}let i=od({name:a,description:"\u4ECE\u586B\u8868\u5DE5\u4F5C\u53F0\u4FDD\u5B58\u3002"});i.success?(Q("success",`\u5DF2\u4FDD\u5B58\u6A21\u677F\uFF1A${i.template.name}`,{duration:2800,noticeId:"twb-template"}),s.renderTo(t)):Q("warning",i.error||"\u4FDD\u5B58\u6A21\u677F\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}),t.on("click.twb","[data-twb-action=\u201Ddelete-template\u201D]",function(){let r=oe(e(this).attr("data-twb-template-id"),"");if(!r)return;let o=Hr().find(n=>n.id===r);if(!o){Q("warning","\u6A21\u677F\u4E0D\u5B58\u5728\u3002",{duration:3e3,noticeId:"twb-template"});return}if(s._pendingDeleteTemplateId!==r){s._pendingDeleteTemplateId=r,Q("warning",`\u786E\u8BA4\u5220\u9664\u6A21\u677F\u201D${o.name}\u201D\uFF1F\u518D\u6B21\u70B9\u51FB\u5220\u9664\u6309\u94AE\u786E\u8BA4\u3002`,{duration:4200,noticeId:"twb-template"});return}s._pendingDeleteTemplateId="";let a=zc(r);a.success?(Q("success","\u5DF2\u5220\u9664\u6A21\u677F\u3002",{duration:2800,noticeId:"twb-template"}),s.renderTo(t)):Q("warning",a.error||"\u5220\u9664\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}),t.on("click.twb","[data-twb-action=\u201Dexport-template\u201D]",function(){let r=Ue(t),o=oe(Hr().find(n=>n.id===r.activeTemplate)?.name,"\u5F53\u524D\u586B\u8868\u6A21\u677F"),a={version:1,exportedAt:new Date().toISOString(),template:{id:oe(r.activeTemplate,""),name:o,description:"YouYou Toolkit \u586B\u8868\u6A21\u677F\u5BFC\u51FA\u3002",tables:r.tables||[],promptTemplate:r.promptTemplate||""}};at(Hn(a),`youyou_table_template_${Date.now()}.json`),Q("success","\u6A21\u677F\u5DF2\u5BFC\u51FA\u4E3A\u6587\u4EF6\u3002",{duration:2800,noticeId:"twb-template"})}),t.on("click.twb","[data-twb-action=\u201Dexport-all-templates\u201D]",function(){let r=Uc();if(!r.templates||r.templates.length===0){Q("warning","\u6CA1\u6709\u7528\u6237\u6A21\u677F\u53EF\u5BFC\u51FA\u3002",{duration:3e3,noticeId:"twb-template"});return}at(Hn(r),`youyou_table_templates_all_${Date.now()}.json`),Q("success",`\u5DF2\u5BFC\u51FA ${r.templates.length} \u4E2A\u7528\u6237\u6A21\u677F\u3002`,{duration:2800,noticeId:"twb-template"})}),t.on("click.twb","[data-twb-action=\u201Dimport-template\u201D]",function(){t.find("[data-twb-import-file]").val("").trigger("click")}),t.on("change.twb","[data-twb-import-file]",async function(){let r=this.files?.[0];if(r)try{let o=await mt(r),a=JSON.parse(o),n=jc(a,{overwrite:!1});n.imported>0?(Q("success",`\u5DF2\u5BFC\u5165 ${n.imported} \u4E2A\u6A21\u677F${n.skipped?`\uFF0C\u8DF3\u8FC7 ${n.skipped} \u4E2A\u5DF2\u5B58\u5728`:""}\u3002`,{duration:3500,noticeId:"twb-template"}),s.renderTo(t)):n.skipped>0?Q("warning",`${n.skipped} \u4E2A\u6A21\u677F\u5DF2\u5B58\u5728\uFF0C\u5168\u90E8\u8DF3\u8FC7\u3002`,{duration:3500,noticeId:"twb-template"}):Q("warning",n.errors?.[0]||"\u672A\u5BFC\u5165\u4EFB\u4F55\u6A21\u677F\u3002",{duration:4e3,noticeId:"twb-template"})}catch(o){Q("warning",o?.message||"\u6A21\u677F\u6587\u4EF6\u89E3\u6790\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}}),t.on("change.twb",'[data-twb-field="bypassEnabled"]',function(){t.find(".yyt-twb-bypass-preset").toggleClass("yyt-hidden",!e(this).is(":checked"))}),t.on("blur.twb change.twb","[data-twb-name], [data-twb-note], [data-twb-table-instruction], [data-twb-col] input, [data-twb-col] select, [data-twb-col] textarea, [data-twb-row] input, [data-twb-row] select, [data-twb-row] textarea, [data-twb-field]",function(){let r=Ue(t);Je(r)})},destroy(t){!O()||!K(t)||(qr.destroy(),t.off(".twb"),typeof this._chatChangedUnsubscribe=="function"&&this._chatChangedUnsubscribe(),this._clearLiveCache())},getStyles(){return sm},lastLiveConfig:null,lastLiveTarget:null,_liveRefreshPending:!1,_chatChangedUnsubscribe:null,_clearLiveCache(){this.lastLiveConfig=null,this.lastLiveTarget=null},_subscribeChatChanged(t){if(!this._chatChangedUnsubscribe)try{let e=window.parent!==void 0&&window.parent!==window?window.parent:window,s=e?.SillyTavern||null,r=s?.getContext?.()||null,o=s?.eventSource||e?.eventSource||r?.eventSource||null,a=s?.eventTypes||r?.eventTypes||e?.event_types||{},n=a.CHAT_CHANGED||a.chat_changed||"chat_changed";if(o&&typeof o.on=="function"){let i=()=>{this._clearLiveCache(),K(t)&&this.renderTo(t)};o.on(n,i),this._chatChangedUnsubscribe=()=>{try{o.off(n,i)}catch{}this._chatChangedUnsubscribe=null}}}catch{}},async _loadTableWorldbooks(t){this.worldbookLoadState="loading",this._renderWorldbookList(t);try{let{getAvailableWorldbooks:e}=await Promise.resolve().then(()=>($r(),Kl)),s=await e();this.availableWorldbooks=Array.isArray(s)?s:[]}catch{this.availableWorldbooks=[]}this.worldbookLoadState="ready",this._renderWorldbookList(t),this._renderWorldbookSyncTargetSelect(t)},_renderWorldbookList(t){let e=O(),s=t.find("[data-twb-wb-list]");if(!s.length)return;let r=this.lastLiveConfig||$e(),o=new Set(Array.isArray(r.worldbooks?.selected)?r.worldbooks.selected:[]),a=this.availableWorldbooks;if(this.worldbookLoadState==="loading"){s.html('<div style="padding:6px;color:var(--yyt-text-muted);font-size:12px">\u4E16\u754C\u4E66\u52A0\u8F7D\u4E2D\u2026</div>');return}if(a.length===0){s.html('<div style="padding:6px;color:var(--yyt-text-muted);font-size:12px">\u65E0\u53EF\u7528\u4E16\u754C\u4E66\u3002</div>');return}s.html(a.map(n=>`<label class="yyt-twb-check-row" style="margin-bottom:4px">
+      </div>`},bindEvents(t){let e=O();if(!e||!K(t))return;let s=this;t.off(".twb"),this._subscribeChatChanged(t),t.on("change.twb",'[data-twb-field="worldbooksEnabled"]',function(){let r=e(this).is(":checked");t.find("[data-twb-wb-selector]").toggleClass("yyt-hidden",!r),r&&s.availableWorldbooks.length===0&&s.worldbookLoadState==="idle"&&s._loadTableWorldbooks(t)}),t.on("change.twb",'[data-twb-field="worldbookSyncEnabled"]',function(){let r=e(this).is(":checked");t.find("[data-twb-wbsync-opts]").toggleClass("yyt-hidden",!r),r&&s.availableWorldbooks.length===0&&s.worldbookLoadState==="idle"&&s._loadTableWorldbooks(t),r&&s.availableWorldbooks.length>0&&s._renderWorldbookSyncTargetSelect(t)}),t.on("change.twb","[data-twb-wb-item]",function(){s._updateWorldbookSummary(t)}),t.on("click.twb",'[data-twb-action="open-table-editor"]',function(r){r.stopPropagation();let o=Ue(t,s.lastLiveConfig),a=Number(e(this).attr("data-twb-ti"));o.__activeTableIndex=a,s.currentTableIndex=pt(o.tables,a),s.editorOpen=!0,s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="close-table-editor"]',function(){ry(t,s)}),t.on("keydown.twb",function(r){r.key==="Escape"&&s.editorOpen&&(r.stopPropagation(),ry(t,s))}),t.on("click.twb","[data-twb-select]",function(){let r=Number(e(this).attr("data-twb-select")),o=Ue(t,s.lastLiveConfig);o.__activeTableIndex=r,s.currentTableIndex=pt(o.tables,r),s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="add-table"]',function(r){r.stopPropagation();let o=Ue(t,s.lastLiveConfig),a=Array.isArray(o.tables)?[...o.tables]:[];a.push(On(a.length+1)),o.tables=a,o.__activeTableIndex=a.length-1,Je(o),s.currentTableIndex=a.length-1,s.editorOpen=!0,s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="delete-table"]',async function(r){r.stopPropagation();let o=Number(e(this).attr("data-twb-ti")),a=Ue(t),n=Array.isArray(a.tables)?[...a.tables]:[];if(o<0||o>=n.length)return;let i=n[o]?.name||`\u8868\u683C ${o+1}`;if(!await he("\u5220\u9664\u8868\u683C",`\u786E\u5B9A\u8981\u5220\u9664\u300C${i}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002`,{danger:!0}))return;n.splice(o,1);let l=pt(n,o>0?o-1:0);a.tables=n,a.__activeTableIndex=l,Je(a),s.currentTableIndex=l,s.editorOpen=!1,s.renderTo(t,{config:a})}),t.on("click.twb",'[data-twb-action="save"]',()=>{let r=Ue(t),o=Je(r);o.success?(E("success","\u5DF2\u4FDD\u5B58"),s.renderTo(t,{config:o.config})):Q("warning",o.error||"\u4FDD\u5B58\u5931\u8D25",{duration:4e3,noticeId:"twb-save"})}),t.on("click.twb",'[data-twb-action="run"], [data-twb-action="run-selected"], [data-twb-action="run-table"]',async function(){let r=e(this).attr("data-twb-action"),o=Number(e(this).attr("data-twb-ti")),a=Ue(t);if(Number.isInteger(o)){a.__activeTableIndex=o;let i=Array.isArray(a.tables)?a.tables[o]:null;i&&(a.scope={...a.scope||{},activeTableId:pa(i,o)})}r==="run-selected"?(a.runScope="selected",a.scope={...a.scope||{},mode:"selected"}):r==="run-table"&&(a.runScope="current",a.scope={...a.scope||{},mode:"current"});let n=Je(a);if(!n.success){Q("warning",n.error||"\u4FDD\u5B58\u5931\u8D25",{duration:4e3,noticeId:"twb-save"});return}try{e(this).prop("disabled",!0).text("\u586B\u8868\u4E2D...");let i=await Zd(n.config);if(!i?.success)Q("warning",i?.error||"\u586B\u8868\u5931\u8D25",{duration:4e3,noticeId:"twb-run"});else{s.lastDiff=i.diff||null;let l=i.fillMode==="incremental"?"\u589E\u91CF":"\u5168\u91CF",c=i.scopeStats,d="";if(c&&(c.droppedByScope>0||c.droppedByLock>0)){let y=[];c.droppedByScope>0&&y.push(`${c.droppedByScope} \u6761\u56E0 scope \u8FC7\u6EE4`),c.droppedByLock>0&&y.push(`${c.droppedByLock} \u6761\u56E0\u9501\u5B9A\u8FC7\u6EE4`),d=`\uFF0C${y.join("\u3001")}`}i.warning?Q("warning",`\u586B\u8868\u5B8C\u6210 (${l}${d})\uFF0C\u955C\u50CF\u5931\u8D25: ${i.warning}`,{duration:4200,noticeId:"twb-run"}):Q("success",`\u586B\u8868\u5B8C\u6210 (${l}${d})`,{duration:2800,noticeId:"twb-run"})}if(i?.success||i?.nextTables){let l=$e(),c=i.nextTables||i.state?.tables||[];Qr.debug("nextTables",c.map(y=>({id:y?.id,key:y?.key,name:y?.name,rowCount:y?.rows?.length}))),Qr.debug("configTables",l.tables?.map(y=>({id:y?.id,key:y?.key,name:y?.name,rowCount:y?.rows?.length})));let d=qn(l.tables,c,"exact");Qr.debug("mergedTables",d.map(y=>({id:y?.id,key:y?.key,name:y?.name,rowCount:y?.rows?.length,source:y?.__liveSourceKind}))),s.lastLiveConfig={...l,tables:d,__liveSourceKind:"exact"},s.lastLiveTarget=i.targetSnapshot||null}}catch(i){E("error",i?.message||"\u586B\u8868\u5931\u8D25")}finally{s.renderTo(t,{config:s.lastLiveConfig||void 0})}}),t.on("click.twb",'[data-twb-action="add-row"]',()=>{let r=Ue(t),o=pt(r.tables,s.currentTableIndex),a=Array.isArray(r.tables)?[...r.tables]:[];if(!a[o])return;let n={...a[o]};n.rows=Array.isArray(n.rows)?[...n.rows]:[];let i=la(n.columns||[],n.rows.length+1);n.rows.push(i),a[o]=n,r.tables=a,r.__activeTableIndex=o,Je(r),s.renderTo(t,{config:r})}),t.on("click.twb",'[data-twb-action="delete-row"]',function(){let r=Number(e(this).attr("data-twb-ri")),o=Ue(t),a=pt(o.tables,s.currentTableIndex),n=Array.isArray(o.tables)?[...o.tables]:[];if(!n[a]||r<0||r>=(n[a].rows?.length||0))return;let i={...n[a]};i.rows=Array.isArray(i.rows)?[...i.rows]:[],i.rows.splice(r,1),n[a]=i,o.tables=n,o.__activeTableIndex=a,Je(o),s.renderTo(t,{config:o})}),t.on("click.twb",'[data-twb-action="add-col"]',()=>{let r=Ue(t),o=pt(r.tables,s.currentTableIndex),a=Array.isArray(r.tables)?[...r.tables]:[];if(!a[o])return;let n={...a[o]};n.columns=Array.isArray(n.columns)?[...n.columns]:[];let i=n.columns.length+1,l=ia(i,n.columns);n.columns.push(l),a[o]=n,r.tables=a,r.__activeTableIndex=o,Je(r),s.renderTo(t,{config:r})}),t.on("click.twb",'[data-twb-action="delete-col"]',async function(){let r=e(this).attr("data-twb-ci"),o=Ue(t),a=pt(o.tables,s.currentTableIndex),n=Array.isArray(o.tables)?[...o.tables]:[];if(!n[a])return;let i=n[a].columns?.find(d=>d.key===r),l=i?.name||i?.key||"\u6B64\u5B57\u6BB5";if(!await he("\u5220\u9664\u5B57\u6BB5",`\u786E\u5B9A\u8981\u5220\u9664\u300C${l}\u300D\u5417\uFF1F\u5173\u8054\u7684\u5355\u5143\u683C\u6570\u636E\u4E5F\u5C06\u88AB\u79FB\u9664\u3002`,{danger:!0}))return;let c={...n[a]};c.columns=Array.isArray(c.columns)?[...c.columns]:[],c.columns=c.columns.filter(d=>d.key!==r),c.rows=(c.rows||[]).map(d=>{let y={...d.cells||{}};return delete y[r],{...d,cells:y}}),n[a]=c,o.tables=n,o.__activeTableIndex=a,Je(o),s.renderTo(t,{config:o})}),t.on("contextmenu.twb","[data-twb-row]",function(r){r.preventDefault();let o=Number(e(this).attr("data-twb-ri"));new qr().show(r.clientX,r.clientY,{rowIndex:o,onAction(n){if(n==="insert-row-above"||n==="insert-row-below"){let i=n==="insert-row-above"?o:o+1,l=Ue(t),c=pt(l.tables,s.currentTableIndex),d=Array.isArray(l.tables)?[...l.tables]:[];if(!d[c])return;let y={...d[c]};y.rows=Array.isArray(y.rows)?[...y.rows]:[];let p=la(y.columns||[],y.rows.length+1);y.rows.splice(Math.max(i,0),0,p),d[c]=y,l.tables=d,l.__activeTableIndex=c,Je(l),s.renderTo(t,{config:l})}else n==="delete-row"&&t.find(`[data-twb-action="delete-row"][data-twb-ri="${o}"]`).trigger("click")}})}),t.on("click.twb","[data-twb-row-filter]",function(){let r=e(this).attr("data-twb-row-filter");t.find("[data-twb-row-filter]").removeClass("active"),e(this).addClass("active"),t.find("[data-twb-row]").each(function(){let o=r==="all"||e(this).hasClass(`row-${r}`);e(this).toggle(o)})}),t.on("input.twb","[data-twb-row-search]",function(){let r=String(e(this).val()||"").toLowerCase().trim();t.find("[data-twb-row]").each(function(){e(this).toggle(!r||e(this).text().toLowerCase().includes(r))})}),t.on("click.twb",'[data-twb-action="apply-template"]',function(){let r=Ue(t),o=oe(r.activeTemplate,""),a=Hr().find(l=>l.id===o);if(!a){Q("warning","\u8BF7\u5148\u5728\u4E0B\u62C9\u5217\u8868\u4E2D\u9009\u62E9\u4E00\u4E2A\u6A21\u677F\u3002",{duration:3e3,noticeId:"twb-template"});return}if(Array.isArray(r.tables)&&r.tables.length>0&&s.pendingTemplateApplyId!==o){s.pendingTemplateApplyId=o,Q("warning",'\u5E94\u7528\u6A21\u677F\u4F1A\u66FF\u6362\u5F53\u524D\u8868\u683C\u3002\u518D\u6B21\u70B9\u51FB"\u5E94\u7528\u6A21\u677F"\u786E\u8BA4\u3002',{duration:4200,noticeId:"twb-template"});return}let i=rd(o);s.pendingTemplateApplyId="",s.currentTableIndex=0,s.editorOpen=!1,i.success?(Q("success",`\u5DF2\u5E94\u7528\u6A21\u677F\uFF1A${a.name}`,{duration:2800,noticeId:"twb-template"}),s.renderTo(t,{config:i.config})):Q("warning",i.error||"\u5E94\u7528\u6A21\u677F\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}),t.on("click.twb",'[data-twb-action="save-template"]',async function(){let r=Ue(t),o=`${oe(r.tables?.[0]?.name,"\u586B\u8868\u6A21\u677F")} ${new Date().toLocaleString()}`,a=await ja("\u4FDD\u5B58\u6A21\u677F","\u8BF7\u8F93\u5165\u6A21\u677F\u540D\u79F0",{defaultValue:o});if(!a)return;let n=Je(r);if(!n.success){Q("warning",n.error||"\u4FDD\u5B58\u914D\u7F6E\u5931\u8D25",{duration:4e3,noticeId:"twb-template"});return}let i=od({name:a,description:"\u4ECE\u586B\u8868\u5DE5\u4F5C\u53F0\u4FDD\u5B58\u3002"});i.success?(Q("success",`\u5DF2\u4FDD\u5B58\u6A21\u677F\uFF1A${i.template.name}`,{duration:2800,noticeId:"twb-template"}),s.renderTo(t)):Q("warning",i.error||"\u4FDD\u5B58\u6A21\u677F\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}),t.on("click.twb",'[data-twb-action="delete-template"]',function(){let r=oe(e(this).attr("data-twb-template-id"),"");if(!r)return;let o=Hr().find(n=>n.id===r);if(!o){Q("warning","\u6A21\u677F\u4E0D\u5B58\u5728\u3002",{duration:3e3,noticeId:"twb-template"});return}if(s._pendingDeleteTemplateId!==r){s._pendingDeleteTemplateId=r,Q("warning",`\u786E\u8BA4\u5220\u9664\u6A21\u677F"${o.name}"\uFF1F\u518D\u6B21\u70B9\u51FB\u5220\u9664\u6309\u94AE\u786E\u8BA4\u3002`,{duration:4200,noticeId:"twb-template"});return}s._pendingDeleteTemplateId="";let a=zc(r);a.success?(Q("success","\u5DF2\u5220\u9664\u6A21\u677F\u3002",{duration:2800,noticeId:"twb-template"}),s.renderTo(t)):Q("warning",a.error||"\u5220\u9664\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}),t.on("click.twb",'[data-twb-action="export-template"]',function(){let r=Ue(t),o=oe(Hr().find(n=>n.id===r.activeTemplate)?.name,"\u5F53\u524D\u586B\u8868\u6A21\u677F"),a={version:1,exportedAt:new Date().toISOString(),template:{id:oe(r.activeTemplate,""),name:o,description:"YouYou Toolkit \u586B\u8868\u6A21\u677F\u5BFC\u51FA\u3002",tables:r.tables||[],promptTemplate:r.promptTemplate||""}};at(Hn(a),`youyou_table_template_${Date.now()}.json`),Q("success","\u6A21\u677F\u5DF2\u5BFC\u51FA\u4E3A\u6587\u4EF6\u3002",{duration:2800,noticeId:"twb-template"})}),t.on("click.twb",'[data-twb-action="export-all-templates"]',function(){let r=Uc();if(!r.templates||r.templates.length===0){Q("warning","\u6CA1\u6709\u7528\u6237\u6A21\u677F\u53EF\u5BFC\u51FA\u3002",{duration:3e3,noticeId:"twb-template"});return}at(Hn(r),`youyou_table_templates_all_${Date.now()}.json`),Q("success",`\u5DF2\u5BFC\u51FA ${r.templates.length} \u4E2A\u7528\u6237\u6A21\u677F\u3002`,{duration:2800,noticeId:"twb-template"})}),t.on("click.twb",'[data-twb-action="import-template"]',function(){t.find("[data-twb-import-file]").val("").trigger("click")}),t.on("change.twb","[data-twb-import-file]",async function(){let r=this.files?.[0];if(r)try{let o=await mt(r),a=JSON.parse(o),n=jc(a,{overwrite:!1});n.imported>0?(Q("success",`\u5DF2\u5BFC\u5165 ${n.imported} \u4E2A\u6A21\u677F${n.skipped?`\uFF0C\u8DF3\u8FC7 ${n.skipped} \u4E2A\u5DF2\u5B58\u5728`:""}\u3002`,{duration:3500,noticeId:"twb-template"}),s.renderTo(t)):n.skipped>0?Q("warning",`${n.skipped} \u4E2A\u6A21\u677F\u5DF2\u5B58\u5728\uFF0C\u5168\u90E8\u8DF3\u8FC7\u3002`,{duration:3500,noticeId:"twb-template"}):Q("warning",n.errors?.[0]||"\u672A\u5BFC\u5165\u4EFB\u4F55\u6A21\u677F\u3002",{duration:4e3,noticeId:"twb-template"})}catch(o){Q("warning",o?.message||"\u6A21\u677F\u6587\u4EF6\u89E3\u6790\u5931\u8D25",{duration:4e3,noticeId:"twb-template"})}}),t.on("change.twb",'[data-twb-field="bypassEnabled"]',function(){t.find(".yyt-twb-bypass-preset").toggleClass("yyt-hidden",!e(this).is(":checked"))}),t.on("blur.twb change.twb","[data-twb-name], [data-twb-note], [data-twb-table-instruction], [data-twb-col] input, [data-twb-col] select, [data-twb-col] textarea, [data-twb-row] input, [data-twb-row] select, [data-twb-row] textarea, [data-twb-field]",function(){let r=Ue(t);Je(r)})},destroy(t){!O()||!K(t)||(qr.destroy(),t.off(".twb"),typeof this._chatChangedUnsubscribe=="function"&&this._chatChangedUnsubscribe(),this._clearLiveCache())},getStyles(){return sm},lastLiveConfig:null,lastLiveTarget:null,_liveRefreshPending:!1,_chatChangedUnsubscribe:null,_clearLiveCache(){this.lastLiveConfig=null,this.lastLiveTarget=null},_subscribeChatChanged(t){if(!this._chatChangedUnsubscribe)try{let e=window.parent!==void 0&&window.parent!==window?window.parent:window,s=e?.SillyTavern||null,r=s?.getContext?.()||null,o=s?.eventSource||e?.eventSource||r?.eventSource||null,a=s?.eventTypes||r?.eventTypes||e?.event_types||{},n=a.CHAT_CHANGED||a.chat_changed||"chat_changed";if(o&&typeof o.on=="function"){let i=()=>{this._clearLiveCache(),K(t)&&this.renderTo(t)};o.on(n,i),this._chatChangedUnsubscribe=()=>{try{o.off(n,i)}catch{}this._chatChangedUnsubscribe=null}}}catch{}},async _loadTableWorldbooks(t){this.worldbookLoadState="loading",this._renderWorldbookList(t);try{let{getAvailableWorldbooks:e}=await Promise.resolve().then(()=>($r(),Kl)),s=await e();this.availableWorldbooks=Array.isArray(s)?s:[]}catch{this.availableWorldbooks=[]}this.worldbookLoadState="ready",this._renderWorldbookList(t),this._renderWorldbookSyncTargetSelect(t)},_renderWorldbookList(t){let e=O(),s=t.find("[data-twb-wb-list]");if(!s.length)return;let r=this.lastLiveConfig||$e(),o=new Set(Array.isArray(r.worldbooks?.selected)?r.worldbooks.selected:[]),a=this.availableWorldbooks;if(this.worldbookLoadState==="loading"){s.html('<div style="padding:6px;color:var(--yyt-text-muted);font-size:12px">\u4E16\u754C\u4E66\u52A0\u8F7D\u4E2D\u2026</div>');return}if(a.length===0){s.html('<div style="padding:6px;color:var(--yyt-text-muted);font-size:12px">\u65E0\u53EF\u7528\u4E16\u754C\u4E66\u3002</div>');return}s.html(a.map(n=>`<label class="yyt-twb-check-row" style="margin-bottom:4px">
       <input type="checkbox" data-twb-wb-item data-twb-wb-name="${m(n)}" ${o.has(n)?"checked":""}>
       <span>${m(n)}</span>
     </label>`).join(""))},_updateWorldbookSummary(t){let e=O(),s=[];t.find("[data-twb-wb-item]:checked").each(function(){let r=String(e(this).attr("data-twb-wb-name")||"").trim();r&&s.push(r)})},_renderWorldbookSyncTargetSelect(t){let e=O(),s=t.find('[data-twb-field="worldbookSyncTarget"]');if(!s.length)return;let o=(this.lastLiveConfig||$e()).worldbookSync?.targetBook||"",a=this.availableWorldbooks;s.html(`<option value="">\u8BF7\u9009\u62E9\u2026</option>${a.map(n=>`<option value="${m(n)}" ${n===o?"selected":""}>${m(n)}</option>`).join("")}`)},async _refreshLiveState(t){if(!this._liveRefreshPending){this._liveRefreshPending=!0;try{let e=await Nn({runSource:"MANUAL_TABLE"});if(Qr.debug("_refreshLiveState targetSnapshot",e?{sourceMessageId:e.sourceMessageId,slotBindingKey:e.slotBindingKey,slotRevisionKey:e.slotRevisionKey,chatId:e.chatId}:null),!e){this._clearLiveCache();return}let s=wd(e);if(Qr.debug("_refreshLiveState boundState",s?{hasTables:Array.isArray(s.tables),tableCount:s.tables?.length,rowCounts:s.tables?.map(n=>n?.rows?.length),sourceKind:s.meta?.sourceKind}:null),!s||!Array.isArray(s.tables)||s.tables.length===0){this.lastLiveTarget=e,this.lastLiveConfig&&(this.lastLiveConfig=null,K(t)&&this.renderTo(t,{config:$e(),_skipRefresh:!0}));return}let r=$e(),o=s.meta?.sourceKind||"exact",a=qn(r.tables,s.tables,o);this.lastLiveConfig={...r,tables:a,__liveSourceKind:o},this.lastLiveTarget=e,K(t)&&this.renderTo(t,{config:this.lastLiveConfig,_skipRefresh:!0})}catch{}finally{this._liveRefreshPending=!1}}},renderTo(t,{config:e,_skipRefresh:s}={}){if(!O()||!K(t))return;let o=e&&typeof e=="object"?e:this.lastLiveConfig||$e();this.currentTableIndex=pt(o.tables,o.__activeTableIndex??this.currentTableIndex),t.html(this.render({config:o})),this.bindEvents(t),o.worldbooks?.enabled&&this.availableWorldbooks.length>0?this._renderWorldbookList(t):o.worldbooks?.enabled&&this.worldbookLoadState==="idle"&&this._loadTableWorldbooks(t),o.worldbookSync?.enabled&&this.availableWorldbooks.length>0?this._renderWorldbookSyncTargetSelect(t):o.worldbookSync?.enabled&&this.worldbookLoadState==="idle"&&this._loadTableWorldbooks(t),!e&&!s&&this._refreshLiveState(t)}},Am=iy});var yy={};re(yy,{LoggerPanel:()=>dy,default:()=>Cm});function Im(t){switch(t){case se.DEBUG:return"yyt-log-debug";case se.INFO:return"yyt-log-info";case se.WARN:return"yyt-log-warn";case se.ERROR:return"yyt-log-error";default:return""}}function Mm(t){let e=new Date(t),s=r=>String(r).padStart(2,"0");return`${s(e.getHours())}:${s(e.getMinutes())}:${s(e.getSeconds())}.${String(e.getMilliseconds()).padStart(3,"0")}`}var Em,km,dy,Cm,uy=U(()=>{ce();ke();Ce();Em="yyt-logger-panel",km=[{level:null,label:"\u5168\u90E8",icon:"fa-list"},{level:se.DEBUG,label:"DEBUG",icon:"fa-bug"},{level:se.INFO,label:"INFO",icon:"fa-circle-info"},{level:se.WARN,label:"WARN",icon:"fa-triangle-exclamation"},{level:se.ERROR,label:"ERROR",icon:"fa-circle-exclamation"}];dy={id:"loggerPanel",render(){let t=N.getStats();return`
@@ -5102,6 +5102,34 @@ deleteRow(1, 0)
   font-weight: 600;
   color: var(--yyt-color-text-secondary);
   letter-spacing: 0.3px;
+}
+
+.yyt-form-hint {
+  font-size: 11px;
+  color: var(--yyt-text-muted);
+  line-height: 1.6;
+}
+
+.yyt-form-hint code {
+  font-size: 11px;
+  color: var(--yyt-accent);
+  background: var(--yyt-accent-soft);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.yyt-settings-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--yyt-text-secondary);
+  line-height: 1.6;
+}
+
+.yyt-settings-hint i {
+  color: var(--yyt-accent);
 }
 
 .yyt-form-row {
@@ -7576,9 +7604,9 @@ deleteRow(1, 0)
       </div>
     `),us(g,D)}function zy(g,x){if(!_())return;let I=r.toolManagerModule?.getTool(g),D=r.presetManagerModule?.getAllPresets()||[],B=r.toolRegistryModule?.getToolApiPreset(g)||"",V=D.map(Z=>`<option value="${S(Z.name)}" ${Z.name===B?"selected":""}>${S(Z.name)}</option>`).join("");x.html(`
       <div class="yyt-panel">
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-plug"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-plug"></i></span>
             <span>API\u9884\u8BBE\u7ED1\u5B9A</span>
           </div>
           <div class="yyt-form-group">
@@ -7593,9 +7621,9 @@ deleteRow(1, 0)
           </button>
         </div>
 
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-cog"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-cog"></i></span>
             <span>\u6267\u884C\u914D\u7F6E</span>
           </div>
           <div class="yyt-form-row">
@@ -7612,9 +7640,9 @@ deleteRow(1, 0)
       </div>
     `),Ne(x,{namespace:"yytPopupToolConfigSelect",selectors:["#yyt-tool-api-preset"]}),x.find("#yyt-save-tool-preset").on("click",function(){let J=x.find("#yyt-tool-api-preset").val();r.toolRegistryModule?.setToolApiPreset(g,J);let le=s.toastr;le&&le.success("API\u9884\u8BBE\u7ED1\u5B9A\u5DF2\u4FDD\u5B58","YouYou \u5DE5\u5177\u7BB1")})}async function Uy(g,x){if(!_()){x.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>\u63D0\u793A\u8BCD\u7F16\u8F91\u5668\u6A21\u5757\u672A\u52A0\u8F7D</span></div>');return}let D=r.toolManagerModule?.getTool(g)?.config?.messages||[],B=Ly(D)||to,V=new xa({containerId:`yyt-prompt-editor-${g}`,segments:B,onChange:J=>{let le=Oy(J);v("\u63D0\u793A\u8BCD\u5DF2\u66F4\u65B0:",le.length,"\u6761\u6D88\u606F")}});x.html(`<div id="yyt-prompt-editor-${g}" class="yyt-prompt-editor-container"></div>`),V.init(x.find(`#yyt-prompt-editor-${g}`));let Z=Py();if(Z){let J="yyt-prompt-editor-styles",le=s.document||document;if(!le.getElementById(J)){let Ee=le.createElement("style");Ee.id=J,Ee.textContent=Z,(le.head||le.documentElement).appendChild(Ee)}}}function jy(g,x){_()&&x.html(`
       <div class="yyt-panel">
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-bookmark"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-bookmark"></i></span>
             <span>\u5DE5\u5177\u9884\u8BBE</span>
             <button class="yyt-btn yyt-btn-small yyt-btn-secondary" style="margin-left: auto;">
               <i class="fa-solid fa-plus"></i> \u65B0\u5EFA

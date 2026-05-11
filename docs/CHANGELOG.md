@@ -9,6 +9,25 @@
 
 ## [Unreleased]
 
+## [1.0.146] - 2026-05-12
+
+### 修复
+
+- 🐛 **Unicode 智能引号污染导致 HTML 属性不生效** (`settings-panel.js`, `tool-manage-panel.js`, `api-preset-panel.js`, `table-workbench-panel.js`)
+  - 多个组件的 HTML 模板中 `"` 被替换为 Unicode 右双引号 `”`，导致 `class=`、`data-tab=`、`type=`、`id=` 等属性全部失效
+  - 设置页自动化标签：输入框样式丢失（白底窄小原生控件）、区块图标缺失、标签切换失败（自动化/调试内容同时显示）
+  - 工具列表页：统计卡片布局崩塌为纯文本、工具行黑底黑字不可见、按钮样式丢失
+  - 已清理全部 4 个源文件中的智能引号
+
+- 🐛 **`.yyt-form-hint` 和 `.yyt-settings-hint` 无 CSS 定义** (`main.css`, `bootstrap.js`)
+  - settings-panel 使用 11 次 `yyt-form-hint` 但全局无样式规则，提示文本无颜色/尺寸控制
+
+- 🐛 **`.yyt-flow-heading-icon` HTML 结构错误** (`tool-config-panel-factory.js`, `api-preset-panel.js`, `regex-extract-panel.js`)
+  - CSS 期望 `<span class="yyt-flow-heading-icon"><i>...</i></span>`，但 12 处将 class 直接放在 `<i>` 上，图标色块不渲染
+
+- 🐛 **`popup-shell.js` 遗留旧布局类** (`popup-shell.js`)
+  - `renderToolConfig()` 和 `renderToolPresets()` 仍使用 `yyt-panel-section` + `yyt-section-title`，已改为 flat flow 布局
+
 ## [1.0.140] - 2026-05-11
 
 > 注：v1.0.125 ~ v1.0.139 的详细变更未单独记录，主要涉及 UI 重构（surface-ladder flat 设计系统）、主题系统完善和世界书同步 Phase 1 完成。具体改动见 git log。

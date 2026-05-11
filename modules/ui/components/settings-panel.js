@@ -368,34 +368,34 @@ export const SettingsPanel = {
       : '<div class="yyt-form-hint">暂无自动化事务记录。</div>';
 
     return `
-      <div class=”yyt-settings-tab-content” data-tab=”automation”>
-        <div class=”yyt-flow-section”>
-          <div class=”yyt-flow-heading”><span class=”yyt-flow-heading-icon”><i class=”fa-solid fa-toggle-on”></i></span>自动触发总开关</div>
-          <div class=”yyt-form-group”>
+      <div class="yyt-settings-tab-content" data-tab="automation">
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-toggle-on"></i></span>自动触发总开关</div>
+          <div class="yyt-form-group">
             ${renderToggleControl({
               id: 'yyt-setting-automationEnabled',
               checked: automation.enabled,
               title: '启用工具自动触发',
-              hint: '这里只保留一个全局开关。开启后，所有处于”额外 AI 模型解析”模式的工具都会参与自动触发。'
+              hint: '这里只保留一个全局开关。开启后，所有处于"额外 AI 模型解析"模式的工具都会参与自动触发。'
             })}
           </div>
-          <div class=”yyt-form-row”>
-            <div class=”yyt-form-group yyt-flex-1”>
+          <div class="yyt-form-row">
+            <div class="yyt-form-group yyt-flex-1">
               <label>等待稳定时间 (ms)</label>
-              <input type=”number” class=”yyt-input” id=”yyt-setting-automationSettleMs”
-                     value=”${automation.settleMs || 1200}” min=”0” max=”10000” step=”100”>
+              <input type="number" class="yyt-input" id="yyt-setting-automationSettleMs"
+                     value="${automation.settleMs || 1200}" min="0" max="10000" step="100">
             </div>
-            <div class=”yyt-form-group yyt-flex-1”>
+            <div class="yyt-form-group yyt-flex-1">
               <label>自动化冷却时间 (ms)</label>
-              <input type=”number” class=”yyt-input” id=”yyt-setting-automationCooldownMs”
-                     value=”${automation.cooldownMs || 5000}” min=”0” max=”60000” step=”100”>
+              <input type="number" class="yyt-input" id="yyt-setting-automationCooldownMs"
+                     value="${automation.cooldownMs || 5000}" min="0" max="60000" step="100">
             </div>
           </div>
-          <div class=”yyt-form-hint”>当前状态：${effectiveEnabled ? '已启用' : '未启用'}。开启后，所有”额外 AI 模型解析”工具都会在 AI 回复后自动执行。</div>
+          <div class="yyt-form-hint">当前状态：${effectiveEnabled ? '已启用' : '未启用'}。开启后，所有"额外 AI 模型解析"工具都会在 AI 回复后自动执行。</div>
         </div>
 
-        <div class=”yyt-flow-section”>
-          <div class=”yyt-flow-heading”><span class=”yyt-flow-heading-icon”><i class=”fa-solid fa-stethoscope”></i></span>自动化诊断</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-stethoscope"></i></span>自动化诊断</div>
           <div class="yyt-settings-runtime-grid">
             <div class="yyt-settings-runtime-chip ${runtime?.enabled ? 'is-on' : 'is-off'}">服务 ${runtime?.enabled ? '运行中' : '未启用'}</div>
             <div class="yyt-settings-runtime-chip ${hostBinding.initialized ? 'is-on' : 'is-off'}">监听 ${hostBinding.initialized ? '已绑定' : '未绑定'}</div>

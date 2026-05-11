@@ -88,51 +88,51 @@ export const ToolManagePanel = {
     const enabledCount = toolEntries.filter(([, tool]) => tool?.enabled !== false).length;
     
     return `
-      <div class=”yyt-tool-manager”>
+      <div class="yyt-tool-manager">
         <!-- Stats -->
-        <div class=”yyt-flow-section”>
-          <div class=”yyt-stat-row” style=”grid-template-columns: 1fr 1fr;”>
-            <div class=”yyt-stat-cell”>
-              <div class=”yyt-stat-label”>工具总数</div>
-              <div class=”yyt-stat-value”>${toolEntries.length}</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-stat-row" style="grid-template-columns: 1fr 1fr;">
+            <div class="yyt-stat-cell">
+              <div class="yyt-stat-label">工具总数</div>
+              <div class="yyt-stat-value">${toolEntries.length}</div>
             </div>
-            <div class=”yyt-stat-cell”>
-              <div class=”yyt-stat-label”>已启用</div>
-              <div class=”yyt-stat-value” style=”color: var(--yyt-success);”>${enabledCount}</div>
+            <div class="yyt-stat-cell">
+              <div class="yyt-stat-label">已启用</div>
+              <div class="yyt-stat-value" style="color: var(--yyt-success);">${enabledCount}</div>
             </div>
           </div>
         </div>
 
         <!-- 工具列表 -->
-        <div class=”yyt-flow-section”>
-          <div class=”yyt-flow-heading”>
-            <span class=”yyt-flow-heading-icon”><i class=”fa-solid fa-tools”></i></span>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-tools"></i></span>
             工具列表
-            <span class=”yyt-flow-heading-action”>
-              <button class=”yyt-btn yyt-btn-small yyt-btn-primary” id=”yyt-add-tool”>
-                <i class=”fa-solid fa-plus”></i> 新建工具
+            <span class="yyt-flow-heading-action">
+              <button class="yyt-btn yyt-btn-small yyt-btn-primary" id="yyt-add-tool">
+                <i class="fa-solid fa-plus"></i> 新建工具
               </button>
             </span>
           </div>
-          <div class=”yyt-tool-list”>
+          <div class="yyt-tool-list">
             ${this._renderToolList(tools)}
           </div>
         </div>
 
         <!-- 底部操作 -->
-        <div class=”yyt-panel-footer”>
-          <div class=”yyt-footer-left”>
-            <button class=”yyt-btn yyt-btn-secondary” id=”yyt-import-tools”>
-              <i class=”fa-solid fa-file-import”></i> 导入
+        <div class="yyt-panel-footer">
+          <div class="yyt-footer-left">
+            <button class="yyt-btn yyt-btn-secondary" id="yyt-import-tools">
+              <i class="fa-solid fa-file-import"></i> 导入
             </button>
-            <button class=”yyt-btn yyt-btn-secondary” id=”yyt-export-tools”>
-              <i class=”fa-solid fa-file-export”></i> 导出
+            <button class="yyt-btn yyt-btn-secondary" id="yyt-export-tools">
+              <i class="fa-solid fa-file-export"></i> 导出
             </button>
-            <input type=”file” id=”yyt-import-tools-file” accept=”.json” style=”display:none”>
+            <input type="file" id="yyt-import-tools-file" accept=".json" style="display:none">
           </div>
-          <div class=”yyt-footer-right”>
-            <button class=”yyt-btn yyt-btn-secondary” id=”yyt-reset-tools”>
-              <i class=”fa-solid fa-undo”></i> 重置
+          <div class="yyt-footer-right">
+            <button class="yyt-btn yyt-btn-secondary" id="yyt-reset-tools">
+              <i class="fa-solid fa-undo"></i> 重置
             </button>
           </div>
         </div>
@@ -152,45 +152,45 @@ export const ToolManagePanel = {
     const entries = Object.entries(tools);
     if (!entries.length) {
       return `
-        <div class=”yyt-empty-state-small”>
-          <i class=”fa-solid fa-toolbox”></i>
-          <span>还没有自定义工具，点击右上角”新建工具”开始创建</span>
+        <div class="yyt-empty-state-small">
+          <i class="fa-solid fa-toolbox"></i>
+          <span>还没有自定义工具，点击右上角"新建工具"开始创建</span>
         </div>
       `;
     }
 
     const rows = entries.map(([id, tool]) => `
-      <div class=”yyt-list-row ${tool.enabled ? 'yyt-tool-item-enabled' : 'yyt-tool-item-disabled'}” data-tool-id=”${id}”>
-        <div class=”yyt-list-row-icon” style=”background: var(--yyt-accent-soft); color: var(--yyt-accent);”>
-          <i class=”fa-solid fa-wrench”></i>
+      <div class="yyt-list-row ${tool.enabled ? 'yyt-tool-item-enabled' : 'yyt-tool-item-disabled'}" data-tool-id="${id}">
+        <div class="yyt-list-row-icon" style="background: var(--yyt-accent-soft); color: var(--yyt-accent);">
+          <i class="fa-solid fa-wrench"></i>
         </div>
-        <div class=”yyt-list-row-main”>
-          <div class=”yyt-list-row-name”>
+        <div class="yyt-list-row-main">
+          <div class="yyt-list-row-name">
             ${escapeHtml(tool.name)}
-            <span class=”yyt-badge” style=”background: var(--yyt-accent-soft); color: var(--yyt-accent); margin-left: 6px;”>${escapeHtml(tool.category)}</span>
+            <span class="yyt-badge" style="background: var(--yyt-accent-soft); color: var(--yyt-accent); margin-left: 6px;">${escapeHtml(tool.category)}</span>
           </div>
-          <div class=”yyt-list-row-desc”>${escapeHtml(tool.description)}</div>
+          <div class="yyt-list-row-desc">${escapeHtml(tool.description)}</div>
         </div>
-        <span class=”yyt-status-dot ${tool.enabled ? 'yyt-status-dot-on' : 'yyt-status-dot-off'}”></span>
-        <label class=”yyt-toggle yyt-small yyt-tool-toggle”>
-          <input type=”checkbox” ${tool.enabled ? 'checked' : ''}>
-          <span class=”yyt-toggle-slider”></span>
+        <span class="yyt-status-dot ${tool.enabled ? 'yyt-status-dot-on' : 'yyt-status-dot-off'}"></span>
+        <label class="yyt-toggle yyt-small yyt-tool-toggle">
+          <input type="checkbox" ${tool.enabled ? 'checked' : ''}>
+          <span class="yyt-toggle-slider"></span>
         </label>
-        <div class=”yyt-list-row-actions”>
-          <button class=”yyt-btn yyt-btn-small yyt-btn-secondary” data-action=”config”>
-            <i class=”fa-solid fa-sliders”></i>
+        <div class="yyt-list-row-actions">
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="config">
+            <i class="fa-solid fa-sliders"></i>
           </button>
-          <button class=”yyt-btn yyt-btn-small yyt-btn-secondary” data-action=”edit”>
-            <i class=”fa-solid fa-pen”></i>
+          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="edit">
+            <i class="fa-solid fa-pen"></i>
           </button>
-          <button class=”yyt-btn yyt-btn-small yyt-btn-danger” data-action=”delete”>
-            <i class=”fa-solid fa-trash”></i>
+          <button class="yyt-btn yyt-btn-small yyt-btn-danger" data-action="delete">
+            <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
     `).join('');
 
-    return `<div class=”yyt-list-table”>${rows}</div>`;
+    return `<div class="yyt-list-table">${rows}</div>`;
   },
   
   // ============================================================
@@ -234,22 +234,22 @@ export const ToolManagePanel = {
       this._showToolEditDialog($container, $, null);
     });
 
-    $container.on('click.yytToolManage', '.yyt-list-row [data-action=”config”]', (e) => {
+    $container.on('click.yytToolManage', '.yyt-list-row [data-action="config"]', (e) => {
       const toolId = $(e.currentTarget).closest('.yyt-list-row').data('tool-id');
       this._openToolConfig(toolId);
     });
 
-    $container.on('click.yytToolManage', '.yyt-list-row [data-action=”edit”]', (e) => {
+    $container.on('click.yytToolManage', '.yyt-list-row [data-action="edit"]', (e) => {
       const toolId = $(e.currentTarget).closest('.yyt-list-row').data('tool-id');
       this._showToolEditDialog($container, $, toolId);
     });
 
-    $container.on('click.yytToolManage', '.yyt-list-row [data-action=”delete”]', async (e) => {
+    $container.on('click.yytToolManage', '.yyt-list-row [data-action="delete"]', async (e) => {
       const toolId = $(e.currentTarget).closest('.yyt-list-row').data('tool-id');
       const tool = getTool(toolId);
       if (!toolId || !tool) return;
 
-      if (!await showConfirm('删除工具', `确定要删除工具”${tool.name}”吗？`, { danger: true })) {
+      if (!await showConfirm('删除工具', `确定要删除工具"${tool.name}"吗？`, { danger: true })) {
         return;
       }
 

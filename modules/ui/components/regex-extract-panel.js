@@ -65,7 +65,7 @@ export const RegexExtractPanel = {
         <!-- 规则编辑区 -->
         <div class="yyt-flow-section">
           <div class="yyt-flow-heading">
-            <i class="yyt-flow-heading-icon fa-solid fa-filter"></i>
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-filter"></i></span>
             <span>标签提取规则</span>
             <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-show-examples" style="margin-left: auto;">
               <i class="fa-solid fa-lightbulb"></i> 查看示例
@@ -78,7 +78,7 @@ export const RegexExtractPanel = {
         <!-- 测试区 -->
         <div class="yyt-flow-section">
           <div class="yyt-flow-heading">
-            <i class="yyt-flow-heading-icon fa-solid fa-flask"></i>
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-flask"></i></span>
             <span>测试提取</span>
           </div>
 

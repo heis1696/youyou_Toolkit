@@ -617,7 +617,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-wand-magic-sparkles yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
               <span>输出模式</span>
             </div>
             <div class="yyt-form-group">
@@ -632,7 +632,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-database yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-database"></i></span>
               <span>API 预设</span>
             </div>
             <div class="yyt-form-group">
@@ -651,7 +651,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-shield-halved yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-shield-halved"></i></span>
               <span>Ai指令预设</span>
             </div>
             <div class="yyt-form-group">
@@ -676,7 +676,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-book-open yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-book-open"></i></span>
               <span>世界书注入</span>
             </div>
             <div class="yyt-form-group">
@@ -718,7 +718,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-filter yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-filter"></i></span>
               <span>提取配置</span>
             </div>
             <div class="yyt-form-row">
@@ -739,7 +739,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-bolt yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-bolt"></i></span>
               <span>自动触发</span>
             </div>
             <div class="yyt-form-group">
@@ -763,7 +763,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-file-code yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-file-code"></i></span>
               <span>模板修改框</span>
               <div class="yyt-title-actions">
                 <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset-template">
@@ -782,7 +782,7 @@ export function createToolConfigPanel(options) {
 
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="fa-solid fa-hand-pointer yyt-flow-heading-icon"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-hand-pointer"></i></span>
               <span>手动操作区</span>
             </div>
             <div class="yyt-tool-manual-area">

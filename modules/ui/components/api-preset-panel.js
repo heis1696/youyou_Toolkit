@@ -135,7 +135,7 @@ export const ApiPresetPanel = {
           <!-- 预设选择区 -->
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="yyt-flow-heading-icon fa-solid fa-bookmark"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-bookmark"></i></span>
               <span>预设选择</span>
             </div>
             
@@ -170,7 +170,7 @@ export const ApiPresetPanel = {
           <!-- API配置区 -->
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
-              <i class="yyt-flow-heading-icon fa-solid fa-sliders"></i>
+              <span class="yyt-flow-heading-icon"><i class="fa-solid fa-sliders"></i></span>
               <span>API配置</span>
               <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-save-as-preset" style="margin-left: auto;">
                 <i class="fa-solid fa-save"></i> 保存为预设
@@ -408,7 +408,7 @@ export const ApiPresetPanel = {
       $container.find('.yyt-preset-item').removeClass('yyt-loaded');
       $container.find(`.yyt-preset-item[data-preset-name="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-loaded');
       $dropdown.find('.yyt-select-option').removeClass('yyt-selected');
-      $dropdown.find(`.yyt-select-option[data-value=”${value.replace(/”/g, '&quot;')}”]`).addClass('yyt-selected');
+      $dropdown.find(`.yyt-select-option[data-value="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-selected');
     };
 
     $trigger.on('click.yytApiPreset', (e) => {
@@ -607,7 +607,7 @@ export const ApiPresetPanel = {
 
       // 如果当前加载了预设，询问是否覆盖
       if (activePresetName) {
-        if (!await showConfirm('覆盖预设', `是否要覆盖预设 “${activePresetName}” 的配置？\n\n点击”确定”覆盖预设，点击”取消”仅保存当前配置并切换到”当前配置”`)) {
+        if (!await showConfirm('覆盖预设', `是否要覆盖预设 "${activePresetName}" 的配置？\n\n点击"确定"覆盖预设，点击"取消"仅保存当前配置并切换到"当前配置"`)) {
           updateApiConfig(config);
           switchToPreset('');
           this._setSelectedPresetName($container, '');

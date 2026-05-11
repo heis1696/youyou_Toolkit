@@ -763,6 +763,34 @@
   letter-spacing: 0.3px;
 }
 
+.yyt-form-hint {
+  font-size: 11px;
+  color: var(--yyt-text-muted);
+  line-height: 1.6;
+}
+
+.yyt-form-hint code {
+  font-size: 11px;
+  color: var(--yyt-accent);
+  background: var(--yyt-accent-soft);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.yyt-settings-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--yyt-text-secondary);
+  line-height: 1.6;
+}
+
+.yyt-settings-hint i {
+  color: var(--yyt-accent);
+}
+
 .yyt-form-row {
   display: flex;
   gap: 12px;

@@ -771,7 +771,7 @@ function renderDataRowsWorkspace(table, diff) {
               </article>`;
           }).join('')}
         </div>` : `
-        <div class="yyt-twb-empty"><h4>暂无数据行</h4><p>可以手动添加一行，或点击“立即填表”让 AI 根据当前对话生成。</p><button class="yyt-btn yyt-btn-secondary" data-twb-action="add-row">添加行</button></div>`}
+        <div class="yyt-twb-empty"><h4>暂无数据行</h4><p>可以手动添加一行，或点击"立即填表"让 AI 根据当前对话生成。</p><button class="yyt-btn yyt-btn-secondary" data-twb-action="add-row">添加行</button></div>`}
     </section>`;
 }
 
@@ -1155,7 +1155,7 @@ export const TableWorkbenchPanel = {
       });
     });
 
-    $container.on('click.twb', '[data-twb-action=”apply-template”]', function () {
+    $container.on('click.twb', '[data-twb-action="apply-template"]', function () {
       const cfg = collect($container);
       const templateId = S(cfg.activeTemplate, '');
       const template = getTableWorkbenchBuiltinTemplates().find(item => item.id === templateId);
@@ -1167,7 +1167,7 @@ export const TableWorkbenchPanel = {
       const hasTables = Array.isArray(cfg.tables) && cfg.tables.length > 0;
       if (hasTables && self.pendingTemplateApplyId !== templateId) {
         self.pendingTemplateApplyId = templateId;
-        showTopNotice('warning', '应用模板会替换当前表格。再次点击”应用模板”确认。', { duration: 4200, noticeId: 'twb-template' });
+        showTopNotice('warning', '应用模板会替换当前表格。再次点击"应用模板"确认。', { duration: 4200, noticeId: 'twb-template' });
         return;
       }
 
@@ -1183,7 +1183,7 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    $container.on('click.twb', '[data-twb-action=”save-template”]', async function () {
+    $container.on('click.twb', '[data-twb-action="save-template"]', async function () {
       const cfg = collect($container);
       const defaultName = `${S(cfg.tables?.[0]?.name, '填表模板')} ${new Date().toLocaleString()}`;
       const name = await showPrompt('保存模板', '请输入模板名称', { defaultValue: defaultName });
@@ -1202,14 +1202,14 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    $container.on('click.twb', '[data-twb-action=”delete-template”]', function () {
+    $container.on('click.twb', '[data-twb-action="delete-template"]', function () {
       const tid = S($(this).attr('data-twb-template-id'), '');
       if (!tid) return;
       const template = getTableWorkbenchBuiltinTemplates().find(t => t.id === tid);
       if (!template) { showTopNotice('warning', '模板不存在。', { duration: 3000, noticeId: 'twb-template' }); return; }
       if (self._pendingDeleteTemplateId !== tid) {
         self._pendingDeleteTemplateId = tid;
-        showTopNotice('warning', `确认删除模板”${template.name}”？再次点击删除按钮确认。`, { duration: 4200, noticeId: 'twb-template' });
+        showTopNotice('warning', `确认删除模板"${template.name}"？再次点击删除按钮确认。`, { duration: 4200, noticeId: 'twb-template' });
         return;
       }
       self._pendingDeleteTemplateId = '';
@@ -1222,7 +1222,7 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    $container.on('click.twb', '[data-twb-action=”export-template”]', function () {
+    $container.on('click.twb', '[data-twb-action="export-template"]', function () {
       const cfg = collect($container);
       const templateName = S(getTableWorkbenchBuiltinTemplates().find(item => item.id === cfg.activeTemplate)?.name, '当前填表模板');
       const payload = {
@@ -1240,7 +1240,7 @@ export const TableWorkbenchPanel = {
       showTopNotice('success', '模板已导出为文件。', { duration: 2800, noticeId: 'twb-template' });
     });
 
-    $container.on('click.twb', '[data-twb-action=”export-all-templates”]', function () {
+    $container.on('click.twb', '[data-twb-action="export-all-templates"]', function () {
       const payload = exportUserTemplates();
       if (!payload.templates || payload.templates.length === 0) {
         showTopNotice('warning', '没有用户模板可导出。', { duration: 3000, noticeId: 'twb-template' });
@@ -1250,7 +1250,7 @@ export const TableWorkbenchPanel = {
       showTopNotice('success', `已导出 ${payload.templates.length} 个用户模板。`, { duration: 2800, noticeId: 'twb-template' });
     });
 
-    $container.on('click.twb', '[data-twb-action=”import-template”]', function () {
+    $container.on('click.twb', '[data-twb-action="import-template"]', function () {
       $container.find('[data-twb-import-file]').val('').trigger('click');
     });
 

@@ -1129,9 +1129,9 @@ export function createPopupShell(context) {
 
     $container.html(`
       <div class="yyt-panel">
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-plug"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-plug"></i></span>
             <span>API预设绑定</span>
           </div>
           <div class="yyt-form-group">
@@ -1146,9 +1146,9 @@ export function createPopupShell(context) {
           </button>
         </div>
 
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-cog"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-cog"></i></span>
             <span>执行配置</span>
           </div>
           <div class="yyt-form-row">
@@ -1223,9 +1223,9 @@ export function createPopupShell(context) {
 
     $container.html(`
       <div class="yyt-panel">
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-bookmark"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-bookmark"></i></span>
             <span>工具预设</span>
             <button class="yyt-btn yyt-btn-small yyt-btn-secondary" style="margin-left: auto;">
               <i class="fa-solid fa-plus"></i> 新建
