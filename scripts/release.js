@@ -40,7 +40,7 @@ if (updatedIndex !== indexContent) {
 const status = runCapture('git status --porcelain')
   .split('\n')
   .filter(l => l && !l.trimStart().startsWith('?'));
-const dirtyOther = status.filter(l => !l.includes('dist/') && !l.includes('index.js'));
+const dirtyOther = status.filter(l => !l.includes('dist/') && !l.includes('index.js') && !l.includes('package.json') && !l.includes('settings.local'));
 if (dirtyOther.length) {
   console.error('\n❌ 工作区有未提交的更改（dist/、index.js 以外）：');
   dirtyOther.forEach(l => console.error(`   ${l}`));
