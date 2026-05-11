@@ -341,7 +341,7 @@ class ToolAutomationService {
         retryScheduled: false,
         retryDelayMs: 0
       };
-      this._log('初始化失败: 未找到宿主 API (SillyTavern)');
+      log.error('初始化失败: 未找到宿主 API (SillyTavern)');
       return false;
     }
 
@@ -377,7 +377,7 @@ class ToolAutomationService {
         lastInitResult: 'missing_event_source',
         lastError
       };
-      this._log(`初始化失败: ${lastError}`, { source: this._hostBindingStatus.source });
+      log.error(`初始化失败: ${lastError}`, { source: this._hostBindingStatus.source });
       if (retryOnFailure) {
         this._scheduleInitRetry(retryDelayMs, attempt + 1);
       }
@@ -385,7 +385,7 @@ class ToolAutomationService {
     }
 
     // 打印宿主事件类型映射，帮助排查
-    this._log('宿主 eventTypes 映射:', JSON.stringify(eventTypes, null, 2));
+    log.debug('宿主 eventTypes 映射:', { eventTypes });
 
     const bindHostEvent = (rawEventName, handler) => {
       if (!rawEventName || typeof handler !== 'function') return;
@@ -396,9 +396,9 @@ class ToolAutomationService {
         `${actualName} -> ${normalizeEventName(actualName)}`
       ];
       this._stopCallbacks.push(() => {
-        try { unsubscribe(actualName, handler); } catch (e) { this._log('取消事件失败', actualName, e); }
+        try { unsubscribe(actualName, handler); } catch (e) { log.warn('取消事件失败', { event: actualName, error: e }); }
       });
-      this._log(`已绑定宿主事件: "${actualName}" (归一化: ${normalizeEventName(actualName)})`);
+      log.debug(`已绑定宿主事件: "${actualName}" (归一化: ${normalizeEventName(actualName)})`);
     };
 
     // 统一的调度入口：异步获取最新 assistant 消息，通过前置守卫后进入处理队列。
@@ -407,7 +407,7 @@ class ToolAutomationService {
       const normalizedEvent = normalizeEventName(rawEventName);
       const { messageId, swipeId } = this._extractIdentitiesFromArgs(args);
 
-      this._log(`收到宿主事件 "${rawEventName}" → "${normalizedEvent}"`, { messageId, swipeId, argCount: args.length });
+      log.debug(`收到宿主事件 "${rawEventName}" → "${normalizedEvent}"`, { messageId, swipeId, argCount: args.length });
 
       if (!this._checkEnabled()) return;
 
@@ -415,7 +415,7 @@ class ToolAutomationService {
       if (normalizedEvent === 'MESSAGE_RECEIVED') {
         const now = Date.now();
         if (now < this._messageReceivedThrottleUntil) {
-          this._log(`MESSAGE_RECEIVED 在节流窗口内，跳过（剩余 ${this._messageReceivedThrottleUntil - now}ms）`);
+          log.debug(`MESSAGE_RECEIVED 在节流窗口内，跳过（剩余 ${this._messageReceivedThrottleUntil - now}ms）`);
           return;
         }
         this._messageReceivedThrottleUntil = now + 3000;
@@ -441,38 +441,38 @@ class ToolAutomationService {
       }
 
       if (!targetMessageId || !targetMessage) {
-        this._log(`事件 "${normalizedEvent}" 无 assistant 目标，跳过`);
+        log.debug(`事件 "${normalizedEvent}" 无 assistant 目标，跳过`);
         return;
       }
 
       if (!isAssistantMessage(targetMessage)) {
-        this._log(`事件 "${normalizedEvent}" 命中非 assistant 消息，跳过`, { messageId: targetMessageId });
+        log.debug(`事件 "${normalizedEvent}" 命中非 assistant 消息，跳过`, { messageId: targetMessageId });
         return;
       }
 
       // 简单内容守卫（参考 MVU：过滤流式占位符及空内容）
       const messageText = String(targetMessage.content || targetMessage.mes || '').trim();
       if (!messageText || messageText.length < 5) {
-        this._log(`事件 "${normalizedEvent}" 消息过短（${messageText.length} 字符），跳过`);
+        log.debug(`事件 "${normalizedEvent}" 消息过短（${messageText.length} 字符），跳过`);
         return;
       }
 
       // 互斥锁
       if (this._isProcessing) {
-        this._log(`事件 "${normalizedEvent}" 正在处理中，跳过`);
+        log.debug(`事件 "${normalizedEvent}" 正在处理中，跳过`);
         return;
       }
 
       // own-write 防自激：如果这个消息是自己刚写回的，跳过
       if (this._isOwnWrite(targetMessageId)) {
-        this._log(`事件 "${normalizedEvent}" 命中 own-write 黑名单，跳过`, { messageId: targetMessageId });
+        log.debug(`事件 "${normalizedEvent}" 命中 own-write 黑名单，跳过`, { messageId: targetMessageId });
         return;
       }
 
       // recently-processed 防重复：同一 slot 短期内不再处理
       const slotKey = `${targetMessageId}::${targetSwipeId}`;
       if (this._isRecentlyProcessed(slotKey)) {
-        this._log(`事件 "${normalizedEvent}" slot 已近期处理过，跳过`, { slotKey });
+        log.debug(`事件 "${normalizedEvent}" slot 已近期处理过，跳过`, { slotKey });
         return;
       }
 
@@ -483,7 +483,7 @@ class ToolAutomationService {
     };
 
     bindHostEvent(eventTypes.MESSAGE_SENT || 'message_sent', () => {
-      this._log('MESSAGE_SENT → 清理调度队列');
+      log.debug('MESSAGE_SENT → 清理调度队列');
       this._pendingTimers.forEach(id => clearTimeout(id));
       this._pendingTimers.clear();
     });
@@ -494,7 +494,7 @@ class ToolAutomationService {
 
     const stoppedEvent = eventTypes.GENERATION_STOPPED || eventTypes.generation_stopped || 'generation_stopped';
     bindHostEvent(stoppedEvent, () => {
-      this._log('GENERATION_STOPPED → 取消所有活跃事务');
+      log.info('GENERATION_STOPPED → 取消所有活跃事务');
       this._cancelActiveTransactions('generation_stopped');
       this._pendingTimers.forEach(id => clearTimeout(id));
       this._pendingTimers.clear();
@@ -513,7 +513,7 @@ class ToolAutomationService {
       const wasEnabled = this._enabled;
       this._enabled = this._evaluateEnabled();
       if (wasEnabled !== this._enabled) {
-        this._log(`自动化状态变更: ${wasEnabled} → ${this._enabled}`);
+        log.info(`自动化状态变更: ${wasEnabled} → ${this._enabled}`);
       }
     }));
 
@@ -527,7 +527,7 @@ class ToolAutomationService {
       retryDelayMs: 0,
       lastError: ''
     };
-    this._log('自动化服务已初始化', {
+    log.info('自动化服务已初始化', {
       enabled: this._enabled,
       chatId: this._currentChatId,
       source: this._hostBindingStatus.source
@@ -536,7 +536,7 @@ class ToolAutomationService {
   }
 
   stop() {
-    this._stopCallbacks.forEach(fn => { try { fn(); } catch (e) { this._log('停止回调失败', e); } });
+    this._stopCallbacks.forEach(fn => { try { fn(); } catch (e) { log.warn('停止回调失败', { error: e }); } });
     this._stopCallbacks = [];
     this._pendingTimers.forEach(id => clearTimeout(id));
     this._pendingTimers.clear();
@@ -816,7 +816,7 @@ class ToolAutomationService {
       this._recordTransaction(tx);
       this._unregisterActiveTransaction(tx.traceId);
       this._isProcessing = false;
-      this._log('processAssistantMessage 异常', error);
+      log.error('processAssistantMessage 异常', { error });
       return { success: false, traceId: tx.traceId, error: tx.error, phase: tx.phase };
     }
   }
@@ -885,12 +885,12 @@ class ToolAutomationService {
         swipeId,
         sourceEvent: options.sourceEvent || 'AUTO'
       }).catch(error => {
-        this._log('调度执行失败', { messageId, error });
+        log.error('调度执行失败', { messageId, error });
       });
     }, Math.max(0, settleMs));
 
     this._pendingTimers.set(timerKey, timerId);
-    this._log('已调度消息处理', { timerKey, settleMs, sourceEvent: options.sourceEvent });
+    log.info('已调度消息处理', { timerKey, settleMs, sourceEvent: options.sourceEvent });
   }
 
   cancelAutomation(options = {}) {
@@ -978,7 +978,7 @@ class ToolAutomationService {
     if (this._transactionHistory.length > this._maxHistorySize) {
       this._transactionHistory = this._transactionHistory.slice(-this._maxHistorySize);
     }
-    this._log(`事务 [${tx.traceId}] → ${tx.phase}`, {
+    log.debug(`事务 [${tx.traceId}] → ${tx.phase}`, {
       messageId: tx.messageId,
       generationKey: tx.generationKey,
       verdict: tx.verdict,
@@ -1129,7 +1129,7 @@ class ToolAutomationService {
   _resetForChatChange() {
     const api = getHostApi();
     const newChatId = getCurrentChatId(api);
-    this._log('聊天切换', { from: this._currentChatId, to: newChatId });
+    log.info('聊天切换', { from: this._currentChatId, to: newChatId });
     this._currentChatId = newChatId;
     this._pendingTimers.forEach(id => clearTimeout(id));
     this._pendingTimers.clear();
@@ -1198,7 +1198,7 @@ class ToolAutomationService {
     if (!this._enabledCheckedOnce) {
       this._enabledCheckedOnce = true;
       const s = this._getAutomationSettings();
-      this._log('⚠ 自动化未启用，首次诊断:', {
+      log.warn('自动化未启用，首次诊断:', {
         'automation.enabled': s.enabled,
         '完整 automation 设置': s,
         '提示': '请确保 settings.automation.enabled === true'
@@ -1229,11 +1229,6 @@ class ToolAutomationService {
     return this._getAutomationSettings().dedupeWindowMs;
   }
 
-  // ── 日志 ──────────────────────────────────────────────────
-
-  _log(...args) {
-    log.log(args[0], args.length > 1 ? args.slice(1) : undefined);
-  }
 }
 
 export const toolAutomationService = new ToolAutomationService();

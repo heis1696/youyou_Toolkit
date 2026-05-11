@@ -187,7 +187,7 @@ class ToolOutputService {
     let messages = [];
     let outputContent = '';
     
-    this._log(`开始执行工具: ${toolId}`);
+    log.info(`开始执行工具: ${toolId}`);
     
     // 发送执行开始事件
     eventBus.emit(EVENTS.TOOL_EXECUTION_STARTED, {
@@ -206,7 +206,7 @@ class ToolOutputService {
         throw new Error('未构建出可发送的工具请求消息，请检查提示词模板或破限词配置是否为空。');
       }
       
-      this._log(`构建了 ${messages.length} 条消息`);
+      log.debug(`构建了 ${messages.length} 条消息`);
 
       const abortStateAfterBuild = shouldAbortAutoWriteback(rawContext);
       if (abortStateAfterBuild) {
@@ -322,7 +322,7 @@ class ToolOutputService {
         mode: OUTPUT_MODES.POST_RESPONSE_API
       });
       
-      this._log(`工具执行成功: ${toolId}, 耗时 ${duration}ms`);
+      log.info(`工具执行成功: ${toolId}, 耗时 ${duration}ms`);
       
       return {
         success: true,
@@ -360,7 +360,7 @@ class ToolOutputService {
       const resolvedFailureStage = failureStage || TOOL_FAILURE_STAGES.UNKNOWN;
       const resolvedWritebackStatus = writebackStatus || TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
       
-      this._log(`工具执行失败: ${toolId}`, error);
+      log.error(`工具执行失败: ${toolId}`, { error });
       
       // 发送执行失败事件
       eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, {
@@ -784,7 +784,7 @@ class ToolOutputService {
             }
           });
         } catch (error) {
-          this._log('工具输出正则提取失败，跳过该规则', { selector: value, error });
+          log.warn('工具输出正则提取失败，跳过该规则', { selector: value, error });
         }
         continue;
       }
@@ -802,7 +802,7 @@ class ToolOutputService {
           }
         });
       } catch (error) {
-        this._log('工具输出标签提取失败，跳过该规则', { selector: value, error });
+        log.warn('工具输出标签提取失败，跳过该规则', { selector: value, error });
       }
     }
 
@@ -906,7 +906,7 @@ class ToolOutputService {
       const filtered = extractTagContent(sourceText, rules, blacklist);
       return filtered || sourceText.trim();
     } catch (error) {
-      this._log('应用全局正文提取规则失败，回退原始文本', error);
+      log.warn('应用全局正文提取规则失败，回退原始文本', { error });
       return sourceText.trim();
     }
   }
@@ -1088,13 +1088,6 @@ class ToolOutputService {
     this.debugMode = enabled;
   }
 
-  /**
-   * 日志输出
-   * @private
-   */
-  _log(...args) {
-    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
-  }
 }
 
 // ============================================================

@@ -1,17 +1,5 @@
 # TODO
 
-## ~~世界书同步写入了其他聊天的数据~~（已修复 v1.0.134~v1.0.136）
-
-**状态**：已修复
-**修复版本**：v1.0.134 ~ v1.0.136
-
-**修复内容**：
-1. v1.0.134：worldbookSync per-chat 隔离 + comment 加 chatId 前缀
-2. v1.0.135：saveTableWorkbenchConfig 保存前清除数据行（防止跨聊天污染）+ 移除空数据保护
-3. v1.0.136：mergeTablesByScope 按位置映射（修复 scope=current 时第一张表被覆盖）
-
----
-
 ## jsDelivr `@latest` 缓存刷新不可控
 
 **状态**：待解决

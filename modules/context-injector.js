@@ -165,13 +165,13 @@ class ContextInjector {
     const writebackResult = this._createWritebackResult(toolId, mergedOptions);
 
     if (!toolId || content === undefined || content === null) {
-      this._log('注入失败: 参数无效');
+      log.error('注入失败: 参数无效');
       writebackResult.error = '注入失败: 参数无效';
       return writebackResult;
     }
 
     if (!normalizeIdentityValue(mergedOptions.sourceMessageId)) {
-      this._log('注入失败: 缺少 sourceMessageId');
+      log.error('注入失败: 缺少 sourceMessageId');
       writebackResult.error = '注入失败: 缺少 sourceMessageId';
       return writebackResult;
     }
@@ -224,7 +224,7 @@ class ContextInjector {
     const inserted = await this._insertToolOutputToBoundAssistantSlot(toolId, injectionEntry, mergedOptions, writebackResult);
     
     if (inserted.success) {
-      this._log(`注入成功: ${toolId} -> ${chatId}`, inserted);
+      log.info(`注入成功: ${toolId} -> ${chatId}`, { inserted });
     }
 
     return inserted;
@@ -266,7 +266,7 @@ class ContextInjector {
 
       return '';
     } catch (error) {
-      this._log('读取最新 AI 消息 injectedContext 失败', error);
+      log.warn('读取最新 AI 消息 injectedContext 失败', { error });
       return '';
     }
   }
@@ -287,7 +287,7 @@ class ContextInjector {
       const outputs = targetMessage[MESSAGE_TOOL_OUTPUTS_KEY];
       return outputs && typeof outputs === 'object' ? outputs : {};
     } catch (error) {
-      this._log('读取最新 AI 消息上下文失败', error);
+      log.warn('读取最新 AI 消息上下文失败', { error });
       return {};
     }
   }
@@ -353,7 +353,7 @@ class ContextInjector {
       eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: chatId || this._getCurrentChatId(), toolId });
       return true;
     } catch (error) {
-      this._log('清除工具上下文失败', error);
+      log.warn('清除工具上下文失败', { error });
       return false;
     }
   }
@@ -381,7 +381,7 @@ class ContextInjector {
       eventBus.emit(EVENTS.TOOL_CONTEXT_CLEARED, { chatId: chatId || this._getCurrentChatId(), allTools: true });
       return true;
     } catch (error) {
-      this._log('清除所有工具上下文失败', error);
+      log.warn('清除所有工具上下文失败', { error });
       return false;
     }
   }
@@ -390,7 +390,7 @@ class ContextInjector {
    * 清除所有聊天的所有上下文
    */
   clearAllChatsContexts() {
-    this._log('清除所有上下文');
+    log.info('清除所有上下文');
   }
 
   // ============================================================
@@ -675,7 +675,7 @@ class ContextInjector {
         refreshResult.commit.hostCommitApplied = true;
         hostWriteCompleted = true;
       } catch (error) {
-        this._log('setChatMessages 写回失败，回退本地同步', error);
+        log.error('setChatMessages 写回失败，回退本地同步', { error });
         refreshResult.errors.push(`setChatMessages: ${error?.message || String(error)}`);
       }
     }
@@ -814,7 +814,7 @@ class ContextInjector {
         eventName: messageUpdatedEvent
       };
     } catch (error) {
-      this._log('触发消息刷新事件失败', error);
+      log.warn('触发消息刷新事件失败', { error });
       return {
         emitted: false,
         source: 'error',
@@ -985,7 +985,7 @@ class ContextInjector {
           const regex = new RegExp(value.slice(6).trim(), 'gis');
           result = result.replace(regex, '');
         } catch (error) {
-          this._log('移除旧工具输出时正则无效', value, error);
+          log.warn('移除旧工具输出时正则无效', { value, error });
         }
         return;
       }
@@ -1025,14 +1025,14 @@ class ContextInjector {
       const runtime = this._getChatRuntime();
       const { context, chat } = runtime;
       if (!Array.isArray(chat) || !chat.length) {
-        this._log('未找到聊天消息，无法插入工具输出');
+        log.error('未找到聊天消息，无法插入工具输出');
         result.error = '未找到聊天消息，无法插入工具输出';
         return result;
       }
 
       const messageIndex = this._findAssistantMessageIndex(chat, options.sourceMessageId);
       if (messageIndex < 0) {
-        this._log('未找到可写入的最新 AI 回复消息');
+        log.error('未找到可写入的最新 AI 回复消息');
         result.error = '未找到可写入的最新 AI 回复消息';
         return result;
       }
@@ -1237,10 +1237,10 @@ class ContextInjector {
         result.error = `工具结果已写回，但检测到块冲突：${result.conflictReason}`;
       }
 
-      this._log(`已将工具输出写入绑定 assistant 槽位: ${toolId} -> #${messageIndex}`);
+      log.info(`已将工具输出写入绑定 assistant 槽位: ${toolId} -> #${messageIndex}`);
       return result;
     } catch (error) {
-      this._log('插入最新 AI 回复原文失败', error);
+      log.error('插入最新 AI 回复原文失败', { error });
       result.error = error?.message || String(error);
       result.errors.push(result.error);
       return result;
@@ -1280,7 +1280,7 @@ class ContextInjector {
           : this._buildMessageInjectedContext(toolOutputs)
       };
     } catch (error) {
-      this._log('读取 assistant 消息快照失败', error);
+      log.warn('读取 assistant 消息快照失败', { error });
       return null;
     }
   }
@@ -1324,13 +1324,6 @@ class ContextInjector {
     }
   }
 
-  /**
-   * 日志输出
-   * @private
-   */
-  _log(...args) {
-    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
-  }
 }
 
 // ============================================================
