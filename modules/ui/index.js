@@ -6,6 +6,7 @@
 
 import { logger } from '../core/logger-service.js';
 import { uiManager } from './ui-manager.js';
+import { escapeHtml } from './utils.js';
 
 const log = logger.createScope('UI');
 

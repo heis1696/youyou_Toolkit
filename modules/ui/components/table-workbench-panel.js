@@ -23,9 +23,9 @@ import { resolveLatestTableTarget } from '../../table-engine/table-target-resolv
 import { getBoundTableState } from '../../table-engine/table-state-service.js';
 import { ensureTableId, cloneTableValue } from '../../table-engine/table-types.js';
 
-const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
-
 const log = logger.createScope('TableWorkbench');
+
+const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
 [data-twb-wb-selector] { margin-top:8px; padding:10px; border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); }
 [data-twb-wb-list] { max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }

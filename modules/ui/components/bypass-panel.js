@@ -171,7 +171,8 @@ export const BypassPanel = {
 
     return `
       <div class="yyt-bypass-message ${message.enabled === false ? 'yyt-disabled' : ''}"
-           data-message-id="${message.id}" data-message-index="${index}">
+           data-message-id="${message.id}" data-message-index="${index}"
+           data-deletable="${message.deletable !== false}">
         <div class="yyt-bypass-message-header">
           <div class="yyt-bypass-message-role">
             <i class="fa-solid ${roleIcons[message.role] || 'fa-comment'}"></i>
@@ -409,6 +410,11 @@ export const BypassPanel = {
     
     // 渲染编辑器
     $container.find('.yyt-bypass-editor').html(this._renderEditor(preset));
+
+    enhanceNativeSelects($container, {
+      namespace: 'yytBypassSelect',
+      selectors: ['.yyt-bypass-role-select']
+    });
   },
   
   /**
@@ -459,7 +465,7 @@ export const BypassPanel = {
         role: $msg.find('.yyt-bypass-role-select').val(),
         content: $msg.find('.yyt-bypass-message-content').val(),
         enabled: $msg.find('.yyt-bypass-message-enabled').is(':checked'),
-        deletable: true
+        deletable: String($msg.data('deletable')) !== 'false'
       });
     });
     
