@@ -12,6 +12,24 @@ const log = logger.createScope('TableWorldbookSync');
 
 const COMMENT_PREFIX = 'YYT-';
 
+function normalizeString(value, fallback = '') {
+  if (value === undefined || value === null) return fallback;
+  const normalized = String(value).trim();
+  return normalized || fallback;
+}
+
+function resolveCurrentChatId() {
+  const win = globalThis.window || globalThis;
+  return normalizeString(
+    win?.TavernHelper?.getCurrentChatId?.()
+      || win?.Silvy?.getCurrentChatId?.()
+      || win?.chat_metadata?.chat_id
+      || win?.this_chid
+      || win?.name1,
+    'default_chat'
+  );
+}
+
 function getTavernHelper() {
   try {
     if (typeof TavernHelper !== 'undefined' && TavernHelper) return TavernHelper;
@@ -59,13 +77,18 @@ function mergeTablesWithSchema(runtimeTables, configTables) {
   });
 }
 
-function buildEntryComment(tableName) {
-  const name = String(tableName || '').trim();
-  return name ? `${COMMENT_PREFIX}${name}` : `${COMMENT_PREFIX}填表数据`;
+function buildChatPrefix(chatId) {
+  return `${COMMENT_PREFIX}[${chatId}]-`;
 }
 
-function buildWrapperComment(tag, suffix) {
-  return `${COMMENT_PREFIX}Wrapper-${suffix}`;
+function buildEntryComment(chatId, tableName) {
+  const prefix = buildChatPrefix(chatId);
+  const name = String(tableName || '').trim();
+  return name ? `${prefix}${name}` : `${prefix}填表数据`;
+}
+
+function buildWrapperComment(chatId, tag, suffix) {
+  return `${buildChatPrefix(chatId)}Wrapper-${suffix}`;
 }
 
 function needsUpdate(existing, desired) {
@@ -121,6 +144,9 @@ export async function syncTablesToWorldbook(tables, config) {
     return { success: false, error: '世界书写入 API 不可用' };
   }
 
+  const chatId = resolveCurrentChatId();
+  const chatPrefix = buildChatPrefix(chatId);
+
   const configTables = Array.isArray(config?.tables) ? config.tables : [];
   const mergedTables = mergeTablesWithSchema(tables, configTables);
   const tablesWithData = mergedTables.filter(t => t && t.enabled !== false && Array.isArray(t.rows) && t.rows.length > 0);
@@ -159,7 +185,7 @@ export async function syncTablesToWorldbook(tables, config) {
       // WrapperStart
       const startContent = `<${wrapperTag}>\n${wrapperHint}`;
       results.push(await upsertEntry(helper, targetBook, entries,
-        buildWrapperComment(wrapperTag, 'Start'),
+        buildWrapperComment(chatId, wrapperTag, 'Start'),
         applyPlacementToEntry({
           content: startContent,
           enabled: true,
@@ -172,7 +198,7 @@ export async function syncTablesToWorldbook(tables, config) {
       // Global Readable (only if there are tables without custom export)
       if (globalReadableContent) {
         results.push(await upsertEntry(helper, targetBook, entries,
-          `${COMMENT_PREFIX}全局数据`,
+          `${chatPrefix}全局数据`,
           applyPlacementToEntry({
             content: globalReadableContent,
             enabled: true,
@@ -185,7 +211,7 @@ export async function syncTablesToWorldbook(tables, config) {
 
       // WrapperEnd
       results.push(await upsertEntry(helper, targetBook, entries,
-        buildWrapperComment(wrapperTag, 'End'),
+        buildWrapperComment(chatId, wrapperTag, 'End'),
         applyPlacementToEntry({
           content: `</${wrapperTag}>`,
           enabled: true,
@@ -199,7 +225,7 @@ export async function syncTablesToWorldbook(tables, config) {
       // No wrapper — write a single global entry
       const order = allocOrder(usedOrders, 50000, 1, 99999);
       results.push(await upsertEntry(helper, targetBook, entries,
-        `${COMMENT_PREFIX}全局数据`,
+        `${chatPrefix}全局数据`,
         {
           content: globalReadableContent,
           enabled: true,
@@ -215,7 +241,7 @@ export async function syncTablesToWorldbook(tables, config) {
     for (const table of customTables) {
       const ec = table.exportConfig || {};
       const entryName = ec.entryName || table.name || '未命名表';
-      const comment = buildEntryComment(entryName);
+      const comment = buildEntryComment(chatId, entryName);
       const content = formatTableMarkdown(table);
       if (!content) continue;
 
@@ -236,29 +262,30 @@ export async function syncTablesToWorldbook(tables, config) {
       , usedOrders));
     }
 
-    // 3. Cleanup stale entries
+    // 3. Cleanup stale entries — only for this chat
     const desiredComments = new Set(results.map(r => r.comment).filter(Boolean));
     const staleEntries = entries.filter(e => {
-      if (!e.comment || !e.comment.startsWith(COMMENT_PREFIX)) return false;
+      if (!e.comment || !e.comment.startsWith(chatPrefix)) return false;
       return !desiredComments.has(e.comment);
     });
     if (staleEntries.length > 0) {
       const uids = staleEntries.map(e => e.uid).filter(Boolean);
       if (uids.length > 0 && typeof helper.deleteLorebookEntries === 'function') {
         await Promise.resolve(helper.deleteLorebookEntries(targetBook, uids));
-        log.info(`已清理 ${uids.length} 个旧世界书条目`);
+        log.info(`已清理 ${uids.length} 个旧世界书条目 [${chatId}]`);
       }
     }
 
     const created = results.filter(r => r.action === 'created').length;
     const updated = results.filter(r => r.action === 'updated').length;
-    log.info(`世界书同步完成：${created} 创建, ${updated} 更新, ${staleEntries.length} 清理`);
+    log.info(`世界书同步完成 [${chatId}]：${created} 创建, ${updated} 更新, ${staleEntries.length} 清理`);
 
     return {
       success: true,
       results,
       stats: { created, updated, cleaned: staleEntries.length },
-      targetBook
+      targetBook,
+      chatId
     };
 
   } catch (error) {

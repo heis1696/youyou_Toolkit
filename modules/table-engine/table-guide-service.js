@@ -29,6 +29,19 @@ function resolveCurrentChatId() {
   );
 }
 
+function normalizeBoolean(value, fallback = false) {
+  return value === true;
+}
+
+function normalizeGuideWorldbookSync(value = {}) {
+  const src = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: normalizeBoolean(src.enabled, false),
+    targetBook: normalizeString(src.targetBook, ''),
+    entryComment: normalizeString(src.entryComment, 'YYT-填表数据')
+  };
+}
+
 export function normalizeTableGuide(value = {}, fallback = {}) {
   const source = value && typeof value === 'object' ? value : {};
   const scope = normalizeRunScopeConfig(source.scope, {
@@ -42,6 +55,7 @@ export function normalizeTableGuide(value = {}, fallback = {}) {
     enabledTableIds: Array.isArray(source.enabledTableIds) ? source.enabledTableIds.map(id => normalizeString(id, '')).filter(Boolean) : [],
     focusedTableId: normalizeString(source.focusedTableId, scope.activeTableId),
     scope,
+    worldbookSync: normalizeGuideWorldbookSync(source.worldbookSync),
     seedNote: normalizeString(source.seedNote, ''),
     updatedAt: normalizeString(source.updatedAt, new Date().toISOString())
   };
@@ -81,12 +95,21 @@ export function applyGuideToConfig(config = {}, guideInput = null) {
     selectedTableIds: config.scope?.selectedTableIds,
     activeTableId: config.scope?.activeTableId
   });
-  return {
+  const result = {
     ...config,
     activeTemplate: guide.templateId || config.activeTemplate,
     runScope: guide.scope.mode,
     scope: guide.scope
   };
+
+  if (guide.worldbookSync && guide.worldbookSync.targetBook) {
+    result.worldbookSync = {
+      ...(config.worldbookSync || {}),
+      ...guide.worldbookSync
+    };
+  }
+
+  return result;
 }
 
 export default {

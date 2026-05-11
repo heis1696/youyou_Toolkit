@@ -1225,7 +1225,8 @@ export function saveTableWorkbenchConfig(config = {}) {
   tableWorkbenchStorage.set(TABLE_WORKBENCH_CONFIG_KEY, validation.config);
   saveCurrentTableGuide({
     templateId: validation.config.activeTemplate,
-    scope: validation.config.scope
+    scope: validation.config.scope,
+    worldbookSync: validation.config.worldbookSync
   });
   return {
     success: true,
