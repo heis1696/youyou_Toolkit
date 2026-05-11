@@ -1203,6 +1203,15 @@ export function getTableWorkbenchConfig() {
   };
 }
 
+function stripRowsForConfigSave(config) {
+  const tables = Array.isArray(config?.tables) ? config.tables : [];
+  const cleanedTables = tables.map(t => ({
+    ...t,
+    rows: []
+  }));
+  return { ...config, tables: cleanedTables };
+}
+
 export function saveTableWorkbenchConfig(config = {}) {
   const currentConfig = getTableWorkbenchConfig();
   const mergedConfig = normalizeTableWorkbenchConfig({
@@ -1222,7 +1231,8 @@ export function saveTableWorkbenchConfig(config = {}) {
     };
   }
 
-  tableWorkbenchStorage.set(TABLE_WORKBENCH_CONFIG_KEY, validation.config);
+  const configToSave = stripRowsForConfigSave(validation.config);
+  tableWorkbenchStorage.set(TABLE_WORKBENCH_CONFIG_KEY, configToSave);
   saveCurrentTableGuide({
     templateId: validation.config.activeTemplate,
     scope: validation.config.scope,

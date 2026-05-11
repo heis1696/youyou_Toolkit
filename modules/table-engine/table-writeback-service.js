@@ -17,12 +17,6 @@ function normalizeString(value, fallback = '') {
   return normalized || fallback;
 }
 
-function hasAnyDataRows(tables = []) {
-  return Array.isArray(tables) && tables.some(t =>
-    Array.isArray(t?.rows) && t.rows.length > 0
-  );
-}
-
 function buildMirrorPayload(boundState = {}) {
   return {
     tables: Array.isArray(boundState?.tables) ? cloneTableValue(boundState.tables) : []
@@ -44,16 +38,6 @@ export function buildTableMirrorContent(boundState = {}, options = {}) {
 }
 
 export async function writeTableState({ targetSnapshot, nextTables, config, loadResult = null, diff = null, fillMode = '' } = {}) {
-  if (!hasAnyDataRows(nextTables)) {
-    return {
-      success: false,
-      error: 'AI 返回的表格数据为空，已跳过写入以保护现有数据。',
-      commitResult: null,
-      mirrorResult: null,
-      warning: 'AI 返回的表格数据为空，已跳过写入以保护现有数据。'
-    };
-  }
-
   const normalizedConfig = normalizeTableWorkbenchConfig(config);
   const commitResult = await commitBoundState(targetSnapshot, {
     tables: Array.isArray(nextTables) ? cloneTableValue(nextTables) : [],
