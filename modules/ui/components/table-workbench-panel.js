@@ -2,7 +2,7 @@
  * YouYou Toolkit - 填表工作台面板
  * 主界面运行控制台 + 单表配置抽屉
  */
-import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice, downloadJson, readFileContent } from '../utils.js';
+import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice, showPrompt, downloadJson, readFileContent } from '../utils.js';
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
 import { renderTableAuxiliaryFields } from './table-form-renderer.js';
 import { TableCellPopupMenu, getPopupMenuStyles } from './table-cell-popup-menu.js';
@@ -1167,10 +1167,10 @@ export const TableWorkbenchPanel = {
       }
     });
 
-    $container.on('click.twb', '[data-twb-action=”save-template”]', function () {
+    $container.on('click.twb', '[data-twb-action=”save-template”]', async function () {
       const cfg = collect($container);
       const defaultName = `${S(cfg.tables?.[0]?.name, '填表模板')} ${new Date().toLocaleString()}`;
-      const name = prompt('模板名称', defaultName);
+      const name = await showPrompt('保存模板', '请输入模板名称', { defaultValue: defaultName });
       if (!name) return;
       const r = saveTableWorkbenchConfig(cfg);
       if (!r.success) {

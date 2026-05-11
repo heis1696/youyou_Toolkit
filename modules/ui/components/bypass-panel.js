@@ -6,7 +6,7 @@
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { bypassManager, DEFAULT_BYPASS_PRESETS } from '../../bypass-manager.js';
-import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
+import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, showConfirm, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
 
 // ============================================================
 // 组件定义
@@ -250,12 +250,13 @@ export const BypassPanel = {
     });
     
     // 快速删除预设
-    $container.on('click.yytBypass', '.yyt-bypass-quick-delete', (e) => {
+    $container.on('click.yytBypass', '.yyt-bypass-quick-delete', async (e) => {
       e.stopPropagation();
       const presetId = $(e.currentTarget).data('presetId');
       if (!presetId) return;
-      
-      if (!confirm('确定要删除这个预设吗？')) return;
+
+      const confirmed = await showConfirm('删除预设', '确定要删除这个预设吗？', { danger: true });
+      if (!confirmed) return;
       
       const result = bypassManager.deletePreset(presetId);
       
@@ -488,12 +489,13 @@ export const BypassPanel = {
    * 删除当前预设
    * @private
    */
-  _deleteCurrentPreset($container, $) {
+  async _deleteCurrentPreset($container, $) {
     const $editor = $container.find('.yyt-bypass-editor-content');
     const presetId = $editor.data('presetId');
     if (!presetId) return;
-    
-    if (!confirm('确定要删除这个预设吗？')) return;
+
+    const confirmed = await showConfirm('删除预设', '确定要删除这个预设吗？', { danger: true });
+    if (!confirmed) return;
     
     const result = bypassManager.deletePreset(presetId);
     

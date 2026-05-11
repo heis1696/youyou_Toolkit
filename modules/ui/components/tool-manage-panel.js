@@ -13,7 +13,8 @@ import {
   getJQuery,
   isContainerValid,
   downloadJson,
-  readFileContent
+  readFileContent,
+  showConfirm
 } from '../utils.js';
 
 // 工具管理导入
@@ -247,12 +248,12 @@ export const ToolManagePanel = {
       this._showToolEditDialog($container, $, toolId);
     });
 
-    $container.on('click.yytToolManage', '.yyt-tool-item [data-action="delete"]', (e) => {
+    $container.on('click.yytToolManage', '.yyt-tool-item [data-action=”delete”]', async (e) => {
       const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
       const tool = getTool(toolId);
       if (!toolId || !tool) return;
 
-      if (!confirm(`确定要删除工具“${tool.name}”吗？`)) {
+      if (!await showConfirm('删除工具', `确定要删除工具”${tool.name}”吗？`, { danger: true })) {
         return;
       }
 
@@ -304,8 +305,8 @@ export const ToolManagePanel = {
     });
     
     // 重置工具
-    $container.on('click.yytToolManage', '#yyt-reset-tools', () => {
-      if (confirm('确定要重置所有工具吗？')) {
+    $container.on('click.yytToolManage', '#yyt-reset-tools', async () => {
+      if (await showConfirm('重置工具', '确定要重置所有工具吗？', { danger: true })) {
         resetTools();
         this.renderTo($container);
         showToast('info', '工具已重置');

@@ -1471,6 +1471,183 @@ export function bindDialogEvents($container, id, callbacks = {}) {
 }
 
 // ============================================================
+// Promise-based confirm / prompt dialogs
+// ============================================================
+
+let _confirmCounter = 0;
+
+export function showConfirm(title, message, options = {}) {
+  const {
+    confirmText = '确定',
+    cancelText = '取消',
+    danger = false,
+    width = '380px'
+  } = options;
+
+  const $ = getJQuery();
+  const targetDoc = getTargetDocument();
+  if (!$ || !targetDoc?.body) return Promise.resolve(false);
+
+  const id = `yyt-confirm-${++_confirmCounter}`;
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (value) => {
+      if (resolved) return;
+      resolved = true;
+      $overlay.remove();
+      triggerElement?.focus();
+      resolve(value);
+    };
+
+    const triggerElement = targetDoc.activeElement;
+
+    const html = `
+      <div class="yyt-dialog-overlay" id="${id}-overlay">
+        <div class="yyt-dialog" style="${width !== '380px' ? `width: ${width};` : ''} max-height: calc(100vh - 32px);">
+          <div class="yyt-dialog-header">
+            <span class="yyt-dialog-title">${escapeHtml(title)}</span>
+            <button class="yyt-dialog-close" id="${id}-close">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
+          <div class="yyt-dialog-body">
+            <div style="color: var(--yyt-text-secondary); font-size: 13px; line-height: 1.6;">${escapeHtml(message)}</div>
+          </div>
+          <div class="yyt-dialog-footer">
+            <button class="yyt-btn yyt-btn-secondary" id="${id}-cancel">${escapeHtml(cancelText)}</button>
+            <button class="yyt-btn ${danger ? 'yyt-btn-danger' : 'yyt-btn-primary'}" id="${id}-confirm">${escapeHtml(confirmText)}</button>
+          </div>
+        </div>
+      </div>`;
+
+    const $overlay = $(html).appendTo(targetDoc.body);
+
+    $overlay.find(`#${id}-confirm`).on('click', () => finish(true));
+    $overlay.find(`#${id}-cancel, #${id}-close`).on('click', () => finish(false));
+    $overlay.on('click', function (e) { if (e.target === this) finish(false); });
+    $overlay.on('keydown', (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
+      if (e.key === 'Enter') { e.stopPropagation(); finish(true); }
+    });
+
+    $overlay.find(`#${id}-${danger ? 'cancel' : 'confirm'}`).trigger('focus');
+  });
+}
+
+export function showPrompt(title, message, options = {}) {
+  const {
+    defaultValue = '',
+    placeholder = '',
+    confirmText = '确定',
+    cancelText = '取消',
+    width = '380px'
+  } = options;
+
+  const $ = getJQuery();
+  const targetDoc = getTargetDocument();
+  if (!$ || !targetDoc?.body) return Promise.resolve(null);
+
+  const id = `yyt-prompt-${++_confirmCounter}`;
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (value) => {
+      if (resolved) return;
+      resolved = true;
+      $overlay.remove();
+      triggerElement?.focus();
+      resolve(value);
+    };
+
+    const triggerElement = targetDoc.activeElement;
+
+    const html = `
+      <div class="yyt-dialog-overlay" id="${id}-overlay">
+        <div class="yyt-dialog" style="${width !== '380px' ? `width: ${width};` : ''} max-height: calc(100vh - 32px);">
+          <div class="yyt-dialog-header">
+            <span class="yyt-dialog-title">${escapeHtml(title)}</span>
+            <button class="yyt-dialog-close" id="${id}-close">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
+          <div class="yyt-dialog-body">
+            ${message ? `<div style="color: var(--yyt-text-secondary); font-size: 13px; line-height: 1.6;">${escapeHtml(message)}</div>` : ''}
+            <input class="yyt-input" id="${id}-input" type="text" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" />
+          </div>
+          <div class="yyt-dialog-footer">
+            <button class="yyt-btn yyt-btn-secondary" id="${id}-cancel">${escapeHtml(cancelText)}</button>
+            <button class="yyt-btn yyt-btn-primary" id="${id}-confirm">${escapeHtml(confirmText)}</button>
+          </div>
+        </div>
+      </div>`;
+
+    const $overlay = $(html).appendTo(targetDoc.body);
+    const $input = $overlay.find(`#${id}-input`);
+
+    const submit = () => {
+      const val = $input.val().trim();
+      finish(val || null);
+    };
+
+    $overlay.find(`#${id}-confirm`).on('click', submit);
+    $overlay.find(`#${id}-cancel, #${id}-close`).on('click', () => finish(null));
+    $overlay.on('click', function (e) { if (e.target === this) finish(null); });
+    $input.on('keydown', (e) => {
+      if (e.key === 'Enter') { e.stopPropagation(); submit(); }
+    });
+    $overlay.on('keydown', (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); finish(null); }
+    });
+
+    $input.trigger('focus').trigger('select');
+  });
+}
+
+// ============================================================
+// Button loading state utility
+// ============================================================
+
+export function withButtonLoading($btn, asyncFn, loadingText) {
+  if ($btn.prop('disabled') && $btn.data('yytLoading')) return Promise.resolve();
+
+  const originalHtml = $btn.html();
+  const originalWidth = $btn.outerWidth();
+
+  $btn.prop('disabled', true).data('yytLoading', true);
+  $btn.css('min-width', originalWidth + 'px');
+
+  if (loadingText) {
+    $btn.html(`<i class="fa-solid fa-spinner fa-spin" style="margin-right:4px"></i>${escapeHtml(loadingText)}`);
+  } else {
+    const $icon = $btn.find('i.fa-solid, i.fa-regular').first();
+    if ($icon.length) {
+      $icon.data('yytOriginalClass', $icon.attr('class'));
+      $icon.attr('class', 'fa-solid fa-spinner fa-spin');
+    } else {
+      $btn.html(`<i class="fa-solid fa-spinner fa-spin" style="margin-right:4px"></i>${originalHtml}`);
+    }
+  }
+
+  return Promise.resolve()
+    .then(() => asyncFn())
+    .finally(() => {
+      if (loadingText) {
+        $btn.html(originalHtml);
+      } else {
+        const $icon = $btn.find('i.fa-spinner');
+        const origClass = $icon.data('yytOriginalClass');
+        if (origClass) {
+          $icon.attr('class', origClass).removeData('yytOriginalClass');
+        } else {
+          $btn.html(originalHtml);
+        }
+      }
+      $btn.prop('disabled', false).removeData('yytLoading').css('min-width', '');
+    });
+}
+
+// ============================================================
 // 文件下载
 // ============================================================
 
@@ -1512,6 +1689,9 @@ export default {
   escapeHtml,
   showToast,
   showTopNotice,
+  showConfirm,
+  showPrompt,
+  withButtonLoading,
   getJQuery,
   resetJQueryCache,
   isContainerValid,

@@ -16,7 +16,8 @@ import {
   downloadJson,
   readFileContent,
   createDialogHtml,
-  bindDialogEvents
+  bindDialogEvents,
+  showConfirm
 } from '../utils.js';
 
 // 正则提取功能导入
@@ -303,11 +304,11 @@ export const RegexExtractPanel = {
     });
     
     // 删除规则（使用事件委托）
-    $container.on('click.yytRegex', '.yyt-rule-delete', (e) => {
+    $container.on('click.yytRegex', '.yyt-rule-delete', async (e) => {
       const $item = $(e.currentTarget).closest('.yyt-rule-item');
       const index = $item.data('rule-index');
-      
-      if (confirm('确定要删除这条规则吗？')) {
+
+      if (await showConfirm('删除规则', '确定要删除这条规则吗？', { danger: true })) {
         deleteTagRule(index);
         this.renderTo($container);
         showToast('info', '规则已删除');
@@ -613,8 +614,8 @@ Phase 4: 应用黑名单过滤
     });
     
     // 重置规则
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-reset-rules`, () => {
-      if (confirm('确定要重置所有规则吗？这将清空当前的规则配置。')) {
+    $container.on('click.yytRegex', `#${SCRIPT_ID}-reset-rules`, async () => {
+      if (await showConfirm('重置规则', '确定要重置所有规则吗？这将清空当前的规则配置。', { danger: true })) {
         setTagRules([]);
         setContentBlacklist([]);
         this.renderTo($container);

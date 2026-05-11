@@ -10,6 +10,7 @@ import {
   PanelState,
   escapeHtml,
   showToast,
+  showConfirm,
   getJQuery,
   isContainerValid,
   getFormApiConfig,
@@ -452,14 +453,14 @@ export const ApiPresetPanel = {
       }
     });
 
-    $dropdown.find('.yyt-option-delete').on('click.yytApiPreset', (e) => {
+    $dropdown.find('.yyt-option-delete').on('click.yytApiPreset', async (e) => {
       e.preventDefault();
       e.stopPropagation();
 
       const presetName = normalizePresetName($(e.currentTarget).data('preset'));
       if (!presetName) return;
 
-      if (!confirm(`确定要删除预设 "${presetName}" 吗？`)) {
+      if (!await showConfirm('删除预设', `确定要删除预设 "${presetName}" 吗？`, { danger: true })) {
         return;
       }
 
@@ -486,7 +487,7 @@ export const ApiPresetPanel = {
    * @private
    */
   _bindPresetListEvents($container, $) {
-    $container.find('.yyt-preset-item').on('click.yytApiPreset', (e) => {
+    $container.find('.yyt-preset-item').on('click.yytApiPreset', async (e) => {
       const $item = $(e.currentTarget);
       const presetName = normalizePresetName($item.data('preset-name'));
       const action = $(e.target).closest('[data-action]').data('action');
@@ -505,7 +506,7 @@ export const ApiPresetPanel = {
           break;
 
         case 'delete':
-          if (confirm(`确定要删除预设 "${presetName}" 吗？`)) {
+          if (await showConfirm('删除预设', `确定要删除预设 "${presetName}" 吗？`, { danger: true })) {
             const delResult = deletePreset(presetName);
             showToast(delResult.success ? 'info' : 'error', delResult.message);
             if (delResult.success) {
@@ -595,19 +596,19 @@ export const ApiPresetPanel = {
     });
     
     // 保存配置
-    $container.find(`#${SCRIPT_ID}-save-api-config`).on('click', () => {
+    $container.find(`#${SCRIPT_ID}-save-api-config`).on('click', async () => {
       const config = getFormApiConfig($container, SCRIPT_ID);
       const activePresetName = normalizePresetName(getActivePresetName());
-      
+
       const validation = validateApiConfig(config);
       if (!validation.valid && !config.useMainApi) {
         showToast('error', validation.errors.join(', '));
         return;
       }
-      
+
       // 如果当前加载了预设，询问是否覆盖
       if (activePresetName) {
-        if (!confirm(`是否要覆盖预设 "${activePresetName}" 的配置？\n\n点击"确定"覆盖预设，点击"取消"仅保存当前配置并切换到“当前配置”`)) {
+        if (!await showConfirm('覆盖预设', `是否要覆盖预设 “${activePresetName}” 的配置？\n\n点击”确定”覆盖预设，点击”取消”仅保存当前配置并切换到”当前配置”`)) {
           updateApiConfig(config);
           switchToPreset('');
           this._setSelectedPresetName($container, '');
@@ -635,8 +636,8 @@ export const ApiPresetPanel = {
     });
     
     // 重置配置
-    $container.find(`#${SCRIPT_ID}-reset-api-config`).on('click', () => {
-      if (confirm('确定要重置API配置吗？')) {
+    $container.find(`#${SCRIPT_ID}-reset-api-config`).on('click', async () => {
+      if (await showConfirm('重置配置', '确定要重置API配置吗？', { danger: true })) {
         switchToPreset('');
         this._setSelectedPresetName($container, '');
         updateApiConfig({
@@ -754,7 +755,7 @@ export const ApiPresetPanel = {
       if (e.target === this) closeDialog();
     });
 
-    $overlay.find(`#${SCRIPT_ID}-dialog-save`).on('click', () => {
+    $overlay.find(`#${SCRIPT_ID}-dialog-save`).on('click', async () => {
       const name = $nameInput.val().trim();
       const desc = $descInput.val().trim();
 
@@ -765,7 +766,7 @@ export const ApiPresetPanel = {
       }
 
       if (existingNames.includes(name)) {
-        if (!confirm(`预设 "${name}" 已存在，是否覆盖？`)) {
+        if (!await showConfirm('覆盖预设', `预设 "${name}" 已存在，是否覆盖？`)) {
           return;
         }
         deletePreset(name);

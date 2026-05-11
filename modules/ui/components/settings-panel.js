@@ -8,7 +8,7 @@ import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { settingsService, DEFAULT_SETTINGS } from '../../core/settings-service.js';
 import { logger, LOG_LEVEL } from '../../core/logger-service.js';
 import { variableResolver } from '../../variable-resolver.js';
-import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuery, isContainerValid } from '../utils.js';
+import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuery, isContainerValid, showConfirm } from '../utils.js';
 
 // ============================================================
 // 主题配置
@@ -536,8 +536,8 @@ export const SettingsPanel = {
       self._saveSettings($container);
     });
 
-    $container.on('click.yytSettings', '#yyt-settings-reset', () => {
-      if (confirm('确定要重置所有设置为默认值吗？')) {
+    $container.on('click.yytSettings', '#yyt-settings-reset', async () => {
+      if (await showConfirm('重置设置', '确定要重置所有设置为默认值吗？', { danger: true })) {
         settingsService.resetSettings();
         applyUiPreferences(DEFAULT_SETTINGS.ui, getTargetDocument());
         self.renderTo($container);
