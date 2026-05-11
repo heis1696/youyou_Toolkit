@@ -37,7 +37,7 @@ export function buildTableMirrorContent(boundState = {}, options = {}) {
   ].join('\n');
 }
 
-export async function writeTableState({ targetSnapshot, nextTables, config, loadResult = null, diff = null, fillMode = '' } = {}) {
+export async function writeTableState({ targetSnapshot, nextTables, config, loadResult = null, diff = null, fillMode = '', skipNotify = false } = {}) {
   const normalizedConfig = normalizeTableWorkbenchConfig(config);
   const commitResult = await commitBoundState(targetSnapshot, {
     tables: Array.isArray(nextTables) ? cloneTableValue(nextTables) : [],
@@ -77,7 +77,8 @@ export async function writeTableState({ targetSnapshot, nextTables, config, load
       slotBindingKey: targetSnapshot?.slotBindingKey,
       slotRevisionKey: targetSnapshot?.slotRevisionKey,
       slotTransactionId: targetSnapshot?.slotTransactionId,
-      traceId: targetSnapshot?.traceId
+      traceId: targetSnapshot?.traceId,
+      skipNotify
     });
 
     if (!mirrorResult?.success) {

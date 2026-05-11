@@ -141,8 +141,8 @@ function getChatMessageById(api, messageId) {
       message?.messageId,
       message?.message_id,
       message?.id,
-      message?.mesid,
       message?.mid,
+      message?.mesid,
       message?.chat_index,
       index
     ].map((value) => normalizeIdentityValue(value));
@@ -171,8 +171,8 @@ function getLatestAssistantTarget(api) {
     lastMessage?.messageId
     ?? lastMessage?.message_id
     ?? lastMessage?.id
-    ?? lastMessage?.mesid
     ?? lastMessage?.mid
+    ?? lastMessage?.mesid
     ?? lastMessage?.chat_index
     ?? lastIndex
   );
@@ -769,6 +769,7 @@ class ToolAutomationService {
               swipeId: context.sourceSwipeId,
               hasOutput: true
             };
+            this._messageReceivedThrottleUntil = Date.now() + 8000;
           }
 
           this._markSlotProcessed(slotKey);
@@ -850,11 +851,13 @@ class ToolAutomationService {
       if (typeof arg === 'object') {
         if (!messageId) {
           messageId = normalizeIdentityValue(
-            arg.messageId ?? arg.message_id ?? arg.id ?? arg.mesid ?? arg.chat_index
+            arg.messageId ?? arg.message_id ?? arg.id ?? arg.mid ?? arg.mesid ?? arg.chat_index
             ?? arg.message?.messageId ?? arg.message?.message_id ?? arg.message?.id
-            ?? arg.message?.mesid ?? arg.message?.chat_index
+            ?? arg.message?.mid ?? arg.message?.mesid ?? arg.message?.chat_index
             ?? arg.data?.messageId ?? arg.data?.message_id ?? arg.data?.id
+            ?? arg.data?.mid ?? arg.data?.mesid ?? arg.data?.chat_index
             ?? arg.target?.messageId ?? arg.target?.message_id ?? arg.target?.id
+            ?? arg.target?.mid ?? arg.target?.mesid ?? arg.target?.chat_index
           );
         }
         if (!swipeId) {

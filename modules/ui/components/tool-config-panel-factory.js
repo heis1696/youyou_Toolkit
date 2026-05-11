@@ -294,7 +294,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     padding: 18px;
     border-radius: var(--yyt-radius);
     border: 1px solid var(--yyt-border);
-    background: var(--yyt-surface-2);
+    background: transparent;
     box-shadow: none;
   }
 
@@ -371,7 +371,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     border: 1px solid var(--yyt-border);
     border-radius: var(--yyt-radius);
     padding: 12px 14px;
-    background: var(--yyt-surface-2);
+    background: transparent;
   }
 
   .yyt-tool-debug-summary {
@@ -431,7 +431,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     padding: 10px 12px;
     border-radius: var(--yyt-radius);
     border: 1px solid var(--yyt-border);
-    background: var(--yyt-surface-2);
+    background: transparent;
     display: flex;
     flex-direction: column;
     gap: 6px;

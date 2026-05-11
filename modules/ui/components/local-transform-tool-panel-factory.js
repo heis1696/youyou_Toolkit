@@ -35,7 +35,7 @@ const LOCAL_PANEL_STYLES = `${TOOL_CONFIG_PANEL_STYLES}
     padding: 12px 13px;
     border-radius: var(--yyt-radius);
     border: 1px solid var(--yyt-border);
-    background: var(--yyt-surface-2);
+    background: transparent;
     box-shadow: none;
     transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   }
@@ -60,7 +60,7 @@ const LOCAL_PANEL_STYLES = `${TOOL_CONFIG_PANEL_STYLES}
     padding: 14px;
     border-radius: var(--yyt-radius);
     border: 1px solid var(--yyt-border);
-    background: var(--yyt-surface-2);
+    background: transparent;
     display: flex;
     flex-direction: column;
     gap: 8px;

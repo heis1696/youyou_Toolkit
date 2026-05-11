@@ -833,7 +833,7 @@ export const BypassPanel = {
       }
       
       .yyt-bypass-message {
-        background: var(--yyt-surface-2);
+        background: transparent;
         border: 1px solid var(--yyt-border);
         border-radius: var(--yyt-radius);
         padding: 14px;

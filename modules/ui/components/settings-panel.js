@@ -646,7 +646,7 @@ export const SettingsPanel = {
         padding: 18px 20px;
         border-radius: var(--yyt-radius);
         border: 1px solid var(--yyt-border);
-        background: var(--yyt-surface-2);
+        background: transparent;
         box-shadow: none;
       }
 
@@ -779,7 +779,7 @@ export const SettingsPanel = {
         padding: 18px;
         border-radius: var(--yyt-radius);
         border: 1px solid var(--yyt-border);
-        background: var(--yyt-surface-2);
+        background: transparent;
         box-shadow: none;
       }
 
@@ -812,7 +812,7 @@ export const SettingsPanel = {
         padding: 14px 16px;
         border-radius: var(--yyt-radius);
         border: 1px solid var(--yyt-border);
-        background: var(--yyt-surface-2);
+        background: transparent;
       }
 
       .yyt-settings-macro-item code {
@@ -874,7 +874,7 @@ export const SettingsPanel = {
         padding: 14px 16px;
         border-radius: var(--yyt-radius);
         border: 1px solid var(--yyt-border);
-        background: var(--yyt-surface-2);
+        background: transparent;
         display: flex;
         flex-direction: column;
         gap: 8px;

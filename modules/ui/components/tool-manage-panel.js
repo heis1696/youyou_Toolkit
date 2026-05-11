@@ -493,7 +493,7 @@ export const ToolManagePanel = {
         overflow: hidden;
         gap: 16px;
         border-radius: var(--yyt-radius);
-        background: var(--yyt-surface-2);
+        background: transparent;
         border: 1px solid var(--yyt-border);
         box-shadow: none;
       }
@@ -547,7 +547,7 @@ export const ToolManagePanel = {
         gap: 10px;
         padding: 16px;
         border-radius: var(--yyt-radius);
-        background: var(--yyt-surface-2);
+        background: transparent;
         border: 1px solid var(--yyt-border);
         min-width: 150px;
         box-shadow: none;
@@ -571,7 +571,7 @@ export const ToolManagePanel = {
         position: relative;
         overflow: hidden;
         padding: 18px;
-        background: var(--yyt-surface-2);
+        background: transparent;
         border: 1px solid var(--yyt-border);
         border-radius: var(--yyt-radius);
         transition: border-color 0.18s ease, background 0.18s ease;

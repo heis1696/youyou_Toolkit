@@ -255,7 +255,7 @@ export const LoggerPanel = {
         flex-wrap: wrap;
         padding: 10px 12px;
         border-radius: var(--yyt-radius);
-        background: var(--yyt-surface-2);
+        background: transparent;
         border: 1px solid var(--yyt-border-soft);
       }
 

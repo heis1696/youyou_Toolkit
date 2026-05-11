@@ -677,7 +677,7 @@ Phase 4: 应用黑名单过滤
         align-items: center;
         gap: 10px;
         padding: 12px 13px;
-        background: var(--yyt-surface-2);
+        background: transparent;
         border: 1px solid var(--yyt-border);
         border-radius: var(--yyt-radius);
         transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -752,7 +752,7 @@ Phase 4: 应用黑名单过滤
       }
 
       .yyt-test-result {
-        background: var(--yyt-surface-2);
+        background: transparent;
         border: 1px solid var(--yyt-border);
         border-radius: var(--yyt-radius-sm);
         padding: 14px;

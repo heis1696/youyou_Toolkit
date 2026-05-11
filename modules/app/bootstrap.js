@@ -2633,6 +2633,182 @@ export function createBootstrap(context, options = {}) {
     display: none;
   }
 }
+
+/* ============================================================
+   Form Controls (input / select / textarea)
+   ============================================================ */
+
+.yyt-input,
+.yyt-select,
+.yyt-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  padding: 11px 15px;
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg);
+  color: var(--yyt-text);
+  font-size: 13px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  box-shadow: var(--yyt-control-shadow);
+}
+
+.yyt-select {
+  --yyt-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a8b7ca' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color: var(--yyt-text);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg);
+  padding-right: 36px;
+}
+
+.yyt-input:hover,
+.yyt-select:hover,
+.yyt-textarea:not(.yyt-code-textarea):hover {
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+  box-shadow: var(--yyt-control-shadow-hover);
+}
+
+.yyt-select:hover {
+  color: var(--yyt-text);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg-hover);
+}
+
+.yyt-input:focus,
+.yyt-select:focus,
+.yyt-textarea:not(.yyt-code-textarea):focus,
+.yyt-input:focus-visible,
+.yyt-select:focus-visible,
+.yyt-textarea:not(.yyt-code-textarea):focus-visible {
+  outline: none;
+  border-color: var(--yyt-control-border-focus);
+  background: var(--yyt-control-bg-focus);
+  box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
+}
+
+.yyt-select:focus,
+.yyt-select:focus-visible {
+  color: var(--yyt-text);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg-focus);
+}
+
+.yyt-select:disabled {
+  color: var(--yyt-text-muted);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-surface);
+  cursor: not-allowed;
+}
+
+.yyt-select option,
+.yyt-select optgroup {
+  background: var(--yyt-surface);
+  color: var(--yyt-text);
+}
+
+.yyt-select option:checked,
+.yyt-select option[selected] {
+  background: var(--yyt-surface-3);
+  color: #f5fbff;
+}
+
+.yyt-select option:disabled {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.yyt-textarea.yyt-code-textarea {
+  color: var(--yyt-text);
+  caret-color: var(--yyt-accent-strong);
+  background: #080a10;
+}
+
+.yyt-textarea.yyt-code-textarea:hover,
+.yyt-textarea.yyt-code-textarea:focus,
+.yyt-textarea.yyt-code-textarea:focus-visible {
+  color: var(--yyt-text);
+  caret-color: var(--yyt-accent-strong);
+  border-color: var(--yyt-border-focus);
+  background: #080a10;
+}
+
+.yyt-input::placeholder,
+.yyt-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.yyt-textarea {
+  resize: vertical;
+  min-height: 112px;
+  line-height: 1.65;
+}
+
+/* ============================================================
+   Custom Select Portal
+   ============================================================ */
+
+.yyt-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 11px 15px;
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg);
+  color: var(--yyt-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.yyt-select-trigger:hover {
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+}
+
+.yyt-select-dropdown {
+  background: var(--yyt-select-surface) !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  border: 1px solid var(--yyt-control-border-hover);
+  border-radius: 6px;
+  box-shadow: var(--yyt-select-dropdown-shadow);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.yyt-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--yyt-text);
+  background: var(--yyt-select-option-bg) !important;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.yyt-select-option:hover {
+  background: var(--yyt-select-option-hover-bg) !important;
+  border-color: var(--yyt-select-option-border);
+}
+
+.yyt-select-option.yyt-selected {
+  background: var(--yyt-select-option-selected-bg) !important;
+  border-color: var(--yyt-select-option-selected-border);
+  color: var(--yyt-accent-strong);
+  font-weight: 600;
+}
     `;
   }
 

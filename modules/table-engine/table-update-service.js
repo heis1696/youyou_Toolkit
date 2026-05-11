@@ -859,7 +859,8 @@ async function runTableUpdate({
       config,
       loadResult,
       diff,
-      fillMode
+      fillMode,
+      skipNotify: isAutoRun
     });
 
     if (isAutoRun) {
