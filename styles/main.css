@@ -735,6 +735,7 @@
   color: var(--yyt-text);
   caret-color: var(--yyt-accent-strong);
   background: #080a10;
+}
 
 .yyt-textarea.yyt-code-textarea:hover,
 .yyt-textarea.yyt-code-textarea:focus,
@@ -1826,9 +1827,9 @@
   padding: 16px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: var(--yyt-surface);
   box-shadow: none;
   background: transparent;
+}
 
 .yyt-shell-sidebar .yyt-main-nav-item::before {
   content: '';

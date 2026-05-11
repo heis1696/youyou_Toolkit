@@ -69,1192 +69,2573 @@ export function createBootstrap(context, options = {}) {
 
   function getBaseStyles() {
     return `
-      /* CSS变量 */
-      :root {
-        --yyt-accent: #7bb7ff;
-        --yyt-accent-glow: rgba(123, 183, 255, 0.4);
-        --yyt-accent-soft: rgba(123, 183, 255, 0.15);
-        --yyt-accent-strong: #a5d4ff;
-        --yyt-on-accent: #0b0f15;
-        --yyt-success: #4ade80;
-        --yyt-success-glow: rgba(74, 222, 128, 0.3);
-        --yyt-error: #f87171;
-        --yyt-danger: var(--yyt-error);
-        --yyt-error-glow: rgba(248, 113, 113, 0.3);
-        --yyt-warning: #fbbf24;
-        --yyt-bg-base: #0b0f15;
-        --yyt-bg-gradient-1: rgba(123, 183, 255, 0.12);
-        --yyt-bg-gradient-2: rgba(155, 123, 255, 0.10);
-        --yyt-surface: rgba(255, 255, 255, 0.03);
-        --yyt-surface-2: rgba(255, 255, 255, 0.05);
-        --yyt-surface-3: rgba(255, 255, 255, 0.075);
-        --yyt-surface-hover: rgba(255, 255, 255, 0.08);
-        --yyt-surface-active: rgba(255, 255, 255, 0.11);
-        --yyt-border: rgba(255, 255, 255, 0.08);
-        --yyt-border-soft: rgba(255, 255, 255, 0.05);
-        --yyt-border-strong: rgba(255, 255, 255, 0.16);
-        --yyt-text: rgba(255, 255, 255, 0.95);
-        --yyt-text-secondary: rgba(255, 255, 255, 0.72);
-        --yyt-text-muted: rgba(255, 255, 255, 0.5);
-        --yyt-focus-ring: 0 0 0 3px rgba(123, 183, 255, 0.18);
-        --yyt-radius: 14px;
-        --yyt-radius-sm: 10px;
-        --yyt-radius-lg: 18px;
-        --yyt-radius-xl: 24px;
-        --yyt-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
-        --yyt-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.18);
-        --yyt-shadow-glow: 0 0 24px var(--yyt-accent-glow);
-        --yyt-control-radius: 14px;
-        --yyt-control-radius-sm: 11px;
-        --yyt-control-bg: linear-gradient(180deg, #1d2737 0%, #151d2a 100%);
-        --yyt-control-bg-hover: linear-gradient(180deg, #243247 0%, #1a2638 100%);
-        --yyt-control-bg-active: linear-gradient(180deg, #2a3951 0%, #1d2b3f 100%);
-        --yyt-control-bg-strong: linear-gradient(180deg, #243247 0%, #192435 100%);
-        --yyt-control-bg-focus: linear-gradient(180deg, #243a57 0%, #1a2a3f 100%);
-        --yyt-control-border: rgba(146, 173, 212, 0.24);
-        --yyt-control-border-hover: rgba(146, 173, 212, 0.36);
-        --yyt-control-border-focus: rgba(123, 183, 255, 0.72);
-        --yyt-control-shadow: 0 12px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        --yyt-control-shadow-hover: 0 16px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-        --yyt-control-shadow-focus: 0 18px 30px rgba(8, 14, 24, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-        --yyt-control-shadow-active: 0 10px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        --yyt-shell-sidebar-width: 248px;
-        --yyt-shell-topbar-gap: 14px;
-        --yyt-shell-gap: 12px;
-        --yyt-panel-gap: 16px;
-        --yyt-backdrop: rgba(5, 8, 12, 0.72);
-      }
-
-      /* 菜单项 */
-      #${MENU_CONTAINER_ID} { display: flex; align-items: center; }
-
-      #${MENU_ITEM_ID} {
-        display: flex; align-items: center; gap: 8px;
-        padding: 10px 14px; cursor: pointer;
-        transition: all 0.2s ease; border-radius: 8px; margin: 2px;
-      }
-
-      #${MENU_ITEM_ID}:hover {
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.04) 100%);
-      }
-
-      #${MENU_ITEM_ID} .fa-fw {
-        font-size: 16px; color: var(--yyt-accent);
-        filter: drop-shadow(0 0 6px var(--yyt-accent-glow));
-      }
-
-      #${MENU_ITEM_ID} span { font-weight: 500; letter-spacing: 0.3px; }
-
-      /* 主弹窗遮罩 */
-      .yyt-popup-overlay {
-        position: fixed;
-        inset: 0;
-        background: var(--yyt-backdrop);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        z-index: 9999;
-      }
-
-      /* 主弹窗 */
-      .yyt-popup {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        display: flex;
-        flex-direction: column;
-        width: min(1500px, calc(100vw - 12px));
-        max-width: calc(100vw - 12px);
-        height: min(1120px, calc(100vh - 12px));
-        max-height: calc(100vh - 12px);
-        background:
-          radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1), transparent 60%),
-          radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2), transparent 55%),
-          linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 22%),
-          var(--yyt-bg-base);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 22px;
-        box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.05),
-          0 28px 84px rgba(0, 0, 0, 0.58),
-          0 0 80px rgba(123, 183, 255, 0.1);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
-        color: var(--yyt-text);
-        z-index: 10000;
-      }
-
-      /* 弹窗头部 */
-      .yyt-popup-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 16px 22px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.03) 100%);
-        border-bottom: 1px solid var(--yyt-border);
-        border-radius: 22px 22px 0 0;
-        flex-shrink: 0;
-        cursor: grab;
-      }
-
-      .yyt-popup-brand {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .yyt-popup-title-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-      }
-
-      .yyt-popup.yyt-popup-dragging .yyt-popup-header {
-        cursor: grabbing;
-      }
-
-      .yyt-popup-title {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--yyt-text);
-        min-width: 0;
-      }
-
-      .yyt-popup-title span:last-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .yyt-popup-version {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--yyt-accent);
-        background: var(--yyt-accent-soft);
-        border: 1px solid rgba(123, 183, 255, 0.18);
-        flex-shrink: 0;
-      }
-
-      .yyt-popup-subtitle {
-        font-size: 12px;
-        color: var(--yyt-text-muted);
-        letter-spacing: 0.3px;
-      }
-
-      .yyt-popup-title i {
-        color: var(--yyt-accent);
-        font-size: 18px;
-      }
-
-      .yyt-popup-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-shrink: 0;
-      }
-
-      .yyt-popup-drag-hint {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        font-size: 12px;
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px dashed rgba(255, 255, 255, 0.12);
-      }
-
-      .yyt-popup-drag-hint i {
-        color: var(--yyt-accent);
-      }
-
-      .yyt-popup-close {
-        width: 34px;
-        height: 34px;
-        border: 1px solid var(--yyt-border);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.04);
-        color: var(--yyt-text-secondary);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-      }
-
-      .yyt-popup-close:hover {
-        background: rgba(248, 113, 113, 0.14);
-        border-color: rgba(248, 113, 113, 0.2);
-        color: #ff6b6b;
-      }
-
-      /* 弹窗主体 */
-      .yyt-popup-body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        padding: 18px 20px;
-        overflow: hidden;
-      }
-
-      .yyt-popup-shell {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        flex: 1;
-        gap: var(--yyt-shell-gap);
-      }
-
-      .yyt-content-frame {
-        flex: 1;
-        min-height: 0;
-        min-width: 0;
-        overflow: hidden;
-        padding: 5px;
-        border-radius: var(--yyt-radius-xl);
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.018) 100%),
-          rgba(255, 255, 255, 0.01);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      }
-
-      /* 弹窗底部 */
-      .yyt-popup-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 20px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.02) 100%);
-        border-top: 1px solid var(--yyt-border);
-        border-radius: 0 0 22px 22px;
-        flex-shrink: 0;
-      }
-
-      .yyt-popup-footer-left,
-      .yyt-popup-footer-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .yyt-popup-footer-left {
-        min-width: 0;
-      }
-
-      .yyt-popup-status-cluster {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-        flex-wrap: wrap;
-      }
-
-      .yyt-popup-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        font-size: 12px;
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      .yyt-popup-status i {
-        color: var(--yyt-accent);
-      }
-
-      .yyt-popup-footer-note {
-        font-size: 12px;
-        line-height: 1.6;
-        color: var(--yyt-text-muted);
-      }
-
-      /* 主顶栏 */
-      .yyt-shell-topbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-        gap: var(--yyt-shell-topbar-gap);
-        padding: 18px;
-        border-radius: var(--yyt-radius-xl);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background:
-          radial-gradient(600px 240px at 0% 0%, rgba(123, 183, 255, 0.14), transparent 65%),
-          linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-      }
-
-      .yyt-shell-topbar-main {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 10px;
-        min-width: 0;
-      }
-
-      .yyt-shell-topbar-side {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .yyt-shell-kicker {
-        display: inline-flex;
-        align-items: center;
-        width: fit-content;
-        padding: 5px 10px;
-        border-radius: 999px;
-        background: rgba(123, 183, 255, 0.12);
-        border: 1px solid rgba(123, 183, 255, 0.18);
-        color: var(--yyt-accent);
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.42px;
-        text-transform: uppercase;
-      }
-
-      .yyt-shell-heading-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .yyt-shell-heading {
-        font-size: 22px;
-        font-weight: 800;
-        line-height: 1.1;
-        letter-spacing: 0.2px;
-        color: var(--yyt-text);
-      }
-
-      .yyt-shell-heading-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 5px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      .yyt-shell-overview-text {
-        font-size: 12px;
-        line-height: 1.65;
-        color: var(--yyt-text-secondary);
-        max-width: 72ch;
-      }
-
-      .yyt-shell-current-card {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 0;
-        padding: 14px 16px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.045);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      }
-
-      .yyt-shell-current-label {
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.42px;
-        text-transform: uppercase;
-        color: var(--yyt-text-muted);
-      }
-
-      .yyt-shell-current-page {
-        font-size: 14px;
-        font-weight: 800;
-        line-height: 1.35;
-        color: var(--yyt-text);
-        word-break: break-word;
-      }
-
-      .yyt-shell-current-desc {
-        font-size: 11px;
-        line-height: 1.5;
-        color: var(--yyt-text-secondary);
-      }
-
-      .yyt-shell-stats {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(78px, 1fr));
-        gap: 8px;
-        align-self: stretch;
-      }
-
-      .yyt-shell-stat {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 6px;
-        min-width: 78px;
-        padding: 12px 12px 11px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.035);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      .yyt-shell-stat-label {
-        font-size: 10px;
-        color: var(--yyt-text-muted);
-        letter-spacing: 0.44px;
-        text-transform: uppercase;
-      }
-
-      .yyt-shell-stat-value {
-        font-size: 19px;
-        font-weight: 800;
-        line-height: 1;
-        color: var(--yyt-text);
-      }
-
-      .yyt-shell-workspace {
-        flex: 1;
-        min-height: 0;
-        display: grid;
-        grid-template-columns: minmax(210px, var(--yyt-shell-sidebar-width)) minmax(0, 1fr);
-        gap: var(--yyt-shell-gap);
-      }
-
-      .yyt-shell-sidebar {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .yyt-shell-sidebar-card {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        overflow: hidden;
-        padding: 14px;
-        border-radius: var(--yyt-radius-xl);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
-      }
-
-      .yyt-shell-sidebar-title-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-
-      .yyt-shell-sidebar-title {
-        font-size: 13px;
-        font-weight: 800;
-        color: var(--yyt-text);
-      }
-
-      .yyt-shell-sidebar-hint {
-        font-size: 10px;
-        color: var(--yyt-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.44px;
-      }
-
-      .yyt-main-nav {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 0;
-        margin-bottom: 0;
-        background: transparent;
-        border: none;
-        min-height: 0;
-        overflow-y: auto;
-      }
-
-      .yyt-main-nav-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 14px 16px;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.25s ease;
-        color: var(--yyt-text-secondary);
-        font-weight: 500;
-        font-size: 14px;
-      }
-
-      .yyt-main-nav-item:hover {
-        color: var(--yyt-text);
-        background: var(--yyt-surface-hover);
-      }
-
-      .yyt-main-nav-item.active {
-        color: var(--yyt-on-accent);
-        background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
-      }
-
-      .yyt-main-nav-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        flex-shrink: 0;
-      }
-
-      .yyt-main-nav-copy {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        min-width: 0;
-        flex: 1;
-      }
-
-      .yyt-main-nav-name {
-        font-size: 13px;
-        font-weight: 700;
-        color: inherit;
-      }
-
-      .yyt-main-nav-desc {
-        font-size: 11px;
-        line-height: 1.45;
-        color: inherit;
-        opacity: 0.72;
-      }
-
-      .yyt-shell-sidebar-note {
-        padding: 11px 12px;
-        border-radius: 16px;
-        border: 1px dashed rgba(123, 183, 255, 0.18);
-        background: rgba(123, 183, 255, 0.05);
-        color: var(--yyt-text-secondary);
-        font-size: 11px;
-        line-height: 1.55;
-      }
-
-      .yyt-shell-main {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .yyt-shell-main-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 14px;
-        padding: 14px 16px;
-        border-radius: var(--yyt-radius-xl);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
-      }
-
-      .yyt-shell-main-actions {
-        display: flex;
-        align-items: flex-start;
-        justify-content: flex-end;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-left: auto;
-      }
-
-      .yyt-shell-main-heading-block {
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-        min-width: 0;
-      }
-
-      .yyt-shell-main-label-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .yyt-shell-main-label {
-        font-size: 11px;
-        font-weight: 800;
-        color: var(--yyt-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .yyt-shell-breadcrumb {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--yyt-text-secondary);
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        max-width: 100%;
-      }
-
-      .yyt-shell-main-title {
-        font-size: 20px;
-        font-weight: 800;
-        line-height: 1.12;
-        color: var(--yyt-text);
-      }
-
-      .yyt-shell-main-description {
-        font-size: 12px;
-        line-height: 1.6;
-        color: var(--yyt-text-secondary);
-      }
-
-      .yyt-shell-main-meta {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: var(--yyt-text-secondary);
-        font-size: 12px;
-        line-height: 1.5;
-      }
-
-      .yyt-shell-main-save-btn {
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      .yyt-shell-main-meta i {
-        color: var(--yyt-accent);
-      }
-
-      /* 次级顶栏 */
-      .yyt-sub-nav {
-        display: flex;
-        gap: 4px;
-        padding: 6px;
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 10px;
-        margin-bottom: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        flex-shrink: 0;
-      }
-
-      .yyt-sub-nav-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 14px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        color: var(--yyt-text-secondary);
-        font-weight: 500;
-        font-size: 13px;
-      }
-
-      .yyt-sub-nav-item:hover {
-        color: var(--yyt-text);
-        background: rgba(255, 255, 255, 0.05);
-      }
-
-      .yyt-sub-nav-item.active {
-        color: var(--yyt-accent);
-        background: rgba(123, 183, 255, 0.1);
-      }
-
-      /* 内容区域 */
-      .yyt-content {
-        flex: 1;
-        min-height: 0;
-        min-width: 0;
-        overflow: auto;
-        padding: 4px;
-        border-radius: calc(var(--yyt-radius) + 2px);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.015) 0%, rgba(255, 255, 255, 0.03) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-      }
-
-      .yyt-content-inner {
-        min-height: 100%;
-      }
-
-      /* 标签内容 */
-      .yyt-tab-content {
-        display: none;
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        height: 100%;
-      }
-
-      .yyt-tab-content.active {
-        display: block;
-      }
-
-      /* 面板样式 */
-      .yyt-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-      }
-
-      .yyt-panel-section {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        padding: 18px;
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, transparent 100%);
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius);
-      }
-
-      .yyt-section-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 600;
-        font-size: 14px;
-        color: var(--yyt-text);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .yyt-section-title i {
-        color: var(--yyt-accent);
-        font-size: 16px;
-      }
-
-      /* 按钮样式 */
-      .yyt-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-height: 38px;
-        padding: 10px 16px;
-        border: 1px solid var(--yyt-border);
-        border-radius: 13px;
-        background: linear-gradient(180deg, var(--yyt-surface-3) 0%, var(--yyt-surface) 100%);
-        color: var(--yyt-text);
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      }
-
-      .yyt-btn::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 42%, transparent 78%);
-        pointer-events: none;
-      }
-
-      .yyt-btn:hover {
-        transform: translateY(-1px);
-        border-color: var(--yyt-border-strong);
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      }
-
-      .yyt-btn:focus-visible {
-        outline: none;
-        box-shadow: var(--yyt-focus-ring), 0 14px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      }
-
-      .yyt-btn-primary {
-        background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
-        color: var(--yyt-on-accent);
-        border-color: rgba(255, 255, 255, 0.18);
-        box-shadow: 0 14px 30px rgba(123, 183, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-      }
-
-      .yyt-btn-primary:hover {
-        box-shadow: 0 18px 34px rgba(123, 183, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.34);
-      }
-
-      .yyt-btn-secondary {
-        background: linear-gradient(180deg, var(--yyt-surface-active) 0%, var(--yyt-surface-2) 100%);
-        color: var(--yyt-text);
-        border-color: rgba(255, 255, 255, 0.12);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.07);
-      }
-
-      .yyt-btn-secondary:hover {
-        background: linear-gradient(180deg, var(--yyt-surface-hover) 0%, var(--yyt-surface-active) 100%);
-        border-color: var(--yyt-border-strong);
-      }
-
-      .yyt-btn-danger {
-        background: linear-gradient(180deg, rgba(248, 113, 113, 0.22) 0%, rgba(248, 113, 113, 0.08) 100%);
-        color: var(--yyt-error);
-        border: 1px solid rgba(248, 113, 113, 0.34);
-        box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      }
-
-      .yyt-btn-small {
-        min-height: 32px;
-        padding: 7px 12px;
-        font-size: 12px;
-        border-radius: 11px;
-      }
-
-      /* 表单样式 */
-      .yyt-form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .yyt-form-group label {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--yyt-text-secondary);
-      }
-
-      .yyt-form-row {
-        display: flex;
-        gap: 12px;
-      }
-
-      .yyt-flex-1 {
-        flex: 1;
-      }
-
-      .yyt-input,
-      .yyt-select,
-      .yyt-textarea {
-        min-height: 42px;
-        padding: 11px 15px;
-        border: 1px solid var(--yyt-control-border);
-        border-radius: var(--yyt-control-radius);
-        background: var(--yyt-control-bg);
-        color: var(--yyt-text);
-        font-size: 13px;
-        box-shadow: var(--yyt-control-shadow);
-      }
-
-      .yyt-input:focus,
-      .yyt-select:focus,
-      .yyt-textarea:focus,
-      .yyt-input:focus-visible,
-      .yyt-select:focus-visible,
-      .yyt-textarea:focus-visible {
-        outline: none;
-        border-color: var(--yyt-control-border-focus);
-        background: var(--yyt-control-bg-focus);
-        box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
-      }
-
-      .yyt-input::placeholder,
-      .yyt-textarea::placeholder {
-        color: rgba(255, 255, 255, 0.42);
-      }
-
-      .yyt-custom-select {
-        position: relative;
-        isolation: isolate;
-        flex: 1;
-        min-width: 0;
-      }
-
-      .yyt-select-trigger,
-      .yyt-select-dropdown,
-      .yyt-select-option {
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        background-image: none !important;
-      }
-
-      .yyt-option-star,
-      .yyt-option-delete {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px;
-        height: 26px;
-        border: 1px solid transparent;
-        border-radius: 8px;
-        background: #1b2535 !important;
-        color: var(--yyt-text-muted);
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        flex-shrink: 0;
-      }
-
-      .yyt-option-star:hover {
-        color: var(--yyt-accent);
-        background: #243249 !important;
-        border-color: rgba(123, 183, 255, 0.18);
-      }
-
-      .yyt-option-delete:hover {
-        color: #fca5a5;
-        background: #3a2025 !important;
-        border-color: rgba(239, 68, 68, 0.18);
-      }
-
-      .yyt-option-star.yyt-starred {
-        color: #fbbf24;
-        background: #3b3120 !important;
-        border-color: rgba(251, 191, 36, 0.2);
-      }
-
-      .yyt-textarea {
-        resize: vertical;
-        min-height: 112px;
-      }
-
-      /* 面板底部 */
-      .yyt-panel-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding-top: 16px;
-        margin-top: 4px;
-        border-top: 1px solid var(--yyt-border);
-      }
-
-      .yyt-footer-left,
-      .yyt-footer-right {
-        display: flex;
-        gap: 8px;
-      }
-
-      /* 空状态 */
-      .yyt-empty-state-small {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-        color: var(--yyt-text-muted);
-        gap: 8px;
-      }
-
-      .yyt-empty-state-small i {
-        font-size: 24px;
-        opacity: 0.4;
-      }
-
-      .yyt-empty-state-small span {
-        font-size: 12px;
-      }
-
-      /* 子内容区域 */
-      .yyt-sub-content {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        height: 100%;
-      }
-
-      /* 工具窗口容器 */
-      .yyt-tool-window {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-      }
-
-      .yyt-compact-mode .yyt-popup-body {
-        padding: 12px 16px;
-      }
-
-      .yyt-compact-mode .yyt-panel {
-        gap: 14px;
-      }
-
-      .yyt-compact-mode .yyt-panel-section {
-        padding: 14px;
-        gap: 10px;
-      }
-
-      .yyt-no-animation *,
-      .yyt-no-animation *::before,
-      .yyt-no-animation *::after {
-        animation: none !important;
-        transition: none !important;
-      }
-
-      /* 响应式 */
-      @media screen and (max-width: 980px) {
-        .yyt-popup {
-          width: calc(100vw - 4px);
-          max-width: calc(100vw - 4px);
-          height: calc(100vh - 4px);
-          max-height: calc(100vh - 4px);
-        }
-
-        .yyt-shell-topbar {
-          grid-template-columns: 1fr;
-        }
-
-        .yyt-shell-topbar-side {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-          align-items: stretch;
-        }
-
-        .yyt-shell-stats {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .yyt-popup-header-actions {
-          gap: 8px;
-        }
-
-        .yyt-popup-drag-hint {
-          padding: 6px 10px;
-        }
-      }
-
-      @media screen and (max-width: 860px) {
-        .yyt-shell-workspace {
-          grid-template-columns: 1fr;
-        }
-
-        .yyt-shell-topbar-side {
-          grid-template-columns: 1fr;
-        }
-
-        .yyt-main-nav {
-          flex-direction: row;
-          overflow-x: auto;
-          overflow-y: hidden;
-          padding-bottom: 4px;
-        }
-
-        .yyt-main-nav-item {
-          min-width: 220px;
-        }
-      }
-
-      @media screen and (max-height: 860px) {
-        .yyt-popup {
-          height: calc(100vh - 4px);
-          max-height: calc(100vh - 4px);
-        }
-
-        .yyt-popup-body {
-          padding: 10px 12px;
-        }
-
-        .yyt-popup-shell {
-          gap: 8px;
-        }
-
-        .yyt-shell-topbar,
-        .yyt-shell-main-header,
-        .yyt-shell-sidebar-card {
-          padding: 12px;
-        }
-      }
-
-      @media screen and (max-width: 768px) {
-        .yyt-popup {
-          width: 100vw;
-          height: 100vh;
-          border-radius: 0;
-          border: none;
-        }
-
-        .yyt-popup-header-actions {
-          gap: 6px;
-        }
-
-        .yyt-popup-drag-hint {
-          display: none;
-        }
-
-        .yyt-popup-body {
-          padding: 10px 14px;
-        }
-
-        .yyt-shell-topbar,
-        .yyt-shell-main-header,
-        .yyt-shell-sidebar-card {
-          padding: 14px;
-          border-radius: 16px;
-        }
-
-        .yyt-shell-heading {
-          font-size: 20px;
-        }
-
-        .yyt-shell-main-header {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-
-        .yyt-shell-main-actions {
-          width: 100%;
-          justify-content: flex-start;
-          margin-left: 0;
-        }
-
-        .yyt-shell-stats {
-          grid-template-columns: 1fr;
-        }
-
-        .yyt-shell-topbar-side {
-          display: flex;
-        }
-
-        .yyt-main-nav {
-          flex-direction: column;
-          overflow: visible;
-        }
-
-        .yyt-main-nav-item {
-          min-width: 0;
-        }
-
-        .yyt-popup-footer {
-          flex-direction: column;
-          align-items: stretch;
-        }
-
-        .yyt-popup-footer-left,
-        .yyt-popup-footer-right {
-          width: 100%;
-          justify-content: center;
-        }
-
-        .yyt-popup-footer-note {
-          text-align: center;
-        }
-      }
+/**
+ * YouYou Toolkit - 主样式文件
+ * @description 抽离样式，包含主顶栏、次级顶栏、提示词编辑器和窗口样式
+ */
+
+/* ============================================================
+   CSS变量
+   ============================================================ */
+
+:root {
+  /* —— Accent & semantic —— */
+  --yyt-accent: #7bb7ff;
+  --yyt-accent-glow: rgba(123, 183, 255, 0.4);
+  --yyt-accent-soft: rgba(123, 183, 255, 0.15);
+  --yyt-accent-strong: #a5d4ff;
+  --yyt-on-accent: #0a0d13;
+  --yyt-success: #4ade80;
+  --yyt-success-glow: rgba(74, 222, 128, 0.3);
+  --yyt-error: #ef4444;
+  --yyt-danger: var(--yyt-error);
+  --yyt-danger-soft: rgba(239, 68, 68, 0.16);
+  --yyt-error-glow: rgba(239, 68, 68, 0.3);
+  --yyt-warning: #fbbf24;
+
+  /* —— Surface ladder (solid, no gradients) —— */
+  --yyt-bg-base: #0a0d13;
+  --yyt-surface: #0f1219;
+  --yyt-surface-2: #151a24;
+  --yyt-surface-3: #1c2231;
+  --yyt-surface-hover: #1c2231;
+  --yyt-surface-active: #232b3e;
+  --yyt-surface-raised: var(--yyt-surface-2);
+  --yyt-surface-overlay: var(--yyt-surface-3);
+  --yyt-surface-elevated: var(--yyt-surface-active);
+
+  /* —— Borders (two-level hairline) —— */
+  --yyt-border: rgba(255, 255, 255, 0.06);
+  --yyt-border-soft: rgba(255, 255, 255, 0.04);
+  --yyt-border-strong: rgba(255, 255, 255, 0.12);
+  --yyt-border-subtle: var(--yyt-border-soft);
+  --yyt-border-default: var(--yyt-border);
+  --yyt-border-emphasis: var(--yyt-border-strong);
+  --yyt-border-focus: rgba(123, 183, 255, 0.5);
+
+  /* —— Text —— */
+  --yyt-text: rgba(255, 255, 255, 0.92);
+  --yyt-text-secondary: rgba(255, 255, 255, 0.55);
+  --yyt-text-muted: rgba(255, 255, 255, 0.35);
+  --yyt-color-text-primary: var(--yyt-text);
+  --yyt-color-text-secondary: var(--yyt-text-secondary);
+  --yyt-color-text-muted: var(--yyt-text-muted);
+  --yyt-color-accent: var(--yyt-accent);
+
+  /* —— Focus (double-ring) —— */
+  --yyt-focus-ring: 0 0 0 2px rgba(123, 183, 255, 1), 0 0 0 4px rgba(123, 183, 255, 0.15);
+
+  /* —— Radii (strict outer > inner) —— */
+  --yyt-radius-xs: 4px;
+  --yyt-radius-sm: 6px;
+  --yyt-radius: 8px;
+  --yyt-radius-lg: 12px;
+  --yyt-radius-xl: 16px;
+  --yyt-control-radius: 6px;
+  --yyt-control-radius-sm: 4px;
+
+  /* —— Shadows (floating elements only) —— */
+  --yyt-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --yyt-shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --yyt-shadow-glow: 0 0 16px var(--yyt-accent-glow);
+
+  /* —— Controls (solid, no gradients) —— */
+  --yyt-control-bg: var(--yyt-surface);
+  --yyt-control-bg-hover: var(--yyt-surface-2);
+  --yyt-control-bg-active: var(--yyt-surface-3);
+  --yyt-control-bg-strong: var(--yyt-surface-2);
+  --yyt-control-bg-focus: var(--yyt-surface-2);
+  --yyt-control-border: rgba(255, 255, 255, 0.08);
+  --yyt-control-border-hover: rgba(255, 255, 255, 0.14);
+  --yyt-control-border-focus: rgba(123, 183, 255, 0.5);
+  --yyt-control-shadow: none;
+  --yyt-control-shadow-hover: none;
+  --yyt-control-shadow-focus: none;
+  --yyt-control-shadow-active: none;
+
+  /* —— Select/Dropdown —— */
+  --yyt-select-surface: #151a24;
+  --yyt-select-option-bg: #1c2231;
+  --yyt-select-option-hover-bg: #232b3e;
+  --yyt-select-option-selected-bg: #2a3450;
+  --yyt-select-option-border: rgba(123, 183, 255, 0.15);
+  --yyt-select-option-selected-border: rgba(123, 183, 255, 0.3);
+  --yyt-select-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --yyt-select-arrow-color: rgba(255, 255, 255, 0.4);
+
+  /* —— Startup (one decorative accent allowed) —— */
+  --yyt-startup-overlay: rgba(6, 8, 16, 0.8);
+  --yyt-startup-panel-border: rgba(255, 255, 255, 0.08);
+  --yyt-startup-panel-bg:
+    radial-gradient(500px 200px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 60%),
+    #0f1219;
+  --yyt-startup-panel-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --yyt-startup-chip-bg: rgba(255, 255, 255, 0.05);
+  --yyt-startup-chip-border: rgba(255, 255, 255, 0.08);
+  --yyt-startup-status-bg: rgba(255, 255, 255, 0.05);
+  --yyt-startup-status-border: rgba(255, 255, 255, 0.08);
+  --yyt-startup-status-text: rgba(255, 255, 255, 0.8);
+  --yyt-startup-kicker-bg: rgba(123, 183, 255, 0.1);
+  --yyt-startup-kicker-border: rgba(123, 183, 255, 0.2);
+
+  /* —— Motion —— */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --yyt-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --yyt-duration-fast: 150ms;
+  --yyt-duration-normal: 250ms;
+
+  /* —— Typography scale —— */
+  --yyt-text-xs: 10px;
+  --yyt-text-sm: 11px;
+  --yyt-text-base: 13px;
+  --yyt-text-md: 14px;
+  --yyt-text-lg: 16px;
+  --yyt-text-xl: 20px;
+  --yyt-text-2xl: 24px;
+
+  /* —— Layout —— */
+  --yyt-shell-sidebar-width: 220px;
+  --yyt-shell-topbar-gap: 12px;
+  --yyt-shell-gap: 0px;
+  --yyt-panel-gap: 0px;
+  --yyt-backdrop: rgba(6, 8, 16, 0.75);
+}
+
+/* ============================================================
+   基础布局
+   ============================================================ */
+
+.yyt-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+  color: var(--yyt-text);
+}
+
+/* ============================================================
+   主顶栏样式
+   ============================================================ */
+
+.yyt-main-nav {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: transparent;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid var(--yyt-border-soft);
+  flex-shrink: 0;
+}
+
+.yyt-main-nav-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  color: var(--yyt-text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid transparent;
+}
+
+.yyt-main-nav-item:hover {
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--yyt-border-soft);
+}
+
+.yyt-main-nav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring);
+}
+
+.yyt-main-nav-item.active {
+  color: var(--yyt-on-accent);
+  background: var(--yyt-accent);
+  box-shadow: none;
+}
+
+.yyt-main-nav-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.yyt-main-nav-item.active .yyt-main-nav-icon {
+  background: rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.yyt-main-nav-item i {
+  font-size: 15px;
+  transition: transform 0.22s ease;
+}
+
+.yyt-main-nav-item:hover i {
+  transform: scale(1.08);
+}
+
+.yyt-main-nav-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.yyt-main-nav-name {
+  font-size: var(--yyt-text-base);
+  font-weight: 700;
+  color: inherit;
+}
+
+.yyt-main-nav-desc {
+  font-size: var(--yyt-text-sm);
+  line-height: 1.5;
+  color: inherit;
+  opacity: 0.74;
+}
+
+/* ============================================================
+   次级顶栏样式
+   ============================================================ */
+
+.yyt-sub-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px;
+  background: transparent;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border: 1px solid var(--yyt-border-soft);
+  flex-shrink: 0;
+}
+
+.yyt-sub-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 260px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  box-shadow: none;
+}
+
+.yyt-sub-nav-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.42px;
+  text-transform: uppercase;
+  color: var(--yyt-text-muted);
+}
+
+.yyt-sub-nav-group-title::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
+}
+
+.yyt-sub-nav-group-ai .yyt-sub-nav-group-title::before {
+  background: var(--yyt-accent);
+  box-shadow: 0 0 0 3px var(--yyt-accent-soft);
+}
+
+.yyt-sub-nav-group-script .yyt-sub-nav-group-title::before {
+  background: rgba(251, 191, 36, 0.92);
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
+}
+
+.yyt-sub-nav-group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.yyt-sub-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  color: var(--yyt-text-secondary);
+  font-weight: 700;
+  font-size: var(--yyt-text-sm);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.yyt-sub-nav-item:hover {
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--yyt-border-soft);
+  transform: translateY(-1px);
+}
+
+.yyt-sub-nav-item.active {
+  color: var(--yyt-accent);
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
+  box-shadow: 0 10px 20px rgba(11, 20, 34, 0.16);
+}
+
+.yyt-sub-nav-item i {
+  font-size: 12px;
+}
+
+/* ============================================================
+   内容区域
+   ============================================================ */
+
+.yyt-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border-radius: calc(var(--yyt-radius-lg) - 2px);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.yyt-page {
+  display: none;
+  animation: yytSlideUp 0.3s var(--ease-out);
+}
+
+/* —— Phase E2: 统一动画 keyframes —— */
+@keyframes yytFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes yytSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes yytScaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.yyt-page.active {
+  display: block;
+}
+
+/* ============================================================
+   面板样式
+   ============================================================ */
+
+.yyt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yyt-panel-gap);
+}
+
+.yyt-panel-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  box-shadow: none;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.yyt-panel-section:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: transparent;
+  box-shadow: none;
+}
+
+.yyt-panel-section > .yyt-section-title + * {
+  min-width: 0;
+}
+
+.yyt-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: var(--yyt-text-sm);
+  color: var(--yyt-color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.yyt-section-title i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  color: var(--yyt-accent);
+  font-size: 14px;
+  background: var(--yyt-accent-soft);
+  border: 1px solid var(--yyt-accent-soft);
+  
+}
+
+/* ============================================================
+   按钮样式
+   ============================================================ */
+
+.yyt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 10px 16px;
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg-strong);
+  color: var(--yyt-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, filter 0.18s ease;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.2px;
+  box-shadow: var(--yyt-control-shadow);
+}
+
+.yyt-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.yyt-btn::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.025);
+  pointer-events: none;
+}
+
+.yyt-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+  box-shadow: var(--yyt-control-shadow-hover);
+}
+
+.yyt-btn:active {
+  transform: translateY(0) scale(0.98);
+  background: var(--yyt-control-bg-active);
+  box-shadow: var(--yyt-control-shadow-active);
+  filter: saturate(0.98);
+}
+
+.yyt-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
+}
+
+.yyt-btn-primary {
+  background: var(--yyt-accent);
+  color: var(--yyt-on-accent);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+.yyt-btn-primary:hover {
+  background: var(--yyt-accent-strong);
+  box-shadow: none;
+}
+
+.yyt-btn-primary:active {
+  background: var(--yyt-accent);
+}
+
+.yyt-btn-secondary {
+  background: var(--yyt-surface-2);
+  color: var(--yyt-text);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.yyt-btn-secondary:hover {
+  background: var(--yyt-surface-3);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.yyt-btn-danger {
+  background: var(--yyt-danger-soft);
+  color: #ffb4b4;
+  border-color: rgba(248, 113, 113, 0.32);
+  box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12);
+}
+
+.yyt-btn-danger:hover {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: rgba(248, 113, 113, 0.42);
+  box-shadow: 0 16px 30px rgba(248, 113, 113, 0.16);
+}
+
+.yyt-btn-icon {
+  padding: 0;
+  width: 40px;
+  min-width: 40px;
+}
+
+.yyt-btn-small {
+  min-height: 34px;
+  padding: 7px 12px;
+  font-size: 12px;
+  border-radius: var(--yyt-control-radius-sm);
+}
+
+.yyt-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* ============================================================
+   表单样式
+   ============================================================ */
+
+.yyt-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yyt-form-group label {
+  font-size: var(--yyt-text-sm);
+  font-weight: 600;
+  color: var(--yyt-color-text-secondary);
+  letter-spacing: 0.3px;
+}
+
+.yyt-form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.yyt-flex-1 {
+  flex: 1;
+}
+
+.yyt-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+.yyt-checkbox-label > span {
+  color: var(--yyt-text);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.yyt-checkbox-label > span:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.yyt-checkbox-label input[type="checkbox"],
+.yyt-checkbox-label input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--yyt-accent);
+}
+
+.yyt-checkbox-label input[type="checkbox"]:focus-visible,
+.yyt-checkbox-label input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring);
+  border-radius: 6px;
+}
+
+.yyt-worldbook-item .yyt-checkbox-label,
+.yyt-form-group > .yyt-checkbox-label {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.yyt-worldbook-item .yyt-checkbox-label:hover,
+.yyt-form-group > .yyt-checkbox-label:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.065);
+  box-shadow: none;
+}
+
+/* 输入框 */
+.yyt-input,
+.yyt-select,
+.yyt-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  padding: 11px 15px;
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg);
+  color: var(--yyt-text);
+  font-size: 13px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  box-shadow: var(--yyt-control-shadow);
+}
+
+.yyt-select {
+  --yyt-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a8b7ca' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color: var(--yyt-text);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg);
+  padding-right: 36px;
+}
+
+.yyt-input:hover,
+.yyt-select:hover,
+.yyt-textarea:not(.yyt-code-textarea):hover {
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+  box-shadow: var(--yyt-control-shadow-hover);
+}
+
+.yyt-select:hover {
+  color: var(--yyt-text);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg-hover);
+}
+
+.yyt-input:focus,
+.yyt-select:focus,
+.yyt-textarea:not(.yyt-code-textarea):focus,
+.yyt-input:focus-visible,
+.yyt-select:focus-visible,
+.yyt-textarea:not(.yyt-code-textarea):focus-visible {
+  outline: none;
+  border-color: var(--yyt-control-border-focus);
+  background: var(--yyt-control-bg-focus);
+  box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
+}
+
+.yyt-select:focus,
+.yyt-select:focus-visible {
+  color: var(--yyt-text);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-control-bg-focus);
+}
+
+.yyt-select:disabled {
+  color: var(--yyt-text-muted);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-surface);
+  cursor: not-allowed;
+}
+
+.yyt-select option,
+.yyt-select optgroup {
+  background: var(--yyt-surface);
+  color: var(--yyt-text);
+}
+
+.yyt-select option:checked,
+.yyt-select option[selected] {
+  background: var(--yyt-surface-3);
+  color: #f5fbff;
+}
+
+.yyt-select option:disabled {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.yyt-select optgroup {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.yyt-textarea.yyt-code-textarea {
+  color: var(--yyt-text);
+  caret-color: var(--yyt-accent-strong);
+  background: #080a10;
+}
+
+.yyt-textarea.yyt-code-textarea:hover,
+.yyt-textarea.yyt-code-textarea:focus,
+.yyt-textarea.yyt-code-textarea:focus-visible {
+  color: var(--yyt-text);
+  caret-color: var(--yyt-accent-strong);
+  border-color: var(--yyt-border-focus);
+  background: #080a10;
+}
+
+.yyt-input::placeholder,
+.yyt-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.yyt-textarea {
+  resize: vertical;
+  min-height: 112px;
+  line-height: 1.65;
+}
+
+/* Toggle开关 */
+.yyt-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: none;
+}
+
+.yyt-toggle-row:hover {
+  background: var(--yyt-surface);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+.yyt-toggle-label {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yyt-toggle-label > span:first-child {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--yyt-text);
+  line-height: 1.45;
+}
+
+.yyt-toggle-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.56);
+  line-height: 1.55;
+}
+
+.yyt-toggle {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 30px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.yyt-toggle.yyt-small {
+  width: 46px;
+  height: 26px;
+}
+
+.yyt-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.yyt-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--yyt-surface-3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  transition: all 0.28s var(--ease-in-out);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+.yyt-toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.28s var(--ease-in-out);
+  box-shadow: none;
+}
+
+.yyt-toggle.yyt-small .yyt-toggle-slider::before {
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  bottom: 3px;
+}
+
+.yyt-toggle input:focus-visible + .yyt-toggle-slider {
+  box-shadow: var(--yyt-focus-ring), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+.yyt-toggle input:checked + .yyt-toggle-slider {
+  background: var(--yyt-accent);
+  border-color: var(--yyt-accent);
+  box-shadow: none;
+}
+
+.yyt-toggle input:checked + .yyt-toggle-slider::before {
+  transform: translateX(22px);
+}
+
+.yyt-toggle.yyt-small input:checked + .yyt-toggle-slider::before {
+  transform: translateX(20px);
+}
+
+/* ============================================================
+   预设选择器样式
+   ============================================================ */
+
+.yyt-preset-selector {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.yyt-custom-select {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  min-width: 0;
+}
+
+.yyt-select-fixed-width {
+  flex: 0 0 auto;
+  width: 176px;
+  min-width: 176px;
+}
+
+.yyt-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 11px 15px;
+  border: 1px solid var(--yyt-control-border);
+  border-radius: var(--yyt-control-radius);
+  background: var(--yyt-control-bg);
+  color: var(--yyt-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, transform 0.22s ease;
+  box-shadow: var(--yyt-control-shadow);
+}
+
+.yyt-select-trigger:hover {
+  border-color: var(--yyt-control-border-hover);
+  background: var(--yyt-control-bg-hover);
+  box-shadow: var(--yyt-control-shadow-hover);
+}
+
+.yyt-custom-select.yyt-open .yyt-select-trigger {
+  border-color: var(--yyt-control-border-focus);
+  background: var(--yyt-control-bg-focus);
+  box-shadow: var(--yyt-focus-ring), var(--yyt-control-shadow-focus);
+}
+
+.yyt-select-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yyt-select-arrow {
+  color: var(--yyt-select-arrow-color);
+  transition: transform 0.2s ease, color 0.2s ease;
+  margin-left: 8px;
+}
+
+.yyt-custom-select.yyt-open .yyt-select-arrow {
+  transform: rotate(180deg);
+  color: var(--yyt-accent-strong);
+}
+
+.yyt-select-portal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  pointer-events: none;
+}
+
+.yyt-select-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  min-width: 100%;
+  padding: 0;
+  background: var(--yyt-select-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--yyt-control-border-hover);
+  border-radius: 6px;
+  box-shadow: var(--yyt-select-dropdown-shadow);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  z-index: 3200;
+  opacity: 0;
+  pointer-events: none;
+  transition: max-height 0.25s var(--ease-in-out), opacity 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
+}
+
+.yyt-custom-select.yyt-open .yyt-select-dropdown,
+.yyt-select-dropdown.yyt-floating-open {
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  opacity: 1;
+  padding: 8px;
+  pointer-events: auto;
+}
+
+.yyt-select-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  margin: 0;
+  background: var(--yyt-select-option-bg) !important;
+  background-image: none !important;
+  color: var(--yyt-text);
+}
+
+.yyt-select-option:hover {
+  background: var(--yyt-select-option-hover-bg) !important;
+  background-image: none !important;
+  border-color: var(--yyt-select-option-border);
+  transform: translateY(-1px);
+}
+
+.yyt-select-option.yyt-selected {
+  background: var(--yyt-select-option-selected-bg) !important;
+  background-image: none !important;
+  border-color: var(--yyt-select-option-selected-border);
+  box-shadow: none;
+}
+
+.yyt-option-star,
+.yyt-option-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--yyt-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.yyt-option-star:hover {
+  color: var(--yyt-accent);
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
+}
+
+.yyt-option-delete:hover {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+.yyt-option-star.yyt-starred {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.yyt-option-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--yyt-text);
+  font-size: 13px;
+}
+
+/* 预设列表 */
+.yyt-preset-list-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.yyt-preset-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 14px;
+  background: var(--yyt-surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 6px;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: none;
+}
+
+.yyt-preset-item:hover {
+  background: var(--yyt-surface-3);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+}
+
+.yyt-preset-item.active {
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
+  box-shadow: none;
+}
+
+.yyt-preset-item.yyt-loaded {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.34);
+  box-shadow: 0 14px 24px rgba(74, 222, 128, 0.1);
+}
+
+.yyt-preset-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yyt-preset-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--yyt-text);
+}
+
+.yyt-preset-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.yyt-preset-actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0.58;
+  transition: opacity 0.2s ease;
+}
+
+.yyt-preset-item:hover .yyt-preset-actions {
+  opacity: 1;
+}
+
+/* 徽章 */
+.yyt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: var(--yyt-text-sm);
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--yyt-surface-2);
+  color: var(--yyt-color-text-secondary);
+}
+
+.yyt-badge-small {
+  padding: 3px 8px;
+  font-size: 10px;
+  background: var(--yyt-accent-soft);
+  color: var(--yyt-accent-strong);
+  border: 1px solid var(--yyt-accent-soft);
+}
+
+/* ============================================================
+   对话框样式
+   ============================================================ */
+
+.yyt-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(12px) saturate(1.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  z-index: 10001;
+  animation: yytFadeIn 0.2s var(--ease-out);
+}
+
+.yyt-dialog {
+  background: var(--yyt-bg-base);
+  border: 1px solid var(--yyt-border-strong);
+  border-radius: var(--yyt-radius);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+  width: 380px;
+  max-width: 90vw;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: yytScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.yyt-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--yyt-border);
+}
+
+.yyt-dialog-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--yyt-text);
+}
+
+.yyt-dialog-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--yyt-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.yyt-dialog-close:hover {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--yyt-error);
+}
+
+.yyt-dialog-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.yyt-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-dialog-wide {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.yyt-dialog-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.yyt-dialog-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.yyt-dialog-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+
+.yyt-dialog-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* ============================================================
+   面板底部
+   ============================================================ */
+
+.yyt-panel-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  margin-top: 4px;
+  border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-footer-left,
+.yyt-footer-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* ============================================================
+   空状态
+   ============================================================ */
+
+.yyt-empty-state-small {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--yyt-text-muted);
+  gap: 8px;
+}
+
+.yyt-empty-state-small i {
+  font-size: 24px;
+  opacity: 0.4;
+}
+
+.yyt-empty-state-small span {
+  font-size: 12px;
+}
+
+/* ============================================================
+   禁用状态
+   ============================================================ */
+
+.yyt-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
+/* ============================================================
+   滚动条样式
+   ============================================================ */
+
+.yyt-panel::-webkit-scrollbar,
+.yyt-content::-webkit-scrollbar,
+.yyt-select-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.yyt-panel::-webkit-scrollbar-track,
+.yyt-content::-webkit-scrollbar-track,
+.yyt-select-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.yyt-panel::-webkit-scrollbar-thumb,
+.yyt-content::-webkit-scrollbar-thumb,
+.yyt-select-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.yyt-panel::-webkit-scrollbar-thumb:hover,
+.yyt-content::-webkit-scrollbar-thumb:hover,
+.yyt-select-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================
+   动画
+   ============================================================ */
+
+.yyt-panel-section {
+  animation: yytSlideUp 0.25s var(--ease-out) backwards;
+}
+
+.yyt-panel-section:nth-child(1) { animation-delay: 0s; }
+.yyt-panel-section:nth-child(2) { animation-delay: 0.05s; }
+.yyt-panel-section:nth-child(3) { animation-delay: 0.1s; }
+
+/* ============================================================
+   主弹窗样式
+   ============================================================ */
+
+.yyt-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--yyt-backdrop);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  z-index: 9999;
+  animation: yytFadeIn 0.2s var(--ease-out);
+}
+
+.yyt-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  width: min(1500px, calc(100vw - 12px));
+  max-width: calc(100vw - 12px);
+  height: min(1120px, calc(100vh - 12px));
+  max-height: calc(100vh - 12px);
+  background: var(--yyt-bg-base);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 28px 84px rgba(0, 0, 0, 0.58),
+    0 0 80px var(--yyt-accent-soft);
+  animation: yytScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+  color: var(--yyt-text);
+  z-index: 10000;
+}
+
+.yyt-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--yyt-surface);
+  border-bottom: 1px solid var(--yyt-border);
+  border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+.yyt-popup-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.yyt-popup-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.yyt-popup.yyt-popup-dragging .yyt-popup-header {
+  cursor: grabbing;
+}
+
+.yyt-popup-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--yyt-text);
+  min-width: 0;
+}
+
+.yyt-popup-title span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yyt-popup-version {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--yyt-accent);
+  background: var(--yyt-accent-soft);
+  border: 1px solid var(--yyt-accent-soft);
+  flex-shrink: 0;
+}
+
+.yyt-popup-subtitle {
+  font-size: 12px;
+  color: var(--yyt-text-muted);
+  letter-spacing: 0.3px;
+}
+
+.yyt-popup-title i {
+  color: var(--yyt-accent);
+  font-size: 18px;
+  
+}
+
+.yyt-popup-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.yyt-popup-drag-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--yyt-text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+.yyt-popup-drag-hint i {
+  color: var(--yyt-accent);
+}
+
+.yyt-popup-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--yyt-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--yyt-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  font-size: 14px;
+}
+
+.yyt-popup-close:hover {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.2);
+  color: #ff6b6b;
+}
+
+.yyt-popup-body {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 16px;
+  overflow: hidden;
+}
+
+.yyt-popup-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.yyt-content-frame {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 5px;
+  border-radius: var(--yyt-radius-xl);
+  background: var(--yyt-surface);
+}
+
+.yyt-content-frame .yyt-content {
+  height: 100%;
+}
+
+.yyt-content-inner {
+  min-height: 100%;
+  height: 100%;
+}
+
+.yyt-startup-screen {
+  position: absolute;
+  inset: 16px 18px;
+  z-index: 3;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 18px;
+  border-radius: 8px;
+  background: var(--yyt-startup-overlay);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.38);
+}
+
+.yyt-startup-screen-inner {
+  width: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 30px 32px;
+  border-radius: 12px;
+  border: 1px solid var(--yyt-startup-panel-border);
+  background: var(--yyt-startup-panel-bg);
+  box-shadow: var(--yyt-startup-panel-shadow);
+}
+
+.yyt-startup-screen-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.52px;
+  text-transform: uppercase;
+  color: var(--yyt-accent-strong);
+  background: var(--yyt-startup-kicker-bg);
+  border: 1px solid var(--yyt-startup-kicker-border);
+}
+
+.yyt-startup-screen-title {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.5px;
+  color: var(--yyt-text);
+}
+
+.yyt-startup-screen-desc {
+  max-width: 62ch;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--yyt-text-secondary);
+}
+
+.yyt-startup-screen-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.yyt-startup-module-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+  border-radius: 6px;
+  background: var(--yyt-startup-chip-bg);
+  border: 1px solid var(--yyt-startup-chip-border);
+  color: var(--yyt-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.yyt-startup-module-chip i {
+  color: var(--yyt-accent-strong);
+}
+
+.yyt-startup-screen-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: var(--yyt-startup-status-bg);
+  border: 1px solid var(--yyt-startup-status-border);
+  color: var(--yyt-startup-status-text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.yyt-startup-screen-status i {
+  color: var(--yyt-accent-strong);
+}
+
+.yyt-startup-enter {
+  align-self: flex-start;
+  min-width: 148px;
+}
+
+.yyt-popup-shell[data-yyt-startup-visible="true"] .yyt-shell-workspace {
+  filter: blur(1px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.yyt-shell-topbar {
+  position: relative;
+  isolation: isolate;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--yyt-surface);
+}
+
+.yyt-shell-topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  display: none;
+  pointer-events: none;
+  opacity: 0.82;
+}
+
+.yyt-shell-topbar-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.yyt-shell-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--yyt-accent-soft);
+  border: 1px solid var(--yyt-accent-soft);
+  color: var(--yyt-accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.yyt-shell-topbar-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.yyt-shell-topbar-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--yyt-text);
+}
+
+.yyt-shell-topbar-meta {
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.yyt-shell-current-desc {
+  font-size: 12px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.yyt-shell-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(84px, 1fr));
+  gap: 10px;
+  align-self: stretch;
+}
+
+.yyt-shell-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 84px;
+  padding: 16px 14px 14px;
+  border-radius: 8px;
+  background: var(--yyt-surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.yyt-shell-stat-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.54);
+  letter-spacing: 0.48px;
+  text-transform: uppercase;
+}
+
+.yyt-shell-stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--yyt-text);
+}
+
+.yyt-shell-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(230px, var(--yyt-shell-sidebar-width)) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.yyt-shell-sidebar {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.yyt-shell-sidebar-card {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--yyt-surface);
+  box-shadow: none;
+}
+
+.yyt-shell-sidebar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.yyt-shell-sidebar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--yyt-text);
+}
+
+.yyt-shell-sidebar-hint {
+  font-size: 10px;
+  color: var(--yyt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.yyt-shell-sidebar .yyt-main-nav {
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin-bottom: 0;
+  background: transparent;
+  border: none;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+  background: transparent;
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item::before {
+  content: '';
+  position: absolute;
+  inset: 10px auto 10px 0;
+  width: 4px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item.active {
+  color: var(--yyt-text);
+  border-color: var(--yyt-accent-soft);
+  background: var(--yyt-accent-soft);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item.active::before {
+  background: var(--yyt-accent);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item.active .yyt-main-nav-icon {
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
+}
+
+.yyt-shell-sidebar-note {
+  padding: 13px 14px;
+  border-radius: 6px;
+  border: 1px dashed var(--yyt-accent-soft);
+  background: var(--yyt-accent-soft);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.yyt-shell-main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.yyt-shell-main-header {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  box-shadow: none;
+}
+
+.yyt-shell-main-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.yyt-shell-main-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.yyt-shell-main-heading-block {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.yyt-shell-main-label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.yyt-shell-main-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.58);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.yyt-shell-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  max-width: 100%;
+}
+
+.yyt-shell-main-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.3px;
+  color: var(--yyt-text);
+}
+
+.yyt-shell-main-description {
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 68ch;
+}
+
+.yyt-shell-main-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--yyt-text);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: none;
+}
+
+.yyt-shell-main-save-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.yyt-shell-main-meta i {
+  color: var(--yyt-accent-strong);
+}
+
+.yyt-popup-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 22px;
+  background: var(--yyt-surface);
+  border-top: 1px solid var(--yyt-border);
+  border-radius: 0 0 12px 12px;
+  flex-shrink: 0;
+}
+
+.yyt-popup-footer-left,
+.yyt-popup-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yyt-popup-footer-left {
+  min-width: 0;
+}
+
+.yyt-popup-status-cluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.yyt-popup-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.yyt-popup-status i {
+  color: var(--yyt-accent-strong);
+}
+
+.yyt-popup-footer-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.yyt-shell-sidebar .yyt-main-nav,
+.yyt-sub-nav,
+.yyt-content,
+.yyt-tab-content,
+.yyt-sub-content {
+  overscroll-behavior: contain;
+}
+
+.yyt-scrollable-surface {
+  cursor: grab;
+}
+
+.yyt-scrollable-surface.yyt-scroll-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* 标签内容 */
+.yyt-tab-content {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.yyt-tab-content.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 子内容区域 */
+.yyt-sub-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* 工具窗口容器 */
+.yyt-tool-window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.yyt-compact-mode .yyt-popup-body {
+  padding: 12px 16px;
+}
+
+.yyt-compact-mode .yyt-panel {
+  gap: 14px;
+}
+
+.yyt-compact-mode .yyt-panel-section {
+  padding: 14px;
+  gap: 10px;
+}
+
+.yyt-no-animation *,
+.yyt-no-animation *::before,
+.yyt-no-animation *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 980px) {
+  .yyt-shell-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .yyt-shell-topbar-main {
+    align-items: flex-start;
+  }
+
+  .yyt-shell-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .yyt-popup-header {
+    padding: 12px 16px;
+  }
+
+  .yyt-popup-body {
+    padding: 12px 14px;
+  }
+
+  .yyt-startup-screen {
+    inset: 12px 14px;
+    padding: 14px;
+  }
+
+  .yyt-startup-screen-inner {
+    padding: 24px 22px;
+  }
+
+  .yyt-popup-header-actions {
+    gap: 8px;
+  }
+
+  .yyt-popup-drag-hint {
+    padding: 6px 10px;
+  }
+}
+
+@media screen and (max-height: 860px) {
+  .yyt-popup {
+    height: calc(100vh - 4px);
+    max-height: calc(100vh - 4px);
+  }
+
+  .yyt-popup-body {
+    padding: 10px 12px;
+  }
+
+  .yyt-popup-shell {
+    gap: 8px;
+  }
+
+  .yyt-shell-topbar,
+  .yyt-shell-main-header,
+  .yyt-shell-sidebar-card {
+    padding: 12px;
+  }
+
+  .yyt-shell-topbar-title,
+  .yyt-shell-main-description {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .yyt-shell-stat {
+    padding: 8px 10px;
+  }
+
+  .yyt-shell-stat-value {
+    font-size: 16px;
+  }
+
+  .yyt-startup-screen {
+    inset: 10px 12px;
+    padding: 12px;
+  }
+
+  .yyt-startup-screen-inner {
+    gap: 14px;
+    padding: 22px 20px;
+  }
+
+  .yyt-startup-screen-desc {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+}
+
+@media screen and (max-width: 860px) {
+  .yyt-shell-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .yyt-shell-sidebar .yyt-main-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+  }
+
+  .yyt-shell-sidebar .yyt-main-nav-item {
+    min-width: 220px;
+  }
+
+  .yyt-startup-screen {
+    inset: 12px;
+    padding: 12px;
+  }
+
+  .yyt-startup-screen-inner {
+    padding: 22px 18px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .yyt-dialog-overlay {
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .yyt-dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 20px);
+  }
+
+  .yyt-dialog-body {
+    padding: 16px;
+  }
+
+  .yyt-dialog-footer,
+  .yyt-dialog-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .yyt-popup {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .yyt-popup-header {
+    border-radius: 0;
+    padding: 10px 14px;
+    align-items: flex-start;
+  }
+
+  .yyt-popup-header-actions {
+    gap: 6px;
+  }
+
+  .yyt-popup-drag-hint {
+    display: none;
+  }
+
+  .yyt-popup-body {
+    padding: 10px 14px;
+  }
+
+  .yyt-shell-topbar,
+  .yyt-shell-main-header,
+  .yyt-shell-sidebar-card {
+    padding: 14px;
+    border-radius: 8px;
+  }
+
+  .yyt-shell-topbar-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .yyt-shell-topbar-title {
+    font-size: 16px;
+  }
+
+  .yyt-shell-main-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .yyt-shell-main-actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .yyt-shell-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .yyt-shell-sidebar .yyt-main-nav {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .yyt-shell-sidebar .yyt-main-nav-item {
+    min-width: 0;
+  }
+
+  .yyt-main-nav-item {
+    padding: 12px 14px;
+  }
+
+  .yyt-main-nav-desc {
+    font-size: 10px;
+  }
+
+  .yyt-startup-screen {
+    inset: 10px 14px;
+    padding: 10px;
+    border-radius: 6px;
+  }
+
+  .yyt-startup-screen-inner {
+    padding: 20px 16px;
+    border-radius: 8px;
+  }
+
+  .yyt-startup-screen-status {
+    width: 100%;
+  }
+
+  .yyt-startup-enter {
+    align-self: stretch;
+  }
+
+  .yyt-popup-footer {
+    border-radius: 0;
+    padding: 10px 14px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .yyt-popup-footer-left,
+  .yyt-popup-footer-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .yyt-popup-footer-note {
+    text-align: center;
+  }
+}
+
+/* ============================================================
+   Shell polish: tab transitions, sidebar collapse, micro-interactions
+   ============================================================ */
+
+/* ---- Tab content enter animation ---- */
+.yyt-tab-content.active {
+  animation: yytSlideUp 0.22s var(--ease-out);
+}
+
+/* ---- Sidebar collapse system ---- */
+.yyt-shell-sidebar {
+  transition: width 0.28s var(--ease-in-out);
+  width: var(--yyt-shell-sidebar-width);
+}
+
+.yyt-shell-sidebar.yyt-collapsed {
+  width: 56px;
+}
+
+.yyt-shell-workspace {
+  transition: grid-template-columns 0.28s var(--ease-in-out);
+}
+
+.yyt-shell-workspace.yyt-sidebar-collapsed {
+  grid-template-columns: 56px minmax(0, 1fr);
+}
+
+/* Collapsed sidebar: hide all text, keep icons only */
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-name,
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-desc,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-note,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-title,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-hint,
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-stats {
+  display: none;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-item {
+  padding: 14px 10px;
+  justify-content: center;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-copy {
+  display: none;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-shell-sidebar-card {
+  padding: 12px 8px;
+}
+
+.yyt-shell-sidebar.yyt-collapsed .yyt-main-nav-item::before {
+  display: none;
+}
+
+/* ---- Sidebar collapse toggle button ---- */
+.yyt-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--yyt-text-muted);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.yyt-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--yyt-text);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.yyt-sidebar-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring);
+}
+
+/* ---- Compact sidebar stats ---- */
+.yyt-shell-sidebar-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.yyt-shell-sidebar-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.yyt-shell-sidebar-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--yyt-text);
+}
+
+.yyt-shell-sidebar-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--yyt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ---- Shell main heading block ---- */
+.yyt-shell-main-heading-block {
+  gap: 6px;
+}
+
+.yyt-shell-breadcrumb {
+  /* breadcrumb removed from main header — now only sidebar active state shows location */
+}
+
+/* ---- Footer compact ---- */
+.yyt-popup-footer {
+  padding: 8px 20px;
+}
+
+.yyt-popup-footer-left {
+  gap: 8px;
+}
+
+/* ---- Sub-content enter animation ---- */
+.yyt-sub-content {
+  animation: yytSlideUp 0.2s var(--ease-out);
+}
+
+/* ---- Nav item micro-interactions ---- */
+.yyt-shell-sidebar .yyt-main-nav-item {
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, padding 0.28s var(--ease-in-out);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item::before {
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item:hover {
+  transform: translateX(2px);
+}
+
+.yyt-shell-sidebar .yyt-main-nav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--yyt-focus-ring);
+}
+
+/* ---- Shell workspace gap ---- */
+.yyt-shell-workspace {
+  gap: 12px;
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Responsive: collapsed sidebar on narrow screens ---- */
+@media screen and (max-width: 860px) {
+  .yyt-shell-sidebar.yyt-collapsed {
+    width: 100%;
+  }
+
+  .yyt-shell-workspace.yyt-sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .yyt-sidebar-toggle {
+    display: none;
+  }
+}
     `;
   }
+
 
   async function injectStyles() {
     const styleId = `${SCRIPT_ID}-styles`;
