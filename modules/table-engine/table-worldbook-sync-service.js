@@ -40,6 +40,25 @@ function formatTablesAsReadableText(tables) {
   return sections.join('\n\n');
 }
 
+function mergeTablesWithSchema(runtimeTables, configTables) {
+  if (!Array.isArray(runtimeTables) || runtimeTables.length === 0) return configTables || [];
+  if (!Array.isArray(configTables) || configTables.length === 0) return runtimeTables;
+
+  return configTables.map((schema, index) => {
+    const runtime = runtimeTables[index];
+    if (!runtime) return schema;
+    return {
+      ...schema,
+      name: schema.name || runtime.name || '',
+      columns: Array.isArray(schema.columns) && schema.columns.length > 0
+        ? schema.columns
+        : (Array.isArray(runtime.columns) ? runtime.columns : []),
+      rows: Array.isArray(runtime.rows) ? runtime.rows : (Array.isArray(schema.rows) ? schema.rows : []),
+      enabled: runtime.enabled !== undefined ? runtime.enabled : schema.enabled
+    };
+  });
+}
+
 export async function syncTablesToWorldbook(tables, config) {
   const syncConfig = config?.worldbookSync;
   if (!syncConfig?.enabled) return { skipped: true, reason: 'disabled' };
@@ -55,7 +74,8 @@ export async function syncTablesToWorldbook(tables, config) {
   }
 
   const entryComment = String(syncConfig.entryComment || ENTRY_COMMENT_PREFIX).trim();
-  const content = formatTablesAsReadableText(tables);
+  const mergedTables = mergeTablesWithSchema(tables, Array.isArray(config?.tables) ? config.tables : []);
+  const content = formatTablesAsReadableText(mergedTables);
   if (!content) return { skipped: true, reason: 'empty_tables' };
 
   try {
@@ -69,6 +89,8 @@ export async function syncTablesToWorldbook(tables, config) {
         content,
         enabled: true,
         type: 'constant',
+        position: 'before_character_definition',
+        order: 100,
         prevent_recursion: true
       }]));
       log.info(`世界书条目已更新：${entryComment} → ${targetBook}`);
@@ -82,6 +104,7 @@ export async function syncTablesToWorldbook(tables, config) {
         keys: [],
         enabled: true,
         type: 'constant',
+        position: 'before_character_definition',
         order: 100,
         prevent_recursion: true
       }]));
@@ -96,4 +119,4 @@ export async function syncTablesToWorldbook(tables, config) {
   }
 }
 
-export default { syncTablesToWorldbook };
+export default { syncTablesToWorldbook, mergeTablesWithSchema };
