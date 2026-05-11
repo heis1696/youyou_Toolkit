@@ -201,10 +201,10 @@ Some docs still refer to older version labels or earlier architecture wording. W
 
 ## Release workflow
 
-The plugin is consumed via jsDelivr CDN with a `@latest` tag so end users do not need to update their import URL:
+The plugin is consumed via jsDelivr CDN (`gcore.jsdelivr.net` mirror) with a dynamic version-resolving bootstrap script so end users always get the latest release without `@latest` cache lag.
 
 ```
-import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js'
+import 'https://gcore.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js'
 ```
 
 To publish a new version:

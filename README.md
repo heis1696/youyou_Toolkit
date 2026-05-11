@@ -139,10 +139,32 @@ npm run dev
 
 ## 安装
 
-### 方式一：脚本库导入
+### 方式一：脚本库导入（推荐）
+
+在酒馆助手脚本中粘贴以下引导代码，自动解析最新版本号并锁定 tag 加载，避开 CDN `@latest` 缓存延迟：
 
 ```javascript
-import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bundle.js'
+(async () => {
+  const repo = 'heis1696/youyou_Toolkit';
+  const cdn = 'https://gcore.jsdelivr.net/gh';
+  try {
+    const resp = await fetch(`https://api.github.com/repos/${repo}/tags?per_page=10`);
+    if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
+    const tags = await resp.json();
+    const tag = tags.map(t => t.name).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0];
+    console.info(`[YouYou Toolkit] 解析到最新版本: ${tag}`);
+    await import(`${cdn}/${repo}@${tag}/dist/bundle.js`);
+  } catch (e) {
+    console.warn('[YouYou Toolkit] 动态版本解析失败，回退 @latest', e);
+    await import(`${cdn}/${repo}@latest/dist/bundle.js`);
+  }
+})();
+```
+
+如网络环境无法访问 GitHub API，可使用简单一行式（首次加载后 CDN 可能缓存旧版本数小时）：
+
+```javascript
+import 'https://gcore.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js'
 ```
 
 ### 方式二：Tampermonkey

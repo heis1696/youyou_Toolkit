@@ -112,8 +112,8 @@ console.log('\n🔍 验证 CDN 版本 ...\n');
 const verifyUrls = [
   `https://cdn.jsdelivr.net/gh/heis1696/youyou_Toolkit@${tag}/dist/bundle.js`,
   `https://cdn.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js`,
-  `https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@${tag}/dist/bundle.js`,
-  `https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js`,
+  `https://gcore.jsdelivr.net/gh/heis1696/youyou_Toolkit@${tag}/dist/bundle.js`,
+  `https://gcore.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js`,
 ];
 
 for (const url of verifyUrls) {
@@ -132,8 +132,7 @@ console.log(`
 ✅ 发布完成！
 
 版本:  ${tag}
-引用:  import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js'
-或:    import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@${tag}/dist/bundle.js'
-
-💡 如果 @latest 缓存未刷新，可临时使用 @${tag} 引用。
+引导:  使用 README 中的动态版本引导脚本（推荐，自动锁定 @${tag}）
+直链:  import 'https://gcore.jsdelivr.net/gh/heis1696/youyou_Toolkit@${tag}/dist/bundle.js'
+回退:  import 'https://gcore.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js'
 `);
