@@ -8,58 +8,114 @@
    ============================================================ */
 
 :root {
-  /* —— Phase E1: OKLCH 色彩空间 —— */
-  --yyt-accent: oklch(0.733 0.144 265);
-  --yyt-accent-glow: oklch(0.733 0.144 265 / 0.4);
-  --yyt-accent-soft: oklch(0.733 0.144 265 / 0.15);
-  --yyt-accent-strong: oklch(0.818 0.092 257);
-  --yyt-on-accent: oklch(0.155 0.015 262);
-  --yyt-success: oklch(0.747 0.180 155);
-  --yyt-success-glow: oklch(0.747 0.180 155 / 0.3);
-  --yyt-error: oklch(0.653 0.207 23);
+  /* —— Accent & semantic —— */
+  --yyt-accent: #7bb7ff;
+  --yyt-accent-glow: var(--yyt-accent-glow);
+  --yyt-accent-soft: var(--yyt-accent-soft);
+  --yyt-accent-strong: #a5d4ff;
+  --yyt-on-accent: #0a0d13;
+  --yyt-success: #4ade80;
+  --yyt-success-glow: rgba(74, 222, 128, 0.3);
+  --yyt-error: #ef4444;
   --yyt-danger: var(--yyt-error);
-  --yyt-danger-soft: oklch(0.653 0.207 23 / 0.16);
-  --yyt-error-glow: oklch(0.653 0.207 23 / 0.3);
-  --yyt-warning: oklch(0.803 0.161 88);
-  --yyt-bg-base: oklch(0.155 0.015 262);
-  --yyt-bg-gradient-1: oklch(0.733 0.144 265 / 0.12);
-  --yyt-bg-gradient-2: oklch(0.637 0.152 295 / 0.10);
-  --yyt-surface: oklch(1 0 0 / 0.035);
-  --yyt-surface-2: oklch(1 0 0 / 0.055);
-  --yyt-surface-3: oklch(1 0 0 / 0.07);
-  --yyt-surface-hover: oklch(1 0 0 / 0.09);
-  --yyt-surface-active: oklch(1 0 0 / 0.12);
-  --yyt-border: oklch(1 0 0 / 0.06);
-  --yyt-border-soft: oklch(1 0 0 / 0.04);
-  --yyt-border-strong: oklch(1 0 0 / 0.14);
-  --yyt-text: oklch(1 0 0 / 0.93);
-  --yyt-text-secondary: oklch(1 0 0 / 0.68);
-  --yyt-text-muted: oklch(1 0 0 / 0.45);
-  --yyt-focus-ring: 0 0 0 2px oklch(0.733 0.144 265 / 0.52);
-  --yyt-radius: 14px;
-  --yyt-radius-sm: 10px;
-  --yyt-radius-lg: 18px;
-  --yyt-radius-xl: 24px;
-  --yyt-shadow: 0 18px 48px oklch(0 0 0 / 0.28);
-  --yyt-shadow-soft: 0 10px 28px oklch(0 0 0 / 0.18);
-  --yyt-shadow-glow: 0 0 24px var(--yyt-accent-glow);
-  /* —— Phase C1: 语义化表面/边框别名 —— */
+  --yyt-danger-soft: rgba(239, 68, 68, 0.16);
+  --yyt-error-glow: rgba(239, 68, 68, 0.3);
+  --yyt-warning: #fbbf24;
+
+  /* —— Surface ladder (solid, no gradients) —— */
+  --yyt-bg-base: #0a0d13;
+  --yyt-surface: #0f1219;
+  --yyt-surface-2: #151a24;
+  --yyt-surface-3: #1c2231;
+  --yyt-surface-hover: #1c2231;
+  --yyt-surface-active: #232b3e;
   --yyt-surface-raised: var(--yyt-surface-2);
   --yyt-surface-overlay: var(--yyt-surface-3);
   --yyt-surface-elevated: var(--yyt-surface-active);
+
+  /* —— Borders (two-level hairline) —— */
+  --yyt-border: rgba(255, 255, 255, 0.06);
+  --yyt-border-soft: rgba(255, 255, 255, 0.04);
+  --yyt-border-strong: rgba(255, 255, 255, 0.12);
   --yyt-border-subtle: var(--yyt-border-soft);
   --yyt-border-default: var(--yyt-border);
   --yyt-border-emphasis: var(--yyt-border-strong);
-  --yyt-border-focus: oklch(0.733 0.144 265 / 0.52);
+  --yyt-border-focus: rgba(123, 183, 255, 0.5);
+
+  /* —— Text —— */
+  --yyt-text: rgba(255, 255, 255, 0.92);
+  --yyt-text-secondary: rgba(255, 255, 255, 0.55);
+  --yyt-text-muted: rgba(255, 255, 255, 0.35);
   --yyt-color-text-primary: var(--yyt-text);
   --yyt-color-text-secondary: var(--yyt-text-secondary);
   --yyt-color-text-muted: var(--yyt-text-muted);
   --yyt-color-accent: var(--yyt-accent);
-  /* —— Phase C2: 缓动 token —— */
+
+  /* —— Focus (double-ring) —— */
+  --yyt-focus-ring: 0 0 0 2px var(--yyt-accent), 0 0 0 4px var(--yyt-accent-soft);
+
+  /* —— Radii (strict outer > inner) —— */
+  --yyt-radius-xs: 4px;
+  --yyt-radius-sm: 6px;
+  --yyt-radius: 8px;
+  --yyt-radius-lg: 12px;
+  --yyt-radius-xl: 16px;
+  --yyt-control-radius: 6px;
+  --yyt-control-radius-sm: 4px;
+
+  /* —— Shadows (floating elements only) —— */
+  --yyt-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --yyt-shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --yyt-shadow-glow: 0 0 16px var(--yyt-accent-glow);
+
+  /* —— Controls (solid, no gradients) —— */
+  --yyt-control-bg: var(--yyt-surface);
+  --yyt-control-bg-hover: var(--yyt-surface-2);
+  --yyt-control-bg-active: var(--yyt-surface-3);
+  --yyt-control-bg-strong: var(--yyt-surface-2);
+  --yyt-control-bg-focus: var(--yyt-surface-2);
+  --yyt-control-border: rgba(255, 255, 255, 0.08);
+  --yyt-control-border-hover: rgba(255, 255, 255, 0.14);
+  --yyt-control-border-focus: rgba(123, 183, 255, 0.5);
+  --yyt-control-shadow: none;
+  --yyt-control-shadow-hover: none;
+  --yyt-control-shadow-focus: none;
+  --yyt-control-shadow-active: none;
+
+  /* —— Select/Dropdown —— */
+  --yyt-select-surface: #151a24;
+  --yyt-select-option-bg: #1c2231;
+  --yyt-select-option-hover-bg: #232b3e;
+  --yyt-select-option-selected-bg: #2a3450;
+  --yyt-select-option-border: var(--yyt-accent-soft);
+  --yyt-select-option-selected-border: var(--yyt-accent-glow);
+  --yyt-select-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --yyt-select-arrow-color: rgba(255, 255, 255, 0.4);
+
+  /* —— Startup (one decorative accent allowed) —— */
+  --yyt-startup-overlay: rgba(6, 8, 16, 0.8);
+  --yyt-startup-panel-border: rgba(255, 255, 255, 0.08);
+  --yyt-startup-panel-bg:
+    radial-gradient(500px 200px at 0% 0%, var(--yyt-accent-soft), transparent 60%),
+    #0f1219;
+  --yyt-startup-panel-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --yyt-startup-chip-bg: rgba(255, 255, 255, 0.05);
+  --yyt-startup-chip-border: rgba(255, 255, 255, 0.08);
+  --yyt-startup-status-bg: rgba(255, 255, 255, 0.05);
+  --yyt-startup-status-border: rgba(255, 255, 255, 0.08);
+  --yyt-startup-status-text: rgba(255, 255, 255, 0.8);
+  --yyt-startup-kicker-bg: var(--yyt-accent-soft);
+  --yyt-startup-kicker-border: var(--yyt-accent-soft);
+
+  /* —— Motion —— */
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  /* —— Phase C3: 字号 scale —— */
+  --yyt-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --yyt-duration-fast: 150ms;
+  --yyt-duration-normal: 250ms;
+
+  /* —— Typography scale —— */
   --yyt-text-xs: 10px;
   --yyt-text-sm: 11px;
   --yyt-text-base: 13px;
@@ -67,47 +123,13 @@
   --yyt-text-lg: 16px;
   --yyt-text-xl: 20px;
   --yyt-text-2xl: 24px;
-  --yyt-control-radius: 14px;
-  --yyt-control-radius-sm: 11px;
-  --yyt-control-bg: linear-gradient(180deg, oklch(0.246 0.026 265) 0%, oklch(0.210 0.022 266) 100%);
-  --yyt-control-bg-hover: linear-gradient(180deg, oklch(0.284 0.033 264) 0%, oklch(0.242 0.029 266) 100%);
-  --yyt-control-bg-active: linear-gradient(180deg, oklch(0.314 0.040 264) 0%, oklch(0.263 0.035 264) 100%);
-  --yyt-control-bg-strong: linear-gradient(180deg, oklch(0.284 0.033 264) 0%, oklch(0.229 0.029 267) 100%);
-  --yyt-control-bg-focus: linear-gradient(180deg, oklch(0.309 0.048 262) 0%, oklch(0.258 0.038 264) 100%);
-  --yyt-control-border: oklch(0.726 0.057 260 / 0.24);
-  --yyt-control-border-hover: oklch(0.726 0.057 260 / 0.36);
-  --yyt-control-border-focus: oklch(0.733 0.144 265 / 0.72);
-  --yyt-control-shadow: 0 12px 24px oklch(0 0 0 / 0.24), inset 0 1px 0 oklch(1 0 0 / 0.04);
-  --yyt-control-shadow-hover: 0 16px 28px oklch(0 0 0 / 0.28), inset 0 1px 0 oklch(1 0 0 / 0.06);
-  --yyt-control-shadow-focus: 0 18px 30px oklch(0.176 0.019 264 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.06);
-  --yyt-control-shadow-active: 0 10px 20px oklch(0 0 0 / 0.22), inset 0 1px 0 oklch(1 0 0 / 0.04);
-  --yyt-select-surface: oklch(0.192 0.024 264);
-  --yyt-select-option-bg: oklch(0.219 0.030 266);
-  --yyt-select-option-hover-bg: oklch(0.282 0.034 265);
-  --yyt-select-option-selected-bg: oklch(0.337 0.055 261);
-  --yyt-select-option-border: oklch(0.733 0.144 265 / 0.22);
-  --yyt-select-option-selected-border: oklch(0.733 0.144 265 / 0.4);
-  --yyt-select-dropdown-shadow: 0 24px 44px oklch(0 0 0 / 0.52), 0 0 0 1px oklch(0.148 0.017 264 / 0.82);
-  --yyt-select-arrow-color: oklch(1 0 0 / 0.52);
-  --yyt-startup-overlay: oklch(0.124 0.012 262 / 0.78);
-  --yyt-startup-panel-border: oklch(1 0 0 / 0.12);
-  --yyt-startup-panel-bg:
-    radial-gradient(640px 260px at 0% 0%, oklch(0.733 0.144 265 / 0.2), transparent 62%),
-    radial-gradient(420px 220px at 100% 0%, oklch(0.637 0.152 295 / 0.12), transparent 58%),
-    linear-gradient(160deg, oklch(1 0 0 / 0.085) 0%, oklch(1 0 0 / 0.03) 42%, oklch(1 0 0 / 0.015) 100%);
-  --yyt-startup-panel-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08), 0 18px 42px oklch(0 0 0 / 0.24);
-  --yyt-startup-chip-bg: oklch(1 0 0 / 0.06);
-  --yyt-startup-chip-border: oklch(1 0 0 / 0.1);
-  --yyt-startup-status-bg: oklch(1 0 0 / 0.08);
-  --yyt-startup-status-border: oklch(1 0 0 / 0.1);
-  --yyt-startup-status-text: oklch(1 0 0 / 0.84);
-  --yyt-startup-kicker-bg: oklch(0.733 0.144 265 / 0.14);
-  --yyt-startup-kicker-border: oklch(0.733 0.144 265 / 0.22);
-  --yyt-shell-sidebar-width: 248px;
-  --yyt-shell-topbar-gap: 14px;
-  --yyt-shell-gap: 12px;
-  --yyt-panel-gap: 12px;
-  --yyt-backdrop: oklch(0.124 0.012 262 / 0.72);
+
+  /* —— Layout —— */
+  --yyt-shell-sidebar-width: 220px;
+  --yyt-shell-topbar-gap: 12px;
+  --yyt-shell-gap: 0px;
+  --yyt-panel-gap: 0px;
+  --yyt-backdrop: rgba(6, 8, 16, 0.75);
 }
 
 /* ============================================================
@@ -130,8 +152,8 @@
   display: flex;
   gap: 6px;
   padding: 6px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.015) 100%);
-  border-radius: 16px;
+  background: transparent;
+  border-radius: 8px;
   margin-bottom: 16px;
   border: 1px solid var(--yyt-border-soft);
   flex-shrink: 0;
@@ -142,7 +164,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 14px 15px;
-  border-radius: 14px;
+  border-radius: 6px;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
   color: var(--yyt-text-secondary);
@@ -167,8 +189,8 @@
 
 .yyt-main-nav-item.active {
   color: var(--yyt-on-accent);
-  background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
-  box-shadow: 0 10px 24px rgba(123, 183, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  background: var(--yyt-accent);
+  box-shadow: none;
 }
 
 .yyt-main-nav-icon {
@@ -180,13 +202,13 @@
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: none;
   flex-shrink: 0;
 }
 
 .yyt-main-nav-item.active .yyt-main-nav-icon {
-  background: rgba(11, 15, 21, 0.12);
-  border-color: rgba(11, 15, 21, 0.08);
+  background: rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 .yyt-main-nav-item i {
@@ -208,7 +230,7 @@
 
 .yyt-main-nav-name {
   font-size: var(--yyt-text-base);
-  font-weight: 800;
+  font-weight: 700;
   color: inherit;
 }
 
@@ -228,8 +250,8 @@
   flex-wrap: wrap;
   gap: 10px;
   padding: 8px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.012) 100%);
-  border-radius: 18px;
+  background: transparent;
+  border-radius: 6px;
   margin-bottom: 10px;
   border: 1px solid var(--yyt-border-soft);
   flex-shrink: 0;
@@ -242,10 +264,10 @@
   min-width: 0;
   flex: 1 1 260px;
   padding: 10px;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.032) 0%, rgba(255, 255, 255, 0.014) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  background: transparent;
+  box-shadow: none;
 }
 
 .yyt-sub-nav-group-title {
@@ -255,7 +277,7 @@
   min-height: 26px;
   padding: 0 4px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.42px;
   text-transform: uppercase;
   color: var(--yyt-text-muted);
@@ -271,8 +293,8 @@
 }
 
 .yyt-sub-nav-group-ai .yyt-sub-nav-group-title::before {
-  background: rgba(123, 183, 255, 0.92);
-  box-shadow: 0 0 0 4px rgba(123, 183, 255, 0.12);
+  background: var(--yyt-accent);
+  box-shadow: 0 0 0 3px var(--yyt-accent-soft);
 }
 
 .yyt-sub-nav-group-script .yyt-sub-nav-group-title::before {
@@ -292,7 +314,7 @@
   gap: 8px;
   min-width: 0;
   padding: 10px 14px;
-  border-radius: 13px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   color: var(--yyt-text-secondary);
@@ -311,9 +333,9 @@
 
 .yyt-sub-nav-item.active {
   color: var(--yyt-accent);
-  background: linear-gradient(180deg, rgba(123, 183, 255, 0.12) 0%, rgba(123, 183, 255, 0.06) 100%);
-  border-color: rgba(123, 183, 255, 0.2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(11, 20, 34, 0.16);
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
+  box-shadow: 0 10px 20px rgba(11, 20, 34, 0.16);
 }
 
 .yyt-sub-nav-item i {
@@ -334,7 +356,7 @@
   overscroll-behavior: contain;
   padding: 6px;
   border-radius: calc(var(--yyt-radius-lg) - 2px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0.03) 100%);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -380,20 +402,18 @@
   gap: 12px;
   padding: 16px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.038) 0%, rgba(255, 255, 255, 0.015) 100%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.028) 0%, transparent 62%);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 20px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 34px rgba(0, 0, 0, 0.16);
+  border-radius: 8px;
+  box-shadow: none;
   transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .yyt-panel-section:hover {
   border-color: rgba(255, 255, 255, 0.14);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.022) 100%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.036) 0%, transparent 62%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 40px rgba(0, 0, 0, 0.2);
+  background: transparent;
+  box-shadow: none;
 }
 
 .yyt-panel-section > .yyt-section-title + * {
@@ -420,9 +440,9 @@
   border-radius: 10px;
   color: var(--yyt-accent);
   font-size: 14px;
-  background: rgba(123, 183, 255, 0.1);
-  border: 1px solid rgba(123, 183, 255, 0.14);
-  filter: drop-shadow(0 0 8px var(--yyt-accent-glow));
+  background: var(--yyt-accent-soft);
+  border: 1px solid var(--yyt-accent-soft);
+  
 }
 
 /* ============================================================
@@ -454,7 +474,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.045) 42%, transparent 76%);
+  display: none;
   pointer-events: none;
 }
 
@@ -487,44 +507,44 @@
 }
 
 .yyt-btn-primary {
-  background: linear-gradient(135deg, rgba(123, 183, 255, 0.98) 0%, rgba(165, 212, 255, 0.95) 100%);
+  background: var(--yyt-accent);
   color: var(--yyt-on-accent);
   border-color: rgba(255, 255, 255, 0.16);
-  box-shadow: 0 14px 30px rgba(123, 183, 255, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  box-shadow: none;
 }
 
 .yyt-btn-primary:hover {
-  background: linear-gradient(135deg, #86c0ff 0%, #b2ddff 100%);
-  box-shadow: 0 18px 34px rgba(123, 183, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  background: var(--yyt-accent-strong);
+  box-shadow: none;
 }
 
 .yyt-btn-primary:active {
-  background: linear-gradient(135deg, #74b2ff 0%, #a1d4ff 100%);
+  background: var(--yyt-accent);
 }
 
 .yyt-btn-secondary {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%);
+  background: var(--yyt-surface-2);
   color: var(--yyt-text);
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 
 .yyt-btn-secondary:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.038) 100%);
+  background: var(--yyt-surface-3);
   border-color: rgba(255, 255, 255, 0.18);
 }
 
 .yyt-btn-danger {
-  background: linear-gradient(180deg, rgba(248, 113, 113, 0.2) 0%, rgba(248, 113, 113, 0.07) 100%);
+  background: var(--yyt-danger-soft);
   color: #ffb4b4;
   border-color: rgba(248, 113, 113, 0.32);
-  box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 12px 24px rgba(248, 113, 113, 0.12);
 }
 
 .yyt-btn-danger:hover {
-  background: linear-gradient(180deg, rgba(248, 113, 113, 0.28) 0%, rgba(248, 113, 113, 0.1) 100%);
+  background: rgba(248, 113, 113, 0.2);
   border-color: rgba(248, 113, 113, 0.42);
-  box-shadow: 0 16px 30px rgba(248, 113, 113, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 30px rgba(248, 113, 113, 0.16);
 }
 
 .yyt-btn-icon {
@@ -614,7 +634,7 @@
 .yyt-worldbook-item .yyt-checkbox-label,
 .yyt-form-group > .yyt-checkbox-label {
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
@@ -624,7 +644,7 @@
 .yyt-form-group > .yyt-checkbox-label:hover {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.065);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: none;
 }
 
 /* 输入框 */
@@ -688,19 +708,19 @@
 
 .yyt-select:disabled {
   color: var(--yyt-text-muted);
-  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+  background: var(--yyt-select-chevron) right 14px center / 12px 12px no-repeat, var(--yyt-surface);
   cursor: not-allowed;
 }
 
 .yyt-select option,
 .yyt-select optgroup {
-  background: #141b29;
+  background: var(--yyt-surface);
   color: var(--yyt-text);
 }
 
 .yyt-select option:checked,
 .yyt-select option[selected] {
-  background: #24324b;
+  background: var(--yyt-surface-3);
   color: #f5fbff;
 }
 
@@ -709,7 +729,7 @@
 }
 
 .yyt-select optgroup {
-  font-weight: 800;
+  font-weight: 700;
   color: rgba(255, 255, 255, 0.78);
 }
 
@@ -717,20 +737,16 @@
   color: var(--yyt-text);
   caret-color: var(--yyt-accent-strong);
   background:
-    linear-gradient(180deg, rgba(7, 11, 18, 0.9) 0%, rgba(9, 13, 18, 0.72) 100%),
-    rgba(3, 7, 12, 0.3);
-}
+  background: #080a10;
 
 .yyt-textarea.yyt-code-textarea:hover,
 .yyt-textarea.yyt-code-textarea:focus,
 .yyt-textarea.yyt-code-textarea:focus-visible {
   color: var(--yyt-text);
   caret-color: var(--yyt-accent-strong);
-  border-color: rgba(123, 183, 255, 0.32);
+  border-color: var(--yyt-border-focus);
   background:
-    linear-gradient(180deg, rgba(7, 11, 18, 0.96) 0%, rgba(9, 13, 18, 0.82) 100%),
-    rgba(3, 7, 12, 0.34);
-  box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 26px rgba(0, 0, 0, 0.22);
+  background: #080a10;
 }
 
 .yyt-input::placeholder,
@@ -751,17 +767,17 @@
   justify-content: space-between;
   gap: 20px;
   padding: 16px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 17px;
+  border-radius: 0;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 22px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
 }
 
 .yyt-toggle-row:hover {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.026) 100%);
+  background: var(--yyt-surface);
   border-color: rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 28px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
 }
 
 .yyt-toggle-label {
@@ -812,11 +828,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
+  background: var(--yyt-surface-3);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   transition: all 0.28s var(--ease-in-out);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .yyt-toggle-slider::before {
@@ -826,10 +842,10 @@
   width: 22px;
   left: 3px;
   bottom: 3px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(232, 238, 245, 0.88) 100%);
+  background: #ffffff;
   border-radius: 50%;
   transition: all 0.28s var(--ease-in-out);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 .yyt-toggle.yyt-small .yyt-toggle-slider::before {
@@ -840,13 +856,13 @@
 }
 
 .yyt-toggle input:focus-visible + .yyt-toggle-slider {
-  box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--yyt-focus-ring), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .yyt-toggle input:checked + .yyt-toggle-slider {
-  background: linear-gradient(135deg, var(--yyt-accent) 0%, #5a9cf0 100%);
-  border-color: rgba(123, 183, 255, 0.78);
-  box-shadow: 0 0 0 1px rgba(123, 183, 255, 0.08), 0 10px 24px rgba(123, 183, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  background: var(--yyt-accent);
+  border-color: var(--yyt-accent);
+  box-shadow: none;
 }
 
 .yyt-toggle input:checked + .yyt-toggle-slider::before {
@@ -947,7 +963,7 @@
   background: var(--yyt-select-surface) !important;
   background-image: none !important;
   border: 1px solid var(--yyt-control-border-hover);
-  border-radius: 18px;
+  border-radius: 6px;
   box-shadow: var(--yyt-select-dropdown-shadow);
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -977,7 +993,7 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   border: 1px solid transparent;
-  border-radius: 13px;
+  border-radius: 6px;
   margin: 0;
   background: var(--yyt-select-option-bg) !important;
   background-image: none !important;
@@ -995,7 +1011,7 @@
   background: var(--yyt-select-option-selected-bg) !important;
   background-image: none !important;
   border-color: var(--yyt-select-option-selected-border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 
 .yyt-option-star,
@@ -1017,8 +1033,8 @@
 
 .yyt-option-star:hover {
   color: var(--yyt-accent);
-  background: rgba(123, 183, 255, 0.14);
-  border-color: rgba(123, 183, 255, 0.18);
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
 }
 
 .yyt-option-delete:hover {
@@ -1058,29 +1074,29 @@
   justify-content: space-between;
   gap: 10px;
   padding: 11px 14px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.018) 100%);
+  background: var(--yyt-surface-2);
   border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 14px;
+  border-radius: 6px;
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 18px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 
 .yyt-preset-item:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.028) 100%);
+  background: var(--yyt-surface-3);
   border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 22px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
 }
 
 .yyt-preset-item.active {
-  background: linear-gradient(135deg, rgba(123, 183, 255, 0.18) 0%, rgba(123, 183, 255, 0.07) 100%);
-  border-color: rgba(123, 183, 255, 0.34);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 14px 26px rgba(123, 183, 255, 0.12);
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
+  box-shadow: none;
 }
 
 .yyt-preset-item.yyt-loaded {
-  background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.05) 100%);
+  background: rgba(74, 222, 128, 0.12);
   border-color: rgba(74, 222, 128, 0.34);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 24px rgba(74, 222, 128, 0.1);
+  box-shadow: 0 14px 24px rgba(74, 222, 128, 0.1);
 }
 
 .yyt-preset-info {
@@ -1124,16 +1140,16 @@
   font-size: var(--yyt-text-sm);
   font-weight: 700;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  background: var(--yyt-surface-2);
   color: var(--yyt-color-text-secondary);
 }
 
 .yyt-badge-small {
   padding: 3px 8px;
   font-size: 10px;
-  background: linear-gradient(135deg, rgba(123, 183, 255, 0.18) 0%, rgba(123, 183, 255, 0.08) 100%);
+  background: var(--yyt-accent-soft);
   color: var(--yyt-accent-strong);
-  border: 1px solid rgba(123, 183, 255, 0.24);
+  border: 1px solid var(--yyt-accent-soft);
 }
 
 /* ============================================================
@@ -1159,7 +1175,7 @@
 }
 
 .yyt-dialog {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 30%), var(--yyt-bg-base);
+  background: var(--yyt-bg-base);
   border: 1px solid var(--yyt-border-strong);
   border-radius: var(--yyt-radius);
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
@@ -1363,17 +1379,14 @@
   max-width: calc(100vw - 12px);
   height: min(1120px, calc(100vh - 12px));
   max-height: calc(100vh - 12px);
-  background:
-    radial-gradient(1200px 600px at 10% -10%, var(--yyt-bg-gradient-1), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, var(--yyt-bg-gradient-2), transparent 55%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 22%),
+  background: var(--yyt-bg-base);
     var(--yyt-bg-base);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 22px;
+  border-radius: 12px;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.05),
     0 28px 84px rgba(0, 0, 0, 0.58),
-    0 0 80px rgba(123, 183, 255, 0.1);
+    0 0 80px var(--yyt-accent-soft);
   animation: yytScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
   color: var(--yyt-text);
@@ -1386,9 +1399,9 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.03) 100%);
+  background: var(--yyt-surface);
   border-bottom: 1px solid var(--yyt-border);
-  border-radius: 22px 22px 0 0;
+  border-radius: 12px 12px 0 0;
   flex-shrink: 0;
   cursor: grab;
 }
@@ -1416,7 +1429,7 @@
   align-items: center;
   gap: 12px;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--yyt-text);
   min-width: 0;
 }
@@ -1433,10 +1446,10 @@
   padding: 5px 11px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--yyt-accent);
-  background: rgba(123, 183, 255, 0.1);
-  border: 1px solid rgba(123, 183, 255, 0.18);
+  background: var(--yyt-accent-soft);
+  border: 1px solid var(--yyt-accent-soft);
   flex-shrink: 0;
 }
 
@@ -1449,7 +1462,7 @@
 .yyt-popup-title i {
   color: var(--yyt-accent);
   font-size: 18px;
-  filter: drop-shadow(0 0 8px rgba(123, 183, 255, 0.4));
+  
 }
 
 .yyt-popup-header-actions {
@@ -1522,10 +1535,8 @@
   padding: 5px;
   border-radius: var(--yyt-radius-xl);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.018) 100%),
     rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--yyt-surface);
 }
 
 .yyt-content-frame .yyt-content {
@@ -1545,7 +1556,7 @@
   align-items: stretch;
   justify-content: center;
   padding: 18px;
-  border-radius: 26px;
+  border-radius: 8px;
   background: var(--yyt-startup-overlay);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -1559,7 +1570,7 @@
   justify-content: center;
   gap: 18px;
   padding: 30px 32px;
-  border-radius: 28px;
+  border-radius: 12px;
   border: 1px solid var(--yyt-startup-panel-border);
   background: var(--yyt-startup-panel-bg);
   box-shadow: var(--yyt-startup-panel-shadow);
@@ -1572,7 +1583,7 @@
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.52px;
   text-transform: uppercase;
   color: var(--yyt-accent-strong);
@@ -1582,7 +1593,7 @@
 
 .yyt-startup-screen-title {
   font-size: clamp(28px, 4vw, 40px);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.04;
   letter-spacing: -0.5px;
   color: var(--yyt-text);
@@ -1606,7 +1617,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 13px;
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--yyt-startup-chip-bg);
   border: 1px solid var(--yyt-startup-chip-border);
   color: var(--yyt-text);
@@ -1625,7 +1636,7 @@
   width: fit-content;
   max-width: 100%;
   padding: 11px 14px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--yyt-startup-status-bg);
   border: 1px solid var(--yyt-startup-status-border);
   color: var(--yyt-startup-status-text);
@@ -1656,15 +1667,9 @@
   grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
   gap: 12px;
   padding: 16px 18px;
-  border-radius: 24px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(560px 240px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
-    radial-gradient(360px 180px at 100% 0%, rgba(155, 123, 255, 0.12), transparent 60%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0.01) 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 16px 36px rgba(3, 8, 16, 0.24),
     0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
@@ -1673,7 +1678,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(115deg, rgba(255, 255, 255, 0.08) 0%, transparent 35%, transparent 65%, rgba(255, 255, 255, 0.04) 100%);
+  display: none;
   pointer-events: none;
   opacity: 0.82;
 }
@@ -1693,14 +1698,14 @@
   width: fit-content;
   padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(123, 183, 255, 0.16);
-  border: 1px solid rgba(123, 183, 255, 0.28);
+  background: var(--yyt-accent-soft);
+  border: 1px solid var(--yyt-accent-soft);
   color: var(--yyt-accent-strong);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  box-shadow: 0 0 0 1px rgba(123, 183, 255, 0.08), 0 10px 24px rgba(123, 183, 255, 0.12);
+  box-shadow: none;
   flex-shrink: 0;
 }
 
@@ -1713,7 +1718,7 @@
 
 .yyt-shell-topbar-title {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.15;
   color: var(--yyt-text);
 }
@@ -1744,13 +1749,10 @@
   gap: 8px;
   min-width: 84px;
   padding: 16px 14px 14px;
-  border-radius: 20px;
+  border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%),
-    rgba(7, 12, 20, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
+  background: var(--yyt-surface-2);
 
 .yyt-shell-stat-label {
   font-size: 10px;
@@ -1761,7 +1763,7 @@
 
 .yyt-shell-stat-value {
   font-size: 26px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
   color: var(--yyt-text);
 }
@@ -1788,14 +1790,11 @@
   gap: 14px;
   overflow: hidden;
   padding: 16px;
-  border-radius: 26px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%),
-    rgba(255, 255, 255, 0.01);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 32px rgba(0, 0, 0, 0.16);
-}
-
+  box-shadow: none;
+  background: var(--yyt-surface);
 .yyt-shell-sidebar-title-row {
   display: flex;
   align-items: center;
@@ -1805,7 +1804,7 @@
 
 .yyt-shell-sidebar-title {
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--yyt-text);
 }
 
@@ -1832,11 +1831,11 @@
   width: 100%;
   min-width: 0;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
+  background: var(--yyt-surface);
+  box-shadow: none;
+  background: transparent;
 
 .yyt-shell-sidebar .yyt-main-nav-item::before {
   content: '';
@@ -1850,41 +1849,39 @@
 
 .yyt-shell-sidebar .yyt-main-nav-item:hover {
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 24px rgba(0, 0, 0, 0.16);
+  box-shadow: none;
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item.active {
   color: var(--yyt-text);
-  border-color: rgba(123, 183, 255, 0.28);
+  border-color: var(--yyt-accent-soft);
   background:
-    linear-gradient(135deg, rgba(123, 183, 255, 0.2) 0%, rgba(123, 183, 255, 0.06) 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-  box-shadow: 0 14px 28px rgba(123, 183, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: var(--yyt-accent-soft);
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item.active::before {
-  background: linear-gradient(180deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
-  box-shadow: 0 0 18px rgba(123, 183, 255, 0.4);
+  background: var(--yyt-accent);
+  background: var(--yyt-accent);
 }
 
 .yyt-shell-sidebar .yyt-main-nav-icon {
   width: 42px;
   height: 42px;
-  border-radius: 14px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item.active .yyt-main-nav-icon {
-  background: rgba(123, 183, 255, 0.14);
-  border-color: rgba(123, 183, 255, 0.22);
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
 }
 
 .yyt-shell-sidebar-note {
   padding: 13px 14px;
-  border-radius: 18px;
-  border: 1px dashed rgba(123, 183, 255, 0.24);
-  background: linear-gradient(180deg, rgba(123, 183, 255, 0.09) 0%, rgba(123, 183, 255, 0.05) 100%);
+  border-radius: 6px;
+  border: 1px dashed var(--yyt-accent-soft);
+  background: var(--yyt-accent-soft);
   color: rgba(255, 255, 255, 0.78);
   font-size: 12px;
   line-height: 1.65;
@@ -1906,19 +1903,18 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
-  border-radius: 26px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background:
-    radial-gradient(420px 180px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 65%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 32px rgba(0, 0, 0, 0.15);
+  background: transparent;
+  box-shadow: none;
 }
 
 .yyt-shell-main-header::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.06) 0%, transparent 35%, transparent 70%, rgba(255, 255, 255, 0.03) 100%);
+  display: none;
   pointer-events: none;
 }
 
@@ -1951,7 +1947,7 @@
 
 .yyt-shell-main-label {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   color: rgba(255, 255, 255, 0.58);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1963,7 +1959,7 @@
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--yyt-text);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1972,7 +1968,7 @@
 
 .yyt-shell-main-title {
   font-size: 26px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.06;
   letter-spacing: -0.3px;
   color: var(--yyt-text);
@@ -1990,13 +1986,13 @@
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--yyt-text);
   font-size: 12px;
   line-height: 1.5;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 .yyt-shell-main-save-btn {
@@ -2014,9 +2010,9 @@
   align-items: center;
   gap: 12px;
   padding: 16px 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: var(--yyt-surface);
   border-top: 1px solid var(--yyt-border);
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 12px 12px;
   flex-shrink: 0;
 }
 
@@ -2300,7 +2296,7 @@
   .yyt-shell-main-header,
   .yyt-shell-sidebar-card {
     padding: 14px;
-    border-radius: 16px;
+    border-radius: 8px;
   }
 
   .yyt-shell-topbar-main {
@@ -2348,12 +2344,12 @@
   .yyt-startup-screen {
     inset: 10px 14px;
     padding: 10px;
-    border-radius: 18px;
+    border-radius: 6px;
   }
 
   .yyt-startup-screen-inner {
     padding: 20px 16px;
-    border-radius: 20px;
+    border-radius: 8px;
   }
 
   .yyt-startup-screen-status {
@@ -2491,7 +2487,7 @@
 
 .yyt-shell-sidebar-stat-value {
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
   color: var(--yyt-text);
 }

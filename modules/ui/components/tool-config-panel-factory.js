@@ -34,7 +34,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-tool-panel {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 0;
   }
 
   .yyt-tool-panel-hero {
@@ -44,34 +44,33 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 16px;
     align-items: stretch;
-    padding: 18px 20px;
-    border-radius: 26px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background:
-      radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.18), transparent 62%),
-      linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16);
+    padding: 16px 0;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--yyt-border);
+    background: transparent;
+    box-shadow: none;
   }
 
   .yyt-tool-panel-hero-copy {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
   }
 
   .yyt-tool-panel-hero-title {
-    font-size: 24px;
-    font-weight: 900;
-    line-height: 1.08;
-    letter-spacing: -0.2px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.1px;
     color: var(--yyt-text);
   }
 
   .yyt-tool-panel-hero-desc {
     font-size: 13px;
-    line-height: 1.75;
-    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.7;
+    color: var(--yyt-text-secondary);
     max-width: 64ch;
   }
 
@@ -98,20 +97,20 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 12px;
-    border-radius: 999px;
+    padding: 6px 10px;
+    border-radius: var(--yyt-radius-xs);
     font-size: 10px;
-    font-weight: 800;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    letter-spacing: 0.38px;
-    color: var(--yyt-text);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    font-weight: 700;
+    border: 1px solid var(--yyt-border-strong);
+    letter-spacing: 0.3px;
+    color: var(--yyt-text-secondary);
+    background: var(--yyt-surface-2);
+    box-shadow: none;
   }
 
   .yyt-tool-compact-hint {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.74);
+    color: var(--yyt-text-secondary);
     line-height: 1.7;
   }
 
@@ -139,20 +138,18 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.025) 100%),
-      rgba(12, 16, 24, 0.42);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.14);
+    padding: 14px;
+    border-radius: var(--yyt-radius);
+    border: 1px solid var(--yyt-border-strong);
+    background: var(--yyt-surface);
+    box-shadow: none;
   }
 
   .yyt-worldbook-summary {
     font-size: 13px;
     color: var(--yyt-text);
     line-height: 1.7;
-    font-weight: 800;
+    font-weight: 600;
   }
 
   .yyt-worldbook-dropdown {
@@ -175,35 +172,34 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   .yyt-worldbook-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     max-height: 260px;
     overflow: auto;
     padding-right: 2px;
   }
 
   .yyt-worldbook-item {
-    padding: 12px 14px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.06);
-    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    padding: 10px 12px;
+    border-radius: var(--yyt-radius-sm);
+    border: 1px solid var(--yyt-border);
+    background: var(--yyt-surface-2);
+    transition: border-color var(--yyt-duration-fast) var(--ease-out), background var(--yyt-duration-fast) var(--ease-out);
   }
 
   .yyt-worldbook-item:hover {
-    border-color: rgba(123, 183, 255, 0.22);
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-1px);
+    border-color: var(--yyt-accent-soft);
+    background: var(--yyt-surface-3);
   }
 
   .yyt-worldbook-empty {
     padding: 12px 14px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.035);
+    border-radius: var(--yyt-radius-sm);
+    background: var(--yyt-surface);
   }
 
   .yyt-code-textarea:focus {
     border-color: var(--yyt-accent);
-    box-shadow: var(--yyt-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: var(--yyt-focus-ring);
   }
 
   .yyt-title-actions {
@@ -221,13 +217,11 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 18px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
-      rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 22px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 30px rgba(0, 0, 0, 0.12);
+    padding: 14px;
+    background: var(--yyt-surface-2);
+    border: 1px solid var(--yyt-border);
+    border-radius: var(--yyt-radius);
+    box-shadow: none;
   }
 
   .yyt-tool-runtime-line {

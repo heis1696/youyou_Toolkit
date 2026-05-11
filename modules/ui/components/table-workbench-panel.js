@@ -6,6 +6,7 @@ import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice, down
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
 import { renderTableAuxiliaryFields } from './table-form-renderer.js';
 import { TableCellPopupMenu, getPopupMenuStyles } from './table-cell-popup-menu.js';
+import { logger } from '../../core/logger-service.js';
 import { variableResolver } from '../../variable-resolver.js';
 import { getAllPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
@@ -24,11 +25,13 @@ import { ensureTableId, cloneTableValue } from '../../table-engine/table-types.j
 
 const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
-[data-twb-wb-selector] { margin-top:8px; padding:10px; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); }
+const log = logger.createScope('TableWorkbench');
+
+[data-twb-wb-selector] { margin-top:8px; padding:10px; border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); }
 [data-twb-wb-list] { max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
 
 .yyt-twb-template-list { margin:8px 0; max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
-.yyt-twb-template-item { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; background:var(--yyt-bg-secondary); border:1px solid var(--yyt-border); }
+.yyt-twb-template-item { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; background:var(--yyt-surface-2); border:1px solid var(--yyt-border); }
 .yyt-twb-template-item-name { flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .yyt-twb-template-item-meta { font-size:11px; color:var(--yyt-text-muted); white-space:nowrap; }
 
@@ -56,10 +59,10 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 .yyt-twb-section-header p,
 .yyt-twb-card-header p { margin:4px 0 0; color:var(--yyt-text-secondary); font-size:12px; line-height:1.5; }
 .yyt-twb-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
-.yyt-twb-metrics > div { padding:10px 11px; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); }
+.yyt-twb-metrics > div { padding:10px 11px; border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); }
 .yyt-twb-metrics span { display:block; color:var(--yyt-text-muted); font-size:11px; margin-bottom:5px; }
-.yyt-twb-metrics strong { color:var(--yyt-text); font-size:15px; font-weight:800; }
-.yyt-twb-runtime-message { margin-top:10px; padding:9px 10px; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); color:var(--yyt-text-secondary); font-size:12px; line-height:1.6; }
+.yyt-twb-metrics strong { color:var(--yyt-text); font-size:15px; font-weight:700; }
+.yyt-twb-runtime-message { margin-top:10px; padding:9px 10px; border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); color:var(--yyt-text-secondary); font-size:12px; line-height:1.6; }
 
 .yyt-twb-field { display:flex; flex-direction:column; gap:6px; margin:0 0 10px; min-width:0; }
 .yyt-twb-field > span { color:var(--yyt-text-secondary); font-size:12px; font-weight:700; }
@@ -70,21 +73,21 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 .yyt-twb-check-row { width:max-content; max-width:100%; }
 .yyt-twb-radio-group { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
 .yyt-twb-radio-group label { width:max-content; max-width:100%; }
-.yyt-twb-segmented { display:inline-flex; gap:4px; padding:3px; border:1px solid var(--yyt-border); border-radius:999px; background:var(--yyt-bg-secondary); }
+.yyt-twb-segmented { display:inline-flex; gap:4px; padding:3px; border:1px solid var(--yyt-border); border-radius:999px; background:var(--yyt-surface-2); }
 .yyt-twb-segmented button { border:none; border-radius:999px; padding:6px 11px; background:transparent; color:var(--yyt-text-secondary); cursor:pointer; font-size:12px; font-weight:700; }
 .yyt-twb-segmented button.active { background:var(--yyt-accent); color:#fff; }
 .yyt-twb-action-grid { display:flex; flex-wrap:wrap; gap:8px; }
 .yyt-twb-table-chip-list { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
-.yyt-twb-table-chip { max-width:220px; padding:6px 10px; border:1px solid var(--yyt-border); border-radius:999px; background:var(--yyt-bg-secondary); }
+.yyt-twb-table-chip { max-width:220px; padding:6px 10px; border:1px solid var(--yyt-border); border-radius:999px; background:var(--yyt-surface-2); }
 .yyt-twb-table-chip span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .yyt-twb-muted { color:var(--yyt-text-muted); font-size:12px; }
 .yyt-twb-help { margin:0; color:var(--yyt-text-secondary); font-size:12px; line-height:1.6; }
 .yyt-twb-prompt-summary { cursor:pointer; font-weight:700; padding:8px 0; display:none; }
 .yyt-twb-prompt-field { margin-top:10px; }
 
-.yyt-twb-table-overview { border:1px solid var(--yyt-border); border-radius:12px; background:var(--yyt-bg); padding:14px; }
+.yyt-twb-table-overview { border:1px solid var(--yyt-border); border-radius:8px; background:var(--yyt-surface); padding:14px; }
 .yyt-twb-table-card-list { display:flex; flex-direction:column; gap:8px; }
-.yyt-twb-table-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:12px; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); cursor:pointer; }
+.yyt-twb-table-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:12px; border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); cursor:pointer; }
 .yyt-twb-table-card:hover,
 .yyt-twb-table-card:focus-within { border-color:var(--yyt-accent); }
 .yyt-twb-table-card.is-active { border-color:var(--yyt-accent); box-shadow:inset 3px 0 0 var(--yyt-accent); }
@@ -95,7 +98,7 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 .yyt-twb-table-card-meta { color:var(--yyt-text-muted); font-size:12px; margin-top:7px; }
 .yyt-twb-table-card-meta.is-warning { color:#f6ad55; }
 .yyt-twb-table-card-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
-.yyt-twb-empty { padding:24px; border:1px dashed var(--yyt-border); border-radius:12px; color:var(--yyt-text-secondary); background:var(--yyt-bg-secondary); text-align:center; }
+.yyt-twb-empty { padding:24px; border:1px dashed var(--yyt-border); border-radius:8px; color:var(--yyt-text-secondary); background:var(--yyt-surface-2); text-align:center; }
 .yyt-twb-live-badge { display:inline-block; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:700; }
 .yyt-twb-live-badge--live { background:rgba(56,178,172,.15); color:#38b2ac; }
 .yyt-twb-live-badge--template { background:rgba(160,174,192,.15); color:#a0aec0; }
@@ -104,9 +107,9 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
 .yyt-twb-editor-drawer { position:absolute; inset:0 0 0 auto; width:min(920px,92%); background:rgba(8,12,18,0.72); backdrop-filter:blur(10px); border-left:1px solid var(--yyt-border); transform:translateX(100%); transition:transform 180ms ease; z-index:20; box-shadow:-18px 0 40px rgba(0,0,0,0.22); }
 .yyt-twb-editor-drawer.is-open { transform:translateX(0); }
-.yyt-twb-editor { height:100%; display:flex; flex-direction:column; background:var(--yyt-bg); }
+.yyt-twb-editor { height:100%; display:flex; flex-direction:column; background:var(--yyt-surface); }
 .yyt-twb-editor-header,
-.yyt-twb-editor-footer { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:16px 18px; border-bottom:1px solid var(--yyt-border); background:var(--yyt-bg); }
+.yyt-twb-editor-footer { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:16px 18px; border-bottom:1px solid var(--yyt-border); background:var(--yyt-surface); }
 .yyt-twb-editor-footer { border-top:1px solid var(--yyt-border); border-bottom:none; justify-content:flex-end; }
 .yyt-twb-editor-header h3 { margin:0; color:var(--yyt-text); font-size:17px; }
 .yyt-twb-editor-header p { margin:4px 0 0; color:var(--yyt-text-secondary); font-size:12px; }
@@ -114,7 +117,7 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 
 .yyt-twb-ai-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .yyt-twb-field-card-list { display:flex; flex-direction:column; gap:10px; }
-.yyt-twb-field-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:12px; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); }
+.yyt-twb-field-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:12px; border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); }
 .yyt-twb-field-card-main { display:grid; grid-template-columns:220px minmax(0,1fr); gap:10px; align-items:start; }
 .yyt-twb-field-advanced { grid-column:1 / -1; border-top:1px dashed var(--yyt-border); padding-top:8px; }
 .yyt-twb-field-advanced summary { cursor:pointer; color:var(--yyt-text-secondary); font-size:12px; font-weight:700; padding:6px 0; }
@@ -123,24 +126,24 @@ const CSS = `${TOOL_CONFIG_PANEL_STYLES} ${getPopupMenuStyles()}
 .yyt-twb-row-toolbar { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
 .yyt-twb-row-toolbar .yyt-input { flex:1; min-width:180px; }
 .yyt-twb-row-list { display:flex; flex-direction:column; gap:12px; }
-.yyt-twb-row-card { border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); padding:14px; }
+.yyt-twb-row-card { border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); padding:14px; }
 .yyt-twb-row-card.row-new { border-color:#48bb78; }
 .yyt-twb-row-card.row-updated { border-color:#f6ad55; }
 .yyt-twb-row-card.row-deleted { border-color:#f56565; opacity:0.72; }
 .yyt-twb-row-card-header { display:flex; justify-content:space-between; gap:12px; margin-bottom:12px; align-items:flex-start; }
 .yyt-twb-row-card-header > div:first-child { display:flex; align-items:center; gap:9px; min-width:0; flex:1; }
-.yyt-twb-row-index { display:inline-flex; align-items:center; justify-content:center; height:28px; padding:0 9px; border:1px solid var(--yyt-border); border-radius:999px; background:var(--yyt-bg); color:var(--yyt-text-secondary); font-size:11px; font-weight:700; white-space:nowrap; }
+.yyt-twb-row-index { display:inline-flex; align-items:center; justify-content:center; height:28px; padding:0 9px; border:1px solid var(--yyt-border); border-radius:999px; background:var(--yyt-surface); color:var(--yyt-text-secondary); font-size:11px; font-weight:700; white-space:nowrap; }
 .yyt-twb-row-name { max-width:280px; }
 .yyt-twb-row-actions { display:flex; align-items:center; gap:8px; }
 .yyt-twb-row-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .yyt-twb-span-2 { grid-column:span 2; }
-.yyt-twb-diagnostics details { border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg-secondary); overflow:hidden; }
+.yyt-twb-diagnostics details { border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface-2); overflow:hidden; }
 .yyt-twb-diagnostics summary { cursor:pointer; padding:11px 12px; color:var(--yyt-text-secondary); font-size:12px; font-weight:700; }
 .yyt-twb-diagnostic-grid { display:grid; grid-template-columns:minmax(220px,0.8fr) minmax(0,1.2fr); gap:12px; padding:0 12px 12px; }
 .yyt-twb-diagnostic-body { padding:0 12px 12px; display:flex; flex-direction:column; gap:12px; }
 .yyt-twb-diagnostic-grid h5,
 .yyt-twb-diagnostic-body h5 { margin:0 0 8px; color:var(--yyt-text); font-size:12px; }
-.yyt-twb-pre { margin:0; padding:10px; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-word; border:1px solid var(--yyt-border); border-radius:10px; background:var(--yyt-bg); color:var(--yyt-text-secondary); font-family:'Fira Code','Consolas',monospace; font-size:11px; line-height:1.6; }
+.yyt-twb-pre { margin:0; padding:10px; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-word; border:1px solid var(--yyt-border); border-radius:6px; background:var(--yyt-surface); color:var(--yyt-text-secondary); font-family:'Fira Code','Consolas',monospace; font-size:11px; line-height:1.6; }
 
 @media (max-width:980px) {
   .yyt-twb-dashboard-grid { grid-template-columns:1fr; }
@@ -1016,10 +1019,10 @@ export const TableWorkbenchPanel = {
         if (result?.success || result?.nextTables) {
           const freshCfg = getTableWorkbenchConfig();
           const liveTables = result.nextTables || result.state?.tables || [];
-          console.log('[YYT-TWB] nextTables:', JSON.stringify(liveTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
-          console.log('[YYT-TWB] configTables:', JSON.stringify(freshCfg.tables?.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length }))));
+          log.debug('nextTables', liveTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length })));
+          log.debug('configTables', freshCfg.tables?.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length })));
           const mergedTables = mergeLiveRowsIntoConfig(freshCfg.tables, liveTables, 'exact');
-          console.log('[YYT-TWB] mergedTables:', JSON.stringify(mergedTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length, source: t?.__liveSourceKind }))));
+          log.debug('mergedTables', mergedTables.map(t => ({ id: t?.id, key: t?.key, name: t?.name, rowCount: t?.rows?.length, source: t?.__liveSourceKind })));
           self.lastLiveConfig = { ...freshCfg, tables: mergedTables, __liveSourceKind: 'exact' };
           self.lastLiveTarget = result.targetSnapshot || null;
         }
@@ -1374,13 +1377,13 @@ export const TableWorkbenchPanel = {
     this._liveRefreshPending = true;
     try {
       const targetSnapshot = await resolveLatestTableTarget({ runSource: 'MANUAL_TABLE' });
-      console.log('[YYT-TWB] _refreshLiveState targetSnapshot:', targetSnapshot ? { sourceMessageId: targetSnapshot.sourceMessageId, slotBindingKey: targetSnapshot.slotBindingKey, slotRevisionKey: targetSnapshot.slotRevisionKey, chatId: targetSnapshot.chatId } : null);
+      log.debug('_refreshLiveState targetSnapshot', targetSnapshot ? { sourceMessageId: targetSnapshot.sourceMessageId, slotBindingKey: targetSnapshot.slotBindingKey, slotRevisionKey: targetSnapshot.slotRevisionKey, chatId: targetSnapshot.chatId } : null);
       if (!targetSnapshot) {
         this._clearLiveCache();
         return;
       }
       const boundState = getBoundTableState(targetSnapshot);
-      console.log('[YYT-TWB] _refreshLiveState boundState:', boundState ? { hasTables: Array.isArray(boundState.tables), tableCount: boundState.tables?.length, rowCounts: boundState.tables?.map(t => t?.rows?.length), sourceKind: boundState.meta?.sourceKind } : null);
+      log.debug('_refreshLiveState boundState', boundState ? { hasTables: Array.isArray(boundState.tables), tableCount: boundState.tables?.length, rowCounts: boundState.tables?.map(t => t?.rows?.length), sourceKind: boundState.meta?.sourceKind } : null);
       if (!boundState || !Array.isArray(boundState.tables) || boundState.tables.length === 0) {
         this.lastLiveTarget = targetSnapshot;
         if (this.lastLiveConfig) {
