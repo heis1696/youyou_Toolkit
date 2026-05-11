@@ -154,6 +154,9 @@ Key services and their roles:
 - `table-history-service.js` — historical state resolution across message swipes
 - `table-provider-service.js` — resolves effective API provider for table requests
 - `table-json-sanitizer.js` — sanitizes AI JSON responses (trailing commas, markdown fences, etc.)
+- `table-worldbook-sync-service.js` — world book entry sync (multi-entry injection with Wrapper + chatId isolation)
+- `table-worldbook-order-service.js` — order collision detection and consecutive allocation
+- `table-worldbook-placement-service.js` — position/depth normalization for world book entries
 - `table-types.js` — shared constants, type constructors, and identity helpers
 
 The table engine integrates with automation: when `tableWorkbench.autoUpdateEnabled === true` and the trigger is `assistantMessage`, the automation service calls `runAutoTableUpdate` in the same generation transaction after tool execution completes.

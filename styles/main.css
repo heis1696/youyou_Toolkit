@@ -381,6 +381,11 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes yytScaleInCentered {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
 .yyt-page.active {
   display: block;
 }
@@ -1383,7 +1388,7 @@
     0 0 0 1px rgba(255, 255, 255, 0.05),
     0 28px 84px rgba(0, 0, 0, 0.58),
     0 0 80px var(--yyt-accent-soft);
-  animation: yytScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: yytScaleInCentered 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
   color: var(--yyt-text);
   z-index: 10000;

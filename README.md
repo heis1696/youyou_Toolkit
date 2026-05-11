@@ -1,6 +1,6 @@
 # YouYou Toolkit - SillyTavern 工具插件
 
-> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.121`。
+> 当前文档以仓库内现行代码为准；当前发布版本为 `1.0.140`。
 
 YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配置工具链插件。
 
@@ -103,6 +103,9 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 │       ├── table-lock-service.js
 │       ├── table-scope-service.js
 │       ├── table-provider-service.js
+│       ├── table-worldbook-sync-service.js
+│       ├── table-worldbook-order-service.js
+│       ├── table-worldbook-placement-service.js
 │       ├── table-guide-service.js
 │       ├── table-template-service.js
 │       ├── table-types.js
@@ -111,7 +114,12 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 │   ├── API_DOCUMENTATION.md
 │   ├── ARCHITECTURE_ANALYSIS.md
 │   ├── FRAMEWORK_ARCHITECTURE.md
-│   └── CHANGELOG.md
+│   ├── CHANGELOG.md
+│   ├── TABLE_WORKBENCH_PROGRESS.md
+│   ├── TABLE_INJECTION_REFERENCE.md
+│   ├── LOGGING_GUIDE.md
+│   ├── UI_STYLE_GUIDE.md
+│   └── TODO.md
 └── dist/
 ```
 
@@ -150,8 +158,13 @@ import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@main/dist/bund
 - [架构分析](./docs/ARCHITECTURE_ANALYSIS.md)
 - [API 文档](./docs/API_DOCUMENTATION.md)
 - [更新日志](./docs/CHANGELOG.md)
+- [填表施工进度](./docs/TABLE_WORKBENCH_PROGRESS.md)
+- [世界书注入参考](./docs/TABLE_INJECTION_REFERENCE.md)
+- [日志编写指南](./docs/LOGGING_GUIDE.md)
+- [UI 样式规范](./docs/UI_STYLE_GUIDE.md)
+- [待办事项](./docs/TODO.md)
 
 ## 版本说明
 
-- 当前 `package.json` 版本：`1.0.121`
-- 当前发布版本：`1.0.121`
+- 当前 `package.json` 版本：`1.0.140`
+- 当前发布版本：`1.0.140`

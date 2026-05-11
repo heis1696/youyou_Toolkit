@@ -1,6 +1,6 @@
 # 架构分析
 
-本文档基于当前 `1.0.121` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
+本文档基于当前 `1.0.140` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
 
 结论先行：当前仓库已经不是“旧 trigger 管理器驱动的一组散模块”，而是围绕薄入口、bootstrap 装配、popup shell、运行时 tool registry、统一 execution context、自动化事务服务与写回链组织起来的一条主线。
 
@@ -406,6 +406,9 @@ Live committed rows 保存在绑定态中，不混回模板配置。
 | `table-template-service.js` | 模板资产存取 |
 | `table-types.js` | 共享类型与工具函数 |
 | `table-json-sanitizer.js` | AI 响应解析与清洗 |
+| `table-worldbook-sync-service.js` | 世界书条目同步（Wrapper + 多条目注入） |
+| `table-worldbook-order-service.js` | Order 碰撞检测与连续分配 |
+| `table-worldbook-placement-service.js` | position/depth 规范化 |
 
 ### 9.3 UI 结构
 

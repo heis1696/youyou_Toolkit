@@ -1,6 +1,6 @@
 # FRAMEWORK ARCHITECTURE
 
-本文档基于当前 `1.0.121` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
+本文档基于当前 `1.0.140` 源码，对 YouYou Toolkit 的主线框架做一份面向维护者的查阅式说明。
 
 它不是按文件列表罗列细节，而是按“遇到问题时应该先理解哪条主线”来组织内容。
 
@@ -470,6 +470,9 @@ tableWorkbench 管理两类非 live-state 资产：
 - `table-template-service.js` — 模板资产管理
 - `table-types.js` — 共享类型与工具函数
 - `table-json-sanitizer.js` — AI 响应解析与清洗
+- `table-worldbook-sync-service.js` — 世界书条目同步（Wrapper + 多条目注入）
+- `table-worldbook-order-service.js` — Order 碰撞检测与连续分配
+- `table-worldbook-placement-service.js` — position/depth 规范化
 
 ### 8.3 UI 结构
 
