@@ -194,13 +194,42 @@ function mergeTablesByScope(baseTables = [], scopedTables = [], runScope) {
     normalizedScoped.map((table, tableIndex) => [ensureTableId(table?.id || table?.key, tableIndex), table])
   );
 
+  const allowedScoped = normalizedBase
+    .map((table, tableIndex) => ({ table, tableIndex, id: ensureTableId(table?.id || table?.key, tableIndex) }))
+    .filter(({ table, tableIndex }) => runScope.includes(table, tableIndex));
+
+  const usedScopedIds = new Set();
+  const scopedByPosition = new Map();
+
+  for (let si = 0; si < normalizedScoped.length; si++) {
+    const st = normalizedScoped[si];
+    const stId = ensureTableId(st?.id || st?.key, si);
+    if (scopedById.has(stId)) {
+      scopedByPosition.set(stId, st);
+      usedScopedIds.add(stId);
+    }
+  }
+
+  let positionFallbackIndex = 0;
+  const unusedScoped = normalizedScoped.filter((st, si) => {
+    const stId = ensureTableId(st?.id || st?.key, si);
+    return !usedScopedIds.has(stId);
+  });
+
   return normalizedBase.map((table, tableIndex) => {
     const id = ensureTableId(table?.id || table?.key, tableIndex);
     if (!runScope.includes(table, tableIndex)) {
       return normalizeRuntimeTable(table, tableIndex);
     }
-    const nextTable = scopedById.get(id);
-    return nextTable ? normalizeRuntimeTable(nextTable, tableIndex) : normalizeRuntimeTable(table, tableIndex);
+    const nextTable = scopedByPosition.get(id);
+    if (nextTable) return normalizeRuntimeTable(nextTable, tableIndex);
+
+    const fallback = unusedScoped[positionFallbackIndex];
+    if (fallback) {
+      positionFallbackIndex++;
+      return normalizeRuntimeTable({ ...fallback, id: table.id || fallback.id }, tableIndex);
+    }
+    return normalizeRuntimeTable(table, tableIndex);
   });
 }
 
