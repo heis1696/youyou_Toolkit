@@ -8,6 +8,7 @@ import {
   escapeHtml,
   showToast,
   showTopNotice,
+  showConfirm,
   getJQuery,
   isContainerValid,
   createDialogHtml,
@@ -1079,11 +1080,12 @@ export function createToolConfigPanel(options) {
         self._saveConfig($container, { silent: false });
       });
 
-      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-reset-template`, () => {
+      $container.on('click.yytToolPanel', `#${SCRIPT_ID}-tool-reset-template`, async () => {
         const baseConfig = getToolBaseConfig(self.toolId);
         if (baseConfig?.promptTemplate) {
+          if (!await showConfirm('重置模板', '确定要将提示词模板恢复为默认？当前修改将丢失。', { danger: true })) return;
           $container.find(`#${SCRIPT_ID}-tool-prompt-template`).val(baseConfig.promptTemplate);
-          showToast('info', '模板已重置');
+          showToast('success', '模板已重置');
         }
       });
 

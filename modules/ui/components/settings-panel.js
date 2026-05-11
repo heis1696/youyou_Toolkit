@@ -559,6 +559,26 @@ export const SettingsPanel = {
   },
 
   _saveSettings($container) {
+    const $ = getJQuery();
+    const numberFields = [
+      { id: 'yyt-setting-maxConcurrent',    min: 1,     max: 10,     label: '最大并发数' },
+      { id: 'yyt-setting-maxRetries',       min: 0,     max: 10,     label: '最大重试次数' },
+      { id: 'yyt-setting-retryDelayMs',     min: 1000,  max: 60000,  label: '重试间隔' },
+      { id: 'yyt-setting-requestTimeoutMs', min: 10000, max: 300000, label: '请求超时时间' },
+      { id: 'yyt-setting-automationSettleMs', min: 0,   max: 10000,  label: '等待稳定时间' },
+      { id: 'yyt-setting-automationCooldownMs', min: 0, max: 60000,  label: '自动化冷却时间' }
+    ];
+    for (const field of numberFields) {
+      const $input = $container.find(`#${field.id}`);
+      const raw = $input.val();
+      const val = parseInt(raw, 10);
+      if (isNaN(val) || val < field.min || val > field.max) {
+        showToast('warning', `${field.label} 须在 ${field.min} ~ ${field.max} 之间`);
+        $input.trigger('focus').trigger('select');
+        return;
+      }
+    }
+
     const settings = {
       executor: {
         maxConcurrent: parseInt($container.find('#yyt-setting-maxConcurrent').val(), 10) || 3,

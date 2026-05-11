@@ -512,6 +512,7 @@ Phase 4: 应用黑名单过滤
           const name = $presetOverlay.find(`#${presetDialogId}-name`).val();
           if (!name || !name.trim()) {
             showToast('error', '请输入预设名称');
+            $presetOverlay.find(`#${presetDialogId}-name`).trigger('focus').trigger('select');
             return;
           }
           closeDialog();

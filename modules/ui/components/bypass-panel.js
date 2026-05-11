@@ -454,6 +454,7 @@ export const BypassPanel = {
     
     if (!name) {
       showToast('warning', '请输入预设名称');
+      $editor.find('.yyt-bypass-name-input').trigger('focus').trigger('select');
       return;
     }
     

@@ -2,7 +2,7 @@
  * YouYou Toolkit - 填表工作台面板
  * 主界面运行控制台 + 单表配置抽屉
  */
-import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice, showPrompt, downloadJson, readFileContent } from '../utils.js';
+import { escapeHtml, getJQuery, isContainerValid, showToast, showTopNotice, showPrompt, showConfirm, downloadJson, readFileContent } from '../utils.js';
 import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
 import { renderTableAuxiliaryFields } from './table-form-renderer.js';
 import { TableCellPopupMenu, getPopupMenuStyles } from './table-cell-popup-menu.js';
@@ -952,12 +952,14 @@ export const TableWorkbenchPanel = {
       self.renderTo($container, { config: cfg });
     });
 
-    $container.on('click.twb', '[data-twb-action="delete-table"]', function (e) {
+    $container.on('click.twb', '[data-twb-action="delete-table"]', async function (e) {
       e.stopPropagation();
       const ti = Number($(this).attr('data-twb-ti'));
       const cfg = collect($container);
       const tables = Array.isArray(cfg.tables) ? [...cfg.tables] : [];
       if (ti < 0 || ti >= tables.length) return;
+      const tableName = tables[ti]?.name || `表格 ${ti + 1}`;
+      if (!await showConfirm('删除表格', `确定要删除「${tableName}」吗？此操作不可撤销。`, { danger: true })) return;
       tables.splice(ti, 1);
       const next = idx(tables, ti > 0 ? ti - 1 : 0);
       cfg.tables = tables;
@@ -1087,12 +1089,15 @@ export const TableWorkbenchPanel = {
       self.renderTo($container, { config: cfg });
     });
 
-    $container.on('click.twb', '[data-twb-action="delete-col"]', function () {
+    $container.on('click.twb', '[data-twb-action="delete-col"]', async function () {
       const key = $(this).attr('data-twb-ci');
       const cfg = collect($container);
       const ti = idx(cfg.tables, self.currentTableIndex);
       const tables = Array.isArray(cfg.tables) ? [...cfg.tables] : [];
       if (!tables[ti]) return;
+      const col = tables[ti].columns?.find(c => c.key === key);
+      const colName = col?.name || col?.key || '此字段';
+      if (!await showConfirm('删除字段', `确定要删除「${colName}」吗？关联的单元格数据也将被移除。`, { danger: true })) return;
       const t = { ...tables[ti] };
       t.columns = Array.isArray(t.columns) ? [...t.columns] : [];
       t.columns = t.columns.filter(c => c.key !== key);

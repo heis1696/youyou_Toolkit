@@ -409,6 +409,7 @@ export const ToolManagePanel = {
       
       if (!name) {
         showToast('warning', '请输入工具名称');
+        $nameInput.trigger('focus').trigger('select');
         return;
       }
       
