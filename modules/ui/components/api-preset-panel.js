@@ -133,9 +133,9 @@ export const ApiPresetPanel = {
       <div class="yyt-api-manager">
         <div class="yyt-panel">
           <!-- 预设选择区 -->
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-bookmark"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="yyt-flow-heading-icon fa-solid fa-bookmark"></i>
               <span>预设选择</span>
             </div>
             
@@ -168,9 +168,9 @@ export const ApiPresetPanel = {
           </div>
           
           <!-- API配置区 -->
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-sliders"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="yyt-flow-heading-icon fa-solid fa-sliders"></i>
               <span>API配置</span>
               <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-save-as-preset" style="margin-left: auto;">
                 <i class="fa-solid fa-save"></i> 保存为预设

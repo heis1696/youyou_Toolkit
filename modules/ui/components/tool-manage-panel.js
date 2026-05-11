@@ -88,60 +88,51 @@ export const ToolManagePanel = {
     const enabledCount = toolEntries.filter(([, tool]) => tool?.enabled !== false).length;
     
     return `
-      <div class="yyt-tool-manager">
-        <div class="yyt-tool-manage-hero yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-screwdriver-wrench"></i>
-            <span>工具工作区</span>
-          </div>
-          <div class="yyt-tool-manage-hero-grid">
-            <div class="yyt-tool-manage-copy">
-              <div class="yyt-tool-manage-lead">在这里集中创建、整理和维护自定义工具。</div>
-              <div class="yyt-tool-manage-hint">
-                新建工具后会自动出现在上方“工具”页签里，可继续配置模板、提取规则、API 预设，并支持手动执行与测试提取。
-              </div>
+      <div class=”yyt-tool-manager”>
+        <!-- Stats -->
+        <div class=”yyt-flow-section”>
+          <div class=”yyt-stat-row” style=”grid-template-columns: 1fr 1fr;”>
+            <div class=”yyt-stat-cell”>
+              <div class=”yyt-stat-label”>工具总数</div>
+              <div class=”yyt-stat-value”>${toolEntries.length}</div>
             </div>
-            <div class="yyt-tool-manage-stats">
-              <div class="yyt-tool-manage-stat">
-                <span class="yyt-tool-manage-stat-label">工具总数</span>
-                <strong class="yyt-tool-manage-stat-value">${toolEntries.length}</strong>
-              </div>
-              <div class="yyt-tool-manage-stat">
-                <span class="yyt-tool-manage-stat-label">已启用</span>
-                <strong class="yyt-tool-manage-stat-value">${enabledCount}</strong>
-              </div>
+            <div class=”yyt-stat-cell”>
+              <div class=”yyt-stat-label”>已启用</div>
+              <div class=”yyt-stat-value” style=”color: var(--yyt-success);”>${enabledCount}</div>
             </div>
           </div>
         </div>
 
         <!-- 工具列表 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-tools"></i>
-            <span>工具列表</span>
-            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="yyt-add-tool" style="margin-left: auto;">
-              <i class="fa-solid fa-plus"></i> 新建工具
-            </button>
+        <div class=”yyt-flow-section”>
+          <div class=”yyt-flow-heading”>
+            <span class=”yyt-flow-heading-icon”><i class=”fa-solid fa-tools”></i></span>
+            工具列表
+            <span class=”yyt-flow-heading-action”>
+              <button class=”yyt-btn yyt-btn-small yyt-btn-primary” id=”yyt-add-tool”>
+                <i class=”fa-solid fa-plus”></i> 新建工具
+              </button>
+            </span>
           </div>
-          <div class="yyt-tool-list">
+          <div class=”yyt-tool-list”>
             ${this._renderToolList(tools)}
           </div>
         </div>
-        
+
         <!-- 底部操作 -->
-        <div class="yyt-panel-footer">
-          <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="yyt-import-tools">
-              <i class="fa-solid fa-file-import"></i> 导入
+        <div class=”yyt-panel-footer”>
+          <div class=”yyt-footer-left”>
+            <button class=”yyt-btn yyt-btn-secondary” id=”yyt-import-tools”>
+              <i class=”fa-solid fa-file-import”></i> 导入
             </button>
-            <button class="yyt-btn yyt-btn-secondary" id="yyt-export-tools">
-              <i class="fa-solid fa-file-export"></i> 导出
+            <button class=”yyt-btn yyt-btn-secondary” id=”yyt-export-tools”>
+              <i class=”fa-solid fa-file-export”></i> 导出
             </button>
-            <input type="file" id="yyt-import-tools-file" accept=".json" style="display:none">
+            <input type=”file” id=”yyt-import-tools-file” accept=”.json” style=”display:none”>
           </div>
-          <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-secondary" id="yyt-reset-tools">
-              <i class="fa-solid fa-undo"></i> 重置
+          <div class=”yyt-footer-right”>
+            <button class=”yyt-btn yyt-btn-secondary” id=”yyt-reset-tools”>
+              <i class=”fa-solid fa-undo”></i> 重置
             </button>
           </div>
         </div>
@@ -161,41 +152,45 @@ export const ToolManagePanel = {
     const entries = Object.entries(tools);
     if (!entries.length) {
       return `
-        <div class="yyt-empty-state-small">
-          <i class="fa-solid fa-toolbox"></i>
-          <span>还没有自定义工具，点击右上角“新建工具”开始创建</span>
+        <div class=”yyt-empty-state-small”>
+          <i class=”fa-solid fa-toolbox”></i>
+          <span>还没有自定义工具，点击右上角”新建工具”开始创建</span>
         </div>
       `;
     }
 
-    return entries.map(([id, tool]) => `
-      <div class="yyt-tool-item ${tool.enabled ? 'yyt-tool-item-enabled' : 'yyt-tool-item-disabled'}" data-tool-id="${id}">
-        <div class="yyt-tool-header">
-          <div class="yyt-tool-info">
-            <span class="yyt-tool-name">${escapeHtml(tool.name)}</span>
-            <span class="yyt-tool-category">${escapeHtml(tool.category)}</span>
-          </div>
-          <div class="yyt-tool-controls">
-            <label class="yyt-toggle yyt-tool-toggle">
-              <input type="checkbox" ${tool.enabled ? 'checked' : ''}>
-              <span class="yyt-toggle-slider"></span>
-            </label>
-          </div>
+    const rows = entries.map(([id, tool]) => `
+      <div class=”yyt-list-row ${tool.enabled ? 'yyt-tool-item-enabled' : 'yyt-tool-item-disabled'}” data-tool-id=”${id}”>
+        <div class=”yyt-list-row-icon” style=”background: var(--yyt-accent-soft); color: var(--yyt-accent);”>
+          <i class=”fa-solid fa-wrench”></i>
         </div>
-        <div class="yyt-tool-desc">${escapeHtml(tool.description)}</div>
-        <div class="yyt-tool-actions">
-          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="config">
-            <i class="fa-solid fa-sliders"></i> 配置
+        <div class=”yyt-list-row-main”>
+          <div class=”yyt-list-row-name”>
+            ${escapeHtml(tool.name)}
+            <span class=”yyt-badge” style=”background: var(--yyt-accent-soft); color: var(--yyt-accent); margin-left: 6px;”>${escapeHtml(tool.category)}</span>
+          </div>
+          <div class=”yyt-list-row-desc”>${escapeHtml(tool.description)}</div>
+        </div>
+        <span class=”yyt-status-dot ${tool.enabled ? 'yyt-status-dot-on' : 'yyt-status-dot-off'}”></span>
+        <label class=”yyt-toggle yyt-small yyt-tool-toggle”>
+          <input type=”checkbox” ${tool.enabled ? 'checked' : ''}>
+          <span class=”yyt-toggle-slider”></span>
+        </label>
+        <div class=”yyt-list-row-actions”>
+          <button class=”yyt-btn yyt-btn-small yyt-btn-secondary” data-action=”config”>
+            <i class=”fa-solid fa-sliders”></i>
           </button>
-          <button class="yyt-btn yyt-btn-small yyt-btn-secondary" data-action="edit">
-            <i class="fa-solid fa-pen"></i> 编辑
+          <button class=”yyt-btn yyt-btn-small yyt-btn-secondary” data-action=”edit”>
+            <i class=”fa-solid fa-pen”></i>
           </button>
-          <button class="yyt-btn yyt-btn-small yyt-btn-danger" data-action="delete">
-            <i class="fa-solid fa-trash"></i> 删除
+          <button class=”yyt-btn yyt-btn-small yyt-btn-danger” data-action=”delete”>
+            <i class=”fa-solid fa-trash”></i>
           </button>
         </div>
       </div>
     `).join('');
+
+    return `<div class=”yyt-list-table”>${rows}</div>`;
   },
   
   // ============================================================
@@ -224,32 +219,33 @@ export const ToolManagePanel = {
   _bindToolEvents($container, $) {
     // 工具启用/禁用
     $container.on('change.yytToolManage', '.yyt-tool-toggle input', (e) => {
-      const $item = $(e.currentTarget).closest('.yyt-tool-item');
+      const $item = $(e.currentTarget).closest('.yyt-list-row');
       const toolId = $item.data('tool-id');
       const enabled = $(e.currentTarget).is(':checked');
-      
+
       setToolEnabled(toolId, enabled);
       $item.toggleClass('yyt-tool-item-enabled', enabled).toggleClass('yyt-tool-item-disabled', !enabled);
+      $item.find('.yyt-status-dot').toggleClass('yyt-status-dot-on', enabled).toggleClass('yyt-status-dot-off', !enabled);
       showToast('info', enabled ? '工具已启用' : '工具已禁用');
     });
-    
+
     // 新建工具
     $container.on('click.yytToolManage', '#yyt-add-tool', () => {
       this._showToolEditDialog($container, $, null);
     });
 
-    $container.on('click.yytToolManage', '.yyt-tool-item [data-action="config"]', (e) => {
-      const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
+    $container.on('click.yytToolManage', '.yyt-list-row [data-action=”config”]', (e) => {
+      const toolId = $(e.currentTarget).closest('.yyt-list-row').data('tool-id');
       this._openToolConfig(toolId);
     });
 
-    $container.on('click.yytToolManage', '.yyt-tool-item [data-action="edit"]', (e) => {
-      const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
+    $container.on('click.yytToolManage', '.yyt-list-row [data-action=”edit”]', (e) => {
+      const toolId = $(e.currentTarget).closest('.yyt-list-row').data('tool-id');
       this._showToolEditDialog($container, $, toolId);
     });
 
-    $container.on('click.yytToolManage', '.yyt-tool-item [data-action=”delete”]', async (e) => {
-      const toolId = $(e.currentTarget).closest('.yyt-tool-item').data('tool-id');
+    $container.on('click.yytToolManage', '.yyt-list-row [data-action=”delete”]', async (e) => {
+      const toolId = $(e.currentTarget).closest('.yyt-list-row').data('tool-id');
       const tool = getTool(toolId);
       if (!toolId || !tool) return;
 
@@ -484,187 +480,30 @@ export const ToolManagePanel = {
       .yyt-tool-manager {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 0;
         min-height: 100%;
-      }
-
-      .yyt-tool-manage-hero {
-        position: relative;
-        overflow: hidden;
-        gap: 16px;
-        border-radius: var(--yyt-radius);
-        background: transparent;
-        border: 1px solid var(--yyt-border);
-        box-shadow: none;
-      }
-
-      .yyt-tool-manage-hero-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
-        align-items: stretch;
-      }
-
-      .yyt-tool-manage-copy {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .yyt-tool-manage-lead {
-        font-size: 18px;
-        font-weight: 700;
-        line-height: 1.15;
-        color: var(--yyt-text);
       }
 
       .yyt-tool-list {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 0;
         min-height: 0;
         overflow-y: auto;
-        padding-right: 4px;
       }
 
-      .yyt-tool-manage-hint {
-        font-size: 13px;
-        color: var(--yyt-text-secondary);
-        line-height: 1.75;
-        max-width: 64ch;
-      }
-
-      .yyt-tool-manage-stats {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(150px, 1fr));
-        gap: 12px;
-      }
-
-      .yyt-tool-manage-stat {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 10px;
-        padding: 16px;
-        border-radius: var(--yyt-radius);
-        background: transparent;
-        border: 1px solid var(--yyt-border);
-        min-width: 150px;
-        box-shadow: none;
-      }
-
-      .yyt-tool-manage-stat-label {
-        font-size: 10px;
-        color: var(--yyt-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.48px;
-      }
-
-      .yyt-tool-manage-stat-value {
-        font-size: 28px;
-        font-weight: 900;
-        color: var(--yyt-text);
-        line-height: 1;
-      }
-
-      .yyt-tool-item {
-        position: relative;
-        overflow: hidden;
-        padding: 18px;
-        background: transparent;
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius);
-        transition: border-color 0.18s ease, background 0.18s ease;
-        box-shadow: none;
-      }
-
-      .yyt-tool-item:hover {
-        border-color: var(--yyt-border-strong);
-        background: var(--yyt-surface-3);
-        box-shadow: none;
-      }
-
-      .yyt-tool-item.yyt-tool-item-disabled {
+      .yyt-tool-item-disabled {
         opacity: 0.6;
         filter: saturate(0.8);
       }
 
-      .yyt-tool-item.yyt-tool-item-enabled {
-        border-color: rgba(74, 222, 128, 0.2);
-      }
-
-      .yyt-tool-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 12px;
-        gap: 14px;
-      }
-
-      .yyt-tool-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-        flex-wrap: wrap;
-      }
-
-      .yyt-tool-name {
-        font-weight: 700;
-        font-size: 15px;
-        color: var(--yyt-text);
-      }
-
-      .yyt-tool-category {
-        font-size: 10px;
-        padding: 5px 10px;
-        background: var(--yyt-accent-soft);
-        border-radius: 999px;
-        color: var(--yyt-accent-strong);
-        border: 1px solid rgba(123, 183, 255, 0.2);
-        text-transform: uppercase;
-        letter-spacing: 0.45px;
-        font-weight: 800;
-      }
-
-      .yyt-tool-desc {
-        font-size: 13px;
-        color: var(--yyt-text-secondary);
-        margin-bottom: 16px;
-        line-height: 1.75;
-      }
-
-      .yyt-tool-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      .yyt-tool-actions .yyt-btn-secondary {
-        background: rgba(255, 255, 255, 0.07);
-      }
-
-      .yyt-tool-actions .yyt-btn-danger {
-        margin-left: auto;
-      }
-
-      .yyt-tool-controls {
-        flex-shrink: 0;
-        padding-top: 2px;
-      }
-
       @media screen and (max-width: 768px) {
-        .yyt-tool-manage-hero-grid {
-          grid-template-columns: 1fr;
+        .yyt-list-row {
+          flex-wrap: wrap;
         }
-
-        .yyt-tool-manage-stats {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .yyt-tool-header {
-          align-items: flex-start;
-          flex-direction: column;
+        .yyt-list-row-actions {
+          width: 100%;
+          justify-content: flex-end;
         }
       }
     `;

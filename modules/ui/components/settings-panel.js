@@ -289,8 +289,8 @@ export const SettingsPanel = {
   _renderExecutorTab(executor) {
     return `
       <div class="yyt-settings-tab-content yyt-active" data-tab="executor">
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">并发控制</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-layer-group"></i></span>并发控制</div>
           <div class="yyt-form-group">
             <label>最大并发数</label>
             <div class="yyt-form-hint">同时执行的工具数量上限</div>
@@ -299,8 +299,8 @@ export const SettingsPanel = {
           </div>
         </div>
 
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">重试策略</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-rotate-right"></i></span>重试策略</div>
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
               <label>最大重试次数</label>
@@ -315,8 +315,8 @@ export const SettingsPanel = {
           </div>
         </div>
 
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">超时设置</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-clock"></i></span>超时设置</div>
           <div class="yyt-form-group">
             <label>请求超时时间 (ms)</label>
             <div class="yyt-form-hint">单个请求的超时时间，超过将自动中断</div>
@@ -325,8 +325,8 @@ export const SettingsPanel = {
           </div>
         </div>
 
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">队列策略</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-list-ol"></i></span>队列策略</div>
           <div class="yyt-form-group">
             <label>队列处理方式</label>
             <select class="yyt-select" id="yyt-setting-queueStrategy">
@@ -354,7 +354,7 @@ export const SettingsPanel = {
           const refreshHint = refresh?.eventSource || refresh?.eventName || requestMethods || refresh?.confirmedBy;
 
           return `
-          <div class="yyt-settings-runtime-item">
+          <div class="yyt-list-row">
             <div class="yyt-settings-runtime-meta">
               <span>${tx?.sourceEvent || 'UNKNOWN_EVENT'}</span>
               <span>${tx?.phase || 'unknown'}</span>
@@ -368,34 +368,34 @@ export const SettingsPanel = {
       : '<div class="yyt-form-hint">暂无自动化事务记录。</div>';
 
     return `
-      <div class="yyt-settings-tab-content" data-tab="automation">
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">自动触发总开关</div>
-          <div class="yyt-form-group">
+      <div class=”yyt-settings-tab-content” data-tab=”automation”>
+        <div class=”yyt-flow-section”>
+          <div class=”yyt-flow-heading”><span class=”yyt-flow-heading-icon”><i class=”fa-solid fa-toggle-on”></i></span>自动触发总开关</div>
+          <div class=”yyt-form-group”>
             ${renderToggleControl({
               id: 'yyt-setting-automationEnabled',
               checked: automation.enabled,
               title: '启用工具自动触发',
-              hint: '这里只保留一个全局开关。开启后，所有处于“额外 AI 模型解析”模式的工具都会参与自动触发。'
+              hint: '这里只保留一个全局开关。开启后，所有处于”额外 AI 模型解析”模式的工具都会参与自动触发。'
             })}
           </div>
-          <div class="yyt-form-row">
-            <div class="yyt-form-group yyt-flex-1">
+          <div class=”yyt-form-row”>
+            <div class=”yyt-form-group yyt-flex-1”>
               <label>等待稳定时间 (ms)</label>
-              <input type="number" class="yyt-input" id="yyt-setting-automationSettleMs"
-                     value="${automation.settleMs || 1200}" min="0" max="10000" step="100">
+              <input type=”number” class=”yyt-input” id=”yyt-setting-automationSettleMs”
+                     value=”${automation.settleMs || 1200}” min=”0” max=”10000” step=”100”>
             </div>
-            <div class="yyt-form-group yyt-flex-1">
+            <div class=”yyt-form-group yyt-flex-1”>
               <label>自动化冷却时间 (ms)</label>
-              <input type="number" class="yyt-input" id="yyt-setting-automationCooldownMs"
-                     value="${automation.cooldownMs || 5000}" min="0" max="60000" step="100">
+              <input type=”number” class=”yyt-input” id=”yyt-setting-automationCooldownMs”
+                     value=”${automation.cooldownMs || 5000}” min=”0” max=”60000” step=”100”>
             </div>
           </div>
-          <div class="yyt-form-hint">当前状态：${effectiveEnabled ? '已启用' : '未启用'}。开启后，所有“额外 AI 模型解析”工具都会在 AI 回复后自动执行。</div>
+          <div class=”yyt-form-hint”>当前状态：${effectiveEnabled ? '已启用' : '未启用'}。开启后，所有”额外 AI 模型解析”工具都会在 AI 回复后自动执行。</div>
         </div>
 
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">自动化诊断</div>
+        <div class=”yyt-flow-section”>
+          <div class=”yyt-flow-heading”><span class=”yyt-flow-heading-icon”><i class=”fa-solid fa-stethoscope”></i></span>自动化诊断</div>
           <div class="yyt-settings-runtime-grid">
             <div class="yyt-settings-runtime-chip ${runtime?.enabled ? 'is-on' : 'is-off'}">服务 ${runtime?.enabled ? '运行中' : '未启用'}</div>
             <div class="yyt-settings-runtime-chip ${hostBinding.initialized ? 'is-on' : 'is-off'}">监听 ${hostBinding.initialized ? '已绑定' : '未绑定'}</div>
@@ -408,7 +408,7 @@ export const SettingsPanel = {
           ${hostBinding.lastError ? `<div class="yyt-form-hint">最近错误：<code>${hostBinding.lastError}</code></div>` : ''}
           ${hostBinding.retryScheduled ? `<div class="yyt-form-hint">已安排重试：<code>${hostBinding.retryDelayMs || 0}ms</code></div>` : ''}
           <div class="yyt-form-hint">若自动触发失败，优先看最近事务的 verdict，例如 <code>automation_disabled</code>、<code>no_auto_tools</code>、<code>assistant_message_not_found</code>。</div>
-          <div class="yyt-settings-runtime-list">${runtimeHtml}</div>
+          <div class="yyt-list-table">${runtimeHtml}</div>
         </div>
       </div>
     `;
@@ -417,8 +417,8 @@ export const SettingsPanel = {
   _renderDebugTab(debug) {
     return `
       <div class="yyt-settings-tab-content" data-tab="debug">
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">日志级别</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-file-lines"></i></span>日志级别</div>
           <div class="yyt-form-group">
             ${renderToggleControl({
               id: 'yyt-setting-enableDebugLog',
@@ -432,8 +432,8 @@ export const SettingsPanel = {
           </div>
         </div>
 
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">执行记录</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>执行记录</div>
           <div class="yyt-form-group">
             ${renderToggleControl({
               id: 'yyt-setting-saveExecutionHistory',
@@ -444,8 +444,8 @@ export const SettingsPanel = {
           </div>
         </div>
 
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">UI 显示</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-eye"></i></span>UI 显示</div>
           <div class="yyt-form-group">
             ${renderToggleControl({
               id: 'yyt-setting-showRuntimeBadge',
@@ -462,8 +462,8 @@ export const SettingsPanel = {
   _renderUiTab(ui) {
     return `
       <div class="yyt-settings-tab-content" data-tab="ui">
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">外观设置</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-palette"></i></span>外观设置</div>
           <div class="yyt-form-group">
             <label>主题</label>
             <select class="yyt-select" id="yyt-setting-theme">
@@ -493,10 +493,10 @@ export const SettingsPanel = {
           </div>
         </div>
 
-        <div class="yyt-settings-section">
-          <div class="yyt-settings-section-title">模板宏说明</div>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-code"></i></span>模板宏说明</div>
           <div class="yyt-form-hint">工具模板里可直接使用下面这些宏。世界书内容只有在模板里显式写入 <code>{{toolWorldbookContent}}</code> 时才会注入。</div>
-          <div class="yyt-settings-macro-list">
+          <div class="yyt-list-table">
             ${this._renderMacroList()}
           </div>
         </div>
@@ -507,7 +507,7 @@ export const SettingsPanel = {
   _renderMacroList() {
     return variableResolver.getAvailableVariables()
       .map(variable => `
-        <div class="yyt-settings-macro-item">
+        <div class="yyt-list-row">
           <code>${variable.name}</code>
           <span>${variable.description}</span>
         </div>
@@ -643,9 +643,9 @@ export const SettingsPanel = {
         align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
-        padding: 18px 20px;
-        border-radius: var(--yyt-radius);
-        border: 1px solid var(--yyt-border);
+        padding: 0;
+        border-radius: 0;
+        border: none;
         background: transparent;
         box-shadow: none;
       }
@@ -770,61 +770,11 @@ export const SettingsPanel = {
         display: flex;
       }
 
-      .yyt-settings-section {
-        position: relative;
-        overflow: visible;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding: 18px;
-        border-radius: var(--yyt-radius);
-        border: 1px solid var(--yyt-border);
-        background: transparent;
-        box-shadow: none;
-      }
-
-      .yyt-settings-section-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--yyt-text);
-        margin-bottom: 0;
-      }
-
       .yyt-settings-footer {
         display: flex;
         justify-content: space-between;
         gap: 8px;
         padding-top: 2px;
-      }
-
-      .yyt-settings-macro-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-top: 12px;
-      }
-
-      .yyt-settings-macro-item {
-        display: grid;
-        grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-        gap: 14px;
-        align-items: start;
-        padding: 14px 16px;
-        border-radius: var(--yyt-radius);
-        border: 1px solid var(--yyt-border);
-        background: transparent;
-      }
-
-      .yyt-settings-macro-item code {
-        color: var(--yyt-accent-strong);
-        word-break: break-word;
-        font-weight: 800;
-      }
-
-      .yyt-settings-macro-item span {
-        color: var(--yyt-text-secondary);
-        font-size: 12px;
-        line-height: 1.7;
       }
 
       .yyt-settings-runtime-grid {
@@ -863,23 +813,6 @@ export const SettingsPanel = {
         color: var(--yyt-text);
       }
 
-      .yyt-settings-runtime-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-top: 14px;
-      }
-
-      .yyt-settings-runtime-item {
-        padding: 14px 16px;
-        border-radius: var(--yyt-radius);
-        border: 1px solid var(--yyt-border);
-        background: transparent;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
       .yyt-settings-runtime-meta {
         display: flex;
         gap: 10px;
@@ -893,6 +826,74 @@ export const SettingsPanel = {
         color: var(--yyt-text);
         line-height: 1.7;
         word-break: break-word;
+      }
+
+      /* flat-flow layout primitives */
+      .yyt-flow-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 0;
+      }
+
+      .yyt-flow-heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--yyt-text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--yyt-border);
+      }
+
+      .yyt-flow-heading-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        font-size: 11px;
+        color: var(--yyt-accent);
+        flex-shrink: 0;
+      }
+
+      /* shared list-table / list-row for macro and runtime rows */
+      .yyt-list-table {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .yyt-list-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--yyt-border);
+      }
+
+      .yyt-list-row:last-child {
+        border-bottom: none;
+      }
+
+      .yyt-list-row code {
+        color: var(--yyt-accent-strong);
+        word-break: break-word;
+        font-weight: 800;
+      }
+
+      .yyt-list-row span {
+        color: var(--yyt-text-secondary);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      /* runtime list-rows are single-column stacked */
+      .yyt-list-table .yyt-list-row:has(.yyt-settings-runtime-meta) {
+        grid-template-columns: 1fr;
       }
     `;
   },

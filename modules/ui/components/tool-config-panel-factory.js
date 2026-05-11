@@ -292,8 +292,6 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     gap: 12px;
     min-width: 0;
     padding: 18px;
-    border-radius: var(--yyt-radius);
-    border: 1px solid var(--yyt-border);
     background: transparent;
     box-shadow: none;
   }
@@ -368,8 +366,6 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-tool-debug-panel {
-    border: 1px solid var(--yyt-border);
-    border-radius: var(--yyt-radius);
     padding: 12px 14px;
     background: transparent;
   }
@@ -429,12 +425,15 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-debug-history-item {
     padding: 10px 12px;
-    border-radius: var(--yyt-radius);
-    border: 1px solid var(--yyt-border);
+    border-top: 1px solid var(--yyt-border);
     background: transparent;
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .yyt-tool-debug-history-item:first-child {
+    border-top: none;
   }
 
   .yyt-tool-debug-history-meta {
@@ -616,9 +615,9 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-wand-magic-sparkles yyt-flow-heading-icon"></i>
               <span>输出模式</span>
             </div>
             <div class="yyt-form-group">
@@ -631,9 +630,9 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-database"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-database yyt-flow-heading-icon"></i>
               <span>API 预设</span>
             </div>
             <div class="yyt-form-group">
@@ -650,9 +649,9 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-shield-halved"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-shield-halved yyt-flow-heading-icon"></i>
               <span>Ai指令预设</span>
             </div>
             <div class="yyt-form-group">
@@ -675,9 +674,9 @@ export function createToolConfigPanel(options) {
           </div>
 
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-book-open"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-book-open yyt-flow-heading-icon"></i>
               <span>世界书注入</span>
             </div>
             <div class="yyt-form-group">
@@ -717,9 +716,9 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-filter"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-filter yyt-flow-heading-icon"></i>
               <span>提取配置</span>
             </div>
             <div class="yyt-form-row">
@@ -738,9 +737,9 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-bolt"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-bolt yyt-flow-heading-icon"></i>
               <span>自动触发</span>
             </div>
             <div class="yyt-form-group">
@@ -762,9 +761,9 @@ export function createToolConfigPanel(options) {
             <div class="yyt-tool-compact-hint">只有同时满足“当前工具启用自动触发”“输出模式为额外 AI 模型解析”“全局自动化开启”时，才会在 AI 回复后自动执行。</div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-file-code"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-file-code yyt-flow-heading-icon"></i>
               <span>模板修改框</span>
               <div class="yyt-title-actions">
                 <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-tool-reset-template">
@@ -781,9 +780,9 @@ export function createToolConfigPanel(options) {
             </div>
           </div>
 
-          <div class="yyt-panel-section">
-            <div class="yyt-section-title">
-              <i class="fa-solid fa-hand-pointer"></i>
+          <div class="yyt-flow-section">
+            <div class="yyt-flow-heading">
+              <i class="fa-solid fa-hand-pointer yyt-flow-heading-icon"></i>
               <span>手动操作区</span>
             </div>
             <div class="yyt-tool-manual-area">

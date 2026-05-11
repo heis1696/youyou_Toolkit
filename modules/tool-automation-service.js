@@ -411,14 +411,15 @@ class ToolAutomationService {
 
       if (!this._checkEnabled()) return;
 
-      // MESSAGE_RECEIVED 3 秒节流（参考 MagVarUpdate-beta）
+      // MESSAGE_RECEIVED 节流：覆盖 settle 等待期 + 处理周期
+      // MVU 用 _.throttle(handler, 3000) 硬锁，这里需要更长窗口覆盖异步 settle 间隙
       if (normalizedEvent === 'MESSAGE_RECEIVED') {
         const now = Date.now();
         if (now < this._messageReceivedThrottleUntil) {
           log.debug(`MESSAGE_RECEIVED 在节流窗口内，跳过（剩余 ${this._messageReceivedThrottleUntil - now}ms）`);
           return;
         }
-        this._messageReceivedThrottleUntil = now + 3000;
+        this._messageReceivedThrottleUntil = now + this._getSettleMs() + 5000;
       }
 
       // 解析目标消息
@@ -479,6 +480,11 @@ class ToolAutomationService {
       this._scheduleMessageProcessing(targetMessageId, targetSwipeId, {
         settleMs: this._getSettleMs(),
         sourceEvent: normalizedEvent
+      });
+      log.info(`事件 "${normalizedEvent}" 通过所有守卫，已调度处理`, {
+        targetMessageId, targetSwipeId,
+        throttleUntil: this._messageReceivedThrottleUntil,
+        isProcessing: this._isProcessing
       });
     };
 
@@ -769,7 +775,7 @@ class ToolAutomationService {
               swipeId: context.sourceSwipeId,
               hasOutput: true
             };
-            this._messageReceivedThrottleUntil = Date.now() + 8000;
+            this._messageReceivedThrottleUntil = Date.now() + 15000;
           }
 
           this._markSlotProcessed(slotKey);
@@ -958,11 +964,11 @@ class ToolAutomationService {
     this._pruneOwnWrites();
     const writtenAt = this._ownWriteMessageIds.get(key);
     if (!writtenAt) return false;
-    return (Date.now() - writtenAt) < 5000;
+    return (Date.now() - writtenAt) < 10000;
   }
 
   _pruneOwnWrites() {
-    const cutoff = Date.now() - 5000;
+    const cutoff = Date.now() - 10000;
     for (const [key, ts] of this._ownWriteMessageIds) {
       if (!Number.isFinite(ts) || ts < cutoff) {
         this._ownWriteMessageIds.delete(key);
@@ -1220,7 +1226,7 @@ class ToolAutomationService {
       settleMs,
       dedupeWindowMs: Number.isFinite(automation.dedupeWindowMs)
         ? automation.dedupeWindowMs
-        : Math.max(1200, settleMs + 600)
+        : Math.max(5000, settleMs + 600)
     };
   }
 

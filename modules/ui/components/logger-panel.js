@@ -254,9 +254,7 @@ export const LoggerPanel = {
         gap: 10px;
         flex-wrap: wrap;
         padding: 10px 12px;
-        border-radius: var(--yyt-radius);
         background: transparent;
-        border: 1px solid var(--yyt-border-soft);
       }
 
       .yyt-logger-filter-btns {

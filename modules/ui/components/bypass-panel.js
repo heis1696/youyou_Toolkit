@@ -834,9 +834,12 @@ export const BypassPanel = {
       
       .yyt-bypass-message {
         background: transparent;
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius);
+        border-top: 1px solid var(--yyt-border);
         padding: 14px;
+      }
+
+      .yyt-bypass-message:first-child {
+        border-top: none;
       }
       
       .yyt-bypass-message.yyt-disabled {

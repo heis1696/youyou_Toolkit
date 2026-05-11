@@ -471,22 +471,189 @@ export function createBootstrap(context, options = {}) {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 0;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 8px;
-  box-shadow: none;
-  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.yyt-panel-section:hover {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: transparent;
+  border: none;
+  border-radius: 0;
   box-shadow: none;
 }
 
 .yyt-panel-section > .yyt-section-title + * {
   min-width: 0;
+}
+
+/* Flat Flow Layout Primitives */
+.yyt-flow-section + .yyt-flow-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-flow-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--yyt-text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.yyt-flow-heading-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--yyt-radius-sm);
+  background: var(--yyt-accent-soft);
+  color: var(--yyt-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.yyt-flow-heading-action {
+  margin-left: auto;
+}
+
+.yyt-stat-row {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--yyt-border-strong);
+  border-radius: var(--yyt-radius);
+  overflow: hidden;
+}
+
+.yyt-stat-cell {
+  padding: 16px 18px;
+  background: var(--yyt-surface-2);
+  transition: background 0.12s ease;
+}
+
+.yyt-stat-cell:hover {
+  background: var(--yyt-surface-3);
+}
+
+.yyt-stat-cell + .yyt-stat-cell {
+  border-left: 1px solid var(--yyt-border);
+}
+
+.yyt-stat-label {
+  font-size: 10px;
+  color: var(--yyt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+}
+
+.yyt-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--yyt-text);
+  margin-top: 6px;
+}
+
+.yyt-list-table {
+  border: 1px solid var(--yyt-border-strong);
+  border-radius: var(--yyt-radius);
+  overflow: hidden;
+}
+
+.yyt-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--yyt-surface-2);
+  transition: background 0.1s ease;
+}
+
+.yyt-list-row:hover {
+  background: var(--yyt-surface-3);
+}
+
+.yyt-list-row + .yyt-list-row {
+  border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-list-row-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--yyt-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.yyt-list-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.yyt-list-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--yyt-text);
+}
+
+.yyt-list-row-desc {
+  font-size: 11px;
+  color: var(--yyt-text-muted);
+  margin-top: 2px;
+}
+
+.yyt-list-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.yyt-form-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--yyt-border);
+}
+
+.yyt-form-inline:last-child {
+  border-bottom: none;
+}
+
+.yyt-form-inline-label {
+  flex: 1;
+}
+
+.yyt-form-inline-control {
+  flex-shrink: 0;
+}
+
+.yyt-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.yyt-status-dot-on {
+  background: var(--yyt-success);
+  box-shadow: 0 0 6px var(--yyt-success);
+}
+
+.yyt-status-dot-off {
+  background: var(--yyt-text-muted);
+}
+
+.yyt-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
 }
 
 .yyt-section-title {

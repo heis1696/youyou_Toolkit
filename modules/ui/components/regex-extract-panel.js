@@ -63,25 +63,25 @@ export const RegexExtractPanel = {
     return `
       <div class="yyt-regex-panel">
         <!-- 规则编辑区 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-filter"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <i class="yyt-flow-heading-icon fa-solid fa-filter"></i>
             <span>标签提取规则</span>
             <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-show-examples" style="margin-left: auto;">
               <i class="fa-solid fa-lightbulb"></i> 查看示例
             </button>
           </div>
-          
+
           ${this._renderRulesEditor(rules, blacklist, presets)}
         </div>
-        
+
         <!-- 测试区 -->
-        <div class="yyt-panel-section">
-          <div class="yyt-section-title">
-            <i class="fa-solid fa-flask"></i>
+        <div class="yyt-flow-section">
+          <div class="yyt-flow-heading">
+            <i class="yyt-flow-heading-icon fa-solid fa-flask"></i>
             <span>测试提取</span>
           </div>
-          
+
           ${this._renderTestSection()}
         </div>
         
@@ -157,8 +157,10 @@ export const RegexExtractPanel = {
         </div>
         `}
         
-        <div class="yyt-rules-list">
-          ${rulesList}
+        <div class="yyt-list-table">
+          <div class="yyt-rules-list">
+            ${rulesList}
+          </div>
         </div>
         
         <div class="yyt-form-row">
@@ -676,12 +678,15 @@ Phase 4: 应用黑名单过滤
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 12px 13px;
+        padding: 12px 16px;
         background: transparent;
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius);
-        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        border-top: 1px solid var(--yyt-border);
+        transition: background 0.2s ease, box-shadow 0.2s ease;
         box-shadow: none;
+      }
+
+      .yyt-rule-item:first-child {
+        border-top: none;
       }
 
       .yyt-rule-item > .yyt-select,
@@ -700,7 +705,6 @@ Phase 4: 应用黑名单过滤
 
       .yyt-rule-item:hover {
         background: var(--yyt-surface-3);
-        border-color: var(--yyt-border-strong);
         box-shadow: none;
       }
 
@@ -753,8 +757,6 @@ Phase 4: 应用黑名单过滤
 
       .yyt-test-result {
         background: transparent;
-        border: 1px solid var(--yyt-border);
-        border-radius: var(--yyt-radius-sm);
         padding: 14px;
         max-height: 300px;
         overflow-y: auto;
