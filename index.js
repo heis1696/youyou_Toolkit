@@ -10,7 +10,7 @@ import { createPopupShell } from './modules/app/popup-shell.js';
 import { createPublicApi } from './modules/app/public-api.js';
 
 const SCRIPT_ID = 'youyou_toolkit';
-const SCRIPT_VERSION = '1.0.134';
+const SCRIPT_VERSION = '1.0.135';
 const MENU_ITEM_ID = `${SCRIPT_ID}-menu-item`;
 const MENU_CONTAINER_ID = `${SCRIPT_ID}-menu-container`;
 const POPUP_ID = `${SCRIPT_ID}-popup`;
