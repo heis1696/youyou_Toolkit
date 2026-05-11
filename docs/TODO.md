@@ -20,3 +20,28 @@
 2. **放弃 testingcf**：改用 `cdn.jsdelivr.net` 或其他国内可用的 CDN 前缀（如 `gcore.jsdelivr.net`）
 3. **用户侧绕过**：在插件加载 URL 后加 `?v=版本号` 或 `#版本号` 破坏缓存键（需要宿主环境支持）
 4. **GitHub Pages / 自建 CDN**：脱离 jsDelivr 的缓存策略，自行控制刷新
+
+---
+
+## 主题系统模块化：自定义导入导出
+
+**状态**：待做
+**优先级**：中
+**来源**：UI 重构 v1.0.140 讨论
+
+**目标**：
+将主题设计从硬编码配置提升为可模块化管理的系统，支持：
+1. **主题导出**：将当前主题 token（surface 阶梯 + accent + 边框 + 控件等）导出为 JSON 文件
+2. **主题导入**：导入 JSON 主题文件，校验 token 完整性后应用
+3. **自定义主题编辑器**：在设置面板中提供 token 可视化编辑（色板 + 实时预览）
+4. **主题共享**：用户可分享/交换主题 JSON
+
+**涉及文件**：
+- `modules/ui/components/settings-panel.js`（`THEME_CONFIGS`、`applyTheme()`）
+- `styles/main.css`（`:root` 默认值）
+- `modules/app/bootstrap.js`（`getBaseStyles()` 回退）
+
+**设计约束**：
+- 必须遵守 `docs/UI_STYLE_GUIDE.md` 的 token 体系和命名规范
+- 导入主题需校验必要 token 是否齐全（参见 Style Guide §5.2 checklist）
+- 自定义主题存储走 `storage-service.js`
