@@ -492,10 +492,10 @@ export const ToolManagePanel = {
         position: relative;
         overflow: hidden;
         gap: 16px;
-        border-radius: 26px;
-        background:
-          radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
-          linear-gradient(145deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%);
+        border-radius: var(--yyt-radius);
+        background: var(--yyt-surface-2);
+        border: 1px solid var(--yyt-border);
+        box-shadow: none;
       }
 
       .yyt-tool-manage-hero-grid {
@@ -512,10 +512,9 @@ export const ToolManagePanel = {
       }
 
       .yyt-tool-manage-lead {
-        font-size: 24px;
-        font-weight: 900;
-        line-height: 1.1;
-        letter-spacing: -0.2px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.15;
         color: var(--yyt-text);
       }
 
@@ -530,7 +529,7 @@ export const ToolManagePanel = {
 
       .yyt-tool-manage-hint {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--yyt-text-secondary);
         line-height: 1.75;
         max-width: 64ch;
       }
@@ -547,18 +546,16 @@ export const ToolManagePanel = {
         justify-content: center;
         gap: 10px;
         padding: 16px;
-        border-radius: 20px;
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%),
-          rgba(5, 10, 18, 0.18);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--yyt-radius);
+        background: var(--yyt-surface-2);
+        border: 1px solid var(--yyt-border);
         min-width: 150px;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        box-shadow: none;
       }
 
       .yyt-tool-manage-stat-label {
         font-size: 10px;
-        color: rgba(255, 255, 255, 0.58);
+        color: var(--yyt-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.48px;
       }
@@ -574,30 +571,17 @@ export const ToolManagePanel = {
         position: relative;
         overflow: hidden;
         padding: 18px;
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
-          rgba(255, 255, 255, 0.01);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 22px;
-        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 32px rgba(0, 0, 0, 0.12);
-      }
-
-      .yyt-tool-item::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(120deg, rgba(255, 255, 255, 0.05) 0%, transparent 40%, transparent 70%, rgba(255, 255, 255, 0.02) 100%);
-        pointer-events: none;
+        background: var(--yyt-surface-2);
+        border: 1px solid var(--yyt-border);
+        border-radius: var(--yyt-radius);
+        transition: border-color 0.18s ease, background 0.18s ease;
+        box-shadow: none;
       }
 
       .yyt-tool-item:hover {
-        border-color: rgba(123, 183, 255, 0.2);
-        transform: translateY(-2px);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(123, 183, 255, 0.06);
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%),
-          rgba(255, 255, 255, 0.012);
+        border-color: var(--yyt-border-strong);
+        background: var(--yyt-surface-3);
+        box-shadow: none;
       }
 
       .yyt-tool-item.yyt-tool-item-disabled {
@@ -606,7 +590,7 @@ export const ToolManagePanel = {
       }
 
       .yyt-tool-item.yyt-tool-item-enabled {
-        border-color: rgba(74, 222, 128, 0.16);
+        border-color: rgba(74, 222, 128, 0.2);
       }
 
       .yyt-tool-header {
@@ -626,15 +610,15 @@ export const ToolManagePanel = {
       }
 
       .yyt-tool-name {
-        font-weight: 900;
-        font-size: 17px;
+        font-weight: 700;
+        font-size: 15px;
         color: var(--yyt-text);
       }
 
       .yyt-tool-category {
         font-size: 10px;
         padding: 5px 10px;
-        background: rgba(123, 183, 255, 0.14);
+        background: var(--yyt-accent-soft);
         border-radius: 999px;
         color: var(--yyt-accent-strong);
         border: 1px solid rgba(123, 183, 255, 0.2);
@@ -645,7 +629,7 @@ export const ToolManagePanel = {
 
       .yyt-tool-desc {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.74);
+        color: var(--yyt-text-secondary);
         margin-bottom: 16px;
         line-height: 1.75;
       }

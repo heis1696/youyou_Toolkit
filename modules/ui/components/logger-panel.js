@@ -255,7 +255,7 @@ export const LoggerPanel = {
         flex-wrap: wrap;
         padding: 10px 12px;
         border-radius: var(--yyt-radius);
-        background: rgba(255, 255, 255, 0.025);
+        background: var(--yyt-surface-2);
         border: 1px solid var(--yyt-border-soft);
       }
 
@@ -270,7 +270,7 @@ export const LoggerPanel = {
         gap: 6px;
         padding: 6px 12px;
         border: 1px solid var(--yyt-border);
-        border-radius: 8px;
+        border-radius: var(--yyt-radius);
         background: var(--yyt-surface);
         color: var(--yyt-text-secondary);
         font-size: 12px;
@@ -337,7 +337,7 @@ export const LoggerPanel = {
         min-height: 0;
         overflow-y: auto;
         border-radius: var(--yyt-radius);
-        background: rgba(0, 0, 0, 0.2);
+        background: var(--yyt-surface);
         border: 1px solid var(--yyt-border-soft);
         font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
         font-size: 12px;
@@ -359,12 +359,12 @@ export const LoggerPanel = {
         gap: 8px;
         align-items: baseline;
         padding: 4px 11px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid var(--yyt-border-soft);
         min-width: 0;
       }
 
       .yyt-log-entry:hover {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--yyt-surface-hover);
       }
 
       .yyt-log-time {
@@ -396,8 +396,8 @@ export const LoggerPanel = {
         grid-column: 1 / -1;
         padding: 4px 8px;
         margin-top: 2px;
-        border-radius: 6px;
-        background: rgba(0, 0, 0, 0.25);
+        border-radius: var(--yyt-radius-sm);
+        background: var(--yyt-surface);
         color: var(--yyt-text-muted);
         font-size: 11px;
         white-space: pre-wrap;

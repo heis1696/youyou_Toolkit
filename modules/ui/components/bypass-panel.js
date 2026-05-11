@@ -643,8 +643,8 @@ export const BypassPanel = {
         width: 220px;
         display: flex;
         flex-direction: column;
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 12px;
+        background: var(--yyt-surface-2);
+        border-radius: var(--yyt-radius-lg);
         flex-shrink: 0;
       }
       
@@ -653,9 +653,9 @@ export const BypassPanel = {
         align-items: center;
         justify-content: space-between;
         padding: 14px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--yyt-border);
       }
-      
+
       .yyt-bypass-sidebar-title {
         font-size: 13px;
         font-weight: 600;
@@ -670,7 +670,7 @@ export const BypassPanel = {
       
       .yyt-bypass-preset-item {
         padding: 12px;
-        border-radius: 8px;
+        border-radius: var(--yyt-radius);
         cursor: pointer;
         transition: all 0.2s ease;
         margin-bottom: 4px;
@@ -681,11 +681,11 @@ export const BypassPanel = {
       }
       
       .yyt-bypass-preset-item:hover {
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--yyt-surface-hover);
       }
       
       .yyt-bypass-preset-item.yyt-active {
-        background: rgba(123, 183, 255, 0.1);
+        background: var(--yyt-accent-soft);
       }
       
       .yyt-bypass-preset-info {
@@ -728,7 +728,7 @@ export const BypassPanel = {
       .yyt-bypass-default-badge {
         font-size: 10px;
         padding: 2px 6px;
-        background: rgba(123, 183, 255, 0.15);
+        background: var(--yyt-accent-soft);
         color: var(--yyt-accent);
         border-radius: 4px;
         margin-top: 4px;
@@ -739,9 +739,9 @@ export const BypassPanel = {
         display: flex;
         gap: 8px;
         padding: 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid var(--yyt-border);
       }
-      
+
       .yyt-bypass-sidebar-footer .yyt-btn {
         flex: 1;
       }
@@ -750,8 +750,8 @@ export const BypassPanel = {
         flex: 1;
         display: flex;
         flex-direction: column;
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 12px;
+        background: var(--yyt-surface-2);
+        border-radius: var(--yyt-radius-lg);
         overflow: hidden;
       }
       
@@ -781,9 +781,9 @@ export const BypassPanel = {
         align-items: center;
         justify-content: space-between;
         padding: 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--yyt-border);
       }
-      
+
       .yyt-bypass-editor-title {
         flex: 1;
         margin-right: 16px;
@@ -808,9 +808,9 @@ export const BypassPanel = {
       
       .yyt-bypass-editor-desc {
         padding: 12px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--yyt-border);
       }
-      
+
       .yyt-bypass-messages-header {
         display: flex;
         align-items: center;
@@ -833,9 +833,9 @@ export const BypassPanel = {
       }
       
       .yyt-bypass-message {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
+        background: var(--yyt-surface-2);
+        border: 1px solid var(--yyt-border);
+        border-radius: var(--yyt-radius);
         padding: 14px;
       }
       
@@ -891,7 +891,7 @@ export const BypassPanel = {
       
       .yyt-bypass-editor-footer {
         padding: 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid var(--yyt-border);
         display: flex;
         justify-content: flex-end;
       }

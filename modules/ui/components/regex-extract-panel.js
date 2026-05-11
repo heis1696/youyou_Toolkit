@@ -677,11 +677,11 @@ Phase 4: 应用黑名单过滤
         align-items: center;
         gap: 10px;
         padding: 12px 13px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.025) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
+        background: var(--yyt-surface-2);
+        border: 1px solid var(--yyt-border);
+        border-radius: var(--yyt-radius);
         transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.1);
+        box-shadow: none;
       }
 
       .yyt-rule-item > .yyt-select,
@@ -699,9 +699,9 @@ Phase 4: 应用黑名单过滤
       }
 
       .yyt-rule-item:hover {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
-        border-color: rgba(255, 255, 255, 0.18);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 24px rgba(0, 0, 0, 0.12);
+        background: var(--yyt-surface-3);
+        border-color: var(--yyt-border-strong);
+        box-shadow: none;
       }
 
       .yyt-rule-enabled-label {
@@ -713,10 +713,10 @@ Phase 4: 应用黑名单过滤
       .yyt-tag-suggestions {
         margin-top: 12px;
         padding: 14px;
-        background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(74, 222, 128, 0.03) 100%);
+        background: rgba(74, 222, 128, 0.08);
         border: 1px solid rgba(74, 222, 128, 0.24);
-        border-radius: 16px;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 22px rgba(0, 0, 0, 0.08);
+        border-radius: var(--yyt-radius);
+        box-shadow: none;
       }
 
       .yyt-tag-suggestions-header {
@@ -740,7 +740,7 @@ Phase 4: 应用黑名单过滤
       }
 
       .yyt-tag-list .yyt-btn:hover {
-        background: linear-gradient(135deg, rgba(123, 183, 255, 0.24) 0%, rgba(123, 183, 255, 0.11) 100%);
+        background: var(--yyt-accent-soft);
         border-color: rgba(123, 183, 255, 0.4);
       }
       
@@ -752,7 +752,7 @@ Phase 4: 应用黑名单过滤
       }
 
       .yyt-test-result {
-        background: linear-gradient(135deg, var(--yyt-surface) 0%, rgba(255, 255, 255, 0.01) 100%);
+        background: var(--yyt-surface-2);
         border: 1px solid var(--yyt-border);
         border-radius: var(--yyt-radius-sm);
         padding: 14px;

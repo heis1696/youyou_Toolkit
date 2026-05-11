@@ -644,12 +644,10 @@ export const SettingsPanel = {
         justify-content: space-between;
         gap: 16px;
         padding: 18px 20px;
-        border-radius: 26px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background:
-          radial-gradient(520px 220px at 0% 0%, rgba(123, 183, 255, 0.16), transparent 62%),
-          linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 36px rgba(0, 0, 0, 0.16);
+        border-radius: var(--yyt-radius);
+        border: 1px solid var(--yyt-border);
+        background: var(--yyt-surface-2);
+        box-shadow: none;
       }
 
       .yyt-settings-hero-copy {
@@ -660,17 +658,16 @@ export const SettingsPanel = {
       }
 
       .yyt-settings-hero-title {
-        font-size: 26px;
-        font-weight: 900;
-        line-height: 1.05;
-        letter-spacing: -0.3px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.15;
         color: var(--yyt-text);
       }
 
       .yyt-settings-hero-desc {
         font-size: 13px;
         line-height: 1.75;
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--yyt-text-secondary);
         max-width: 62ch;
       }
 
@@ -689,23 +686,23 @@ export const SettingsPanel = {
         border-radius: 999px;
         font-size: 10px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid var(--yyt-border-strong);
         letter-spacing: 0.4px;
         color: var(--yyt-text);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 16px rgba(0, 0, 0, 0.1);
+        background: var(--yyt-surface-3);
+        box-shadow: none;
       }
 
       .yyt-settings-status-chip.is-on {
         color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.32);
-        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
+        border-color: rgba(74, 222, 128, 0.25);
+        background: rgba(74, 222, 128, 0.12);
       }
 
       .yyt-settings-status-chip.is-off {
         color: #f87171;
-        border-color: rgba(248, 113, 113, 0.32);
-        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
+        border-color: rgba(248, 113, 113, 0.25);
+        background: rgba(248, 113, 113, 0.12);
       }
 
       .yyt-settings-status-chip.is-neutral {
@@ -714,43 +711,43 @@ export const SettingsPanel = {
 
       .yyt-settings-tabs {
         display: flex;
-        gap: 8px;
-        padding: 7px;
-        border-radius: 22px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.025) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.09);
+        gap: 6px;
+        padding: 5px;
+        border-radius: var(--yyt-radius);
+        background: var(--yyt-surface-2);
+        border: 1px solid var(--yyt-border);
         width: fit-content;
         max-width: 100%;
         flex-wrap: wrap;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 20px rgba(0, 0, 0, 0.1);
+        box-shadow: none;
       }
 
       .yyt-settings-tab {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 12px 16px;
-        border-radius: 15px;
+        padding: 10px 14px;
+        border-radius: var(--yyt-radius-sm);
         border: 1px solid transparent;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+        background: transparent;
         color: var(--yyt-text-secondary);
         cursor: pointer;
         transition: all 0.18s ease;
-        font-weight: 800;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        box-shadow: none;
       }
 
       .yyt-settings-tab:hover {
         color: var(--yyt-text);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-        border-color: rgba(255, 255, 255, 0.1);
+        background: var(--yyt-surface-3);
+        border-color: transparent;
       }
 
       .yyt-settings-tab.yyt-active {
         color: var(--yyt-on-accent);
-        background: linear-gradient(135deg, var(--yyt-accent) 0%, var(--yyt-accent-strong) 100%);
+        background: var(--yyt-accent);
         border-color: transparent;
-        box-shadow: 0 14px 30px var(--yyt-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        box-shadow: none;
       }
 
       .yyt-settings-content {
@@ -780,17 +777,15 @@ export const SettingsPanel = {
         flex-direction: column;
         gap: 16px;
         padding: 18px;
-        border-radius: 22px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
-          rgba(255, 255, 255, 0.01);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 32px rgba(0, 0, 0, 0.12);
+        border-radius: var(--yyt-radius);
+        border: 1px solid var(--yyt-border);
+        background: var(--yyt-surface-2);
+        box-shadow: none;
       }
 
       .yyt-settings-section-title {
-        font-size: 16px;
-        font-weight: 900;
+        font-size: 14px;
+        font-weight: 600;
         color: var(--yyt-text);
         margin-bottom: 0;
       }
@@ -815,9 +810,9 @@ export const SettingsPanel = {
         gap: 14px;
         align-items: start;
         padding: 14px 16px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--yyt-radius);
+        border: 1px solid var(--yyt-border);
+        background: var(--yyt-surface-2);
       }
 
       .yyt-settings-macro-item code {
@@ -827,7 +822,7 @@ export const SettingsPanel = {
       }
 
       .yyt-settings-macro-item span {
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--yyt-text-secondary);
         font-size: 12px;
         line-height: 1.7;
       }
@@ -846,22 +841,22 @@ export const SettingsPanel = {
         border-radius: 999px;
         font-size: 11px;
         font-weight: 800;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.035) 100%);
+        border: 1px solid var(--yyt-border-strong);
+        background: var(--yyt-surface-3);
         color: var(--yyt-text);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 16px rgba(0, 0, 0, 0.08);
+        box-shadow: none;
       }
 
       .yyt-settings-runtime-chip.is-on {
         color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.35);
-        background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(74, 222, 128, 0.07) 100%);
+        border-color: rgba(74, 222, 128, 0.25);
+        background: rgba(74, 222, 128, 0.12);
       }
 
       .yyt-settings-runtime-chip.is-off {
         color: #f87171;
-        border-color: rgba(248, 113, 113, 0.35);
-        background: linear-gradient(135deg, rgba(248, 113, 113, 0.16) 0%, rgba(248, 113, 113, 0.07) 100%);
+        border-color: rgba(248, 113, 113, 0.25);
+        background: rgba(248, 113, 113, 0.12);
       }
 
       .yyt-settings-runtime-chip.is-neutral {
@@ -877,9 +872,9 @@ export const SettingsPanel = {
 
       .yyt-settings-runtime-item {
         padding: 14px 16px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--yyt-radius);
+        border: 1px solid var(--yyt-border);
+        background: var(--yyt-surface-2);
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -890,7 +885,7 @@ export const SettingsPanel = {
         gap: 10px;
         flex-wrap: wrap;
         font-size: 11px;
-        color: rgba(255, 255, 255, 0.72);
+        color: var(--yyt-text-secondary);
       }
 
       .yyt-settings-runtime-main {

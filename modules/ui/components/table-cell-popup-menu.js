@@ -108,8 +108,8 @@ export function getPopupMenuStyles() {
       z-index: 99999;
       min-width: 140px;
       padding: 4px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--yyt-radius);
+      border: 1px solid var(--yyt-border-strong);
       background: rgba(24,28,36,0.97);
       box-shadow: 0 12px 32px rgba(0,0,0,0.5);
       backdrop-filter: blur(12px);

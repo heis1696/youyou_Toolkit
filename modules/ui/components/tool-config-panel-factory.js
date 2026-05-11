@@ -292,12 +292,10 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     gap: 12px;
     min-width: 0;
     padding: 18px;
-    border-radius: 22px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%),
-      rgba(255, 255, 255, 0.01);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 30px rgba(0, 0, 0, 0.12);
+    border-radius: var(--yyt-radius);
+    border: 1px solid var(--yyt-border);
+    background: var(--yyt-surface-2);
+    box-shadow: none;
   }
 
   .yyt-preview-box {
@@ -346,7 +344,7 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     color: var(--yyt-text-muted);
     line-height: 1.7;
     padding: 12px 14px;
-    border-radius: 14px;
+    border-radius: var(--yyt-radius);
     border: 1px dashed rgba(123, 183, 255, 0.25);
     background: rgba(123, 183, 255, 0.06);
   }
@@ -370,10 +368,10 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-tool-debug-panel {
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
+    border: 1px solid var(--yyt-border);
+    border-radius: var(--yyt-radius);
     padding: 12px 14px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--yyt-surface-2);
   }
 
   .yyt-tool-debug-summary {
@@ -431,9 +429,9 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-tool-debug-history-item {
     padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--yyt-radius);
+    border: 1px solid var(--yyt-border);
+    background: var(--yyt-surface-2);
     display: flex;
     flex-direction: column;
     gap: 6px;

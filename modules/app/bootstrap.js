@@ -140,11 +140,11 @@ export function createBootstrap(context, options = {}) {
   --yyt-shadow-glow: 0 0 16px var(--yyt-accent-glow);
 
   /* —— Controls (solid, no gradients) —— */
-  --yyt-control-bg: var(--yyt-surface);
-  --yyt-control-bg-hover: var(--yyt-surface-2);
-  --yyt-control-bg-active: var(--yyt-surface-3);
-  --yyt-control-bg-strong: var(--yyt-surface-2);
-  --yyt-control-bg-focus: var(--yyt-surface-2);
+  --yyt-control-bg: #0f1219;
+  --yyt-control-bg-hover: #151a24;
+  --yyt-control-bg-active: #1c2231;
+  --yyt-control-bg-strong: #151a24;
+  --yyt-control-bg-focus: #151a24;
   --yyt-control-border: rgba(255, 255, 255, 0.08);
   --yyt-control-border-hover: rgba(255, 255, 255, 0.14);
   --yyt-control-border-focus: rgba(123, 183, 255, 0.5);

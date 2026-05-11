@@ -63,8 +63,8 @@ const TABLE_FORM_RENDERER_STYLES = `
   .yyt-table-form-field button.yyt-select-option {
     width: 100%;
     border: 1px solid transparent;
-    background: linear-gradient(180deg, #1c2737 0%, #151e2c 100%);
-    color: inherit;
+    background: var(--yyt-select-option-bg);
+    color: var(--yyt-text);
     text-align: left;
     font: inherit;
     appearance: none;
@@ -72,15 +72,14 @@ const TABLE_FORM_RENDERER_STYLES = `
   }
 
   .yyt-table-form-field button.yyt-select-option:hover {
-    background: linear-gradient(180deg, #243247 0%, #1a2638 100%);
-    border-color: rgba(123, 183, 255, 0.22);
-    transform: translateY(-1px);
+    background: var(--yyt-select-option-hover-bg);
+    border-color: var(--yyt-accent-soft);
   }
 
   .yyt-table-form-field button.yyt-select-option.yyt-selected {
-    background: linear-gradient(135deg, rgba(123, 183, 255, 0.28) 0%, rgba(72, 119, 190, 0.22) 100%);
-    border-color: rgba(123, 183, 255, 0.4);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    background: var(--yyt-select-option-selected-bg);
+    border-color: var(--yyt-select-option-selected-border);
+    box-shadow: none;
   }
 
   .yyt-table-form-field .yyt-select-dropdown {
@@ -92,7 +91,7 @@ const TABLE_FORM_RENDERER_STYLES = `
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    border-radius: 14px;
+    border-radius: var(--yyt-radius);
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.04);
     color: var(--yyt-text);
@@ -161,7 +160,7 @@ const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-editor-empty {
     padding: 10px 12px;
-    border-radius: 14px;
+    border-radius: var(--yyt-radius);
     border: 1px dashed rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.03);
     color: rgba(255, 255, 255, 0.64);
@@ -174,7 +173,7 @@ const TABLE_FORM_RENDERER_STYLES = `
     flex-direction: column;
     gap: 8px;
     padding: 12px 14px;
-    border-radius: 16px;
+    border-radius: var(--yyt-radius);
     border: 1px solid rgba(255, 100, 100, 0.28);
     background: rgba(255, 100, 100, 0.08);
   }
@@ -268,7 +267,7 @@ const TABLE_FORM_RENDERER_STYLES = `
     gap: 10px;
     align-items: end;
     padding: 12px;
-    border-radius: 16px;
+    border-radius: var(--yyt-radius);
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.05);
   }
@@ -282,7 +281,7 @@ const TABLE_FORM_RENDERER_STYLES = `
 
   .yyt-table-editor-grid-wrap {
     overflow-x: auto;
-    border-radius: 14px;
+    border-radius: var(--yyt-radius);
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(8, 12, 18, 0.58);
   }
