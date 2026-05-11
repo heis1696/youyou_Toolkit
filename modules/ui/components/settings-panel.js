@@ -828,71 +828,46 @@ export const SettingsPanel = {
         word-break: break-word;
       }
 
-      /* flat-flow layout primitives */
-      .yyt-flow-section {
+      /* settings-specific macro/runtime row layout (2-column grid) */
+      .yyt-settings-panel .yyt-list-table {
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        padding: 0;
+        border: none;
+        border-radius: 0;
+        overflow: visible;
       }
 
-      .yyt-flow-heading {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--yyt-text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid var(--yyt-border);
-      }
-
-      .yyt-flow-heading-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        font-size: 11px;
-        color: var(--yyt-accent);
-        flex-shrink: 0;
-      }
-
-      /* shared list-table / list-row for macro and runtime rows */
-      .yyt-list-table {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .yyt-list-row {
+      .yyt-settings-panel .yyt-list-row {
         display: grid;
         grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
         gap: 14px;
         align-items: start;
-        padding: 14px 16px;
+        padding: 14px 0;
+        background: transparent;
         border-bottom: 1px solid var(--yyt-border);
       }
 
-      .yyt-list-row:last-child {
+      .yyt-settings-panel .yyt-list-row:last-child {
         border-bottom: none;
       }
 
-      .yyt-list-row code {
+      .yyt-settings-panel .yyt-list-row:hover {
+        background: transparent;
+      }
+
+      .yyt-settings-panel .yyt-list-row code {
         color: var(--yyt-accent-strong);
         word-break: break-word;
         font-weight: 800;
       }
 
-      .yyt-list-row span {
+      .yyt-settings-panel .yyt-list-row span {
         color: var(--yyt-text-secondary);
         font-size: 12px;
         line-height: 1.7;
       }
 
-      /* runtime list-rows are single-column stacked */
-      .yyt-list-table .yyt-list-row:has(.yyt-settings-runtime-meta) {
+      .yyt-settings-panel .yyt-list-row:has(.yyt-settings-runtime-meta) {
         grid-template-columns: 1fr;
       }
     `;

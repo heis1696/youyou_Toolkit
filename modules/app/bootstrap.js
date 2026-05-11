@@ -950,8 +950,8 @@ export function createBootstrap(context, options = {}) {
 
 .yyt-select option,
 .yyt-select optgroup {
-  background: var(--yyt-surface);
-  color: var(--yyt-text);
+  background: var(--yyt-surface) !important;
+  color: var(--yyt-text) !important;
 }
 
 .yyt-select option:checked,
@@ -2812,10 +2812,10 @@ export function createBootstrap(context, options = {}) {
   box-sizing: border-box;
   min-height: 42px;
   padding: 11px 15px;
-  border: 1px solid var(--yyt-control-border);
-  border-radius: var(--yyt-control-radius);
-  background: var(--yyt-control-bg);
-  color: var(--yyt-text);
+  border: 1px solid var(--yyt-control-border) !important;
+  border-radius: var(--yyt-control-radius) !important;
+  background: var(--yyt-control-bg) !important;
+  color: var(--yyt-text) !important;
   font-size: 13px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   box-shadow: var(--yyt-control-shadow);
@@ -2871,8 +2871,8 @@ export function createBootstrap(context, options = {}) {
 
 .yyt-select option,
 .yyt-select optgroup {
-  background: var(--yyt-surface);
-  color: var(--yyt-text);
+  background: var(--yyt-surface) !important;
+  color: var(--yyt-text) !important;
 }
 
 .yyt-select option:checked,
