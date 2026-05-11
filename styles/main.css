@@ -10,8 +10,8 @@
 :root {
   /* —— Accent & semantic —— */
   --yyt-accent: #7bb7ff;
-  --yyt-accent-glow: var(--yyt-accent-glow);
-  --yyt-accent-soft: var(--yyt-accent-soft);
+  --yyt-accent-glow: rgba(123, 183, 255, 0.4);
+  --yyt-accent-soft: rgba(123, 183, 255, 0.15);
   --yyt-accent-strong: #a5d4ff;
   --yyt-on-accent: #0a0d13;
   --yyt-success: #4ade80;
@@ -52,7 +52,7 @@
   --yyt-color-accent: var(--yyt-accent);
 
   /* —— Focus (double-ring) —— */
-  --yyt-focus-ring: 0 0 0 2px var(--yyt-accent), 0 0 0 4px var(--yyt-accent-soft);
+  --yyt-focus-ring: 0 0 0 2px rgba(123, 183, 255, 1), 0 0 0 4px rgba(123, 183, 255, 0.15);
 
   /* —— Radii (strict outer > inner) —— */
   --yyt-radius-xs: 4px;
@@ -87,8 +87,8 @@
   --yyt-select-option-bg: #1c2231;
   --yyt-select-option-hover-bg: #232b3e;
   --yyt-select-option-selected-bg: #2a3450;
-  --yyt-select-option-border: var(--yyt-accent-soft);
-  --yyt-select-option-selected-border: var(--yyt-accent-glow);
+  --yyt-select-option-border: rgba(123, 183, 255, 0.15);
+  --yyt-select-option-selected-border: rgba(123, 183, 255, 0.3);
   --yyt-select-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   --yyt-select-arrow-color: rgba(255, 255, 255, 0.4);
 
@@ -96,7 +96,7 @@
   --yyt-startup-overlay: rgba(6, 8, 16, 0.8);
   --yyt-startup-panel-border: rgba(255, 255, 255, 0.08);
   --yyt-startup-panel-bg:
-    radial-gradient(500px 200px at 0% 0%, var(--yyt-accent-soft), transparent 60%),
+    radial-gradient(500px 200px at 0% 0%, rgba(123, 183, 255, 0.12), transparent 60%),
     #0f1219;
   --yyt-startup-panel-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   --yyt-startup-chip-bg: rgba(255, 255, 255, 0.05);
@@ -104,8 +104,8 @@
   --yyt-startup-status-bg: rgba(255, 255, 255, 0.05);
   --yyt-startup-status-border: rgba(255, 255, 255, 0.08);
   --yyt-startup-status-text: rgba(255, 255, 255, 0.8);
-  --yyt-startup-kicker-bg: var(--yyt-accent-soft);
-  --yyt-startup-kicker-border: var(--yyt-accent-soft);
+  --yyt-startup-kicker-bg: rgba(123, 183, 255, 0.1);
+  --yyt-startup-kicker-border: rgba(123, 183, 255, 0.2);
 
   /* —— Motion —— */
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -401,7 +401,6 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background:
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 8px;
@@ -411,7 +410,6 @@
 
 .yyt-panel-section:hover {
   border-color: rgba(255, 255, 255, 0.14);
-  background:
   background: transparent;
   box-shadow: none;
 }
@@ -736,7 +734,6 @@
 .yyt-textarea.yyt-code-textarea {
   color: var(--yyt-text);
   caret-color: var(--yyt-accent-strong);
-  background:
   background: #080a10;
 
 .yyt-textarea.yyt-code-textarea:hover,
@@ -745,7 +742,6 @@
   color: var(--yyt-text);
   caret-color: var(--yyt-accent-strong);
   border-color: var(--yyt-border-focus);
-  background:
   background: #080a10;
 }
 
@@ -1380,7 +1376,6 @@
   height: min(1120px, calc(100vh - 12px));
   max-height: calc(100vh - 12px);
   background: var(--yyt-bg-base);
-    var(--yyt-bg-base);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
   box-shadow:
@@ -1534,8 +1529,6 @@
   overflow: hidden;
   padding: 5px;
   border-radius: var(--yyt-radius-xl);
-  background:
-    rgba(255, 255, 255, 0.01);
   background: var(--yyt-surface);
 }
 
@@ -1669,8 +1662,7 @@
   padding: 16px 18px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    0 0 0 1px rgba(255, 255, 255, 0.02);
+  background: var(--yyt-surface);
 }
 
 .yyt-shell-topbar::before {
@@ -1750,9 +1742,9 @@
   min-width: 84px;
   padding: 16px 14px 14px;
   border-radius: 8px;
-  background:
-  border: 1px solid rgba(255, 255, 255, 0.1);
   background: var(--yyt-surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
 .yyt-shell-stat-label {
   font-size: 10px;
@@ -1792,9 +1784,10 @@
   padding: 16px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-  box-shadow: none;
   background: var(--yyt-surface);
+  box-shadow: none;
+}
+
 .yyt-shell-sidebar-title-row {
   display: flex;
   align-items: center;
@@ -1855,12 +1848,10 @@
 .yyt-shell-sidebar .yyt-main-nav-item.active {
   color: var(--yyt-text);
   border-color: var(--yyt-accent-soft);
-  background:
   background: var(--yyt-accent-soft);
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item.active::before {
-  background: var(--yyt-accent);
   background: var(--yyt-accent);
 }
 
@@ -1905,7 +1896,6 @@
   padding: 12px 16px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background:
   background: transparent;
   box-shadow: none;
 }
