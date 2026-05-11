@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - IIFE bundle: `npm run build:iife` → writes `dist/bundle.iife.js`
 - Watch mode: `npm run watch`
 - One-off local dev build: `npm run dev` (build only; it does not start a dev server)
+- Release: `npm run release` → builds, commits dist/, creates version tag, moves `latest` tag, pushes, and purges jsDelivr cache
 
 This repo does not define npm `test` or `lint` scripts.
 There is no built-in command for running a single automated test because no automated test runner is configured.
@@ -59,6 +60,18 @@ Prefer changing these modules instead of expanding `index.js`.
 
 `modules/storage.js` still exists as a compatibility layer; prefer `modules/core/storage-service.js` for new storage work.
 
+### Logging
+
+`modules/core/logger-service.js` provides a centralized ring-buffer logger with scoped loggers (`logger.createScope('Name')`), level filtering, and EventBus push. UI panel in `modules/ui/components/logger-panel.js`. All modules should use scoped loggers rather than raw `console.*`.
+
+### Variable resolver (`modules/variable-resolver.js`)
+
+Template variables (`{{lastUserMessage}}`, `{{extractedContent}}`, `{{toolWorldbookContent}}`, etc.) are resolved here. Used by `tool-prompt-service.js` when building request messages from `promptTemplate`.
+
+### Worldbook service (`modules/tool-worldbook-service.js`)
+
+Reads world book entries from the host environment (`TavernHelper` / `SillyTavern` globals) and builds selected worldbook content for injection into tool requests. Also used by the table engine for context enrichment.
+
 ### Tool definition vs runtime model
 
 There are two separate layers for tools:
@@ -101,6 +114,13 @@ The current codebase supports multiple manual execution paths:
 
 Automatic execution currently runs only auto-eligible `post_response_api` tools via `modules/tool-automation-service.js`.
 
+The automation service (rewritten in v1.0.111) uses a generation-aware transaction model:
+- Listens only to `MESSAGE_RECEIVED` from the host
+- Deduplicates by `messageId::swipeId` slot key
+- Maintains an own-write blacklist to prevent writeback-triggered recursion
+- Supports `GENERATION_STOPPED` cancellation
+- Uses `skipNotify` flag on writeback to avoid UI noise
+
 ### UI architecture
 
 The UI is centered on `modules/ui/index.js`, which registers panels with `ui-manager.js`.
@@ -114,6 +134,35 @@ Important pieces:
 The `tools` page is dynamic: built-in tool sub-tabs come from `tool-registry.js`, and custom tool sub-tabs are generated from `tool-manager.js` definitions at runtime.
 
 `modules/ui-components.js` and `modules/prompt-editor.js` are compatibility/lazy-loaded modules, not the preferred primary path for new UI work.
+
+### Table engine (`modules/table-engine/`)
+
+The table engine powers the "填表工作台" (table-filling workbench) — a structured data extraction system that uses AI to populate and maintain tabular state per assistant message slot.
+
+Key services and their roles:
+- `table-schema-service.js` — config persistence, normalization, runtime status, default prompt template
+- `table-update-service.js` — execution main chain: builds request, parses incremental/full AI response, applies row operations, triggers writeback
+- `table-state-service.js` — per-slot bound state read/write, resolved target pointer
+- `table-writeback-service.js` — commits bound state and optional content mirror, triggers worldbook sync
+- `table-worldbook-sync-service.js` — upserts table data as a world book entry for main AI visibility
+- `table-target-resolver.js` — resolves which assistant message/slot to bind table state to
+- `table-template-service.js` — template library CRUD, import/export, built-in defaults
+- `table-guide-service.js` — chat-level guide layer (persists per-chat table instructions)
+- `table-scope-service.js` — `runScope` enforcement (current / selected / all)
+- `table-lock-service.js` — field/row lock to prevent AI overwrites
+- `table-diff-service.js` — computes before/after diff for diagnostics
+- `table-history-service.js` — historical state resolution across message swipes
+- `table-provider-service.js` — resolves effective API provider for table requests
+- `table-json-sanitizer.js` — sanitizes AI JSON responses (trailing commas, markdown fences, etc.)
+- `table-types.js` — shared constants, type constructors, and identity helpers
+
+The table engine integrates with automation: when `tableWorkbench.autoUpdateEnabled === true` and the trigger is `assistantMessage`, the automation service calls `runAutoTableUpdate` in the same generation transaction after tool execution completes.
+
+Table writeback uses `TavernHelper.setChatMessages` for refresh confirmation (not the tool writeback path through `context-injector`).
+
+### Bypass manager (`modules/bypass-manager.js`)
+
+Manages "Ai 指令预设" (AI instruction presets / bypass presets) — ordered message lists injected into API requests. The table workbench binds a bypass preset via the bypass-manager to customize the AI's system/user messages during table-fill requests.
 
 ### Host-environment assumptions
 
@@ -146,3 +195,19 @@ Some docs still refer to older version labels or earlier architecture wording. W
 - Treat `modules/tool-automation-service.js` as the source of truth for automatic execution behavior.
 - Treat `modules/tool-trigger.js` as the source of truth for manual execution and extraction preview.
 - Rebuild after source changes; `dist/bundle.js` and `dist/bundle.iife.js` are generated artifacts, not the place to make manual edits.
+
+## Release workflow
+
+The plugin is consumed via jsDelivr CDN with a `@latest` tag so end users do not need to update their import URL:
+
+```
+import 'https://testingcf.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle.js'
+```
+
+To publish a new version:
+1. Bump `version` in `package.json`
+2. Run `npm run release`
+
+The release script (`scripts/release.js`) handles: build → commit dist/ → create `vX.Y.Z` tag → move `latest` tag → push → purge jsDelivr cache.
+
+Do NOT manually create tags or push dist/ separately; always use the release script.
