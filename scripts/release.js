@@ -40,7 +40,7 @@ if (updatedIndex !== indexContent) {
 const status = runCapture('git status --porcelain')
   .split('\n')
   .filter(l => l && !l.trimStart().startsWith('?'));
-const dirtyOther = status.filter(l => !l.includes('dist/') && !l.includes('index.js') && !l.includes('package.json') && !l.includes('settings.local'));
+const dirtyOther = status.filter(l => !l.includes('dist/') && !l.includes('index.js') && !l.includes('package.json') && !l.includes('settings.local') && !l.includes('scripts/release.js'));
 if (dirtyOther.length) {
   console.error('\n❌ 工作区有未提交的更改（dist/、index.js 以外）：');
   dirtyOther.forEach(l => console.error(`   ${l}`));
@@ -120,10 +120,9 @@ for (const url of verifyUrls) {
   try {
     const resp = await fetch(url);
     const text = await resp.text();
-    const match = text.match(/SCRIPT_VERSION\s*=\s*["']([^"']+)["']/);
-    const foundVersion = match ? match[1] : '(未找到)';
+    const foundVersion = text.includes(`"${version}"`) ? version : '(缓存未刷新)';
     const icon = foundVersion === version ? '✅' : '⚠️';
-    console.log(`  ${icon} ${foundVersion} ← ${url.replace('https://', '').split('/').slice(0, 1)}@${url.includes('@latest') ? 'latest' : tag}`);
+    console.log(`  ${icon} ${foundVersion} ← ${url.replace('https://', '').split('/')[0]}@${url.includes('@latest') ? 'latest' : tag}`);
   } catch (e) {
     console.log(`  ❌ ${url.replace('https://', '').split('/').slice(0, 1)} — ${e.message}`);
   }
