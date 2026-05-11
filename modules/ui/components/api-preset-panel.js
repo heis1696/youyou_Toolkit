@@ -408,8 +408,7 @@ export const ApiPresetPanel = {
       $container.find('.yyt-preset-item').removeClass('yyt-loaded');
       $container.find(`.yyt-preset-item[data-preset-name="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-loaded');
       $dropdown.find('.yyt-select-option').removeClass('yyt-selected');
-      $dropdown.find(`.yyt-select-option[data-value="${value.replace(/"/g, '&quot;')}"]`).addClass('yyt-selected');
-      showToast('info', `已加载预设 "${value}"，修改后点击“保存配置”会覆盖该预设`);
+      $dropdown.find(`.yyt-select-option[data-value=”${value.replace(/”/g, '&quot;')}”]`).addClass('yyt-selected');
     };
 
     $trigger.on('click.yytApiPreset', (e) => {

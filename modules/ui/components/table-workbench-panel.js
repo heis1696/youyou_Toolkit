@@ -842,6 +842,20 @@ function renderTableEditorDrawer(cfg, currentIndex, isOpen, diff) {
     </aside>`;
 }
 
+function closeTableEditor($container, self) {
+  const cfg = collect($container, self.lastLiveConfig);
+  saveTableWorkbenchConfig(cfg);
+  self.editorOpen = false;
+  if (self.lastLiveConfig) {
+    const freshCfg = getTableWorkbenchConfig();
+    const liveTables = mergeLiveRowsIntoConfig(freshCfg.tables, self.lastLiveConfig.tables, self.lastLiveConfig.__liveSourceKind || 'exact');
+    self.lastLiveConfig = { ...freshCfg, tables: liveTables, __liveSourceKind: self.lastLiveConfig.__liveSourceKind || 'exact' };
+    self.renderTo($container, { config: self.lastLiveConfig });
+  } else {
+    self.renderTo($container, { config: cfg });
+  }
+}
+
 export const TableWorkbenchPanel = {
   id: 'tableWorkbenchPanel',
   currentTableIndex: 0,
@@ -907,16 +921,13 @@ export const TableWorkbenchPanel = {
     });
 
     $container.on('click.twb', '[data-twb-action="close-table-editor"]', function () {
-      const cfg = collect($container, self.lastLiveConfig);
-      saveTableWorkbenchConfig(cfg);
-      self.editorOpen = false;
-      if (self.lastLiveConfig) {
-        const freshCfg = getTableWorkbenchConfig();
-        const liveTables = mergeLiveRowsIntoConfig(freshCfg.tables, self.lastLiveConfig.tables, self.lastLiveConfig.__liveSourceKind || 'exact');
-        self.lastLiveConfig = { ...freshCfg, tables: liveTables, __liveSourceKind: self.lastLiveConfig.__liveSourceKind || 'exact' };
-        self.renderTo($container, { config: self.lastLiveConfig });
-      } else {
-        self.renderTo($container, { config: cfg });
+      closeTableEditor($container, self);
+    });
+
+    $container.on('keydown.twb', function (e) {
+      if (e.key === 'Escape' && self.editorOpen) {
+        e.stopPropagation();
+        closeTableEditor($container, self);
       }
     });
 

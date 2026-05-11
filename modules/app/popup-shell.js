@@ -1439,6 +1439,34 @@ export function createPopupShell(context) {
 
     $(uiState.currentPopup).find('.yyt-popup-close').on('click', closePopup);
     $(uiState.currentPopup).find('.yyt-sidebar-toggle').on('click', toggleSidebar);
+
+    const onEscapeKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (targetDoc.querySelector('.yyt-dialog-overlay')) return;
+      if (targetDoc.querySelector('.yyt-twb-editor-drawer.is-open')) return;
+      e.stopPropagation();
+      closePopup();
+    };
+    const onCtrlS = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 's') return;
+      if (!uiState.currentPopup) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const $popup = $(uiState.currentPopup);
+      const $saveBtn =
+        $popup.find('#yyt-bypass-save:visible').first() ||
+        $popup.find(`#${SCRIPT_ID}-save-api-config:visible`).first() ||
+        $popup.find('#yyt-save-tool-preset:visible').first() ||
+        $popup.find('[data-twb-action="save"]:visible').first();
+      if ($saveBtn?.length) $saveBtn.trigger('click');
+    };
+    targetDoc.addEventListener('keydown', onEscapeKey);
+    targetDoc.addEventListener('keydown', onCtrlS);
+    popupEventState.cleanups.push(() => {
+      targetDoc.removeEventListener('keydown', onEscapeKey);
+      targetDoc.removeEventListener('keydown', onCtrlS);
+    });
+
     bindPopupEvents();
     $(uiState.currentPopup).find('.yyt-main-nav-item').on('click', function onMainTabClick() {
       const tab = $(this).data('tab');

@@ -1445,28 +1445,35 @@ export function createDialogHtml(options) {
 export function bindDialogEvents($container, id, callbacks = {}) {
   const $ = getJQuery();
   if (!$) return () => {};
-  
+
   const $overlay = $container.find(`#${id}-overlay`);
-  
+
   const closeDialog = () => {
     $overlay.remove();
+    targetDoc?.removeEventListener('keydown', onKeydown);
     if (callbacks.onClose) callbacks.onClose();
   };
-  
+
   $overlay.find(`#${id}-close, #${id}-cancel`).on('click', closeDialog);
-  
+
   $overlay.on('click', function(e) {
     if (e.target === this) {
       closeDialog();
     }
   });
-  
+
   $overlay.find(`#${id}-save`).on('click', function() {
     if (callbacks.onSave) {
       callbacks.onSave(closeDialog);
     }
   });
-  
+
+  const targetDoc = $overlay[0]?.ownerDocument || document;
+  const onKeydown = (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeDialog(); }
+  };
+  targetDoc.addEventListener('keydown', onKeydown);
+
   return closeDialog;
 }
 

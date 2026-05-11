@@ -281,7 +281,6 @@ export const RegexExtractPanel = {
       const type = $(this).val();
 
       updateTagRule(index, { type });
-      showToast('info', '规则类型已更新');
     });
 
     // 规则值变化
@@ -300,7 +299,6 @@ export const RegexExtractPanel = {
       const enabled = $(this).is(':checked');
       
       updateTagRule(index, { enabled });
-      showToast('info', enabled ? '规则已启用' : '规则已禁用');
     });
     
     // 删除规则（使用事件委托）
