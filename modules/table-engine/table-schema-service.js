@@ -618,6 +618,24 @@ function normalizeBypassConfig(value = {}, legacyPromptPreset = '') {
   };
 }
 
+function normalizeExportConfig(value = {}, tableName = '') {
+  const src = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: normalizeBoolean(src.enabled, false),
+    entryName: normalizeString(src.entryName, tableName),
+    entryType: src.entryType === 'keyword' ? 'keyword' : 'constant',
+    splitByRow: normalizeBoolean(src.splitByRow, false),
+    keywords: normalizeString(src.keywords, ''),
+    injectionTemplate: normalizeString(src.injectionTemplate, ''),
+    preventRecursion: normalizeBoolean(src.preventRecursion, true),
+    entryPlacement: {
+      position: normalizeString(src.entryPlacement?.position || src.placement?.position, 'before_character_definition'),
+      depth: Number.isFinite(Number(src.entryPlacement?.depth ?? src.placement?.depth)) ? Math.floor(Number(src.entryPlacement?.depth ?? src.placement?.depth)) : 2,
+      order: Number.isFinite(Number(src.entryPlacement?.order ?? src.placement?.order)) ? Math.floor(Number(src.entryPlacement?.order ?? src.placement?.order)) : 0
+    }
+  };
+}
+
 function normalizeDraftTable(value = {}, index = 0) {
   const sourceValue = value && typeof value === 'object' ? value : {};
   const usedKeys = new Set();
@@ -628,13 +646,15 @@ function normalizeDraftTable(value = {}, index = 0) {
   const rows = Array.isArray(sourceValue.rows)
     ? sourceValue.rows.map((row, rowIndex) => normalizeDraftRow(row, columns, rowIndex))
     : [];
+  const tableName = normalizeString(sourceValue.name || sourceValue.title, `表${index + 1}`);
 
   return {
     id: ensureTableId(sourceValue.id || sourceValue.key, index),
-    name: normalizeString(sourceValue.name || sourceValue.title, `表${index + 1}`),
+    name: tableName,
     note: normalizeString(sourceValue.note || sourceValue.description, ''),
     enabled: sourceValue.enabled !== false,
     aiInstructions: normalizeTableAiInstructions(sourceValue.aiInstructions),
+    exportConfig: normalizeExportConfig(sourceValue.exportConfig, tableName),
     columns: columns.map((column) => ({
       key: column.key,
       title: column.title,
@@ -1076,6 +1096,12 @@ export function getTableWorkbenchDefaultConfig() {
     mirrorToMessage: false,
     mirrorTag: 'yyt-table-workbench',
     worldbookSync: { enabled: false, targetBook: '', entryComment: 'YYT-填表数据' },
+    wrapperConfig: {
+      enabled: true,
+      wrapperTag: '最新数据与记录',
+      wrapperHint: '以下是在这个时间点，当前场景下剧情相关的最新数据与记录，你在进行剧情分析时必须以此最新的数据为准，以下数据与记录的优先级高于其他任何背景设定：',
+      wrapperPlacement: { position: 'before_character_definition', depth: 2, order: 0 }
+    },
     runtime: normalizeRuntime()
   };
 }
@@ -1126,6 +1152,16 @@ export function normalizeTableWorkbenchConfig(value = {}) {
       enabled: normalizeBoolean(nextValue.worldbookSync?.enabled, false),
       targetBook: normalizeString(nextValue.worldbookSync?.targetBook, ''),
       entryComment: normalizeString(nextValue.worldbookSync?.entryComment, defaults.worldbookSync.entryComment)
+    },
+    wrapperConfig: {
+      enabled: normalizeBoolean(nextValue.wrapperConfig?.enabled, defaults.wrapperConfig.enabled),
+      wrapperTag: normalizeString(nextValue.wrapperConfig?.wrapperTag, defaults.wrapperConfig.wrapperTag),
+      wrapperHint: normalizeString(nextValue.wrapperConfig?.wrapperHint, defaults.wrapperConfig.wrapperHint),
+      wrapperPlacement: {
+        position: normalizeString(nextValue.wrapperConfig?.wrapperPlacement?.position, defaults.wrapperConfig.wrapperPlacement.position),
+        depth: Number.isFinite(Number(nextValue.wrapperConfig?.wrapperPlacement?.depth)) ? Math.floor(Number(nextValue.wrapperConfig?.wrapperPlacement?.depth)) : defaults.wrapperConfig.wrapperPlacement.depth,
+        order: Number.isFinite(Number(nextValue.wrapperConfig?.wrapperPlacement?.order)) ? Math.floor(Number(nextValue.wrapperConfig?.wrapperPlacement?.order)) : defaults.wrapperConfig.wrapperPlacement.order
+      }
     },
     runtime: normalizeRuntime({
       ...defaults.runtime,
