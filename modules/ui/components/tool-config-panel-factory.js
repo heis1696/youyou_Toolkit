@@ -416,20 +416,22 @@ function buildBindingSection(config, toolId, refresh) {
     control: selectInput({
       value: config.extraction?.regexPresetId || '',
       options: [
-        { value: '', label: '—— 无（不做提取） ——' },
+        { value: '', label: '—— 无（保留工具原有提取规则） ——' },
         ...regexPresets.map((p) => ({ value: p.id, label: p.name }))
       ],
       onChange: (v) => {
         const cur = getToolFullConfig(toolId) || {};
-        const mirroredSelectors = mirrorRegexPresetToSelectors(v);
-        saveToolConfig(toolId, {
-          ...cur,
-          extraction: {
-            ...(cur.extraction || {}),
-            regexPresetId: v,
-            selectors: mirroredSelectors  // 镜像到老字段供 runtime 使用
-          }
-        });
+        const patch = { ...(cur.extraction || {}), regexPresetId: v };
+        if (v) {
+          // 选具体预设：镜像 include/regex_include 标签到 selectors[]
+          const mirrored = mirrorRegexPresetToSelectors(v);
+          patch.selectors = mirrored;
+          showToast(`已绑定正则预设；提取规则替换为：${mirrored.length ? mirrored.join(', ') : '（预设无 include 规则）'}`, 'success');
+        } else {
+          // 选"无"：清空预设 ID，但不破坏工具原有 selectors
+          showToast('已解绑正则预设，工具仍使用原有提取规则', 'success');
+        }
+        saveToolConfig(toolId, { ...cur, extraction: patch });
         refresh();
       }
     })
@@ -443,21 +445,22 @@ function buildBindingSection(config, toolId, refresh) {
     control: selectInput({
       value: config.worldbooks?.presetId || '',
       options: [
-        { value: '', label: '—— 无（不注入世界书） ——' },
+        { value: '', label: '—— 无（保留工具原有世界书设置） ——' },
         ...wbPresets.map((p) => ({ value: p.id, label: p.name }))
       ],
       onChange: (v) => {
         const cur = getToolFullConfig(toolId) || {};
-        const mirrored = mirrorWorldbookPresetToLegacy(v);
-        saveToolConfig(toolId, {
-          ...cur,
-          worldbooks: {
-            ...(cur.worldbooks || {}),
-            presetId: v,
-            enabled: mirrored.enabled,
-            selected: mirrored.selected
-          }
-        });
+        const patch = { ...(cur.worldbooks || {}), presetId: v };
+        if (v) {
+          // 选具体预设：镜像 bookList 到老字段
+          const mirrored = mirrorWorldbookPresetToLegacy(v);
+          patch.enabled = mirrored.enabled;
+          patch.selected = mirrored.selected;
+          showToast(`已绑定世界书预设；${mirrored.enabled ? `注入 ${mirrored.selected.length} 本` : '预设内无启用世界书'}`, 'success');
+        } else {
+          showToast('已解绑世界书预设，工具仍使用原有世界书设置', 'success');
+        }
+        saveToolConfig(toolId, { ...cur, worldbooks: patch });
         refresh();
       }
     })
