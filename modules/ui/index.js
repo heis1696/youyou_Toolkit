@@ -12,6 +12,7 @@ const log = logger.createScope('UI');
 
 const PANEL_MODULE_LOADERS = Object.freeze({
   ApiPresetPanel: () => import('./components/api-preset-panel.js'),
+  WorldbookPresetPanel: () => import('./components/worldbook-preset-panel.js'),
   RegexExtractPanel: () => import('./components/regex-extract-panel.js'),
   ToolManagePanel: () => import('./components/tool-manage-panel.js'),
   SummaryToolPanel: () => import('./components/summary-tool-panel.js'),
@@ -138,6 +139,14 @@ export function renderApiPanel(container) {
 }
 
 /**
+ * 渲染世界书预设面板
+ * @param {Object} container - 容器
+ */
+export function renderWorldbookPresetPanel(container) {
+  return renderRegisteredPanel('WorldbookPresetPanel', container);
+}
+
+/**
  * 渲染正则提取面板
  * @param {Object} container - 容器
  */
@@ -222,6 +231,10 @@ export const MAIN_TAB_RENDERERS = Object.freeze({
   apiPresets: {
     render: (container) => renderApiPanel(container),
     failMessage: 'API 预设面板加载失败'
+  },
+  worldbookPresets: {
+    render: (container) => renderWorldbookPresetPanel(container),
+    failMessage: '世界书预设面板加载失败'
   },
   toolManage: {
     render: (container) => renderToolPanel(container),
@@ -331,6 +344,7 @@ export default {
   registerComponents,
   initUI,
   renderApiPanel,
+  renderWorldbookPresetPanel,
   renderRegexPanel,
   renderToolPanel,
   renderSummaryToolPanel,

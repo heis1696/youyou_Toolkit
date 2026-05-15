@@ -403,6 +403,15 @@ export const TOOL_REGISTRY = {
     component: 'ApiPresetPanel',
     order: 0
   },
+  worldbookPresets: {
+    id: 'worldbookPresets',
+    name: '世界书预设',
+    icon: 'fa-book-atlas',
+    hasSubTabs: false,
+    description: '管理世界书注入预设（议题 #7）',
+    component: 'WorldbookPresetPanel',
+    order: 1
+  },
   regexExtract: {
     id: 'regexExtract',
     name: '正则提取',

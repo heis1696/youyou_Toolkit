@@ -9,6 +9,29 @@
 
 ## [Unreleased]
 
+## [1.0.151] - 2026-05-16
+
+### 新增
+
+- ✨ **Prefab 控件库最小集** (议题 #33, `modules/ui/components/controls/`)
+  - 9 个工厂控件：`button` / `textInput` / `selectInput` / `toggle` / `divider` / `zoneTitle` / `formRow` / `listRow` / `flowSection`
+  - 统一契约：每个工厂返回 `{ el, _id, _kind, _children, on/off, get/set, getControl(id), destroy }`
+  - 容器型控件（flowSection / formRow / listRow）的 `_children` 登记子控件，`getControl(id)` 可递归查找
+  - 直接复用 `styles/main.css` 已有 `yyt-` 前缀类，不引入额外 CSS
+  - 详见文件内注释 + `controls/index.js` barrel 协议说明
+- ✨ **世界书注入预设面板** (议题 #7, 主导航新增"世界书预设" tab)
+  - 新增 `modules/worldbook-preset-store.js`：CRUD + 导入/导出 + 当前预设指针，存储于 `presetStorage` namespace
+  - 新增 `modules/ui/components/worldbook-preset-panel.js`：完全用 Prefab 控件库构建
+  - 字段：预设名 / 描述 / 绑定模式（跟随角色卡 vs 自定义） / 包含禁用词条 / 选中的世界书（整本启停）
+  - v1 简化：词条级覆盖 UI 留到迭代 2；添加/导入/清空走 `window.prompt/confirm`，UI dialog 迭代 2
+  - 编辑即保存，无 draft / save 按钮
+
+### 备注
+
+- 议题 #34 的迭代 1 完成；迭代 2 待办：词条级 override UI、添加/导入/清空走自定义 dialog、测试预览输出区
+- 配套集成（工具配置面板引用预设、表格工作台引用预设）跟随议题 #38 / #47 落地
+
+
 ## [1.0.150] - 2026-05-16
 
 ### 修复
