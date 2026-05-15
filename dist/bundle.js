@@ -1645,12 +1645,17 @@ ${i}`}).filter(Boolean).join(`
 
   .yyt-preview-message-item {
     padding: 12px;
-    border-radius: var(--yyt-radius-sm);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.02);
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--yyt-border);
+    background: transparent;
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .yyt-preview-message-item:first-child {
+    border-top: none;
   }
 
   .yyt-preview-message-title {
@@ -4540,19 +4545,18 @@ deleteRow(1, 0)
 .yyt-main-nav-icon {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--yyt-radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: none;
+  background: var(--yyt-accent-soft);
+  border: none;
   flex-shrink: 0;
 }
 
 .yyt-main-nav-item.active .yyt-main-nav-icon {
-  background: rgba(0, 0, 0, 0.12);
-  border-color: rgba(0, 0, 0, 0.08);
+  background: var(--yyt-accent-soft);
+  border-color: transparent;
 }
 
 .yyt-main-nav-item i {
@@ -4679,7 +4683,7 @@ deleteRow(1, 0)
   color: var(--yyt-accent);
   background: var(--yyt-accent-soft);
   border-color: var(--yyt-accent-soft);
-  box-shadow: 0 10px 20px rgba(11, 20, 34, 0.16);
+  box-shadow: none;
 }
 
 .yyt-sub-nav-item i {
@@ -6009,7 +6013,7 @@ deleteRow(1, 0)
   font-size: 12px;
   color: var(--yyt-text-secondary);
   background: rgba(255, 255, 255, 0.03);
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--yyt-border);
 }
 
 .yyt-popup-drag-hint i {
@@ -6274,9 +6278,14 @@ deleteRow(1, 0)
   gap: 8px;
   min-width: 84px;
   padding: 16px 14px 14px;
-  border-radius: 8px;
-  background: var(--yyt-surface-2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--yyt-border);
+}
+
+.yyt-shell-stat:first-child {
+  border-left: none;
 }
 
 .yyt-shell-stat-label {
@@ -6509,9 +6518,10 @@ deleteRow(1, 0)
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--yyt-border);
   color: var(--yyt-text);
   font-size: 12px;
   line-height: 1.5;
@@ -7003,9 +7013,9 @@ deleteRow(1, 0)
   align-items: center;
   gap: 4px;
   padding: 8px 4px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0;
+  background: transparent;
+  border: none;
 }
 
 .yyt-shell-sidebar-stat-value {

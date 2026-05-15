@@ -324,12 +324,17 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-preview-message-item {
     padding: 12px;
-    border-radius: var(--yyt-radius-sm);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.02);
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--yyt-border);
+    background: transparent;
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .yyt-preview-message-item:first-child {
+    border-top: none;
   }
 
   .yyt-preview-message-title {

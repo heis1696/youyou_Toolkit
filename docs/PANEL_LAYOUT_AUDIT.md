@@ -38,8 +38,14 @@ div.yyt-popup (fixed, 12px radius, bg-base)
 
 - ✅ `yyt-content-frame`: 透明，无 padding/border/radius
 - ✅ `yyt-content`: 无 border/radius，仅 padding
-- ✅ `yyt-shell-sidebar-note`: 纯文本 hint，无 dashed 边框
-- ✅ sidebar 无 card wrapper，导航直接在 sidebar 内
+- ✅ `yyt-shell-sidebar-note`: 纯文本 hint，无框
+- ✅ `yyt-shell-sidebar-card`: 透明无框（padding 保留，border/radius/bg 移除）
+- ✅ `yyt-shell-sidebar-stat`: 透明无框
+- ✅ `yyt-shell-stat`: 透明 + border-left hairline（非独立卡片）
+- ✅ `yyt-main-nav-icon`: accent-soft bg + 无 border（非独立卡片）
+- ✅ `yyt-shell-main-meta`: 透明 + border-bottom hairline
+- ✅ `yyt-popup-drag-hint`: solid border（非 dashed）
+- ✅ `yyt-sub-nav-item.active`: 无 box-shadow
 - ✅ footer: border-top hairline，无盒子
 - ✅ main-header: 保留完整边框（用户确认的设计决策）
 - ✅ sub-nav-group: 保留 border+radius（用户确认的设计决策）
@@ -134,6 +140,54 @@ div.yyt-tool-panel (flex, column, gap:0)
 - ✅ manual-area: 单列 flex
 - ✅ macro-hint: 纯文本
 - ✅ checkbox-label: 无 bordered tile
+- ✅ preview-message-item: border-top hairline 行
+
+### 待实施：HTML 结构重构
+
+> 预览文件: `D:\Projects\yyt-style-preview\tool-config-refactor.html`（已确认）
+
+#### 已确认的改动
+
+1. **Hero 区重组**: 将"立即执行"和"保存配置"按钮移入 hero，删除 `manual-actions` 和 `panel-footer`。Hero sticky 滚动压缩：未滚动 = 完整态（名+描述+chip+按钮），滚动 = 压缩态（名+按钮）
+2. **删除自动触发区**: 选择"额外 AI 模型解析"即视为自动工具，稳定/冷却时间移到全局设置
+3. **新建"绑定区"**: 合并 输出模式 + API 预设 + Ai 指令预设（去掉 checkbox，直接 select） + 世界书注入，各功能块之间用 dashed divider 分隔
+4. **新建"配置区"**: 合并 模板修改框 + 提取配置（测试提取按钮与最大消息数同行居中对齐），两个子分区各有副标题+描述
+5. **删除宏提示框**: macro-hint 移除，宏说明在模板 hint 中覆盖
+6. **runtime 概览**: 改为 hero 下方 inline 行（状态/最近运行/成功失败）
+
+#### 目标布局
+
+```
+yyt-tool-panel
+├── hero (sticky, 滚动时压缩)
+│   ├── 工具名 + 描述
+│   ├── chips (模式/预设/状态)
+│   └── 按钮: 保存配置 + 立即执行一次
+├── runtime 状态概览 (inline 行)
+├── 绑定区 (flow-section)
+│   ├── 输出模式 select ── dashed divider
+│   ├── API 预设 select ── dashed divider
+│   ├── Ai 指令预设 select (无开关) ── dashed divider
+│   └── 世界书注入 (待重构)
+├── 配置区 (flow-section)
+│   ├── 副标题: 提示词模板
+│   │   └── textarea + 宏 hint + 重置按钮
+│   ├── dashed divider
+│   └── 副标题: 提取配置
+│       ├── 最大消息数 input + 测试提取按钮 (同行)
+│       └── 标签/正则 textarea
+└── (无 footer, 无 macro-hint)
+```
+
+#### 待讨论的功能点
+
+**A. 世界书注入模块重构**
+- 当前缺陷: 不能快捷取消、不能选择条目（整本注入）、无批量操作、无预设化
+- 方案待定: 预设化 / 直接增强 / 混合
+
+**B. 多标签提取 + 写回冲突**
+- 根因: 多标签写回时替换范围互相干扰
+- 方案待定: 只写回第一个标签 / 标记主写回标签 / 追加模式 / 分标签写回
 
 ---
 

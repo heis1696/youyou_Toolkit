@@ -267,19 +267,18 @@ export function createBootstrap(context, options = {}) {
 .yyt-main-nav-icon {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--yyt-radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: none;
+  background: var(--yyt-accent-soft);
+  border: none;
   flex-shrink: 0;
 }
 
 .yyt-main-nav-item.active .yyt-main-nav-icon {
-  background: rgba(0, 0, 0, 0.12);
-  border-color: rgba(0, 0, 0, 0.08);
+  background: var(--yyt-accent-soft);
+  border-color: transparent;
 }
 
 .yyt-main-nav-item i {
@@ -406,7 +405,7 @@ export function createBootstrap(context, options = {}) {
   color: var(--yyt-accent);
   background: var(--yyt-accent-soft);
   border-color: var(--yyt-accent-soft);
-  box-shadow: 0 10px 20px rgba(11, 20, 34, 0.16);
+  box-shadow: none;
 }
 
 .yyt-sub-nav-item i {
@@ -1736,7 +1735,7 @@ export function createBootstrap(context, options = {}) {
   font-size: 12px;
   color: var(--yyt-text-secondary);
   background: rgba(255, 255, 255, 0.03);
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--yyt-border);
 }
 
 .yyt-popup-drag-hint i {
@@ -2001,9 +2000,14 @@ export function createBootstrap(context, options = {}) {
   gap: 8px;
   min-width: 84px;
   padding: 16px 14px 14px;
-  border-radius: 8px;
-  background: var(--yyt-surface-2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--yyt-border);
+}
+
+.yyt-shell-stat:first-child {
+  border-left: none;
 }
 
 .yyt-shell-stat-label {
@@ -2236,9 +2240,10 @@ export function createBootstrap(context, options = {}) {
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--yyt-border);
   color: var(--yyt-text);
   font-size: 12px;
   line-height: 1.5;
@@ -2730,9 +2735,9 @@ export function createBootstrap(context, options = {}) {
   align-items: center;
   gap: 4px;
   padding: 8px 4px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0;
+  background: transparent;
+  border: none;
 }
 
 .yyt-shell-sidebar-stat-value {
