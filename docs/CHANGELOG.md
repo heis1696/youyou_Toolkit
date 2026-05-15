@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [1.0.147] - 2026-05-15
+
+### 变更
+
+- 🎨 **Flat Flow Phase 2 — 面板内部布局扁平化** (全组件)
+  - Shell Frame: `yyt-content-frame` 去掉 padding/border/radius → 透明; `yyt-content` 去掉 border/radius; `yyt-shell-sidebar-note` 去掉 dashed 边框 → 纯文本 hint
+  - Tool Config: `yyt-worldbook-select` 去掉边框卡片 → 透明; `yyt-worldbook-item` 从独立卡片 → border-top hairline 行; `yyt-tool-runtime-card` 去掉卡片 → 透明; `yyt-tool-manual-area` 从 2 列 grid → 单列 flex; `yyt-tool-macro-hint` 去掉 dashed 框 → 纯文本
+  - API Preset: 去掉 `yyt-panel` 多余 wrapper; `yyt-preset-item` 从独立卡片 → border-top hairline 行
+  - Regex Extract: `gap: 20px` → `0`; 去掉 `yyt-list-table` / `yyt-test-section` 多余 wrapper; `yyt-tag-suggestions` 去掉绿色卡片 → 透明
+  - Bypass: `gap: 16px` → `0`; sidebar/editor 去掉 `border-radius: 12px` → 0; sidebar 改用 border-right hairline; `yyt-bypass-preset-item` 从圆角卡片 → border-top hairline 行
+  - Logger: `gap: 10px` → `0`; toolbar 加 border-bottom hairline; `yyt-logger-list` 去掉 border/radius/bg → 透明 + border-top
+  - `yyt-checkbox-label` tile 去掉 border/bg → 透明无框
+  - 所有变更同步到 `main.css` + `bootstrap.js:getBaseStyles()`
+
 ## [1.0.146] - 2026-05-12
 
 ### 修复

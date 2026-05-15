@@ -139,11 +139,10 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 14px;
-    border-radius: var(--yyt-radius);
-    border: 1px solid var(--yyt-border-strong);
-    background: var(--yyt-surface);
-    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
   }
 
   .yyt-worldbook-summary {
@@ -181,14 +180,18 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
   .yyt-worldbook-item {
     padding: 10px 12px;
-    border-radius: var(--yyt-radius-sm);
-    border: 1px solid var(--yyt-border);
-    background: var(--yyt-surface-2);
-    transition: border-color var(--yyt-duration-fast) var(--ease-out), background var(--yyt-duration-fast) var(--ease-out);
+    border: none;
+    border-radius: 0;
+    border-top: 1px solid var(--yyt-border);
+    background: transparent;
+    transition: background var(--yyt-duration-fast) var(--ease-out);
+  }
+
+  .yyt-worldbook-item:first-child {
+    border-top: none;
   }
 
   .yyt-worldbook-item:hover {
-    border-color: var(--yyt-accent-soft);
     background: var(--yyt-surface-3);
   }
 
@@ -208,21 +211,19 @@ export const TOOL_CONFIG_PANEL_STYLES = `
   }
 
   .yyt-tool-manual-area {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(240px, 0.75fr);
-    gap: 14px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .yyt-tool-runtime-card {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 14px;
-    background: var(--yyt-surface-2);
-    border: 1px solid var(--yyt-border);
-    border-radius: var(--yyt-radius);
-    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
   }
 
   .yyt-tool-runtime-line {
@@ -341,10 +342,9 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     font-size: 12px;
     color: var(--yyt-text-muted);
     line-height: 1.7;
-    padding: 12px 14px;
-    border-radius: var(--yyt-radius);
-    border: 1px dashed rgba(123, 183, 255, 0.25);
-    background: rgba(123, 183, 255, 0.06);
+    border: none;
+    background: transparent;
+    padding: 0;
   }
 
   .yyt-tool-macro-hint code {
@@ -506,10 +506,6 @@ export const TOOL_CONFIG_PANEL_STYLES = `
 
     .yyt-tool-panel-hero-tags {
       justify-content: flex-start;
-    }
-
-    .yyt-tool-manual-area {
-      grid-template-columns: 1fr;
     }
 
     .yyt-tool-manual-actions {

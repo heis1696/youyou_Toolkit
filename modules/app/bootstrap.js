@@ -425,10 +425,10 @@ export function createBootstrap(context, options = {}) {
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 6px;
-  border-radius: calc(var(--yyt-radius-lg) - 2px);
+  padding: 12px;
+  border-radius: 0;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: none;
 }
 
 .yyt-page {
@@ -897,18 +897,15 @@ export function createBootstrap(context, options = {}) {
 
 .yyt-worldbook-item .yyt-checkbox-label,
 .yyt-form-group > .yyt-checkbox-label {
-  padding: 10px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .yyt-worldbook-item .yyt-checkbox-label:hover,
 .yyt-form-group > .yyt-checkbox-label:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.065);
-  box-shadow: none;
+  background: transparent;
 }
 
 /* 输入框 */
@@ -1325,10 +1322,8 @@ export function createBootstrap(context, options = {}) {
 .yyt-preset-list-compact {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   max-height: 150px;
   overflow-y: auto;
-  padding-right: 4px;
 }
 
 .yyt-preset-item {
@@ -1337,29 +1332,27 @@ export function createBootstrap(context, options = {}) {
   justify-content: space-between;
   gap: 10px;
   padding: 11px 14px;
-  background: var(--yyt-surface-2);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 6px;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-  box-shadow: none;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--yyt-border);
+  border-radius: 0;
+  transition: background 0.2s ease;
+}
+
+.yyt-preset-item:first-child {
+  border-top: none;
 }
 
 .yyt-preset-item:hover {
   background: var(--yyt-surface-3);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: none;
 }
 
 .yyt-preset-item.active {
   background: var(--yyt-accent-soft);
-  border-color: var(--yyt-accent-soft);
-  box-shadow: none;
 }
 
 .yyt-preset-item.yyt-loaded {
   background: rgba(74, 222, 128, 0.12);
-  border-color: rgba(74, 222, 128, 0.34);
-  box-shadow: 0 14px 24px rgba(74, 222, 128, 0.1);
 }
 
 .yyt-preset-info {
@@ -1794,9 +1787,9 @@ export function createBootstrap(context, options = {}) {
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  padding: 5px;
-  border-radius: var(--yyt-radius-xl);
-  background: var(--yyt-surface);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .yyt-content-frame .yyt-content {
@@ -2048,10 +2041,10 @@ export function createBootstrap(context, options = {}) {
   flex-direction: column;
   gap: 14px;
   overflow: hidden;
-  padding: 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--yyt-surface);
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
   box-shadow: none;
 }
 
@@ -2136,12 +2129,12 @@ export function createBootstrap(context, options = {}) {
 }
 
 .yyt-shell-sidebar-note {
-  padding: 13px 14px;
-  border-radius: 6px;
-  border: 1px dashed var(--yyt-accent-soft);
-  background: var(--yyt-accent-soft);
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 12px;
+  padding: 10px 14px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  color: var(--yyt-text-muted);
+  font-size: 11px;
   line-height: 1.65;
 }
 

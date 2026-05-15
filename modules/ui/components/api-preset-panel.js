@@ -131,7 +131,6 @@ export const ApiPresetPanel = {
     
     return `
       <div class="yyt-api-manager">
-        <div class="yyt-panel">
           <!-- 预设选择区 -->
           <div class="yyt-flow-section">
             <div class="yyt-flow-heading">
@@ -200,7 +199,6 @@ export const ApiPresetPanel = {
               </button>
             </div>
           </div>
-        </div>
       </div>
     `;
   },

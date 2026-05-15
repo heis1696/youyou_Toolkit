@@ -636,15 +636,16 @@ export const BypassPanel = {
       .yyt-bypass-panel {
         display: flex;
         height: 100%;
-        gap: 16px;
+        gap: 0;
       }
-      
+
       .yyt-bypass-sidebar {
         width: 220px;
         display: flex;
         flex-direction: column;
         background: var(--yyt-surface-2);
-        border-radius: var(--yyt-radius-lg);
+        border-radius: 0;
+        border-right: 1px solid var(--yyt-border);
         flex-shrink: 0;
       }
       
@@ -665,19 +666,24 @@ export const BypassPanel = {
       .yyt-bypass-preset-list {
         flex: 1;
         overflow-y: auto;
-        padding: 8px;
+        padding: 0;
       }
-      
+
       .yyt-bypass-preset-item {
-        padding: 12px;
-        border-radius: var(--yyt-radius);
+        padding: 12px 16px;
+        border-radius: 0;
+        border-top: 1px solid var(--yyt-border);
         cursor: pointer;
         transition: all 0.2s ease;
-        margin-bottom: 4px;
+        margin-bottom: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
+      }
+
+      .yyt-bypass-preset-item:first-child {
+        border-top: none;
       }
       
       .yyt-bypass-preset-item:hover {
@@ -750,8 +756,8 @@ export const BypassPanel = {
         flex: 1;
         display: flex;
         flex-direction: column;
-        background: var(--yyt-surface-2);
-        border-radius: var(--yyt-radius-lg);
+        background: transparent;
+        border-radius: 0;
         overflow: hidden;
       }
       

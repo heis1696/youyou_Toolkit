@@ -157,7 +157,9 @@
       "Bash(awk '/^  function getBaseStyles/,/^  }/' D:/Projects/youyou_Toolkit/modules/app/bootstrap.js)",
       "Bash(grep -n '^\\\\s*`;$' D:/Projects/youyou_Toolkit/modules/app/bootstrap.js)",
       "Bash(xargs grep -l \"setChatMessages\")",
-      "Bash(grep -v '//')"
+      "Bash(grep -v '//')",
+      "Bash(grep -v \":0$\")",
+      "Bash(read cls *)"
     ]
   },
   "spinnerTipsEnabled": false,

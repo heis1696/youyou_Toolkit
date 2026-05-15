@@ -245,7 +245,7 @@ export const LoggerPanel = {
         display: flex;
         flex-direction: column;
         height: 100%;
-        gap: 10px;
+        gap: 0;
       }
 
       .yyt-logger-toolbar {
@@ -255,6 +255,7 @@ export const LoggerPanel = {
         flex-wrap: wrap;
         padding: 10px 12px;
         background: transparent;
+        border-bottom: 1px solid var(--yyt-border);
       }
 
       .yyt-logger-filter-btns {
@@ -334,9 +335,10 @@ export const LoggerPanel = {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
-        border-radius: var(--yyt-radius);
-        background: var(--yyt-surface);
-        border: 1px solid var(--yyt-border-soft);
+        border-radius: 0;
+        background: transparent;
+        border: none;
+        border-top: 1px solid var(--yyt-border);
         font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
         font-size: 12px;
         line-height: 1.55;

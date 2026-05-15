@@ -157,10 +157,8 @@ export const RegexExtractPanel = {
         </div>
         `}
         
-        <div class="yyt-list-table">
-          <div class="yyt-rules-list">
+        <div class="yyt-rules-list">
             ${rulesList}
-          </div>
         </div>
         
         <div class="yyt-form-row">
@@ -219,13 +217,12 @@ export const RegexExtractPanel = {
    */
   _renderTestSection() {
     return `
-      <div class="yyt-test-section">
         <div class="yyt-form-group">
           <label>测试文本</label>
-          <textarea class="yyt-textarea" id="${SCRIPT_ID}-test-input" rows="6" 
+          <textarea class="yyt-textarea" id="${SCRIPT_ID}-test-input" rows="6"
                     placeholder="输入要测试提取的文本内容..."></textarea>
         </div>
-        
+
         <div class="yyt-form-row">
           <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-test-extract">
             <i class="fa-solid fa-play"></i> 测试提取
@@ -234,12 +231,11 @@ export const RegexExtractPanel = {
             <i class="fa-solid fa-eraser"></i> 清空
           </button>
         </div>
-        
+
         <div class="yyt-form-group" id="${SCRIPT_ID}-test-result-container" style="display: none;">
           <label>提取结果</label>
           <div class="yyt-test-result" id="${SCRIPT_ID}-test-result"></div>
         </div>
-      </div>
     `;
   },
   
@@ -655,7 +651,7 @@ Phase 4: 应用黑名单过滤
       .yyt-regex-panel {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 0;
       }
       
       /* 规则编辑器样式 */
@@ -716,11 +712,10 @@ Phase 4: 应用黑名单过滤
       /* 标签建议区域 */
       .yyt-tag-suggestions {
         margin-top: 12px;
-        padding: 14px;
-        background: rgba(74, 222, 128, 0.08);
-        border: 1px solid rgba(74, 222, 128, 0.24);
-        border-radius: var(--yyt-radius);
-        box-shadow: none;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
       }
 
       .yyt-tag-suggestions-header {
@@ -748,13 +743,6 @@ Phase 4: 应用黑名单过滤
         border-color: rgba(123, 183, 255, 0.4);
       }
       
-      /* 测试区域 */
-      .yyt-test-section {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
       .yyt-test-result {
         background: transparent;
         padding: 14px;
