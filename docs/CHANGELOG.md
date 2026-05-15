@@ -9,6 +9,30 @@
 
 ## [Unreleased]
 
+## [1.0.153] - 2026-05-16
+
+### 变更
+
+- ✨ **工具配置面板整体重写** (议题 #8/#38/#39 iter 1, `modules/ui/components/tool-config-panel-factory.js`)
+  - **新布局**：Hero（工具名 + 描述 + chips + 立即执行/保存按钮）→ Runtime 概览（4 列 inline：状态 / 最近运行 / 成功 / 失败）→ 绑定区（5 个 select：输出模式 / API 预设 / Ai 指令预设 / 正则提取预设 / 世界书预设）→ 配置区（提示词模板 + 提取配置：最大消息数 / 测试按钮 / 写回标签）
+  - **删除**：独立 footer / 自动触发区 / settleMs+cooldownMs / 内嵌正则规则编辑器 / 内嵌世界书选择 / macro-hint dashed 框 / Ai 指令预设的 enable toggle
+  - **新字段**：`extraction.regexPresetId` / `extraction.writebackTag` / `worldbooks.presetId`
+  - **iter 1 镜像策略**：选预设时自动镜像到老字段（worldbooks.enabled+selected / extraction.selectors），runtime 仍读老字段，不破坏现有执行链；镜像有损（regex 的 exclude/regex_exclude、worldbook 的 includeDisabled/entryOverrides 不映射）
+  - 全用 Prefab 控件库构建（flowSection / selectInput / button / textInput）
+  - 编辑即保存
+
+- ✨ **自动触发规则按 output_mode 决定** (议题 #5, `modules/tool-output-service.js`)
+  - `filterAutoPostResponseTools` 去掉 `automation.enabled === true` 检查
+  - 现在 `output.mode === 'post_response_api'` 选中即自动触发
+  - **行为变更提示**：之前 mode=post_response_api 但 automation.enabled=false 的工具，现在会开始自动触发
+
+### 备注
+
+- 议题 #38 + #39 iter 1 完成；iter 2 待办：hero sticky 压缩、写回标签 datalist 自动补全（基于正则预设标签）、自定义 dialog、active 状态点、runtime 改读预设而非镜像字段（消除 lossy 镜像）
+- 议题 #40 (扩展自动触发到 local_transform) 未做：local_transform 工具用的是 local-transform-tool-panel-factory，且自动化服务还未支持该路径
+- TOOL_CONFIG_PANEL_STYLES 保留导出，table-workbench-panel 和 local-transform-tool-panel-factory 可继续 import
+
+
 ## [1.0.152] - 2026-05-16
 
 ### 变更

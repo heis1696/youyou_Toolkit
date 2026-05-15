@@ -1057,13 +1057,9 @@ class ToolOutputService {
   filterAutoPostResponseTools(toolConfigs) {
     if (!Array.isArray(toolConfigs)) return [];
 
-    return toolConfigs.filter((config) => {
-      if (!this.shouldRunPostResponse(config)) {
-        return false;
-      }
-
-      return config?.automation?.enabled === true;
-    });
+    // 议题 #5：按 output_mode 决定自动触发，不再依赖独立的 automation.enabled 开关。
+    // shouldRunPostResponse 已确保 tool.enabled + output.enabled + output.mode === POST_RESPONSE_API。
+    return toolConfigs.filter((config) => this.shouldRunPostResponse(config));
   }
 
   /**
