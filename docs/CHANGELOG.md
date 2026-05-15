@@ -9,6 +9,25 @@
 
 ## [Unreleased]
 
+## [1.0.148] - 2026-05-15
+
+### 修复
+
+- 🐛 **补全遗漏的 CSS 扁平化** (main.css + bootstrap.js + tool-config-panel-factory.js)
+  - `yyt-main-nav-icon`: 去掉 border + 硬编码 radius 12px → accent-soft bg + radius-sm
+  - `yyt-shell-stat`: 从独立卡片 (border+radius+bg) → 透明 + border-left hairline
+  - `yyt-shell-sidebar-card`: 去掉 border/radius/bg → 透明
+  - `yyt-shell-sidebar-note`: 去掉 dashed border + accent bg → 纯文本 (text-muted)
+  - `yyt-shell-sidebar-stat`: 去掉 border/radius/bg → 透明
+  - `yyt-shell-main-meta`: 去掉卡片 → 透明 + border-bottom hairline
+  - `yyt-popup-drag-hint`: dashed border → solid hairline
+  - `yyt-sub-nav-item.active`: 去掉 box-shadow
+  - `yyt-preview-message-item`: 独立卡片 → border-top hairline 行
+
+### 文档
+
+- 📄 合并 `TODO_TOOL_CONFIG_REFACTOR.md` 到 `PANEL_LAYOUT_AUDIT.md`（Tool Config Panel 章节新增"待实施：HTML 结构重构"）
+
 ## [1.0.147] - 2026-05-15
 
 ### 变更
