@@ -34,7 +34,7 @@ export function createBootstrap(context, options = {}) {
 
     moduleLoadPromise = (async () => {
       try {
-        modules.storageModule = await import('../storage.js');
+        modules.storageModule = await import('../core/storage-service.js');
         modules.apiConnectionModule = await import('../api-connection.js');
         modules.presetManagerModule = await import('../preset-manager.js');
         modules.uiModule = await import('../ui/index.js');
@@ -50,6 +50,20 @@ export function createBootstrap(context, options = {}) {
         modules.toolPromptServiceModule = await import('../tool-prompt-service.js');
         modules.toolOutputServiceModule = await import('../tool-output-service.js');
         modules.toolAutomationServiceModule = await import('../tool-automation-service.js');
+        modules.toolDataProviderModule = await import('../core/tool-data-provider.js');
+
+        // Provider 异步初始化（探测 Authority / Fallback），不阻塞模块加载
+        try {
+          modules.toolDataProviderModule.getToolDataProvider({ extensionVersion: SCRIPT_VERSION })
+            .then((provider) => {
+              scopeLogger.log(`Provider 就绪: ${provider.kind}`);
+            })
+            .catch((err) => {
+              scopeLogger.error(`Provider 初始化异常: ${err?.message || err}`);
+            });
+        } catch (err) {
+          scopeLogger.error(`Provider 启动异常: ${err?.message || err}`);
+        }
 
         if (modules.toolOutputServiceModule?.toolOutputService && modules.apiConnectionModule) {
           modules.toolOutputServiceModule.toolOutputService.setApiConnection(modules.apiConnectionModule);

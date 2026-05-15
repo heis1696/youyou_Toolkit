@@ -9,6 +9,33 @@
 
 ## [Unreleased]
 
+## [1.0.149] - 2026-05-16
+
+### 新增
+
+- ✨ **Phase 3 后端基础设施（议题 #43 + #41）** — 详见 [PHASE3_ARCHITECTURE.md](./PHASE3_ARCHITECTURE.md)
+
+  **host-event-service 集中化** (议题 #10)
+  - 新增 `modules/core/host-event-service.js`：singleton 宿主事件订阅服务
+    - 统一 `getTopWindow` / `getHostApi` / `getHostContext` / `resolveHostBridge`
+    - `HOST_EVENTS` 常量集合（10 个事件，含 GENERATION_AFTER_COMMANDS / USER_MESSAGE_RENDERED / MESSAGE_EDITED / IMPERSONATE_READY 等剧情推进辅助所需）
+    - `subscribe / emit / ready / describe / reinit / dispose` API
+    - 宿主未就绪时排队订阅 + 自动重试（最多 20 次）
+  - 迁移 `tool-automation-service.js`：删除 ~120 行重复 host-discovery 代码 + 自维护重试逻辑，5 个事件改走 `hostEvents.subscribe`
+  - 迁移 `context-injector.js`：`_notifyMessageUpdated` 改走 `hostEvents.emit(HOST_EVENTS.MESSAGE_UPDATED)`
+  - 迁移 `table-workbench-panel.js`：`_subscribeChatChanged` 改走 `hostEvents.subscribe(HOST_EVENTS.CHAT_CHANGED)`
+
+  **IToolDataProvider 双轨持久化** (议题 #9)
+  - 新增 `modules/core/tool-data-provider.js`：接口 + 工厂 + 单例 getter + 自动降级
+  - 新增 `modules/core/authority-provider.js`：包装 `window.STAuthority.AuthoritySDK`，提供 `query / execute / batch / transaction / migrate / pageAll`
+  - 新增 `modules/core/fallback-provider.js`：迷你 SQL 解释器（支持 CREATE TABLE / INSERT [OR REPLACE] / SELECT-WHERE-AND-ORDER-LIMIT / UPDATE / DELETE）+ 事务快照回滚 + debounced 300ms JSON 持久化
+  - `bootstrap.js` 启动时异步初始化 Provider（不阻塞模块加载）
+  - `public-api.js` 暴露 `getDataProvider()` / `getDataProviderAsync()`
+
+### 删除
+
+- 🗑️ **`modules/storage.js` 兼容层** — 直接 import `core/storage-service.js`，所有调用点已迁移
+
 ## [1.0.148] - 2026-05-15
 
 ### 修复

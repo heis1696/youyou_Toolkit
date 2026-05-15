@@ -7,6 +7,7 @@ import { TOOL_CONFIG_PANEL_STYLES } from './tool-config-panel-factory.js';
 import { renderTableAuxiliaryFields } from './table-form-renderer.js';
 import { TableCellPopupMenu, getPopupMenuStyles } from './table-cell-popup-menu.js';
 import { logger } from '../../core/logger-service.js';
+import { hostEvents, HOST_EVENTS } from '../../core/host-event-service.js';
 import { variableResolver } from '../../variable-resolver.js';
 import { getAllPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresetList } from '../../bypass-manager.js';
@@ -1309,27 +1310,17 @@ export const TableWorkbenchPanel = {
 
   _subscribeChatChanged($container) {
     if (this._chatChangedUnsubscribe) return;
-    try {
-      const topWin = window.parent !== undefined && window.parent !== window ? window.parent : window;
-      const api = topWin?.SillyTavern || null;
-      const ctx = api?.getContext?.() || null;
-      const eventSource = api?.eventSource || topWin?.eventSource || ctx?.eventSource || null;
-      const eventTypes = api?.eventTypes || ctx?.eventTypes || topWin?.event_types || {};
-      const chatChangedEvent = eventTypes.CHAT_CHANGED || eventTypes.chat_changed || 'chat_changed';
-      if (eventSource && typeof eventSource.on === 'function') {
-        const handler = () => {
-          this._clearLiveCache();
-          if (isContainerValid($container)) {
-            this.renderTo($container);
-          }
-        };
-        eventSource.on(chatChangedEvent, handler);
-        this._chatChangedUnsubscribe = () => {
-          try { eventSource.off(chatChangedEvent, handler); } catch (_) {}
-          this._chatChangedUnsubscribe = null;
-        };
+    const handler = () => {
+      this._clearLiveCache();
+      if (isContainerValid($container)) {
+        this.renderTo($container);
       }
-    } catch (_) {}
+    };
+    const unsub = hostEvents.subscribe(HOST_EVENTS.CHAT_CHANGED, handler);
+    this._chatChangedUnsubscribe = () => {
+      try { unsub(); } catch (_) {}
+      this._chatChangedUnsubscribe = null;
+    };
   },
 
   async _loadTableWorldbooks($container) {

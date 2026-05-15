@@ -1,8 +1,10 @@
 # 面板布局审计 & Flat Flow 设计规范
 
-> 更新日期: 2026-05-15
-> 版本: v1.0.147 (Flat Flow Phase 2 完成后)
+> 更新日期: 2026-05-16
+> 版本: v1.0.148 (Flat Flow Phase 2 完成后)
 > 用途: UI 布局规范参考
+
+> **Phase 3 架构重构决策**（含 shujuku / Authority 调研归档、议题 1-15）已移至 [PHASE3_ARCHITECTURE.md](./PHASE3_ARCHITECTURE.md)。本文档仅保留面板布局快照 + Flat Flow 设计规范。
 
 ---
 
@@ -366,3 +368,12 @@ CSS 变更需同步到三处：
 - `yyt-shell-main-header`: 保留完整边框 box（用户认为更直观）
 - `yyt-sub-nav-group`: 保留 border + radius（用户认为更直观）
 - `yyt-settings-tabs`: 保留 bg + border（tab rail 常见做法）
+
+
+---
+
+## 后续工作
+
+Phase 3 架构重构决策（议题 1-15，含 shujuku/Authority 调研归档）已移至独立文档：[PHASE3_ARCHITECTURE.md](./PHASE3_ARCHITECTURE.md)。
+
+本文档仅保留 Flat Flow Phase 2 完成后的面板布局快照 + Flat Flow 设计规范。

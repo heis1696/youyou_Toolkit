@@ -6,6 +6,7 @@
 
 import { eventBus, EVENTS } from './core/event-bus.js';
 import { logger } from './core/logger-service.js';
+import { hostEvents, HOST_EVENTS, getTopWindow } from './core/host-event-service.js';
 
 const log = logger.createScope('ContextInjector');
 
@@ -35,46 +36,6 @@ function normalizeIdentityValue(value) {
   }
 
   return '';
-}
-
-function getTopWindow() {
-  try {
-    if (typeof window.parent !== 'undefined' && window.parent && window.parent !== window) {
-      return window.parent;
-    }
-  } catch (_) {
-    // ignore cross-origin
-  }
-  return window;
-}
-
-function getHostContext(topWindow) {
-  try {
-    return topWindow?.SillyTavern?.getContext?.() || null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function resolveHostEventBridge() {
-  const topWindow = getTopWindow();
-  const api = topWindow?.SillyTavern || null;
-  const context = getHostContext(topWindow);
-  const eventSource = api?.eventSource || topWindow?.eventSource || context?.eventSource || null;
-  const eventTypes = api?.eventTypes || api?.event_types || context?.eventTypes || context?.event_types || topWindow?.eventTypes || topWindow?.event_types || {};
-
-  return {
-    topWindow,
-    api,
-    context,
-    eventSource,
-    eventTypes,
-    source: api?.eventSource
-      ? 'SillyTavern.eventSource'
-      : (topWindow?.eventSource
-        ? 'topWindow.eventSource'
-        : (context?.eventSource ? 'SillyTavern.getContext().eventSource' : 'unavailable'))
-  };
 }
 
 const WRITEBACK_RESULT_STATUS = {
@@ -782,36 +743,33 @@ class ContextInjector {
       return { emitted: false, source: 'skipped_by_caller', eventName: '' };
     }
     try {
-      const hostBridge = resolveHostEventBridge();
-      const topWindow = hostBridge?.topWindow || runtime?.topWindow;
-      const eventSource = hostBridge?.eventSource || null;
-      const eventTypes = hostBridge?.eventTypes || {};
-      const messageUpdatedEvent = eventTypes.MESSAGE_UPDATED || eventTypes.message_updated || 'MESSAGE_UPDATED';
+      const desc = hostEvents.describe();
+      const topWindow = runtime?.topWindow || getTopWindow();
 
-      if (eventSource && typeof eventSource.emit === 'function') {
-        eventSource.emit(messageUpdatedEvent, messageIndex);
-
-        if (typeof topWindow?.requestAnimationFrame === 'function') {
-          topWindow.requestAnimationFrame(() => {
-            eventSource.emit(messageUpdatedEvent, messageIndex);
-          });
-        } else if (typeof topWindow?.setTimeout === 'function') {
-          topWindow.setTimeout(() => {
-            eventSource.emit(messageUpdatedEvent, messageIndex);
-          }, 30);
-        }
-
+      if (!desc.hasBridge) {
         return {
-          emitted: true,
-          source: hostBridge?.source || 'unavailable',
-          eventName: messageUpdatedEvent
+          emitted: false,
+          source: desc.source || 'unavailable',
+          eventName: HOST_EVENTS.MESSAGE_UPDATED
         };
       }
 
+      hostEvents.emit(HOST_EVENTS.MESSAGE_UPDATED, messageIndex);
+
+      if (typeof topWindow?.requestAnimationFrame === 'function') {
+        topWindow.requestAnimationFrame(() => {
+          hostEvents.emit(HOST_EVENTS.MESSAGE_UPDATED, messageIndex);
+        });
+      } else if (typeof topWindow?.setTimeout === 'function') {
+        topWindow.setTimeout(() => {
+          hostEvents.emit(HOST_EVENTS.MESSAGE_UPDATED, messageIndex);
+        }, 30);
+      }
+
       return {
-        emitted: false,
-        source: hostBridge?.source || 'unavailable',
-        eventName: messageUpdatedEvent
+        emitted: true,
+        source: desc.source || 'unavailable',
+        eventName: HOST_EVENTS.MESSAGE_UPDATED
       };
     } catch (error) {
       log.warn('触发消息刷新事件失败', { error });

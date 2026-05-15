@@ -38,6 +38,11 @@ export function createPublicApi(context, services = {}) {
     getToolPromptService: () => modules.toolPromptServiceModule,
     getToolOutputService: () => modules.toolOutputServiceModule,
     getToolAutomationService: () => modules.toolAutomationServiceModule,
+    getDataProvider: () => modules.toolDataProviderModule?.getCurrentProvider?.() || null,
+    async getDataProviderAsync() {
+      await loadModules();
+      return modules.toolDataProviderModule?.getToolDataProvider?.() || null;
+    },
 
     async getApiConfig() {
       await loadModules();
