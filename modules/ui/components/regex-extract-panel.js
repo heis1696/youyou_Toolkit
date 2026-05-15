@@ -1,794 +1,571 @@
 /**
- * YouYou Toolkit - 正则提取面板组件
- * @description 提供正则提取规则编辑和测试的UI
- * @version 1.0.0
+ * YouYou Toolkit - 正则提取预设面板
+ *
+ * 详见 docs/PHASE3_ARCHITECTURE.md §2（正则提取改为完整预设管理器）。
+ *
+ * 设计简化（v1 iter 1）：
+ *   - 编辑即保存：任何字段变更直接写入 store
+ *   - 规则排序用 ▲▼ 按钮（拖拽留到 iter 2）
+ *   - 黑名单用 textarea 一行一个（chip-group 留到 iter 2）
+ *   - 添加规则只填类型 + 值，name/description 自动留空
+ *   - 新建预设、导入、清空走 window.prompt/confirm（自定义 dialog 留到 iter 2）
+ *
+ * 引擎同步：切换 active preset 或编辑 active preset 时，store 自动把 rules+blacklist
+ * 灌到 regex-extractor 模块级状态，使现有 extractTagContent 调用路径自动用最新规则。
  */
 
-import { eventBus, EVENTS } from '../../core/event-bus.js';
 import {
-  SCRIPT_ID,
-  destroyEnhancedCustomSelects,
-  enhanceNativeSelects,
-  escapeHtml,
-  showToast,
-  getJQuery,
-  isContainerValid,
-  downloadJson,
-  readFileContent,
-  createDialogHtml,
-  bindDialogEvents,
-  showConfirm
-} from '../utils.js';
+  flowSection,
+  formRow,
+  textInput,
+  selectInput,
+  toggle,
+  button,
+  listRow,
+  el
+} from './controls/index.js';
 
-// 正则提取功能导入
-import {
-  extractTagContent,
-  scanTextForTags,
-  generateTagSuggestions,
-  getTagRules,
-  setTagRules,
-  addTagRule,
-  updateTagRule,
-  deleteTagRule,
-  getContentBlacklist,
-  setContentBlacklist,
-  saveRulesAsPreset,
-  getAllRulePresets,
-  loadRulePreset,
-  exportRulesConfig,
-  importRulesConfig
-} from '../../regex-extractor.js';
+import store, { RULE_TYPES } from '../../regex-preset-store.js';
+import { extractTagContent } from '../../regex-extractor.js';
+import { logger } from '../../core/logger-service.js';
 
-// ============================================================
-// 组件定义
-// ============================================================
+const log = logger.createScope('RegexExtractPanel');
+
+const RULE_TYPE_OPTIONS = [
+  { value: RULE_TYPES.INCLUDE, label: 'include — 提取标签' },
+  { value: RULE_TYPES.EXCLUDE, label: 'exclude — 排除标签' },
+  { value: RULE_TYPES.REGEX_INCLUDE, label: 'regex_include — 正则提取' },
+  { value: RULE_TYPES.REGEX_EXCLUDE, label: 'regex_exclude — 正则排除' }
+];
+
+function unwrap($container) {
+  if (!$container) return null;
+  if ($container.length !== undefined && typeof $container.get === 'function') {
+    return $container.get(0);
+  }
+  return $container;
+}
+
+function loadState() {
+  return {
+    presets: store.listPresets(),
+    selectedId: store.getCurrentPresetId(),
+    testInput: '',
+    testOutput: '',
+    linkedTools: {}
+  };
+}
+
+function findSelected(state) {
+  if (!state.selectedId) return null;
+  return state.presets.find((p) => p.id === state.selectedId) || null;
+}
+
+function buildPresetSection(state, refresh) {
+  const rows = state.presets.length
+    ? state.presets.map((preset) => {
+        const linked = state.linkedTools[preset.id] || [];
+        const enabledCount = preset.rules.filter((r) => r.enabled !== false).length;
+        return listRow({
+          name: preset.name,
+          desc: `${preset.rules.length} 条规则（${enabledCount} 启用） · ${preset.blacklist.length} 黑名单${linked.length ? ` · 被 ${linked.length} 个工具引用` : ''}`,
+          active: preset.id === state.selectedId,
+          onClick: () => {
+            store.setCurrentPresetId(preset.id);
+            state.selectedId = preset.id;
+            refresh();
+          },
+          actions: [
+            button({
+              label: '复制', size: 'small', variant: 'ghost', title: '复制此预设',
+              onClick: (e) => {
+                e.stopPropagation();
+                const copy = store.duplicatePreset(preset.id);
+                if (copy) {
+                  store.setCurrentPresetId(copy.id);
+                  state.selectedId = copy.id;
+                }
+                refresh();
+              }
+            }),
+            button({
+              label: '✎', size: 'small', variant: 'ghost', title: '重命名',
+              onClick: (e) => {
+                e.stopPropagation();
+                const newName = window.prompt('预设名', preset.name);
+                if (newName != null) {
+                  store.renamePreset(preset.id, newName);
+                  refresh();
+                }
+              }
+            }),
+            button({
+              label: '×', size: 'small', variant: 'danger', title: '删除',
+              onClick: (e) => {
+                e.stopPropagation();
+                const linkedToolIds = state.linkedTools[preset.id] || [];
+                let msg = `删除预设 "${preset.name}" ？`;
+                if (linkedToolIds.length) {
+                  msg += `\n\n注意：以下 ${linkedToolIds.length} 个工具引用了此预设，删除后它们的提取将失效：\n  ${linkedToolIds.join(', ')}`;
+                }
+                if (!window.confirm(msg)) return;
+                store.deletePreset(preset.id);
+                if (state.selectedId === preset.id) state.selectedId = store.getCurrentPresetId();
+                refresh();
+              }
+            })
+          ]
+        });
+      })
+    : [el('div', {
+        style: { padding: '24px 0', textAlign: 'center', color: 'var(--yyt-text-muted)', fontSize: '12px' },
+        text: '暂无预设。点击右上角"+ 新建预设"开始。'
+      })];
+
+  return flowSection({
+    heading: '预设选择',
+    icon: '🔖',
+    actions: [
+      button({
+        label: '+ 新建预设', size: 'small',
+        onClick: () => {
+          const name = window.prompt('新预设名', '新预设');
+          if (name == null) return;
+          const created = store.createPreset({ name: name || '新预设' });
+          store.setCurrentPresetId(created.id);
+          state.selectedId = created.id;
+          refresh();
+        }
+      })
+    ],
+    content: rows
+  });
+}
+
+function buildBasicSection(state, refresh) {
+  const preset = findSelected(state);
+  if (!preset) return null;
+
+  const linked = state.linkedTools[preset.id] || [];
+
+  return flowSection({
+    heading: '基本信息',
+    icon: 'ⓘ',
+    content: [
+      formRow({
+        label: '预设名',
+        control: textInput({
+          value: preset.name,
+          onChange: (v) => { store.updatePreset(preset.id, { name: v }); refresh(); }
+        })
+      }),
+      formRow({
+        label: '描述',
+        control: textInput({
+          value: preset.description,
+          placeholder: '可选 — 备注用途',
+          onChange: (v) => { store.updatePreset(preset.id, { description: v }); }
+        })
+      }),
+      el('div', {
+        style: {
+          marginTop: '10px',
+          padding: '10px 12px',
+          background: 'var(--yyt-surface-2)',
+          borderRadius: 'var(--yyt-radius-sm)',
+          fontSize: '11px',
+          color: 'var(--yyt-text-muted)',
+          lineHeight: '1.7'
+        },
+        html: linked.length
+          ? `<strong style="color:var(--yyt-text)">被引用：</strong>${linked.map((id) => `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--yyt-accent-soft);color:var(--yyt-accent);font-weight:600;margin-right:4px;">${id}</span>`).join('')}`
+          : '<strong style="color:var(--yyt-text)">被引用：</strong>暂无工具引用此预设。可在工具配置面板的"提取配置"区将工具绑定到本预设。'
+      })
+    ]
+  });
+}
+
+function buildRuleRow(preset, rule, index, totalCount, refresh) {
+  const row = el('div', {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'auto minmax(140px, 1fr) 200px minmax(120px, 2fr) auto',
+      gap: '10px',
+      alignItems: 'center',
+      padding: '12px 0',
+      borderTop: index === 0 ? 'none' : '1px solid var(--yyt-border)',
+      opacity: rule.enabled === false ? '0.5' : '1'
+    }
+  });
+
+  const moveBox = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px' } });
+  const upBtn = button({
+    label: '▲', size: 'small', variant: 'ghost', title: '上移',
+    disabled: index === 0,
+    onClick: () => { store.moveRule(preset.id, rule.id, 'up'); refresh(); }
+  });
+  const downBtn = button({
+    label: '▼', size: 'small', variant: 'ghost', title: '下移',
+    disabled: index === totalCount - 1,
+    onClick: () => { store.moveRule(preset.id, rule.id, 'down'); refresh(); }
+  });
+  for (const b of [upBtn, downBtn]) {
+    b.el.style.padding = '2px 8px';
+    b.el.style.minHeight = 'auto';
+    b.el.style.fontSize = '10px';
+  }
+  moveBox.appendChild(upBtn.el);
+  moveBox.appendChild(downBtn.el);
+  row.appendChild(moveBox);
+
+  const nameBox = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '0' } });
+  const nameInput = textInput({
+    value: rule.name || '',
+    placeholder: '规则名（可选）',
+    onChange: (v) => store.updateRule(preset.id, rule.id, { name: v })
+  });
+  nameInput.el.style.fontSize = '12px';
+  nameInput.el.style.padding = '6px 10px';
+  nameBox.appendChild(nameInput.el);
+  if (rule.description) {
+    nameBox.appendChild(el('div', {
+      text: rule.description,
+      style: { fontSize: '10px', color: 'var(--yyt-text-muted)' }
+    }));
+  }
+  row.appendChild(nameBox);
+
+  const typeSelect = selectInput({
+    value: rule.type,
+    options: RULE_TYPE_OPTIONS,
+    onChange: (v) => { store.updateRule(preset.id, rule.id, { type: v }); refresh(); }
+  });
+  typeSelect.el.style.fontSize = '11px';
+  typeSelect.el.style.padding = '6px 10px';
+  row.appendChild(typeSelect.el);
+
+  const isRegexType = rule.type === RULE_TYPES.REGEX_INCLUDE || rule.type === RULE_TYPES.REGEX_EXCLUDE;
+  const valueInput = textInput({
+    value: rule.value || '',
+    placeholder: isRegexType ? '正则表达式...' : '标签名（如 content）',
+    onChange: (v) => store.updateRule(preset.id, rule.id, { value: v })
+  });
+  valueInput.el.style.fontSize = '12px';
+  valueInput.el.style.padding = '6px 10px';
+  valueInput.el.style.fontFamily = 'ui-monospace, monospace';
+  row.appendChild(valueInput.el);
+
+  const actions = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } });
+  const enableToggle = toggle({
+    checked: rule.enabled !== false,
+    onChange: (v) => { store.updateRule(preset.id, rule.id, { enabled: v }); refresh(); }
+  });
+  enableToggle.el.style.padding = '0';
+  enableToggle.el.style.border = 'none';
+  enableToggle.el.style.background = 'transparent';
+  actions.appendChild(enableToggle.el);
+  actions.appendChild(button({
+    label: '×', size: 'small', variant: 'danger', title: '删除规则',
+    onClick: () => {
+      if (!window.confirm('删除这条规则？')) return;
+      store.deleteRule(preset.id, rule.id);
+      refresh();
+    }
+  }).el);
+  row.appendChild(actions);
+
+  return row;
+}
+
+function buildRulesSection(state, refresh) {
+  const preset = findSelected(state);
+  if (!preset) return null;
+
+  const rows = preset.rules.length
+    ? preset.rules.map((rule, idx) => buildRuleRow(preset, rule, idx, preset.rules.length, refresh))
+    : [el('div', {
+        style: { padding: '14px 0', color: 'var(--yyt-text-muted)', fontSize: '12px' },
+        text: '尚无规则。点击右上角"+ 新增规则"开始添加。'
+      })];
+
+  return flowSection({
+    heading: '提取规则',
+    icon: '📜',
+    actions: [
+      el('span', {
+        text: '按顺序依次应用',
+        style: { fontSize: '11px', color: 'var(--yyt-text-muted)' }
+      }),
+      button({
+        label: '+ 新增规则', size: 'small',
+        onClick: () => {
+          store.addRule(preset.id, { type: RULE_TYPES.INCLUDE, value: '', enabled: true });
+          refresh();
+        }
+      })
+    ],
+    content: rows
+  });
+}
+
+function buildBlacklistSection(state, refresh) {
+  const preset = findSelected(state);
+  if (!preset) return null;
+
+  const textarea = el('textarea', {
+    className: 'yyt-textarea',
+    attrs: { rows: '4', placeholder: '每行一个关键词，命中即跳过该提取块（按子串匹配，不区分大小写）' },
+    style: { width: '100%', resize: 'vertical' }
+  });
+  textarea.value = (preset.blacklist || []).join('\n');
+  textarea.addEventListener('change', () => {
+    const list = textarea.value
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    store.setBlacklist(preset.id, list);
+  });
+
+  return flowSection({
+    heading: '内容黑名单',
+    icon: '⛔',
+    content: [
+      el('div', {
+        className: 'yyt-form-hint',
+        text: '提取出的内容块如果包含任意关键词，则跳过该块。',
+        style: { marginBottom: '8px' }
+      }),
+      textarea
+    ]
+  });
+}
+
+function buildTestSection(state) {
+  const preset = findSelected(state);
+  if (!preset) return null;
+
+  const inputArea = el('textarea', {
+    className: 'yyt-textarea',
+    attrs: { rows: '6', placeholder: '粘贴测试文本（如 AI 回复原文）...' },
+    style: { width: '100%', resize: 'vertical', fontFamily: 'ui-monospace, monospace', fontSize: '12px' }
+  });
+  inputArea.value = state.testInput || '';
+  inputArea.addEventListener('input', () => { state.testInput = inputArea.value; });
+
+  const outputBox = el('div', {
+    style: {
+      padding: '12px',
+      background: 'var(--yyt-bg-base)',
+      border: '1px solid var(--yyt-border)',
+      borderRadius: 'var(--yyt-radius-sm)',
+      fontFamily: 'ui-monospace, monospace',
+      fontSize: '11px',
+      lineHeight: '1.7',
+      color: 'var(--yyt-text-muted)',
+      maxHeight: '240px',
+      overflowY: 'auto',
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-all',
+      minHeight: '60px'
+    }
+  });
+  if (state.testOutput) {
+    outputBox.textContent = state.testOutput;
+    outputBox.style.color = 'var(--yyt-text)';
+  } else {
+    outputBox.textContent = '// 点击"运行测试"看提取结果';
+  }
+
+  return flowSection({
+    heading: '测试提取',
+    icon: '🔍',
+    actions: [
+      button({
+        label: '▶ 运行测试', size: 'small', variant: 'primary',
+        onClick: () => {
+          const text = inputArea.value;
+          if (!text.trim()) {
+            state.testOutput = '// 测试输入为空';
+            outputBox.textContent = state.testOutput;
+            outputBox.style.color = 'var(--yyt-text-muted)';
+            return;
+          }
+          try {
+            const result = extractTagContent(text, preset.rules || [], preset.blacklist || []);
+            state.testOutput = result || '// 没有提取到内容';
+            outputBox.textContent = state.testOutput;
+            outputBox.style.color = result ? 'var(--yyt-text)' : 'var(--yyt-text-muted)';
+          } catch (error) {
+            state.testOutput = `// 测试出错：${error?.message || error}`;
+            outputBox.textContent = state.testOutput;
+            outputBox.style.color = 'var(--yyt-error, #ef4444)';
+          }
+        }
+      }),
+      button({
+        label: '清空输出', size: 'small', variant: 'ghost',
+        onClick: () => {
+          state.testOutput = '';
+          outputBox.textContent = '// 点击"运行测试"看提取结果';
+          outputBox.style.color = 'var(--yyt-text-muted)';
+        }
+      })
+    ],
+    content: [
+      el('div', {
+        className: 'yyt-form-hint',
+        text: '使用当前预设的规则 + 黑名单提取，结果与运行时一致。',
+        style: { marginBottom: '8px' }
+      }),
+      el('div', {
+        className: 'yyt-form-label',
+        text: '测试输入',
+        style: { marginBottom: '4px' }
+      }),
+      inputArea,
+      el('div', {
+        className: 'yyt-form-label',
+        text: '提取结果',
+        style: { marginTop: '12px', marginBottom: '4px' }
+      }),
+      outputBox
+    ]
+  });
+}
+
+function buildFooter(refresh) {
+  const footer = el('div', {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '14px 20px',
+      borderTop: '1px solid var(--yyt-border)'
+    }
+  });
+
+  const left = el('div', { style: { display: 'flex', gap: '8px' } });
+  left.appendChild(button({
+    label: '📥 导入', size: 'small',
+    onClick: () => {
+      const text = window.prompt('粘贴导出的 JSON：');
+      if (!text) return;
+      try {
+        const payload = JSON.parse(text);
+        const result = store.importPresets(payload);
+        window.alert(`导入完成：新增 ${result.added} 条`);
+        refresh();
+      } catch (error) {
+        window.alert(`导入失败：${error?.message || error}`);
+      }
+    }
+  }).el);
+  left.appendChild(button({
+    label: '📤 导出', size: 'small',
+    onClick: () => {
+      const text = JSON.stringify(store.exportAll(), null, 2);
+      try {
+        navigator.clipboard?.writeText?.(text);
+        window.alert('已复制到剪贴板');
+      } catch (_) {
+        window.prompt('导出 JSON（复制保存）：', text);
+      }
+    }
+  }).el);
+  footer.appendChild(left);
+
+  const right = el('div', { style: { display: 'flex', gap: '8px' } });
+  right.appendChild(button({
+    label: '清空所有预设', size: 'small', variant: 'danger',
+    onClick: () => {
+      if (!window.confirm('确定清空所有正则预设？此操作不可撤销。')) return;
+      store.resetAll();
+      refresh();
+    }
+  }).el);
+  footer.appendChild(right);
+
+  return footer;
+}
 
 export const RegexExtractPanel = {
   id: 'regexExtractPanel',
-  
-  // ============================================================
-  // 渲染
-  // ============================================================
-  
-  /**
-   * 渲染组件
-   * @param {Object} props
-   * @returns {string} HTML
-   */
-  render(props) {
-    const rules = getTagRules();
-    const blacklist = getContentBlacklist();
-    const presets = getAllRulePresets();
-    
-    return `
-      <div class="yyt-regex-panel">
-        <!-- 规则编辑区 -->
-        <div class="yyt-flow-section">
-          <div class="yyt-flow-heading">
-            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-filter"></i></span>
-            <span>标签提取规则</span>
-            <button class="yyt-btn yyt-btn-small yyt-btn-secondary" id="${SCRIPT_ID}-show-examples" style="margin-left: auto;">
-              <i class="fa-solid fa-lightbulb"></i> 查看示例
-            </button>
-          </div>
 
-          ${this._renderRulesEditor(rules, blacklist, presets)}
-        </div>
+  renderTo($container) {
+    const containerEl = unwrap($container);
+    if (!containerEl) return;
 
-        <!-- 测试区 -->
-        <div class="yyt-flow-section">
-          <div class="yyt-flow-heading">
-            <span class="yyt-flow-heading-icon"><i class="fa-solid fa-flask"></i></span>
-            <span>测试提取</span>
-          </div>
+    if (containerEl._yytRegexPanelCleanup) {
+      try { containerEl._yytRegexPanelCleanup(); } catch (_) {}
+    }
 
-          ${this._renderTestSection()}
-        </div>
-        
-        <!-- 底部操作区 -->
-        <div class="yyt-panel-footer">
-          <div class="yyt-footer-left">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-import-rules">
-              <i class="fa-solid fa-file-import"></i> 导入
-            </button>
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-export-rules">
-              <i class="fa-solid fa-file-export"></i> 导出
-            </button>
-            <input type="file" id="${SCRIPT_ID}-import-rules-file" accept=".json" style="display:none">
-          </div>
-          <div class="yyt-footer-right">
-            <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-reset-rules">
-              <i class="fa-solid fa-undo"></i> 重置
-            </button>
-          </div>
-        </div>
-        
-        <!-- 标签扫描结果容器 -->
-        <div id="${SCRIPT_ID}-tag-suggestions-container" style="display: none;">
-          <div class="yyt-tag-suggestions">
-            <div class="yyt-tag-suggestions-header">
-              <span>发现的标签:</span>
-              <span id="${SCRIPT_ID}-tag-scan-stats"></span>
-            </div>
-            <div class="yyt-tag-list" id="${SCRIPT_ID}-tag-list"></div>
-          </div>
-        </div>
-      </div>
-    `;
-  },
-  
-  // ============================================================
-  // 私有渲染方法
-  // ============================================================
-  
-  /**
-   * 渲染规则编辑器
-   * @private
-   */
-  _renderRulesEditor(rules, blacklist, presets) {
-    const rulesList = rules.length > 0
-      ? rules.map((rule, index) => this._renderRuleItem(rule, index)).join('')
-      : '<div class="yyt-empty-state-small"><i class="fa-solid fa-filter"></i><span>没有定义任何提取规则</span></div>';
-    
-    const presetOptions = presets.length > 0
-      ? presets.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')
-      : '';
-    
-    return `
-      <div class="yyt-tag-rules-editor">
-        ${presetOptions ? `
-        <div class="yyt-form-row">
-          <select class="yyt-select yyt-flex-1" id="${SCRIPT_ID}-rule-preset-select">
-            <option value="">-- 选择预设 --</option>
-            ${presetOptions}
-          </select>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-load-rule-preset">
-            <i class="fa-solid fa-download"></i> 加载
-          </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-save-rule-preset">
-            <i class="fa-solid fa-save"></i> 保存预设
-          </button>
-        </div>
-        ` : `
-        <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-save-rule-preset">
-            <i class="fa-solid fa-save"></i> 保存为预设
-          </button>
-        </div>
-        `}
-        
-        <div class="yyt-rules-list">
-            ${rulesList}
-        </div>
-        
-        <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-add-rule">
-            <i class="fa-solid fa-plus"></i> 添加规则
-          </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-scan-tags">
-            <i class="fa-solid fa-search"></i> 扫描标签
-          </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-add-exclude-cot">
-            <i class="fa-solid fa-ban"></i> 排除小CoT
-          </button>
-        </div>
-        
-        <!-- 黑名单设置 -->
-        <div class="yyt-form-group">
-          <label>内容黑名单（包含这些关键词的内容将被过滤，用逗号分隔）</label>
-          <input type="text" class="yyt-input" id="${SCRIPT_ID}-content-blacklist" 
-                 value="${escapeHtml(blacklist.join(', '))}" 
-                 placeholder="关键词1, 关键词2, ...">
-        </div>
-      </div>
-    `;
-  },
-  
-  /**
-   * 渲染单个规则项
-   * @private
-   */
-  _renderRuleItem(rule, index) {
-    return `
-      <div class="yyt-rule-item" data-rule-index="${index}">
-        <select class="yyt-select yyt-rule-type" style="flex: 2; min-width: 100px;">
-          <option value="include" ${rule.type === 'include' ? 'selected' : ''}>包含</option>
-          <option value="regex_include" ${rule.type === 'regex_include' ? 'selected' : ''}>正则包含</option>
-          <option value="exclude" ${rule.type === 'exclude' ? 'selected' : ''}>排除</option>
-          <option value="regex_exclude" ${rule.type === 'regex_exclude' ? 'selected' : ''}>正则排除</option>
-        </select>
-        <input type="text" class="yyt-input yyt-rule-value" style="flex: 5;" 
-               placeholder="标签名或正则表达式" 
-               value="${escapeHtml(rule.value || '')}">
-        <label class="yyt-checkbox-label yyt-rule-enabled-label">
-          <input type="checkbox" class="yyt-rule-enabled" ${rule.enabled ? 'checked' : ''}>
-          <span>启用</span>
-        </label>
-        <button class="yyt-btn yyt-btn-small yyt-btn-icon yyt-btn-danger yyt-rule-delete" title="删除规则">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </div>
-    `;
-  },
-  
-  /**
-   * 渲染测试区
-   * @private
-   */
-  _renderTestSection() {
-    return `
-        <div class="yyt-form-group">
-          <label>测试文本</label>
-          <textarea class="yyt-textarea" id="${SCRIPT_ID}-test-input" rows="6"
-                    placeholder="输入要测试提取的文本内容..."></textarea>
-        </div>
+    const state = loadState();
 
-        <div class="yyt-form-row">
-          <button class="yyt-btn yyt-btn-primary" id="${SCRIPT_ID}-test-extract">
-            <i class="fa-solid fa-play"></i> 测试提取
-          </button>
-          <button class="yyt-btn yyt-btn-secondary" id="${SCRIPT_ID}-test-clear">
-            <i class="fa-solid fa-eraser"></i> 清空
-          </button>
-        </div>
+    function refresh() {
+      RegexExtractPanel.renderTo($container);
+    }
 
-        <div class="yyt-form-group" id="${SCRIPT_ID}-test-result-container" style="display: none;">
-          <label>提取结果</label>
-          <div class="yyt-test-result" id="${SCRIPT_ID}-test-result"></div>
-        </div>
-    `;
-  },
-  
-  // ============================================================
-  // 事件绑定
-  // ============================================================
-  
-  /**
-   * 绑定事件
-   * @param {Object} $container
-   * @param {Object} dependencies
-   */
-  bindEvents($container, dependencies) {
-    const $ = getJQuery();
-    if (!$ || !isContainerValid($container)) return;
-
-    $container.off('.yytRegex');
-
-    this._bindRuleEditorEvents($container, $);
-    this._bindPresetEvents($container, $);
-    this._bindTestEvents($container, $);
-    this._bindFileEvents($container, $);
-
-    enhanceNativeSelects($container, {
-      namespace: 'yytRegexSelect',
-      selectors: [
-        `#${SCRIPT_ID}-rule-preset-select`
-      ]
-    });
-  },
-  
-  /**
-   * 绑定规则编辑器事件
-   * @private
-   */
-  _bindRuleEditorEvents($container, $) {
-    // 规则类型变化
-    $container.on('change.yytRegex', '.yyt-rule-type', function() {
-      const $item = $(this).closest('.yyt-rule-item');
-      const index = $item.data('rule-index');
-      const type = $(this).val();
-
-      updateTagRule(index, { type });
+    const root = el('div', {
+      className: 'yyt-regex-preset-panel',
+      style: { display: 'flex', flexDirection: 'column', height: '100%' }
     });
 
-    // 规则值变化
-    $container.on('change.yytRegex', '.yyt-rule-value', function() {
-      const $item = $(this).closest('.yyt-rule-item');
-      const index = $item.data('rule-index');
-      const value = $(this).val().trim();
-      
-      updateTagRule(index, { value });
-    });
-    
-    // 规则启用/禁用
-    $container.on('change.yytRegex', '.yyt-rule-enabled', function() {
-      const $item = $(this).closest('.yyt-rule-item');
-      const index = $item.data('rule-index');
-      const enabled = $(this).is(':checked');
-      
-      updateTagRule(index, { enabled });
-    });
-    
-    // 删除规则（使用事件委托）
-    $container.on('click.yytRegex', '.yyt-rule-delete', async (e) => {
-      const $item = $(e.currentTarget).closest('.yyt-rule-item');
-      const index = $item.data('rule-index');
+    const sections = [
+      buildPresetSection(state, refresh),
+      buildBasicSection(state, refresh),
+      buildRulesSection(state, refresh),
+      buildBlacklistSection(state, refresh),
+      buildTestSection(state)
+    ].filter(Boolean);
+    for (const s of sections) root.appendChild(s.el);
 
-      if (await showConfirm('删除规则', '确定要删除这条规则吗？', { danger: true })) {
-        deleteTagRule(index);
-        this.renderTo($container);
-        showToast('info', '规则已删除');
+    const footer = buildFooter(refresh);
+    root.appendChild(footer);
+
+    containerEl.innerHTML = '';
+    containerEl.appendChild(root);
+
+    containerEl._yytRegexPanelCleanup = () => {
+      for (const c of sections) {
+        try { c.destroy(); } catch (_) {}
       }
-    });
-    
-    // 添加规则
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-add-rule`, () => {
-      addTagRule({
-        type: 'include',
-        value: '',
-        enabled: true
-      });
-      this.renderTo($container);
-      showToast('success', '已添加新规则');
-    });
-    
-    // 扫描标签
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-scan-tags`, async () => {
-      const $btn = $container.find(`#${SCRIPT_ID}-scan-tags`);
-      const testText = $container.find(`#${SCRIPT_ID}-test-input`).val();
-      
-      if (!testText || !testText.trim()) {
-        showToast('warning', '请先输入要扫描的文本');
-        return;
-      }
-      
-      $btn.prop('disabled', true).find('i').addClass('fa-spin');
-      
+      delete containerEl._yytRegexPanelCleanup;
+    };
+
+    // 异步查找被引用工具
+    Promise.all(state.presets.map(async (preset) => {
       try {
-        const scanResult = await scanTextForTags(testText, { maxTags: 50, timeoutMs: 3000 });
-        const { suggestions, stats } = generateTagSuggestions(scanResult, 25);
-        
-        if (suggestions.length === 0) {
-          showToast('info', '未发现可用的标签');
-          $container.find(`#${SCRIPT_ID}-tag-suggestions-container`).hide();
-          return;
-        }
-        
-        // 显示标签建议
-        const $tagList = $container.find(`#${SCRIPT_ID}-tag-list`);
-        const $stats = $container.find(`#${SCRIPT_ID}-tag-scan-stats`);
-        
-        $stats.text(`${stats.finalCount}/${stats.totalFound} 个标签, ${scanResult.stats.processingTimeMs}ms`);
-        
-        $tagList.empty();
-        suggestions.forEach(tag => {
-          const $tagBtn = $(`<button class="yyt-btn yyt-btn-small yyt-btn-secondary" title="点击添加为包含规则">${escapeHtml(tag)}</button>`);
-          $tagBtn.on('click', () => {
-            const rules = getTagRules();
-            const exists = rules.some(r => r.type === 'include' && r.value === tag);
-            
-            if (exists) {
-              showToast('warning', `规则 "包含: ${tag}" 已存在`);
-              return;
-            }
-            
-            addTagRule({
-              type: 'include',
-              value: tag,
-              enabled: true
-            });
-            this.renderTo($container);
-            showToast('success', `已添加规则: 包含 "${tag}"`);
-          });
-          $tagList.append($tagBtn);
-        });
-        
-        $container.find(`#${SCRIPT_ID}-tag-suggestions-container`).show();
-        showToast('success', `发现 ${suggestions.length} 个标签`);
-      } catch (e) {
-        showToast('error', `扫描失败: ${e.message}`);
-      } finally {
-        $btn.prop('disabled', false).find('i').removeClass('fa-spin');
+        const tools = await store.findLinkedTools(preset.id);
+        return [preset.id, tools];
+      } catch (_) {
+        return [preset.id, []];
       }
-    });
-    
-    // 排除小CoT
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-add-exclude-cot`, () => {
-      const rules = getTagRules();
-      const cotPattern = '<!--[\\s\\S]*?-->';
-      const exists = rules.some(r => r.type === 'regex_exclude' && r.value === cotPattern);
-      
-      if (exists) {
-        showToast('warning', '排除HTML注释规则已存在');
-        return;
+    })).then((entries) => {
+      const newLinked = {};
+      for (const [id, tools] of entries) newLinked[id] = tools;
+      let changed = false;
+      for (const id of Object.keys(newLinked)) {
+        const prev = state.linkedTools[id] || [];
+        if (prev.join(',') !== newLinked[id].join(',')) { changed = true; break; }
       }
-      
-      addTagRule({
-        type: 'regex_exclude',
-        value: cotPattern,
-        enabled: true
-      });
-      this.renderTo($container);
-      showToast('success', '已添加排除HTML注释规则');
-    });
-    
-    // 黑名单变化
-    $container.on('change.yytRegex', `#${SCRIPT_ID}-content-blacklist`, function() {
-      const value = $(this).val();
-      const blacklist = value.split(',').map(k => k.trim()).filter(k => k);
-      setContentBlacklist(blacklist);
-      showToast('info', `黑名单已更新，共 ${blacklist.length} 个关键词`);
-    });
-    
-    // 查看示例
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-show-examples`, () => {
-      const examples = `
-规则类型说明:
-
-1. 【包含】include
-   - 简单标签名提取
-   - 同时匹配 <tag>内容</tag> 和 {tag|内容}
-   - 示例值: content, thinking, story
-
-2. 【正则包含】regex_include
-   - 使用正则表达式提取
-   - 必须包含捕获组 ()
-   - 系统提取第一个捕获组的内容
-   - 示例: <details[^>]*>([\\s\\S]*?)</details>
-
-3. 【排除】exclude
-   - 块级排除，移除整个标签块
-   - 在提取之前执行
-   - 示例值: thinking, analysis
-
-4. 【正则排除】regex_exclude
-   - 对已提取的内容进行清理
-   - 移除匹配的内容
-   - 示例:<!--[\\s\\S]*?--> (移除HTML注释)
-
-处理顺序:
-Phase 1: 执行【排除】规则，移除不需要的标签块
-Phase 2: 执行【包含】和【正则包含】规则，提取内容
-Phase 3: 执行【正则排除】规则，清理提取的内容
-Phase 4: 应用黑名单过滤
-
-常用规则示例:
-• 排除思考过程: 类型=排除, 值=thinking
-• 提取内容标签: 类型=包含, 值=content
-• 排除HTML注释: 类型=正则排除, 值=<!--[\\s\\S]*?-->
-• 提取花括号内容: 类型=包含, 值=story
-      `;
-      
-      const examplesDialogId = `${SCRIPT_ID}-examples-dialog`;
-      const $existingOverlay = $container.find(`#${examplesDialogId}-overlay`);
-      if ($existingOverlay.length) $existingOverlay.remove();
-
-      const examplesDialogHtml = createDialogHtml({
-        id: examplesDialogId,
-        title: '提取规则语法说明',
-        body: `<div style="white-space: pre-wrap; font-size: 13px; line-height: 1.7; max-height: 60vh; overflow-y: auto;">${escapeHtml(examples)}</div>`,
-        wide: true
-      });
-      const $examplesOverlay = $(examplesDialogHtml).appendTo($container);
-      $examplesOverlay.find(`#${examplesDialogId}-cancel`).text('关闭');
-      $examplesOverlay.find(`#${examplesDialogId}-save`).remove();
-      bindDialogEvents($examplesOverlay, examplesDialogId, {});
-    });
-  },
-  
-  /**
-   * 绑定预设事件
-   * @private
-   */
-  _bindPresetEvents($container, $) {
-    // 加载规则预设
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-load-rule-preset`, () => {
-      const presetId = $container.find(`#${SCRIPT_ID}-rule-preset-select`).val();
-      
-      if (!presetId) {
-        showToast('warning', '请选择一个预设');
-        return;
-      }
-      
-      const result = loadRulePreset(presetId);
-      if (result.success) {
-        this.renderTo($container);
-        showToast('success', `已加载预设: ${result.preset.name}`);
-        eventBus.emit(EVENTS.REGEX_PRESET_LOADED, { preset: result.preset });
-      } else {
-        showToast('error', result.message);
-      }
-    });
-    
-    // 保存规则预设
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-save-rule-preset`, () => {
-      const presetDialogId = `${SCRIPT_ID}-preset-name-dialog`;
-      const $existingOverlay = $container.find(`#${presetDialogId}-overlay`);
-      if ($existingOverlay.length) $existingOverlay.remove();
-
-      const presetDialogHtml = createDialogHtml({
-        id: presetDialogId,
-        title: '保存规则预设',
-        body: `<div class="yyt-form-group">
-          <label>预设名称</label>
-          <input type="text" class="yyt-input" id="${presetDialogId}-name" placeholder="输入预设名称...">
-        </div>`
-      });
-      const $presetOverlay = $(presetDialogHtml).appendTo($container);
-      bindDialogEvents($presetOverlay, presetDialogId, {
-        onSave: (closeDialog) => {
-          const name = $presetOverlay.find(`#${presetDialogId}-name`).val();
-          if (!name || !name.trim()) {
-            showToast('error', '请输入预设名称');
-            $presetOverlay.find(`#${presetDialogId}-name`).trigger('focus').trigger('select');
-            return;
-          }
-          closeDialog();
-
-          const result = saveRulesAsPreset(name.trim());
-          if (result.success) {
-            this.renderTo($container);
-            showToast('success', `预设 "${name.trim()}" 已保存`);
-          } else {
-            showToast('error', result.message);
-          }
-        }
-      });
-    });
-  },
-
-  /**
-   * 绑定测试事件
-   * @private
-   */
-  _bindTestEvents($container, $) {
-    // 测试提取
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-test-extract`, () => {
-      const text = $container.find(`#${SCRIPT_ID}-test-input`).val();
-      
-      if (!text || !text.trim()) {
-        showToast('warning', '请输入测试文本');
-        return;
-      }
-      
-      const rules = getTagRules();
-      const blacklist = getContentBlacklist();
-      
-      const result = extractTagContent(text, rules, blacklist);
-      
-      const $resultContainer = $container.find(`#${SCRIPT_ID}-test-result-container`);
-      const $result = $container.find(`#${SCRIPT_ID}-test-result`);
-      
-      $resultContainer.show();
-      
-      if (!result || !result.trim()) {
-        $result.html('<div class="yyt-result-empty">提取结果为空</div>');
-        showToast('warning', '提取结果为空，请检查规则配置');
-      } else {
-        $result.html(`<pre class="yyt-code-block">${escapeHtml(result)}</pre>`);
-        showToast('success', '提取完成');
-        eventBus.emit(EVENTS.REGEX_EXTRACTED, { result });
-      }
-    });
-    
-    // 清空测试
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-test-clear`, () => {
-      $container.find(`#${SCRIPT_ID}-test-input`).val('');
-      $container.find(`#${SCRIPT_ID}-test-result-container`).hide();
-    });
-  },
-  
-  /**
-   * 绑定文件事件
-   * @private
-   */
-  _bindFileEvents($container, $) {
-    // 导入规则
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-import-rules`, () => {
-      $container.find(`#${SCRIPT_ID}-import-rules-file`).click();
-    });
-
-    $container.on('change.yytRegex', `#${SCRIPT_ID}-import-rules-file`, async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      try {
-        const text = await readFileContent(file);
-        const result = importRulesConfig(text, { overwrite: true });
-        
-        if (result.success) {
-          this.renderTo($container);
-          showToast('success', '规则配置已导入');
-        } else {
-          showToast('error', result.message);
-        }
-      } catch (e) {
-        showToast('error', `导入失败: ${e.message}`);
-      }
-      
-      $(e.target).val('');
-    });
-    
-    // 导出规则
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-export-rules`, () => {
-      try {
-        const json = exportRulesConfig();
-        downloadJson(json, `youyou_toolkit_rules_${Date.now()}.json`);
-        showToast('success', '规则配置已导出');
-      } catch (e) {
-        showToast('error', `导出失败: ${e.message}`);
-      }
-    });
-    
-    // 重置规则
-    $container.on('click.yytRegex', `#${SCRIPT_ID}-reset-rules`, async () => {
-      if (await showConfirm('重置规则', '确定要重置所有规则吗？这将清空当前的规则配置。', { danger: true })) {
-        setTagRules([]);
-        setContentBlacklist([]);
-        this.renderTo($container);
-        showToast('info', '规则已重置');
+      if (changed && containerEl._yytRegexPanelCleanup) {
+        state.linkedTools = newLinked;
+        refresh();
       }
     });
   },
-  
-  // ============================================================
-  // 销毁
-  // ============================================================
-  
-  /**
-   * 销毁组件
-   * @param {Object} $container
-   */
-  destroy($container) {
-    const $ = getJQuery();
-    if (!$ || !isContainerValid($container)) return;
 
-    destroyEnhancedCustomSelects($container, 'yytRegexSelect');
-    $container.off('.yytRegex');
+  destroy(container) {
+    const containerEl = unwrap(container);
+    if (containerEl?._yytRegexPanelCleanup) {
+      try { containerEl._yytRegexPanelCleanup(); } catch (_) {}
+    }
   },
-  
-  // ============================================================
-  // 样式
-  // ============================================================
-  
-  /**
-   * 获取样式
-   * @returns {string}
-   */
+
   getStyles() {
     return `
-      /* 正则提取面板样式 */
-      .yyt-regex-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-      }
-      
-      /* 规则编辑器样式 */
-      .yyt-tag-rules-editor {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      
-      .yyt-rules-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        max-height: 250px;
-        overflow-y: auto;
-        padding-right: 4px;
-      }
-      
-      .yyt-rule-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 16px;
-        background: transparent;
-        border-top: 1px solid var(--yyt-border);
-        transition: background 0.2s ease, box-shadow 0.2s ease;
-        box-shadow: none;
-      }
-
-      .yyt-rule-item:first-child {
-        border-top: none;
-      }
-
-      .yyt-rule-item > .yyt-select,
-      .yyt-rule-item > .yyt-input {
-        min-width: 0;
-      }
-
-      .yyt-rule-item > .yyt-rule-type {
-        flex: 2 1 148px !important;
-        min-width: 132px !important;
-      }
-
-      .yyt-rule-item > .yyt-rule-value {
-        flex: 5 1 0 !important;
-      }
-
-      .yyt-rule-item:hover {
-        background: var(--yyt-surface-3);
-        box-shadow: none;
-      }
-
-      .yyt-rule-enabled-label {
-        flex-shrink: 0;
-        white-space: nowrap;
-      }
-
-      /* 标签建议区域 */
-      .yyt-tag-suggestions {
-        margin-top: 12px;
-        border: none;
-        border-radius: 0;
-        background: transparent;
-        padding: 0;
-      }
-
-      .yyt-tag-suggestions-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--yyt-text-secondary);
-      }
-
-      .yyt-tag-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .yyt-tag-list .yyt-btn {
-        cursor: pointer;
-      }
-
-      .yyt-tag-list .yyt-btn:hover {
-        background: var(--yyt-accent-soft);
-        border-color: rgba(123, 183, 255, 0.4);
-      }
-      
-      .yyt-test-result {
-        background: transparent;
-        padding: 14px;
-        max-height: 300px;
-        overflow-y: auto;
-      }
-      
-      .yyt-code-block {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 6px;
-        padding: 10px;
-        font-family: 'Fira Code', 'Consolas', monospace;
-        font-size: 11px;
-        color: var(--yyt-success);
-        white-space: pre-wrap;
-        word-break: break-all;
-        margin: 8px 0 0 0;
-        max-height: 200px;
-        overflow-y: auto;
-      }
-      
-      .yyt-code-textarea {
-        font-family: 'Fira Code', 'Consolas', monospace;
-        font-size: 11px;
-      }
-      
-      .yyt-result-empty {
-        text-align: center;
-        color: var(--yyt-text-muted);
-        padding: 20px;
-      }
+      .yyt-regex-preset-panel { gap: 0; }
     `;
-  },
-  
-  // ============================================================
-  // 便捷方法
-  // ============================================================
-  
-  /**
-   * 渲染到容器
-   * @param {Object} $container
-   */
-  renderTo($container) {
-    const html = this.render({});
-    $container.html(html);
-    this.bindEvents($container, {});
   }
 };
 

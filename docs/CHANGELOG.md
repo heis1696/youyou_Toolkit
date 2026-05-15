@@ -9,6 +9,26 @@
 
 ## [Unreleased]
 
+## [1.0.152] - 2026-05-16
+
+### 变更
+
+- ✨ **正则提取面板升级为完整预设管理器** (议题 #2/#35, iter 1)
+  - 新增 `modules/regex-preset-store.js`：CRUD + 规则增删改 + 排序（▲▼）+ 黑名单 + 导入/导出
+  - 老数据一次性迁移：`settings.tagRulePresets` 里的旧预设全部转入新 store；当前 `tagRules`+`contentBlacklist` 包成 "默认规则集（迁移）" 兜底（迁移标记位写 `settings.regex_presets_migrated`，不重复执行）
+  - 引擎同步：切换 active preset 或编辑 active preset 时，自动把 rules+blacklist 灌入 regex-extractor 模块级状态，`extractTagContent` 调用路径无需改动
+  - 重写 `modules/ui/components/regex-extract-panel.js`：全用 Prefab 控件库构建
+    - 4 段式：预设选择 / 基本信息 / 提取规则（grid 5 列：上下移 / 名称+描述 / 类型 / 值 / 开关+删除） / 内容黑名单（textarea 一行一个） / 测试提取
+    - 编辑即保存，无 draft / save 按钮
+    - 删除预设时检测被引用工具，弹确认提示哪些工具会失效
+  - 测试区即点即跑：用当前预设的 rules+blacklist 调 `extractTagContent` 显示提取结果
+
+### 备注
+
+- 议题 #35 iter 1 完成；iter 2 待办：拖拽排序、chip-group 黑名单、自定义 dialog、新建工具时自动同名预设、active 状态点视觉细节
+- 工具配置面板的"提取配置"区还是 inline selectors（独立字段），改为 select 预设跟随议题 #38 落地
+
+
 ## [1.0.151] - 2026-05-16
 
 ### 新增
