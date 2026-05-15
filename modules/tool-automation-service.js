@@ -308,6 +308,17 @@ class ToolAutomationService {
         return;
       }
 
+      // 始终从 message 上拿真实 swipe_id，让重抽/swipe 切换能形成新的 slotKey
+      const liveSwipeId = normalizeIdentityValue(
+        targetMessage?.swipeId
+        ?? targetMessage?.swipe_id
+        ?? targetMessage?.swipe
+        ?? targetMessage?.swipeIndex
+      );
+      if (liveSwipeId) {
+        targetSwipeId = liveSwipeId;
+      }
+
       // recently-processed 防重复：同一 slot 短期内不再处理
       const slotKey = `${targetMessageId}::${targetSwipeId}`;
       if (this._isRecentlyProcessed(slotKey)) {
@@ -363,6 +374,7 @@ class ToolAutomationService {
     this._enabled = this._evaluateEnabled();
     this._enabledCheckedOnce = false;
     this._refreshHostBindingStatus();
+    this._seedKnownSlots();
 
     log.info('自动化服务已初始化', {
       enabled: this._enabled,
@@ -370,6 +382,26 @@ class ToolAutomationService {
       source: this._hostBindingStatus.source
     });
     return true;
+  }
+
+  /**
+   * 把当前聊天最新一条 AI 消息的 slot 标记为"已知"，避免：
+   *   - 页面刷新 / 切换聊天 / 删除消息后，宿主重渲染时发出的 MESSAGE_RECEIVED 把旧消息当成新消息处理
+   *   - 切换聊天后 SillyTavern 对新聊天的最新消息回放 MESSAGE_RECEIVED
+   * 使用 Number.MAX_SAFE_INTEGER 作为时间戳让 _isRecentlyProcessed 永远命中，
+   * 直到下一次 chat 切换 / 删除 / 真正的新 AI 消息把它替换。
+   */
+  _seedKnownSlots() {
+    try {
+      const api = getHostApi();
+      const latest = getLatestAssistantTarget(api);
+      if (!latest?.messageId) return;
+      const slotKey = `${normalizeIdentityValue(latest.messageId)}::${normalizeIdentityValue(latest.swipeId)}`;
+      this._recentlyProcessedSlots.set(slotKey, Number.MAX_SAFE_INTEGER);
+      log.debug(`已将当前最新 slot "${slotKey}" 预标记为已知，跳过 MESSAGE_RECEIVED 重放`);
+    } catch (error) {
+      log.warn('_seedKnownSlots 失败', { error });
+    }
   }
 
   _refreshHostBindingStatus() {
@@ -1000,6 +1032,7 @@ class ToolAutomationService {
     this._activeTransactions.clear();
     this._isProcessing = false;
     this._messageReceivedThrottleUntil = 0;
+    this._seedKnownSlots();
   }
 
   _clearMessageState(messageId) {
@@ -1019,6 +1052,10 @@ class ToolAutomationService {
     }
 
     this._ownWriteMessageIds.delete(normalizeIdentityValue(messageId));
+
+    // 删除消息后，宿主可能针对新的"最新消息"再发一次 MESSAGE_RECEIVED；
+    // 重新种入 known slots 把它盖住，避免触发自动工具。
+    this._seedKnownSlots();
   }
 
   // ── 启用状态 ──────────────────────────────────────────────

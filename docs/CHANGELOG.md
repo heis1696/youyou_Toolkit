@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.150] - 2026-05-16
+
+### 修复
+
+- 🐛 **打开聊天 / 删除消息会误触发自动工具** (`modules/tool-automation-service.js`)
+  - 原因：`_recentlyProcessedSlots` 去重表在内存中，页面刷新/切换聊天后为空；SillyTavern 在 chat 重渲染、消息删除等场景下重放 MESSAGE_RECEIVED 时，第一次会被当作全新消息走完调度链
+  - 修复：新增 `_seedKnownSlots()`，在 init() / `_resetForChatChange()` / MESSAGE_DELETED 处理后预先把当前聊天最新 AI 消息的 slotKey 用 `Number.MAX_SAFE_INTEGER` 时间戳标记为已知，让重放事件命中去重守卫
+  - 同时：scheduleFromEvent 始终从 message 的 `swipe_id` 字段读取真实 swipe 值，使重抽/swipe 切换形成的新 slotKey 不被旧 snapshot 误吞
+
 ## [1.0.149] - 2026-05-16
 
 ### 新增
