@@ -55,7 +55,7 @@ const appContext = {
   uiState: {
     currentPopup: null,
     currentOverlay: null,
-    currentMainTab: 'apiPresets',
+    currentMainTab: 'presetManagement',
     currentSubTab: {},
     startupScreenDismissed: false
   }

@@ -362,7 +362,7 @@ export function createPopupShell(context) {
     cleanupPopupEvents();
 
     const refreshCurrentPresetPanel = () => {
-      if (uiState.currentMainTab === 'apiPresets') {
+      if (uiState.currentMainTab === 'presetManagement') {
         void refreshCurrentPanel();
         return;
       }
@@ -954,13 +954,13 @@ export function createPopupShell(context) {
 
     const toolConfig = modules.toolRegistryModule?.getToolConfig(tabName);
 
-    // tools 页走 sub-tab 路由
-    if (tabName === 'tools') {
+    // 任何 hasSubTabs 主 tab 都走 sub-tab 路由（tools / presetManagement 等）
+    if (toolConfig?.hasSubTabs) {
       const activeSubTab = resolveActiveSubTabId(tabName);
-      if (toolConfig?.hasSubTabs && activeSubTab) {
+      if (activeSubTab) {
         await renderSubTabContent(tabName, activeSubTab);
       } else {
-        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>工具配置加载失败</span></div>');
+        $content.html('<div class="yyt-empty-state-small"><i class="fa-solid fa-exclamation-triangle"></i><span>子 tab 配置加载失败</span></div>');
       }
       refreshScrollableSurfaces();
       return;

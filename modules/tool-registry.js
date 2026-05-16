@@ -391,38 +391,19 @@ const DEFAULT_TOOL_CONFIGS = {
  * 定义所有可用工具的基本信息
  */
 export const TOOL_REGISTRY = {
-  apiPresets: {
-    id: 'apiPresets',
-    name: 'API预设',
-    icon: 'fa-database',
-    hasSubTabs: false,
-    description: '管理API配置和预设',
-    component: 'ApiPresetPanel',
-    order: 0
-  },
-  worldbookPresets: {
-    id: 'worldbookPresets',
-    name: '世界书预设',
-    icon: 'fa-book-atlas',
-    hasSubTabs: false,
-    description: '管理世界书注入预设（议题 #7）',
-    component: 'WorldbookPresetPanel',
-    order: 1
-  },
-  regexExtract: {
-    id: 'regexExtract',
-    name: '正则提取',
-    icon: 'fa-filter',
-    hasSubTabs: false,
-    description: '从消息中提取特定内容',
-    component: 'RegexExtractPanel',
-    order: 2,
-    defaultConfig: {
-      execution: { timeout: 30000, retries: 1 },
-      api: { preset: '' },
-      extractRules: [],
-      excludeRules: []
-    }
+  presetManagement: {
+    id: 'presetManagement',
+    name: '预设管理',
+    icon: 'fa-bookmark',
+    hasSubTabs: true,
+    description: '统一管理 API / 正则 / 世界书 / 表格模板预设',
+    order: 0,
+    subTabs: [
+      { id: 'apiPresets',       name: 'API 预设',  icon: 'fa-database',     component: 'ApiPresetPanel',       presetKind: 'api' },
+      { id: 'regexPresets',     name: '正则提取',  icon: 'fa-filter',       component: 'RegexExtractPanel',    presetKind: 'regex' },
+      { id: 'worldbookPresets', name: '世界书',    icon: 'fa-book-atlas',   component: 'WorldbookPresetPanel', presetKind: 'worldbook' },
+      { id: 'tableTemplates',   name: '表格模板',  icon: 'fa-table-list',   component: 'TableTemplatePanel',   presetKind: 'table' }
+    ]
   },
   toolManage: {
     id: 'toolManage',

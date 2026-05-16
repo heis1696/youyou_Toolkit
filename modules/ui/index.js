@@ -14,6 +14,7 @@ const PANEL_MODULE_LOADERS = Object.freeze({
   ApiPresetPanel: () => import('./components/api-preset-panel.js'),
   WorldbookPresetPanel: () => import('./components/worldbook-preset-panel.js'),
   RegexExtractPanel: () => import('./components/regex-extract-panel.js'),
+  TableTemplatePanel: () => import('./components/table-template-panel.js'),
   ToolManagePanel: () => import('./components/tool-manage-panel.js'),
   SummaryToolPanel: () => import('./components/summary-tool-panel.js'),
   StatusBlockPanel: () => import('./components/status-block-panel.js'),
@@ -155,6 +156,13 @@ export function renderRegexPanel(container) {
 }
 
 /**
+ * 渲染表格模板预设面板
+ */
+export function renderTableTemplatePanel(container) {
+  return renderRegisteredPanel('TableTemplatePanel', container);
+}
+
+/**
  * 渲染工具管理面板
  * @param {Object} container - 容器
  */
@@ -225,24 +233,12 @@ export function renderLoggerPanel(container) {
 /**
  * 主 tab 路由表：tabId → { render, failMessage }
  * 壳层通过查表调用，不再硬编码 switch-case。
- * tools 页不在此表中——它由 sub-tab 路由处理。
+ * tools / presetManagement 不在此表中——它们由 sub-tab 路由处理。
  */
 export const MAIN_TAB_RENDERERS = Object.freeze({
-  apiPresets: {
-    render: (container) => renderApiPanel(container),
-    failMessage: 'API 预设面板加载失败'
-  },
-  worldbookPresets: {
-    render: (container) => renderWorldbookPresetPanel(container),
-    failMessage: '世界书预设面板加载失败'
-  },
   toolManage: {
     render: (container) => renderToolPanel(container),
     failMessage: '工具管理面板加载失败'
-  },
-  regexExtract: {
-    render: (container) => renderRegexPanel(container),
-    failMessage: '正则提取面板加载失败'
   },
   tableWorkbench: {
     render: (container) => renderTableWorkbenchPanel(container),
@@ -263,10 +259,29 @@ export const MAIN_TAB_RENDERERS = Object.freeze({
 });
 
 /**
- * 子 tab（内置工具）组件路由表：componentName → { render, failMessage }
+ * 子 tab 组件路由表：componentName → { render, failMessage }
+ * 包含内置工具子 tab 和预设管理 sub-nav 的 4 个面板。
  * GenericToolConfigPanel 不在此表中——它由 popup-shell 的 panel factory 动态创建。
  */
 export const SUB_TAB_RENDERERS = Object.freeze({
+  // 预设管理 sub-nav
+  ApiPresetPanel: {
+    render: (container) => renderApiPanel(container),
+    failMessage: 'API 预设面板加载失败'
+  },
+  RegexExtractPanel: {
+    render: (container) => renderRegexPanel(container),
+    failMessage: '正则提取面板加载失败'
+  },
+  WorldbookPresetPanel: {
+    render: (container) => renderWorldbookPresetPanel(container),
+    failMessage: '世界书预设面板加载失败'
+  },
+  TableTemplatePanel: {
+    render: (container) => renderTableTemplatePanel(container),
+    failMessage: '表格模板面板加载失败'
+  },
+  // 工具 sub-nav
   SummaryToolPanel: {
     render: (container) => renderSummaryToolPanel(container),
     failMessage: '摘要工具加载失败'
@@ -346,6 +361,7 @@ export default {
   renderApiPanel,
   renderWorldbookPresetPanel,
   renderRegexPanel,
+  renderTableTemplatePanel,
   renderToolPanel,
   renderSummaryToolPanel,
   renderStatusBlockPanel,

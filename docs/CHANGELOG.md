@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+## [1.0.161] - 2026-05-16
+
+### 变更
+- **议题 #45 Stage 3+4**：4 个预设面板全部接入 PresetManagerBase + 主导航整合。
+  - **API 预设面板**重写：从 jQuery + HTML 字符串 → controls 库 + factory；提供 store 适配器把 preset-manager.js 的 name-based API 映射成 id-based；保留"加载"按钮（hasSwitchToButton）。
+  - **正则提取面板**改写：接入 base；规则行支持 HTML5 拖拽排序（inline 实现，未抽通用控件）；黑名单从 textarea 升级为 chipGroup 控件。
+  - **世界书预设面板**改写：接入 base；保留"基本信息 + 选中世界书"作为 renderEditor 内容。
+  - **表格模板预设面板**新建：接入 base；本期做基础 CRUD（name / description / promptTemplate / tables JSON 只读预览），复杂 schema 编辑留 #47 填表工作台同步设计。
+  - **主导航整合**：`tool-registry.js` 删除 3 个独立顶级 tab（apiPresets / worldbookPresets / regexExtract），新增「预设管理」主 tab + 4 sub-tab（API 预设 / 正则提取 / 世界书 / 表格模板）。
+  - **`popup-shell.js` sub-nav 泛化**：原本只有 `tools` 走 sub-tab 路由，改为任何 `hasSubTabs` 主 tab 都走（支持 presetManagement）。
+  - **`ui/index.js` 路由更新**：MAIN_TAB_RENDERERS 移除 3 项；SUB_TAB_RENDERERS 新增 4 项（4 个预设面板）；PANEL_MODULE_LOADERS 新增 TableTemplatePanel。
+  - 默认起始主 tab 从 `apiPresets` 改为 `presetManagement`。
+
 ## [1.0.160] - 2026-05-16
 
 ### 变更
