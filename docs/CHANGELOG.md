@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.0.159] - 2026-05-16
+
+### 变更
+- **议题 #45 Stage 1**：controls 控件库扩充 4 个新控件（为 PresetManagerBase 铺路）。
+  - `dialog`：纯原生 DOM 实现的对话框工具集合（`confirm` / `prompt` / `custom` 三种模式），不依赖 jQuery，复用 `yyt-dialog-*` CSS 类；`prompt` 支持 validate hook。
+  - `toolbar`：水平按钮组容器，支持 align（start/end/center/space-between）+ gap + wrap，三个预设面板 footer 通用。
+  - `presetListItem`：`listRow` 的预设专用变体，加 active 状态点 + 内置/只读 badge + meta chip 区。
+  - `chipGroup`：输入式标签组（回车/逗号添加，× 删除，Backspace 删尾），支持 datalist suggestions、`allowDuplicates` / `maxChips` / `chipVariant` 配置；用于黑名单 + 写回标签 datalist。
+  - `controls/index.js` barrel 加导出。
+
 ## [1.0.158] - 2026-05-16
 
 ### 变更

@@ -30,5 +30,9 @@ export { zoneTitle } from './zone-title.js';
 export { formRow } from './form-row.js';
 export { listRow } from './list-row.js';
 export { flowSection } from './flow-section.js';
+export { dialog } from './dialog.js';
+export { toolbar } from './toolbar.js';
+export { presetListItem } from './preset-list-item.js';
+export { chipGroup } from './chip-group.js';
 
 export { el, baseControl, createEmitter, findControl, appendChild } from './_internal.js';
