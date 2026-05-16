@@ -405,15 +405,8 @@ export const TOOL_REGISTRY = {
       { id: 'tableTemplates',   name: '表格模板',  icon: 'fa-table-list',   component: 'TableTemplatePanel',   presetKind: 'table' }
     ]
   },
-  toolManage: {
-    id: 'toolManage',
-    name: '工具列表',
-    icon: 'fa-screwdriver-wrench',
-    hasSubTabs: false,
-    description: '创建、编辑和管理自定义工具',
-    component: 'ToolManagePanel',
-    order: 3
-  },
+  // 议题 #37：工具列表已融入 tools sub-nav 工具栏（新建/编辑/导入/导出/删除），独立主 tab 删除。
+  // 旧 toolManage 入口及其 ToolManagePanel 组件保留代码但不再注册（ui/index.js 也清掉路由）。
   tools: {
     id: 'tools',
     name: '工具',

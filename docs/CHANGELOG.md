@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+## [1.0.166] - 2026-05-16
+
+### 变更
+- **议题 #37：工具列表面板与 sub-nav 融合（Design A）**。`工具列表` 主 tab 删除，全部能力融入 `工具` sub-nav：
+  - sub-nav 顶部加 toolbar：`+ 新建` / `↑ 导入` / `↓ 导出`。
+  - 顶部加 filter 输入：实时按工具名筛选（隐藏未命中项与空分组）。
+  - 自定义工具单独分组：`自定义工具`（紫色圆点），与现有 `AI 工具` / `脚本工具` 并列。
+  - 自定义工具行 hover 出 `✎ 编辑` / `× 删除` 内联按钮；内置工具不显示这些按钮。
+  - 新建/编辑工具弹窗换为 `dialog.custom` + controls 库实现（不再用 jQuery + HTML 字符串），导入/导出 dialog 同步重写。
+  - `tool-registry.js` 删除 `toolManage` 主 tab 注册；`ui/index.js` 路由表移除 `toolManage`。
+- **新文件**：`modules/ui/components/tool-actions-helper.js` — 抽出 `showToolEditDialog` / `confirmDeleteTool` / `showImportToolsDialog` / `showExportToolsDialog` / `confirmResetTools` 给 sub-nav 工具栏调用。
+- **保留代码**：`tool-manage-panel.js` 文件不删，仅断开主导航与 ui 路由的注册。后续若 #44 浮球 / 其它地方需要老对话框可直接 import 引用，避免回滚成本。
+
 ## [1.0.165] - 2026-05-16
 
 ### 变更

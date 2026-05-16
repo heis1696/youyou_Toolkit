@@ -236,10 +236,7 @@ export function renderLoggerPanel(container) {
  * tools / presetManagement 不在此表中——它们由 sub-tab 路由处理。
  */
 export const MAIN_TAB_RENDERERS = Object.freeze({
-  toolManage: {
-    render: (container) => renderToolPanel(container),
-    failMessage: '工具管理面板加载失败'
-  },
+  // 议题 #37：toolManage 主 tab 已删，工具列表融入 tools sub-nav 工具栏
   tableWorkbench: {
     render: (container) => renderTableWorkbenchPanel(container),
     failMessage: '填表工作台加载失败'

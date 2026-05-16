@@ -341,6 +341,131 @@
   font-size: 12px;
 }
 
+/* 议题 #37：tools sub-nav toolbar + filter + 行内 hover actions */
+.yyt-sub-nav-toolbar {
+  flex-basis: 100%;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 4px 0;
+  order: -2;
+}
+
+.yyt-sub-nav-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--yyt-text-secondary, rgba(255, 255, 255, 0.7));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--yyt-border-soft);
+  border-radius: var(--yyt-radius-sm, 6px);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.yyt-sub-nav-toolbar-btn:hover {
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--yyt-border);
+}
+
+.yyt-sub-nav-toolbar-btn[data-tool-action="add"] {
+  color: var(--yyt-accent);
+  background: var(--yyt-accent-soft);
+  border-color: var(--yyt-accent-soft);
+}
+
+.yyt-sub-nav-toolbar-btn[data-tool-action="add"]:hover {
+  color: var(--yyt-text);
+  background: var(--yyt-accent);
+  border-color: var(--yyt-accent);
+}
+
+.yyt-sub-nav-toolbar-btn i {
+  font-size: 11px;
+}
+
+.yyt-sub-nav-filter-wrap {
+  flex-basis: 100%;
+  padding: 0 4px 4px;
+  order: -1;
+}
+
+.yyt-sub-nav-filter {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--yyt-border-soft);
+  border-radius: var(--yyt-radius-sm, 6px);
+}
+
+.yyt-sub-nav-filter::placeholder {
+  color: var(--yyt-text-muted);
+}
+
+.yyt-sub-nav-filter:focus {
+  outline: none;
+  border-color: var(--yyt-accent);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.yyt-sub-nav-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yyt-sub-nav-item-actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.yyt-sub-nav-item:hover .yyt-sub-nav-item-actions,
+.yyt-sub-nav-item.active .yyt-sub-nav-item-actions {
+  opacity: 1;
+}
+
+.yyt-sub-nav-item-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  color: var(--yyt-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.yyt-sub-nav-item-action:hover {
+  color: var(--yyt-text);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--yyt-border-soft);
+}
+
+.yyt-sub-nav-item-action[data-action="delete"]:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.yyt-sub-nav-group-custom .yyt-sub-nav-group-title::before {
+  background: rgba(167, 139, 250, 0.92);
+  box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.12);
+}
+
 /* ============================================================
    内容区域
    ============================================================ */

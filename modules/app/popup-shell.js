@@ -899,12 +899,17 @@ export function createPopupShell(context) {
           {
             key: 'ai',
             title: 'AI 工具',
-            items: subTabs.filter(tab => (tab?.toolKind || 'ai') !== 'script')
+            items: subTabs.filter(tab => !tab?.isCustom && (tab?.toolKind || 'ai') !== 'script')
           },
           {
             key: 'script',
             title: '脚本工具',
-            items: subTabs.filter(tab => tab?.toolKind === 'script')
+            items: subTabs.filter(tab => !tab?.isCustom && tab?.toolKind === 'script')
+          },
+          {
+            key: 'custom',
+            title: '自定义工具',
+            items: subTabs.filter(tab => tab?.isCustom === true)
           }
         ].filter(group => group.items.length > 0)
       : [
@@ -919,12 +924,22 @@ export function createPopupShell(context) {
       const titleHtml = group.title
         ? `<div class="yyt-sub-nav-group-title">${escapeHtml(group.title)}</div>`
         : '';
-      const itemsHtml = group.items.map(tab => `
-        <div class="yyt-sub-nav-item ${tab.id === currentSub ? 'active' : ''}" data-subtab="${tab.id}">
+      const itemsHtml = group.items.map(tab => {
+        const isCustomItem = tab?.isCustom === true;
+        const actionsHtml = (mainTab === 'tools' && isCustomItem)
+          ? `<div class="yyt-sub-nav-item-actions">
+               <button type="button" class="yyt-sub-nav-item-action" data-action="edit" data-subtab="${tab.id}" title="编辑"><i class="fa-solid fa-pen"></i></button>
+               <button type="button" class="yyt-sub-nav-item-action" data-action="delete" data-subtab="${tab.id}" title="删除"><i class="fa-solid fa-trash"></i></button>
+             </div>`
+          : '';
+        return `
+        <div class="yyt-sub-nav-item ${tab.id === currentSub ? 'active' : ''}" data-subtab="${tab.id}" data-tool-name="${escapeHtml((tab.name || tab.id).toLowerCase())}">
           <i class="fa-solid ${tab.icon || 'fa-file'}"></i>
-          <span>${escapeHtml(tab.name || tab.id)}</span>
+          <span class="yyt-sub-nav-item-label">${escapeHtml(tab.name || tab.id)}</span>
+          ${actionsHtml}
         </div>
-      `).join('');
+      `;
+      }).join('');
 
       return `
         <div class="yyt-sub-nav-group yyt-sub-nav-group-${group.key}">
@@ -936,13 +951,102 @@ export function createPopupShell(context) {
       `;
     }).join('');
 
-    $(uiState.currentPopup).find('.yyt-sub-nav').html(subNavHtml);
-    $(uiState.currentPopup).find('.yyt-sub-nav-item').on('click', function onSubTabClick() {
+    // 议题 #37：tools tab 顶部 toolbar（新建/导入/导出 + filter）
+    const toolbarHtml = mainTab === 'tools'
+      ? `<div class="yyt-sub-nav-toolbar">
+           <button type="button" class="yyt-sub-nav-toolbar-btn" data-tool-action="add" title="新建自定义工具"><i class="fa-solid fa-plus"></i><span>新建</span></button>
+           <button type="button" class="yyt-sub-nav-toolbar-btn" data-tool-action="import" title="从 JSON 导入工具"><i class="fa-solid fa-file-import"></i></button>
+           <button type="button" class="yyt-sub-nav-toolbar-btn" data-tool-action="export" title="导出工具 JSON"><i class="fa-solid fa-file-export"></i></button>
+         </div>
+         <div class="yyt-sub-nav-filter-wrap">
+           <input type="text" class="yyt-sub-nav-filter" placeholder="筛选工具…" autocomplete="off">
+         </div>`
+      : '';
+
+    $(uiState.currentPopup).find('.yyt-sub-nav').html(toolbarHtml + subNavHtml);
+    $(uiState.currentPopup).find('.yyt-sub-nav-item').on('click', function onSubTabClick(e) {
+      // 点击工具行内的操作按钮时不触发切换
+      if (e.target.closest && e.target.closest('.yyt-sub-nav-item-action')) return;
       const subTab = $(this).data('subtab');
       switchSubTab(mainTab, subTab);
     });
 
+    if (mainTab === 'tools') {
+      bindToolsSubNavToolbar(mainTab);
+    }
+
     refreshScrollableSurfaces();
+  }
+
+  function filterSubNavItems(query) {
+    if (!uiState.currentPopup) return;
+    const $ = getJQuery();
+    if (!$) return;
+    const q = String(query || '').trim().toLowerCase();
+    const $items = $(uiState.currentPopup).find('.yyt-sub-nav-item');
+    $items.each(function () {
+      const name = String($(this).data('tool-name') || '');
+      $(this).toggle(!q || name.includes(q));
+    });
+    // 隐藏空分组
+    $(uiState.currentPopup).find('.yyt-sub-nav-group').each(function () {
+      const hasVisible = $(this).find('.yyt-sub-nav-item:visible').length > 0;
+      $(this).toggle(hasVisible);
+    });
+  }
+
+  function bindToolsSubNavToolbar(mainTab) {
+    const $ = getJQuery();
+    if (!$ || !uiState.currentPopup) return;
+    const $sub = $(uiState.currentPopup).find('.yyt-sub-nav');
+
+    $sub.find('.yyt-sub-nav-filter').off('input.yytFilter').on('input.yytFilter', function () {
+      filterSubNavItems(this.value);
+    });
+
+    $sub.find('.yyt-sub-nav-toolbar-btn').off('click.yytToolAction').on('click.yytToolAction', async function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const action = $(this).data('tool-action');
+      try {
+        const mod = await import('../ui/components/tool-actions-helper.js');
+        if (action === 'add') {
+          const newId = await mod.showToolEditDialog(null);
+          if (newId) {
+            uiState.currentSubTab[mainTab] = newId;
+            switchSubTab(mainTab, newId);
+          }
+        } else if (action === 'import') {
+          await mod.showImportToolsDialog();
+          // tool-manager.importTools 会 emit TOOL_REGISTERED；列表会自动刷新
+        } else if (action === 'export') {
+          mod.showExportToolsDialog();
+        }
+      } catch (err) {
+        logError('工具操作失败', err);
+      }
+    });
+
+    $sub.find('.yyt-sub-nav-item-action').off('click.yytItemAction').on('click.yytItemAction', async function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const action = $(this).data('action');
+      const toolId = String($(this).data('subtab') || '');
+      if (!toolId) return;
+      try {
+        const mod = await import('../ui/components/tool-actions-helper.js');
+        if (action === 'edit') {
+          await mod.showToolEditDialog(toolId);
+        } else if (action === 'delete') {
+          const removed = await mod.confirmDeleteTool(toolId);
+          if (removed && uiState.currentSubTab[mainTab] === toolId) {
+            uiState.currentSubTab[mainTab] = ''; // 让下次 resolve 走默认
+          }
+        }
+      } catch (err) {
+        logError('工具行内操作失败', err);
+      }
+    });
   }
 
   async function renderTabContent(tabName) {
