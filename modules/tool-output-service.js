@@ -12,6 +12,7 @@ const log = logger.createScope('ToolOutputService');
 import { contextInjector } from './context-injector.js';
 import { toolPromptService } from './tool-prompt-service.js';
 import { extractTagContent, getTagRules, getContentBlacklist } from './regex-extractor.js';
+import * as regexPresetStore from './regex-preset-store.js';
 import { getEffectiveApiConfig, validateApiConfig, hasEffectiveApiPreset } from './api-connection.js';
 
 // ============================================================
@@ -829,17 +830,53 @@ class ToolOutputService {
    * 获取提取标签
    * @private
    */
+  /**
+   * 议题 #45 Stage 5：从绑定的正则预设解析提取规则。
+   * 返回 { rules: [...], blacklist: [...] }，rules 包含全部类型（include/exclude/regex_include/regex_exclude）。
+   * 没有绑定预设时返回空。
+   * @private
+   */
+  _resolveExtractionContext(toolConfig) {
+    const presetId = toolConfig?.extraction?.regexPresetId;
+    if (!presetId) return { rules: [], blacklist: [] };
+    try {
+      const preset = regexPresetStore.getPreset(presetId);
+      if (!preset) return { rules: [], blacklist: [] };
+      const rules = Array.isArray(preset.rules)
+        ? preset.rules
+            .filter((r) => r && r.enabled !== false && r.value)
+            .map((r) => ({
+              id: r.id,
+              type: r.type,
+              value: r.value,
+              enabled: true
+            }))
+        : [];
+      const blacklist = Array.isArray(preset.blacklist)
+        ? preset.blacklist.map((s) => String(s || '').trim()).filter(Boolean)
+        : [];
+      return { rules, blacklist };
+    } catch (error) {
+      this._log('warn', '_resolveExtractionContext 异常', { error });
+      return { rules: [], blacklist: [] };
+    }
+  }
+
+  /**
+   * 提取 selector 字符串数组（仅用于显示/日志）。
+   * 议题 #45：source = 绑定的正则预设的 include / regex_include 规则；其他类型不展示。
+   * @private
+   */
   _getExtractionSelectors(toolConfig) {
-    const selectors = toolConfig?.extraction?.selectors;
-    if (Array.isArray(selectors) && selectors.length > 0) {
-      return selectors.map(item => String(item || '').trim()).filter(Boolean);
+    const { rules } = this._resolveExtractionContext(toolConfig);
+    const selectors = [];
+    for (const r of rules) {
+      const v = String(r.value || '').trim();
+      if (!v) continue;
+      if (r.type === 'include') selectors.push(v);
+      else if (r.type === 'regex_include') selectors.push(`regex:${v}`);
     }
-
-    if (Array.isArray(toolConfig?.extractTags) && toolConfig.extractTags.length > 0) {
-      return toolConfig.extractTags.map(item => String(item || '').trim()).filter(Boolean);
-    }
-
-    return [];
+    return selectors;
   }
 
   /**
@@ -856,25 +893,14 @@ class ToolOutputService {
    */
   _applyExtractionSelectorsInternal(text, toolConfig, options = {}) {
     const sourceText = typeof text === 'string' ? text : String(text || '');
-    const selectors = this._getExtractionSelectors(toolConfig);
+    const { rules, blacklist } = this._resolveExtractionContext(toolConfig);
     const { strict = false } = options;
 
-    if (!selectors.length) {
+    if (!rules.length) {
       return sourceText.trim();
     }
 
-    const rules = selectors.map((selector, index) => {
-      const value = String(selector || '').trim();
-      const isRegex = value.startsWith('regex:');
-      return {
-        id: `tool-extract-${index}`,
-        type: isRegex ? 'regex_include' : 'include',
-        value: isRegex ? value.slice(6).trim() : value,
-        enabled: true
-      };
-    }).filter(rule => rule.value);
-
-    const extracted = extractTagContent(sourceText, rules, []);
+    const extracted = extractTagContent(sourceText, rules, blacklist || []);
     if (strict) {
       return (extracted || '').trim();
     }
@@ -888,9 +914,9 @@ class ToolOutputService {
    */
   _extractToolContent(toolConfig, rawSourceText) {
     const rawText = typeof rawSourceText === 'string' ? rawSourceText : String(rawSourceText || '');
-    const selectors = this._getExtractionSelectors(toolConfig);
+    const { rules } = this._resolveExtractionContext(toolConfig);
 
-    if (!selectors.length) {
+    if (!rules.length) {
       return rawText.trim();
     }
 

@@ -61,18 +61,6 @@ function fmtTime(ts) {
   try { return new Date(ts).toLocaleString(); } catch (_) { return '未知'; }
 }
 
-function mirrorRegexPresetToSelectors(presetId) {
-  const preset = regexStore.getPreset(presetId);
-  if (!preset) return [];
-  const lines = [];
-  for (const rule of preset.rules || []) {
-    if (rule.enabled === false) continue;
-    if (rule.type === 'include' && rule.value) lines.push(String(rule.value));
-    else if (rule.type === 'regex_include' && rule.value) lines.push(`regex:${rule.value}`);
-  }
-  return lines;
-}
-
 function escapeHtmlSafe(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -249,18 +237,17 @@ function buildBindingSection(config, toolId, refresh) {
     control: selectInput({
       value: config.extraction?.regexPresetId || '',
       options: [
-        { value: '', label: '—— 无（保留工具原有提取规则） ——' },
+        { value: '', label: '—— 无（不进行提取） ——' },
         ...regexPresets.map((p) => ({ value: p.id, label: p.name }))
       ],
       onChange: (v) => {
         const cur = getToolFullConfig(toolId) || {};
         const patch = { ...(cur.extraction || {}), regexPresetId: v };
         if (v) {
-          const mirrored = mirrorRegexPresetToSelectors(v);
-          patch.selectors = mirrored;
-          showToast(`已绑定正则预设；提取规则替换为：${mirrored.length ? mirrored.join(', ') : '（预设无 include 规则）'}`, 'success');
+          const preset = regexStore.getPreset(v);
+          showToast(`已绑定正则预设：${preset?.name || v}`, 'success');
         } else {
-          showToast('已解绑正则预设，工具仍使用原有提取规则', 'success');
+          showToast('已解绑正则预设，工具将不进行内容提取', 'success');
         }
         saveToolConfig(toolId, { ...cur, extraction: patch });
         refresh();

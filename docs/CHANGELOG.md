@@ -9,6 +9,18 @@
 
 ## [Unreleased]
 
+## [1.0.163] - 2026-05-16
+
+### 变更
+- **议题 #45 Stage 5+6 完成**：runtime 直读预设 + 工具配置面板适配。议题 #45 全流程结束。
+  - **`tool-output-service`** 新增 `_resolveExtractionContext(toolConfig)`：从 `extraction.regexPresetId` 直接解析 `{ rules, blacklist }`，包含 include / exclude / regex_include / regex_exclude 全类型。`_getExtractionSelectors` 改为派生函数（用于显示/日志）。`_applyExtractionSelectorsInternal` 直接用 rules，不再从 selectors 字符串构建。
+  - **`tool-worldbook-service.buildSelectedWorldbookContent`** 函数签名改为 `(presetIdOrToolConfig)`：自动从 `worldbooks.presetId` 解析预设；支持 `character_card` 模式（动态拉角色卡世界书 + 预设 override）和 `custom` 模式（固定列表）；`includeDisabled` 控制是否包含源禁用词条。
+  - **删除 mirror 函数**：`tool-config-panel-factory.js` 的 `mirrorRegexPresetToSelectors` / `mirrorWorldbookPresetToLegacy`、`local-transform-tool-panel-factory.js` 的 `mirrorRegexPresetToSelectors` 全部删除。
+  - **删除 mirror 同步**：`tool-registry.js` 删除 `extractTags ↔ extraction.selectors` 双向同步逻辑（700-707）。
+  - **内置工具 default config**：`extraction.selectors: ['xxx']` 改为 `extraction.regexPresetId: 'builtin_regex_<key>'`（summaryTool / statusBlock / youyouReview）；内置工具 `extractTags` 全部清空。
+  - **写回标签 datalist**：工具配置面板「写回标签」字段改为 datalist 自动补全；候选 = 当前绑定预设的 include 标签；无绑定时合并所有正则预设的 include 标签去重作为 fallback。
+  - **预设状态 chip**：工具 hero 区"正则"chip 现在始终显示状态——绑定时"正则: <名称>"或"正则: 已删除"，未绑定时"正则: 未绑定"（半透明）。
+
 ## [1.0.162] - 2026-05-16
 
 ### 修复

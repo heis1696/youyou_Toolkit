@@ -145,30 +145,8 @@ function fmtTime(ts) {
   try { return new Date(ts).toLocaleString(); } catch (_) { return '未知'; }
 }
 
-// regex 预设 → 老式 selectors[] 镜像（有损：exclude / regex_exclude 不映射）
-function mirrorRegexPresetToSelectors(presetId) {
-  const preset = regexStore.getPreset(presetId);
-  if (!preset) return [];
-  const lines = [];
-  for (const rule of preset.rules || []) {
-    if (rule.enabled === false) continue;
-    if (rule.type === 'include' && rule.value) lines.push(String(rule.value));
-    else if (rule.type === 'regex_include' && rule.value) lines.push(`regex:${rule.value}`);
-    // exclude / regex_exclude 无法在 selectors[] 模型中表达，丢弃
-  }
-  return lines;
-}
-
-// worldbook 预设 → 老式 worldbooks 字段镜像
-function mirrorWorldbookPresetToLegacy(presetId) {
-  const preset = worldbookStore.getPreset(presetId);
-  if (!preset) return { enabled: false, selected: [] };
-  const selected = (preset.bookList || [])
-    .filter((b) => b.enabled !== false)
-    .map((b) => b.bookName)
-    .filter(Boolean);
-  return { enabled: selected.length > 0, selected };
-}
+// 议题 #45 Stage 5：删除 mirror 函数（mirrorRegexPresetToSelectors / mirrorWorldbookPresetToLegacy）。
+// runtime 现在直接读 extraction.regexPresetId / worldbooks.presetId 的预设规则。
 
 // ──────────────────────────────────────────────────────────────
 // 工厂主函数
@@ -296,7 +274,9 @@ function buildHero(config, toolId, refresh, postResponseHint) {
   const regexPresetId = config.extraction?.regexPresetId || '';
   if (regexPresetId) {
     const p = regexStore.getPreset(regexPresetId);
-    if (p) chips.appendChild(el('span', { className: 'yyt-tool-hero-chip preset', text: `正则: ${p.name}` }));
+    chips.appendChild(el('span', { className: 'yyt-tool-hero-chip preset', text: `正则: ${p ? p.name : '已删除'}` }));
+  } else {
+    chips.appendChild(el('span', { className: 'yyt-tool-hero-chip', text: '正则: 未绑定', style: { opacity: '0.6' } }));
   }
 
   const wbPresetId = config.worldbooks?.presetId || '';
@@ -416,20 +396,17 @@ function buildBindingSection(config, toolId, refresh) {
     control: selectInput({
       value: config.extraction?.regexPresetId || '',
       options: [
-        { value: '', label: '—— 无（保留工具原有提取规则） ——' },
+        { value: '', label: '—— 无（不进行提取） ——' },
         ...regexPresets.map((p) => ({ value: p.id, label: p.name }))
       ],
       onChange: (v) => {
         const cur = getToolFullConfig(toolId) || {};
         const patch = { ...(cur.extraction || {}), regexPresetId: v };
         if (v) {
-          // 选具体预设：镜像 include/regex_include 标签到 selectors[]
-          const mirrored = mirrorRegexPresetToSelectors(v);
-          patch.selectors = mirrored;
-          showToast(`已绑定正则预设；提取规则替换为：${mirrored.length ? mirrored.join(', ') : '（预设无 include 规则）'}`, 'success');
+          const preset = regexStore.getPreset(v);
+          showToast(`已绑定正则预设：${preset?.name || v}`, 'success');
         } else {
-          // 选"无"：清空预设 ID，但不破坏工具原有 selectors
-          showToast('已解绑正则预设，工具仍使用原有提取规则', 'success');
+          showToast('已解绑正则预设，工具将不进行内容提取', 'success');
         }
         saveToolConfig(toolId, { ...cur, extraction: patch });
         refresh();
@@ -452,13 +429,10 @@ function buildBindingSection(config, toolId, refresh) {
         const cur = getToolFullConfig(toolId) || {};
         const patch = { ...(cur.worldbooks || {}), presetId: v };
         if (v) {
-          // 选具体预设：镜像 bookList 到老字段
-          const mirrored = mirrorWorldbookPresetToLegacy(v);
-          patch.enabled = mirrored.enabled;
-          patch.selected = mirrored.selected;
-          showToast(`已绑定世界书预设；${mirrored.enabled ? `注入 ${mirrored.selected.length} 本` : '预设内无启用世界书'}`, 'success');
+          const preset = worldbookStore.getPreset(v);
+          showToast(`已绑定世界书预设：${preset?.name || v}`, 'success');
         } else {
-          showToast('已解绑世界书预设，工具仍使用原有世界书设置', 'success');
+          showToast('已解绑世界书预设，工具不再注入世界书内容', 'success');
         }
         saveToolConfig(toolId, { ...cur, worldbooks: patch });
         refresh();
@@ -586,15 +560,50 @@ function buildConfigSection(config, toolId, refresh, $container, previewDialogId
 
   container.appendChild(extractRow);
 
-  // 写回标签
+  // 写回标签 — 议题 #6 + Stage 6 datalist 自动补全
   const tagBox = el('div', { className: 'yyt-form-group', style: { margin: 0 } });
   tagBox.appendChild(el('label', {
     html: '写回标签 <span style="font-size:10px;color:var(--yyt-text-muted);font-weight:500;">（多标签提取时指定唯一写回标签；留空则提取首个）</span>',
     style: { fontSize: '12px', fontWeight: '600', color: 'var(--yyt-text-secondary, rgba(255,255,255,0.55))' }
   }));
+
+  // 收集 datalist 候选：当前绑定预设的 include tag 优先；空绑定时合并所有预设的 include tag 去重
+  const datalistId = `yyt-writeback-dl-${toolId}-${Math.random().toString(36).slice(2, 6)}`;
+  const datalistEl = el('datalist', { attrs: { id: datalistId } });
+  const includeTags = (() => {
+    const seen = new Set();
+    const out = [];
+    function collect(preset) {
+      if (!preset) return;
+      for (const r of (preset.rules || [])) {
+        if (r?.enabled === false) continue;
+        if (r?.type !== 'include') continue;
+        const v = String(r.value || '').trim();
+        if (!v || seen.has(v)) continue;
+        seen.add(v);
+        out.push(v);
+      }
+    }
+    const boundId = config.extraction?.regexPresetId;
+    if (boundId) {
+      collect(regexStore.getPreset(boundId));
+    } else {
+      for (const p of regexStore.listPresets()) collect(p);
+    }
+    return out;
+  })();
+  for (const tag of includeTags) {
+    datalistEl.appendChild(el('option', { attrs: { value: tag } }));
+  }
+
   const writebackInput = el('input', {
     className: 'yyt-input',
-    attrs: { type: 'text', placeholder: '如 status / content（来自正则预设的 include 标签）' },
+    attrs: {
+      type: 'text',
+      placeholder: '如 status / content（来自正则预设的 include 标签）',
+      list: datalistId,
+      autocomplete: 'off'
+    },
     style: { padding: '7px 10px', fontSize: '12px' }
   });
   writebackInput.value = config.extraction?.writebackTag || '';
@@ -606,6 +615,7 @@ function buildConfigSection(config, toolId, refresh, $container, previewDialogId
     });
   });
   tagBox.appendChild(writebackInput);
+  tagBox.appendChild(datalistEl);
   container.appendChild(tagBox);
 
   return flowSection({

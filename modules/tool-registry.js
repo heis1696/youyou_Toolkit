@@ -127,7 +127,7 @@ const DEFAULT_TOOL_CONFIGS = {
     extraction: {
       enabled: true,
       maxMessages: 5,
-      selectors: ['boo_FM']
+      regexPresetId: 'builtin_regex_summary'
     },
 
     // 提示词模板（单文本）
@@ -157,7 +157,7 @@ const DEFAULT_TOOL_CONFIGS = {
     
     // 兼容字段
     apiPreset: '',
-    extractTags: ['boo_FM']
+    extractTags: []
   },
   
   statusBlock: {
@@ -196,7 +196,7 @@ const DEFAULT_TOOL_CONFIGS = {
     extraction: {
       enabled: true,
       maxMessages: 5,
-      selectors: ['status_block']
+      regexPresetId: 'builtin_regex_status_block'
     },
 
     // 提示词模板（单文本）
@@ -223,7 +223,7 @@ const DEFAULT_TOOL_CONFIGS = {
     
     // 兼容字段
     apiPreset: '',
-    extractTags: ['status_block']
+    extractTags: []
   },
 
   youyouReview: {
@@ -259,7 +259,7 @@ const DEFAULT_TOOL_CONFIGS = {
     extraction: {
       enabled: true,
       maxMessages: 5,
-      selectors: ['youyou']
+      regexPresetId: 'builtin_regex_youyou'
     },
 
     promptTemplate: `请基于以下最新剧情回复，生成“小幽点评”。
@@ -287,7 +287,7 @@ const DEFAULT_TOOL_CONFIGS = {
     },
 
     apiPreset: '',
-    extractTags: ['youyou']
+    extractTags: []
   },
 
   escapeTransformTool: {
@@ -694,17 +694,8 @@ function mergeToolRuntimeConfig(baseConfig, userConfig = {}, legacyApiPresetBind
 
   mergedConfig.apiPreset = resolvedApiPreset;
 
-  if ((!Array.isArray(mergedConfig.extraction.selectors) || mergedConfig.extraction.selectors.length === 0)
-    && Array.isArray(mergedConfig.extractTags)
-    && mergedConfig.extractTags.length > 0) {
-    mergedConfig.extraction.selectors = [...mergedConfig.extractTags];
-  }
-
-  if (!Array.isArray(mergedConfig.extractTags) || mergedConfig.extractTags.length === 0) {
-    mergedConfig.extractTags = Array.isArray(mergedConfig.extraction.selectors)
-      ? [...mergedConfig.extraction.selectors]
-      : [];
-  }
+  // 议题 #45 Stage 5：删除 extractTags ↔ extraction.selectors 双向 mirror。
+  // runtime 现在直接读 extraction.regexPresetId，不再需要 selectors 字段。
 
   if (baseConfig.isCustom) {
     mergedConfig.enabled = baseConfig.enabled !== false;

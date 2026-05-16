@@ -1,5 +1,6 @@
 import { getTopWindow } from './tool-execution-context.js';
 import { logger } from './core/logger-service.js';
+import * as worldbookPresetStore from './worldbook-preset-store.js';
 
 const log = logger.createScope('ToolWorldbookService');
 
@@ -212,11 +213,55 @@ export async function getAvailableWorldbooks() {
   return [...books];
 }
 
-export async function buildSelectedWorldbookContent(toolConfig) {
-  const selectedBooks = normalizeBookNameList(toolConfig?.worldbooks?.selected);
-  if (toolConfig?.worldbooks?.enabled !== true || selectedBooks.length === 0) {
+/**
+ * 从工具配置或预设 ID 解析"应注入哪些世界书 + 其内容"。
+ * 议题 #45 Stage 5：runtime 直读 worldbook 预设 ID，老字段（worldbooks.enabled / worldbooks.selected）废弃。
+ *
+ * @param {Object|string} arg - 工具配置或预设 ID 字符串
+ * @returns {Promise<string>} 合并后的世界书内容；无绑定/未命中返回 ''
+ */
+export async function buildSelectedWorldbookContent(arg) {
+  // 入参规范化：toolConfig → presetId
+  let presetId = '';
+  if (typeof arg === 'string') {
+    presetId = arg;
+  } else if (arg && typeof arg === 'object') {
+    presetId = arg?.worldbooks?.presetId || '';
+  }
+
+  if (!presetId) return '';
+
+  const preset = worldbookPresetStore.getPreset(presetId);
+  if (!preset) {
+    log.warn(`buildSelectedWorldbookContent: 预设不存在 ${presetId}`);
     return '';
   }
+
+  // 解析最终 bookList：character_card 模式从角色卡动态拉，并被 preset.bookList 覆盖
+  const includeDisabledEntries = preset.includeDisabled === true;
+  let resolvedBooks = [];
+
+  if (preset.bindingMode === 'character_card') {
+    const helper = getTavernHelper();
+    const stApi = getSillyTavernApi();
+    const characterBooks = await resolveCharacterWorldbooks(helper);
+    const overrides = new Map(
+      (preset.bookList || []).map((b) => [String(b.bookName || ''), b])
+    );
+    for (const bookName of normalizeBookNameList(characterBooks)) {
+      const ov = overrides.get(bookName);
+      if (ov && ov.enabled === false) continue;
+      resolvedBooks.push(bookName);
+    }
+  } else {
+    // custom 模式：直接用 preset.bookList 中 enabled !== false 的
+    resolvedBooks = (preset.bookList || [])
+      .filter((b) => b && b.bookName && b.enabled !== false)
+      .map((b) => b.bookName);
+  }
+
+  resolvedBooks = normalizeBookNameList(resolvedBooks);
+  if (resolvedBooks.length === 0) return '';
 
   const helper = getTavernHelper();
   if (!helper || typeof helper.getLorebookEntries !== 'function') {
@@ -226,13 +271,14 @@ export async function buildSelectedWorldbookContent(toolConfig) {
 
   const blocks = [];
 
-  for (const bookName of selectedBooks) {
+  for (const bookName of resolvedBooks) {
     try {
       const entries = await helper.getLorebookEntries(bookName);
-      const activeEntries = Array.isArray(entries)
-        ? entries.filter(entry => entry?.enabled !== false && !entry?.disable)
-        : [];
-      const entryText = activeEntries
+      const entryList = Array.isArray(entries) ? entries : [];
+      const filtered = includeDisabledEntries
+        ? entryList
+        : entryList.filter((entry) => entry?.enabled !== false && !entry?.disable);
+      const entryText = filtered
         .map(getEntryText)
         .filter(Boolean)
         .join('\n\n');
