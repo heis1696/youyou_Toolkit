@@ -9,6 +9,24 @@
 
 ## [Unreleased]
 
+## [1.0.155] - 2026-05-16
+
+### 变更
+
+- ✨ **脚本工具面板迁移到新布局** (`modules/ui/components/local-transform-tool-panel-factory.js`)
+  - 整体重写为 Prefab 控件构建，与 AI 工具面板同结构（Hero / Runtime / 绑定 / 配置）
+  - 影响工具：转义处理 / 中文标点替换
+  - **绑定区**：正则提取预设 select / 写回方式 select（覆盖 vs 追加）
+  - **配置区**：执行方向 select / 处理项 toggles（脚本工具特有的多选项） / 提取配置（最大消息数 + 测试提取按钮）
+  - 删除：独立 footer / 独立"启用状态" toggle（保持与 AI 工具面板一致，启用状态走工具列表）/ 独立"手动操作区"卡片（运行按钮上移到 hero）
+  - 编辑即保存，正则预设镜像策略与 AI 工具面板一致
+
+### 备注
+
+- 脚本工具的迁移完成后，所有内置工具面板（AI + 脚本）布局统一
+- TOOL_CONFIG_PANEL_STYLES 仍由 tool-config-panel-factory 导出，新脚本工具 factory 透传引用
+
+
 ## [1.0.154] - 2026-05-16
 
 ### 修复
