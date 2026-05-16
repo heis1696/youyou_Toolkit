@@ -18,6 +18,7 @@ import { hostEvents, HOST_EVENTS, getHostApi, getHostContext } from './core/host
 const log = logger.createScope('ToolAutomation');
 import { getAllToolFullConfigs, patchToolRuntime } from './tool-registry.js';
 import { toolOutputService } from './tool-output-service.js';
+import { runLocalTransformTool } from './tool-local-transform-service.js';
 import { buildExecutionContextForMessage } from './tool-execution-context.js';
 import { runAutoTableUpdate } from './table-engine/table-update-service.js';
 import { getTableWorkbenchConfig } from './table-engine/table-schema-service.js';
@@ -563,7 +564,10 @@ class ToolAutomationService {
       }
 
       // 获取需要自动运行的工具
-      const tools = toolOutputService.filterAutoPostResponseTools(getAllToolFullConfigs());
+      const allConfigs = getAllToolFullConfigs();
+      const postResponseTools = toolOutputService.filterAutoPostResponseTools(allConfigs);
+      const localTransformTools = allConfigs.filter((c) => toolOutputService.shouldRunLocalTransform(c));
+      const tools = [...postResponseTools, ...localTransformTools];
       const tableWorkbenchConfig = getTableWorkbenchConfig();
       const shouldRunTableAuto = tableWorkbenchConfig?.autoUpdateEnabled === true
         && normalizeIdentityValue(tableWorkbenchConfig?.autoUpdateTrigger || 'assistantMessage') === 'assistantMessage';
@@ -621,7 +625,10 @@ class ToolAutomationService {
               }
             };
 
-            const result = await toolOutputService.runToolPostResponse(tool, toolContext);
+            const isLocalTransform = toolOutputService.shouldRunLocalTransform(tool);
+            const result = isLocalTransform
+              ? await runLocalTransformTool(tool, toolContext)
+              : await toolOutputService.runToolPostResponse(tool, toolContext);
             results.push(result);
 
             if (result?.writebackState || result?.output) {

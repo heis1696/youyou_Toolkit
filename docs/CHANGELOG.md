@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.0.157] - 2026-05-16
+
+### 变更
+- **自动触发扩展到 local_transform**（议题 #40 / Phase 3 决策 #5）。
+  - `tool-output-service` 新增 `OUTPUT_MODES.LOCAL_TRANSFORM` 常量与 `shouldRunLocalTransform()`。
+  - `tool-automation-service` 在 `processAssistantMessage` 中合并 `post_response_api` 与 `local_transform` 工具，按各自路径执行。
+  - 抽出 `runLocalTransformTool()` 到 `tool-local-transform-service.js`，手动（`tool-trigger`）与自动入口共用同一编排函数。
+  - `tool-trigger.js` 移除内联的 local-transform 编排副本和不再需要的 `contextInjector` import。
+- 自动触发规则现在完全由 `output_mode` 决定：`post_response_api` 与 `local_transform` 自动，`follow_ai` 始终手动。
+
 ## [1.0.156] - 2026-05-16
 
 ### 变更

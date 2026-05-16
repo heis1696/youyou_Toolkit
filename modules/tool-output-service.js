@@ -20,7 +20,8 @@ import { getEffectiveApiConfig, validateApiConfig, hasEffectiveApiPreset } from 
 
 export const OUTPUT_MODES = {
   FOLLOW_AI: 'follow_ai',              // 随AI输出（不执行额外解析链）
-  POST_RESPONSE_API: 'post_response_api' // 额外AI模型解析
+  POST_RESPONSE_API: 'post_response_api', // 额外AI模型解析
+  LOCAL_TRANSFORM: 'local_transform'   // 本地脚本变换
 };
 
 // 兼容旧模式名称
@@ -137,6 +138,17 @@ class ToolOutputService {
     if (!toolConfig.enabled) return false;
     if (!toolConfig.output?.enabled) return false;
     return toolConfig.output?.mode === OUTPUT_MODES.POST_RESPONSE_API;
+  }
+
+  /**
+   * 检查工具是否应该运行 local_transform 模式（本地脚本变换）
+   */
+  shouldRunLocalTransform(toolConfig) {
+    if (!toolConfig) return false;
+    if (!toolConfig.enabled) return false;
+    if (!toolConfig.output?.enabled) return false;
+    return toolConfig.output?.mode === OUTPUT_MODES.LOCAL_TRANSFORM
+      || !!toolConfig.processor?.type;
   }
 
 
