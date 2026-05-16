@@ -240,9 +240,9 @@ function buildHero(config, toolId, refresh, postResponseHint) {
     onClick: async () => {
       try {
         await runToolManually(toolId);
-        showToast('已触发手动执行', 'success');
+        showToast('success', '已触发手动执行');
       } catch (error) {
-        showToast(`执行失败：${error?.message || error}`, 'error');
+        showToast('error', `执行失败：${error?.message || error}`);
       }
     }
   }).el);
@@ -250,7 +250,7 @@ function buildHero(config, toolId, refresh, postResponseHint) {
     label: '💾 保存配置', size: 'small', variant: 'primary',
     onClick: () => {
       // 编辑即保存模式，此按钮主要是给视觉确认 + 触发刷新
-      showToast('配置已保存', 'success');
+      showToast('success', '配置已保存');
       refresh();
     }
   }).el);
@@ -404,9 +404,9 @@ function buildBindingSection(config, toolId, refresh) {
         const patch = { ...(cur.extraction || {}), regexPresetId: v };
         if (v) {
           const preset = regexStore.getPreset(v);
-          showToast(`已绑定正则预设：${preset?.name || v}`, 'success');
+          showToast('success', `已绑定正则预设：${preset?.name || v}`);
         } else {
-          showToast('已解绑正则预设，工具将不进行内容提取', 'success');
+          showToast('success', '已解绑正则预设，工具将不进行内容提取');
         }
         saveToolConfig(toolId, { ...cur, extraction: patch });
         refresh();
@@ -430,9 +430,9 @@ function buildBindingSection(config, toolId, refresh) {
         const patch = { ...(cur.worldbooks || {}), presetId: v };
         if (v) {
           const preset = worldbookStore.getPreset(v);
-          showToast(`已绑定世界书预设：${preset?.name || v}`, 'success');
+          showToast('success', `已绑定世界书预设：${preset?.name || v}`);
         } else {
-          showToast('已解绑世界书预设，工具不再注入世界书内容', 'success');
+          showToast('success', '已解绑世界书预设，工具不再注入世界书内容');
         }
         saveToolConfig(toolId, { ...cur, worldbooks: patch });
         refresh();
@@ -552,7 +552,7 @@ function buildConfigSection(config, toolId, refresh, $container, previewDialogId
         const result = await previewToolExtraction(toolId);
         showExtractionDialog($container, result, previewDialogId, previewTitle);
       } catch (error) {
-        showToast(`测试提取失败：${error?.message || error}`, 'error');
+        showToast('error', `测试提取失败：${error?.message || error}`);
       }
     }
   }).el);

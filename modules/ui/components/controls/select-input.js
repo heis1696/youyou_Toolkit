@@ -71,7 +71,12 @@ export function selectInput(options = {}) {
 
   node.addEventListener('change', () => {
     if (typeof onChange === 'function') {
-      try { onChange(node.value, ctrl); } catch (_) {}
+      try { onChange(node.value, ctrl); } catch (err) {
+        // 不再静默吞异常：日志输出便于排查（曾因此遮蔽 showToast 参数反向导致整个 onChange 中断）
+        if (typeof console !== 'undefined' && console.error) {
+          console.error('[selectInput] onChange 异常', err);
+        }
+      }
     }
     ctrl._emitter.emit('change', node.value);
   });

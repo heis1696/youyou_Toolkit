@@ -154,15 +154,15 @@ function buildHero(config, toolId, refresh, processorDirections, heroHint) {
     onClick: async () => {
       try {
         await runToolManually(toolId);
-        showToast('已触发手动执行', 'success');
+        showToast('success', '已触发手动执行');
       } catch (error) {
-        showToast(`执行失败：${error?.message || error}`, 'error');
+        showToast('error', `执行失败：${error?.message || error}`);
       }
     }
   }).el);
   actions.appendChild(button({
     label: '💾 保存配置', size: 'small', variant: 'primary',
-    onClick: () => { showToast('配置已保存', 'success'); refresh(); }
+    onClick: () => { showToast('success', '配置已保存'); refresh(); }
   }).el);
   row1.appendChild(actions);
   hero.appendChild(row1);
@@ -245,9 +245,9 @@ function buildBindingSection(config, toolId, refresh) {
         const patch = { ...(cur.extraction || {}), regexPresetId: v };
         if (v) {
           const preset = regexStore.getPreset(v);
-          showToast(`已绑定正则预设：${preset?.name || v}`, 'success');
+          showToast('success', `已绑定正则预设：${preset?.name || v}`);
         } else {
-          showToast('已解绑正则预设，工具将不进行内容提取', 'success');
+          showToast('success', '已解绑正则预设，工具将不进行内容提取');
         }
         saveToolConfig(toolId, { ...cur, extraction: patch });
         refresh();
@@ -397,7 +397,7 @@ function buildConfigSection(config, toolId, refresh, $container, processorDirect
         const result = await previewToolExtraction(toolId);
         showExtractionDialog($container, result, previewDialogId, previewTitle);
       } catch (error) {
-        showToast(`测试提取失败：${error?.message || error}`, 'error');
+        showToast('error', `测试提取失败：${error?.message || error}`);
       }
     }
   }).el);

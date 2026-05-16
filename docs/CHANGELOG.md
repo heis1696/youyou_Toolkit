@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.0.167] - 2026-05-16
+
+### 修复
+- **议题 #45 P0 blocker：正则/世界书预设切换不生效**，根因终于查明。
+  - **现象**：用户在工具配置面板切正则提取预设或世界书预设后保存"无反应"、chip 不变、切换面板回来值回退。其它字段（输出模式 / API 预设 / Ai 指令预设）切换都正常。
+  - **根因**：`tool-config-panel-factory.js` 与 `local-transform-tool-panel-factory.js` 里所有 `showToast` 调用**参数顺序反了**，`showToast(message, 'success')` 把消息当 type、把 'success' 当 message。`showToast` 的签名是 `(type, message, duration)`，内部走 `topWindow.toastr[type](message, ...)`，所以 `toastr['已绑定正则预设：xxx']` 是 undefined，调 `undefined(...)` 抛 TypeError。这个 TypeError 又被 `select-input` 的 `try/catch{}` 静默吞掉，导致 onChange 里 `showToast` 之后的 `saveToolConfig + refresh` 整段代码完全没执行。
+  - **修复**：批量把所有 `showToast(msg, type)` 改成 `showToast(type, msg)`（tool-config-panel-factory.js 7 处 + local-transform-tool-panel-factory.js 5 处）。
+  - **防御**：`select-input.js` 的 onChange `try/catch` 不再静默吞异常，改为 `console.error('[selectInput] onChange 异常', err)`，避免下次类似 bug 被遮蔽。
+  - **保留**：`window.YYT_PRESET_DEBUG=true` 诊断日志保留，方便未来排查类似 merge / persist 链路问题。
+
 ## [1.0.166] - 2026-05-16
 
 ### 变更
