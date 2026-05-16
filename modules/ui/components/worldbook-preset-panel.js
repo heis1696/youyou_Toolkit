@@ -14,7 +14,8 @@ import {
   toggle,
   button,
   listRow,
-  el
+  el,
+  appendChild
 } from './controls/index.js';
 
 import store, { BINDING_MODES } from '../../worldbook-preset-store.js';
@@ -49,7 +50,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
   const wrapper = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } });
 
   // 基本信息
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: '描述',
     control: textInput({
       value: preset.description,
@@ -58,7 +59,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
       onChange: (v) => onChange({ description: v })
     })
   }));
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: '绑定模式',
     hint: '跟随角色卡 = 注入当前角色绑定的世界书；自定义 = 用下方手动选择的列表',
     control: selectInput({
@@ -71,7 +72,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
       onChange: (v) => { onChange({ bindingMode: v }); refresh && refresh(); }
     })
   }));
-  wrapper.appendChild(toggle({
+  appendChild(wrapper, toggle({
     label: '包含禁用词条',
     hint: '开启后：源世界书中已禁用的词条可被本预设强制启用并注入',
     checked: preset.includeDisabled,
@@ -84,7 +85,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
   const availableBooks = getCachedAvailableWorldbooks();
 
   const bookListWrapper = el('div', { style: { display: 'flex', flexDirection: 'column' } });
-  bookListWrapper.appendChild(el('div', {
+  appendChild(bookListWrapper, el('div', {
     style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }
   },
     el('div', {
@@ -186,10 +187,10 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
   }
 
   for (const r of rows) {
-    if (r?.el) bookListWrapper.appendChild(r.el);
-    else if (r instanceof Node) bookListWrapper.appendChild(r);
+    if (r?.el) appendChild(bookListWrapper, r.el);
+    else if (r instanceof Node) appendChild(bookListWrapper, r);
   }
-  wrapper.appendChild(bookListWrapper);
+  appendChild(wrapper, bookListWrapper);
 
   return wrapper;
 }

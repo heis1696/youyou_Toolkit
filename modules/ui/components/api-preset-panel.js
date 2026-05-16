@@ -14,7 +14,8 @@ import {
   formRow,
   textInput,
   toggle,
-  el
+  el,
+  appendChild
 } from './controls/index.js';
 
 import {
@@ -168,7 +169,7 @@ function renderEditor(preset, { onChange, readonly }) {
 
   const cfg = preset.apiConfig || {};
 
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: '描述',
     control: textInput({
       value: preset.description || '',
@@ -178,7 +179,7 @@ function renderEditor(preset, { onChange, readonly }) {
     })
   }));
 
-  wrapper.appendChild(toggle({
+  appendChild(wrapper, toggle({
     label: '使用主 API',
     hint: '开启后忽略下方 URL/Key/Model，直接复用 SillyTavern 主连接',
     checked: cfg.useMainApi !== false,
@@ -186,7 +187,7 @@ function renderEditor(preset, { onChange, readonly }) {
     onChange: (v) => onChange({ apiConfig: { ...cfg, useMainApi: v } })
   }));
 
-  wrapper.appendChild(toggle({
+  appendChild(wrapper, toggle({
     label: '流式输出（stream）',
     hint: '逐字接收响应',
     checked: cfg.stream === true,
@@ -194,7 +195,7 @@ function renderEditor(preset, { onChange, readonly }) {
     onChange: (v) => onChange({ apiConfig: { ...cfg, stream: v } })
   }));
 
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: 'API URL',
     control: textInput({
       value: cfg.url || '',
@@ -204,7 +205,7 @@ function renderEditor(preset, { onChange, readonly }) {
     })
   }));
 
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: 'API Key',
     control: (() => {
       const ctrl = textInput({
@@ -218,7 +219,7 @@ function renderEditor(preset, { onChange, readonly }) {
     })()
   }));
 
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: '模型',
     control: textInput({
       value: cfg.model || '',
@@ -259,7 +260,7 @@ function renderEditor(preset, { onChange, readonly }) {
   paramsRow.appendChild(paramInput('temperature', 'temperature', 0.7, '0.05'));
   paramsRow.appendChild(paramInput('top_p', 'top_p', 0.9, '0.05'));
 
-  wrapper.appendChild(paramsRow);
+  appendChild(wrapper, paramsRow);
 
   return wrapper;
 }

@@ -15,7 +15,8 @@ import {
   toggle,
   button,
   chipGroup,
-  el
+  el,
+  appendChild
 } from './controls/index.js';
 
 import store, { RULE_TYPES } from '../../regex-preset-store.js';
@@ -207,7 +208,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
   const wrapper = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } });
 
   // 基本信息
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: '描述',
     control: textInput({
       value: preset.description,
@@ -234,7 +235,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
       }
     }).el : el('span', { text: '内置预设只读', style: { fontSize: '11px', color: 'var(--yyt-text-muted)' } })
   );
-  wrapper.appendChild(rulesHeading);
+  appendChild(wrapper, rulesHeading);
 
   const rulesContainer = el('div');
   if (preset.rules.length) {
@@ -250,19 +251,19 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
       text: '尚无规则。点击右上角"+ 新增规则"开始添加。'
     }));
   }
-  wrapper.appendChild(rulesContainer);
+  appendChild(wrapper, rulesContainer);
 
   // 黑名单（chipGroup）
-  wrapper.appendChild(el('div', {
+  appendChild(wrapper, el('div', {
     text: '内容黑名单',
     style: { fontSize: '12px', fontWeight: '700', color: 'var(--yyt-text)', marginTop: '6px', marginBottom: '4px' }
   }));
-  wrapper.appendChild(el('div', {
+  appendChild(wrapper, el('div', {
     text: '提取出的内容块若包含任一关键词则跳过该块（不区分大小写）。',
     style: { fontSize: '11px', color: 'var(--yyt-text-muted)', marginBottom: '6px' }
   }));
   if (readonly) {
-    wrapper.appendChild(el('div', {
+    appendChild(wrapper, el('div', {
       style: { fontSize: '12px', color: 'var(--yyt-text-muted)' },
       text: preset.blacklist.length ? preset.blacklist.join('、') : '（空）'
     }));
@@ -273,7 +274,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
       chipVariant: 'danger',
       onChange: (values) => store.setBlacklist(preset.id, values)
     });
-    wrapper.appendChild(chipsCtrl.el);
+    appendChild(wrapper, chipsCtrl.el);
   }
 
   return wrapper;
@@ -284,7 +285,7 @@ function renderExtras(preset) {
   if (!preset) return null;
   const wrapper = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } });
 
-  wrapper.appendChild(el('div', {
+  appendChild(wrapper, el('div', {
     text: '测试提取',
     style: { fontSize: '12px', fontWeight: '700', color: 'var(--yyt-text)' }
   }));
@@ -299,7 +300,7 @@ function renderExtras(preset) {
   });
   inputArea.value = testState.input;
   inputArea.addEventListener('input', () => { testState.input = inputArea.value; });
-  wrapper.appendChild(inputArea);
+  appendChild(wrapper, inputArea);
 
   const outputBox = el('div', {
     style: {
@@ -344,8 +345,8 @@ function renderExtras(preset) {
       }
     }
   });
-  wrapper.appendChild(runBtn.el);
-  wrapper.appendChild(outputBox);
+  appendChild(wrapper, runBtn.el);
+  appendChild(wrapper, outputBox);
 
   return wrapper;
 }

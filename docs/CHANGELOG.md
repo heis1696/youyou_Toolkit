@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+## [1.0.162] - 2026-05-16
+
+### 修复
+- **议题 #45 Stage 3 hotfix**：4 个预设面板的 `renderEditor` 全部用原生 `Node.appendChild(controlObject)` 直接挂控件对象，导致 "appendChild parameter 1 is not of type 'Node'" 异常，编辑区不可用。改为用 controls 库的 `appendChild` 工具函数（兼容 Node / control / 数组 / 字符串），api / regex / worldbook / table-template 4 个面板全修。
+
 ## [1.0.161] - 2026-05-16
 
 ### 变更

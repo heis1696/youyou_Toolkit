@@ -15,7 +15,8 @@
 import {
   formRow,
   textInput,
-  el
+  el,
+  appendChild
 } from './controls/index.js';
 
 import {
@@ -151,7 +152,7 @@ const tableTemplateStoreAdapter = {
 function renderEditor(preset, { onChange, readonly }) {
   const wrapper = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } });
 
-  wrapper.appendChild(formRow({
+  appendChild(wrapper, formRow({
     label: '描述',
     control: textInput({
       value: preset.description || '',
@@ -162,11 +163,11 @@ function renderEditor(preset, { onChange, readonly }) {
   }));
 
   // promptTemplate
-  wrapper.appendChild(el('div', {
+  appendChild(wrapper, el('div', {
     text: '填表提示词模板',
     style: { fontSize: '12px', fontWeight: '700', color: 'var(--yyt-text)' }
   }));
-  wrapper.appendChild(el('div', {
+  appendChild(wrapper, el('div', {
     text: '可使用宏：{{tableData}} {{lastUserMessage}} {{lastAiMessage}} {{toolWorldbookContent}} 等。留空使用默认模板。',
     style: { fontSize: '11px', color: 'var(--yyt-text-muted)', lineHeight: '1.6', marginBottom: '4px' }
   }));
@@ -184,14 +185,14 @@ function renderEditor(preset, { onChange, readonly }) {
     if (readonly) return;
     onChange({ promptTemplate: promptArea.value });
   });
-  wrapper.appendChild(promptArea);
+  appendChild(wrapper, promptArea);
 
   // tables JSON 只读预览
-  wrapper.appendChild(el('div', {
+  appendChild(wrapper, el('div', {
     text: `表格结构（${(preset.tables || []).length} 张表）`,
     style: { fontSize: '12px', fontWeight: '700', color: 'var(--yyt-text)', marginTop: '6px' }
   }));
-  wrapper.appendChild(el('div', {
+  appendChild(wrapper, el('div', {
     text: '本面板只展示表结构 JSON。复杂 schema 编辑（增删表、列定义、默认行）将在填表工作台中提供。',
     style: { fontSize: '11px', color: 'var(--yyt-text-muted)', lineHeight: '1.6', marginBottom: '4px' }
   }));
@@ -217,7 +218,7 @@ function renderEditor(preset, { onChange, readonly }) {
   } catch (_) {
     tablePreviewBox.textContent = '// 无法序列化';
   }
-  wrapper.appendChild(tablePreviewBox);
+  appendChild(wrapper, tablePreviewBox);
 
   return wrapper;
 }
