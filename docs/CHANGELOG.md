@@ -9,6 +9,23 @@
 
 ## [Unreleased]
 
+## [1.0.164] - 2026-05-16
+
+### 修复
+- **议题 #45 hotfix**：工具配置面板正则/世界书预设下拉切换不生效。
+  - 根因：`tool-manager.js` 的 `normalizeWorldbookConfig` 只保留 `enabled / selected`，把 `presetId` 字段剥离掉了；同样 `normalizeToolDefinitionToRuntimeConfig` 的 extraction 只保留 `enabled / maxMessages / selectors`，丢失 `regexPresetId / writebackTag`。这是 #45 之前定义的 normalize 函数没跟上新字段，导致存量保存的 presetId/regexPresetId 在自定义工具配置加载时被丢弃，UI 显示不变化。
+  - 修复：`normalizeWorldbookConfig` 加 `presetId` 字段；`normalizeToolDefinitionToRuntimeConfig` 的 extraction 加 `regexPresetId / writebackTag` 字段。
+
+### 变更
+- **世界书预设面板 UI 改进**：
+  - 跟随角色卡模式：列表上方明确说明"以下来自当前角色卡的世界书将被注入；可单独关闭某本"，避免"全部勾选"的误解。
+  - 自定义模式"+ 添加"按钮：从 `dialog.prompt` 输入名字 → 改为 `dialog.custom` 多选列表 + 全选按钮，从可用世界书中勾选要加入预设的项。
+
+### 已知遗留（按 plan 留在 iter 3）
+- 工具配置面板 hero 滚动压缩功能（plan 显式标注 iter 3）
+- 词条级 override UI（世界书 iter 3）
+- 写回标签 datalist 在某些浏览器可能不弹出 — 是浏览器 datalist 显示约定（focus + 输入字符或按 ↓），非 bug
+
 ## [1.0.163] - 2026-05-16
 
 ### 变更

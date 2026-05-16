@@ -46,6 +46,90 @@ function removeBookFromPreset(preset, bookName) {
   store.updatePreset(preset.id, { bookList: list });
 }
 
+/**
+ * 多选 dialog：从可用世界书列表中勾选要加入预设的项。
+ */
+async function openAddBooksDialog(preset, refresh) {
+  let all = getCachedAvailableWorldbooks();
+  if (!all.length) {
+    try { all = await getAvailableWorldbooks(); } catch (_) {}
+  }
+  const existing = new Set(preset.bookList.map((b) => b.bookName));
+  const candidates = all.filter((n) => !existing.has(n));
+
+  if (!candidates.length) {
+    await dialog.confirm({
+      title: '没有可添加的世界书',
+      message: '宿主未提供更多可用世界书，或缓存内全部已加入此预设。',
+      confirmText: '确定'
+    });
+    return;
+  }
+
+  // 构建多选 list body
+  const body = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '320px', overflowY: 'auto' } });
+  const checkedSet = new Set();
+  for (const name of candidates) {
+    const row = el('label', {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '8px 10px',
+        cursor: 'pointer',
+        borderRadius: 'var(--yyt-radius-sm, 6px)',
+        background: 'var(--yyt-surface-2, rgba(255,255,255,0.03))',
+        fontSize: '12px'
+      }
+    });
+    const cb = el('input', { attrs: { type: 'checkbox', value: name } });
+    cb.addEventListener('change', () => {
+      if (cb.checked) checkedSet.add(name);
+      else checkedSet.delete(name);
+    });
+    row.appendChild(cb);
+    row.appendChild(el('span', { text: name, style: { color: 'var(--yyt-text)' } }));
+    body.appendChild(row);
+  }
+
+  dialog.custom({
+    title: `添加世界书（${candidates.length} 项可选）`,
+    width: '480px',
+    body,
+    buttons: [
+      { label: '取消', variant: 'ghost', onClick: (close) => close(null) },
+      {
+        label: '全选',
+        variant: 'ghost',
+        onClick: () => {
+          for (const cb of body.querySelectorAll('input[type=checkbox]')) {
+            cb.checked = true;
+            checkedSet.add(cb.value);
+          }
+        }
+      },
+      {
+        label: '添加选中',
+        variant: 'primary',
+        onClick: (close) => {
+          const picked = Array.from(checkedSet);
+          if (!picked.length) { close(null); return; }
+          const newItems = picked.map((bookName) => ({
+            bookName,
+            enabled: true,
+            entryOverrides: {}
+          }));
+          const updated = [...preset.bookList, ...newItems];
+          store.updatePreset(preset.id, { bookList: updated });
+          close(picked.length);
+        }
+      }
+    ]
+  }).result.then((added) => {
+    if (added && refresh) refresh();
+  });
+}
+
 function renderEditor(preset, { onChange, readonly, refresh }) {
   const wrapper = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } });
 
@@ -85,56 +169,43 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
   const availableBooks = getCachedAvailableWorldbooks();
 
   const bookListWrapper = el('div', { style: { display: 'flex', flexDirection: 'column' } });
-  appendChild(bookListWrapper, el('div', {
-    style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }
-  },
+
+  const headerRow = el('div', {
+    style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', gap: '8px' }
+  });
+  headerRow.appendChild(el('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px' } },
     el('div', {
-      text: '选中的世界书',
+      text: isCharacterMode ? '随角色卡注入的世界书' : '选中的世界书',
       style: { fontSize: '12px', fontWeight: '700', color: 'var(--yyt-text)' }
     }),
-    (() => {
-      const actions = el('div', { style: { display: 'flex', gap: '6px' } });
-      if (!isCharacterMode && !readonly) {
-        actions.appendChild(button({
-          label: '+ 添加',
-          size: 'small',
-          onClick: async () => {
-            const all = getCachedAvailableWorldbooks();
-            const existing = new Set(preset.bookList.map((b) => b.bookName));
-            const candidates = all.filter((n) => !existing.has(n));
-            if (!candidates.length) {
-              await dialog.confirm({
-                title: '没有可添加的世界书',
-                message: '缓存里已被全部加入或宿主未提供。',
-                confirmText: '确定'
-              });
-              return;
-            }
-            const pick = await dialog.prompt({
-              title: '添加世界书',
-              message: `候选列表：\n${candidates.join(', ')}`,
-              defaultValue: candidates[0] || '',
-              placeholder: '世界书名（必须存在于宿主）'
-            });
-            if (!pick) return;
-            const updated = [...preset.bookList, { bookName: pick, enabled: true, entryOverrides: {} }];
-            store.updatePreset(preset.id, { bookList: updated });
-            refresh && refresh();
-          }
-        }).el);
-      }
-      actions.appendChild(button({
-        label: '🔄 刷新',
-        size: 'small',
-        variant: 'ghost',
-        onClick: async () => {
-          try { await getAvailableWorldbooks(); } catch (e) { log.warn('刷新失败', { e }); }
-          refresh && refresh();
-        }
-      }).el);
-      return actions;
-    })()
+    el('div', {
+      text: isCharacterMode
+        ? '以下来自当前角色卡的世界书将被注入；可单独关闭某本（不影响其他工具）'
+        : '本预设固定注入下列世界书；点击"+ 添加"从可用列表多选',
+      style: { fontSize: '11px', color: 'var(--yyt-text-muted)', lineHeight: '1.5' }
+    })
   ));
+
+  const headerActions = el('div', { style: { display: 'flex', gap: '6px' } });
+  if (!isCharacterMode && !readonly) {
+    headerActions.appendChild(button({
+      label: '+ 添加',
+      size: 'small',
+      onClick: () => openAddBooksDialog(preset, refresh)
+    }).el);
+  }
+  headerActions.appendChild(button({
+    label: '🔄 刷新',
+    size: 'small',
+    variant: 'ghost',
+    onClick: async () => {
+      try { await getAvailableWorldbooks(); } catch (e) { log.warn('刷新失败', { e }); }
+      refresh && refresh();
+    }
+  }).el);
+  headerRow.appendChild(headerActions);
+
+  appendChild(bookListWrapper, headerRow);
 
   let rows = [];
   if (isCharacterMode) {

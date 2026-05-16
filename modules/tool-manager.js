@@ -126,7 +126,8 @@ function normalizeAutomationConfig(automation = {}) {
 function normalizeWorldbookConfig(worldbooks = {}) {
   return {
     enabled: worldbooks?.enabled === true,
-    selected: normalizeStringArray(worldbooks?.selected)
+    selected: normalizeStringArray(worldbooks?.selected),
+    presetId: typeof worldbooks?.presetId === 'string' ? worldbooks.presetId : ''
   };
 }
 
@@ -261,7 +262,13 @@ export function normalizeToolDefinitionToRuntimeConfig(toolId, toolDef = {}, opt
     extraction: {
       enabled: true,
       maxMessages: normalizePositiveInteger(normalizedDefinition?.config?.context?.depth, 5),
-      selectors: extractionSelectors
+      selectors: extractionSelectors,
+      regexPresetId: typeof normalizedDefinition?.config?.extraction?.regexPresetId === 'string'
+        ? normalizedDefinition.config.extraction.regexPresetId
+        : '',
+      writebackTag: typeof normalizedDefinition?.config?.extraction?.writebackTag === 'string'
+        ? normalizedDefinition.config.extraction.writebackTag
+        : ''
     },
     promptTemplate,
     runtime: {
