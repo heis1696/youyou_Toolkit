@@ -11,7 +11,6 @@
  */
 
 import { settingsService } from './core/settings-service.js';
-import { eventBus, EVENTS } from './core/event-bus.js';
 import { logger } from './core/logger-service.js';
 import { hostEvents, HOST_EVENTS, getHostApi, getHostContext } from './core/host-event-service.js';
 
@@ -205,8 +204,6 @@ class ToolAutomationService {
     this._activeTransactions = new Map();
     this._isProcessing = false;
     this._currentChatId = '';
-    this._enabled = false;
-    this._enabledCheckedOnce = false;
     this.debugMode = false;
     this._transactionHistory = [];
     this._maxHistorySize = 30;
@@ -248,8 +245,6 @@ class ToolAutomationService {
       const { messageId, swipeId } = this._extractIdentitiesFromArgs(args);
 
       log.debug(`收到宿主事件 "${normalizedEvent}"`, { messageId, swipeId, argCount: args.length });
-
-      if (!this._checkEnabled()) return;
 
       // MESSAGE_RECEIVED 节流：覆盖 settle 等待期 + 处理周期
       if (normalizedEvent === HOST_EVENTS.MESSAGE_RECEIVED) {
@@ -364,21 +359,10 @@ class ToolAutomationService {
       this._clearMessageState(normalizeIdentityValue(messageId));
     }));
 
-    this._stopCallbacks.push(eventBus.on(EVENTS.SETTINGS_UPDATED, () => {
-      const wasEnabled = this._enabled;
-      this._enabled = this._evaluateEnabled();
-      if (wasEnabled !== this._enabled) {
-        log.info(`自动化状态变更: ${wasEnabled} → ${this._enabled}`);
-      }
-    }));
-
-    this._enabled = this._evaluateEnabled();
-    this._enabledCheckedOnce = false;
     this._refreshHostBindingStatus();
     this._seedKnownSlots();
 
     log.info('自动化服务已初始化', {
-      enabled: this._enabled,
       chatId: this._currentChatId,
       source: this._hostBindingStatus.source
     });
@@ -439,8 +423,6 @@ class ToolAutomationService {
     this._cancelActiveTransactions('service_stopped');
     this._activeTransactions.clear();
     this._isProcessing = false;
-    this._enabled = false;
-    this._enabledCheckedOnce = false;
     this._hostBindingStatus = {
       initialized: false,
       initAttempts: 0,
@@ -457,7 +439,7 @@ class ToolAutomationService {
   }
 
   isEnabled() {
-    return this._enabled;
+    return true;
   }
 
   getRuntimeSnapshot() {
@@ -466,7 +448,7 @@ class ToolAutomationService {
     this._refreshHostBindingStatus();
     return {
       currentChatId: this._currentChatId,
-      enabled: this._enabled,
+      enabled: true,
       isProcessing: this._isProcessing,
       pendingTimerCount: this._pendingTimers.size,
       queuedSlotCount: this._slotQueues.size,
@@ -528,10 +510,6 @@ class ToolAutomationService {
       // ── Phase: RECEIVED ──
       if (!messageId) {
         return this._skipTransaction(tx, 'missing_message_id');
-      }
-
-      if (!this._checkEnabled() && !force) {
-        return this._skipTransaction(tx, 'automation_disabled');
       }
 
       // ── Phase: CONFIRMED → 构建上下文 ──
@@ -1065,38 +1043,12 @@ class ToolAutomationService {
     this._seedKnownSlots();
   }
 
-  // ── 启用状态 ──────────────────────────────────────────────
-
-  _evaluateEnabled() {
-    // 议题 #4：删除 automation.enabled 全局开关，自动触发由 output_mode 决定。
-    return true;
-  }
-
-  /**
-   * 检查是否启用，首次失败时输出诊断信息
-   */
-  _checkEnabled() {
-    if (this._enabled) return true;
-
-    if (!this._enabledCheckedOnce) {
-      this._enabledCheckedOnce = true;
-      const s = this._getAutomationSettings();
-      log.warn('自动化未启用，首次诊断:', {
-        'automation.enabled': s.enabled,
-        '完整 automation 设置': s,
-        '提示': '请确保 settings.automation.enabled === true'
-      });
-    }
-    return false;
-  }
-
   // ── 设置读取 ──────────────────────────────────────────────
 
   _getAutomationSettings() {
     const automation = settingsService.getSettings()?.automation || {};
     const settleMs = Number.isFinite(automation.settleMs) ? automation.settleMs : 800;
     return {
-      enabled: true,
       settleMs,
       dedupeWindowMs: Number.isFinite(automation.dedupeWindowMs)
         ? automation.dedupeWindowMs

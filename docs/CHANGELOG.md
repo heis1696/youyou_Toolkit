@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.158] - 2026-05-16
+
+### 变更
+- **彻底清理 `automation.enabled` 字段**（议题 #48 / Phase 3 决策 #4 收尾）。
+  - `DEFAULT_SETTINGS.automation` 删除 `enabled` 字段；`settings-service` 加一次性迁移 `_migrateLegacy`，首次读到旧 settings 时静默删掉 `automation.enabled` 并写回。
+  - per-tool config schema 删除 `automation.enabled` 字段：`tool-registry.js` 三处 default config + 合并逻辑、`tool-manager.js` default + `normalizeAutomationConfig` 全部去掉 `enabled`。
+  - `tool-automation-service` 删除 `_enabled` / `_enabledCheckedOnce` 状态、`_evaluateEnabled` / `_checkEnabled` 方法、`SETTINGS_UPDATED` 监听里的 enabled 比对、`automation_disabled` skip 路径；`isEnabled()` / `getRuntimeSnapshot.enabled` 恒为 `true`，`_getAutomationSettings` 返回值删 `enabled`。
+  - `settings-panel._saveSettings` 不再写 `automation.enabled`。
+
 ## [1.0.157] - 2026-05-16
 
 ### 变更

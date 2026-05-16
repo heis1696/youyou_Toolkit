@@ -20,7 +20,6 @@ const DEFAULT_SETTINGS = {
     queueStrategy: 'fifo'
   },
   automation: {
-    enabled: true,
     settleMs: 1200,
     cooldownMs: 5000,
     maxConcurrentSlots: 1
@@ -59,7 +58,11 @@ class SettingsService {
     }
 
     const saved = storage.get(SETTINGS_STORAGE_KEY, {});
-    this._cache = this._mergeWithDefaults(saved);
+    const migrated = this._migrateLegacy(saved);
+    this._cache = this._mergeWithDefaults(migrated.settings);
+    if (migrated.changed) {
+      storage.set(SETTINGS_STORAGE_KEY, this._cache);
+    }
     return this._cache;
   }
 
@@ -203,6 +206,27 @@ class SettingsService {
   // ============================================================
   // 私有方法
   // ============================================================
+
+  /**
+   * 一次性迁移：清理已废弃的 settings 字段
+   * @private
+   */
+  _migrateLegacy(saved) {
+    if (!saved || typeof saved !== 'object') {
+      return { settings: {}, changed: false };
+    }
+
+    let changed = false;
+    const next = JSON.parse(JSON.stringify(saved));
+
+    // 议题 #48：删除 automation.enabled 全局开关（自动触发已由 output_mode 决定）
+    if (next.automation && Object.prototype.hasOwnProperty.call(next.automation, 'enabled')) {
+      delete next.automation.enabled;
+      changed = true;
+    }
+
+    return { settings: next, changed };
+  }
 
   /**
    * 与默认值合并

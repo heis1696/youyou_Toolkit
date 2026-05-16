@@ -114,7 +114,6 @@ const DEFAULT_TOOL_CONFIGS = {
     },
 
     automation: {
-      enabled: false,
       settleMs: 1200,
       cooldownMs: 5000
     },
@@ -184,7 +183,6 @@ const DEFAULT_TOOL_CONFIGS = {
     },
 
     automation: {
-      enabled: false,
       settleMs: 1200,
       cooldownMs: 5000
     },
@@ -249,7 +247,6 @@ const DEFAULT_TOOL_CONFIGS = {
     },
 
     automation: {
-      enabled: false,
       settleMs: 1200,
       cooldownMs: 5000
     },
@@ -662,7 +659,6 @@ function mergeToolRuntimeConfig(baseConfig, userConfig = {}, legacyApiPresetBind
   };
 
   mergedConfig.automation = {
-    enabled: baseConfig?.automation?.enabled === true || userConfig?.automation?.enabled === true,
     settleMs: Number.isFinite(userConfig?.automation?.settleMs)
       ? userConfig.automation.settleMs
       : (Number.isFinite(baseConfig?.automation?.settleMs) ? baseConfig.automation.settleMs : 1200),

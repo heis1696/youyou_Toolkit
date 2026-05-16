@@ -560,7 +560,6 @@ export const SettingsPanel = {
         queueStrategy: $container.find('#yyt-setting-queueStrategy').val() || 'fifo'
       },
       automation: {
-        enabled: true,
         settleMs: parseInt($container.find('#yyt-setting-automationSettleMs').val(), 10) || 1200,
         cooldownMs: parseInt($container.find('#yyt-setting-automationCooldownMs').val(), 10) || 5000,
         maxConcurrentSlots: settingsService.getSettings()?.automation?.maxConcurrentSlots || 1

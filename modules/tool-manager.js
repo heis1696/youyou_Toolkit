@@ -60,7 +60,6 @@ const DEFAULT_TOOL_STRUCTURE = {
       excludeTags: []
     },
     automation: {
-      enabled: false,
       settleMs: 1200,
       cooldownMs: 5000
     },
@@ -119,7 +118,6 @@ function normalizeNonNegativeInteger(value, fallback) {
 
 function normalizeAutomationConfig(automation = {}) {
   return {
-    enabled: automation?.enabled === true,
     settleMs: normalizeNonNegativeInteger(automation?.settleMs, 1200),
     cooldownMs: normalizeNonNegativeInteger(automation?.cooldownMs, 5000)
   };
