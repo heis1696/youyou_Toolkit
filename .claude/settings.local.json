@@ -159,7 +159,10 @@
       "Bash(xargs grep -l \"setChatMessages\")",
       "Bash(grep -v '//')",
       "Bash(grep -v \":0$\")",
-      "Bash(read cls *)"
+      "Bash(read cls *)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh repo *)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   },
   "spinnerTipsEnabled": false,

@@ -1061,8 +1061,8 @@ class ToolAutomationService {
   // ── 启用状态 ──────────────────────────────────────────────
 
   _evaluateEnabled() {
-    const s = this._getAutomationSettings();
-    return s.enabled === true;
+    // 议题 #4：删除 automation.enabled 全局开关，自动触发由 output_mode 决定。
+    return true;
   }
 
   /**
@@ -1089,7 +1089,7 @@ class ToolAutomationService {
     const automation = settingsService.getSettings()?.automation || {};
     const settleMs = Number.isFinite(automation.settleMs) ? automation.settleMs : 800;
     return {
-      enabled: automation.enabled === true,
+      enabled: true,
       settleMs,
       dedupeWindowMs: Number.isFinite(automation.dedupeWindowMs)
         ? automation.dedupeWindowMs

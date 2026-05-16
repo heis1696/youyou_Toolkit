@@ -235,7 +235,6 @@ export const SettingsPanel = {
   render() {
     const settings = settingsService.getSettings();
     const debugEnabled = settings.debug?.enableDebugLog === true;
-    const automationEnabled = settings.automation?.enabled === true;
     const automationRuntime = this._getAutomationRuntime();
 
     return `
@@ -246,7 +245,6 @@ export const SettingsPanel = {
             <div class="yyt-settings-hero-desc">统一管理执行器、自动化、调试与外观设置，让工具链行为与界面体验保持一致。</div>
           </div>
           <div class="yyt-settings-hero-status">
-            <span class="yyt-settings-status-chip ${automationEnabled ? 'is-on' : 'is-off'}">自动化 ${automationEnabled ? '开启' : '关闭'}</span>
             <span class="yyt-settings-status-chip ${debugEnabled ? 'is-on' : 'is-off'}">调试 ${debugEnabled ? '开启' : '关闭'}</span>
             <span class="yyt-settings-status-chip is-neutral">主题 ${settings.ui?.theme || 'dark-blue'}</span>
           </div>
@@ -255,9 +253,6 @@ export const SettingsPanel = {
         <div class="yyt-settings-tabs">
           <button class="yyt-settings-tab yyt-active" data-tab="executor">
             <i class="fa-solid fa-microchip"></i> 执行器
-          </button>
-          <button class="yyt-settings-tab" data-tab="automation">
-            <i class="fa-solid fa-bolt"></i> 自动化
           </button>
           <button class="yyt-settings-tab" data-tab="debug">
             <i class="fa-solid fa-bug"></i> 调试
@@ -268,8 +263,7 @@ export const SettingsPanel = {
         </div>
 
         <div class="yyt-settings-content">
-          ${this._renderExecutorTab(settings.executor)}
-          ${this._renderAutomationTab(settings.automation, automationRuntime)}
+          ${this._renderExecutorTab(settings.executor, settings.automation, automationRuntime)}
           ${this._renderDebugTab(settings.debug)}
           ${this._renderUiTab(settings.ui)}
         </div>
@@ -286,7 +280,28 @@ export const SettingsPanel = {
     `;
   },
 
-  _renderExecutorTab(executor) {
+  _renderExecutorTab(executor, automation = {}, runtime = null) {
+    const recentTransactions = Array.isArray(runtime?.recentTransactions) ? runtime.recentTransactions.slice().reverse() : [];
+    const hostBinding = runtime?.hostBinding || {};
+    const eventBindingText = Array.isArray(hostBinding.eventBindings) && hostBinding.eventBindings.length > 0
+      ? hostBinding.eventBindings.join(' / ')
+      : '暂无事件绑定';
+    const runtimeHtml = recentTransactions.length > 0
+      ? recentTransactions.slice(0, 5).map((tx) => {
+          const refresh = tx?.results?.[0]?.meta?.writebackDetails?.refresh || {};
+          return `
+          <div class="yyt-list-row">
+            <div class="yyt-settings-runtime-meta">
+              <span>${tx?.sourceEvent || 'UNKNOWN_EVENT'}</span>
+              <span>${tx?.phase || 'unknown'}</span>
+              <span>${tx?.messageId || 'no_message_id'}</span>
+            </div>
+            <div class="yyt-settings-runtime-main">${tx?.verdict || tx?.error || tx?.generationKey || '无额外信息'}</div>
+          </div>
+        `;
+        }).join('')
+      : '<div class="yyt-form-hint">暂无自动化事务记录。</div>';
+
     return `
       <div class="yyt-settings-tab-content yyt-active" data-tab="executor">
         <div class="yyt-flow-section">
@@ -319,7 +334,7 @@ export const SettingsPanel = {
           <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-clock"></i></span>超时设置</div>
           <div class="yyt-form-group">
             <label>请求超时时间 (ms)</label>
-            <div class="yyt-form-hint">单个请求的超时时间，超过将自动中断</div>
+            <div class="yyt-form-hint">单个请求的超时时间,超过将自动中断</div>
             <input type="number" class="yyt-input" id="yyt-setting-requestTimeoutMs"
                    value="${executor.requestTimeoutMs}" min="10000" max="300000" step="10000">
           </div>
@@ -336,66 +351,26 @@ export const SettingsPanel = {
             </select>
           </div>
         </div>
-      </div>
-    `;
-  },
 
-  _renderAutomationTab(automation = {}, runtime = null) {
-    const effectiveEnabled = automation.enabled === true;
-    const recentTransactions = Array.isArray(runtime?.recentTransactions) ? runtime.recentTransactions.slice().reverse() : [];
-    const hostBinding = runtime?.hostBinding || {};
-    const eventBindingText = Array.isArray(hostBinding.eventBindings) && hostBinding.eventBindings.length > 0
-      ? hostBinding.eventBindings.join(' / ')
-      : '暂无事件绑定';
-    const runtimeHtml = recentTransactions.length > 0
-      ? recentTransactions.map((tx) => {
-          const refresh = tx?.results?.[0]?.meta?.writebackDetails?.refresh || {};
-          const requestMethods = Array.isArray(refresh?.requestMethods) ? refresh.requestMethods.join(' / ') : '';
-          const refreshHint = refresh?.eventSource || refresh?.eventName || requestMethods || refresh?.confirmedBy;
-
-          return `
-          <div class="yyt-list-row">
-            <div class="yyt-settings-runtime-meta">
-              <span>${tx?.sourceEvent || 'UNKNOWN_EVENT'}</span>
-              <span>${tx?.phase || 'unknown'}</span>
-              <span>${tx?.messageId || 'no_message_id'}</span>
-            </div>
-            <div class="yyt-settings-runtime-main">${tx?.verdict || tx?.error || tx?.generationKey || '无额外信息'}</div>
-            ${refreshHint ? `<div class="yyt-form-hint">刷新：<code>${refresh?.eventSource || 'unavailable'}</code> / <code>${refresh?.eventName || 'MESSAGE_UPDATED'}</code>；请求：<code>${requestMethods || 'none'}</code>；确认：<code>${refresh?.confirmed ? (refresh?.confirmedBy || 'success') : 'pending_or_failed'}</code>；检查：<code>${refresh?.confirmChecks || 0}</code></div>` : ''}
-          </div>
-        `;
-        }).join('')
-      : '<div class="yyt-form-hint">暂无自动化事务记录。</div>';
-
-    return `
-      <div class="yyt-settings-tab-content" data-tab="automation">
         <div class="yyt-flow-section">
-          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-toggle-on"></i></span>自动触发总开关</div>
-          <div class="yyt-form-group">
-            ${renderToggleControl({
-              id: 'yyt-setting-automationEnabled',
-              checked: automation.enabled,
-              title: '启用工具自动触发',
-              hint: '这里只保留一个全局开关。开启后，所有处于"额外 AI 模型解析"模式的工具都会参与自动触发。'
-            })}
-          </div>
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-bolt"></i></span>自动触发节流</div>
+          <div class="yyt-form-hint">由 output_mode 决定哪些工具自动触发(post_response_api / local_transform 自动,follow_ai 手动)。这里只控制节流时间。</div>
           <div class="yyt-form-row">
             <div class="yyt-form-group yyt-flex-1">
               <label>等待稳定时间 (ms)</label>
               <input type="number" class="yyt-input" id="yyt-setting-automationSettleMs"
-                     value="${automation.settleMs || 1200}" min="0" max="10000" step="100">
+                     value="${automation.settleMs ?? 1200}" min="0" max="10000" step="100">
             </div>
             <div class="yyt-form-group yyt-flex-1">
               <label>自动化冷却时间 (ms)</label>
               <input type="number" class="yyt-input" id="yyt-setting-automationCooldownMs"
-                     value="${automation.cooldownMs || 5000}" min="0" max="60000" step="100">
+                     value="${automation.cooldownMs ?? 5000}" min="0" max="60000" step="100">
             </div>
           </div>
-          <div class="yyt-form-hint">当前状态：${effectiveEnabled ? '已启用' : '未启用'}。开启后，所有"额外 AI 模型解析"工具都会在 AI 回复后自动执行。</div>
         </div>
 
         <div class="yyt-flow-section">
-          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-stethoscope"></i></span>自动化诊断</div>
+          <div class="yyt-flow-heading"><span class="yyt-flow-heading-icon"><i class="fa-solid fa-stethoscope"></i></span>自动触发诊断</div>
           <div class="yyt-settings-runtime-grid">
             <div class="yyt-settings-runtime-chip ${runtime?.enabled ? 'is-on' : 'is-off'}">服务 ${runtime?.enabled ? '运行中' : '未启用'}</div>
             <div class="yyt-settings-runtime-chip ${hostBinding.initialized ? 'is-on' : 'is-off'}">监听 ${hostBinding.initialized ? '已绑定' : '未绑定'}</div>
@@ -403,11 +378,8 @@ export const SettingsPanel = {
             <div class="yyt-settings-runtime-chip is-neutral">排队槽位 ${runtime?.queuedSlotCount || 0}</div>
             <div class="yyt-settings-runtime-chip is-neutral">事务 ${recentTransactions.length}</div>
           </div>
-          <div class="yyt-form-hint">事件源：<code>${hostBinding.source || 'unavailable'}</code>；最近初始化：<code>${hostBinding.lastInitResult || 'idle'}</code>；尝试次数：<code>${hostBinding.initAttempts || 0}</code>。</div>
-          <div class="yyt-form-hint">事件绑定：<code>${eventBindingText}</code></div>
-          ${hostBinding.lastError ? `<div class="yyt-form-hint">最近错误：<code>${hostBinding.lastError}</code></div>` : ''}
-          ${hostBinding.retryScheduled ? `<div class="yyt-form-hint">已安排重试：<code>${hostBinding.retryDelayMs || 0}ms</code></div>` : ''}
-          <div class="yyt-form-hint">若自动触发失败，优先看最近事务的 verdict，例如 <code>automation_disabled</code>、<code>no_auto_tools</code>、<code>assistant_message_not_found</code>。</div>
+          <div class="yyt-form-hint">事件源:<code>${hostBinding.source || 'unavailable'}</code>;事件:<code>${eventBindingText}</code></div>
+          ${hostBinding.lastError ? `<div class="yyt-form-hint">最近错误:<code>${hostBinding.lastError}</code></div>` : ''}
           <div class="yyt-list-table">${runtimeHtml}</div>
         </div>
       </div>
@@ -588,7 +560,7 @@ export const SettingsPanel = {
         queueStrategy: $container.find('#yyt-setting-queueStrategy').val() || 'fifo'
       },
       automation: {
-        enabled: $container.find('#yyt-setting-automationEnabled').is(':checked'),
+        enabled: true,
         settleMs: parseInt($container.find('#yyt-setting-automationSettleMs').val(), 10) || 1200,
         cooldownMs: parseInt($container.find('#yyt-setting-automationCooldownMs').val(), 10) || 5000,
         maxConcurrentSlots: settingsService.getSettings()?.automation?.maxConcurrentSlots || 1

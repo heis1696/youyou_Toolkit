@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS = {
     queueStrategy: 'fifo'
   },
   automation: {
-    enabled: false,
+    enabled: true,
     settleMs: 1200,
     cooldownMs: 5000,
     maxConcurrentSlots: 1

@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.0.156] - 2026-05-16
+
+### 变更
+- **设置面板**：删除独立的"自动化"tab，相关字段合并到执行器 tab（议题 #36 / Phase 3 决策 #4）。
+  - `settleMs` / `cooldownMs` 归入执行器 tab 的"自动触发节流"区。
+  - 自动化诊断 chip + 最近事务列表精简版归入执行器 tab。
+  - 删除 `automation.enabled` 全局开关：自动触发已由 `output_mode` 决定（post_response_api / local_transform 自动，follow_ai 手动）。
+  - 默认 `automation.enabled` 改为 `true`，`tool-automation-service._evaluateEnabled()` 直接返回 `true`，旧设置的 `enabled: false` 不再阻塞自动触发。
+  - hero status chip 移除"自动化 开启/关闭"。
+
 ## [1.0.155] - 2026-05-16
 
 ### 变更
