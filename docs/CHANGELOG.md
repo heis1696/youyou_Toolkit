@@ -9,6 +9,22 @@
 
 ## [Unreleased]
 
+## [1.0.168] - 2026-05-17
+
+### 改善
+- **议题 #49：automation 链质量改善**（小幅，非重写）。
+  - `setChatMessages` 的 `refresh` 参数条件化：auto-run 路径改为 `refresh: 'none'`（手动执行保持 `'affected'`），消除自动写回后宿主重发 MESSAGE_RECEIVED 的最后一个风险源。数据持久化不受影响（`saveChat` / `saveChatDebounced` 无条件执行）。
+  - 清理 dead code：移除 `quickContentHash()`（slotKey 替代后无调用方）和 `_pruneCancelledKeys()`（空 stub）。
+  - 提取硬编码常量：`OWN_WRITE_TTL_MS` (10s)、`WRITEBACK_THROTTLE_MS` (15s)、`SETTLE_MS_FALLBACK` (800ms)。
+  - `processAssistantMessage` 可读性拆分：提取 `_executeAutoTools` 和 `_executeAutoTableUpdate` 私有方法，主方法变为纯编排层。
+
+### 修复
+- **多工具自动执行写回冲突**：local transform 工具以 `full_message` 模式覆盖了 API 工具已追加的 block。
+  - **根因**：执行顺序错误（API 工具先追加 block → local transform 后覆盖全文）+ 多工具共享初始快照文本（后续工具看不到前序工具的写回结果）。
+  - **修复 1 — 执行顺序**：local transform 先于 post_response_api 执行（文本变换先做，block 追加后做）。
+  - **修复 2 — 链式读取**：每个工具写回后，从宿主重新读取当前消息文本，刷新 `lastAiMessage` / `assistantBaseText` / `chatMessages` 快照，确保后续工具基于最新文本工作。
+  - **修复 3 — 自动/手动开关**：local transform 工具新增 `output.autoTrigger` 字段（默认 `true`），面板绑定区加"自动触发"下拉，chip 文案从固定"手动"改为动态显示。`autoTrigger: false` 的工具不再被自动执行链纳入。
+
 ## [1.0.167] - 2026-05-16
 
 ### 修复

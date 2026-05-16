@@ -122,19 +122,10 @@ function getLatestAssistantTarget(api) {
   };
 }
 
-/**
- * 简易内容哈希（djb2），用于区分同一 messageId 下不同 generation 的内容
- */
-function quickContentHash(text) {
-  const s = String(text || '');
-  if (s.length === 0) return '0';
-  let hash = 5381;
-  const len = Math.min(s.length, 2000); // 只取前 2000 字符，性能保护
-  for (let i = 0; i < len; i++) {
-    hash = ((hash << 5) + hash + s.charCodeAt(i)) | 0;
-  }
-  return (hash >>> 0).toString(36);
-}
+// ─── 命名常量 ─────────────────────────────────────────────────
+const OWN_WRITE_TTL_MS = 10000;
+const WRITEBACK_THROTTLE_MS = 15000;
+const SETTLE_MS_FALLBACK = 800;
 
 /**
  * 生成唯一 traceId
@@ -544,8 +535,11 @@ class ToolAutomationService {
       // 获取需要自动运行的工具
       const allConfigs = getAllToolFullConfigs();
       const postResponseTools = toolOutputService.filterAutoPostResponseTools(allConfigs);
-      const localTransformTools = allConfigs.filter((c) => toolOutputService.shouldRunLocalTransform(c));
-      const tools = [...postResponseTools, ...localTransformTools];
+      const localTransformTools = allConfigs.filter((c) =>
+        toolOutputService.shouldRunLocalTransform(c) && c.output?.autoTrigger !== false
+      );
+      // local transform 先执行（文本变换），post_response_api 后执行（追加 block）
+      const tools = [...localTransformTools, ...postResponseTools];
       const tableWorkbenchConfig = getTableWorkbenchConfig();
       const shouldRunTableAuto = tableWorkbenchConfig?.autoUpdateEnabled === true
         && normalizeIdentityValue(tableWorkbenchConfig?.autoUpdateTrigger || 'assistantMessage') === 'assistantMessage';
@@ -576,62 +570,19 @@ class ToolAutomationService {
         });
 
         try {
-          const results = [];
-          let hasWriteback = false;
-          let tableResult = null;
-
           // ── 执行工具并收集结果 ──
-          for (const tool of tools) {
-            const toolContext = {
-              ...context,
-              signal: controller.signal,
-              isAutoRun: true,
-              abortMeta: {
-                traceId: tx.traceId,
-                slotKey,
-                sourceMessageId: context.sourceMessageId || messageId,
-                sourceSwipeId: context.sourceSwipeId || swipeId || ''
-              },
-              shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
-                traceId: tx.traceId
-              }),
-              skipNotify: true,
-              input: {
-                ...(context.input || {}),
-                lastAiMessage: context.lastAiMessage,
-                assistantBaseText: context.assistantBaseText
-              }
-            };
+          const { results, hasWriteback: toolsHadWriteback } = await this._executeAutoTools(
+            tools, context, controller, tx, { slotKey, messageId, swipeId }
+          );
 
-            const isLocalTransform = toolOutputService.shouldRunLocalTransform(tool);
-            const result = isLocalTransform
-              ? await runLocalTransformTool(tool, toolContext)
-              : await toolOutputService.runToolPostResponse(tool, toolContext);
-            results.push(result);
-
-            if (result?.writebackState || result?.output) {
-              hasWriteback = true;
-              this._markOwnWrite(context.sourceMessageId || messageId);
+          // ── 执行表格自动更新 ──
+          const { tableResult, hasWriteback: tableHadWriteback } = await this._executeAutoTableUpdate(
+            context, controller, tx, {
+              shouldRunTableAuto, tableWorkbenchConfig, messageId, swipeId, sourceEvent
             }
-          }
+          );
 
-          if (shouldRunTableAuto) {
-            tableResult = await runAutoTableUpdate({
-              messageId: context.sourceMessageId || messageId,
-              swipeId: context.sourceSwipeId || swipeId || '',
-              sourceEvent,
-              configInput: tableWorkbenchConfig,
-              signal: controller.signal,
-              shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
-                traceId: tx.traceId
-              })
-            });
-
-            if (tableResult?.state || tableResult?.mirrorResult?.success === true) {
-              hasWriteback = true;
-              this._markOwnWrite(context.sourceMessageId || messageId);
-            }
-          }
+          const hasWriteback = toolsHadWriteback || tableHadWriteback;
 
           // ── Phase: REQUEST_FINISHED ──
           tx.transition(TX_PHASE.REQUEST_FINISHED, { toolResults: results, tableResult });
@@ -643,7 +594,7 @@ class ToolAutomationService {
               swipeId: context.sourceSwipeId,
               hasOutput: true
             };
-            this._messageReceivedThrottleUntil = Date.now() + 15000;
+            this._messageReceivedThrottleUntil = Date.now() + WRITEBACK_THROTTLE_MS;
           }
 
           this._markSlotProcessed(slotKey);
@@ -817,6 +768,100 @@ class ToolAutomationService {
     }
   }
 
+  // ── 自动执行：工具链 ────────────────────────────────────────
+
+  async _executeAutoTools(tools, context, controller, tx, { slotKey, messageId, swipeId }) {
+    const results = [];
+    let hasWriteback = false;
+    let currentLastAiMessage = context.lastAiMessage;
+    let currentAssistantBaseText = context.assistantBaseText;
+
+    for (const tool of tools) {
+      const toolContext = {
+        ...context,
+        signal: controller.signal,
+        isAutoRun: true,
+        abortMeta: {
+          traceId: tx.traceId,
+          slotKey,
+          sourceMessageId: context.sourceMessageId || messageId,
+          sourceSwipeId: context.sourceSwipeId || swipeId || ''
+        },
+        shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
+          traceId: tx.traceId
+        }),
+        skipNotify: true,
+        lastAiMessage: currentLastAiMessage,
+        assistantBaseText: currentAssistantBaseText,
+        input: {
+          ...(context.input || {}),
+          lastAiMessage: currentLastAiMessage,
+          assistantBaseText: currentAssistantBaseText
+        }
+      };
+
+      const isLocalTransform = toolOutputService.shouldRunLocalTransform(tool);
+      const result = isLocalTransform
+        ? await runLocalTransformTool(tool, toolContext)
+        : await toolOutputService.runToolPostResponse(tool, toolContext);
+      results.push(result);
+
+      if (result?.writebackState || result?.output) {
+        hasWriteback = true;
+        this._markOwnWrite(context.sourceMessageId || messageId);
+        // 链式读取：刷新下一个工具的输入文本
+        const refreshedText = this._readCurrentMessageText(context.sourceMessageId || messageId);
+        if (refreshedText) {
+          currentLastAiMessage = refreshedText;
+          currentAssistantBaseText = refreshedText;
+          // 同步更新 chatMessages 快照，使后续工具的 getExtractionSnapshot 读到最新文本
+          const idx = Number(context.sourceMessageId || messageId);
+          if (Array.isArray(context.chatMessages) && context.chatMessages[idx]) {
+            context.chatMessages[idx].content = refreshedText;
+            context.chatMessages[idx].mes = refreshedText;
+          }
+        }
+      }
+    }
+
+    return { results, hasWriteback };
+  }
+
+  async _executeAutoTableUpdate(context, controller, tx, {
+    shouldRunTableAuto, tableWorkbenchConfig, messageId, swipeId, sourceEvent
+  }) {
+    if (!shouldRunTableAuto) {
+      return { tableResult: null, hasWriteback: false };
+    }
+
+    const tableResult = await runAutoTableUpdate({
+      messageId: context.sourceMessageId || messageId,
+      swipeId: context.sourceSwipeId || swipeId || '',
+      sourceEvent,
+      configInput: tableWorkbenchConfig,
+      signal: controller.signal,
+      shouldAbortWriteback: () => this._shouldAbortAutoWriteback({
+        traceId: tx.traceId
+      })
+    });
+
+    const hasWriteback = !!(tableResult?.state || tableResult?.mirrorResult?.success === true);
+    if (hasWriteback) {
+      this._markOwnWrite(context.sourceMessageId || messageId);
+    }
+
+    return { tableResult, hasWriteback };
+  }
+
+  _readCurrentMessageText(messageId) {
+    const api = getHostApi();
+    const chat = getCurrentChatMessages(api);
+    const idx = Number(messageId);
+    if (!Number.isFinite(idx) || idx < 0 || idx >= chat.length) return '';
+    const msg = chat[idx];
+    return String(msg?.mes || msg?.content || '').trim();
+  }
+
   // ── Own-write 防自激 ─────────────────────────────────────────
 
   _markOwnWrite(messageId) {
@@ -832,20 +877,16 @@ class ToolAutomationService {
     this._pruneOwnWrites();
     const writtenAt = this._ownWriteMessageIds.get(key);
     if (!writtenAt) return false;
-    return (Date.now() - writtenAt) < 10000;
+    return (Date.now() - writtenAt) < OWN_WRITE_TTL_MS;
   }
 
   _pruneOwnWrites() {
-    const cutoff = Date.now() - 10000;
+    const cutoff = Date.now() - OWN_WRITE_TTL_MS;
     for (const [key, ts] of this._ownWriteMessageIds) {
       if (!Number.isFinite(ts) || ts < cutoff) {
         this._ownWriteMessageIds.delete(key);
       }
     }
-  }
-
-  _pruneCancelledKeys() {
-    // Legacy stub — no longer used but kept for compat
   }
 
   // ── 事务历史 ─────────────────────────────────────────────
@@ -1047,7 +1088,7 @@ class ToolAutomationService {
 
   _getAutomationSettings() {
     const automation = settingsService.getSettings()?.automation || {};
-    const settleMs = Number.isFinite(automation.settleMs) ? automation.settleMs : 800;
+    const settleMs = Number.isFinite(automation.settleMs) ? automation.settleMs : SETTLE_MS_FALLBACK;
     return {
       settleMs,
       dedupeWindowMs: Number.isFinite(automation.dedupeWindowMs)

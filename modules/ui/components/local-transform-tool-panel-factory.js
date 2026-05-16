@@ -176,7 +176,8 @@ function buildHero(config, toolId, refresh, processorDirections, heroHint) {
 
   // Chips
   const chips = el('div', { className: 'yyt-tool-panel-hero-chips' });
-  chips.appendChild(el('span', { className: 'yyt-tool-hero-chip mode', text: '本地脚本（手动）' }));
+  const isAutoTrigger = config.output?.autoTrigger !== false;
+  chips.appendChild(el('span', { className: 'yyt-tool-hero-chip mode', text: `本地脚本（${isAutoTrigger ? '自动' : '手动'}）` }));
 
   const directionKey = config.processor?.direction || processorDirections[0]?.key || '';
   const directionLabel = processorDirections.find((d) => d.key === directionKey)?.label || directionKey;
@@ -270,6 +271,27 @@ function buildBindingSection(config, toolId, refresh) {
         saveToolConfig(toolId, {
           ...cur,
           output: { ...(cur.output || {}), overwrite: v === 'replace', enabled: true, mode: 'local_transform' }
+        });
+        refresh();
+      }
+    })
+  }));
+
+  // 3. 自动触发
+  bindingsContainer.appendChild(buildBindingRow({
+    label: '自动触发',
+    hint: '收到 AI 回复后是否自动执行此脚本',
+    control: selectInput({
+      value: config.output?.autoTrigger !== false ? 'auto' : 'manual',
+      options: [
+        { value: 'auto', label: '自动（收到回复即执行）' },
+        { value: 'manual', label: '手动（仅点击按钮执行）' }
+      ],
+      onChange: (v) => {
+        const cur = getToolFullConfig(toolId) || {};
+        saveToolConfig(toolId, {
+          ...cur,
+          output: { ...(cur.output || {}), autoTrigger: v === 'auto', enabled: true, mode: 'local_transform' }
         });
         refresh();
       }

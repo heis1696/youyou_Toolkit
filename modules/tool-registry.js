@@ -302,7 +302,8 @@ const DEFAULT_TOOL_CONFIGS = {
       mode: 'local_transform',
       apiPreset: '',
       overwrite: true,
-      enabled: true
+      enabled: true,
+      autoTrigger: true
     },
 
     extraction: {
@@ -345,7 +346,8 @@ const DEFAULT_TOOL_CONFIGS = {
       mode: 'local_transform',
       apiPreset: '',
       overwrite: true,
-      enabled: true
+      enabled: true,
+      autoTrigger: true
     },
 
     extraction: {

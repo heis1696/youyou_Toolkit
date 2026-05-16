@@ -622,12 +622,13 @@ class ContextInjector {
         }
 
         const msgId = normalizeIdentityValue(options.sourceMessageId) || messageIndex;
+        const refreshMode = options.skipNotify === true ? 'none' : 'affected';
 
         await setChatMessages([{
           message_id: msgId,
           message: nextText
         }], {
-          refresh: 'affected'
+          refresh: refreshMode
         });
         refreshResult.steps.hostSetChatMessages = true;
         refreshResult.hostUpdateMethod = WRITEBACK_METHODS.SET_CHAT_MESSAGES;
