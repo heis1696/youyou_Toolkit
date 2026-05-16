@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.165] - 2026-05-16
+
+### 变更
+- **世界书预设 "+ 添加" 对话框**：顶部加搜索框（实时筛选可用世界书）；"全选"按钮改为"全选可见"语义（只勾选当前过滤后可见的项）。
+- **预设管理面板 sub-tab 切换清空选中**：从其他 sub-tab 切回某个预设面板时不再自动显示上次选中的预设编辑器，需用户主动点击列表项；内部 refresh（点击/重命名/复制等）保留当前选中。实现：`preset-manager-base.js` 利用 container 上的 `_yytLastPresetPanelKind` 标记区分 fresh mount 与内部 refresh。
+
+### 调试
+- **议题 #45 P0 blocker（预设切换不生效）诊断日志**：`tool-registry.js` 的 `getToolFullConfig` / `saveToolConfig` 加 opt-in console 日志，跟踪 base / user / merged 三层的 `extraction` 和 `worldbooks` 状态。启用方式：浏览器 console 执行 `window.YYT_PRESET_DEBUG = true`，然后复现切换流程；提交日志后即可定位是 save 没存进还是 read 拿到旧值。默认关闭，对生产无影响。
+
 ## [1.0.164] - 2026-05-16
 
 ### 修复

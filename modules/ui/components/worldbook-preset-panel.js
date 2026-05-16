@@ -66,9 +66,19 @@ async function openAddBooksDialog(preset, refresh) {
     return;
   }
 
-  // 构建多选 list body
-  const body = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '320px', overflowY: 'auto' } });
+  // 构建搜索 + 多选 list body
+  const body = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } });
+
+  const searchInput = el('input', {
+    className: 'yyt-input',
+    attrs: { type: 'text', placeholder: `搜索 ${candidates.length} 本世界书…`, autocomplete: 'off' },
+    style: { padding: '7px 10px', fontSize: '12px' }
+  });
+  body.appendChild(searchInput);
+
+  const listWrapper = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '320px', overflowY: 'auto' } });
   const checkedSet = new Set();
+  const rowItems = [];
   for (const name of candidates) {
     const row = el('label', {
       style: {
@@ -89,8 +99,17 @@ async function openAddBooksDialog(preset, refresh) {
     });
     row.appendChild(cb);
     row.appendChild(el('span', { text: name, style: { color: 'var(--yyt-text)' } }));
-    body.appendChild(row);
+    listWrapper.appendChild(row);
+    rowItems.push({ el: row, search: name.toLowerCase() });
   }
+  body.appendChild(listWrapper);
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    for (const item of rowItems) {
+      item.el.style.display = (!q || item.search.includes(q)) ? '' : 'none';
+    }
+  });
 
   dialog.custom({
     title: `添加世界书（${candidates.length} 项可选）`,
@@ -99,12 +118,15 @@ async function openAddBooksDialog(preset, refresh) {
     buttons: [
       { label: '取消', variant: 'ghost', onClick: (close) => close(null) },
       {
-        label: '全选',
+        label: '全选可见',
         variant: 'ghost',
         onClick: () => {
-          for (const cb of body.querySelectorAll('input[type=checkbox]')) {
-            cb.checked = true;
-            checkedSet.add(cb.value);
+          for (const cb of listWrapper.querySelectorAll('input[type=checkbox]')) {
+            const row = cb.closest('label');
+            if (!row || row.style.display !== 'none') {
+              cb.checked = true;
+              checkedSet.add(cb.value);
+            }
           }
         }
       },
