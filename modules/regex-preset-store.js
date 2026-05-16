@@ -94,6 +94,37 @@ function _writeAll(map) {
   presetStorage.set(STORAGE_KEY, map);
 }
 
+// ───── 内置预设支持（议题 #45）─────
+//
+// 内置预设不写入存储，启动时由 preset-bootstrap.js 通过
+// _setBuiltinPresets() 注入。listPresets/getPreset 返回内置 + 用户合并结果。
+// id 以 'builtin_regex_' 开头的预设禁止 update/delete/rename。
+
+const BUILTIN_PREFIX = 'builtin_regex_';
+let _builtinPresets = [];
+
+function _isBuiltinId(id) {
+  return typeof id === 'string' && id.startsWith(BUILTIN_PREFIX);
+}
+
+function _findBuiltin(id) {
+  if (!_isBuiltinId(id)) return null;
+  return _builtinPresets.find((p) => p.id === id) || null;
+}
+
+/**
+ * 注入内置预设（启动时调用一次）。每个 builtin preset 必须 id 以 'builtin_regex_' 开头。
+ */
+export function _setBuiltinPresets(list) {
+  if (!Array.isArray(list)) {
+    _builtinPresets = [];
+    return;
+  }
+  _builtinPresets = list
+    .map((p) => normalizePreset({ ...p, id: String(p?.id || '') }))
+    .filter((p) => _isBuiltinId(p.id));
+}
+
 let _migrationDone = false;
 
 /**
@@ -161,13 +192,16 @@ function migrateIfNeeded() {
 export function listPresets() {
   migrateIfNeeded();
   const map = _readAll();
-  return Object.values(map)
+  const userList = Object.values(map)
     .map(normalizePreset)
     .sort((a, b) => b.updatedAt - a.updatedAt);
+  // 内置预设排在最前面，按定义顺序
+  return [..._builtinPresets, ...userList];
 }
 
 export function getPreset(id) {
   if (!id) return null;
+  if (_isBuiltinId(id)) return _findBuiltin(id);
   migrateIfNeeded();
   const map = _readAll();
   return map[id] ? normalizePreset(map[id]) : null;
@@ -185,6 +219,12 @@ export function getCurrentPreset() {
 }
 
 export function setCurrentPresetId(id) {
+  if (id && _isBuiltinId(id)) {
+    presetStorage.set(CURRENT_KEY, id);
+    syncEngineFromActive();
+    eventBus.emit(EVENTS.PRESET_ACTIVATED, { kind: 'regex', id });
+    return true;
+  }
   const map = _readAll();
   if (id && !map[id]) {
     log.warn(`setCurrentPresetId 找不到预设: ${id}`);
@@ -214,6 +254,10 @@ export function createPreset(partial = {}) {
 
 export function updatePreset(id, patch = {}) {
   if (!id) return null;
+  if (_isBuiltinId(id)) {
+    log.warn(`拒绝修改内置预设: ${id}`);
+    return null;
+  }
   const map = _readAll();
   const existing = map[id];
   if (!existing) return null;
@@ -236,6 +280,10 @@ export function updatePreset(id, patch = {}) {
 
 export function deletePreset(id) {
   if (!id) return false;
+  if (_isBuiltinId(id)) {
+    log.warn(`拒绝删除内置预设: ${id}`);
+    return false;
+  }
   const map = _readAll();
   if (!map[id]) return false;
   delete map[id];
@@ -252,13 +300,19 @@ export function deletePreset(id) {
 export function duplicatePreset(id, { nameSuffix = ' 副本' } = {}) {
   const source = getPreset(id);
   if (!source) return null;
+  // 内置预设可复制成用户预设（去掉 builtin id 让 createPreset 生成新 id）
   return createPreset({
     ...source,
+    id: undefined,
     name: `${source.name}${nameSuffix}`
   });
 }
 
 export function renamePreset(id, newName) {
+  if (_isBuiltinId(id)) {
+    log.warn(`拒绝重命名内置预设: ${id}`);
+    return null;
+  }
   return updatePreset(id, { name: String(newName || '').trim() || '未命名预设' });
 }
 

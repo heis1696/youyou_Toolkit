@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.0.160] - 2026-05-16
+
+### 变更
+- **议题 #45 Stage 2**：PresetManagerBase factory + 内置预设机制 + 一次性存量迁移。
+  - **`preset-manager-base.js`** 新建：4 个预设面板共用的三段式 factory（列表 + 编辑器 + 导入/导出 toolbar）；接受 `renderEditor` / `renderExtras` / `renderListItemMeta` slot；新建/重命名/删除全用 `dialog` 控件；导入支持文件/文本，导出支持下载/复制。
+  - **内置预设机制**：`regex-preset-store` 和 `worldbook-preset-store` 加 `_setBuiltinPresets` 钩子；`listPresets()` 把内置预设拼到列表头；`getPreset(id)` 命中 `builtin_*` 前缀走内置表；`updatePreset` / `deletePreset` / `renamePreset` 拒绝内置；`duplicatePreset` 允许内置 → 用户。
+  - **`preset-bootstrap.js`** 新建：注册 3 个内置正则预设（`builtin_regex_summary` / `builtin_regex_status_block` / `builtin_regex_youyou`）+ 一次性存量迁移（老 `extraction.selectors` / `worldbooks.{enabled,selected}` 自动创建对应预设并绑 ID；命中内置 selectors 优先复用而不创建副本；失败时 abort 不写 done flag 保留老字段）。
+  - **`bootstrap.js`** 在自动化服务初始化前调用 `ensurePresetSystem()`，dump 备份到 `migration_v45_backup`，done flag `migration_v45_done` 防重入。
+
 ## [1.0.159] - 2026-05-16
 
 ### 变更

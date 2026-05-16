@@ -51,6 +51,7 @@ export function createBootstrap(context, options = {}) {
         modules.toolOutputServiceModule = await import('../tool-output-service.js');
         modules.toolAutomationServiceModule = await import('../tool-automation-service.js');
         modules.toolDataProviderModule = await import('../core/tool-data-provider.js');
+        modules.presetBootstrapModule = await import('../preset-bootstrap.js');
 
         // Provider 异步初始化（探测 Authority / Fallback），不阻塞模块加载
         try {
@@ -3182,6 +3183,22 @@ export function createBootstrap(context, options = {}) {
     if (modules.uiModule) {
       injectComponentStyles();
       await applySavedTheme();
+    }
+
+    // 议题 #45 Stage 2：注册内置预设 + 一次性存量迁移（必须在自动化服务前）
+    if (modules.presetBootstrapModule?.ensurePresetSystem) {
+      try {
+        const result = modules.presetBootstrapModule.ensurePresetSystem();
+        if (result?.aborted) {
+          log(`预设系统迁移失败已 abort，老字段保留: ${result.error}`);
+        } else if (result?.skipped) {
+          log(`预设系统已就绪（${result.reason}）`);
+        } else {
+          log(`预设系统迁移完成（${result.migratedCount}/${result.total} 工具）`);
+        }
+      } catch (err) {
+        logError('预设系统初始化异常:', err);
+      }
     }
 
     if (modules.toolAutomationServiceModule?.toolAutomationService) {
