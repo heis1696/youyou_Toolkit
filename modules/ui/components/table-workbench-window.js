@@ -1,38 +1,29 @@
 /**
- * YouYou Toolkit - 填表工具台窗口
+ * YouYou Toolkit - 填表工作台 View helpers
  *
- * 议题 #15 #10 任务：独立的工具台窗口，对应 D:/Projects/yyt-style-preview/preview-table-workbench.html v3。
+ * 议题 #15 #10 + hotfix（v1.0.171）：原本的"独立浮窗"方案回退 — preview 里 .win 是 popup tab 内的展示区，
+ * 不是真·浏览器浮窗。本模块导出工作台 UI 的 view helpers（HTML 渲染 + 事件绑定 + 状态加载），
+ * 由 table-workbench-panel.js 直接内联到 popup tab 渲染。
  *
- * 窗口职责：
- *   - Hero：工具名 + chip 行（模式 / 模板 / API / 指令 / 状态）+ 立即填表 / 保存按钮
- *   - Runtime row：状态 / 最近运行 / 成功 / 失败
- *   - 绑定区：7 个 binding-row（模板 / 触发模式 / API 预设 / Ai 指令 / 正则预设 / 世界书预设 / 作用域）
- *   - 填表行为：触发时机 / 填充模式 / 上下文消息数 + 同步选项 toggles
- *   - 表格概览：cards 点击 → openTableDataEditor（待 #11 实现）
+ * Exports:
+ *   - WORKBENCH_VIEW_STYLES: 工作台 UI 的 CSS（panel 注入到 head）
+ *   - renderWorkbenchHtml(state): 返回完整 HTML 字符串
+ *   - loadWorkbenchState(): 同步收集配置/预设/状态
+ *   - bindWorkbenchEvents($container, refresh): 绑定所有 click/change/toggle
  *
- * 设计：
- *   - 单一导出 openTableWorkbenchWindow(options) 复用 window-manager.createWindow
- *   - HTML 模板字符串 + 内嵌 scoped CSS（.yyt-tww-* 前缀避免污染）
- *   - 配置走 schema-service.getTableWorkbenchConfig / saveTableWorkbenchConfig
- *   - 模板走 template-service.resolveActiveTemplate（接入三模式）
- *   - 预设走 preset-manager / bypass-manager / regex-preset-store / worldbook-preset-store
- *   - 锁存储走 lock-service（按 scopeKey/sheetUid 分桶）— 用 isolation 复合 scope
+ * 说明：openTableWorkbenchWindow 已废弃 — popup tab 直接显示工作台，不再开独立浮窗。
+ *      数据编辑器（#11）才走独立窗口（点工作台内"打开数据编辑器"按钮）。
  */
 
-import { createWindow, closeWindow } from '../../window-manager.js';
 import { logger } from '../../core/logger-service.js';
 import {
   getTableWorkbenchConfig,
-  saveTableWorkbenchConfig,
-  TABLE_WORKBENCH_RUNTIME_STATUS
+  saveTableWorkbenchConfig
 } from '../../table-engine/table-schema-service.js';
 import {
   getAllTableTemplates,
   resolveActiveTemplate,
-  setActiveGlobalTemplateId,
-  applyTemplateAsChatOverride,
-  linkPresetToChat,
-  resetChatTemplateScope
+  setActiveGlobalTemplateId
 } from '../../table-engine/table-template-service.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
@@ -42,10 +33,9 @@ import regexStore from '../../regex-preset-store.js';
 import worldbookStore from '../../worldbook-preset-store.js';
 import { showToast } from '../utils.js';
 
-const WINDOW_ID = 'yyt-table-workbench-window';
 let _log;
 function getLog() {
-  if (!_log) _log = logger.createScope('TableWorkbenchWindow');
+  if (!_log) _log = logger.createScope('TableWorkbenchView');
   return _log;
 }
 
@@ -63,10 +53,10 @@ function fmtTime(ts) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// CSS (scoped to .yyt-tww-*)
+// CSS — exported for panel to inject
 // ────────────────────────────────────────────────────────────────
 
-const STYLES = `
+export const WORKBENCH_VIEW_STYLES = `
 .yyt-tww {
   --tww-canvas: var(--yyt-bg-base, #0a0d13);
   --tww-surface-1: var(--yyt-surface, #0f1219);
@@ -92,7 +82,8 @@ const STYLES = `
   --tww-purple-soft: rgba(167,139,250,0.12);
 
   display: flex; flex-direction: column;
-  height: 100%; background: var(--tww-canvas); color: var(--tww-text);
+  min-height: 100%;
+  background: var(--tww-canvas); color: var(--tww-text);
   font-size: 13px; line-height: 1.5;
 }
 .yyt-tww-hero {
@@ -164,8 +155,7 @@ const STYLES = `
 .yyt-tww-btn-primary:hover { background: var(--tww-accent-strong); color: var(--tww-on-accent); }
 .yyt-tww-btn-small { padding: 5px 10px; font-size: 11px; }
 
-.yyt-tww-scroll {
-  flex: 1; min-height: 0; overflow-y: auto;
+.yyt-tww-body {
   padding: 0 18px 22px;
 }
 .yyt-tww-section { padding-top: 22px; }
@@ -283,24 +273,11 @@ select.yyt-tww-ctrl {
 }
 `;
 
-let _stylesInjected = false;
-function injectStyles() {
-  if (_stylesInjected) return;
-  const $ = window.jQuery || window.parent?.jQuery;
-  if (!$) return;
-  const head = window.parent?.document?.head || document.head;
-  const style = document.createElement('style');
-  style.id = 'yyt-tww-styles';
-  style.textContent = STYLES;
-  head.appendChild(style);
-  _stylesInjected = true;
-}
-
 // ────────────────────────────────────────────────────────────────
-// HTML builders
+// HTML builders (exported)
 // ────────────────────────────────────────────────────────────────
 
-function buildContent(state) {
+export function renderWorkbenchHtml(state) {
   const { config, activeTemplate, isolationKey, tablesPreview } = state;
   const runtime = config?.runtime || {};
   const statusText = runtime.lastStatus === 'success' ? '✓ 上次成功'
@@ -356,10 +333,9 @@ function buildContent(state) {
       </div>
     </div>
 
-    <!-- Scrollable body -->
-    <div class="yyt-tww-scroll">
+    <!-- Body sections -->
+    <div class="yyt-tww-body">
 
-      <!-- 绑定区 -->
       <section class="yyt-tww-section" data-section="bindings">
         <div class="yyt-tww-section-heading">
           <span class="yyt-tww-section-icon"><i class="fa-solid fa-link"></i></span>
@@ -368,7 +344,6 @@ function buildContent(state) {
         ${buildBindingsHtml(state)}
       </section>
 
-      <!-- 填表行为 -->
       <section class="yyt-tww-section" data-section="behavior">
         <div class="yyt-tww-section-heading">
           <span class="yyt-tww-section-icon"><i class="fa-solid fa-arrows-rotate"></i></span>
@@ -377,7 +352,6 @@ function buildContent(state) {
         ${buildBehaviorHtml(state)}
       </section>
 
-      <!-- 表格概览 -->
       <section class="yyt-tww-section" data-section="overview">
         <div class="yyt-tww-section-heading">
           <span class="yyt-tww-section-icon"><i class="fa-solid fa-table-cells"></i></span>
@@ -386,7 +360,7 @@ function buildContent(state) {
             <button class="yyt-tww-btn yyt-tww-btn-small" data-action="open-editor"><i class="fa-solid fa-table-cells"></i> 打开数据编辑器</button>
           </span>
         </div>
-        ${buildTablesOverviewHtml(tablesPreview)}
+        ${buildTablesOverviewHtml(state.tablesPreview)}
       </section>
 
     </div>
@@ -397,33 +371,26 @@ function buildContent(state) {
 function buildBindingsHtml(state) {
   const { config, allTemplates, apiPresets, bypassPresets, regexPresets, worldbookPresets, activeTemplate } = state;
 
-  // 模板（resolveActiveTemplate 给的 + 全局库列出 inherit_global 的所有选项）
   const tplOpts = allTemplates.map((t) => `<option value="${esc(t.id)}" ${activeTemplate?.source?.templateId === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
 
-  // 触发模式：跟随 config.automation.enabled
   const triggerVal = config?.automation?.enabled ? 'auto' : 'manual';
 
-  // API 预设
   const apiVal = config?.apiPreset || '';
   const apiOpts = `<option value="">—— 跟随主 API ——</option>` +
     apiPresets.map((p) => `<option value="${esc(p.name)}" ${p.name === apiVal ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
-  // Ai 指令预设
   const bypassVal = config?.bypassPresetId || '';
   const bypassOpts = `<option value="">—— 无 ——</option>` +
     bypassPresets.map((p) => `<option value="${esc(p.id)}" ${p.id === bypassVal ? 'selected' : ''}>${esc(p.name)}${p.isDefault ? ' [默认]' : ''}</option>`).join('');
 
-  // 正则预设
   const regexVal = config?.extraction?.regexPresetId || '';
   const regexOpts = `<option value="">—— 无（不进行提取） ——</option>` +
     regexPresets.map((p) => `<option value="${esc(p.id)}" ${p.id === regexVal ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
-  // 世界书预设
   const wbVal = config?.worldbooks?.presetId || '';
   const wbOpts = `<option value="">—— 无 ——</option>` +
     worldbookPresets.map((p) => `<option value="${esc(p.id)}" ${p.id === wbVal ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
-  // 作用域
   const scopeVal = config?.runScope || 'enabled';
 
   return `
@@ -572,10 +539,10 @@ function buildTablesOverviewHtml(tablesPreview) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// State loaders
+// State loader (exported)
 // ────────────────────────────────────────────────────────────────
 
-function loadWindowState() {
+export function loadWorkbenchState() {
   const config = (() => { try { return getTableWorkbenchConfig(); } catch (_) { return {}; } })();
   const allTemplates = (() => { try { return getAllTableTemplates() || []; } catch (_) { return []; } })();
   const activeTemplate = (() => { try { return resolveActiveTemplate({}); } catch (_) { return null; } })();
@@ -585,7 +552,6 @@ function loadWindowState() {
   const worldbookPresets = (() => { try { return worldbookStore.listPresets() || []; } catch (_) { return []; } })();
   const isolationKey = (() => { try { return tableIsolation.getKey(); } catch (_) { return ''; } })();
 
-  // tables preview — 从 activeTemplate 提取 schema-level 的表名（暂不读 slot state，等 #11 接入数据编辑器后再做）
   const tablesPreview = ((activeTemplate?.template?.tables) || (config?.tables) || []).map((t) => ({
     name: t?.name || '',
     rowCount: Array.isArray(t?.rows) ? t.rows.length : 0,
@@ -607,37 +573,39 @@ function loadWindowState() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// Binding handlers
+// Binding handlers (exported)
 // ────────────────────────────────────────────────────────────────
 
-function bindEvents($window, refresh) {
+export function bindWorkbenchEvents($container, refresh) {
+  const $ = window.jQuery || window.parent?.jQuery;
+  if (!$ || !$container || !$container.on) {
+    getLog().warn('bindWorkbenchEvents: jQuery 或 $container 不可用');
+    return;
+  }
+
+  $container.off('.tww');
+
   // 立即填表
-  $window.on('click', '[data-action="run-now"]', async () => {
+  $container.on('click.tww', '[data-action="run-now"]', async () => {
     try {
       const result = await runManualTableUpdate();
-      if (result?.success) {
-        showToast('success', '填表完成');
-      } else {
-        showToast('error', `填表失败：${result?.error || '未知'}`);
-      }
-      refresh();
+      if (result?.success) showToast('success', '填表完成');
+      else showToast('error', `填表失败：${result?.error || '未知'}`);
+      if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('立即填表异常', err);
       showToast('error', `异常：${err?.message || err}`);
     }
   });
 
-  // 重填（clearBeforeUpdate）
-  $window.on('click', '[data-action="run-clear"]', async () => {
+  // 重填
+  $container.on('click.tww', '[data-action="run-clear"]', async () => {
     if (!window.confirm('重填会清空当前消息楼层的表格数据并重新生成，确定？')) return;
     try {
       const result = await runManualTableUpdate(null, { clearBeforeUpdate: true });
-      if (result?.success) {
-        showToast('success', '重填完成');
-      } else {
-        showToast('error', `重填失败：${result?.error || '未知'}`);
-      }
-      refresh();
+      if (result?.success) showToast('success', '重填完成');
+      else showToast('error', `重填失败：${result?.error || '未知'}`);
+      if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('重填异常', err);
       showToast('error', `异常：${err?.message || err}`);
@@ -645,21 +613,20 @@ function bindEvents($window, refresh) {
   });
 
   // 打开数据编辑器（#11 待实现）
-  $window.on('click', '[data-action="open-editor"], [data-table-index]', (e) => {
+  $container.on('click.tww', '[data-action="open-editor"], [data-table-index]', (e) => {
     e.preventDefault();
     showToast('info', '数据编辑器窗口待实现（#11）');
   });
 
   // 模板切换
-  $window.on('change', '[data-binding="template"]', function() {
+  $container.on('change.tww', '[data-binding="template"]', function () {
     const templateId = $(this).val();
     try {
       setActiveGlobalTemplateId(templateId);
-      // 同时更新 config.activeTemplate（兼容旧 schema-service 字段）
       const config = getTableWorkbenchConfig();
       saveTableWorkbenchConfig({ ...config, activeTemplate: templateId });
       showToast('success', '模板已切换');
-      refresh();
+      if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('切换模板异常', err);
       showToast('error', `切换失败：${err?.message || err}`);
@@ -667,7 +634,7 @@ function bindEvents($window, refresh) {
   });
 
   // 触发模式
-  $window.on('change', '[data-binding="triggerMode"]', function() {
+  $container.on('change.tww', '[data-binding="triggerMode"]', function () {
     const mode = $(this).val();
     try {
       const config = getTableWorkbenchConfig();
@@ -676,7 +643,7 @@ function bindEvents($window, refresh) {
         automation: { ...(config.automation || {}), enabled: mode === 'auto' }
       });
       showToast('success', mode === 'auto' ? '已切换为自动模式' : '已切换为手动模式');
-      refresh();
+      if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('切换触发模式异常', err);
       showToast('error', `切换失败：${err?.message || err}`);
@@ -691,7 +658,7 @@ function bindEvents($window, refresh) {
     { sel: '[data-binding="fillMode"]', key: 'fillMode' }
   ];
   for (const { sel, key } of selectBindings) {
-    $window.on('change', sel, function() {
+    $container.on('change.tww', sel, function () {
       const value = $(this).val();
       try {
         const config = getTableWorkbenchConfig();
@@ -704,8 +671,7 @@ function bindEvents($window, refresh) {
     });
   }
 
-  // 正则预设
-  $window.on('change', '[data-binding="regexPreset"]', function() {
+  $container.on('change.tww', '[data-binding="regexPreset"]', function () {
     const value = $(this).val();
     try {
       const config = getTableWorkbenchConfig();
@@ -720,8 +686,7 @@ function bindEvents($window, refresh) {
     }
   });
 
-  // 世界书预设
-  $window.on('change', '[data-binding="worldbookPreset"]', function() {
+  $container.on('change.tww', '[data-binding="worldbookPreset"]', function () {
     const value = $(this).val();
     try {
       const config = getTableWorkbenchConfig();
@@ -736,8 +701,7 @@ function bindEvents($window, refresh) {
     }
   });
 
-  // 上下文消息数
-  $window.on('change', '[data-binding="contextDepth"]', function() {
+  $container.on('change.tww', '[data-binding="contextDepth"]', function () {
     const value = Math.max(1, parseInt($(this).val(), 10) || 3);
     try {
       const config = getTableWorkbenchConfig();
@@ -750,7 +714,7 @@ function bindEvents($window, refresh) {
   });
 
   // Toggles
-  $window.on('click', '[data-toggle="worldbookSync"]', function() {
+  $container.on('click.tww', '[data-toggle="worldbookSync"]', function () {
     const $t = $(this);
     const isOn = $t.hasClass('on');
     const next = !isOn;
@@ -769,7 +733,7 @@ function bindEvents($window, refresh) {
     }
   });
 
-  $window.on('click', '[data-toggle="mirrorToMessage"]', function() {
+  $container.on('click.tww', '[data-toggle="mirrorToMessage"]', function () {
     const $t = $(this);
     const isOn = $t.hasClass('on');
     const next = !isOn;
@@ -785,79 +749,35 @@ function bindEvents($window, refresh) {
     }
   });
 
-  // 管理链接（暂仅 toast 提示，未来跳到对应预设管理面板）
-  $window.on('click', '[data-link]', function(e) {
+  // 管理链接
+  $container.on('click.tww', '[data-link]', function (e) {
     e.preventDefault();
     showToast('info', `跳转到预设管理面板（待接入）`);
   });
 }
 
 // ────────────────────────────────────────────────────────────────
-// Public API
+// Deprecated (兼容旧调用方，无操作)
 // ────────────────────────────────────────────────────────────────
 
 /**
- * 打开填表工具台窗口（独立窗口）
- *
- * @param {Object} [options]
- * @param {string} [options.focus] - 'bindings' | 'behavior' | 'overview'，打开后滚到指定区
+ * @deprecated 工作台已回归 popup tab 内联渲染，不再开独立浮窗。
+ *             保留兼容签名避免外部调用报错。
  */
-export function openTableWorkbenchWindow(options = {}) {
-  injectStyles();
-  const $ = window.jQuery || window.parent?.jQuery;
-  if (!$) {
-    getLog().error('jQuery 不可用');
-    return null;
-  }
-
-  const renderState = () => {
-    const state = loadWindowState();
-    return buildContent(state);
-  };
-
-  let $window = null;
-
-  const refresh = () => {
-    if (!$window) return;
-    const $body = $window.find('.yyt-window-body');
-    $body.html(renderState());
-  };
-
-  $window = createWindow({
-    id: WINDOW_ID,
-    title: '填表工作台',
-    content: renderState(),
-    width: 980,
-    height: 720,
-    modal: false,
-    resizable: true,
-    maximizable: true,
-    rememberState: true,
-    onReady: ($el) => {
-      $window = $el;
-      bindEvents($window, refresh);
-      // focus to section
-      if (options.focus) {
-        const $section = $window.find(`[data-section="${options.focus}"]`);
-        if ($section.length) {
-          const $scroll = $window.find('.yyt-tww-scroll');
-          $scroll.animate({ scrollTop: $section.position().top + $scroll.scrollTop() - 10 }, 200);
-        }
-      }
-    },
-    onClose: () => {
-      getLog().info('窗口已关闭');
-    }
-  });
-
-  return $window;
+export function openTableWorkbenchWindow() {
+  getLog().warn('openTableWorkbenchWindow 已废弃：工作台现在直接渲染在 popup tab 内');
+  return null;
 }
 
 export function closeTableWorkbenchWindow() {
-  return closeWindow(WINDOW_ID);
+  return null;
 }
 
 export default {
+  WORKBENCH_VIEW_STYLES,
+  renderWorkbenchHtml,
+  loadWorkbenchState,
+  bindWorkbenchEvents,
   openTableWorkbenchWindow,
   closeTableWorkbenchWindow
 };
