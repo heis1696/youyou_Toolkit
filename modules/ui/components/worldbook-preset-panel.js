@@ -329,9 +329,7 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
       fontSize: '12px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '4px',
-      maxHeight: '320px',
-      overflowY: 'auto'
+      gap: '4px'
     }
   });
   panel.appendChild(el('div', {
@@ -361,9 +359,17 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
     panel.appendChild(searchInput);
 
     const listEl = el('div', {
-      style: { display: 'flex', flexDirection: 'column', gap: '2px', flex: '1', minHeight: '0' }
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+        maxHeight: '280px',
+        overflowY: 'auto',
+        overscrollBehavior: 'contain'
+      }
     });
 
+    const includeDisabled = preset.includeDisabled === true;
     const items = [];
 
     for (const entry of entries) {
@@ -374,8 +380,8 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
       const ov = overrides[uid];
       const hasOverride = ov && typeof ov.enabled === 'boolean';
 
-      // 无 override 时，源禁用的词条显示为半透明不可交互
-      const effectivelyDisabled = isSourceDisabled && !hasOverride;
+      // includeDisabled 关闭时，无 override 的源禁用词条不可交互
+      const effectivelyDisabled = isSourceDisabled && !hasOverride && !includeDisabled;
 
       const row = el('div', {
         style: {

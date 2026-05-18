@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.201] - 2026-05-18
+
+### 修复
+
+- **Hero sticky 修复**（#3）：`.yyt-tww` 恢复 `min-height:100%`，hero 加 `position:sticky;top:0`，scroll 容器是 `.yyt-tab-content(overflow-y:auto)`
+- **词条 includeDisabled 交互**（#5）：`preset.includeDisabled` 开启时，源禁用词条也可交互
+- **词条面板滚轮滚动**（#5）：listEl 独立 `maxHeight:280px;overflowY:auto;overscrollBehavior:contain`，阻止事件冒泡到外层滚动容器
+
 ## [1.0.200] - 2026-05-18
 
 ### 修复
