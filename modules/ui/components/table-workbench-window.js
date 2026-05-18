@@ -163,8 +163,10 @@ export const WORKBENCH_VIEW_STYLES = `
 
   display: flex; flex-direction: column;
   /* 议题 #15 hotfix v1.0.173：父容器（popup yyt-content）已是深色，本容器透明继承避免边界错位
-     v1.0.206 #3 修复：移除 flex:1/min-height:0/overflow:hidden，让外层 .yyt-tab-content 接管滚动，
-     hero 用 position:sticky 锚定到该滚动容器；避免嵌套滚动容器歧义导致 hero 跟着外层一起滚走。*/
+     v1.0.208 #3 修复：CSS height chain 在宿主环境不可靠（.yyt-tab-content height:100% 解析失败
+     导致内容溢出到外层 .yyt-content）。改为本容器自己作滚动容器 + JS ResizeObserver 强制 height，
+     hero sticky 锚到本容器内即可生效。*/
+  overflow-y: auto;
   background: transparent; color: var(--tww-text);
   font-size: 13px; line-height: 1.5;
 }
