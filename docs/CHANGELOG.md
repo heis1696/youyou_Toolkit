@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+## [1.0.198] - 2026-05-18
+
+### 修复
+
+- **Hero 滚动常驻**（#3）：hero 区域加 `position: sticky`，滚动时固定在顶部不消失
+- **词条加载类型容错**（#5）：`entry.key` 可能是数组，comment 构造加 `String()` + `Array.isArray` 容错，修复 `toLowerCase is not a function` 报错
+
 ## [1.0.197] - 2026-05-18
 
 ### 新增
