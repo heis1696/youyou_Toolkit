@@ -34,6 +34,41 @@ import {
 import { tableIsolation } from './table-isolation-service.js';
 import { resolveHistoricalTableState } from './table-history-service.js';
 import { resolveFreshTableTarget, validateTableTargetSnapshot } from './table-target-resolver.js';
+import {
+  commitSlotTables as _dataCommitSlotTables,
+  clearSlot as _dataClearSlot,
+  ensureTableDataReady as _ensureTableDataReady
+} from './table-data-service.js';
+import { logger as _stateLogger } from '../core/logger-service.js';
+
+let _stateLog;
+function _getStateLog() {
+  if (!_stateLog) _stateLog = _stateLogger.createScope('TableStateMirror');
+  return _stateLog;
+}
+
+/**
+ * 议题 #15 Phase B：state-service.commitBoundState 双写 — 主路径仍走 message 字段
+ * 保证 chat 导入/导出兼容；同时异步镜像到 IToolDataProvider SQL 表，让 Authority 用户能
+ * 累积真实 SQLite 数据，为未来 #11 数据编辑器 / 剧情推进 / 小剧场等模块预备数据源。
+ */
+async function _mirrorSlotToDataService(targetSnapshot, isolationKey, tables) {
+  try {
+    await _ensureTableDataReady();
+    await _dataCommitSlotTables({
+      chatId: targetSnapshot?.chatId,
+      messageId: targetSnapshot?.sourceMessageId,
+      swipeId: targetSnapshot?.sourceSwipeId || targetSnapshot?.effectiveSwipeId,
+      isolationKey
+    }, Array.isArray(tables) ? tables : []);
+    _getStateLog().info('slot 已镜像到 SQL', {
+      chatId: targetSnapshot?.chatId, messageId: targetSnapshot?.sourceMessageId, tableCount: tables?.length || 0
+    });
+  } catch (err) {
+    // 镜像失败不阻断主流程，仅记日志
+    _getStateLog().warn('SQL 镜像失败（不影响主流程）', { error: err?.message || String(err) });
+  }
+}
 
 function normalizeIdentityValue(value) {
   if (value === undefined || value === null) return '';
@@ -307,6 +342,9 @@ export async function commitBoundState(targetSnapshot, nextState, options = {}) 
 
   syncMessageToRuntimeChats(runtime, messageIndex, message);
   await persistChat(runtime);
+
+  // 议题 #15 Phase B：异步双写镜像到 SQL（不阻塞主流程），失败仅日志
+  _mirrorSlotToDataService(targetForCommit, iso, normalizedState?.tables || []).catch(() => {});
 
   return {
     success: true,

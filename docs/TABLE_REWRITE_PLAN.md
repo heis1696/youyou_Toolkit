@@ -267,7 +267,7 @@ Stage 4
 | D2 | v3 card-grid 方向不改 | UI agent 调研确认 shujuku 实际就是 card-grid |
 | D3 | 模板支持三模式 (inherit_global / chat_override / preset_link) + archives 最多 8 份 | shujuku 实际架构 |
 | D4 | DSL 语法按 shujuku 实际：tableIndex 整数 + 列索引字符串对象 | 议题 #15 文档语法描述错误 |
-| D5 | 不引入 SQLite Provider 改造数据层 | shujuku 切换隔离时整库销毁重建，不靠 SQL 隔离 |
+| D5 | **修订（v1.0.176 重新评估）**：表格数据接入 IToolDataProvider 双轨。原 D5 误读 shujuku 调研结论 — shujuku 不抄 5 张系统表 ≠ youyou 不接入 Provider。议题 #9 + #15 §J 原意：表格行数据走 IToolDataProvider（Authority SQLite 装了用 SQL / 没装走 Fallback JSON+迷你 SQL 解释器）。clean slate 不做旧 ChatMessage 数据迁移（议题 #15 §I 用户已确认无生产数据）。 | shujuku 1 表 + ChatMessage 字段方案虽稳定但绕开了议题 #9 双轨设计，Authority 用户装了用不上 |
 | D6 | 不抄 AI 改表助手 dock（议题 #15 已认） | 1063 行独立模块，初版不抄 |
 | D7 | 不抄 DDL / 索引列特锁 / 多 placement 配置 | 纪要表/SQLite 专用，youyou 不需要 |
 | D8 | 加全局注入 mode（v3 预览补） | 议题 #15 三模式之一，shujuku 实际内容很轻 |

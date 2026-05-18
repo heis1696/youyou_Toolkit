@@ -91,6 +91,18 @@ function _writeToStorage(chatId, scopedConfig) {
   const safeMap = isObject(map) ? map : {};
   safeMap[chatId] = scopedConfig;
   scopeStorage.set(SCOPE_MAP_KEY, safeMap);
+  // 议题 #15 Phase B：异步镜像到 SQL（不阻塞，失败仅日志）
+  _mirrorToDataService(chatId, scopedConfig).catch(() => {});
+}
+
+async function _mirrorToDataService(chatId, scopedConfig) {
+  try {
+    const mod = await import('./table-data-service.js');
+    await mod.ensureTableDataReady();
+    await mod.setChatScopeConfig(chatId, scopedConfig || {});
+  } catch (err) {
+    getLog().warn('chat-scope SQL 镜像失败（不影响主流程）', { error: err?.message || String(err) });
+  }
 }
 
 // ════════════════════════════════════════════════════════════════

@@ -74,6 +74,51 @@ function _setScopeMap(scopeKey, sheetMap) {
   const all = _readAllScopes();
   all[scopeKey] = sheetMap;
   _writeAllScopes(all);
+  // 议题 #15 Phase B：异步镜像到 SQL（不阻塞，失败仅日志）
+  _mirrorScopeToDataService(scopeKey, sheetMap).catch(() => {});
+}
+
+async function _mirrorScopeToDataService(scopeKey, sheetMap) {
+  try {
+    const { chatKey, isolationKey } = (() => {
+      const idx = String(scopeKey || '').indexOf('::');
+      if (idx === -1) return { chatKey: String(scopeKey || ''), isolationKey: '' };
+      return { chatKey: scopeKey.slice(0, idx), isolationKey: scopeKey.slice(idx + 2) };
+    })();
+    if (!chatKey) return;
+
+    const mod = await import('./table-data-service.js');
+    await mod.ensureTableDataReady();
+
+    // 先清掉该 scope 的旧 locks 再批量写入
+    await mod.clearScopeLocks({ chatId: chatKey, isolationKey });
+
+    for (const [sheetUid, lockState] of Object.entries(sheetMap || {})) {
+      if (!isObject(lockState)) continue;
+      const scope = { chatId: chatKey, isolationKey };
+
+      if (Array.isArray(lockState.rows)) {
+        for (const r of lockState.rows) {
+          if (Number.isFinite(r)) await mod.setLockEntry(scope, sheetUid, 'row', String(r));
+        }
+      }
+      if (Array.isArray(lockState.cols)) {
+        for (const c of lockState.cols) {
+          if (typeof c === 'string' && c) await mod.setLockEntry(scope, sheetUid, 'column', c);
+        }
+      }
+      if (Array.isArray(lockState.cells)) {
+        for (const cell of lockState.cells) {
+          if (typeof cell === 'string' && cell.includes(':')) await mod.setLockEntry(scope, sheetUid, 'cell', cell);
+        }
+      }
+      if (lockState.indexColumn === true) {
+        await mod.setLockEntry(scope, sheetUid, 'index_column', '');
+      }
+    }
+  } catch (err) {
+    getLog().warn('lock-service SQL 镜像失败（不影响主流程）', { error: err?.message || String(err) });
+  }
 }
 
 /**
