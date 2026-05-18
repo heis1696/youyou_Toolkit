@@ -712,11 +712,20 @@ async function runTableUpdate({
   const runScope = resolveTableRunScope(config.scope || config, scopeTables);
   getLog().info('runScope 已解析', {
     mode: runScope.mode,
+    requestedMode: runScope.requestedMode,
+    staleScope: runScope.staleScope,
     scopeTablesCount: Array.isArray(scopeTables) ? scopeTables.length : 0,
     allowedTableIds: runScope.allowedTableIds,
     allTableIds: runScope.allTableIds,
     scopeTablesEnabled: Array.isArray(scopeTables) ? scopeTables.map((t) => ({ id: t?.id, name: t?.name, enabled: t?.enabled })) : []
   });
+  if (runScope.staleScope) {
+    getLog().warn('runScope: 检测到 stale scope（activeTableId/selectedTableIds 不在当前 tables 范围内），已自动 fallback 到 enabled', {
+      requestedMode: runScope.requestedMode,
+      requestedActiveTableId: runScope.activeTableId,
+      requestedSelectedTableIds: runScope.selectedTableIds
+    });
+  }
   if ((runScope.mode === 'current' || runScope.mode === 'selected') && runScope.allowedTableIds.length === 0) {
     const scopeError = runScope.mode === 'current' ? '未指定当前表格，无法执行。' : '未选择任何表格，无法执行。';
     getLog().warn(scopeError, { mode: runScope.mode });

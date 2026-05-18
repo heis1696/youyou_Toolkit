@@ -44,12 +44,33 @@ export function resolveTableRunScope(config = {}, tables = []) {
   const normalized = normalizeRunScopeConfig(config, config?.scope || {});
   const sourceTables = Array.isArray(tables) ? tables : [];
   const allTableIds = sourceTables.map((table, index) => tableId(table, index));
-  let allowedTableIds = [];
+  const allTableIdSet = new Set(allTableIds);
 
-  if (normalized.mode === TABLE_RUN_SCOPE.CURRENT) {
+  // 议题 #15 #33-D：mode='current' 或 'selected' 但选中的 id 不在实际 tables 里
+  //   → fallback 到 'enabled'。
+  // 触发场景：用户切换激活模板（shujuku 模板）后，旧的 scope.activeTableId
+  //   (例如 'default_global_state') 依然存在，但实际表 id 已变成 sheet_xxx，
+  //   runScope.allowedTableIds 跟 allTableIds 没交集 → AI 填表全 droppedByScope。
+  let effectiveMode = normalized.mode;
+  let staleScope = false;
+  if (effectiveMode === TABLE_RUN_SCOPE.CURRENT) {
+    if (!normalized.activeTableId || !allTableIdSet.has(normalized.activeTableId)) {
+      effectiveMode = TABLE_RUN_SCOPE.ENABLED;
+      staleScope = true;
+    }
+  } else if (effectiveMode === TABLE_RUN_SCOPE.SELECTED) {
+    const validSelected = normalized.selectedTableIds.filter((id) => allTableIdSet.has(id));
+    if (validSelected.length === 0) {
+      effectiveMode = TABLE_RUN_SCOPE.ENABLED;
+      staleScope = true;
+    }
+  }
+
+  let allowedTableIds = [];
+  if (effectiveMode === TABLE_RUN_SCOPE.CURRENT) {
     allowedTableIds = normalized.activeTableId ? [normalized.activeTableId] : [];
-  } else if (normalized.mode === TABLE_RUN_SCOPE.SELECTED) {
-    allowedTableIds = normalized.selectedTableIds.filter((id) => allTableIds.includes(id));
+  } else if (effectiveMode === TABLE_RUN_SCOPE.SELECTED) {
+    allowedTableIds = normalized.selectedTableIds.filter((id) => allTableIdSet.has(id));
   } else {
     allowedTableIds = sourceTables
       .map((table, index) => ({ table, id: tableId(table, index) }))
@@ -61,6 +82,9 @@ export function resolveTableRunScope(config = {}, tables = []) {
 
   return {
     ...normalized,
+    mode: effectiveMode,
+    requestedMode: normalized.mode,
+    staleScope,
     allTableIds,
     allowedTableIds,
     allowedIdSet,
@@ -73,7 +97,9 @@ export function resolveTableRunScope(config = {}, tables = []) {
     },
     toJSON() {
       return {
-        mode: normalized.mode,
+        mode: effectiveMode,
+        requestedMode: normalized.mode,
+        staleScope,
         selectedTableIds: cloneTableValue(normalized.selectedTableIds),
         activeTableId: normalized.activeTableId,
         allowedTableIds: [...allowedTableIds]
