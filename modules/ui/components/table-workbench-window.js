@@ -581,7 +581,13 @@ function buildWorldbookSubZoneHtml(state) {
   const enabled = sync.enabled === true;
   if (!enabled) return '';
 
-  const targetBook = String(sync.targetBook || '');
+  // 议题 #15 #30 hotfix v1.0.177：targetBook 默认 = 当前角色卡绑定的 primary lorebook
+  // 没打开聊天时 select 禁用，提示用户先打开聊天
+  const userTargetBook = String(sync.targetBook || '');
+  const boundLorebook = String(state?.boundLorebook || '');
+  const chatOpen = state?.chatOpen === true;
+  const effectiveTargetBook = userTargetBook || boundLorebook;
+
   const availableBooks = Array.isArray(state.availableWorldbooks) ? state.availableWorldbooks : [];
   const wrapperCfg = sync.wrapperConfig || {};
   const wrapperEnabled = wrapperCfg.enabled !== false;
@@ -592,21 +598,33 @@ function buildWorldbookSubZoneHtml(state) {
   const depth = Number.isFinite(placement.depth) ? placement.depth : 2;
   const order = Number.isFinite(placement.order) ? placement.order : 50000;
 
-  const bookOptions = availableBooks.length === 0
-    ? `<option value="${esc(targetBook)}">${targetBook ? esc(targetBook) : '—— 未选择 ——'}</option>`
-    : (`<option value="">—— 选择 ——</option>` + availableBooks.map((b) => {
-        const name = typeof b === 'string' ? b : (b?.name || '');
-        return `<option value="${esc(name)}" ${name === targetBook ? 'selected' : ''}>${esc(name)}</option>`;
-      }).join(''));
+  let bookOptions;
+  if (!chatOpen) {
+    bookOptions = `<option value="">—— 请先打开聊天 ——</option>`;
+  } else if (availableBooks.length === 0) {
+    bookOptions = `<option value="${esc(effectiveTargetBook)}">${effectiveTargetBook ? esc(effectiveTargetBook) : '—— 角色卡未绑定世界书 ——'}</option>`;
+  } else {
+    const items = availableBooks.map((b) => {
+      const name = typeof b === 'string' ? b : (b?.name || '');
+      return `<option value="${esc(name)}" ${name === effectiveTargetBook ? 'selected' : ''}>${esc(name)}${name === boundLorebook ? '（角色卡绑定）' : ''}</option>`;
+    }).join('');
+    const placeholderOpt = boundLorebook
+      ? `<option value="">—— 角色卡绑定：${esc(boundLorebook)} ——</option>`
+      : `<option value="">—— 选择 ——</option>`;
+    bookOptions = placeholderOpt + items;
+  }
+
+  const selectDisabled = chatOpen ? '' : 'disabled';
+  const meta = chatOpen
+    ? `<a data-action="refresh-worldbooks">刷新列表</a>`
+    : `<span style="color:var(--tww-warning);">未打开聊天</span>`;
 
   return `
     <div class="yyt-tww-sub-zone" data-sub-zone="worldbookSync">
       <div class="yyt-tww-sub-row">
         <label>目标世界书</label>
-        <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookTargetBook">${bookOptions}</select>
-        <div class="yyt-tww-sub-meta">
-          <a data-action="refresh-worldbooks">刷新列表</a>
-        </div>
+        <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookTargetBook" ${selectDisabled}>${bookOptions}</select>
+        <div class="yyt-tww-sub-meta">${meta}</div>
       </div>
 
       <div class="yyt-tww-sub-row-toggle">
@@ -685,6 +703,8 @@ export function loadWorkbenchState() {
   const worldbookPresets = (() => { try { return worldbookStore.listPresets() || []; } catch (_) { return []; } })();
   const isolationKey = (() => { try { return tableIsolation.getKey(); } catch (_) { return ''; } })();
   const availableWorldbooks = loadAvailableWorldbooks();
+  const boundLorebook = loadCharacterBoundLorebook();
+  const chatOpen = isChatOpened();
 
   // 议题 #15 hotfix v1.0.174：tablesPreview 优先读当前 slot 实际表数据；
   // 没有 slot 数据时退回模板 schema（每行数都是 0，但至少表名能显示）
@@ -715,6 +735,8 @@ export function loadWorkbenchState() {
     regexPresets,
     worldbookPresets,
     availableWorldbooks,
+    boundLorebook,
+    chatOpen,
     isolationKey,
     tablesPreview
   };
@@ -741,6 +763,69 @@ function loadAvailableWorldbooks() {
     getLog().warn('loadAvailableWorldbooks 失败', err);
   }
   return [];
+}
+
+/**
+ * 议题 #15 #30 hotfix v1.0.177：拉取当前角色卡绑定的 primary lorebook
+ * 用作写回世界书 targetBook 的默认值。
+ */
+function loadCharacterBoundLorebook() {
+  try {
+    const win = globalThis.window || globalThis;
+    const helper = win?.TavernHelper || win?.parent?.TavernHelper;
+    if (helper) {
+      if (typeof helper.getCurrentCharPrimaryLorebook === 'function') {
+        const r = helper.getCurrentCharPrimaryLorebook();
+        if (typeof r === 'string' && r) return r;
+      }
+      if (typeof helper.getCharLorebooks === 'function') {
+        try {
+          const r = helper.getCharLorebooks();
+          if (r?.primary) return String(r.primary);
+        } catch (_) {}
+      }
+      if (typeof helper.getChatLorebook === 'function') {
+        try {
+          const r = helper.getChatLorebook();
+          if (typeof r === 'string' && r) return r;
+        } catch (_) {}
+      }
+    }
+    // SillyTavern context fallback
+    const ctx = win?.SillyTavern?.getContext?.() || win?.parent?.SillyTavern?.getContext?.();
+    if (ctx) {
+      const ch = ctx.characters?.[ctx.characterId];
+      const bookName = ch?.data?.character_book?.name
+        || ch?.data?.extensions?.world
+        || ch?.world;
+      if (typeof bookName === 'string' && bookName) return bookName;
+    }
+  } catch (err) {
+    getLog().warn('loadCharacterBoundLorebook 失败', err);
+  }
+  return '';
+}
+
+/**
+ * 议题 #15 #30 hotfix v1.0.177：判断当前是否打开了聊天
+ * 没开聊天时不应让用户选写回 targetBook（角色卡绑定还没确定）
+ */
+function isChatOpened() {
+  try {
+    const win = globalThis.window || globalThis;
+    const helper = win?.TavernHelper || win?.parent?.TavernHelper;
+    if (helper && typeof helper.getCurrentChatId === 'function') {
+      const id = helper.getCurrentChatId();
+      return !!(id && String(id).trim() && String(id).trim() !== 'default_chat');
+    }
+    const ctx = win?.SillyTavern?.getContext?.() || win?.parent?.SillyTavern?.getContext?.();
+    if (ctx) {
+      const chat = ctx.chat;
+      if (Array.isArray(chat) && chat.length > 0) return true;
+      if (ctx.chatId) return true;
+    }
+  } catch (_) { /* ignore */ }
+  return false;
 }
 
 // ────────────────────────────────────────────────────────────────
