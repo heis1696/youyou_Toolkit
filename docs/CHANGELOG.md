@@ -9,6 +9,22 @@
 
 ## [Unreleased]
 
+## [1.0.195] - 2026-05-18
+
+### 优化
+
+- **内置预设可编辑**：PresetManagerBase 面板（正则 / 世界书）的内置预设改为可编辑，但不允许删除和重命名。编辑内容以存储覆盖形式持久化，原始内置定义不受影响
+- **模板加载缓存**：`getAllTableTemplates()` 加 write-invalidate memoization，读命中缓存、写操作自动清缓存。消除了 `loadWorkbenchState()` / `resolveActiveTemplate()` 等热路径的重复全量 normalize（从单次渲染 3 轮降至 1 轮）
+
+### 修复
+
+- `getActiveGlobalTemplate()` 不再内部调 `getActiveGlobalTemplateId()` 重复遍历模板列表
+
+### 清理
+
+- 删除 `getTableWorkbenchBuiltinTemplates()` 死代码（无外部调用者）
+- `适配器命中` 和 `resolveActiveTemplate: inherit_global` 日志从 INFO 降为 DEBUG（正常运行不再刷屏）
+
 ## [1.0.193] - 2026-05-18
 
 ### 重构

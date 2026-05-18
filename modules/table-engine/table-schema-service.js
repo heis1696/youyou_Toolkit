@@ -837,10 +837,6 @@ export function parseTableWorkbenchTemplate(value) {
   return parseTableTemplateValue(value);
 }
 
-export function getTableWorkbenchBuiltinTemplates() {
-  return getAllTableTemplates();
-}
-
 export function getTableWorkbenchDefaultConfig() {
   return {
     tables: cloneTableValue(DEFAULT_TABLE_WORKBENCH_TABLES),
@@ -1172,7 +1168,6 @@ export default {
   compileTableDraftToTables,
   validateTableDraft,
   validateTableDraftDeep,
-  getTableWorkbenchBuiltinTemplates,
   parseTableWorkbenchTemplate,
   getTableWorkbenchDefaultConfig,
   normalizeTableWorkbenchConfig,

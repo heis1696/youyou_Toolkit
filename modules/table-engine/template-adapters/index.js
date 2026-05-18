@@ -76,7 +76,7 @@ export function importTemplateAuto(raw) {
     try {
       const parsed = importer.parse(raw);
       if (parsed && Array.isArray(parsed.tables)) {
-        getLog().info('适配器命中', {
+        getLog().debug('适配器命中', {
           formatId: importer.formatId,
           displayName: importer.displayName,
           tableCount: parsed.tables.length,

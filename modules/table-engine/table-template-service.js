@@ -92,6 +92,12 @@ function normalizeTemplate(value = {}) {
 // 全局模板库（旧 API，签名不动）
 // ════════════════════════════════════════════════════════════════
 
+let _allTemplatesCache = null;
+
+function invalidateTemplatesCache() {
+  _allTemplatesCache = null;
+}
+
 export function getBuiltinTableTemplates() {
   return [normalizeTemplate({
     id: DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID,
@@ -107,10 +113,12 @@ export function getUserTableTemplates() {
 }
 
 export function getAllTableTemplates() {
+  if (_allTemplatesCache) return _allTemplatesCache;
   const builtin = getBuiltinTableTemplates();
   const user = getUserTableTemplates();
   const ids = new Set(builtin.map(template => template.id));
-  return [...builtin, ...user.filter(template => !ids.has(template.id))];
+  _allTemplatesCache = Object.freeze([...builtin, ...user.filter(template => !ids.has(template.id))]);
+  return _allTemplatesCache;
 }
 
 export function getTableTemplate(templateId) {
@@ -130,6 +138,7 @@ export function saveTableTemplate(templateInput = {}) {
   const nextTemplates = userTemplates.filter(item => item.id !== template.id);
   nextTemplates.push(template);
   templateStorage.set(TEMPLATE_LIST_KEY, nextTemplates);
+  invalidateTemplatesCache();
   return { success: true, template };
 }
 
@@ -140,6 +149,7 @@ export function deleteTableTemplate(templateId) {
   }
   const nextTemplates = getUserTableTemplates().filter(template => template.id !== id);
   templateStorage.set(TEMPLATE_LIST_KEY, nextTemplates);
+  invalidateTemplatesCache();
   // 删除的若是当前激活模板，回退到默认
   if (getActiveGlobalTemplateId() === id) {
     setActiveGlobalTemplateId(DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID);
@@ -234,8 +244,11 @@ export function setActiveGlobalTemplateId(templateId) {
  * 读取当前激活的全局模板对象（保证返回非空）
  */
 export function getActiveGlobalTemplate() {
-  const id = getActiveGlobalTemplateId();
-  return getTableTemplate(id) || getBuiltinTableTemplates()[0];
+  const stored = templateStorage.get(ACTIVE_TEMPLATE_ID_KEY, '');
+  const id = normalizeString(stored, DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID);
+  const template = getTableTemplate(id);
+  if (template) return template;
+  return getBuiltinTableTemplates()[0];
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -287,7 +300,7 @@ export function resolveActiveTemplate({ chatId, isolationKey } = {}) {
   // 没有 chat 级 scope state → inherit_global
   if (!scopeState || scopeState.mode === TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL) {
     const template = getActiveGlobalTemplate();
-    getLog().info('resolveActiveTemplate: inherit_global', {
+    getLog().debug('resolveActiveTemplate: inherit_global', {
       chatId, isolationKey: iso,
       templateId: template?.id || '',
       templateName: template?.name || '',
