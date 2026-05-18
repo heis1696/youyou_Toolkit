@@ -77,21 +77,30 @@ function formatTableMarkdown(table) {
 }
 
 function mergeTablesWithSchema(runtimeTables, configTables) {
-  if (!Array.isArray(runtimeTables) || runtimeTables.length === 0) return configTables || [];
-  if (!Array.isArray(configTables) || configTables.length === 0) return runtimeTables;
+  // 议题 #15 Bug #33-F：旧实现按 index 拿 configTables 的 columns 替换 runtime columns，
+  //   但激活模板切换后 configTables（=config.tables 旧快照）的 schema 跟 runtime 的 row.cells.key
+  //   完全错位（同 #33-B/C 模式但漏修了 worldbook-sync 这层）。
+  //
+  // 新实现：直接用 runtime tables（applyIncrementalEdits 后已包含正确 columns + rows）。
+  //   按表 id 匹配 configTables，仅在 runtime 缺 exportConfig 等 worldbook 元数据时回填。
+  //   不再用 configTables 的 columns 覆盖 runtime columns（这正是 row.cells 显示空的根因）。
+  if (!Array.isArray(runtimeTables) || runtimeTables.length === 0) return [];
 
-  return configTables.map((schema, index) => {
-    const runtime = runtimeTables[index];
-    if (!runtime) return schema;
+  const schemaById = new Map();
+  if (Array.isArray(configTables)) {
+    for (const schema of configTables) {
+      const id = schema?.id || schema?.key;
+      if (id) schemaById.set(id, schema);
+    }
+  }
+
+  return runtimeTables.map((runtime) => {
+    const matchedSchema = runtime?.id ? schemaById.get(runtime.id) : null;
     return {
-      ...schema,
-      name: schema.name || runtime.name || '',
-      columns: Array.isArray(schema.columns) && schema.columns.length > 0
-        ? schema.columns
-        : (Array.isArray(runtime.columns) ? runtime.columns : []),
-      rows: Array.isArray(runtime.rows) ? runtime.rows : (Array.isArray(schema.rows) ? schema.rows : []),
-      enabled: runtime.enabled !== undefined ? runtime.enabled : schema.enabled,
-      exportConfig: schema.exportConfig || runtime.exportConfig || { enabled: false }
+      ...runtime,
+      // runtime 优先，schema 仅回填 exportConfig 等 worldbook 元数据
+      exportConfig: runtime?.exportConfig || matchedSchema?.exportConfig || { enabled: false },
+      enabled: runtime?.enabled !== false
     };
   });
 }

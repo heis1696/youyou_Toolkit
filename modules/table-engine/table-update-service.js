@@ -414,6 +414,23 @@ export function applyIncrementalEdits(tables, edits, locks, runScope = null) {
   const lockMap = locks || {};
   const keyResolveStats = { direct: 0, index: 0, col_n: 0, fallback: 0 };
 
+  // 议题 #15 Bug #33-F：诊断 edits 在表间分布，定位"只第一张表有数据"类型问题
+  const editsByTable = {};
+  const editsByOp = {};
+  if (Array.isArray(edits)) {
+    for (const e of edits) {
+      const ti = Number.isFinite(e?.tableIndex) ? e.tableIndex : -1;
+      editsByTable[ti] = (editsByTable[ti] || 0) + 1;
+      editsByOp[e?.op || 'unknown'] = (editsByOp[e?.op || 'unknown'] || 0) + 1;
+    }
+  }
+  getLog().info('applyIncrementalEdits 总览', {
+    totalEdits: edits?.length || 0,
+    tableCount: result.length,
+    editsByTable,
+    editsByOp
+  });
+
   for (const edit of edits) {
     const ti = edit.tableIndex;
     if (ti < 0 || ti >= result.length) continue;
