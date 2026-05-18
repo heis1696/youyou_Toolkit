@@ -1,6 +1,16 @@
 /**
  * YouYou Toolkit - 填表世界书同步服务
- * @description 将填表结果同步为多条世界书条目：Wrapper 包裹 + 每表独立条目 + Order 分配
+ *
+ * 议题 #15 #19 + 议题 #15 §F A2 修复（v1.0.169+）：
+ *   - 条目 comment 前缀升级为 [YY:chatId=${normalized_id}] 严格边界格式
+ *   - sync 时严格 WHERE：只操作前缀属于当前 chatId 的条目，不污染其他 chat
+ *   - 加 isOwnedByChat helper 防误伤
+ *
+ * Comment 格式约定：
+ *   `YYT-[YY:chatId=${normalized}]-${tableName|Wrapper-Start|Wrapper-End|全局数据}`
+ *   normalized = chatId 去掉 \[\]= 等可能干扰边界的字符
+ *
+ * 旧前缀（`YYT-[${chatId}]-`）保持识别能力（向后兼容存量数据），但新建只写新格式。
  */
 
 import { getTopWindow } from '../tool-execution-context.js';
@@ -11,11 +21,20 @@ import { normalizePosition, applyPlacementToEntry } from './table-worldbook-plac
 const log = logger.createScope('TableWorldbookSync');
 
 const COMMENT_PREFIX = 'YYT-';
+const CHAT_ID_TAG_START = '[YY:chatId=';
+const CHAT_ID_TAG_END = ']';
 
 function normalizeString(value, fallback = '') {
   if (value === undefined || value === null) return fallback;
   const normalized = String(value).trim();
   return normalized || fallback;
+}
+
+/**
+ * 规范化 chatId，去掉可能干扰边界匹配的字符
+ */
+function normalizeChatIdForComment(chatId) {
+  return normalizeString(chatId, 'default_chat').replace(/[\[\]=]/g, '_');
 }
 
 function resolveCurrentChatId() {
@@ -77,8 +96,39 @@ function mergeTablesWithSchema(runtimeTables, configTables) {
   });
 }
 
+// ────────────────────────────────────────────────────────────────
+// Comment 前缀（新格式 + 旧格式向后兼容识别）
+// ────────────────────────────────────────────────────────────────
+
 function buildChatPrefix(chatId) {
-  return `${COMMENT_PREFIX}[${chatId}]-`;
+  // 新格式：YYT-[YY:chatId=xxx]-
+  return `${COMMENT_PREFIX}${CHAT_ID_TAG_START}${normalizeChatIdForComment(chatId)}${CHAT_ID_TAG_END}-`;
+}
+
+function buildLegacyChatPrefix(chatId) {
+  // 旧格式：YYT-[chatId]- （v1.0.168 及以下版本写入）
+  return `${COMMENT_PREFIX}[${normalizeString(chatId, 'default_chat')}]-`;
+}
+
+/**
+ * 判断 comment 是否属于指定 chatId（识别新旧两种格式）
+ * 议题 #15 A2 修复核心 helper：sync 时只动属于自己 chat 的条目，不误伤其他 chat。
+ */
+function isOwnedByChat(comment, chatId) {
+  if (!comment || typeof comment !== 'string') return false;
+  const newPrefix = buildChatPrefix(chatId);
+  if (comment.startsWith(newPrefix)) return true;
+  const legacyPrefix = buildLegacyChatPrefix(chatId);
+  if (comment.startsWith(legacyPrefix)) return true;
+  return false;
+}
+
+/**
+ * 过滤出属于指定 chatId 的 entries
+ */
+function filterEntriesByChat(entries, chatId) {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter((e) => isOwnedByChat(e?.comment, chatId));
 }
 
 function buildEntryComment(chatId, tableName) {
@@ -101,8 +151,13 @@ function needsUpdate(existing, desired) {
     || existing.order !== desired.order;
 }
 
-async function upsertEntry(helper, targetBook, entries, comment, entryData, usedOrders) {
+async function upsertEntry(helper, targetBook, entries, comment, entryData, usedOrders, chatId) {
+  // 议题 #15 A2 关键防御：upsert 前再次校验 entry 属于当前 chat（防止 comment hash 冲突跨 chat 误更新）
   const existing = entries.find(e => e.comment === comment);
+  if (existing && chatId && !isOwnedByChat(existing.comment, chatId)) {
+    log.warn(`upsert 跳过：现有条目 comment "${comment}" 不属于当前 chat`, { chatId });
+    return { action: 'skipped', comment, reason: 'cross_chat_collision' };
+  }
 
   if (existing && existing.uid) {
     if (!needsUpdate(existing, entryData)) {
@@ -193,7 +248,7 @@ export async function syncTablesToWorldbook(tables, config) {
           order: blockBase,
           prevent_recursion: true
         }, { position: wrapperPos, depth: wrapperDepth })
-      , usedOrders));
+      , usedOrders, chatId));
 
       // Global Readable (only if there are tables without custom export)
       if (globalReadableContent) {
@@ -206,7 +261,7 @@ export async function syncTablesToWorldbook(tables, config) {
             order: blockBase + 1,
             prevent_recursion: true
           }, { position: wrapperPos, depth: wrapperDepth })
-        , usedOrders));
+        , usedOrders, chatId));
       }
 
       // WrapperEnd
@@ -219,7 +274,7 @@ export async function syncTablesToWorldbook(tables, config) {
           order: blockBase + 2,
           prevent_recursion: true
         }, { position: wrapperPos, depth: wrapperDepth })
-      , usedOrders));
+      , usedOrders, chatId));
 
     } else if (globalReadableContent) {
       // No wrapper — write a single global entry
@@ -234,7 +289,7 @@ export async function syncTablesToWorldbook(tables, config) {
           order,
           prevent_recursion: true
         }
-      , usedOrders));
+      , usedOrders, chatId));
     }
 
     // 2. Per-table custom entries
@@ -259,13 +314,13 @@ export async function syncTablesToWorldbook(tables, config) {
           order,
           prevent_recursion: ec.preventRecursion !== false
         }, { position: pos, depth: placement.depth || 2 })
-      , usedOrders));
+      , usedOrders, chatId));
     }
 
-    // 3. Cleanup stale entries — only for this chat
+    // 3. Cleanup stale entries — only for this chat (议题 #15 A2：用 isOwnedByChat 识别新旧两种前缀格式)
     const desiredComments = new Set(results.map(r => r.comment).filter(Boolean));
     const staleEntries = entries.filter(e => {
-      if (!e.comment || !e.comment.startsWith(chatPrefix)) return false;
+      if (!e.comment || !isOwnedByChat(e.comment, chatId)) return false;
       return !desiredComments.has(e.comment);
     });
     if (staleEntries.length > 0) {

@@ -1,19 +1,47 @@
 /**
  * YouYou Toolkit - 填表模板服务
- * @description 管理 tableWorkbench 的全局结构模板库
+ *
+ * 议题 #15 修订版（v1.0.169）：
+ *   - 保留原有"全局模板库"职责（库 CRUD + import/export）
+ *   - 新增"当前激活全局模板"概念
+ *   - 新增三模式解析：inherit_global / chat_override / preset_link
+ *   - 与 table-chat-scope-service / table-isolation-service 接合
+ *
+ * 全局模板库（旧 API，不动）：
+ *   - getAllTableTemplates / getTableTemplate / saveTableTemplate / ...
+ *
+ * 当前激活全局模板（新）：
+ *   storage `tableWorkbenchTemplates.activeId` = templateId
+ *
+ * 三模式解析（新）：
+ *   resolveActiveTemplate({chatId?, isolationKey?}) → { template, mode, source }
+ *     按 chat-scope-service 读 chat 级覆盖：
+ *       null / inherit_global → 用全局 activeId 模板
+ *       chat_override         → templateStr 反序列化
+ *       preset_link           → presetName 查全局库
  */
 
 import { storage } from '../core/storage-service.js';
+import { logger } from '../core/logger-service.js';
 import {
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID,
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_NAME,
   DEFAULT_TABLE_WORKBENCH_TABLES,
   validateTableDraftDeep
 } from './table-schema-service.js';
-import { cloneTableValue } from './table-types.js';
+import { cloneTableValue, TABLE_TEMPLATE_SCOPE_MODE } from './table-types.js';
+import { tableChatScope } from './table-chat-scope-service.js';
+import { tableIsolation } from './table-isolation-service.js';
 
 const templateStorage = storage.namespace('tableWorkbenchTemplates');
 const TEMPLATE_LIST_KEY = 'templates';
+const ACTIVE_TEMPLATE_ID_KEY = 'activeId';
+
+let _log;
+function getLog() {
+  if (!_log) _log = logger.createScope('TableTemplate');
+  return _log;
+}
 
 function normalizeString(value, fallback = '') {
   if (value === undefined || value === null) return fallback;
@@ -39,6 +67,10 @@ function normalizeTemplate(value = {}) {
     updatedAt: normalizeString(value.updatedAt, new Date().toISOString())
   };
 }
+
+// ════════════════════════════════════════════════════════════════
+// 全局模板库（旧 API，签名不动）
+// ════════════════════════════════════════════════════════════════
 
 export function getBuiltinTableTemplates() {
   return [normalizeTemplate({
@@ -88,6 +120,10 @@ export function deleteTableTemplate(templateId) {
   }
   const nextTemplates = getUserTableTemplates().filter(template => template.id !== id);
   templateStorage.set(TEMPLATE_LIST_KEY, nextTemplates);
+  // 删除的若是当前激活模板，回退到默认
+  if (getActiveGlobalTemplateId() === id) {
+    setActiveGlobalTemplateId(DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID);
+  }
   return { success: true };
 }
 
@@ -139,7 +175,248 @@ export function importTemplates(payload, { overwrite = false } = {}) {
   return { success: true, imported, skipped, errors };
 }
 
+// ════════════════════════════════════════════════════════════════
+// 当前激活全局模板（议题 #15 新增）
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * 读取当前激活的全局模板 ID
+ * 若未设置则返回 DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID
+ */
+export function getActiveGlobalTemplateId() {
+  const stored = templateStorage.get(ACTIVE_TEMPLATE_ID_KEY, '');
+  const id = normalizeString(stored, DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID);
+  // 校验该 ID 仍存在；不存在则回退到默认
+  const template = getTableTemplate(id);
+  return template ? id : DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID;
+}
+
+/**
+ * 设置当前激活全局模板
+ */
+export function setActiveGlobalTemplateId(templateId) {
+  const id = normalizeString(templateId, DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID);
+  templateStorage.set(ACTIVE_TEMPLATE_ID_KEY, id);
+  getLog().info('全局激活模板已切换', { templateId: id });
+  return id;
+}
+
+/**
+ * 读取当前激活的全局模板对象（保证返回非空）
+ */
+export function getActiveGlobalTemplate() {
+  const id = getActiveGlobalTemplateId();
+  return getTableTemplate(id) || getBuiltinTableTemplates()[0];
+}
+
+// ════════════════════════════════════════════════════════════════
+// 模板三模式解析（议题 #15 §A D3）
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * 把模板对象序列化为字符串（chat_override 模式用）
+ */
+function templateToString(template) {
+  try {
+    return JSON.stringify(template);
+  } catch (err) {
+    getLog().error('templateToString 失败', err);
+    return '';
+  }
+}
+
+/**
+ * 从字符串反序列化为模板对象
+ */
+function templateFromString(str) {
+  if (!str || typeof str !== 'string') return null;
+  try {
+    const parsed = JSON.parse(str);
+    return normalizeTemplate(parsed);
+  } catch (err) {
+    getLog().warn('templateFromString 反序列化失败', err);
+    return null;
+  }
+}
+
+/**
+ * 解析当前生效的模板（按 chat × isolationKey × scope-mode 三模式）
+ *
+ * @param {Object} [opts]
+ * @param {string} [opts.chatId]
+ * @param {string} [opts.isolationKey]
+ * @returns {{
+ *   template: Object,
+ *   mode: string,
+ *   source: { templateId?: string, presetName?: string, fromArchive?: boolean }
+ * }}
+ */
+export function resolveActiveTemplate({ chatId, isolationKey } = {}) {
+  const iso = isolationKey === undefined ? tableIsolation.getKey() : isolationKey;
+  const scopeState = tableChatScope.getTemplateScope(iso, chatId);
+
+  // 没有 chat 级 scope state → inherit_global
+  if (!scopeState || scopeState.mode === TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL) {
+    const template = getActiveGlobalTemplate();
+    return {
+      template,
+      mode: TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL,
+      source: { templateId: template?.id || '' }
+    };
+  }
+
+  // chat_override → templateStr 反序列化
+  if (scopeState.mode === TABLE_TEMPLATE_SCOPE_MODE.CHAT_OVERRIDE) {
+    const template = templateFromString(scopeState.templateStr);
+    if (template) {
+      return {
+        template,
+        mode: TABLE_TEMPLATE_SCOPE_MODE.CHAT_OVERRIDE,
+        source: {}
+      };
+    }
+    // 反序列化失败 → 降级到 inherit_global
+    getLog().warn('chat_override templateStr 反序列化失败，降级到 inherit_global');
+    const fallback = getActiveGlobalTemplate();
+    return {
+      template: fallback,
+      mode: TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL,
+      source: { templateId: fallback?.id || '', fallback: true }
+    };
+  }
+
+  // preset_link → 查全局库
+  if (scopeState.mode === TABLE_TEMPLATE_SCOPE_MODE.PRESET_LINK) {
+    const presetName = scopeState.presetName || '';
+    // preset_link 用 presetName 索引全局库（shujuku 风格用 name 而非 id）
+    const all = getAllTableTemplates();
+    const found = all.find((t) => t.name === presetName) || all.find((t) => t.id === presetName);
+    if (found) {
+      return {
+        template: found,
+        mode: TABLE_TEMPLATE_SCOPE_MODE.PRESET_LINK,
+        source: { presetName, templateId: found.id }
+      };
+    }
+    // preset 已删除 → 降级
+    getLog().warn('preset_link 指向的全局预设不存在，降级到 inherit_global', { presetName });
+    const fallback = getActiveGlobalTemplate();
+    return {
+      template: fallback,
+      mode: TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL,
+      source: { templateId: fallback?.id || '', presetName, fallback: true }
+    };
+  }
+
+  // 未知 mode → inherit_global
+  const fallback = getActiveGlobalTemplate();
+  return {
+    template: fallback,
+    mode: TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL,
+    source: { templateId: fallback?.id || '', unknownMode: scopeState.mode }
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+// chat 级操作（议题 #15 新增）
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * 把一个模板存为 chat 局部 override
+ * 归档当前状态（如果有）后再覆盖
+ *
+ * @param {Object} template - 完整模板对象
+ * @param {Object} [opts] - { chatId?, isolationKey?, source? }
+ */
+export function applyTemplateAsChatOverride(template, opts = {}) {
+  if (!template || typeof template !== 'object') {
+    return { success: false, error: '模板不能为空' };
+  }
+  const normalized = normalizeTemplate(template);
+  const iso = opts.isolationKey === undefined ? tableIsolation.getKey() : opts.isolationKey;
+
+  // 先归档当前（若有）
+  tableChatScope.archiveCurrentTemplate(iso, opts.chatId);
+
+  const result = tableChatScope.setTemplateScope({
+    mode: TABLE_TEMPLATE_SCOPE_MODE.CHAT_OVERRIDE,
+    templateStr: templateToString(normalized),
+    source: opts.source || 'ui'
+  }, iso, opts.chatId);
+
+  getLog().info('applyTemplateAsChatOverride', { chatId: opts.chatId, isolationKey: iso, templateName: normalized.name });
+  return { success: true, scopeState: result };
+}
+
+/**
+ * 把当前 chat 链接到一个全局预设
+ *
+ * @param {string} presetNameOrId - 全局预设名或 ID
+ * @param {Object} [opts] - { chatId?, isolationKey?, source? }
+ */
+export function linkPresetToChat(presetNameOrId, opts = {}) {
+  const presetName = normalizeString(presetNameOrId, '');
+  if (!presetName) return { success: false, error: 'presetName 不能为空' };
+
+  // 校验预设存在
+  const all = getAllTableTemplates();
+  const found = all.find((t) => t.name === presetName) || all.find((t) => t.id === presetName);
+  if (!found) return { success: false, error: '找不到指定的全局预设' };
+
+  const iso = opts.isolationKey === undefined ? tableIsolation.getKey() : opts.isolationKey;
+
+  // 先归档当前（若有）
+  tableChatScope.archiveCurrentTemplate(iso, opts.chatId);
+
+  const result = tableChatScope.setTemplateScope({
+    mode: TABLE_TEMPLATE_SCOPE_MODE.PRESET_LINK,
+    presetName: found.name,  // 用 name 索引（shujuku 风格）
+    source: opts.source || 'ui'
+  }, iso, opts.chatId);
+
+  getLog().info('linkPresetToChat', { chatId: opts.chatId, isolationKey: iso, presetName: found.name });
+  return { success: true, scopeState: result };
+}
+
+/**
+ * 重置当前 chat × isolationKey 的模板作用域（回到 inherit_global）
+ *
+ * @param {Object} [opts] - { chatId?, isolationKey?, archive?: 是否先归档当前 }
+ */
+export function resetChatTemplateScope(opts = {}) {
+  const iso = opts.isolationKey === undefined ? tableIsolation.getKey() : opts.isolationKey;
+  if (opts.archive !== false) {
+    tableChatScope.archiveCurrentTemplate(iso, opts.chatId);
+  }
+  tableChatScope.clearTemplateScope(iso, opts.chatId);
+  getLog().info('resetChatTemplateScope', { chatId: opts.chatId, isolationKey: iso });
+  return { success: true };
+}
+
+/**
+ * 列出当前 chat × isolationKey 的模板归档
+ * （转发给 chat-scope-service 便于上层统一调用）
+ */
+export function listChatTemplateArchives(opts = {}) {
+  const iso = opts.isolationKey === undefined ? tableIsolation.getKey() : opts.isolationKey;
+  return tableChatScope.listTemplateArchives(iso, opts.chatId);
+}
+
+/**
+ * 从归档恢复模板状态
+ */
+export function restoreChatTemplateArchive(index, opts = {}) {
+  const iso = opts.isolationKey === undefined ? tableIsolation.getKey() : opts.isolationKey;
+  const restored = tableChatScope.restoreTemplateArchive(index, iso, opts.chatId);
+  return restored ? { success: true, scopeState: restored } : { success: false, error: '归档不存在' };
+}
+
+// ════════════════════════════════════════════════════════════════
+// Default export — 保留旧 API + 加入新 API
+// ════════════════════════════════════════════════════════════════
+
 export default {
+  // 全局模板库（旧）
   getBuiltinTableTemplates,
   getUserTableTemplates,
   getAllTableTemplates,
@@ -148,5 +425,20 @@ export default {
   deleteTableTemplate,
   renameTableTemplate,
   exportUserTemplates,
-  importTemplates
+  importTemplates,
+
+  // 当前激活全局模板（新）
+  getActiveGlobalTemplateId,
+  setActiveGlobalTemplateId,
+  getActiveGlobalTemplate,
+
+  // 三模式解析（新）
+  resolveActiveTemplate,
+
+  // chat 级操作（新）
+  applyTemplateAsChatOverride,
+  linkPresetToChat,
+  resetChatTemplateScope,
+  listChatTemplateArchives,
+  restoreChatTemplateArchive
 };

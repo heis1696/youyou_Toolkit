@@ -20,7 +20,8 @@ import { resolveTableTargetFromExecutionContext } from './table-target-resolver.
 import {
   getAssistantTableSnapshot,
   loadBoundStateOrTemplate,
-  recordResolvedTarget
+  recordResolvedTarget,
+  clearStateAtMessageIndex
 } from './table-state-service.js';
 import {
   buildTableWorkbenchToolConfig,
@@ -597,10 +598,11 @@ function resolveAutoAbortState(autoMeta = null) {
   return false;
 }
 
-export async function runManualTableUpdate(configInput = null) {
+export async function runManualTableUpdate(configInput = null, options = {}) {
   return runTableUpdate({
     configInput,
     runSource: TABLE_RUN_SOURCES.MANUAL,
+    clearBeforeUpdate: options?.clearBeforeUpdate === true,
     executionContextBuilder: () => buildExecutionContextForLatestAssistant({
       runSource: TABLE_RUN_SOURCES.MANUAL
     }),
@@ -644,7 +646,8 @@ async function runTableUpdate({
   runSource = TABLE_RUN_SOURCES.MANUAL,
   executionContextBuilder,
   targetResolver,
-  autoMeta = null
+  autoMeta = null,
+  clearBeforeUpdate = false
 } = {}) {
   const config = normalizeTableWorkbenchConfig(configInput || getTableWorkbenchConfig());
   const validation = validateTableWorkbenchConfig(config);
@@ -798,6 +801,24 @@ async function runTableUpdate({
     const resolvedResult = await recordResolvedTarget(targetSnapshot);
     if (!resolvedResult?.success) {
       throw new Error(resolvedResult?.error || '目标解析记录失败');
+    }
+
+    // 议题 #15 #23：clearBeforeUpdate 重填三段式
+    //   shujuku update-orchestrator clearTableDataAtFloors → loadAllChatMessages → refreshData
+    //   1. 清空目标楼层数据（state + bindings）
+    //   2. state-service 内部下次 getMessageForTarget 时自动重读最新 chat（runtime.chat 引用始终最新）
+    //   3. 后续 loadBoundStateOrTemplate 会按倒序遍历找前驱（history-service 处理）
+    if (clearBeforeUpdate && Number.isFinite(targetSnapshot?.targetMessageIndex) && targetSnapshot.targetMessageIndex >= 0) {
+      getLog().info('clearBeforeUpdate 启用，清空目标楼层数据', {
+        targetMessageIndex: targetSnapshot.targetMessageIndex
+      });
+      try {
+        const clearResult = await clearStateAtMessageIndex(targetSnapshot.targetMessageIndex);
+        getLog().info('clearBeforeUpdate 完成', clearResult);
+      } catch (err) {
+        getLog().error('clearBeforeUpdate 失败', err);
+        // 不阻断主流程，让填表继续尝试（最差情况就是叠加在旧数据上）
+      }
     }
 
     const assistantSnapshot = getAssistantTableSnapshot(targetSnapshot.sourceMessageId);
