@@ -1319,6 +1319,9 @@ function bindEditorEvents($window) {
           _state.tempData = cloneTableValue(result.state.tables) || [];
           _state.isFromTemplate = false;
         }
+        // v1.0.204 修复：save-chat 后清除 _afterSaveGlobalAt 标志，让 reload 重新读 slot
+        //   （v1.0.203 加的 5 分钟窗口期会让 save-chat 后的 reload 仍然读模板，覆盖 slot 数据）
+        _state._afterSaveGlobalAt = 0;
         showToast('success', '已保存到 chat');
         refresh();
       } else {
