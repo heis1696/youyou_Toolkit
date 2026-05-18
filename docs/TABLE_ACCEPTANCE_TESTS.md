@@ -372,7 +372,176 @@ chat-α 把表格数据同步到 worldbook 后，切换到 chat-β 再触发同�
 > 重写过程中若发现本文档 4 节未覆盖的新 bug，**追加到本节而非另起文档**。
 > 追加格式参考第 4 节的 7 项结构。
 
-### N1 — 模板（待填写）
+### N1 — 工作台从浮窗回归 popup tab（v1.0.171 修复）
+
+**现象描述**：v1.0.170 把工作台改成了独立浮窗，但 preview 设计是 popup tab 内联。
+
+**复现步骤**：打开工作台 → 看到独立浮窗而非 popup tab 内嵌区域。
+
+**问题根因**：preview HTML 里 `.win` 容器被误读为浮窗，实际是 popup tab 内的展示区。
+
+**修复**：`table-workbench-panel.js` 从 1441 行 launcher 改为 popup tab 直接渲染工作台。
+
+**Sign-off 状态**: ☑ Verified (v1.0.171)
+
+---
+
+### N2 — 工具配置面板 chips 全丢（v1.0.172 修复）
+
+**现象描述**：v1.0.171 后所有工具的配置面板 chips（操作按钮、状态标签等）渲染丢失。
+
+**问题根因**：旧 1441 行 panel 顶部 import `TOOL_CONFIG_PANEL_STYLES` 并 `getStyles()` 注入；瘦身重写时丢了这个 CSS 注入路径。
+
+**修复**：`tool-config-panel-factory.js` 的 `getStyles()` 返回 `TOOL_CONFIG_PANEL_STYLES`。
+
+**Sign-off 状态**: ☑ Verified (v1.0.172)
+
+---
+
+### N3 — 工作台下拉框白底白字（v1.0.173 修复）
+
+**现象描述**：工作台 select 控件白底白字看不清。
+
+**问题根因**：`.yyt-tww-ctrl` 没 `!important` 被全局 select reset 覆盖；`.yyt-tww` 自带 background 跟父容器冲突。
+
+**修复**：换用 `yyt-select` 预制体（有 !important 防御）。
+
+**Sign-off 状态**: ☑ Verified (v1.0.173)
+
+---
+
+### N4 — 表格概览行数永远是 0（v1.0.174 修复）
+
+**现象描述**：工作台表格概览中所有表的行数显示 0，即使 AI 填表成功。
+
+**问题根因**：`tablesPreview` 读模板 schema 的 rows（永远空）而非 slot 实际 runtime tables。
+
+**修复**：优先读 `getAssistantTableSnapshot().tableState.tables`，没有时退回模板 schema。
+
+**Sign-off 状态**: ☑ Verified (v1.0.174)
+
+---
+
+### N5 — AI 填表成功但表格无数据 + 世界书无条目（v1.0.175 修复）
+
+**现象描述**：AI 调用成功且响应正常，但表格数据为空，世界书也没生成条目。
+
+**问题根因**：`sanitizeAIResponse` 把 `{tables:[...]}` envelope 当作 tables 字段嵌套传递，`normalizeRuntimeTables` 收对象返回空数组 → slot 被覆盖成空。
+
+**修复**：sanitizer unwrap envelope 一层，取 `{tables: [...]}` 的数组出来。
+
+**Sign-off 状态**: ☑ Verified (v1.0.175)
+
+---
+
+### N6 — 写回世界书 targetBook 让用户手选（v1.0.177 修复）
+
+**现象描述**：开启「同步到世界书」时，targetBook select 列出所有 lorebook，没有默认值。
+
+**问题根因**：缺角色卡 primary lorebook 默认逻辑；没区分聊天是否打开。
+
+**修复**：`loadCharacterBoundLorebook()` + `isChatOpened()` helper。
+
+**Sign-off 状态**: ☑ Verified (v1.0.177)
+
+---
+
+### N7 — 绑定区切换后切回工作台回到默认值（v1.0.178 修复）
+
+**现象描述**：绑定区改了配置（除填表模板和 API 预设外），切到其它界面再切回工作台，绑定都变回默认值。
+
+**问题根因**：`normalizeTableWorkbenchConfig` 白名单丢 5 类字段：
+- `bypassPresetId`（normalize 期望 `bypass.presetId`）
+- `automation.enabled`（normalize 用 `autoUpdateEnabled`）
+- `extraction.regexPresetId`（完全不接收）
+- `worldbooks.presetId`（只接收 enabled/selected）
+- `worldbookSync.wrapperConfig.*`（normalize 把 wrapperConfig 放顶层）
+
+**修复**：双向兼容 — schema-service 接收新旧路径，UI 写入走 normalize 后标准。
+
+**Sign-off 状态**: ☑ Verified (v1.0.178)
+
+---
+
+### N8 — 数据编辑器窗口创建后不可见（v1.0.179 修复）
+
+**现象描述**：点击「打开数据编辑器」诊断显示创建成功（`createWindow returned: true`、`onReady triggered`、DOM 在 body 里），但 `offsetParent: null` + `clientHeight: 0`。
+
+**问题根因**：`window-manager.createWindow` 用 `document.body / document.head`，但 SillyTavern iframe 嵌套环境下模块代码的 `document` 是 iframe 自己的（隐藏），UI 在 `window.parent.document`。CSS 和元素都被附加到隐藏的 iframe document。
+
+**修复**：用 `getTargetDocument()` helper（popup-shell 同模式）；CSS 注入和元素 append 都到 top document。
+
+**Sign-off 状态**: ☑ Verified (v1.0.179)
+
+---
+
+### N9 — 数据编辑器三 mode 内容相同（v1.0.180 修复）
+
+**现象描述**：data / schema / global 三 tab 显示内容完全相同（都是「当前 slot 没有表格数据」）。
+
+**问题根因**：`renderMainPane` 第一段 `if (tables.length === 0)` 不区分 mode 直接 return 空提示。
+
+**修复**：(1) `loadEditorData` slot 空时调 `resolveActiveTemplate` 拿模板 tables 作 fallback；(2) `renderMainPane` 区分 mode — global 永远渲染，data/schema 才需要 tables；(3) data mode 在 fromTemplate 时显示提示条。
+
+**Sign-off 状态**: ☑ Verified (v1.0.180)
+
+---
+
+### N10 — Bug #33 系列：shujuku 模板无法填表（v1.0.181-190 8 个子修复闭环）
+
+**现象描述**：用户导入 shujuku 模板（`TavernDB_template_默认.json`）后：
+1. 表格预览能看到 6 张表
+2. 但 AI 填表始终失败，数据不写入
+3. 默认模板表现也异常（只第一张表有数据）
+
+**问题根因**（8 层连锁）：
+
+| 子修复 | 版本 | 根因 |
+|---|---|---|
+| #33-A | 181 | `normalizeTemplate` 不识别 shujuku `{mate, sheet_x}` 格式 |
+| #33-B | 182 | `templateTables` 用 `config.tables` 旧快照，激活模板切换不同步 |
+| #33-C | 183 | `runScope` 也用 `config.tables` 解析，跟 previousTables（激活模板）id 不重合 |
+| #33-D | 185 | `mode='current'` + `activeTableId` 是旧表 id 时 runScope 卡死，需要 stale fallback |
+| #33-E | 186 | 列 key 风格不统一（shujuku 用 `col`/`col_2`，youyou 用 `name`/`gender_age`），AI 一种 prompt 矛盾 |
+| #33-F | 187 | `worldbook-sync.mergeTablesWithSchema` 同样的 schema/runtime 错位问题 |
+| #33-G | 188-189 | UI 没显示 scope mode，用户没意识到自己设了 `mode='current'` |
+| #33-H | 190 | scope 保存丢失（H7 同模式：select 顶层 runScope 没同步 scope.mode）+ 缺单表激活 UI |
+
+**修复（关键架构变更）**：
+
+1. **模板格式适配器**（v1.0.186）：`modules/table-engine/template-adapters/` 目录
+   - `index.js`：注册中心 + `importTemplateAuto(raw)` 自动探测
+   - `youyou-importer.js` / `shujuku-importer.js` / `youyou-exporter.js`
+   - `normalizeTemplate` 改走适配器，未来添加新格式只需加 importer
+
+2. **列 key 位置映射**（v1.0.186）：`resolveColumnKeyFromRawKey(rawKey, columns)`
+   - 优先级 direct → index ("0"/"1") → col_n ("col"/"col_2") → fallback
+   - AI 用任何风格 key 都能正确写入
+
+3. **Prompt 统一**（v1.0.186）：
+   - `INCREMENTAL_PROMPT_SUFFIX` 示例改 `{"0":"v"}` 索引风格
+   - `formatTableGuidance` 列展示改 `[idx]: title — description`（不显示 column.key）
+
+4. **scope 保存双重防御**（v1.0.190）：
+   - UI select onChange 同步 `runScope` 和 `scope.mode`
+   - `normalizeTableWorkbenchConfig` 顶层 runScope 优先于嵌套 scope.mode
+
+5. **单表激活/禁用 toggle**（v1.0.190）：表格概览每张卡片左上加开关
+
+**手动验证清单**:
+- [x] shujuku 模板导入后表格概览显示正确
+- [x] 切换激活模板后立即填表，数据写入正确（不再覆盖旧 slot 数据）
+- [x] AI 用任何列 key 风格（"0"/"col"/"name"）都能正确填入 cells
+- [x] 世界书条目数据非空
+- [x] hero 范围 chip 显示当前 scope mode
+- [x] 单表 toggle 切换后保存 + filter 生效
+- [x] scope 设置保存后切换界面回来不会重置
+
+**Sign-off 状态**: ☑ Verified (v1.0.190)
+
+---
+
+### N11 — 待填写
 
 **现象描述**
 

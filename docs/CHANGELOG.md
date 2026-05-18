@@ -9,6 +9,115 @@
 
 ## [Unreleased]
 
+## [1.0.190] - 2026-05-18
+
+### 修复
+
+- **范围设置无法持久化**（H7 同模式）：UI select onChange 只保存顶层 `runScope`，但 `normalizeTableWorkbenchConfig` 用 `normalizeRunScopeConfig(nextValue.scope, {...})`，`source.mode` 旧值优先于 fallback 里的 `nextValue.runScope`，导致切换界面后又回到旧值
+- **修复双重防御**：
+  - workbench-window select onChange (runScope) 同步更新 `scope.mode`；切到 `enabled` 时清掉 `activeTableId`/`selectedTableIds` 残留
+  - `normalizeTableWorkbenchConfig` 顶层 runScope 字符串非空时合并进 incomingScope（顶层优先）
+
+### 新增
+
+- **单表激活/禁用 toggle**（议题 #15 #33-H）：表格概览每张卡片左上加开关，切换 `config.tables[i].enabled`，配合 `runScope='enabled'` 模式过滤
+- 禁用样式：半透明 + 删除线
+- toggle stopPropagation 避免触发卡片点击
+
+## [1.0.189] - 2026-05-18
+
+### 修复
+
+- **hero 范围 chip 改为一键重置按钮**：用户合理质疑 UI 上没有「激活某张表」的入口，那 mode='current' 不应该让用户去 select 里找重置入口
+- 非 enabled 时 chip 改为「⚠️ 仅当前表 — 点此重置」按钮，点击立即 save: `runScope='enabled'`, `scope.mode='enabled'`, `activeTableId=''`, `selectedTableIds=[]`
+
+## [1.0.188] - 2026-05-18
+
+### 新增
+
+- **工作台 hero 加范围 chip 提示**：用户测试发现默认模板「只填第一张表」不是 bug 是配置（用户的 config.scope.mode='current'+activeTableId='default_global_state'）。UI 没显式展示这个状态导致用户没意识到
+- chip 显示「范围: 仅当前表 ⚠️ / 仅选中表 / 所有启用表」，非 enabled 时红色样式 + ⚠️ 标记
+
+## [1.0.187] - 2026-05-18
+
+### 修复
+
+- **世界书条目数据空**（议题 #15 Bug #33-F）：`mergeTablesWithSchema` 按 index 拿 `configTables`（config.tables 旧快照）的 columns 替换 runtime columns，但激活模板切换后 config.tables 跟 runtime 的 row.cells.key 完全错位（同 #33-B/C 模式但漏修了 worldbook-sync 这层）
+- **修复**：`mergeTablesWithSchema` 重写为「以 runtime 为准 + 按 id 匹配 schema 仅回填 exportConfig」
+
+### 诊断
+
+- `applyIncrementalEdits` 加 edits 总览日志（按 table / 按 op 统计）
+
+## [1.0.186] - 2026-05-18
+
+### 新增
+
+- **模板格式适配器架构**（议题 #15 #33-E，用户提议）：
+  - `modules/table-engine/template-adapters/` 目录
+  - `index.js`：注册中心 importerRegistry / exporterRegistry，`importTemplateAuto(raw)` 自动探测 + 解析
+  - `youyou-importer.js`：youyou 原生 `{tables:[]}` 格式
+  - `shujuku-importer.js`：shujuku `{mate, sheet_x}` / `{tables:{sheet_x}}` 两种布局
+  - `youyou-exporter.js`：占位（下轮 UI 格式选择时配 shujuku-exporter）
+
+### 修复
+
+- **列 key 位置映射**（核心修复）：`applyIncrementalEdits` 新增 `resolveColumnKeyFromRawKey` 工具函数，优先级 direct → index ("0"/"1") → col_n ("col"/"col_2") → fallback，AI 用任何风格 key 都能正确写入
+- **Prompt 统一为位置索引**：
+  - `INCREMENTAL_PROMPT_SUFFIX` 示例改 `{"0":"v"}` 索引风格
+  - `formatTableGuidance` 列展示改 `[idx]: title — description`（不显示 column.key）
+
+### 重构
+
+- `table-template-service.normalizeTemplate` 改走 `importTemplateAuto`，替代 v1.0.181 加的三路 if 手写检测
+- `table-schema-service` export `sanitizeColumnKey` / `ensureUniqueColumnKey` / `normalizeCellValue` / `parseShujukuNoteColumns` 给适配器复用
+
+## [1.0.185] - 2026-05-18
+
+### 修复
+
+- **stale scope 自动 fallback**（议题 #15 #33-D）：用户日志暴露根因 — `mode='current' + activeTableId='default_global_state'`（旧默认表 id），但激活模板已切到 shujuku 且 actual tables 是 sheet_xxx，runScope.allowedTableIds 跟 allTableIds 没交集 → filter 全 false → droppedByScope: 4/4
+- **修复**：`table-scope-service.resolveTableRunScope` mode='current'/'selected' 但选中 id 全不在 tables 范围时自动 fallback 到 'enabled'。不修改持久化 config，只在 runScope 层 fallback。加 `staleScope` 标志 + `requestedMode` 字段
+
+## [1.0.184] - 2026-05-18
+
+### 诊断
+
+- 加 `runScope 已解析` 日志，打印 `mode/requestedMode/staleScope/allowedTableIds/allTableIds/scopeTablesEnabled`，下次测试时一眼能看清是 mode 配错、enabled 字段意外为 false，还是 allowedTableIds 跟 previousTables 不同步
+
+## [1.0.183] - 2026-05-18
+
+### 修复
+
+- **runScope 用错 tables 集合导致 edits 全被丢**（议题 #15 #33-C）：`resolveTableRunScope(config.scope, config.tables)` 用 `config.tables`（默认 default_xxx id）解析 allowedTableIds，但 `previousTables` 来自激活模板（shujuku sheet_xxx id），两套 id 完全不重合 → `filterIncrementalEditsByScope` 全 droppedByScope
+- **修复**：runScope 改为基于激活模板的 tables 解析，与 templateTables / previousTables 用同一份 scopeTables
+
+## [1.0.182] - 2026-05-18
+
+### 修复
+
+- **模板切换后聊天仍用旧数据**（议题 #15 #33-B）：v1.0.181 修了模板预设解析，但填表主链读 `config.tables`（工作台配置快照），切换激活模板时不会同步
+- `update-service.templateTables` 改为优先取 `resolveActiveTemplate({}).template.tables`，fallback `config.tables`
+
+### 新增
+
+- 工作台 Hero 加「**清空 chat 数据**」按钮：触发 `clearStateInChat` 清当前 isolationKey 下所有楼层的 slot 数据，让模板切换后从头开始
+
+## [1.0.181] - 2026-05-18
+
+### 修复
+
+- **shujuku 模板格式不被识别**（议题 #15 Bug #33-A）：`normalizeTemplate` 期望 `{tables:[]}` 数组格式，但 shujuku 导出文件是 `{mate, sheet_0, sheet_1, ...}` 对象格式，tables 字段直接被丢成空数组，导致激活该模板后 AI 返回的 tableIndex>=length 全部 continue
+- **修复**：`normalizeTemplate` 兼容 3 种格式：
+  1. youyou 原生 `{tables: [...]}`
+  2. shujuku 嵌套 `{tables: {sheet_x: {...}}}`
+  3. shujuku 根对象 `{mate, sheet_0, sheet_1, ...}`
+- 内部复用 `parseTableWorkbenchTemplate` → `convertShujukuTemplateToTables`
+
+### 诊断
+
+- `importTemplates` 和 `resolveActiveTemplate` 加诊断日志
+
 ## [1.0.180] - 2026-05-18
 
 ### 修复
