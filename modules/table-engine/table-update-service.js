@@ -694,7 +694,22 @@ async function runTableUpdate({
   }
 
   const runtime = config.runtime || {};
-  const runScope = resolveTableRunScope(config.scope || config, config.tables);
+
+  // 议题 #15 Bug #33-C：runScope 必须基于「激活模板的 tables」而不是 config.tables。
+  //   config.tables 是工作台旧配置快照，切换激活模板后不会同步；
+  //   而 previousTables / loadBoundStateOrTemplate 已经基于激活模板。
+  //   两者用不同表 id 集合 → runScope.includes 全 false → filterIncrementalEditsByScope
+  //   把所有 edits 都 droppedByScope，最终 rows: [] 写回。
+  let scopeTables = Array.isArray(config.tables) ? config.tables : [];
+  try {
+    const activeTpl = resolveActiveTemplate({});
+    const activeTables = activeTpl?.template?.tables;
+    if (Array.isArray(activeTables) && activeTables.length > 0) {
+      scopeTables = activeTables;
+    }
+  } catch (_) { /* fall back to config.tables */ }
+
+  const runScope = resolveTableRunScope(config.scope || config, scopeTables);
   if ((runScope.mode === 'current' || runScope.mode === 'selected') && runScope.allowedTableIds.length === 0) {
     const scopeError = runScope.mode === 'current' ? '未指定当前表格，无法执行。' : '未选择任何表格，无法执行。';
     getLog().warn(scopeError, { mode: runScope.mode });
@@ -824,31 +839,17 @@ async function runTableUpdate({
 
     const assistantSnapshot = getAssistantTableSnapshot(targetSnapshot.sourceMessageId);
 
-    // 议题 #15 Bug #33 跟进修复：templateTables 优先取激活模板的 tables，
-    // 而不是 config.tables — 后者是工作台配置快照，切换激活模板时不会同步。
-    // 这样切换模板后，新 chat / 没有 slot 数据的 chat 立即用上新模板。
-    let templateTables = config.tables;
-    try {
-      const activeTpl = resolveActiveTemplate({});
-      const activeTables = activeTpl?.template?.tables;
-      if (Array.isArray(activeTables) && activeTables.length > 0) {
-        templateTables = activeTables;
-        getLog().info('templateTables 取自激活模板', {
-          templateId: activeTpl?.template?.id,
-          templateName: activeTpl?.template?.name,
-          mode: activeTpl?.mode,
-          tableCount: activeTables.length,
-          firstTableName: activeTables[0]?.name || ''
-        });
-      } else {
-        getLog().info('templateTables 退回 config.tables', {
-          tableCount: Array.isArray(config.tables) ? config.tables.length : 0,
-          firstTableName: config.tables?.[0]?.name || ''
-        });
-      }
-    } catch (err) {
-      getLog().warn('resolveActiveTemplate 失败，退回 config.tables', err);
-    }
+    // 议题 #15 Bug #33-B：templateTables 取自激活模板（与 runScope 用同一份 scopeTables）
+    // 而不是 config.tables — 后者是工作台旧快照，切换激活模板后不同步。
+    const templateTables = (Array.isArray(scopeTables) && scopeTables.length > 0)
+      ? scopeTables
+      : config.tables;
+    getLog().info('templateTables 来源', {
+      usingActiveTemplate: scopeTables !== (Array.isArray(config.tables) ? config.tables : []),
+      tableCount: Array.isArray(templateTables) ? templateTables.length : 0,
+      firstTableName: templateTables?.[0]?.name || '',
+      firstTableId: templateTables?.[0]?.id || ''
+    });
 
     const loadResult = loadBoundStateOrTemplate(targetSnapshot, {
       templateTables
