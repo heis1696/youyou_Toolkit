@@ -269,15 +269,24 @@ export async function buildSelectedWorldbookContent(arg) {
     return '';
   }
 
+  const bookOverrideMap = new Map(
+    (preset.bookList || []).map((b) => [b.bookName, b.entryOverrides || {}])
+  );
+
   const blocks = [];
 
   for (const bookName of resolvedBooks) {
     try {
       const entries = await helper.getLorebookEntries(bookName);
       const entryList = Array.isArray(entries) ? entries : [];
-      const filtered = includeDisabledEntries
-        ? entryList
-        : entryList.filter((entry) => entry?.enabled !== false && !entry?.disable);
+      const entryOverrides = bookOverrideMap.get(bookName) || {};
+      const filtered = entryList
+        .filter((entry) => includeDisabledEntries || (entry?.enabled !== false && !entry?.disable))
+        .filter((entry) => {
+          const ov = entryOverrides[String(entry?.uid ?? '')];
+          if (ov && typeof ov.enabled === 'boolean') return ov.enabled;
+          return true;
+        });
       const entryText = filtered
         .map(getEntryText)
         .filter(Boolean)
@@ -294,9 +303,23 @@ export async function buildSelectedWorldbookContent(arg) {
   return blocks.join('\n\n---\n\n');
 }
 
+export async function getEntriesForBook(bookName) {
+  if (!bookName) return [];
+  const helper = getTavernHelper();
+  if (!helper || typeof helper.getLorebookEntries !== 'function') return [];
+  try {
+    const entries = await helper.getLorebookEntries(bookName);
+    return Array.isArray(entries) ? entries : [];
+  } catch (err) {
+    log.warn(`getEntriesForBook 失败: ${bookName}`, err);
+    return [];
+  }
+}
+
 export default {
   getCachedAvailableWorldbooks,
   getLastWorldbookDiagnostics,
   getAvailableWorldbooks,
+  getEntriesForBook,
   buildSelectedWorldbookContent
 };

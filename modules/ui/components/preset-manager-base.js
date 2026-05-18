@@ -88,11 +88,7 @@ export function createPresetManagerPanel(spec = {}) {
       const containerEl = unwrap($container);
       if (!containerEl) return;
 
-      // 议题 #45 feedback：sub-tab 切回来不沿用上次选中（内部 refresh 仍保留）
-      // 通过 container 上记录的 panel kind 区分：跨 kind 视为 fresh mount
-      const previousKind = containerEl._yytLastPresetPanelKind;
-      const isFreshMount = previousKind !== kind;
-      containerEl._yytLastPresetPanelKind = kind;
+      // v1.0.197 fix #1：跨 kind 切换也保留 store 记录的当前选中，不再清空
 
       if (containerEl._yytPresetPanelCleanup) {
         try { containerEl._yytPresetPanelCleanup(); } catch (_) {}
@@ -100,10 +96,9 @@ export function createPresetManagerPanel(spec = {}) {
 
       const refresh = () => this.renderTo($container);
       const presets = store.listPresets();
-      const storedCurrentId = typeof store.getCurrentPresetId === 'function'
+      const currentId = typeof store.getCurrentPresetId === 'function'
         ? store.getCurrentPresetId()
         : '';
-      const currentId = isFreshMount ? '' : storedCurrentId;
 
       const root = el('div', {
         className: 'yyt-preset-manager-panel',

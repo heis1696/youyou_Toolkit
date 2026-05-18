@@ -178,7 +178,9 @@ export const WORKBENCH_VIEW_STYLES = `
 .yyt-tww-hero-name { flex: 1; font-size: 15px; font-weight: 700; min-width: 0; }
 .yyt-tww-hero-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .yyt-tww-hero-desc { font-size: 12px; color: var(--tww-text-muted); padding-left: 42px; }
-.yyt-tww-hero-chips { display: flex; gap: 6px; flex-wrap: wrap; padding-left: 42px; }
+.yyt-tww-hero-chips { display: flex; gap: 6px; flex-wrap: wrap; padding-left: 42px; max-height: 24px; overflow: hidden; transition: max-height 0.2s ease; }
+.yyt-tww-hero-chips.yyt-tww-hero-chips-expanded { max-height: 200px; }
+.yyt-tww-chip-toggle { cursor: pointer; user-select: none; }
 .yyt-tww-chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 2px 8px; border-radius: 999px;
@@ -491,6 +493,7 @@ export function renderWorkbenchHtml(state) {
         })()}
         ${isolationKey ? `<span class="yyt-tww-chip">隔离: ${esc(isolationKey)}</span>` : ''}
         <span class="yyt-tww-chip status-${statusCls === 'success' ? 'success' : statusCls === 'error' ? 'failed' : ''}">${esc(statusText)}</span>
+        <span class="yyt-tww-chip yyt-tww-chip-toggle" data-action="toggle-chips" title="展开/收起">▸</span>
       </div>
     </div>
 
@@ -1080,6 +1083,14 @@ export function bindWorkbenchEvents($container, refresh) {
       getLog().error('重置范围异常', err);
       showToast('error', `重置失败：${err?.message || err}`);
     }
+  });
+
+  // v1.0.197 #3：hero chips 展开/收起
+  $container.on('click.tww', '[data-action="toggle-chips"]', function () {
+    const chipsEl = $container.find('.yyt-tww-hero-chips')[0];
+    if (!chipsEl) return;
+    const expanded = chipsEl.classList.toggle('yyt-tww-hero-chips-expanded');
+    this.textContent = expanded ? '▾' : '▸';
   });
 
   // 清空 chat 数据（v1.0.182：配合模板切换后，让旧 slot 数据不再干扰）

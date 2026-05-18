@@ -19,7 +19,7 @@ import {
 } from './controls/index.js';
 
 import store, { BINDING_MODES } from '../../worldbook-preset-store.js';
-import { getAvailableWorldbooks, getCachedAvailableWorldbooks } from '../../tool-worldbook-service.js';
+import { getAvailableWorldbooks, getCachedAvailableWorldbooks, getEntriesForBook } from '../../tool-worldbook-service.js';
 import { dialog } from './controls/dialog.js';
 import { logger } from '../../core/logger-service.js';
 import { createPresetManagerPanel } from './preset-manager-base.js';
@@ -259,24 +259,42 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
       text: '点击右上角"+ 添加"选择世界书加入此预设。'
     })];
   } else {
-    rows = preset.bookList.map((book) => listRow({
-      name: book.bookName,
-      desc: book.enabled === false ? '已禁用' : '已启用 · 整本注入',
-      actions: [
-        toggle({
-          checked: book.enabled !== false,
-          disabled: readonly,
-          onChange: (v) => toggleBookInPreset(preset, book.bookName, v)
-        }),
-        ...(readonly ? [] : [button({
-          label: '×',
-          size: 'small',
-          variant: 'ghost',
-          title: '从预设移除',
-          onClick: () => { removeBookFromPreset(preset, book.bookName); refresh && refresh(); }
-        })])
-      ]
-    }));
+    rows = preset.bookList.map((book) => {
+      const overrideCount = Object.keys(book.entryOverrides || {}).filter(k => {
+        const ov = book.entryOverrides[k];
+        return ov && typeof ov.enabled === 'boolean';
+      }).length;
+
+      const wrap = el('div', { style: { display: 'flex', flexDirection: 'column' } });
+
+      const item = listRow({
+        name: book.bookName,
+        desc: book.enabled === false ? '已禁用' : `已启用 · 整本注入${overrideCount ? ` · ${overrideCount} 条 override` : ''}`,
+        actions: [
+          button({
+            label: '▸ 词条',
+            size: 'small',
+            variant: 'ghost',
+            title: '展开/收起词条级 override',
+            onClick: () => toggleEntryList(wrap, preset, book, readonly, refresh)
+          }),
+          toggle({
+            checked: book.enabled !== false,
+            disabled: readonly,
+            onChange: (v) => toggleBookInPreset(preset, book.bookName, v)
+          }),
+          ...(readonly ? [] : [button({
+            label: '×',
+            size: 'small',
+            variant: 'ghost',
+            title: '从预设移除',
+            onClick: () => { removeBookFromPreset(preset, book.bookName); refresh && refresh(); }
+          })])
+        ]
+      });
+      if (item?.el) appendChild(wrap, item.el);
+      return wrap;
+    });
   }
 
   for (const r of rows) {
@@ -286,6 +304,161 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
   appendChild(wrapper, bookListWrapper);
 
   return wrapper;
+}
+
+function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
+  const existing = wrapEl.querySelector('.yyt-wb-entry-panel');
+  if (existing) {
+    existing.remove();
+    // 更新按钮文本
+    const btn = wrapEl.querySelector('[title="展开/收起词条级 override"]');
+    if (btn) btn.textContent = '▸ 词条';
+    return;
+  }
+  const btn = wrapEl.querySelector('[title="展开/收起词条级 override"]');
+  if (btn) btn.textContent = '▾ 词条';
+
+  const panel = el('div', {
+    className: 'yyt-wb-entry-panel',
+    style: {
+      marginLeft: '18px',
+      marginTop: '4px',
+      padding: '8px 10px',
+      background: 'var(--yyt-surface-2, rgba(255,255,255,0.03))',
+      borderRadius: 'var(--yyt-radius-sm, 6px)',
+      border: '1px solid var(--yyt-border, rgba(255,255,255,0.06))',
+      fontSize: '12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px'
+    }
+  });
+  panel.appendChild(el('div', {
+    text: '加载中…',
+    style: { color: 'var(--yyt-text-muted)', padding: '4px 0' }
+  }));
+  wrapEl.appendChild(panel);
+
+  getEntriesForBook(book.bookName).then((entries) => {
+    if (!entries.length) {
+      panel.innerHTML = '';
+      panel.appendChild(el('div', {
+        text: '该世界书无词条',
+        style: { color: 'var(--yyt-text-muted)', padding: '4px 0' }
+      }));
+      return;
+    }
+
+    const overrides = book.entryOverrides || {};
+    const searchInput = el('input', {
+      className: 'yyt-input',
+      attrs: { type: 'text', placeholder: `搜索 ${entries.length} 个词条…`, autocomplete: 'off' },
+      style: { padding: '5px 8px', fontSize: '11px', marginBottom: '4px' }
+    });
+    panel.innerHTML = '';
+    panel.appendChild(searchInput);
+
+    const listEl = el('div', {
+      style: { display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '240px', overflowY: 'auto' }
+    });
+    const items = [];
+
+    for (const entry of entries) {
+      const uid = String(entry.uid ?? '');
+      const comment = entry.comment || entry.key || `条目 ${entry.uid}`;
+      const isDisabled = entry.enabled === false || entry.disable === true;
+      const ov = overrides[uid];
+      const hasOverride = ov && typeof ov.enabled === 'boolean';
+
+      const row = el('div', {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '5px 8px',
+          borderRadius: '4px',
+          background: hasOverride ? 'rgba(123,183,255,0.08)' : 'transparent',
+          opacity: isDisabled && !hasOverride ? '0.5' : '1'
+        }
+      });
+
+      row.appendChild(toggle({
+        checked: hasOverride ? ov.enabled : (isDisabled ? false : true),
+        disabled: readonly,
+        onChange: (v) => {
+          const currentPreset = store.getPreset(preset.id);
+          if (!currentPreset) return;
+          const bk = currentPreset.bookList.find(b => b.bookName === book.bookName);
+          if (!bk) return;
+          bk.entryOverrides = bk.entryOverrides || {};
+          bk.entryOverrides[uid] = { enabled: v };
+          store.updatePreset(preset.id, { bookList: [...currentPreset.bookList] });
+          // 更新行样式
+          row.style.background = 'rgba(123,183,255,0.08)';
+          if (isDisabled) row.style.opacity = v ? '1' : '0.5';
+        }
+      }).el);
+
+      const label = el('span', {
+        style: {
+          flex: '1',
+          minWidth: '0',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          color: hasOverride ? 'var(--yyt-accent)' : 'var(--yyt-text)',
+          fontSize: '11px'
+        },
+        text: comment
+      });
+      row.appendChild(label);
+
+      if (hasOverride) {
+        const resetBtn = el('span', {
+          text: '✕',
+          style: {
+            cursor: 'pointer',
+            color: 'var(--yyt-text-muted)',
+            fontSize: '10px',
+            flexShrink: '0'
+          },
+          attrs: { title: '清除 override' }
+        });
+        resetBtn.addEventListener('click', () => {
+          if (readonly) return;
+          const currentPreset = store.getPreset(preset.id);
+          if (!currentPreset) return;
+          const bk = currentPreset.bookList.find(b => b.bookName === book.bookName);
+          if (!bk || !bk.entryOverrides) return;
+          delete bk.entryOverrides[uid];
+          store.updatePreset(preset.id, { bookList: [...currentPreset.bookList] });
+          row.style.background = 'transparent';
+          label.style.color = 'var(--yyt-text)';
+          resetBtn.remove();
+        });
+        row.appendChild(resetBtn);
+      }
+
+      listEl.appendChild(row);
+      items.push({ el: row, search: comment.toLowerCase() });
+    }
+
+    panel.appendChild(listEl);
+
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      for (const item of items) {
+        item.el.style.display = (!q || item.search.includes(q)) ? '' : 'none';
+      }
+    });
+  }).catch((err) => {
+    log.warn('加载词条失败', err);
+    panel.innerHTML = '';
+    panel.appendChild(el('div', {
+      text: `加载失败：${err?.message || err}`,
+      style: { color: 'var(--yyt-danger, #f87171)', padding: '4px 0' }
+    }));
+  });
 }
 
 function renderListItemMeta(preset) {

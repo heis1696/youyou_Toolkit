@@ -26,6 +26,7 @@ import {
 import { resolveLatestTableTarget } from '../../table-engine/table-target-resolver.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 import { resolveActiveTemplate, saveTableTemplate, getActiveGlobalTemplate } from '../../table-engine/table-template-service.js';
+import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-engine/table-schema-service.js';
 import { cloneTableValue, createRuntimeTableRowId } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { showToast } from '../utils.js';
@@ -50,10 +51,35 @@ const _state = {
   currentTableIndex: -1,
   isDirty: false,
   isFromTemplate: false,   // v1.0.180：当 slot 空时从模板 fallback 加载，编辑保存时会初始化 slot
+  _pendingMirrorTag: null,
   targetSnapshot: null
 };
 
 function getState() { return _state; }
+
+// v1.0.198 修复：onChange 直接 DOM 操作更新按钮 disabled / dirty badge，
+// 避免每次输入都 refresh 整页（会导致 input 失焦）。原版本只改 _state.isDirty
+// 不刷 UI，用户必须切表才能让保存按钮 enable，体验差。
+function markDirty() {
+  _state.isDirty = true;
+  if (!_state.$window) return;
+  try {
+    _state.$window.find('[data-action="save"], [data-action="save-global"]').prop('disabled', false).removeAttr('disabled');
+    const $toolbarLeft = _state.$window.find('.yyt-tde-toolbar-left').first();
+    if ($toolbarLeft.length && $toolbarLeft.find('.yyt-tde-dirty-badge').length === 0) {
+      $toolbarLeft.append('<span class="yyt-tde-dirty-badge">未保存</span>');
+    }
+  } catch (_) { /* ignore */ }
+}
+
+function clearDirty() {
+  _state.isDirty = false;
+  if (!_state.$window) return;
+  try {
+    _state.$window.find('[data-action="save"]').prop('disabled', true).attr('disabled', 'disabled');
+    _state.$window.find('.yyt-tde-dirty-badge').remove();
+  } catch (_) { /* ignore */ }
+}
 
 // ════════════════════════════════════════════════════════════════
 // CSS
@@ -506,6 +532,7 @@ function loadEditorData() {
   _state.targetSnapshot = targetSnapshot;
   _state.isDirty = false;
   _state.isFromTemplate = isFromTemplate;
+  _state._pendingMirrorTag = null;
 
   if (_state.currentTableIndex >= _state.tempData.length) {
     _state.currentTableIndex = _state.tempData.length > 0 ? 0 : -1;
@@ -544,7 +571,7 @@ function renderToolbar() {
       <div class="yyt-tde-actions">
         <button class="yyt-tde-btn" data-action="reload"><i class="fa-solid fa-rotate"></i> 重新加载</button>
         <button class="yyt-tde-btn" data-action="save" ${_state.isDirty ? '' : 'disabled'} title="保存到当前消息的 slot"><i class="fa-solid fa-floppy-disk"></i> 保存到 chat</button>
-        <button class="yyt-tde-btn" data-action="save-global" ${_state.isDirty ? '' : 'disabled'} title="保存到全局激活模板（影响所有 chat 后续填表）"><i class="fa-solid fa-globe"></i> 保存到全局</button>
+        <button class="yyt-tde-btn" data-action="save-global" title="保存到全局激活模板（影响所有 chat 后续填表）"><i class="fa-solid fa-globe"></i> 保存到全局</button>
         <button class="yyt-tde-btn yyt-tde-btn-primary" data-action="run-now"><i class="fa-solid fa-play"></i> 立即填表</button>
       </div>
     </div>
@@ -732,6 +759,11 @@ function renderSchemaMode(table, tableIndex) {
 
     <div class="yyt-tde-schema-section">
       <div class="yyt-tde-schema-heading">更新配置 (updateConfig)</div>
+      <div class="yyt-tde-hint" style="margin-bottom:8px;font-size:11px;color:var(--tde-text-muted);">
+        <strong>说明</strong>：这里配置 AI 填表时这张表的行为（频率、上下文深度、token 节省）。
+        跟「世界书注入」是两件事：世界书是把表数据塞进 prompt 给主 AI 看（合并条目 / 独立条目在<strong>全局注入</strong> tab 配），
+        这里是控制<strong>填表时机</strong>（多久填一次、跳过几层等）。-1 = 沿用全局，0 = 禁用单表。
+      </div>
       <div class="yyt-tde-uc-grid">
         <div class="yyt-tde-uc-cell">
           <label>上下文深度 (contextDepth)</label>
@@ -786,6 +818,12 @@ function renderGlobalMode() {
   if (tables.length === 0) {
     return `<div class="yyt-tde-empty">无表格可配置。请先添加表格。</div>`;
   }
+
+  let mirrorTag = 'yyt-table-workbench';
+  try {
+    const wbConfig = getTableWorkbenchConfig();
+    mirrorTag = wbConfig?.mirrorTag || mirrorTag;
+  } catch (_) {}
 
   const cards = tables.map((table, ti) => {
     const ec = table?.exportConfig || {};
@@ -882,6 +920,16 @@ function renderGlobalMode() {
       <strong>全局注入配置</strong> — 每张表的 exportConfig（独立世界书条目）+ placement（注入位置/深度/顺序）。
       未启用「独立注入」的表会走全局 wrapper（工作台「同步到世界书」开关）。
     </div>
+    <div class="yyt-tde-schema-section">
+      <div class="yyt-tde-schema-heading">写回正文标签</div>
+      <div class="yyt-tde-uc-grid">
+        <div class="yyt-tde-uc-cell yyt-tde-uc-cell-wide">
+          <label>mirrorTag</label>
+          <input class="yyt-tde-input" data-action="mirror-tag" value="${esc(mirrorTag)}" placeholder="默认: yyt-table-workbench" />
+          <span class="yyt-tde-hint">开启写回正文时，用此 XML 标签包裹表格数据注入到 assistant 消息</span>
+        </div>
+      </div>
+    </div>
     ${cards}
   `;
 }
@@ -932,13 +980,13 @@ function bindEditorEvents($window) {
   $window.on('input.tde', '[data-action="table-name"]', function () {
     const t = getCurrentTable(); if (!t) return;
     t.name = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   // 表说明
   $window.on('input.tde', '[data-action="table-note"]', function () {
     const t = getCurrentTable(); if (!t) return;
     t.note = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   // sourceData 4 段 (aiInstructions)
   const sdMap = { 'sd-init': 'init', 'sd-create': 'create', 'sd-update': 'update', 'sd-delete': 'delete' };
@@ -947,7 +995,7 @@ function bindEditorEvents($window) {
       const t = getCurrentTable(); if (!t) return;
       t.aiInstructions = t.aiInstructions || {};
       t.aiInstructions[key] = $(this).val();
-      _state.isDirty = true;
+      markDirty();
     });
   });
   // updateConfig 7 参数
@@ -958,20 +1006,20 @@ function bindEditorEvents($window) {
       t.updateConfig = t.updateConfig || {};
       const v = Number($(this).val());
       t.updateConfig[k] = Number.isFinite(v) ? v : -1;
-      _state.isDirty = true;
+      markDirty();
     });
   });
   $window.on('input.tde', '[data-action="uc-groupId"]', function () {
     const t = getCurrentTable(); if (!t) return;
     t.updateConfig = t.updateConfig || {};
     t.updateConfig.groupId = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   $window.on('input.tde', '[data-action="uc-apiPreset"]', function () {
     const t = getCurrentTable(); if (!t) return;
     t.updateConfig = t.updateConfig || {};
     t.updateConfig.apiPreset = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   // 字段编辑：title / key / type / desc / 删除 / 新增
   $window.on('input.tde', '[data-action="field-title"]', function () {
@@ -979,28 +1027,28 @@ function bindEditorEvents($window) {
     const fi = Number($(this).attr('data-field-index'));
     if (!Array.isArray(t.columns) || !t.columns[fi]) return;
     t.columns[fi].title = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   $window.on('input.tde', '[data-action="field-key"]', function () {
     const t = getCurrentTable(); if (!t) return;
     const fi = Number($(this).attr('data-field-index'));
     if (!Array.isArray(t.columns) || !t.columns[fi]) return;
     t.columns[fi].key = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   $window.on('change.tde', '[data-action="field-type"]', function () {
     const t = getCurrentTable(); if (!t) return;
     const fi = Number($(this).attr('data-field-index'));
     if (!Array.isArray(t.columns) || !t.columns[fi]) return;
     t.columns[fi].type = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   $window.on('input.tde', '[data-action="field-desc"]', function () {
     const t = getCurrentTable(); if (!t) return;
     const fi = Number($(this).attr('data-field-index'));
     if (!Array.isArray(t.columns) || !t.columns[fi]) return;
     t.columns[fi].description = $(this).val();
-    _state.isDirty = true;
+    markDirty();
   });
   $window.on('click.tde', '[data-action="field-delete"]', function () {
     const t = getCurrentTable(); if (!t) return;
@@ -1008,7 +1056,7 @@ function bindEditorEvents($window) {
     if (!Array.isArray(t.columns) || !t.columns[fi]) return;
     if (!window.confirm(`删除字段「${t.columns[fi].title || t.columns[fi].key}」？此操作不会自动清理行数据。`)) return;
     t.columns.splice(fi, 1);
-    _state.isDirty = true;
+    markDirty();
     refresh();
   });
   $window.on('click.tde', '[data-action="field-add"]', function () {
@@ -1018,8 +1066,14 @@ function bindEditorEvents($window) {
     let n = t.columns.length + 1;
     while (usedKeys.has(`col_${n}`)) n++;
     t.columns.push({ key: `col_${n}`, title: `字段${n}`, description: '', type: 'text', required: false });
-    _state.isDirty = true;
+    markDirty();
     refresh();
+  });
+
+  // global mode：mirrorTag（写回正文标签）
+  $window.on('input.tde', '[data-action="mirror-tag"]', function () {
+    _state._pendingMirrorTag = $(this).val();
+    markDirty();
   });
 
   // global mode：exportConfig 编辑
@@ -1027,14 +1081,14 @@ function bindEditorEvents($window) {
     const t = _state.tempData?.[ti]; if (!t) return;
     t.exportConfig = t.exportConfig || {};
     t.exportConfig[key] = val;
-    _state.isDirty = true;
+    markDirty();
   };
   const setEcPlacement = (ti, key, subkey, val) => {
     const t = _state.tempData?.[ti]; if (!t) return;
     t.exportConfig = t.exportConfig || {};
     t.exportConfig[key] = t.exportConfig[key] || {};
     t.exportConfig[key][subkey] = val;
-    _state.isDirty = true;
+    markDirty();
   };
   $window.on('change.tde', '[data-action="ec-enabled"]', function () {
     setEc(Number($(this).attr('data-table-index')), 'enabled', $(this).is(':checked'));
@@ -1075,7 +1129,7 @@ function bindEditorEvents($window) {
     [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
     if (_state.currentTableIndex === i) _state.currentTableIndex = i - 1;
     else if (_state.currentTableIndex === i - 1) _state.currentTableIndex = i;
-    _state.isDirty = true;
+    markDirty();
     refresh();
   });
   $window.on('click.tde', '[data-action="sheet-move-down"]', function (e) {
@@ -1086,7 +1140,7 @@ function bindEditorEvents($window) {
     [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
     if (_state.currentTableIndex === i) _state.currentTableIndex = i + 1;
     else if (_state.currentTableIndex === i + 1) _state.currentTableIndex = i;
-    _state.isDirty = true;
+    markDirty();
     refresh();
   });
   $window.on('click.tde', '[data-action="sheet-delete"]', function (e) {
@@ -1099,7 +1153,7 @@ function bindEditorEvents($window) {
     if (_state.currentTableIndex >= _state.tempData.length) {
       _state.currentTableIndex = Math.max(0, _state.tempData.length - 1);
     }
-    _state.isDirty = true;
+    markDirty();
     refresh();
   });
   $window.on('click.tde', '[data-action="sheet-add"]', function () {
@@ -1122,14 +1176,35 @@ function bindEditorEvents($window) {
       rows: []
     });
     _state.currentTableIndex = _state.tempData.length - 1;
-    _state.isDirty = true;
+    markDirty();
     refresh();
   });
 
   // 重新加载
   $window.on('click.tde', '[data-action="reload"]', () => {
     if (_state.isDirty && !window.confirm('有未保存修改，重新加载将丢弃，确定？')) return;
+    // v1.0.198 诊断：记录 reload 前后 schema 变化，便于定位「reload 后回到原始」根因
+    const beforeFirst = _state.tempData?.[0];
+    getLog().info('reload 触发', {
+      before: {
+        tableCount: _state.tempData?.length,
+        firstName: beforeFirst?.name,
+        firstAiInit: beforeFirst?.aiInstructions?.init?.slice(0, 50),
+        firstUcFreq: beforeFirst?.updateConfig?.updateFrequency
+      },
+      targetSnapshot: { messageId: _state.targetSnapshot?.sourceMessageId, isFromTemplate: _state.isFromTemplate }
+    });
     loadEditorData();
+    const afterFirst = _state.tempData?.[0];
+    getLog().info('reload 完成', {
+      after: {
+        tableCount: _state.tempData?.length,
+        firstName: afterFirst?.name,
+        firstAiInit: afterFirst?.aiInstructions?.init?.slice(0, 50),
+        firstUcFreq: afterFirst?.updateConfig?.updateFrequency,
+        isFromTemplate: _state.isFromTemplate
+      }
+    });
     refresh();
     showToast('success', '已重新加载');
   });
@@ -1154,7 +1229,7 @@ function bindEditorEvents($window) {
         meta: { source: 'data-editor-manual-save' }
       }, { skipFreshValidation: true });
       if (result?.success) {
-        _state.isDirty = false;
+        clearDirty();
         _state.targetSnapshot = {
           chatId: result.state?.chatId || target.chatId,
           sourceMessageId: result.sourceMessageId,
@@ -1178,9 +1253,11 @@ function bindEditorEvents($window) {
   });
 
   // v1.0.194 Task L1：保存到全局激活模板
+  // v1.0.198 修复：不依赖 _state.isDirty（之前 save-chat 后 isDirty=false，
+  // 用户再点 save-global 会直接 return「没有修改」，无法把 chat 状态同步到全局）
   $window.on('click.tde', '[data-action="save-global"]', async () => {
-    if (!_state.isDirty) {
-      showToast('info', '没有修改');
+    if (!Array.isArray(_state.tempData) || _state.tempData.length === 0) {
+      showToast('info', '没有可保存的数据');
       return;
     }
     if (!window.confirm('保存到「全局激活模板」会影响后续所有 chat 的新填表（已有 slot 数据不受影响）。继续？')) return;
@@ -1207,7 +1284,17 @@ function bindEditorEvents($window) {
         tables: tablesSchemaOnly
       });
       if (result?.success) {
-        _state.isDirty = false;
+        // v1.0.197 #2：同步 persist mirrorTag 到 workbench config
+        if (typeof _state._pendingMirrorTag === 'string' && _state._pendingMirrorTag.trim()) {
+          try {
+            const wbConfig = getTableWorkbenchConfig();
+            saveTableWorkbenchConfig({ ...wbConfig, mirrorTag: _state._pendingMirrorTag.trim() });
+          } catch (e) {
+            getLog().warn('保存 mirrorTag 到 workbench config 失败', e);
+          }
+        }
+        _state._pendingMirrorTag = null;
+        clearDirty();
         showToast('success', `已保存到全局模板「${activeTpl.name}」`);
         getLog().info('保存到全局模板成功', { templateId: activeTpl.id, name: activeTpl.name, tableCount: tablesSchemaOnly.length });
         refresh();
@@ -1248,7 +1335,7 @@ function bindEditorEvents($window) {
     if (!table?.rows?.[ri]) return;
     if (!table.rows[ri].cells) table.rows[ri].cells = {};
     table.rows[ri].cells[key] = value;
-    _state.isDirty = true;
+    markDirty();
     // 不 refresh — 让用户继续输入；只更新 dirty badge 状态
     _updateToolbarOnly();
   });
@@ -1260,7 +1347,7 @@ function bindEditorEvents($window) {
     const table = _state.tempData[_state.currentTableIndex];
     if (!table?.rows?.[ri]) return;
     table.rows[ri].name = $(this).val();
-    _state.isDirty = true;
+    markDirty();
     _updateToolbarOnly();
   });
 
@@ -1272,7 +1359,7 @@ function bindEditorEvents($window) {
     const table = _state.tempData[_state.currentTableIndex];
     if (!table?.rows) return;
     table.rows.splice(ri, 1);
-    _state.isDirty = true;
+    markDirty();
     refresh();
   });
 
@@ -1286,7 +1373,7 @@ function bindEditorEvents($window) {
       name: '',
       cells: {}
     });
-    _state.isDirty = true;
+    markDirty();
     refresh();
   });
 }
