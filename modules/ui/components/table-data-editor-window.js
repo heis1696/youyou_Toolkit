@@ -29,6 +29,7 @@ import { resolveActiveTemplate, saveTableTemplate, getActiveGlobalTemplate } fro
 import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-engine/table-schema-service.js';
 import { cloneTableValue, createRuntimeTableRowId } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
+import { getSheetLockState, setColLock } from '../../table-engine/table-lock-service.js';
 import { showToast } from '../utils.js';
 
 const WINDOW_ID = 'yyt-table-data-editor';
@@ -422,6 +423,12 @@ textarea.yyt-tde-input { min-height: 40px; resize: vertical; }
 }
 .yyt-tde-btn-icon:hover { background: var(--tde-surface-3); color: var(--tde-text); }
 .yyt-tde-btn-danger:hover { color: #ff6b6b; }
+.yyt-tde-locked-btn { color: var(--tde-warning, #fbbf24); }
+.yyt-tde-locked-btn:hover { color: var(--tde-warning, #fbbf24); background: var(--tde-warning-soft, rgba(251,191,36,0.14)); }
+.yyt-tde-field-locked {
+  border-left: 2px solid var(--tde-warning, #fbbf24);
+  background: var(--tde-warning-soft, rgba(251,191,36,0.06));
+}
 .yyt-tde-btn-add-field {
   margin-top: 8px;
   background: transparent;
@@ -702,9 +709,20 @@ function renderSchemaMode(table, tableIndex) {
   const sd = table?.sourceData || {};
   const ai = table?.aiInstructions || {};
   const uc = table?.updateConfig || {};
+  // v1.0.201 Task M1: 列锁状态（从 lock-service 拿当前 chat × isolation × sheet 的锁集合）
+  const chatId = _state.targetSnapshot?.chatId || '';
+  const sheetUid = table?.uid || table?.id || '';
+  let lockState = { cols: {}, rows: {}, cells: {}, indexCol: false };
+  try {
+    lockState = getSheetLockState({ chatId, isolationKey: tableIsolation.getKey() }, sheetUid) || lockState;
+  } catch (_) { /* ignore */ }
+  const colLocks = lockState?.cols || {};
   // v1.0.194 Task G1: 字段定义可编辑 + sourceData 5 段 + updateConfig 7 参数
-  const fieldRows = columns.map((col, ci) => `
-    <div class="yyt-tde-schema-row yyt-tde-schema-field" data-field-index="${ci}">
+  const fieldRows = columns.map((col, ci) => {
+    const colKey = col?.key || '';
+    const locked = colKey ? !!colLocks[colKey] : false;
+    return `
+    <div class="yyt-tde-schema-row yyt-tde-schema-field${locked ? ' yyt-tde-field-locked' : ''}" data-field-index="${ci}">
       <div class="yyt-tde-schema-field-head">
         <span class="yyt-tde-schema-idx">[${ci}]</span>
         <input class="yyt-tde-input yyt-tde-input-title" data-action="field-title" data-field-index="${ci}" value="${esc(col?.title || col?.key || '')}" placeholder="字段标题" />
@@ -712,11 +730,13 @@ function renderSchemaMode(table, tableIndex) {
         <select class="yyt-tde-input yyt-tde-input-type" data-action="field-type" data-field-index="${ci}">
           ${['text','number','boolean','date','json'].map(t => `<option value="${t}" ${col?.type === t ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
+        <button class="yyt-tde-btn-icon ${locked ? 'yyt-tde-locked-btn' : ''}" data-action="field-lock" data-sheet-uid="${esc(sheetUid)}" data-col-key="${esc(colKey)}" title="${locked ? '已锁定：AI 不会改这列。点击解锁' : '锁定此列：AI 永不修改'}"><i class="fa-solid ${locked ? 'fa-lock' : 'fa-unlock'}"></i></button>
         <button class="yyt-tde-btn-icon yyt-tde-btn-danger" data-action="field-delete" data-field-index="${ci}" title="删除此字段"><i class="fa-solid fa-trash"></i></button>
       </div>
       <textarea class="yyt-tde-input yyt-tde-input-desc" data-action="field-desc" data-field-index="${ci}" placeholder="字段描述">${esc(col?.description || '')}</textarea>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   return `
     <div class="yyt-tde-schema-section">
@@ -1078,6 +1098,31 @@ function bindEditorEvents($window) {
     t.columns.push({ key: `col_${n}`, title: `字段${n}`, description: '', type: 'text', required: false });
     markDirty();
     refresh();
+  });
+
+  // v1.0.201 Task M1：列锁 toggle（schema mode 字段锁按钮）
+  $window.on('click.tde', '[data-action="field-lock"]', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const sheetUid = $(this).attr('data-sheet-uid');
+    const colKey = $(this).attr('data-col-key');
+    if (!sheetUid || !colKey) {
+      showToast('error', '列锁定失败：缺少 sheetUid 或 colKey');
+      return;
+    }
+    try {
+      const chatId = _state.targetSnapshot?.chatId || '';
+      const scope = { chatId, isolationKey: tableIsolation.getKey() };
+      const current = getSheetLockState(scope, sheetUid) || { cols: {} };
+      const isLocked = !!(current.cols && current.cols[colKey]);
+      setColLock(scope, sheetUid, colKey, !isLocked);
+      showToast('success', isLocked ? `已解锁 ${colKey}` : `已锁定 ${colKey}（AI 不会改这列）`);
+      getLog().info('field-lock toggled', { sheetUid, colKey, locked: !isLocked });
+      refresh();
+    } catch (err) {
+      getLog().error('field-lock 异常', err);
+      showToast('error', `锁定失败：${err?.message || err}`);
+    }
   });
 
   // global mode：mirrorTag（写回正文标签）

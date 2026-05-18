@@ -835,9 +835,18 @@ async function runTableUpdate({
         const userOverride = tid && Object.prototype.hasOwnProperty.call(overrides, tid)
           ? overrides[tid]
           : undefined;
+        let enabled = userOverride !== undefined ? userOverride : (t.enabled !== false);
+        // v1.0.201 Task G2：自动填表时，per-table updateConfig.updateFrequency === 0
+        //   表示永不自动填，临时禁用（手动填表不受影响）
+        if (isAutoRun && enabled) {
+          const freq = t?.updateConfig?.updateFrequency;
+          if (Number.isFinite(freq) && freq === 0) {
+            enabled = false;
+          }
+        }
         return {
           ...t,
-          enabled: userOverride !== undefined ? userOverride : (t.enabled !== false)
+          enabled
         };
       });
       const disabledList = scopeTables.filter((t) => t.enabled === false).map((t) => t?.name || t?.id);

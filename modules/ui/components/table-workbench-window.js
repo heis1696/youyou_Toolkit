@@ -464,6 +464,8 @@ export function renderWorkbenchHtml(state) {
           <button class="yyt-tww-btn yyt-tww-btn-small" data-action="run-now"><i class="fa-solid fa-play"></i> 立即填表</button>
           <button class="yyt-tww-btn yyt-tww-btn-small" data-action="run-clear"><i class="fa-solid fa-rotate-left"></i> 重填</button>
           ${archiveCount > 0 ? `<button class="yyt-tww-btn yyt-tww-btn-small" data-action="toggle-archives" title="模板归档历史（chat × isolationKey 维度，最多 8 份）"><i class="fa-solid fa-clock-rotate-left"></i> 归档 (${archiveCount})</button>` : ''}
+          <button class="yyt-tww-btn yyt-tww-btn-small" data-action="export-templates" title="导出所有用户模板为 JSON（含全局模板的修改副本）"><i class="fa-solid fa-download"></i> 导出模板</button>
+          ${activeTemplate?.mode && activeTemplate.mode !== TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL ? `<button class="yyt-tww-btn yyt-tww-btn-small" data-action="reset-template-scope" title="本 chat 当前是「${activeTemplate.mode === TABLE_TEMPLATE_SCOPE_MODE.CHAT_OVERRIDE ? 'chat 专属' : '链接预设'}」模式，点击恢复为「继承全局」"><i class="fa-solid fa-rotate-right"></i> 恢复继承</button>` : ''}
           <button class="yyt-tww-btn yyt-tww-btn-small yyt-tww-btn-danger" data-action="reset-chat-data" title="清空当前聊天所有楼层的表格数据，让模板切换后从头开始"><i class="fa-solid fa-trash-can"></i> 清空 chat 数据</button>
         </div>
       </div>
@@ -471,6 +473,18 @@ export function renderWorkbenchHtml(state) {
       <div class="yyt-tww-hero-chips">
         <span class="yyt-tww-chip mode">模式 ${esc(triggerMode)}</span>
         <span class="yyt-tww-chip preset">模板: ${esc(activeTemplate?.template?.name || '默认')}</span>
+        ${(() => {
+          // v1.0.201 Task M2：显示当前模板 scope mode（继承全局 / chat 覆盖 / 链接预设）
+          const m = activeTemplate?.mode;
+          if (m === TABLE_TEMPLATE_SCOPE_MODE.CHAT_OVERRIDE) {
+            return `<span class="yyt-tww-chip preset" title="本 chat 用了独立模板副本（修改不影响全局）。可在「重置范围」按钮旁的菜单恢复继承全局。">作用域: chat 专属</span>`;
+          }
+          if (m === TABLE_TEMPLATE_SCOPE_MODE.PRESET_LINK) {
+            const presetName = activeTemplate?.source?.presetName || '';
+            return `<span class="yyt-tww-chip preset" title="本 chat 链接到全局预设 ${esc(presetName)}，跟随该预设变化。">作用域: 链接 ${esc(presetName)}</span>`;
+          }
+          return `<span class="yyt-tww-chip preset" title="本 chat 跟随全局激活模板。">作用域: 继承全局</span>`;
+        })()}
         <span class="yyt-tww-chip preset">API: ${esc(apiPreset)}</span>
         <span class="yyt-tww-chip preset">指令: ${esc(bypassPreset)}</span>
         ${(() => {
@@ -1096,6 +1110,47 @@ export function bindWorkbenchEvents($container, refresh) {
     if (!chipsEl) return;
     const expanded = chipsEl.classList.toggle('yyt-tww-hero-chips-expanded');
     this.textContent = expanded ? '▾' : '▸';
+  });
+
+  // v1.0.201 Task M2：导出所有用户模板
+  $container.on('click.tww', '[data-action="export-templates"]', () => {
+    try {
+      const data = exportUserTemplates();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `youyou-table-templates-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const count = Array.isArray(data?.templates) ? data.templates.length : 0;
+      showToast('success', `已导出 ${count} 个模板到下载文件夹`);
+      getLog().info('export-templates 完成', { count });
+    } catch (err) {
+      getLog().error('export-templates 异常', err);
+      showToast('error', `导出失败：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.201 Task M2：恢复 chat 模板作用域为「继承全局」（chat_override / preset_link 都重置）
+  $container.on('click.tww', '[data-action="reset-template-scope"]', () => {
+    if (!window.confirm('恢复本 chat 的模板作用域到「继承全局」？当前状态会先自动归档，可在「归档」中恢复。')) return;
+    try {
+      const result = resetChatTemplateScope({ archive: true });
+      if (result?.success) {
+        showToast('success', '已恢复为继承全局');
+        getLog().info('reset-template-scope 完成');
+        if (typeof refresh === 'function') refresh();
+      } else {
+        showToast('error', `恢复失败：${result?.error || '未知'}`);
+      }
+    } catch (err) {
+      getLog().error('reset-template-scope 异常', err);
+      showToast('error', `异常：${err?.message || err}`);
+    }
   });
 
   // 清空 chat 数据（v1.0.182：配合模板切换后，让旧 slot 数据不再干扰）
