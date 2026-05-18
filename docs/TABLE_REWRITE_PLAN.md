@@ -218,35 +218,34 @@ Stage 4
 
 ## 8. 优先级与起步建议
 
-**v1.0.170 → v1.0.175 hotfix 期间发现并已修的隐藏 bug**（不在原任务清单内的回归）：
+**v1.0.170 → v1.0.180 hotfix 期间发现并已修的隐藏 bug**（不在原任务清单内的回归）：
 
 | Hotfix | 现象 | 根因 | 修复版本 |
 |---|---|---|---|
-| H1 | 工作台从浮窗回归 popup tab 内联 | preview 里 .win 容器被误读为独立浮窗，实际是 popup tab 内展示区 | v1.0.171 |
-| H2 | 所有工具配置面板 chips 渲染丢失 | 旧 1441 行 panel 顶部 import TOOL_CONFIG_PANEL_STYLES 并通过 getStyles() 注入；瘦身重写时丢了这个注入路径 | v1.0.172 |
-| H3 | 工作台下拉框白框白字 + 填表行为超出深色 | .yyt-tww-ctrl 没 !important 被全局 select reset 覆盖；.yyt-tww 自带 background 跟父容器深浅冲突 | v1.0.173 |
+| H1 | 工作台从浮窗回归 popup tab 内联 | preview .win 容器被误读为独立浮窗，实际是 popup tab 内展示区 | v1.0.171 |
+| H2 | 所有工具配置面板 chips 渲染丢失 | 旧 1441 行 panel 顶部 import TOOL_CONFIG_PANEL_STYLES 并 getStyles() 注入；瘦身重写时丢了这个注入路径 | v1.0.172 |
+| H3 | 工作台下拉框白框白字 + 填表行为超出深色 | `.yyt-tww-ctrl` 没 `!important` 被全局 select reset 覆盖；`.yyt-tww` 自带 background 跟父容器冲突 | v1.0.173 |
 | H4 | 表格概览行数永远是 0 | tablesPreview 读模板 schema 的 rows（永远空）而非 slot 实际 runtime tables | v1.0.174 |
 | H5 | 填表 AI 调用成功但表格没数据 + 世界书无条目 | sanitizeAIResponse 把 `{tables:[...]}` envelope 当 tables 字段嵌套传递，normalize 失败 → slot 被覆盖成空 | v1.0.175 |
+| H6 | 写回世界书 targetBook 让用户手选所有 lorebook | 没默认到当前角色卡 primary lorebook + 没区分聊天是否打开 | v1.0.177 |
+| H7 | 绑定区切换后切回工作台回到默认值 | normalizeTableWorkbenchConfig 白名单丢 5 类字段（bypassPresetId / automation.enabled / extraction.regexPresetId / worldbooks.presetId / worldbookSync.wrapperConfig.*） | v1.0.178 |
+| H8 | 数据编辑器窗口创建后不可见 | window-manager 用 `document.body/head` 但 SillyTavern iframe 嵌套时 module 的 document ≠ UI 的 document，CSS 和元素都在隐藏 iframe | v1.0.179 |
+| H9 | 数据编辑器三 mode 内容相同 + sidebar 无表 + schema/global mode 完全没内容 | renderMainPane 第一段不区分 mode 直接 return 空提示 + slot 空时没 fallback 到模板 | v1.0.180 |
 
-**v1.0.170-175 hotfix 期间新发现的功能缺口**（需纳入剩余规划）：
+**当前仍待修 bug**：
 
-| 新缺口 | 关联 task | 说明 |
+| Bug | 现象 | 优先级 |
 |---|---|---|
-| **写回世界书是新功能不是预设延伸** | #30（新） | "世界书预设"=注入 prompt 的内容，多模块共用；"同步到世界书"=填表结果写回为条目，**完全新功能**。需要 targetBook 选择 + wrapper 配置 + placement 三件套 UI |
-| **默认模板缺 DSL prompt 指示** | #31（新） | shujuku 旧模板用 JSON envelope 输出，无法走议题 #15 #21 的 incremental DSL 路径。默认 prompt 需写明 `<tableEdit>` DSL 格式让 AI 优先用增量 |
-| **数据编辑器是 v1.0.170 后用户最大体验断裂** | #11 | 旧 panel 的 drawer 删了之后，用户**完全无法手动编辑表行/字段/单元格**。期间只能让 AI 填，不能改 |
-| **schema-service 仍是旧模型** | #16 | 1376 行 schema 没按 Sheet content[][] + sourceData 5 段重写。模板编辑器无法暴露这些抽象 |
+| Bug 7 (#33) | 导入新 DSL 模板切换后表格概览仍空，无诊断日志 | P0 — 用户测试时遇到 |
 
 ---
 
-**剩余 6 项任务（按推荐执行顺序）**：
+**剩余 4 项任务（按推荐执行顺序）**：
 
 **P0 用户体感最大**：
-- **#11 数据编辑器窗口** — 旧 drawer 删了之后用户无法手动改数据，必须先做（即使 schema 没重写也能做基础 cell 编辑）
-- **#30 写回世界书 UI** — 工作台「填表行为」section 补 targetBook + wrapper 配置（约 80-120 行新 UI）
+- **#33 新模板不能解析诊断+修**（v1.0.180 实测发现） — resolveActiveTemplate / template-service 加诊断 + 修可能的 normalize 丢字段
 
 **P1 主链最终对齐**：
-- **#31 默认模板加 DSL prompt** — 让 AI 走 incremental 而不是 full envelope（增量更精确）
 - **#16 schema-service 重写**（1376 行最大风险，按 Sheet 模型 + sourceData 5 段 + updateConfig sentinel + 索引列锁等）。完成后 v3 预览的"结构配置"/"全局注入"两 mode 才能完整接入
 
 **P2 收尾**：
@@ -255,7 +254,7 @@ Stage 4
 
 ---
 
-**策略**：暂停发版 + 测试，集中做 #11 + #30 + #31 + #16，等功能大致完成（v1.0.176 一次发版）再统一测。否则零碎 hotfix 测试浪费精力。
+**策略**：先在 v1.0.180 跑完整 e2e 测试验证议题 #15 主链（填表 DSL + 重填 + 数据编辑器 + 写回世界书 + Provider 双轨 + chat 隔离）。问题反馈后修 Bug 7 / #16，然后 #8/#12 收尾。
 
 ---
 

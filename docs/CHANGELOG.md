@@ -9,6 +9,88 @@
 
 ## [Unreleased]
 
+## [1.0.180] - 2026-05-18
+
+### 修复
+- **数据编辑器三 mode 内容相同 + sidebar 无表**：`renderMainPane()` 第一段 `if (tables.length === 0)` 不区分 mode 直接 return 空提示。修：(1) `loadEditorData` slot 空时调 `resolveActiveTemplate` 拿模板 tables 作 fallback（sidebar + schema mode 能用）(2) `renderMainPane` 区分 mode — global mode 永远渲染（跨表设置不依赖 tables），data/schema mode 才需要 tables (3) data mode 在 fromTemplate 时显示提示条「当前是模板默认结构，编辑后会创建 slot 数据」
+
+## [1.0.179] - 2026-05-18
+
+### 修复
+- **数据编辑器窗口创建后不可见**（议题 #15 #11）：用户实测诊断显示窗口创建成功（`createWindow returned: true`、`onReady triggered`、DOM 在 body 里），但 `offsetParent: null` + `clientHeight: 0`。**根因**：`window-manager.createWindow` 用 `document.body / document.head`，但 SillyTavern iframe 嵌套环境下模块代码的 `document` 是 iframe 自己的（隐藏），UI 在 `window.parent.document`。CSS 和元素都被附加到隐藏的 iframe document → 不可见。
+- **修复**：用 `modules/ui/utils.js` 已有的 `getTargetDocument()` helper（popup-shell 同模式）。`injectWindowStyles` 注入到 top document.head，`createWindow` 内 modal overlay + window 元素 append 到 top document.body。CSS 和元素同 document，渲染正常。
+
+## [1.0.178] - 2026-05-18
+
+### 修复
+- **绑定区配置切换后切回工作台回到默认值**（Bug 3）：`normalizeTableWorkbenchConfig` 白名单丢字段
+  - 顶层 `bypassPresetId`（normalize 期望 `bypass.presetId`）
+  - `automation.enabled`（normalize 用 `autoUpdateEnabled`）
+  - `extraction.regexPresetId`（完全不接收）
+  - `worldbooks.presetId`（只接收 enabled/selected）
+  - `worldbookSync.wrapperConfig.*`（normalize 把 wrapperConfig 放顶层）
+- **修复（双向）**：
+  - schema-service.normalizeTableWorkbenchConfig 兼容新旧路径
+  - workbench-window UI 读写路径走 normalize 后标准（`autoUpdateEnabled` / `bypass.presetId`）
+
+### 诊断
+- 数据编辑器没反应 — 加 console.log 跟踪 click → openTableDataEditor → loadEditorData → createWindow 各步骤（v1.0.179 据此修复 root cause）
+
+## [1.0.177] - 2026-05-18
+
+### 修复
+- **写回世界书 targetBook 默认改为当前角色卡绑定**（Bug 1）：原 v1.0.176 让用户从所有 lorebook 手选；现在默认 = 角色卡 primary lorebook，没打开聊天时 select 禁用 + 显示「未打开聊天」警告
+- 新增 `loadCharacterBoundLorebook()` helper（多 API fallback：`getCurrentCharPrimaryLorebook` / `getCharLorebooks().primary` / `getChatLorebook` / `SillyTavern.context.characters[idx].data.character_book`）
+- 新增 `isChatOpened()` helper（基于 `getCurrentChatId()`）
+
+## [1.0.176] - 2026-05-18
+
+### 新增（议题 #15 主路径完整接入）
+- **议题 #15 #32：IToolDataProvider 双轨接入**（修 PLAN D5 误判）
+  - 新建 `modules/table-engine/table-data-service.js`（~470 行）— 4 张 SQL 表（sheets/rows/locks/chat_scope）+ 高层 CRUD API
+  - state-service.commitBoundState 主路径仍写 message 字段（保兼容），异步镜像到 SQL（双写）
+  - lock-service / chat-scope-service 同样双写
+  - Authority 用户 SQLite 累积真实数据，Fallback 走 storage-service JSON + 迷你 SQL 解释器
+- **议题 #15 #11：数据编辑器窗口**（`modules/ui/components/table-data-editor-window.js` 新建 ~880 行）
+  - 独立浮窗（createWindow 1200x800），3 个 mode（数据编辑 / 结构配置 / 全局注入）
+  - 数据 mode：card-grid + cell contenteditable + 行名编辑 + 删除/添加行
+  - Sidebar 表列表 + 切换；Toolbar dirty badge + 重新加载/保存/立即填表
+  - 保存调 `commitBoundState(target, {tables: tempData})`
+- **议题 #15 #30：写回世界书配置 UI**（工作台「填表行为」section）
+  - 「同步到世界书」toggle 开启后展开 sub-zone：目标世界书 / Wrapper enabled+tag+hint / 注入位置（position+depth+order）
+  - 配置存到 `config.worldbookSync.wrapperConfig.*`
+- **议题 #15 #31：默认模板 prompt 改为 DSL 优先**
+  - `DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE` 加 DSL 指示
+  - `TABLE_WORKBENCH_RESPONSE_CONTRACT` 含 `<tableEdit>` 完整示例 + 列索引字符串约定
+  - AI 走 DSL 后议题 #21 的 incremental parser 接通生效
+
+## [1.0.175] - 2026-05-18
+
+### 修复
+- **议题 #15 #21 第二段修复**：sanitizeAIResponse 没 unwrap `{tables:[...]}` envelope，导致 AI 用 JSON 全量替换格式时主链 `normalizeRuntimeTables(parsed.tables)` 收到对象不是数组 → 返回空数组 → 覆盖 slot 状态成空 → 表格无数据 + worldbook 无条目
+- 修：sanitizeAIResponse 检测 envelope 类型，unwrap 提取 `.tables` 数组；裸数组原样保留；其他 object 兜底找第一个 array 字段
+
+## [1.0.174] - 2026-05-18
+
+### 修复
+- **表格概览行数永远是 0**：`loadWorkbenchState.tablesPreview` 读模板 schema 的 rows（永远空）而非 slot 实际 runtime tables。修：优先调 `getAssistantTableSnapshot(null)` 读 slot tableState.tables，没数据时 fallback 模板（加 updatedHint 显示数据更新时间）
+
+## [1.0.173] - 2026-05-18
+
+### 修复
+- **工作台下拉框白框白字看不清**：自写的 `.yyt-tww-ctrl` 没 `!important` 被全局 select reset 覆盖。修：select/input 接入 toolkit 预制体 `yyt-select` / `yyt-input`（带 !important 防御），`.yyt-tww-ctrl` 仅做 size override
+- **填表行为 section 超出深色渲染区**：`.yyt-tww` background 改 transparent 让父容器深色穿透
+
+## [1.0.172] - 2026-05-18
+
+### 修复
+- **所有工具配置面板 hero chips 渲染丢失**：旧 1441 行 panel 顶部 import `TOOL_CONFIG_PANEL_STYLES` 并通过 `getStyles()` 注入到 ui-manager 全局 style tag；v1.0.170 重写 panel 时丢了这个注入路径。修：让 `createToolConfigPanel.getStyles()` 返回 `TOOL_CONFIG_PANEL_STYLES` 自身，每个工具 panel 自管 CSS 注入
+
+## [1.0.171] - 2026-05-18
+
+### 修复
+- **工作台从浮窗回归 popup tab 内联**：preview-table-workbench.html 里 .win 容器被误读为独立浮窗。v1.0.170 把它实现成 createWindow 真浮窗 + popup launcher 两步流程，跟设计意图相反。修：table-workbench-window.js 改造为纯 view helpers 模块（renderWorkbenchHtml / loadWorkbenchState / bindWorkbenchEvents），table-workbench-panel.js 重写为 popup tab 直接内联渲染
+
 ## [1.0.170] - 2026-05-18
 
 ### 新增

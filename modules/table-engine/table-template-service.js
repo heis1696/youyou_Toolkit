@@ -27,6 +27,7 @@ import {
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID,
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_NAME,
   DEFAULT_TABLE_WORKBENCH_TABLES,
+  parseTableWorkbenchTemplate,
   validateTableDraftDeep
 } from './table-schema-service.js';
 import { cloneTableValue, TABLE_TEMPLATE_SCOPE_MODE } from './table-types.js';
@@ -54,17 +55,40 @@ function createTemplateId(prefix = 'template') {
 }
 
 function normalizeTemplate(value = {}) {
-  const tables = cloneTableValue(Array.isArray(value.tables) ? value.tables : []);
+  // 议题 #15 Bug #33 修复：兼容多种导入格式
+  //   - youyou 原生：{ name, tables: [...] }
+  //   - shujuku 导出：{ mate:{type:'chatSheets'}, sheet_0:{...}, sheet_1:{...} }
+  //   - shujuku 包装：{ tables: { sheet_0:{...} } } 之类的嵌套
+  let tables;
+  if (Array.isArray(value?.tables)) {
+    tables = cloneTableValue(value.tables);
+  } else if (value?.tables && typeof value.tables === 'object') {
+    // value.tables 是对象 → 走 shujuku {sheet_xxx} 解析
+    tables = parseTableWorkbenchTemplate(value.tables);
+    if (!Array.isArray(tables) || tables.length === 0) {
+      getLog().warn('normalizeTemplate: value.tables 对象但解析为空', { keys: Object.keys(value.tables || {}).slice(0, 10) });
+    }
+  } else if (value && typeof value === 'object' && Object.keys(value).some((k) => k.startsWith('sheet_'))) {
+    // 整个 value 就是 shujuku 模板根对象（导入文件常见）
+    tables = parseTableWorkbenchTemplate(value);
+    if (!Array.isArray(tables) || tables.length === 0) {
+      getLog().warn('normalizeTemplate: 检测到 shujuku 根对象但解析为空', { sheetKeys: Object.keys(value).filter((k) => k.startsWith('sheet_')).slice(0, 10) });
+    } else {
+      getLog().info('normalizeTemplate: 识别为 shujuku 格式', { sheetCount: tables.length });
+    }
+  } else {
+    tables = [];
+  }
   const validation = validateTableDraftDeep({ tables });
-  const id = normalizeString(value.id, createTemplateId());
+  const id = normalizeString(value?.id, createTemplateId());
   return {
     id,
-    name: normalizeString(value.name, '未命名模板'),
-    description: normalizeString(value.description, ''),
+    name: normalizeString(value?.name, '未命名模板'),
+    description: normalizeString(value?.description, ''),
     tables: validation.tables || tables,
-    promptTemplate: normalizeString(value.promptTemplate, ''),
-    createdAt: normalizeString(value.createdAt, new Date().toISOString()),
-    updatedAt: normalizeString(value.updatedAt, new Date().toISOString())
+    promptTemplate: normalizeString(value?.promptTemplate, ''),
+    createdAt: normalizeString(value?.createdAt, new Date().toISOString()),
+    updatedAt: normalizeString(value?.updatedAt, new Date().toISOString())
   };
 }
 
@@ -158,20 +182,29 @@ export function importTemplates(payload, { overwrite = false } = {}) {
   } else {
     return { success: false, imported: 0, skipped: 0, errors: ['无效的导入数据格式。'] };
   }
+  getLog().info('importTemplates 开始', { rawListCount: rawList.length, overwrite });
   const existingIds = new Set(getUserTableTemplates().map(t => t.id));
   let imported = 0, skipped = 0;
   const errors = [];
   for (const raw of rawList) {
     try {
       const template = normalizeTemplate(raw);
+      getLog().info('importTemplates 单条', {
+        id: template.id,
+        name: template.name,
+        tableCount: Array.isArray(template.tables) ? template.tables.length : 0,
+        firstTableName: template.tables?.[0]?.name || ''
+      });
       if (!overwrite && existingIds.has(template.id)) { skipped++; continue; }
       saveTableTemplate(template);
       existingIds.add(template.id);
       imported++;
     } catch (e) {
       errors.push(normalizeString(e?.message, '未知错误'));
+      getLog().error('importTemplates 单条失败', e);
     }
   }
+  getLog().info('importTemplates 完成', { imported, skipped, errorCount: errors.length });
   return { success: true, imported, skipped, errors };
 }
 
@@ -258,6 +291,13 @@ export function resolveActiveTemplate({ chatId, isolationKey } = {}) {
   // 没有 chat 级 scope state → inherit_global
   if (!scopeState || scopeState.mode === TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL) {
     const template = getActiveGlobalTemplate();
+    getLog().info('resolveActiveTemplate: inherit_global', {
+      chatId, isolationKey: iso,
+      templateId: template?.id || '',
+      templateName: template?.name || '',
+      tableCount: Array.isArray(template?.tables) ? template.tables.length : 0,
+      firstTableName: template?.tables?.[0]?.name || ''
+    });
     return {
       template,
       mode: TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL,
