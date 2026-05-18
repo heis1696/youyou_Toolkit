@@ -27,6 +27,7 @@ import {
 } from '../../table-engine/table-template-service.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
+import { getAssistantTableSnapshot } from '../../table-engine/table-state-service.js';
 import { getAllPresets as getApiPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresets } from '../../bypass-manager.js';
 import regexStore from '../../regex-preset-store.js';
@@ -547,11 +548,24 @@ export function loadWorkbenchState() {
   const worldbookPresets = (() => { try { return worldbookStore.listPresets() || []; } catch (_) { return []; } })();
   const isolationKey = (() => { try { return tableIsolation.getKey(); } catch (_) { return ''; } })();
 
-  const tablesPreview = ((activeTemplate?.template?.tables) || (config?.tables) || []).map((t) => ({
+  // 议题 #15 hotfix v1.0.174：tablesPreview 优先读当前 slot 实际表数据；
+  // 没有 slot 数据时退回模板 schema（每行数都是 0，但至少表名能显示）
+  let slotTables = null;
+  let slotUpdatedAt = 0;
+  try {
+    const snapshot = getAssistantTableSnapshot(null);
+    if (Array.isArray(snapshot?.tableState?.tables) && snapshot.tableState.tables.length > 0) {
+      slotTables = snapshot.tableState.tables;
+      slotUpdatedAt = Number(snapshot.tableState.updatedAt) || 0;
+    }
+  } catch (_) { /* fallback to template */ }
+
+  const previewSource = slotTables || activeTemplate?.template?.tables || config?.tables || [];
+  const tablesPreview = previewSource.map((t) => ({
     name: t?.name || '',
     rowCount: Array.isArray(t?.rows) ? t.rows.length : 0,
     colCount: Array.isArray(t?.columns) ? t.columns.length : 0,
-    updatedHint: ''
+    updatedHint: slotTables && slotUpdatedAt > 0 ? fmtTime(slotUpdatedAt) : ''
   }));
 
   return {
