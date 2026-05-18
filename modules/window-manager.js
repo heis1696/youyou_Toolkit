@@ -5,6 +5,7 @@
 
 import { windowStorage } from './core/storage-service.js';
 import { logger } from './core/logger-service.js';
+import { getTargetDocument } from './ui/utils.js';
 
 const log = logger.createScope('WindowManager');
 
@@ -433,10 +434,12 @@ function injectWindowStyles() {
     }
   `;
 
-  const style = document.createElement('style');
+  // v1.0.179 hotfix Bug 2：styles 注入到 top document（跟 popup-shell 同 document 才能让 .yyt-window CSS 对窗口元素生效）
+  const targetDoc = getTargetDocument();
+  const style = targetDoc.createElement('style');
   style.id = WINDOW_MANAGER_ID + '_styles';
   style.textContent = css;
-  (document.head || document.documentElement).appendChild(style);
+  (targetDoc.head || targetDoc.documentElement).appendChild(style);
 }
 
 // ============================================================
@@ -553,16 +556,17 @@ export function createWindow(options) {
     </div>
   `;
 
-  // 创建遮罩层（模态窗口）
+  // v1.0.179 hotfix Bug 2：模态遮罩附加到 top document.body（不是 iframe body）
+  const targetDocForAppend = getTargetDocument();
   let $overlay = null;
   if (modal) {
     $overlay = $(`<div class="yyt-window-overlay" data-for="${id}"></div>`);
-    $(document.body).append($overlay);
+    $(targetDocForAppend.body).append($overlay);
   }
 
-  // 插入窗口
+  // 插入窗口（同样到 top document.body）
   const $window = $(windowHtml);
-  $(document.body).append($window);
+  $(targetDocForAppend.body).append($window);
 
   // 注册到窗口管理器
   windowManager.register(id, $window);
