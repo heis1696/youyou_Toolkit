@@ -501,6 +501,10 @@ function loadEditorData() {
   let targetSnapshot = null;
   let isFromTemplate = false;
 
+  // v1.0.203 修复：如果刚 save-global（5 分钟内），优先读全局模板而不是 slot
+  //   因为 save-global 改的是全局模板，slot 不变。用户期望 reload 看到自己改的就要读模板
+  const afterSaveGlobalRecent = _state._afterSaveGlobalAt && (Date.now() - _state._afterSaveGlobalAt < 5 * 60 * 1000);
+
   try {
     const snapshot = getAssistantTableSnapshot(null);
     // v1.0.199 诊断：暴露 snapshot 关键字段，定位「保存了但 reload 读不到」根因
@@ -511,9 +515,10 @@ function loadEditorData() {
       isolationKey: snapshot?.tableState?.meta?.isolationKey,
       hasTableState: !!snapshot?.tableState,
       tableStateTablesLen: Array.isArray(snapshot?.tableState?.tables) ? snapshot.tableState.tables.length : null,
-      firstTableNameInSlot: snapshot?.tableState?.tables?.[0]?.name
+      firstTableNameInSlot: snapshot?.tableState?.tables?.[0]?.name,
+      afterSaveGlobalRecent
     });
-    if (Array.isArray(snapshot?.tableState?.tables) && snapshot.tableState.tables.length > 0) {
+    if (!afterSaveGlobalRecent && Array.isArray(snapshot?.tableState?.tables) && snapshot.tableState.tables.length > 0) {
       tables = snapshot.tableState.tables;
     }
     targetSnapshot = snapshot ? {
@@ -1368,6 +1373,15 @@ function bindEditorEvents($window) {
         }
         _state._pendingMirrorTag = null;
         clearDirty();
+        // v1.0.203 修复：save-global 后把 result.template.tables 同步回 tempData，
+        //   并标记 isFromTemplate=true（用户已"重置"到全局模板状态）。
+        //   这样 reload 时 loadEditorData 会优先读模板（因为 _afterSaveGlobalAt 标志），
+        //   而不是读 slot 旧数据（用户报告：「保存到全局后 reload 看不到改动」）。
+        if (Array.isArray(result?.template?.tables)) {
+          _state.tempData = cloneTableValue(result.template.tables) || [];
+          _state.isFromTemplate = true;
+          _state._afterSaveGlobalAt = Date.now();
+        }
         showToast('success', `已保存到全局模板「${activeTpl.name}」`);
         getLog().info('保存到全局模板成功', { templateId: activeTpl.id, name: activeTpl.name, tableCount: tablesSchemaOnly.length });
         refresh();
