@@ -16,6 +16,7 @@
  */
 
 import { logger } from '../../core/logger-service.js';
+import { getCurrentProvider, getToolDataProvider, PROVIDER_KIND } from '../../core/tool-data-provider.js';
 import {
   getTableWorkbenchConfig,
   saveTableWorkbenchConfig
@@ -60,6 +61,55 @@ let _log;
 function getLog() {
   if (!_log) _log = logger.createScope('TableWorkbenchView');
   return _log;
+}
+
+// ════════════════════════════════════════════════════════════════
+// Provider 状态缓存（v1.0.194+ Task A）
+// loadWorkbenchState 是同步函数，无法 await SQL count；用 module-level
+// 缓存：UI 同步读，refreshProviderStats 异步刷新缓存。第一次显示 "..." 或
+// 上次缓存值，刷新后下次渲染显示最新。
+// ════════════════════════════════════════════════════════════════
+const _providerStats = {
+  kind: null,           // 'authority' | 'fallback' | null
+  sheetCount: null,     // number | null（null = 未刷新）
+  rowCount: null,
+  lastError: null,      // string | null
+  lastRefreshAt: 0
+};
+
+export async function refreshProviderStats() {
+  try {
+    const provider = await getToolDataProvider();
+    if (!provider) {
+      _providerStats.kind = null;
+      _providerStats.lastError = 'Provider 不可用';
+      return _providerStats;
+    }
+    _providerStats.kind = provider.kind;
+    // 查 count（API 在 AuthorityProvider 是 query / FallbackProvider 也是 query）
+    if (typeof provider.query === 'function') {
+      const sheetResult = await provider.query({ statement: 'SELECT COUNT(*) as c FROM table_sheets' });
+      const rowResult = await provider.query({ statement: 'SELECT COUNT(*) as c FROM table_rows' });
+      _providerStats.sheetCount = sheetResult?.rows?.[0]?.c ?? 0;
+      _providerStats.rowCount = rowResult?.rows?.[0]?.c ?? 0;
+    }
+    _providerStats.lastError = null;
+    _providerStats.lastRefreshAt = Date.now();
+    getLog().info('Provider stats 已刷新', { ..._providerStats });
+  } catch (err) {
+    _providerStats.lastError = err?.message || String(err);
+    getLog().warn('Provider stats 刷新失败', err);
+  }
+  return _providerStats;
+}
+
+export function getProviderStats() {
+  // 同步访问，UI 用；如果还没刷新过 kind 是 null
+  if (!_providerStats.kind) {
+    const current = getCurrentProvider();
+    if (current?.kind) _providerStats.kind = current.kind;
+  }
+  return _providerStats;
 }
 
 function esc(s) {
@@ -382,7 +432,7 @@ select.yyt-tww-ctrl {
 // ────────────────────────────────────────────────────────────────
 
 export function renderWorkbenchHtml(state) {
-  const { config, activeTemplate, isolationKey, tablesPreview, templateArchives = [] } = state;
+  const { config, activeTemplate, isolationKey, tablesPreview, templateArchives = [], providerStats = {} } = state;
   const runtime = config?.runtime || {};
   const statusText = runtime.lastStatus === 'success' ? '✓ 上次成功'
     : runtime.lastStatus === 'failed' ? '✗ 上次失败'
@@ -423,6 +473,20 @@ export function renderWorkbenchHtml(state) {
           const smLabel = sm === 'current' ? '⚠️ 仅当前表' : '仅选中表';
           // v1.0.189：非 enabled 时改为可点击按钮，点一下立刻重置到 enabled
           return `<button class="yyt-tww-chip status-failed" data-action="reset-run-scope" title="当前 AI 只会填部分表，点击重置为「所有启用表」" style="border:0;cursor:pointer;">范围: ${esc(smLabel)} — 点此重置</button>`;
+        })()}
+        ${(() => {
+          // v1.0.194+ Task A: Provider 状态 chip
+          const kind = providerStats?.kind;
+          const sc = providerStats?.sheetCount;
+          const rc = providerStats?.rowCount;
+          const counts = (sc !== null && rc !== null) ? ` — ${sc} 表 ${rc} 行` : '';
+          if (kind === 'authority') {
+            return `<span class="yyt-tww-chip status-success" title="数据持久化到真后端 SQLite（ST-Delegation-of-authority 提供）">✓ 真后端 SQLite${esc(counts)}</span>`;
+          }
+          if (kind === 'fallback') {
+            return `<span class="yyt-tww-chip preset" title="数据持久化到 localStorage（未装 ST-Delegation-of-authority）">ℹ Fallback (localStorage)${esc(counts)}</span>`;
+          }
+          return `<span class="yyt-tww-chip" title="Provider 还未初始化（懒加载）">Provider 加载中...</span>`;
         })()}
         ${isolationKey ? `<span class="yyt-tww-chip">隔离: ${esc(isolationKey)}</span>` : ''}
         <span class="yyt-tww-chip status-${statusCls === 'success' ? 'success' : statusCls === 'error' ? 'failed' : ''}">${esc(statusText)}</span>
@@ -854,7 +918,8 @@ export function loadWorkbenchState() {
     chatOpen,
     isolationKey,
     tablesPreview,
-    templateArchives
+    templateArchives,
+    providerStats: getProviderStats()
   };
 }
 
@@ -956,6 +1021,11 @@ export function bindWorkbenchEvents($container, refresh) {
   }
 
   $container.off('.tww');
+
+  // v1.0.194+ Task A：bind 时异步刷新 Provider stats，刷新完触发 refresh 重渲染 chip
+  refreshProviderStats().then(() => {
+    if (typeof refresh === 'function') refresh();
+  }).catch(() => {});
 
   // 立即填表
   $container.on('click.tww', '[data-action="run-now"]', async () => {

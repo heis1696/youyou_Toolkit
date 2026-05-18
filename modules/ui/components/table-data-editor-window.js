@@ -25,7 +25,7 @@ import {
 } from '../../table-engine/table-state-service.js';
 import { resolveLatestTableTarget } from '../../table-engine/table-target-resolver.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
-import { resolveActiveTemplate } from '../../table-engine/table-template-service.js';
+import { resolveActiveTemplate, saveTableTemplate, getActiveGlobalTemplate } from '../../table-engine/table-template-service.js';
 import { cloneTableValue, createRuntimeTableRowId } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { showToast } from '../utils.js';
@@ -185,6 +185,27 @@ const STYLES = `
 }
 .yyt-tde-sheet-item.active .yyt-tde-sheet-count { color: var(--tde-accent); background: rgba(123,183,255,0.12); }
 
+/* v1.0.194 Task M3: sidebar 表顺序操作 */
+.yyt-tde-sheet-item-wrap {
+  display: flex; align-items: center; gap: 2px;
+  border-radius: 6px;
+  padding: 0 2px;
+}
+.yyt-tde-sheet-item-wrap.active { background: var(--tde-accent-soft); }
+.yyt-tde-sheet-item-wrap .yyt-tde-sheet-item {
+  flex: 1; padding: 6px 8px;
+}
+.yyt-tde-sheet-actions {
+  display: none; gap: 1px; flex-shrink: 0;
+}
+.yyt-tde-sheet-item-wrap:hover .yyt-tde-sheet-actions,
+.yyt-tde-sheet-item-wrap.active .yyt-tde-sheet-actions { display: flex; }
+.yyt-tde-sheet-idx {
+  font-size: 10px; color: var(--tde-text-muted);
+  margin-right: 4px; font-weight: 700;
+}
+.yyt-tde-btn-icon[disabled] { opacity: 0.3; cursor: not-allowed; }
+
 /* main */
 .yyt-tde-main {
   flex: 1; min-width: 0;
@@ -326,6 +347,86 @@ const STYLES = `
 }
 .yyt-tde-schema-row:first-child { border-top: none; }
 .yyt-tde-schema-key { color: var(--tde-text-secondary); font-weight: 600; }
+
+/* v1.0.194 Task G1: schema mode 可编辑控件 */
+.yyt-tde-input {
+  background: var(--tde-surface-3);
+  border: 1px solid var(--tde-hairline);
+  color: var(--tde-text);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  width: 100%;
+  font-family: inherit;
+}
+.yyt-tde-input:focus { outline: 1px solid var(--tde-accent, #4a9eff); }
+textarea.yyt-tde-input { min-height: 40px; resize: vertical; }
+.yyt-tde-schema-sd textarea.yyt-tde-input { min-height: 60px; }
+.yyt-tde-uc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px 14px;
+  padding: 8px 0;
+}
+.yyt-tde-uc-cell { display: flex; flex-direction: column; gap: 4px; }
+.yyt-tde-uc-cell-wide { grid-column: span 2; }
+.yyt-tde-uc-cell label { font-size: 11px; font-weight: 600; color: var(--tde-text-secondary); }
+.yyt-tde-uc-cell .yyt-tde-hint { font-size: 10px; color: var(--tde-text-muted); }
+.yyt-tde-schema-field {
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  padding: 10px 12px;
+  background: var(--tde-surface-2);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.yyt-tde-schema-field-head {
+  display: flex; align-items: center; gap: 8px;
+}
+.yyt-tde-schema-idx { font-size: 11px; color: var(--tde-accent); font-weight: 700; min-width: 24px; }
+.yyt-tde-input-title { flex: 2; }
+.yyt-tde-input-key { flex: 1; font-family: monospace; }
+.yyt-tde-input-type { flex: 0 0 90px; }
+.yyt-tde-input-desc { width: 100%; min-height: 32px; font-size: 11px; }
+.yyt-tde-btn-icon {
+  background: transparent; border: none; color: var(--tde-text-muted);
+  cursor: pointer; padding: 4px 6px; border-radius: 4px;
+  font-size: 12px;
+}
+.yyt-tde-btn-icon:hover { background: var(--tde-surface-3); color: var(--tde-text); }
+.yyt-tde-btn-danger:hover { color: #ff6b6b; }
+.yyt-tde-btn-add-field {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px dashed var(--tde-hairline);
+  color: var(--tde-text-muted);
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+}
+.yyt-tde-btn-add-field:hover { border-color: var(--tde-accent); color: var(--tde-accent); }
+
+/* global mode: exportConfig 卡片 */
+.yyt-tde-global-card {
+  background: var(--tde-surface-2);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--tde-hairline);
+}
+.yyt-tde-global-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 8px; border-bottom: 1px solid var(--tde-hairline);
+  margin-bottom: 8px;
+}
+.yyt-tde-global-card-name { font-weight: 700; color: var(--tde-text); }
+.yyt-tde-toggle-inline {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--tde-text-muted); cursor: pointer;
+}
+.yyt-tde-disabled-section { opacity: 0.5; pointer-events: none; }
 .yyt-tde-schema-value { color: var(--tde-text); word-break: break-word; }
 .yyt-tde-schema-hint {
   font-size: 11px;
@@ -442,7 +543,8 @@ function renderToolbar() {
       </div>
       <div class="yyt-tde-actions">
         <button class="yyt-tde-btn" data-action="reload"><i class="fa-solid fa-rotate"></i> 重新加载</button>
-        <button class="yyt-tde-btn" data-action="save" ${_state.isDirty ? '' : 'disabled'}><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+        <button class="yyt-tde-btn" data-action="save" ${_state.isDirty ? '' : 'disabled'} title="保存到当前消息的 slot"><i class="fa-solid fa-floppy-disk"></i> 保存到 chat</button>
+        <button class="yyt-tde-btn" data-action="save-global" ${_state.isDirty ? '' : 'disabled'} title="保存到全局激活模板（影响所有 chat 后续填表）"><i class="fa-solid fa-globe"></i> 保存到全局</button>
         <button class="yyt-tde-btn yyt-tde-btn-primary" data-action="run-now"><i class="fa-solid fa-play"></i> 立即填表</button>
       </div>
     </div>
@@ -454,11 +556,20 @@ function renderSidebar() {
   const items = tables.map((t, i) => {
     const name = t?.name || `表 ${i + 1}`;
     const rowCount = Array.isArray(t?.rows) ? t.rows.length : 0;
+    // v1.0.194 Task M3: 加上移/下移/删除按钮
     return `
-      <button class="yyt-tde-sheet-item ${i === _state.currentTableIndex ? 'active' : ''}" data-sheet-index="${i}">
-        <span class="yyt-tde-sheet-name">${esc(name)}</span>
-        <span class="yyt-tde-sheet-count">${rowCount}</span>
-      </button>
+      <div class="yyt-tde-sheet-item-wrap ${i === _state.currentTableIndex ? 'active' : ''}">
+        <button class="yyt-tde-sheet-item" data-sheet-index="${i}">
+          <span class="yyt-tde-sheet-idx">[${i}]</span>
+          <span class="yyt-tde-sheet-name">${esc(name)}</span>
+          <span class="yyt-tde-sheet-count">${rowCount}</span>
+        </button>
+        <div class="yyt-tde-sheet-actions">
+          <button class="yyt-tde-btn-icon" data-action="sheet-move-up" data-sheet-index="${i}" title="上移" ${i === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
+          <button class="yyt-tde-btn-icon" data-action="sheet-move-down" data-sheet-index="${i}" title="下移" ${i === tables.length - 1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
+          <button class="yyt-tde-btn-icon yyt-tde-btn-danger" data-action="sheet-delete" data-sheet-index="${i}" title="删除此表"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>
     `;
   }).join('');
 
@@ -468,6 +579,7 @@ function renderSidebar() {
       <div class="yyt-tde-sheet-list">
         ${items || `<div style="padding: 8px 10px; font-size: 11px; color: var(--tde-text-muted);">暂无表</div>`}
       </div>
+      <button class="yyt-tde-btn-add-field" data-action="sheet-add" style="margin: 10px;"><i class="fa-solid fa-plus"></i> 添加新表</button>
     </nav>
   `;
 }
@@ -550,46 +662,227 @@ function renderDataMode(table, tableIndex) {
 
 function renderSchemaMode(table, tableIndex) {
   const columns = Array.isArray(table?.columns) ? table.columns : [];
-  const fieldRows = columns.map((col) => `
-    <div class="yyt-tde-schema-row">
-      <div class="yyt-tde-schema-key">${esc(col?.key || '')} <span style="color:var(--tde-text-muted);font-weight:400;">/ ${esc(col?.type || 'text')}</span></div>
-      <div class="yyt-tde-schema-value">
-        <div style="font-weight:600;color:var(--tde-text);">${esc(col?.title || col?.key || '')}</div>
-        ${col?.description ? `<div style="color:var(--tde-text-muted);font-size:11px;margin-top:2px;">${esc(col.description)}</div>` : ''}
+  const sd = table?.sourceData || {};
+  const ai = table?.aiInstructions || {};
+  const uc = table?.updateConfig || {};
+  // v1.0.194 Task G1: 字段定义可编辑 + sourceData 5 段 + updateConfig 7 参数
+  const fieldRows = columns.map((col, ci) => `
+    <div class="yyt-tde-schema-row yyt-tde-schema-field" data-field-index="${ci}">
+      <div class="yyt-tde-schema-field-head">
+        <span class="yyt-tde-schema-idx">[${ci}]</span>
+        <input class="yyt-tde-input yyt-tde-input-title" data-action="field-title" data-field-index="${ci}" value="${esc(col?.title || col?.key || '')}" placeholder="字段标题" />
+        <input class="yyt-tde-input yyt-tde-input-key" data-action="field-key" data-field-index="${ci}" value="${esc(col?.key || '')}" placeholder="key" />
+        <select class="yyt-tde-input yyt-tde-input-type" data-action="field-type" data-field-index="${ci}">
+          ${['text','number','boolean','date','json'].map(t => `<option value="${t}" ${col?.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <button class="yyt-tde-btn-icon yyt-tde-btn-danger" data-action="field-delete" data-field-index="${ci}" title="删除此字段"><i class="fa-solid fa-trash"></i></button>
       </div>
+      <textarea class="yyt-tde-input yyt-tde-input-desc" data-action="field-desc" data-field-index="${ci}" placeholder="字段描述">${esc(col?.description || '')}</textarea>
     </div>
   `).join('');
 
   return `
-    <div class="yyt-tde-schema-hint">
-      <strong>只读展示</strong> — 字段定义的可编辑 UI 会在 #16 schema-service 重写后接入（支持改名/类型/描述/AI 操作说明）。
-      此 mode 下暂只显示当前列定义。
-    </div>
     <div class="yyt-tde-schema-section">
       <div class="yyt-tde-schema-heading">基础信息</div>
       <div class="yyt-tde-schema-row">
         <div class="yyt-tde-schema-key">表名</div>
-        <div class="yyt-tde-schema-value">${esc(table?.name || '')}</div>
+        <div class="yyt-tde-schema-value">
+          <input class="yyt-tde-input" data-action="table-name" value="${esc(table?.name || '')}" />
+        </div>
       </div>
       <div class="yyt-tde-schema-row">
         <div class="yyt-tde-schema-key">UID</div>
         <div class="yyt-tde-schema-value"><code style="font-size:11px;color:var(--tde-accent);">${esc(table?.uid || table?.id || '')}</code></div>
       </div>
+      <div class="yyt-tde-schema-row">
+        <div class="yyt-tde-schema-key">表说明</div>
+        <div class="yyt-tde-schema-value">
+          <textarea class="yyt-tde-input" data-action="table-note" placeholder="表用途说明 + 列注释">${esc(table?.note || sd?.note || '')}</textarea>
+        </div>
+      </div>
     </div>
+
+    <div class="yyt-tde-schema-section">
+      <div class="yyt-tde-schema-heading">AI 操作说明 (sourceData)</div>
+      <div class="yyt-tde-schema-row yyt-tde-schema-sd">
+        <div class="yyt-tde-schema-key">初始化 (init)</div>
+        <div class="yyt-tde-schema-value">
+          <textarea class="yyt-tde-input" data-action="sd-init" placeholder="表为空时 AI 应该插入什么">${esc(ai?.init || sd?.initNode || '')}</textarea>
+        </div>
+      </div>
+      <div class="yyt-tde-schema-row yyt-tde-schema-sd">
+        <div class="yyt-tde-schema-key">新增 (insert)</div>
+        <div class="yyt-tde-schema-value">
+          <textarea class="yyt-tde-input" data-action="sd-create" placeholder="什么情况下 AI 应该新增行">${esc(ai?.create || sd?.insertNode || '')}</textarea>
+        </div>
+      </div>
+      <div class="yyt-tde-schema-row yyt-tde-schema-sd">
+        <div class="yyt-tde-schema-key">更新 (update)</div>
+        <div class="yyt-tde-schema-value">
+          <textarea class="yyt-tde-input" data-action="sd-update" placeholder="什么情况下 AI 应该更新行">${esc(ai?.update || sd?.updateNode || '')}</textarea>
+        </div>
+      </div>
+      <div class="yyt-tde-schema-row yyt-tde-schema-sd">
+        <div class="yyt-tde-schema-key">删除 (delete)</div>
+        <div class="yyt-tde-schema-value">
+          <textarea class="yyt-tde-input" data-action="sd-delete" placeholder="什么情况下 AI 应该删除行">${esc(ai?.delete || sd?.deleteNode || '')}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="yyt-tde-schema-section">
+      <div class="yyt-tde-schema-heading">更新配置 (updateConfig)</div>
+      <div class="yyt-tde-uc-grid">
+        <div class="yyt-tde-uc-cell">
+          <label>上下文深度 (contextDepth)</label>
+          <input type="number" class="yyt-tde-input" data-action="uc-contextDepth" value="${Number.isFinite(uc?.contextDepth) ? uc.contextDepth : -1}" min="-1" />
+          <span class="yyt-tde-hint">-1 = 沿用全局，0 = 禁用，N = 最近 N 条消息</span>
+        </div>
+        <div class="yyt-tde-uc-cell">
+          <label>更新频率 (updateFrequency)</label>
+          <input type="number" class="yyt-tde-input" data-action="uc-updateFrequency" value="${Number.isFinite(uc?.updateFrequency) ? uc.updateFrequency : -1}" min="-1" />
+          <span class="yyt-tde-hint">-1 = 沿用全局，0 = 禁用自动填表，N = 每 N 条消息触发一次</span>
+        </div>
+        <div class="yyt-tde-uc-cell">
+          <label>批次大小 (batchSize)</label>
+          <input type="number" class="yyt-tde-input" data-action="uc-batchSize" value="${Number.isFinite(uc?.batchSize) ? uc.batchSize : -1}" min="-1" />
+          <span class="yyt-tde-hint">-1 = 沿用全局，N = 单次最多处理 N 张表</span>
+        </div>
+        <div class="yyt-tde-uc-cell">
+          <label>跳过楼层 (skipFloors)</label>
+          <input type="number" class="yyt-tde-input" data-action="uc-skipFloors" value="${Number.isFinite(uc?.skipFloors) ? uc.skipFloors : -1}" min="-1" />
+          <span class="yyt-tde-hint">-1 = 沿用全局，N = 跳过最近 N 层</span>
+        </div>
+        <div class="yyt-tde-uc-cell">
+          <label>发送最新 N 行 (sendLatestRows)</label>
+          <input type="number" class="yyt-tde-input" data-action="uc-sendLatestRows" value="${Number.isFinite(uc?.sendLatestRows) ? uc.sendLatestRows : -1}" min="-1" />
+          <span class="yyt-tde-hint">-1 = 全部发送，0 = 沿用全局，N = 仅发送最新 N 行（大表 token 节省）</span>
+        </div>
+        <div class="yyt-tde-uc-cell">
+          <label>分组 ID (groupId)</label>
+          <input class="yyt-tde-input" data-action="uc-groupId" value="${esc(uc?.groupId || '')}" placeholder="同组 ID 的表会合并触发" />
+          <span class="yyt-tde-hint">同组同时触发，跨组并行（留空 = 独立触发）</span>
+        </div>
+        <div class="yyt-tde-uc-cell yyt-tde-uc-cell-wide">
+          <label>表级 API 预设覆盖</label>
+          <input class="yyt-tde-input" data-action="uc-apiPreset" value="${esc(uc?.apiPreset || '')}" placeholder="留空 = 沿用全局，填预设名 = 这张表用这个" />
+          <span class="yyt-tde-hint">例：角色表用 Claude、纪要表用 GPT</span>
+        </div>
+      </div>
+    </div>
+
     <div class="yyt-tde-schema-section">
       <div class="yyt-tde-schema-heading">字段定义 (${columns.length})</div>
       ${fieldRows || '<div style="color:var(--tde-text-muted);font-size:12px;padding:8px 0;">无字段</div>'}
+      <button class="yyt-tde-btn yyt-tde-btn-add-field" data-action="field-add"><i class="fa-solid fa-plus"></i> 添加字段</button>
     </div>
   `;
 }
 
 function renderGlobalMode() {
+  // v1.0.194 Task G1 + L2：全局注入 / exportConfig 配置 UI
+  // 每张表独立的 exportConfig + 4 个 placement 配置
+  const tables = Array.isArray(_state.tempData) ? _state.tempData : [];
+  if (tables.length === 0) {
+    return `<div class="yyt-tde-empty">无表格可配置。请先添加表格。</div>`;
+  }
+
+  const cards = tables.map((table, ti) => {
+    const ec = table?.exportConfig || {};
+    const ep = ec.entryPlacement || {};
+    const exIndexP = ec.extraIndexPlacement || {};
+    return `
+      <div class="yyt-tde-global-card" data-table-index="${ti}">
+        <div class="yyt-tde-global-card-head">
+          <span class="yyt-tde-global-card-name">${esc(table?.name || `表 ${ti + 1}`)}</span>
+          <label class="yyt-tde-toggle-inline">
+            <input type="checkbox" data-action="ec-enabled" data-table-index="${ti}" ${ec.enabled === true ? 'checked' : ''} />
+            <span>启用独立注入</span>
+          </label>
+        </div>
+        <div class="yyt-tde-global-card-body ${ec.enabled === true ? '' : 'yyt-tde-disabled-section'}">
+          <div class="yyt-tde-uc-grid">
+            <div class="yyt-tde-uc-cell">
+              <label>条目名 (entryName)</label>
+              <input class="yyt-tde-input" data-action="ec-entryName" data-table-index="${ti}" value="${esc(ec.entryName || table?.name || '')}" />
+            </div>
+            <div class="yyt-tde-uc-cell">
+              <label>条目类型 (entryType)</label>
+              <select class="yyt-tde-input" data-action="ec-entryType" data-table-index="${ti}">
+                <option value="constant" ${ec.entryType === 'constant' ? 'selected' : ''}>constant (常驻)</option>
+                <option value="keyword" ${ec.entryType === 'keyword' ? 'selected' : ''}>keyword (关键词触发)</option>
+              </select>
+            </div>
+            <div class="yyt-tde-uc-cell yyt-tde-uc-cell-wide">
+              <label>触发关键词 (keywords)</label>
+              <input class="yyt-tde-input" data-action="ec-keywords" data-table-index="${ti}" value="${esc(ec.keywords || '')}" placeholder="用逗号或换行分隔" />
+            </div>
+            <div class="yyt-tde-uc-cell">
+              <label>按行拆分 (splitByRow)</label>
+              <select class="yyt-tde-input" data-action="ec-splitByRow" data-table-index="${ti}">
+                <option value="false" ${!ec.splitByRow ? 'selected' : ''}>否（整张表一个条目）</option>
+                <option value="true" ${ec.splitByRow ? 'selected' : ''}>是（每行一个条目）</option>
+              </select>
+            </div>
+            <div class="yyt-tde-uc-cell">
+              <label>防递归 (preventRecursion)</label>
+              <select class="yyt-tde-input" data-action="ec-preventRecursion" data-table-index="${ti}">
+                <option value="true" ${ec.preventRecursion !== false ? 'selected' : ''}>是</option>
+                <option value="false" ${ec.preventRecursion === false ? 'selected' : ''}>否</option>
+              </select>
+            </div>
+            <div class="yyt-tde-uc-cell yyt-tde-uc-cell-wide">
+              <label>注入模板 (injectionTemplate)</label>
+              <textarea class="yyt-tde-input" data-action="ec-injectionTemplate" data-table-index="${ti}" placeholder="例：以下是 {{tableName}} 的最新数据：{{tableContent}}">${esc(ec.injectionTemplate || '')}</textarea>
+            </div>
+          </div>
+
+          <div class="yyt-tde-schema-heading" style="margin-top:12px;">条目位置 (entryPlacement)</div>
+          <div class="yyt-tde-uc-grid">
+            <div class="yyt-tde-uc-cell">
+              <label>position</label>
+              <select class="yyt-tde-input" data-action="ec-ep-position" data-table-index="${ti}">
+                ${['before_character_definition','after_character_definition','before_authors_note','after_authors_note'].map(p => `<option value="${p}" ${(ep.position || 'before_character_definition') === p ? 'selected' : ''}>${p}</option>`).join('')}
+              </select>
+            </div>
+            <div class="yyt-tde-uc-cell">
+              <label>depth</label>
+              <input type="number" class="yyt-tde-input" data-action="ec-ep-depth" data-table-index="${ti}" value="${Number.isFinite(ep.depth) ? ep.depth : 2}" />
+            </div>
+            <div class="yyt-tde-uc-cell">
+              <label>order</label>
+              <input type="number" class="yyt-tde-input" data-action="ec-ep-order" data-table-index="${ti}" value="${Number.isFinite(ep.order) ? ep.order : 0}" />
+            </div>
+          </div>
+
+          <div class="yyt-tde-schema-heading" style="margin-top:12px;">额外索引位置 (extraIndexPlacement，可选)</div>
+          <div class="yyt-tde-uc-grid">
+            <div class="yyt-tde-uc-cell">
+              <label>position</label>
+              <select class="yyt-tde-input" data-action="ec-exi-position" data-table-index="${ti}">
+                ${['before_character_definition','after_character_definition','before_authors_note','after_authors_note'].map(p => `<option value="${p}" ${(exIndexP.position || 'before_character_definition') === p ? 'selected' : ''}>${p}</option>`).join('')}
+              </select>
+            </div>
+            <div class="yyt-tde-uc-cell">
+              <label>depth</label>
+              <input type="number" class="yyt-tde-input" data-action="ec-exi-depth" data-table-index="${ti}" value="${Number.isFinite(exIndexP.depth) ? exIndexP.depth : 2}" />
+            </div>
+            <div class="yyt-tde-uc-cell">
+              <label>order</label>
+              <input type="number" class="yyt-tde-input" data-action="ec-exi-order" data-table-index="${ti}" value="${Number.isFinite(exIndexP.order) ? exIndexP.order : 0}" />
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
   return `
-    <div class="yyt-tde-schema-hint">
-      <strong>跨表 / 全局注入设置</strong> — 此 mode 包含写回世界书配置（议题 #15 #30）和 isolationKey 等。
-      预计 v1.0.176 接入。当前仅占位。
+    <div class="yyt-tde-schema-hint" style="background:rgba(74,158,255,0.08);border-color:rgba(74,158,255,0.3);">
+      <strong>全局注入配置</strong> — 每张表的 exportConfig（独立世界书条目）+ placement（注入位置/深度/顺序）。
+      未启用「独立注入」的表会走全局 wrapper（工作台「同步到世界书」开关）。
     </div>
-    <div class="yyt-tde-empty">全局注入配置 UI 待 #30 写回世界书 + isolation UI 完成后接入。</div>
+    ${cards}
   `;
 }
 
@@ -626,6 +919,211 @@ function bindEditorEvents($window) {
       _state.currentTableIndex = idx;
       refresh();
     }
+  });
+
+  // v1.0.194 Task G1：schema mode 编辑处理
+  // 帮手：当前表
+  const getCurrentTable = () => {
+    const tables = Array.isArray(_state.tempData) ? _state.tempData : [];
+    return tables[_state.currentTableIndex] || null;
+  };
+
+  // 表名
+  $window.on('input.tde', '[data-action="table-name"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    t.name = $(this).val();
+    _state.isDirty = true;
+  });
+  // 表说明
+  $window.on('input.tde', '[data-action="table-note"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    t.note = $(this).val();
+    _state.isDirty = true;
+  });
+  // sourceData 4 段 (aiInstructions)
+  const sdMap = { 'sd-init': 'init', 'sd-create': 'create', 'sd-update': 'update', 'sd-delete': 'delete' };
+  Object.entries(sdMap).forEach(([action, key]) => {
+    $window.on('input.tde', `[data-action="${action}"]`, function () {
+      const t = getCurrentTable(); if (!t) return;
+      t.aiInstructions = t.aiInstructions || {};
+      t.aiInstructions[key] = $(this).val();
+      _state.isDirty = true;
+    });
+  });
+  // updateConfig 7 参数
+  const ucNumKeys = ['contextDepth', 'updateFrequency', 'batchSize', 'skipFloors', 'sendLatestRows'];
+  ucNumKeys.forEach((k) => {
+    $window.on('input.tde', `[data-action="uc-${k}"]`, function () {
+      const t = getCurrentTable(); if (!t) return;
+      t.updateConfig = t.updateConfig || {};
+      const v = Number($(this).val());
+      t.updateConfig[k] = Number.isFinite(v) ? v : -1;
+      _state.isDirty = true;
+    });
+  });
+  $window.on('input.tde', '[data-action="uc-groupId"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    t.updateConfig = t.updateConfig || {};
+    t.updateConfig.groupId = $(this).val();
+    _state.isDirty = true;
+  });
+  $window.on('input.tde', '[data-action="uc-apiPreset"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    t.updateConfig = t.updateConfig || {};
+    t.updateConfig.apiPreset = $(this).val();
+    _state.isDirty = true;
+  });
+  // 字段编辑：title / key / type / desc / 删除 / 新增
+  $window.on('input.tde', '[data-action="field-title"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    const fi = Number($(this).attr('data-field-index'));
+    if (!Array.isArray(t.columns) || !t.columns[fi]) return;
+    t.columns[fi].title = $(this).val();
+    _state.isDirty = true;
+  });
+  $window.on('input.tde', '[data-action="field-key"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    const fi = Number($(this).attr('data-field-index'));
+    if (!Array.isArray(t.columns) || !t.columns[fi]) return;
+    t.columns[fi].key = $(this).val();
+    _state.isDirty = true;
+  });
+  $window.on('change.tde', '[data-action="field-type"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    const fi = Number($(this).attr('data-field-index'));
+    if (!Array.isArray(t.columns) || !t.columns[fi]) return;
+    t.columns[fi].type = $(this).val();
+    _state.isDirty = true;
+  });
+  $window.on('input.tde', '[data-action="field-desc"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    const fi = Number($(this).attr('data-field-index'));
+    if (!Array.isArray(t.columns) || !t.columns[fi]) return;
+    t.columns[fi].description = $(this).val();
+    _state.isDirty = true;
+  });
+  $window.on('click.tde', '[data-action="field-delete"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    const fi = Number($(this).attr('data-field-index'));
+    if (!Array.isArray(t.columns) || !t.columns[fi]) return;
+    if (!window.confirm(`删除字段「${t.columns[fi].title || t.columns[fi].key}」？此操作不会自动清理行数据。`)) return;
+    t.columns.splice(fi, 1);
+    _state.isDirty = true;
+    refresh();
+  });
+  $window.on('click.tde', '[data-action="field-add"]', function () {
+    const t = getCurrentTable(); if (!t) return;
+    t.columns = Array.isArray(t.columns) ? t.columns : [];
+    const usedKeys = new Set(t.columns.map((c) => c?.key).filter(Boolean));
+    let n = t.columns.length + 1;
+    while (usedKeys.has(`col_${n}`)) n++;
+    t.columns.push({ key: `col_${n}`, title: `字段${n}`, description: '', type: 'text', required: false });
+    _state.isDirty = true;
+    refresh();
+  });
+
+  // global mode：exportConfig 编辑
+  const setEc = (ti, key, val) => {
+    const t = _state.tempData?.[ti]; if (!t) return;
+    t.exportConfig = t.exportConfig || {};
+    t.exportConfig[key] = val;
+    _state.isDirty = true;
+  };
+  const setEcPlacement = (ti, key, subkey, val) => {
+    const t = _state.tempData?.[ti]; if (!t) return;
+    t.exportConfig = t.exportConfig || {};
+    t.exportConfig[key] = t.exportConfig[key] || {};
+    t.exportConfig[key][subkey] = val;
+    _state.isDirty = true;
+  };
+  $window.on('change.tde', '[data-action="ec-enabled"]', function () {
+    setEc(Number($(this).attr('data-table-index')), 'enabled', $(this).is(':checked'));
+    refresh();
+  });
+  $window.on('input.tde', '[data-action="ec-entryName"]', function () {
+    setEc(Number($(this).attr('data-table-index')), 'entryName', $(this).val());
+  });
+  $window.on('change.tde', '[data-action="ec-entryType"]', function () {
+    setEc(Number($(this).attr('data-table-index')), 'entryType', $(this).val());
+  });
+  $window.on('input.tde', '[data-action="ec-keywords"]', function () {
+    setEc(Number($(this).attr('data-table-index')), 'keywords', $(this).val());
+  });
+  $window.on('change.tde', '[data-action="ec-splitByRow"]', function () {
+    setEc(Number($(this).attr('data-table-index')), 'splitByRow', $(this).val() === 'true');
+  });
+  $window.on('change.tde', '[data-action="ec-preventRecursion"]', function () {
+    setEc(Number($(this).attr('data-table-index')), 'preventRecursion', $(this).val() !== 'false');
+  });
+  $window.on('input.tde', '[data-action="ec-injectionTemplate"]', function () {
+    setEc(Number($(this).attr('data-table-index')), 'injectionTemplate', $(this).val());
+  });
+  // placement
+  $window.on('change.tde', '[data-action="ec-ep-position"]', function () { setEcPlacement(Number($(this).attr('data-table-index')), 'entryPlacement', 'position', $(this).val()); });
+  $window.on('input.tde', '[data-action="ec-ep-depth"]', function () { setEcPlacement(Number($(this).attr('data-table-index')), 'entryPlacement', 'depth', Number($(this).val()) || 0); });
+  $window.on('input.tde', '[data-action="ec-ep-order"]', function () { setEcPlacement(Number($(this).attr('data-table-index')), 'entryPlacement', 'order', Number($(this).val()) || 0); });
+  $window.on('change.tde', '[data-action="ec-exi-position"]', function () { setEcPlacement(Number($(this).attr('data-table-index')), 'extraIndexPlacement', 'position', $(this).val()); });
+  $window.on('input.tde', '[data-action="ec-exi-depth"]', function () { setEcPlacement(Number($(this).attr('data-table-index')), 'extraIndexPlacement', 'depth', Number($(this).val()) || 0); });
+  $window.on('input.tde', '[data-action="ec-exi-order"]', function () { setEcPlacement(Number($(this).attr('data-table-index')), 'extraIndexPlacement', 'order', Number($(this).val()) || 0); });
+
+  // v1.0.194 Task M3：sidebar 表顺序操作
+  $window.on('click.tde', '[data-action="sheet-move-up"]', function (e) {
+    e.stopPropagation();
+    const i = Number($(this).attr('data-sheet-index'));
+    if (!Array.isArray(_state.tempData) || i <= 0) return;
+    const arr = _state.tempData;
+    [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+    if (_state.currentTableIndex === i) _state.currentTableIndex = i - 1;
+    else if (_state.currentTableIndex === i - 1) _state.currentTableIndex = i;
+    _state.isDirty = true;
+    refresh();
+  });
+  $window.on('click.tde', '[data-action="sheet-move-down"]', function (e) {
+    e.stopPropagation();
+    const i = Number($(this).attr('data-sheet-index'));
+    if (!Array.isArray(_state.tempData) || i >= _state.tempData.length - 1) return;
+    const arr = _state.tempData;
+    [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+    if (_state.currentTableIndex === i) _state.currentTableIndex = i + 1;
+    else if (_state.currentTableIndex === i + 1) _state.currentTableIndex = i;
+    _state.isDirty = true;
+    refresh();
+  });
+  $window.on('click.tde', '[data-action="sheet-delete"]', function (e) {
+    e.stopPropagation();
+    const i = Number($(this).attr('data-sheet-index'));
+    if (!Array.isArray(_state.tempData) || !_state.tempData[i]) return;
+    const t = _state.tempData[i];
+    if (!window.confirm(`删除表「${t.name || `表 ${i + 1}`}」？此操作不可撤销。`)) return;
+    _state.tempData.splice(i, 1);
+    if (_state.currentTableIndex >= _state.tempData.length) {
+      _state.currentTableIndex = Math.max(0, _state.tempData.length - 1);
+    }
+    _state.isDirty = true;
+    refresh();
+  });
+  $window.on('click.tde', '[data-action="sheet-add"]', function () {
+    const name = window.prompt('新表名：', `表 ${(_state.tempData?.length || 0) + 1}`);
+    if (!name || !name.trim()) return;
+    _state.tempData = Array.isArray(_state.tempData) ? _state.tempData : [];
+    const usedIds = new Set(_state.tempData.map((t) => t?.id).filter(Boolean));
+    let suffix = _state.tempData.length + 1;
+    let newId = `sheet_${Date.now().toString(36)}_${suffix}`;
+    while (usedIds.has(newId)) { suffix++; newId = `sheet_${Date.now().toString(36)}_${suffix}`; }
+    _state.tempData.push({
+      id: newId,
+      name: name.trim(),
+      enabled: true,
+      note: '',
+      aiInstructions: { init: '', create: '', update: '', delete: '' },
+      updateConfig: {},
+      exportConfig: { enabled: false },
+      columns: [{ key: 'col_1', title: '字段1', description: '', type: 'text', required: false }],
+      rows: []
+    });
+    _state.currentTableIndex = _state.tempData.length - 1;
+    _state.isDirty = true;
+    refresh();
   });
 
   // 重新加载
@@ -675,6 +1173,49 @@ function bindEditorEvents($window) {
       }
     } catch (err) {
       getLog().error('保存异常', err);
+      showToast('error', `保存异常：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.194 Task L1：保存到全局激活模板
+  $window.on('click.tde', '[data-action="save-global"]', async () => {
+    if (!_state.isDirty) {
+      showToast('info', '没有修改');
+      return;
+    }
+    if (!window.confirm('保存到「全局激活模板」会影响后续所有 chat 的新填表（已有 slot 数据不受影响）。继续？')) return;
+    try {
+      const activeTpl = getActiveGlobalTemplate();
+      if (!activeTpl?.id) {
+        showToast('error', '没有可用的全局激活模板');
+        return;
+      }
+      // 仅写回 schema 部分（columns / sourceData / updateConfig / exportConfig / aiInstructions / note / name / enabled），不写 rows
+      const tablesSchemaOnly = (_state.tempData || []).map((t) => ({
+        id: t?.id || t?.uid,
+        name: t?.name || '',
+        note: t?.note || '',
+        enabled: t?.enabled !== false,
+        aiInstructions: t?.aiInstructions || {},
+        updateConfig: t?.updateConfig || {},
+        exportConfig: t?.exportConfig || {},
+        columns: Array.isArray(t?.columns) ? cloneTableValue(t.columns) : [],
+        rows: [] // 全局模板不带具体行数据，rows 留空（slot 维度才有数据）
+      }));
+      const result = saveTableTemplate({
+        ...activeTpl,
+        tables: tablesSchemaOnly
+      });
+      if (result?.success) {
+        _state.isDirty = false;
+        showToast('success', `已保存到全局模板「${activeTpl.name}」`);
+        getLog().info('保存到全局模板成功', { templateId: activeTpl.id, name: activeTpl.name, tableCount: tablesSchemaOnly.length });
+        refresh();
+      } else {
+        showToast('error', `保存失败：${result?.error || '未知'}`);
+      }
+    } catch (err) {
+      getLog().error('保存到全局模板异常', err);
       showToast('error', `保存异常：${err?.message || err}`);
     }
   });

@@ -164,7 +164,10 @@
       "Bash(gh repo *)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(sed -i \"226s/extractTags: \\\\['status_block'\\\\]/extractTags: []/\" modules/tool-registry.js)",
-      "Bash(sed -i \"290s/extractTags: \\\\['youyou'\\\\]/extractTags: []/\" modules/tool-registry.js)"
+      "Bash(sed -i \"290s/extractTags: \\\\['youyou'\\\\]/extractTags: []/\" modules/tool-registry.js)",
+      "Bash(grep -C10 -n \"saveToolConfig\\(toolId, { ...cur, extraction: patch\" modules/ui/components/tool-config-panel-factory.js)",
+      "Bash(grep -o \"YYT_PRESET_DEBUG[^,]\\\\{0,80\\\\}\" dist/bundle.js)",
+      "Bash(xargs grep -l \"parseResponse\\\\|parseEdit\\\\|sanitize\\\\|tableEdit\\\\|insertRow\\\\|updateRow\\\\|deleteRow\")"
     ]
   },
   "spinnerTipsEnabled": false,
