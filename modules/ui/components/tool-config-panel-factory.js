@@ -219,7 +219,7 @@ export function createToolConfigPanel(options = {}) {
       }
     },
 
-    getStyles() { return ''; }
+    getStyles() { return TOOL_CONFIG_PANEL_STYLES; }
   };
 }
 
