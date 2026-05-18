@@ -1643,7 +1643,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">\u586B\u8868\u6A21\u677F</span>
         <span class="yyt-tww-row-label-hint">\u8868\u7ED3\u6784 + \u586B\u8868\u63D0\u793A\u8BCD</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="template">${l}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="template">${l}</select>
       <div class="yyt-tww-row-meta">
         <span>${a?.mode==="inherit_global"?"\u7EE7\u627F\u5168\u5C40":a?.mode==="chat_override"?"chat \u8986\u76D6":a?.mode==="preset_link"?"\u94FE\u63A5\u9884\u8BBE":""}</span>
       </div>
@@ -1654,7 +1654,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">\u89E6\u53D1\u6A21\u5F0F</span>
         <span class="yyt-tww-row-label-hint">\u81EA\u52A8\u968F AI \u56DE\u590D / \u4EC5\u624B\u52A8</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="triggerMode">
+      <select class="yyt-select yyt-tww-ctrl" data-binding="triggerMode">
         <option value="auto" ${d==="auto"?"selected":""}>\u81EA\u52A8 \u2014 \u56DE\u590D\u5B8C\u6210\u540E\u586B\u8868</option>
         <option value="manual" ${d==="manual"?"selected":""}>\u624B\u52A8 \u2014 \u4EC5\u5728\u70B9"\u7ACB\u5373\u586B\u8868"\u65F6</option>
       </select>
@@ -1666,7 +1666,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">API \u9884\u8BBE</span>
         <span class="yyt-tww-row-label-hint">\u586B\u8868\u8BF7\u6C42\u8D70\u54EA\u4E2A API</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="apiPreset">${u}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="apiPreset">${u}</select>
       <div class="yyt-tww-row-meta"><a data-link="api-presets">\u7BA1\u7406\u2026</a></div>
     </div>
 
@@ -1675,7 +1675,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">Ai \u6307\u4EE4\u9884\u8BBE</span>
         <span class="yyt-tww-row-label-hint">\u9644\u52A0\u5728 system/user \u524D\u7684\u6307\u4EE4</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="bypassPreset">${y}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="bypassPreset">${y}</select>
       <div class="yyt-tww-row-meta"><a data-link="bypass">\u7BA1\u7406\u2026</a></div>
     </div>
 
@@ -1684,7 +1684,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">\u6B63\u5219\u63D0\u53D6\u9884\u8BBE</span>
         <span class="yyt-tww-row-label-hint">\u51B3\u5B9A\u4ECE AI \u56DE\u590D\u4E2D\u5982\u4F55\u62BD\u53D6</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="regexPreset">${m}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="regexPreset">${m}</select>
       <div class="yyt-tww-row-meta"><a data-link="regex">\u7BA1\u7406\u2026</a></div>
     </div>
 
@@ -1693,7 +1693,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">\u4E16\u754C\u4E66\u9884\u8BBE</span>
         <span class="yyt-tww-row-label-hint">\u6CE8\u5165\u5230 prompt \u7684 {{toolWorldbookContent}}</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="worldbookPreset">${w}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookPreset">${w}</select>
       <div class="yyt-tww-row-meta"><a data-link="worldbook">\u7BA1\u7406\u2026</a></div>
     </div>
 
@@ -1702,7 +1702,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">\u4F5C\u7528\u57DF</span>
         <span class="yyt-tww-row-label-hint">\u6570\u636E\u72B6\u6001\u7ED1\u5B9A\u7684\u8303\u56F4</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="runScope">
+      <select class="yyt-select yyt-tww-ctrl" data-binding="runScope">
         <option value="current" ${S==="current"?"selected":""}>\u4EC5\u5F53\u524D\u6D3B\u52A8\u8868</option>
         <option value="selected" ${S==="selected"?"selected":""}>\u5F53\u524D\u9009\u4E2D\u8868</option>
         <option value="enabled" ${S==="enabled"?"selected":""}>\u6240\u6709\u542F\u7528\u7684\u8868</option>
@@ -1715,7 +1715,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">\u586B\u5145\u6A21\u5F0F</span>
         <span class="yyt-tww-row-label-hint">\u589E\u91CF\u66F4\u65B0 / \u5168\u8868\u91CD\u586B</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="fillMode">
+      <select class="yyt-select yyt-tww-ctrl" data-binding="fillMode">
         <option value="incremental" ${r==="incremental"?"selected":""}>\u589E\u91CF \u2014 \u4EC5\u4FEE\u6539\u53D8\u5316\u5B57\u6BB5</option>
         <option value="full" ${r==="full"?"selected":""}>\u5168\u91CF \u2014 \u6574\u5F20\u8868\u91CD\u65B0\u751F\u6210</option>
       </select>
@@ -1727,7 +1727,7 @@ deleteRow(1, 0)
         <span class="yyt-tww-row-label-text">\u4E0A\u4E0B\u6587\u6D88\u606F\u6570</span>
         <span class="yyt-tww-row-label-hint">\u4ECE\u6700\u65B0\u4E00\u6761\u5F80\u524D\u53D6\u7684\u6761\u6570</span>
       </div>
-      <input class="yyt-tww-ctrl" type="number" min="1" max="50" data-binding="contextDepth" value="${Te(s)}">
+      <input class="yyt-input yyt-tww-ctrl" type="number" min="1" max="50" data-binding="contextDepth" value="${Te(s)}">
       <div class="yyt-tww-row-meta"></div>
     </div>
 
@@ -1789,7 +1789,8 @@ deleteRow(1, 0)
 
   display: flex; flex-direction: column;
   min-height: 100%;
-  background: var(--tww-canvas); color: var(--tww-text);
+  /* \u8BAE\u9898 #15 hotfix v1.0.173\uFF1A\u7236\u5BB9\u5668\uFF08popup yyt-content\uFF09\u5DF2\u662F\u6DF1\u8272\uFF0C\u672C\u5BB9\u5668\u900F\u660E\u7EE7\u627F\u907F\u514D\u8FB9\u754C\u9519\u4F4D */
+  background: transparent; color: var(--tww-text);
   font-size: 13px; line-height: 1.5;
 }
 .yyt-tww-hero {
@@ -1900,25 +1901,19 @@ deleteRow(1, 0)
 .yyt-tww-row-meta a { color: var(--tww-accent); text-decoration: none; font-weight: 600; cursor: pointer; }
 .yyt-tww-row-meta a:hover { text-decoration: underline; }
 
+/* \u8BAE\u9898 #15 hotfix v1.0.173\uFF1A
+   \u5DE5\u4F5C\u53F0 select/input \u76F4\u63A5\u501F\u7528 toolkit \u7684 yyt-select / yyt-input \u9884\u5236\u4F53\uFF08\u5E26 !important \u9632\u5FA1\u6837\u5F0F reset\uFF09\uFF0C
+   \u5728\u6B64\u7528 .yyt-tww-ctrl override \u7F29\u5C0F\u5230 binding-row \u7528\u7684\u7D27\u51D1\u5C3A\u5BF8 */
 .yyt-tww-ctrl {
-  width: 100%; padding: 7px 10px;
-  background: var(--tww-canvas);
-  border: 1px solid var(--tww-hairline-strong);
-  border-radius: 6px;
-  color: var(--tww-text); font-size: 12px;
-  outline: none;
-  transition: border-color 0.12s ease;
-  font-family: inherit;
-}
-.yyt-tww-ctrl:focus {
-  border-color: var(--tww-accent);
-  box-shadow: 0 0 0 2px var(--tww-accent-soft);
+  min-height: 32px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  width: 100%;
 }
 select.yyt-tww-ctrl {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a8b7ca' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center;
-  background-size: 10px; padding-right: 28px; cursor: pointer;
+  padding-right: 28px !important;
+  background-size: 10px !important;
+  background-position: right 10px center !important;
 }
 
 .yyt-tww-toggle-row {
@@ -5965,4 +5960,4 @@ select.yyt-tww-ctrl {
         </div>
         ${jf(ee)}
       </div>
-    `,xt=E.createElement("div");xt.innerHTML=Ge,n.currentPopup=xt.firstElementChild,E.body.appendChild(n.currentPopup),x(n.currentPopup).find(".yyt-popup-close").on("click",hr),x(n.currentPopup).find(".yyt-sidebar-toggle").on("click",m);let Kt=G=>{G.key==="Escape"&&(E.querySelector(".yyt-dialog-overlay")||E.querySelector(".yyt-twb-editor-drawer.is-open")||(G.stopPropagation(),hr()))},br=G=>{if(!(G.ctrlKey||G.metaKey)||G.key!=="s"||!n.currentPopup)return;G.preventDefault(),G.stopPropagation();let Qe=x(n.currentPopup),je=Qe.find("#yyt-bypass-save:visible").first()||Qe.find(`#${i}-save-api-config:visible`).first()||Qe.find("#yyt-save-tool-preset:visible").first()||Qe.find('[data-twb-action="save"]:visible').first();je?.length&&je.trigger("click")};E.addEventListener("keydown",Kt),E.addEventListener("keydown",br),u.cleanups.push(()=>{E.removeEventListener("keydown",Kt),E.removeEventListener("keydown",br)}),Ee(),x(n.currentPopup).find(".yyt-main-nav-item").on("click",function(){let Qe=x(this).data("tab");Qe&&bs(Qe)}),io(),Br(n.currentMainTab);let Ye=s.toolRegistryModule?.getToolConfig(n.currentMainTab);Ye?.hasSubTabs&&(x(n.currentPopup).find(".yyt-sub-nav").show(),Dr(n.currentMainTab,Ye.subTabs)),j(),mr(k),Be(),b("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Ff,closePopup:hr,switchMainTab:bs,switchSubTab:xs,renderTabContent:Br,renderSubTabContent:zt}}function Pf(t,e={}){let{constants:r,modules:s}=t,{SCRIPT_ID:o,SCRIPT_VERSION:n}=r,{init:i,loadModules:a,addMenuItem:l,popupShell:d}=e;return{version:n,id:o,init:i,openPopup:d?.openPopup,closePopup:d?.closePopup,switchMainTab:d?.switchMainTab,switchSubTab:d?.switchSubTab,addMenuItem:l,getStorage:()=>s.storageModule,getApiConnection:()=>s.apiConnectionModule,getPresetManager:()=>s.presetManagerModule,getUi:()=>s.uiModule,getUiModule:()=>s.uiModule,getRegexExtractor:()=>s.regexExtractorModule,getToolManager:()=>s.toolManagerModule,getToolExecutor:()=>s.toolExecutorModule,getWindowManager:()=>s.windowManagerModule,getToolRegistry:()=>s.toolRegistryModule,getSettingsService:()=>s.settingsServiceModule,getBypassManager:()=>s.bypassManagerModule,getVariableResolver:()=>s.variableResolverModule,getContextInjector:()=>s.contextInjectorModule,getToolPromptService:()=>s.toolPromptServiceModule,getToolOutputService:()=>s.toolOutputServiceModule,getToolAutomationService:()=>s.toolAutomationServiceModule,getDataProvider:()=>s.toolDataProviderModule?.getCurrentProvider?.()||null,async getDataProviderAsync(){return await a(),s.toolDataProviderModule?.getToolDataProvider?.()||null},async getApiConfig(){return await a(),s.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(c){return await a(),s.apiConnectionModule?(s.apiConnectionModule.updateApiConfig(c),!0):!1},async getPresets(){return await a(),s.presetManagerModule?s.presetManagerModule.getAllPresets():[]},async sendApiRequest(c,u){if(await a(),s.apiConnectionModule)return s.apiConnectionModule.sendApiRequest(c,u);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await a(),s.apiConnectionModule?s.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(c,u){return s.toolRegistryModule?.registerTool(c,u)||!1},unregisterTool(c){return s.toolRegistryModule?.unregisterTool(c)||!1},getToolList(){return s.toolRegistryModule?.getToolList()||[]},createWindow(c){return s.windowManagerModule?.createWindow(c)||null},closeWindow(c){s.windowManagerModule?.closeWindow(c)},startAutomation(){return s.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){s.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return s.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},cancelAutomation(c={}){return s.toolAutomationServiceModule?.toolAutomationService?.cancelAutomation?.(c)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}},async processCurrentAssistantMessage(c={}){return s.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(c)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var Ti="youyou_toolkit",Ev="1.0.172",Av=`${Ti}-menu-item`,Cv=`${Ti}-menu-container`,kv=`${Ti}-popup`,Iv=typeof window.parent<"u"?window.parent:window,_i={constants:{SCRIPT_ID:Ti,SCRIPT_VERSION:Ev,MENU_ITEM_ID:Av,MENU_CONTAINER_ID:Cv,POPUP_ID:kv},topLevelWindow:Iv,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null,toolAutomationServiceModule:null,toolDataProviderModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"presetManagement",currentSubTab:{},startupScreenDismissed:!1}},$f=Rf(_i),en=Cf(_i,{openPopup:$f.openPopup});_i.services.loadModules=en.loadModules;var ac=Pf(_i,{init:en.init,loadModules:en.loadModules,addMenuItem:en.addMenuItem,popupShell:$f});if(typeof window<"u"&&(window.YouYouToolkit=ac,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=ac}catch{}var jA=ac;en.init();Promise.resolve().then(()=>(Y(),cc)).then(({logger:t})=>{t.createScope("Bootstrap").log("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210")});export{jA as default};
+    `,xt=E.createElement("div");xt.innerHTML=Ge,n.currentPopup=xt.firstElementChild,E.body.appendChild(n.currentPopup),x(n.currentPopup).find(".yyt-popup-close").on("click",hr),x(n.currentPopup).find(".yyt-sidebar-toggle").on("click",m);let Kt=G=>{G.key==="Escape"&&(E.querySelector(".yyt-dialog-overlay")||E.querySelector(".yyt-twb-editor-drawer.is-open")||(G.stopPropagation(),hr()))},br=G=>{if(!(G.ctrlKey||G.metaKey)||G.key!=="s"||!n.currentPopup)return;G.preventDefault(),G.stopPropagation();let Qe=x(n.currentPopup),je=Qe.find("#yyt-bypass-save:visible").first()||Qe.find(`#${i}-save-api-config:visible`).first()||Qe.find("#yyt-save-tool-preset:visible").first()||Qe.find('[data-twb-action="save"]:visible').first();je?.length&&je.trigger("click")};E.addEventListener("keydown",Kt),E.addEventListener("keydown",br),u.cleanups.push(()=>{E.removeEventListener("keydown",Kt),E.removeEventListener("keydown",br)}),Ee(),x(n.currentPopup).find(".yyt-main-nav-item").on("click",function(){let Qe=x(this).data("tab");Qe&&bs(Qe)}),io(),Br(n.currentMainTab);let Ye=s.toolRegistryModule?.getToolConfig(n.currentMainTab);Ye?.hasSubTabs&&(x(n.currentPopup).find(".yyt-sub-nav").show(),Dr(n.currentMainTab,Ye.subTabs)),j(),mr(k),Be(),b("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Ff,closePopup:hr,switchMainTab:bs,switchSubTab:xs,renderTabContent:Br,renderSubTabContent:zt}}function Pf(t,e={}){let{constants:r,modules:s}=t,{SCRIPT_ID:o,SCRIPT_VERSION:n}=r,{init:i,loadModules:a,addMenuItem:l,popupShell:d}=e;return{version:n,id:o,init:i,openPopup:d?.openPopup,closePopup:d?.closePopup,switchMainTab:d?.switchMainTab,switchSubTab:d?.switchSubTab,addMenuItem:l,getStorage:()=>s.storageModule,getApiConnection:()=>s.apiConnectionModule,getPresetManager:()=>s.presetManagerModule,getUi:()=>s.uiModule,getUiModule:()=>s.uiModule,getRegexExtractor:()=>s.regexExtractorModule,getToolManager:()=>s.toolManagerModule,getToolExecutor:()=>s.toolExecutorModule,getWindowManager:()=>s.windowManagerModule,getToolRegistry:()=>s.toolRegistryModule,getSettingsService:()=>s.settingsServiceModule,getBypassManager:()=>s.bypassManagerModule,getVariableResolver:()=>s.variableResolverModule,getContextInjector:()=>s.contextInjectorModule,getToolPromptService:()=>s.toolPromptServiceModule,getToolOutputService:()=>s.toolOutputServiceModule,getToolAutomationService:()=>s.toolAutomationServiceModule,getDataProvider:()=>s.toolDataProviderModule?.getCurrentProvider?.()||null,async getDataProviderAsync(){return await a(),s.toolDataProviderModule?.getToolDataProvider?.()||null},async getApiConfig(){return await a(),s.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(c){return await a(),s.apiConnectionModule?(s.apiConnectionModule.updateApiConfig(c),!0):!1},async getPresets(){return await a(),s.presetManagerModule?s.presetManagerModule.getAllPresets():[]},async sendApiRequest(c,u){if(await a(),s.apiConnectionModule)return s.apiConnectionModule.sendApiRequest(c,u);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await a(),s.apiConnectionModule?s.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(c,u){return s.toolRegistryModule?.registerTool(c,u)||!1},unregisterTool(c){return s.toolRegistryModule?.unregisterTool(c)||!1},getToolList(){return s.toolRegistryModule?.getToolList()||[]},createWindow(c){return s.windowManagerModule?.createWindow(c)||null},closeWindow(c){s.windowManagerModule?.closeWindow(c)},startAutomation(){return s.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){s.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return s.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},cancelAutomation(c={}){return s.toolAutomationServiceModule?.toolAutomationService?.cancelAutomation?.(c)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}},async processCurrentAssistantMessage(c={}){return s.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(c)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var Ti="youyou_toolkit",Ev="1.0.173",Av=`${Ti}-menu-item`,Cv=`${Ti}-menu-container`,kv=`${Ti}-popup`,Iv=typeof window.parent<"u"?window.parent:window,_i={constants:{SCRIPT_ID:Ti,SCRIPT_VERSION:Ev,MENU_ITEM_ID:Av,MENU_CONTAINER_ID:Cv,POPUP_ID:kv},topLevelWindow:Iv,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null,toolAutomationServiceModule:null,toolDataProviderModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"presetManagement",currentSubTab:{},startupScreenDismissed:!1}},$f=Rf(_i),en=Cf(_i,{openPopup:$f.openPopup});_i.services.loadModules=en.loadModules;var ac=Pf(_i,{init:en.init,loadModules:en.loadModules,addMenuItem:en.addMenuItem,popupShell:$f});if(typeof window<"u"&&(window.YouYouToolkit=ac,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=ac}catch{}var jA=ac;en.init();Promise.resolve().then(()=>(Y(),cc)).then(({logger:t})=>{t.createScope("Bootstrap").log("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210")});export{jA as default};
