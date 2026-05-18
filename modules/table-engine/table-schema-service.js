@@ -37,27 +37,49 @@ export const TABLE_FILL_MODE = Object.freeze({
   FULL: 'full'
 });
 
-export const DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE = `请根据当前对话与当前表格基底，更新结构化 tables 数据。
+export const DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE = `请根据当前对话与当前表格基底，对结构化 tables 数据做增量更新。
 
 要求：
 1. 只依据当前对话内容更新，不要臆造未出现的信息。
 2. 保持原有表结构；没有依据时保留原值。
-3. 如果某字段需要清空，请显式输出空字符串、空数组或 null。
-4. 优先参考当前 assistant 回复：{{lastAiMessage}}
-5. 表格级 AI 操作说明：
+3. 优先用 <tableEdit> 增量 DSL（精确不破坏锁定字段）。
+4. 表格级 AI 操作说明：
 {{tableGuidance}}
-6. 本次运行 scope：
+5. 本次运行 scope：
 {{tableScopeGuidance}}
-7. 当前表格基底 JSON：
+6. 优先参考当前 assistant 回复：{{lastAiMessage}}
+
+当前表格基底 JSON：
 {{toolContentMacro}}`;
 
-export const TABLE_WORKBENCH_RESPONSE_CONTRACT = `输出要求：
-- 只返回 JSON
-- 不要附加解释、标题或 Markdown
-- JSON 结构必须是：
-{
-  "tables": []
-}`;
+/**
+ * 议题 #15 #21 + #31：响应契约 — 优先 <tableEdit> 增量 DSL。
+ * sanitizer (table-json-sanitizer.js) 主链先尝试 parseIncrementalEdits，
+ * 失败时退回到 parseFullReplacement（JSON envelope，v1.0.175 已支持 unwrap）。
+ */
+export const TABLE_WORKBENCH_RESPONSE_CONTRACT = `输出要求 — 用 <tableEdit>...</tableEdit> 增量 DSL：
+
+  insertRow(tableIndex, {"0": "值1", "1": "值2"})     # 新增行；tableIndex 是表的 0 基索引
+  updateRow(tableIndex, rowIndex, {"1": "新值"})      # 只列出要改的列，未提及的列保留原值
+  deleteRow(tableIndex, rowIndex)                     # 删除行；rowIndex 0 基不含表头
+
+约定：
+- tableIndex / rowIndex 都是 0 基整数（rowIndex 不含表头行）
+- data 对象的键是列索引字符串（"0"、"1"、"2" …），不是列名
+- 多条指令放在同一个 <tableEdit> 块内，按顺序执行
+- 没有变更时输出空块 <tableEdit></tableEdit>
+- 不要附加解释、Markdown 代码块标记或额外 JSON
+
+示例：
+<tableEdit>
+insertRow(0, {"0": "南宫姬怜", "1": "女/17", "2": "白发异瞳"})
+updateRow(0, 1, {"3": "好奇上进", "5": "穿越者"})
+deleteRow(1, 0)
+</tableEdit>
+
+如确实需要全量替换整张表，也可以直接返回 JSON：
+  {"tables": [{...}, {...}]}
+但应该尽量优先用 DSL（流量小、不影响锁字段）。`;
 
 const TABLE_WORKBENCH_COLUMN_TYPES = Object.freeze([
   { value: 'text', label: '文本' },

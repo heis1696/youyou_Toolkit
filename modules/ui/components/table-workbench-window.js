@@ -28,6 +28,26 @@ import {
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
 import { getAssistantTableSnapshot } from '../../table-engine/table-state-service.js';
+import { openTableDataEditor } from './table-data-editor-window.js';
+import { cloneTableValue } from '../../table-engine/table-types.js';
+
+// 议题 #15 #30 写回世界书 sub-zone 用的 helpers
+function cloneDeep(v) { return cloneTableValue(v); }
+
+function setNestedPath(obj, path, value) {
+  if (!obj || typeof obj !== 'object') return;
+  const parts = String(path || '').split('.').filter(Boolean);
+  if (parts.length === 0) return;
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const k = parts[i];
+    if (cur[k] === null || cur[k] === undefined || typeof cur[k] !== 'object') {
+      cur[k] = {};
+    }
+    cur = cur[k];
+  }
+  cur[parts[parts.length - 1]] = value;
+}
 import { getAllPresets as getApiPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresets } from '../../bypass-manager.js';
 import regexStore from '../../regex-preset-store.js';
@@ -234,6 +254,49 @@ select.yyt-tww-ctrl {
 }
 .yyt-tww-toggle.on { background: var(--tww-accent); border-color: transparent; }
 .yyt-tww-toggle.on::after { transform: translateX(16px); background: var(--tww-on-accent); }
+
+/* sub-zone（议题 #15 #30 写回世界书展开配置）*/
+.yyt-tww-sub-zone {
+  margin-top: 8px; margin-left: 0;
+  padding: 12px 14px;
+  background: var(--tww-surface-1);
+  border: 1px solid var(--tww-hairline-strong);
+  border-radius: 6px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.yyt-tww-sub-zone.collapsed { display: none; }
+.yyt-tww-sub-row {
+  display: grid; grid-template-columns: 110px 1fr auto;
+  gap: 10px; align-items: center;
+}
+.yyt-tww-sub-row + .yyt-tww-sub-row {
+  padding-top: 10px;
+  border-top: 1px dashed var(--tww-hairline-dashed);
+}
+.yyt-tww-sub-row > label {
+  font-size: 11px; font-weight: 600; color: var(--tww-text-secondary);
+}
+.yyt-tww-sub-row > .yyt-tww-sub-meta {
+  font-size: 11px; color: var(--tww-text-muted); white-space: nowrap;
+}
+.yyt-tww-sub-row > .yyt-tww-sub-meta a {
+  color: var(--tww-accent); text-decoration: none; font-weight: 600; cursor: pointer;
+}
+.yyt-tww-sub-row > .yyt-tww-sub-meta a:hover { text-decoration: underline; }
+.yyt-tww-sub-row-toggle {
+  display: grid; grid-template-columns: 110px 1fr auto;
+  gap: 10px; align-items: center;
+}
+.yyt-tww-sub-row-toggle > label {
+  font-size: 11px; font-weight: 600; color: var(--tww-text-secondary);
+}
+.yyt-tww-sub-row-toggle .yyt-tww-toggle-desc {
+  font-size: 10px; color: var(--tww-text-muted);
+}
+.yyt-tww-sub-row-double {
+  display: grid; grid-template-columns: 110px 1fr 1fr;
+  gap: 10px; align-items: center;
+}
 
 .yyt-tww-table-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
@@ -501,12 +564,86 @@ function buildBehaviorHtml(state) {
       <div class="yyt-tww-toggle ${syncWorldbook ? 'on' : ''}" data-toggle="worldbookSync"></div>
     </div>
 
+    ${buildWorldbookSubZoneHtml(state)}
+
     <div class="yyt-tww-toggle-row">
       <div class="yyt-tww-toggle-info">
         <div class="yyt-tww-toggle-title">写回正文镜像</div>
         <div class="yyt-tww-toggle-desc">在助手消息末尾镜像写入 markdown 方便手动查阅。</div>
       </div>
       <div class="yyt-tww-toggle ${mirrorToMessage ? 'on' : ''}" data-toggle="mirrorToMessage"></div>
+    </div>
+  `;
+}
+
+function buildWorldbookSubZoneHtml(state) {
+  const sync = state?.config?.worldbookSync || {};
+  const enabled = sync.enabled === true;
+  if (!enabled) return '';
+
+  const targetBook = String(sync.targetBook || '');
+  const availableBooks = Array.isArray(state.availableWorldbooks) ? state.availableWorldbooks : [];
+  const wrapperCfg = sync.wrapperConfig || {};
+  const wrapperEnabled = wrapperCfg.enabled !== false;
+  const wrapperTag = String(wrapperCfg.wrapperTag || '最新数据与记录');
+  const wrapperHint = String(wrapperCfg.wrapperHint || '');
+  const placement = wrapperCfg.wrapperPlacement || {};
+  const position = String(placement.position || 'before_character_definition');
+  const depth = Number.isFinite(placement.depth) ? placement.depth : 2;
+  const order = Number.isFinite(placement.order) ? placement.order : 50000;
+
+  const bookOptions = availableBooks.length === 0
+    ? `<option value="${esc(targetBook)}">${targetBook ? esc(targetBook) : '—— 未选择 ——'}</option>`
+    : (`<option value="">—— 选择 ——</option>` + availableBooks.map((b) => {
+        const name = typeof b === 'string' ? b : (b?.name || '');
+        return `<option value="${esc(name)}" ${name === targetBook ? 'selected' : ''}>${esc(name)}</option>`;
+      }).join(''));
+
+  return `
+    <div class="yyt-tww-sub-zone" data-sub-zone="worldbookSync">
+      <div class="yyt-tww-sub-row">
+        <label>目标世界书</label>
+        <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookTargetBook">${bookOptions}</select>
+        <div class="yyt-tww-sub-meta">
+          <a data-action="refresh-worldbooks">刷新列表</a>
+        </div>
+      </div>
+
+      <div class="yyt-tww-sub-row-toggle">
+        <label>Wrapper 包裹</label>
+        <div class="yyt-tww-toggle-desc">用 <code style="font-size:10px;">&lt;${esc(wrapperTag)}&gt;...&lt;/${esc(wrapperTag)}&gt;</code> 包住所有全局表数据</div>
+        <div class="yyt-tww-toggle ${wrapperEnabled ? 'on' : ''}" data-toggle="worldbookWrapperEnabled"></div>
+      </div>
+
+      <div class="yyt-tww-sub-row">
+        <label>Wrapper 标签</label>
+        <input class="yyt-input yyt-tww-ctrl" type="text" data-binding="worldbookWrapperTag" value="${esc(wrapperTag)}" placeholder="最新数据与记录">
+        <div class="yyt-tww-sub-meta"></div>
+      </div>
+
+      <div class="yyt-tww-sub-row">
+        <label>Wrapper 提示文</label>
+        <input class="yyt-input yyt-tww-ctrl" type="text" data-binding="worldbookWrapperHint" value="${esc(wrapperHint)}" placeholder="可选，说明 wrapper 内容用途">
+        <div class="yyt-tww-sub-meta"></div>
+      </div>
+
+      <div class="yyt-tww-sub-row">
+        <label>注入位置</label>
+        <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookWrapperPosition">
+          <option value="before_character_definition" ${position === 'before_character_definition' ? 'selected' : ''}>角色定义之前</option>
+          <option value="after_character_definition" ${position === 'after_character_definition' ? 'selected' : ''}>角色定义之后</option>
+          <option value="before_history" ${position === 'before_history' ? 'selected' : ''}>历史记录之前</option>
+          <option value="after_history" ${position === 'after_history' ? 'selected' : ''}>历史记录之后</option>
+          <option value="at_depth" ${position === 'at_depth' ? 'selected' : ''}>指定深度</option>
+        </select>
+        <div class="yyt-tww-sub-meta"></div>
+      </div>
+
+      <div class="yyt-tww-sub-row-double">
+        <label>深度 / 顺序</label>
+        <input class="yyt-input yyt-tww-ctrl" type="number" data-binding="worldbookWrapperDepth" value="${esc(depth)}" min="0">
+        <input class="yyt-input yyt-tww-ctrl" type="number" data-binding="worldbookWrapperOrder" value="${esc(order)}" min="0">
+      </div>
     </div>
   `;
 }
@@ -547,6 +684,7 @@ export function loadWorkbenchState() {
   const regexPresets = (() => { try { return regexStore.listPresets() || []; } catch (_) { return []; } })();
   const worldbookPresets = (() => { try { return worldbookStore.listPresets() || []; } catch (_) { return []; } })();
   const isolationKey = (() => { try { return tableIsolation.getKey(); } catch (_) { return ''; } })();
+  const availableWorldbooks = loadAvailableWorldbooks();
 
   // 议题 #15 hotfix v1.0.174：tablesPreview 优先读当前 slot 实际表数据；
   // 没有 slot 数据时退回模板 schema（每行数都是 0，但至少表名能显示）
@@ -576,9 +714,33 @@ export function loadWorkbenchState() {
     bypassPresets,
     regexPresets,
     worldbookPresets,
+    availableWorldbooks,
     isolationKey,
     tablesPreview
   };
+}
+
+/**
+ * 同步拉取 TavernHelper 当前世界书列表，给写回世界书的 targetBook select 用。
+ * 失败时返回空数组，UI 退化为手填 input。
+ */
+function loadAvailableWorldbooks() {
+  try {
+    const win = globalThis.window || globalThis;
+    const helper = win?.TavernHelper || win?.parent?.TavernHelper;
+    if (!helper) return [];
+    if (typeof helper.getLorebooks === 'function') {
+      const list = helper.getLorebooks();
+      if (Array.isArray(list)) return list;
+    }
+    if (typeof helper.getLorebookList === 'function') {
+      const list = helper.getLorebookList();
+      if (Array.isArray(list)) return list;
+    }
+  } catch (err) {
+    getLog().warn('loadAvailableWorldbooks 失败', err);
+  }
+  return [];
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -621,10 +783,33 @@ export function bindWorkbenchEvents($container, refresh) {
     }
   });
 
-  // 打开数据编辑器（#11 待实现）
-  $container.on('click.tww', '[data-action="open-editor"], [data-table-index]', (e) => {
+  // 打开数据编辑器（议题 #15 #11，v1.0.176+）
+  $container.on('click.tww', '[data-action="open-editor"]', (e) => {
     e.preventDefault();
-    showToast('info', '数据编辑器窗口待实现（#11）');
+    try {
+      openTableDataEditor();
+    } catch (err) {
+      getLog().error('打开数据编辑器异常', err);
+      showToast('error', `打开失败：${err?.message || err}`);
+    }
+  });
+
+  // 表格概览卡片点击 → 打开数据编辑器并聚焦该表
+  $container.on('click.tww', '[data-table-index]', function (e) {
+    e.preventDefault();
+    const idx = Number($(this).attr('data-table-index'));
+    if (!Number.isFinite(idx) || idx < 0) return;
+    try {
+      // 从当前 slot tableState 拿对应表的 uid 传给编辑器
+      const snapshot = getAssistantTableSnapshot(null);
+      const table = snapshot?.tableState?.tables?.[idx];
+      openTableDataEditor({
+        focusTableUid: table?.uid || table?.id || ''
+      });
+    } catch (err) {
+      getLog().error('打开数据编辑器异常', err);
+      showToast('error', `打开失败：${err?.message || err}`);
+    }
   });
 
   // 模板切换
@@ -735,11 +920,69 @@ export function bindWorkbenchEvents($container, refresh) {
         worldbookSync: { ...(config.worldbookSync || {}), enabled: next }
       });
       showToast('success', next ? '已启用世界书同步' : '已停用世界书同步');
+      // 启用后需要 refresh 展开 sub-zone（议题 #15 #30）
+      if (typeof refresh === 'function') refresh();
     } catch (err) {
       $t.toggleClass('on', isOn);
       getLog().error('toggle worldbookSync 异常', err);
       showToast('error', `保存失败：${err?.message || err}`);
     }
+  });
+
+  // 议题 #15 #30 写回世界书 sub-zone — wrapper enabled toggle
+  $container.on('click.tww', '[data-toggle="worldbookWrapperEnabled"]', function () {
+    const $t = $(this);
+    const isOn = $t.hasClass('on');
+    const next = !isOn;
+    $t.toggleClass('on', next);
+    try {
+      const config = getTableWorkbenchConfig();
+      const ws = config.worldbookSync || {};
+      saveTableWorkbenchConfig({
+        ...config,
+        worldbookSync: {
+          ...ws,
+          wrapperConfig: { ...(ws.wrapperConfig || {}), enabled: next }
+        }
+      });
+      showToast('success', next ? '已启用 Wrapper 包裹' : '已停用 Wrapper');
+    } catch (err) {
+      $t.toggleClass('on', isOn);
+      getLog().error('toggle worldbookWrapperEnabled 异常', err);
+    }
+  });
+
+  // sub-zone 各 binding（target book / wrapper tag / hint / position / depth / order）
+  const worldbookSubBindings = [
+    { sel: '[data-binding="worldbookTargetBook"]', path: 'targetBook', type: 'string' },
+    { sel: '[data-binding="worldbookWrapperTag"]', path: 'wrapperConfig.wrapperTag', type: 'string' },
+    { sel: '[data-binding="worldbookWrapperHint"]', path: 'wrapperConfig.wrapperHint', type: 'string' },
+    { sel: '[data-binding="worldbookWrapperPosition"]', path: 'wrapperConfig.wrapperPlacement.position', type: 'string' },
+    { sel: '[data-binding="worldbookWrapperDepth"]', path: 'wrapperConfig.wrapperPlacement.depth', type: 'number' },
+    { sel: '[data-binding="worldbookWrapperOrder"]', path: 'wrapperConfig.wrapperPlacement.order', type: 'number' }
+  ];
+  for (const { sel, path, type } of worldbookSubBindings) {
+    $container.on('change.tww', sel, function () {
+      let value = $(this).val();
+      if (type === 'number') value = Number.parseInt(value, 10);
+      try {
+        const config = getTableWorkbenchConfig();
+        const ws = cloneDeep(config.worldbookSync || {});
+        setNestedPath(ws, path, value);
+        saveTableWorkbenchConfig({ ...config, worldbookSync: ws });
+        showToast('success', '已保存');
+      } catch (err) {
+        getLog().error(`保存 worldbookSync.${path} 异常`, err);
+        showToast('error', `保存失败：${err?.message || err}`);
+      }
+    });
+  }
+
+  // 刷新世界书列表
+  $container.on('click.tww', '[data-action="refresh-worldbooks"]', function (e) {
+    e.preventDefault();
+    if (typeof refresh === 'function') refresh();
+    showToast('success', '已刷新世界书列表');
   });
 
   $container.on('click.tww', '[data-toggle="mirrorToMessage"]', function () {
