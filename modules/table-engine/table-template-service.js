@@ -116,8 +116,16 @@ export function getAllTableTemplates() {
   if (_allTemplatesCache) return _allTemplatesCache;
   const builtin = getBuiltinTableTemplates();
   const user = getUserTableTemplates();
-  const ids = new Set(builtin.map(template => template.id));
-  _allTemplatesCache = Object.freeze([...builtin, ...user.filter(template => !ids.has(template.id))]);
+  // v1.0.200 修复：user 优先于 builtin（同 id 时用 user 覆盖）
+  //   旧版本 `user.filter(t => !builtin.has(t.id))` 把内置模板的用户改动全过滤掉，
+  //   导致 save-global 改 default_story_state 永远生效不了。
+  const userMap = new Map(user.map((t) => [t.id, t]));
+  const merged = builtin.map((b) => (userMap.has(b.id) ? userMap.get(b.id) : b));
+  const builtinIds = new Set(builtin.map((t) => t.id));
+  for (const t of user) {
+    if (!builtinIds.has(t.id)) merged.push(t);
+  }
+  _allTemplatesCache = Object.freeze(merged);
   return _allTemplatesCache;
 }
 
