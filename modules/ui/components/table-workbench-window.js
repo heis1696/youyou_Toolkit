@@ -167,6 +167,7 @@ export const WORKBENCH_VIEW_STYLES = `
   border-bottom: 1px solid var(--tww-hairline);
   background: var(--tww-surface-1);
   display: flex; flex-direction: column; gap: 8px;
+  position: sticky; top: 0; z-index: 10;
 }
 .yyt-tww-hero-row1 { display: flex; align-items: center; gap: 12px; }
 .yyt-tww-hero-icon {

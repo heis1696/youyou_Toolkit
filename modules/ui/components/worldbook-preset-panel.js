@@ -365,7 +365,8 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
 
     for (const entry of entries) {
       const uid = String(entry.uid ?? '');
-      const comment = entry.comment || entry.key || `条目 ${entry.uid}`;
+      const rawComment = entry.comment || entry.key || entry.name || '';
+      const comment = String(Array.isArray(rawComment) ? rawComment[0] : rawComment).trim() || `条目 ${entry.uid}`;
       const isDisabled = entry.enabled === false || entry.disable === true;
       const ov = overrides[uid];
       const hasOverride = ov && typeof ov.enabled === 'boolean';
