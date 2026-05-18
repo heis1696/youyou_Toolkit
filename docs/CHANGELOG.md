@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+## [1.0.202] - 2026-05-18
+
+### 修复
+
+- **Hero 滚动常驻**（#3）：`.yyt-tww` 改为 `flex:1;min-height:0;overflow:hidden`（精确填满 flex 父容器 `.yyt-tab-content`），hero/stat-row 在滚动区域外，`.yyt-tww-body` 独立 `overflow-y:auto` 滚动
+- **词条面板滚轮**（#5）：listEl 固定 `height:260px;overflow-y:scroll` + `overscrollBehavior:contain` + `-webkit-overflow-scrolling:touch`
+
 ## [1.0.201] - 2026-05-18
 
 ### 修复

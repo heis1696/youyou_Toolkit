@@ -363,9 +363,10 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
         display: 'flex',
         flexDirection: 'column',
         gap: '2px',
-        maxHeight: '280px',
-        overflowY: 'auto',
-        overscrollBehavior: 'contain'
+        height: '260px',
+        overflowY: 'scroll',
+        overscrollBehavior: 'contain',
+        WebkitOverflowScrolling: 'touch'
       }
     });
 

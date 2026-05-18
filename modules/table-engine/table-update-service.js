@@ -56,6 +56,17 @@ import {
 } from './table-schema-service.js';
 import { writeTableState } from './table-writeback-service.js';
 import { sanitizeAIResponse } from './table-json-sanitizer.js';
+import { parseAiResponseAuto } from './ai-protocol-adapters/index.js';
+
+// v1.0.201 Task C：用 adapter chain 优先尝试，失败 fallback 到 sanitizeAIResponse
+// adapter 支持 DSL（<tableEdit>）/ SQL（INSERT/UPDATE/DELETE）/ JSON envelope 三种协议
+function parseAiResponseWithAdapter(text) {
+  const adapterResult = parseAiResponseAuto(text);
+  if (adapterResult && (adapterResult.mode === 'incremental' || adapterResult.mode === 'full')) {
+    return adapterResult;
+  }
+  return sanitizeAIResponse(text);
+}
 import { computeTableDiff } from './table-diff-service.js';
 import { resolveTableRunScope } from './table-scope-service.js';
 import { getTableProvider } from './table-provider-service.js';
@@ -1054,8 +1065,8 @@ async function runTableUpdate({
         });
         getLog().info('API 响应已收到', { attempt, responseLength: responseText?.length || 0 });
 
-        parsed = provider.parseResponse({ parseResponse: sanitizeAIResponse }, responseText);
-        getLog().info('响应已解析', { attempt, mode: parsed?.mode, hasEdits: !!parsed?.edits, hasTables: !!parsed?.tables });
+        parsed = provider.parseResponse({ parseResponse: parseAiResponseWithAdapter }, responseText);
+        getLog().info('响应已解析', { attempt, mode: parsed?.mode, hasEdits: !!parsed?.edits, hasTables: !!parsed?.tables, rawFormat: parsed?.rawFormat });
 
         // tableEdit 缺失门控：mode 为 empty 或无 edits/tables 都视为失败
         const hasUsefulPayload = (parsed?.mode === 'incremental' && Array.isArray(parsed.edits) && parsed.edits.length > 0)
