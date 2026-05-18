@@ -370,6 +370,21 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
       }
     });
 
+    // v1.0.206 #5 修复：宿主环境下浏览器的 scroll-chaining 会把滚轮事件传给外层 .yyt-content / .yyt-tab-content，
+    // overscroll-behavior:contain 仅在到达边界后生效，未到边界也会被外层吞掉。
+    // 这里在未到边界时主动拦截 + 手动 scrollTop，边界外让事件冒泡给外层。
+    listEl.addEventListener('wheel', (e) => {
+      const delta = e.deltaY;
+      if (delta === 0) return;
+      const canScrollDown = listEl.scrollTop + listEl.clientHeight < listEl.scrollHeight - 0.5;
+      const canScrollUp = listEl.scrollTop > 0.5;
+      if ((delta > 0 && canScrollDown) || (delta < 0 && canScrollUp)) {
+        e.preventDefault();
+        e.stopPropagation();
+        listEl.scrollTop += delta;
+      }
+    }, { passive: false });
+
     const includeDisabled = preset.includeDisabled === true;
     const items = [];
 

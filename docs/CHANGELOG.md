@@ -9,6 +9,35 @@
 
 ## [Unreleased]
 
+## [1.0.206] - 2026-05-19
+
+### 数据编辑器 UI 全量走预制体
+
+把 `table-data-editor-window.js` 4 个 mode（toolbar / sidebar / data / schema / global）所有可标准化控件改走 `modules/ui/components/controls/` 预制体（button / textInput / selectInput / toggle）。
+
+**改动范围**：
+- toolbar：mode 切换、reload / save / save-global / 立即填表 4 个按钮、dirty badge
+- sidebar：表项点击、上下移/删除 3 个按钮、添加新表按钮
+- data mode：行名 input、行锁/删除/单元格锁所有按钮
+- schema mode：表名/表说明/sourceData 4 段/updateConfig 7 字段/字段定义 head（title/key/type/desc/lock/delete）/添加字段
+- global mode：mirror-tag、ec-enabled toggle、entryName/entryType/keywords/splitByRow/preventRecursion/injectionTemplate/placement 6 字段
+
+**架构变化**：
+- 渲染范式：`HTML 模板字符串 → innerHTML` 改为 `控件树 → appendChild`
+- 事件层：jQuery delegation 改为控件 `onClick` / `onChange` / `onInput`
+- markDirty / clearDirty 通过 `_state._refs` 直接 setDisabled，不再依赖 jQuery DOM 操作
+- 删除 `bindEditorEvents` 大函数（合并到 build 函数中）
+- 删除 `_updateToolbarOnly` hack（控件状态变更直接通过 ref 操作）
+
+**已知差异**：
+- 视觉风格统一到 toolkit 全局控件样式（.yyt-btn / .yyt-input / yyt-select / yyt-toggle）
+- 数据编辑器内部 .yyt-tde-input / .yyt-tde-btn / .yyt-tde-btn-icon 自定义样式删除
+
+### 附带的 v1.0.200 未通过修复重试
+
+- 工作台 hero flex 滚动（#3）：`.yyt-tww-` 容器去掉 `flex:1/min-height:0/overflow:hidden`，让 `.yyt-tab-content` 接管滚动；hero 改用 `position:sticky;top:0;z-index:10` 锚定。
+- 词条预览面板滚轮（#5）：在 `listEl` 上加 `wheel` 监听，未到边界时主动 `preventDefault + scrollTop +=`，绕过宿主环境的 scroll-chaining。
+
 ## [1.0.205] - 2026-05-19
 
 ### 收尾批次：剩余 v1.1+ 任务全部完成
