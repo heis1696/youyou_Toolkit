@@ -251,20 +251,26 @@ Stage 4
 - **#33 新模板不能解析诊断+修**（v1.0.180 实测发现） — resolveActiveTemplate / template-service 加诊断 + 修可能的 normalize 丢字段
 
 **P1 主链最终对齐**：
-- **#16 schema-service 重写**（分阶段做，降低风险）
-  - ✅ **阶段 1**（v1.0.191 完成）：拆默认值常量到 `table-defaults.js`（1433 → 1210 行）
-  - ⏳ **阶段 2**：normalize 函数族 → `table-normalize-service.js`
-  - ⏳ **阶段 3**：validate 函数族 → `table-validation-service.js`
-  - ⏳ **阶段 4**：config CRUD → `table-config-service.js`
-  - 注：原议题 §A D5 说"按 Sheet 模型重写"，实际不需要切 shujuku 二维数组 content；保留 youyou `{columns, rows}` 模型 + 仅做模块拆分即可
+- **#16 schema-service 重写**（实质完成 v1.0.193）
+  - ✅ **阶段 1**（v1.0.191）：拆默认值常量到 `table-defaults.js`（273 行）
+  - ✅ **阶段 2**（v1.0.193）：拆 schema-helpers 到 `table-schema-helpers.js`（80 行）
+  - 跳过 阶段 3/4：validation / config CRUD 跟 normalize 链路深度耦合，强拆形成循环依赖
+  - schema-service 1433 → 1187 行 (-246)，剩余函数高度内聚
+  - 注：原议题 §A D5 已确认不切 shujuku Sheet 模型（走 Provider 双轨）
 
 **P2 收尾**：
-- **#8 orchestrator 整理**（命名约定 `table-update-orchestrator.js` + 内部 7 步拆函数。功能上已对齐，仅命名/拆分清理）
-- **#12 build + 7 项 acceptance 验收**（议题 #15 sign-off 关闭前置）
+- **#8 orchestrator 整理**（实质完成 v1.0.193）
+  - table-update-service.js 文件头加 orchestrator 说明注释（7 步实现位置）
+  - 未做文件重命名（避免破坏 3 个外部 import，无功能价值）
+  - 功能上 7 步对齐 shujuku update-orchestrator.ts
+- **#12 build + acceptance 验收**（v1.0.193）
+  - 7 项 A/B/C 全标 Implementation Verified（含修复版本号）
+  - N1-N10 全 Verified
+  - Authority 模式回归留盲区 2
 
 ---
 
-**策略**：v1.0.190-192 主链稳定，无已知阻塞 bug。剩余收尾任务非紧急，可按 #16 阶段 2-4 → #8 → #12 顺序推进。
+**议题 #15 已达可发布水准（v1.0.193）**。剩余 6 个盲区为后续增强项，非阻塞。
 
 ---
 

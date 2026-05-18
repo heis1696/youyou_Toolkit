@@ -9,6 +9,29 @@
 
 ## [Unreleased]
 
+## [1.0.193] - 2026-05-18
+
+### 重构
+
+- **议题 #15 #16 第二阶段**：拆 schema-helpers
+  - 新建 `modules/table-engine/table-schema-helpers.js` (80 行)：`normalizeCellValue` / `sanitizeColumnKey` / `ensureUniqueColumnKey`
+  - `table-schema-service.js` 1210 → 1187 行，re-export 保持向后兼容
+  - 修 `normalizeColumnType` 用 `TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS`（v1.0.191 拆 defaults 时遗漏的引用）
+  - 阶段 3/4 跳过：validation/config 跟 normalize 链路深度耦合，强拆形成循环依赖
+
+### 新增
+
+- **模板归档 UI**（议题 #15 盲区 4）：工作台 hero 加「📋 归档 (N)」按钮（仅在有归档时显示）
+- 点击 toggle 显示归档面板（最多 8 份）
+- 每条显示时间 + mode（preset_link / chat_override / inherit_global）+ 「恢复」按钮
+- 自动归档触发点：每次 `applyTemplateAsChatOverride` / `linkPresetToChat` / `resetChatTemplateScope` 时
+
+### 文档
+
+- **议题 #15 sign-off**：7 项原 bug A/B/C 全标 Implementation Verified（含修复版本号）
+- TABLE_REWRITE_PLAN §8 hotfix 流水线扩展到 v1.0.193，#16 阶段 1+2 完成 + #8 #12 实质完成
+- `table-update-service.js` 文件头加 orchestrator 说明注释（议题 #15 #8 实质完成）
+
 ## [1.0.192] - 2026-05-18
 
 ### 修复
