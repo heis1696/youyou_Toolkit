@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.0.207] - 2026-05-19
+
+### hotfix：textarea 白底白字
+
+v1.0.206 重构数据编辑器时给 textarea 加了自定义类 `.yyt-tde-textarea`，但样式只覆盖了基础态，hover/focus/placeholder 都没接住 → 在某些宿主环境下表现为「白底白字」。
+
+改回 toolkit 标准类 `.yyt-textarea`（main.css line 980 — `.yyt-input, .yyt-select, .yyt-textarea` 共享样式，hover/focus/placeholder 全套齐备），删除自定义 `.yyt-tde-textarea` CSS。
+
+影响：表说明 / sourceData 4 段（init/create/update/delete）/ 字段描述 / 注入模板等所有 textarea。
+
 ## [1.0.206] - 2026-05-19
 
 ### 数据编辑器 UI 全量走预制体

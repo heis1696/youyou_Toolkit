@@ -367,25 +367,6 @@ const STYLES = `
 }
 .yyt-tde-global-card-name { font-weight: 700; color: var(--tde-text); }
 .yyt-tde-disabled-section { opacity: 0.5; pointer-events: none; }
-
-/* 表单工具 — textarea 包装 */
-.yyt-tde-textarea {
-  background: var(--yyt-control-bg, #0f1219);
-  border: 1px solid var(--yyt-control-border, rgba(255,255,255,0.08));
-  color: var(--tde-text);
-  font-size: 12px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  width: 100%;
-  font-family: inherit;
-  min-height: 60px;
-  resize: vertical;
-  box-sizing: border-box;
-}
-.yyt-tde-textarea:focus {
-  outline: none;
-  border-color: var(--yyt-control-border-focus, rgba(123,183,255,0.5));
-}
 `;
 
 let _stylesInjected = false;
@@ -1220,7 +1201,7 @@ function buildUcCell({ label, control, wide = false, hint = null }) {
 
 function buildTextarea({ value = '', placeholder = '', minHeight = '60px', onInput = null } = {}) {
   const ta = el('textarea', {
-    className: 'yyt-tde-textarea',
+    className: 'yyt-textarea',
     attrs: { placeholder },
     style: { minHeight }
   });
