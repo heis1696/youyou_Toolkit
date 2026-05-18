@@ -496,6 +496,16 @@ function loadEditorData() {
 
   try {
     const snapshot = getAssistantTableSnapshot(null);
+    // v1.0.199 诊断：暴露 snapshot 关键字段，定位「保存了但 reload 读不到」根因
+    getLog().info('loadEditorData snapshot', {
+      hasSnapshot: !!snapshot,
+      messageId: snapshot?.message?.message_id ?? snapshot?.sourceMessageId,
+      chatId: snapshot?.chatId,
+      isolationKey: snapshot?.tableState?.meta?.isolationKey,
+      hasTableState: !!snapshot?.tableState,
+      tableStateTablesLen: Array.isArray(snapshot?.tableState?.tables) ? snapshot.tableState.tables.length : null,
+      firstTableNameInSlot: snapshot?.tableState?.tables?.[0]?.name
+    });
     if (Array.isArray(snapshot?.tableState?.tables) && snapshot.tableState.tables.length > 0) {
       tables = snapshot.tableState.tables;
     }
@@ -1228,6 +1238,16 @@ function bindEditorEvents($window) {
         tables: cloneTableValue(_state.tempData) || [],
         meta: { source: 'data-editor-manual-save' }
       }, { skipFreshValidation: true });
+      // v1.0.199 诊断：commit 后看返回的 messageId / state.tables 是否真写进去
+      getLog().info('save-chat commitBoundState 结果', {
+        success: result?.success,
+        error: result?.error,
+        commitMessageId: result?.sourceMessageId,
+        commitSlotRevisionKey: result?.slotRevisionKey,
+        stateTablesLen: Array.isArray(result?.state?.tables) ? result.state.tables.length : null,
+        firstTableInState: result?.state?.tables?.[0]?.name,
+        firstAiInitInState: result?.state?.tables?.[0]?.aiInstructions?.init?.slice(0, 50)
+      });
       if (result?.success) {
         clearDirty();
         _state.targetSnapshot = {
@@ -1241,7 +1261,15 @@ function bindEditorEvents($window) {
           traceId: target.traceId,
           targetMessageIndex: result.messageIndex ?? target.targetMessageIndex
         };
-        showToast('success', '已保存');
+        // v1.0.199 修复：保存成功后立刻把 commit 返回的 state.tables 同步回 tempData，
+        // 同时关闭 isFromTemplate 标志，让用户立即看到「保存生效」反馈
+        // （不再依赖 reload 路径 — 后者用 getAssistantTableSnapshot 找消息，
+        // 跟 commitBoundState 写入的 message 可能不一致）
+        if (Array.isArray(result?.state?.tables)) {
+          _state.tempData = cloneTableValue(result.state.tables) || [];
+          _state.isFromTemplate = false;
+        }
+        showToast('success', '已保存到 chat');
         refresh();
       } else {
         showToast('error', `保存失败：${result?.error || '未知'}`);
