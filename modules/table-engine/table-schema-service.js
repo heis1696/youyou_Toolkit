@@ -1131,13 +1131,22 @@ export function getTableWorkbenchDefaultConfig() {
 export function normalizeTableWorkbenchConfig(value = {}) {
   const defaults = getTableWorkbenchDefaultConfig();
   const nextValue = value && typeof value === 'object' ? value : {};
-  const bypass = normalizeBypassConfig(nextValue.bypass, nextValue.promptPreset);
+  // v1.0.178 hotfix Bug 3：兼容 UI 工作台保存的顶层 bypassPresetId 字段
+  const bypassInput = nextValue.bypass
+    ? nextValue.bypass
+    : (nextValue.bypassPresetId ? { presetId: nextValue.bypassPresetId, enabled: !!nextValue.bypassPresetId } : undefined);
+  const bypass = normalizeBypassConfig(bypassInput, nextValue.promptPreset);
   const tables = normalizeTables(nextValue.tables, { seedDefaultWhenMissing: !Object.prototype.hasOwnProperty.call(nextValue, 'tables') });
   const scope = normalizeRunScopeConfig(nextValue.scope, {
     mode: nextValue.runScope,
     selectedTableIds: nextValue.selectedTableIds,
     activeTableId: nextValue.activeTableId
   });
+  // v1.0.178 hotfix Bug 3：兼容工作台 UI 写入 config.automation.enabled
+  const autoUpdateEnabled = normalizeBoolean(
+    nextValue.autoUpdateEnabled !== undefined ? nextValue.autoUpdateEnabled : nextValue.automation?.enabled,
+    defaults.autoUpdateEnabled
+  );
 
   return {
     tables,
@@ -1146,7 +1155,7 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     promptPreset: bypass.presetId,
     bypass,
     activeTemplate: normalizeString(nextValue.activeTemplate, defaults.activeTemplate),
-    autoUpdateEnabled: normalizeBoolean(nextValue.autoUpdateEnabled, defaults.autoUpdateEnabled),
+    autoUpdateEnabled,
     autoUpdateTrigger: normalizeString(nextValue.autoUpdateTrigger, defaults.autoUpdateTrigger),
     runScope: scope.mode,
     scope,
@@ -1160,11 +1169,17 @@ export function normalizeTableWorkbenchConfig(value = {}) {
         ? nextValue.contextExtractTags.split('\n').map(l => l.trim()).filter(Boolean)
         : []),
     contextUseGlobalRules: normalizeBoolean(nextValue.contextUseGlobalRules ?? nextValue.contextUseExtractRules ?? nextValue.contextUseExcludeRules, false),
+    // v1.0.178 hotfix Bug 3：接收 extraction.regexPresetId（之前 normalize 完全不保留 extraction 字段）
+    extraction: {
+      regexPresetId: normalizeString(nextValue.extraction?.regexPresetId, '')
+    },
     worldbooks: {
       enabled: normalizeBoolean(nextValue.worldbooks?.enabled, false),
       selected: Array.isArray(nextValue.worldbooks?.selected)
         ? nextValue.worldbooks.selected.filter(v => typeof v === 'string' && v.trim())
-        : []
+        : [],
+      // v1.0.178 hotfix Bug 3：worldbooks.presetId 之前没保留
+      presetId: normalizeString(nextValue.worldbooks?.presetId, '')
     },
     sendLatestRows: Number.isFinite(Number(nextValue.sendLatestRows))
       ? Math.floor(Number(nextValue.sendLatestRows)) : -1,
@@ -1173,7 +1188,18 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     worldbookSync: {
       enabled: normalizeBoolean(nextValue.worldbookSync?.enabled, false),
       targetBook: normalizeString(nextValue.worldbookSync?.targetBook, ''),
-      entryComment: normalizeString(nextValue.worldbookSync?.entryComment, defaults.worldbookSync.entryComment)
+      entryComment: normalizeString(nextValue.worldbookSync?.entryComment, defaults.worldbookSync.entryComment),
+      // v1.0.178 hotfix Bug 3：worldbookSync.wrapperConfig 也保留（UI 工作台保存路径）
+      wrapperConfig: nextValue.worldbookSync?.wrapperConfig ? {
+        enabled: normalizeBoolean(nextValue.worldbookSync.wrapperConfig?.enabled, true),
+        wrapperTag: normalizeString(nextValue.worldbookSync.wrapperConfig?.wrapperTag, defaults.wrapperConfig.wrapperTag),
+        wrapperHint: normalizeString(nextValue.worldbookSync.wrapperConfig?.wrapperHint, ''),
+        wrapperPlacement: {
+          position: normalizeString(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.position, defaults.wrapperConfig.wrapperPlacement.position),
+          depth: Number.isFinite(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.depth)) ? Math.floor(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.depth)) : defaults.wrapperConfig.wrapperPlacement.depth,
+          order: Number.isFinite(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.order)) ? Math.floor(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.order)) : defaults.wrapperConfig.wrapperPlacement.order
+        }
+      } : undefined
     },
     wrapperConfig: {
       enabled: normalizeBoolean(nextValue.wrapperConfig?.enabled, defaults.wrapperConfig.enabled),

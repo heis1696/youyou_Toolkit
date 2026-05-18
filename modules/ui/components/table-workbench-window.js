@@ -432,13 +432,14 @@ function buildBindingsHtml(state) {
 
   const tplOpts = allTemplates.map((t) => `<option value="${esc(t.id)}" ${activeTemplate?.source?.templateId === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
 
-  const triggerVal = config?.automation?.enabled ? 'auto' : 'manual';
+  // v1.0.178 hotfix Bug 3：读取走 normalize 后的字段路径（autoUpdateEnabled / bypass.presetId / extraction.regexPresetId / worldbooks.presetId）
+  const triggerVal = config?.autoUpdateEnabled === true ? 'auto' : 'manual';
 
   const apiVal = config?.apiPreset || '';
   const apiOpts = `<option value="">—— 跟随主 API ——</option>` +
     apiPresets.map((p) => `<option value="${esc(p.name)}" ${p.name === apiVal ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
-  const bypassVal = config?.bypassPresetId || '';
+  const bypassVal = config?.bypass?.presetId || '';
   const bypassOpts = `<option value="">—— 无 ——</option>` +
     bypassPresets.map((p) => `<option value="${esc(p.id)}" ${p.id === bypassVal ? 'selected' : ''}>${esc(p.name)}${p.isDefault ? ' [默认]' : ''}</option>`).join('');
 
@@ -871,9 +872,15 @@ export function bindWorkbenchEvents($container, refresh) {
   // 打开数据编辑器（议题 #15 #11，v1.0.176+）
   $container.on('click.tww', '[data-action="open-editor"]', (e) => {
     e.preventDefault();
+    // v1.0.178 hotfix Bug 2：诊断日志
+    console.log('[YYT][TableWorkbench] open-editor button clicked');
+    getLog().info('open-editor button clicked');
     try {
-      openTableDataEditor();
+      const result = openTableDataEditor();
+      console.log('[YYT][TableWorkbench] openTableDataEditor returned:', result);
+      getLog().info('openTableDataEditor 调用完成', { hasReturn: !!result });
     } catch (err) {
+      console.error('[YYT][TableWorkbench] 打开数据编辑器异常:', err);
       getLog().error('打开数据编辑器异常', err);
       showToast('error', `打开失败：${err?.message || err}`);
     }
@@ -884,14 +891,17 @@ export function bindWorkbenchEvents($container, refresh) {
     e.preventDefault();
     const idx = Number($(this).attr('data-table-index'));
     if (!Number.isFinite(idx) || idx < 0) return;
+    console.log('[YYT][TableWorkbench] table card clicked, idx=', idx);
     try {
       // 从当前 slot tableState 拿对应表的 uid 传给编辑器
       const snapshot = getAssistantTableSnapshot(null);
       const table = snapshot?.tableState?.tables?.[idx];
-      openTableDataEditor({
+      const result = openTableDataEditor({
         focusTableUid: table?.uid || table?.id || ''
       });
+      console.log('[YYT][TableWorkbench] openTableDataEditor returned:', result);
     } catch (err) {
+      console.error('[YYT][TableWorkbench] 打开数据编辑器异常:', err);
       getLog().error('打开数据编辑器异常', err);
       showToast('error', `打开失败：${err?.message || err}`);
     }
@@ -912,14 +922,14 @@ export function bindWorkbenchEvents($container, refresh) {
     }
   });
 
-  // 触发模式
+  // 触发模式（v1.0.178 hotfix Bug 3：保存到 autoUpdateEnabled 顶层字段）
   $container.on('change.tww', '[data-binding="triggerMode"]', function () {
     const mode = $(this).val();
     try {
       const config = getTableWorkbenchConfig();
       saveTableWorkbenchConfig({
         ...config,
-        automation: { ...(config.automation || {}), enabled: mode === 'auto' }
+        autoUpdateEnabled: mode === 'auto'
       });
       showToast('success', mode === 'auto' ? '已切换为自动模式' : '已切换为手动模式');
       if (typeof refresh === 'function') refresh();
@@ -930,9 +940,9 @@ export function bindWorkbenchEvents($container, refresh) {
   });
 
   // 通用 binding select
+  // v1.0.178 hotfix Bug 3：bypassPreset 保存改为 config.bypass.presetId（顶层字段会被 normalize 丢）
   const selectBindings = [
     { sel: '[data-binding="apiPreset"]', key: 'apiPreset' },
-    { sel: '[data-binding="bypassPreset"]', key: 'bypassPresetId' },
     { sel: '[data-binding="runScope"]', key: 'runScope' },
     { sel: '[data-binding="fillMode"]', key: 'fillMode' }
   ];
@@ -949,6 +959,22 @@ export function bindWorkbenchEvents($container, refresh) {
       }
     });
   }
+
+  // Ai 指令预设（v1.0.178 hotfix Bug 3：写到 config.bypass.presetId）
+  $container.on('change.tww', '[data-binding="bypassPreset"]', function () {
+    const value = $(this).val();
+    try {
+      const config = getTableWorkbenchConfig();
+      saveTableWorkbenchConfig({
+        ...config,
+        bypass: { ...(config.bypass || {}), presetId: value, enabled: !!value }
+      });
+      showToast('success', 'Ai 指令预设已保存');
+    } catch (err) {
+      getLog().error('保存 bypass 异常', err);
+      showToast('error', `保存失败：${err?.message || err}`);
+    }
+  });
 
   $container.on('change.tww', '[data-binding="regexPreset"]', function () {
     const value = $(this).val();

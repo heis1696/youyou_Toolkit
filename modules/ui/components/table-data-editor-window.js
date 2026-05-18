@@ -736,12 +736,20 @@ function _updateToolbarOnly() {
  * @param {string} [options.focusMode] - 'data' | 'schema' | 'global'
  */
 export function openTableDataEditor(options = {}) {
+  // v1.0.178 hotfix Bug 2：诊断 + 不静默失败
+  console.log('[YYT][TableDataEditor] openTableDataEditor called', { options });
+  getLog().info('openTableDataEditor 调用', { options });
+
   injectStyles();
   const $ = window.jQuery || window.parent?.jQuery;
   if (!$) {
-    getLog().error('jQuery 不可用');
+    const msg = 'jQuery 不可用（window.jQuery 和 window.parent.jQuery 都是 undefined）';
+    console.error('[YYT][TableDataEditor]', msg);
+    getLog().error(msg);
+    try { showToast('error', `数据编辑器打开失败：${msg}`); } catch (_) {}
     return null;
   }
+  console.log('[YYT][TableDataEditor] jQuery 可用');
 
   // 已存在则置顶 + 切到 focus
   if (_state.$window && _state.$window.length && document.body.contains(_state.$window[0])) {
@@ -760,6 +768,7 @@ export function openTableDataEditor(options = {}) {
 
   // 初始化状态
   loadEditorData();
+  console.log('[YYT][TableDataEditor] loadEditorData 完成，tempData 表数:', _state.tempData?.length);
   if (options.focusTableUid) {
     const tables = _state.tempData || [];
     const idx = tables.findIndex((t) => (t?.uid || t?.id) === options.focusTableUid);
@@ -769,30 +778,38 @@ export function openTableDataEditor(options = {}) {
     _state.mode = options.focusMode;
   }
 
-  const $win = createWindow({
-    id: WINDOW_ID,
-    title: '填表数据编辑器',
-    content: renderEditorHtml(),
-    width: 1200,
-    height: 800,
-    modal: false,
-    resizable: true,
-    maximizable: true,
-    rememberState: true,
-    onReady: ($el) => {
-      _state.$window = $el;
-      bindEditorEvents($el);
-    },
-    onClose: () => {
-      if (_state.isDirty) {
-        // 注意：createWindow 的 onClose 在关闭后调用，confirm 阻止不了关闭
-        // 这里只做记录提示，不做拦截
-        getLog().warn('数据编辑器关闭时有未保存修改');
+  console.log('[YYT][TableDataEditor] 即将调 createWindow');
+  let $win;
+  try {
+    $win = createWindow({
+      id: WINDOW_ID,
+      title: '填表数据编辑器',
+      content: renderEditorHtml(),
+      width: 1200,
+      height: 800,
+      modal: false,
+      resizable: true,
+      maximizable: true,
+      rememberState: true,
+      onReady: ($el) => {
+        console.log('[YYT][TableDataEditor] onReady triggered', { $el: !!$el });
+        _state.$window = $el;
+        bindEditorEvents($el);
+      },
+      onClose: () => {
+        if (_state.isDirty) {
+          getLog().warn('数据编辑器关闭时有未保存修改');
+        }
+        _state.$window = null;
       }
-      _state.$window = null;
-      // 不清 tempData / currentTableIndex 让下次打开时保留状态
-    }
-  });
+    });
+    console.log('[YYT][TableDataEditor] createWindow 返回:', !!$win);
+  } catch (err) {
+    console.error('[YYT][TableDataEditor] createWindow 抛错:', err);
+    getLog().error('createWindow 抛错', err);
+    try { showToast('error', `创建窗口失败：${err?.message || err}`); } catch (_) {}
+    return null;
+  }
 
   return $win;
 }
