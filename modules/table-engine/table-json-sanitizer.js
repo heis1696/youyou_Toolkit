@@ -538,7 +538,26 @@ function sanitizeAIResponse(text) {
   if (edits) return { mode: 'incremental', edits, tables: null };
 
   const full = parseFullReplacement(text);
-  if (full) return { mode: 'full', edits: null, tables: full };
+  if (full) {
+    // v1.0.175 修复：parseFullReplacement 直接 JSON.parse 文本，AI 通常返回
+    //   { "tables": [...] } 信封格式，主链期望 parsed.tables 是数组。
+    // 这里 unwrap 一层，把 envelope 的 .tables 数组提出来。
+    // 容错：若直接是数组（少见），原样保留；其它无法识别时 → empty。
+    let tablesArr = null;
+    if (Array.isArray(full)) {
+      tablesArr = full;
+    } else if (full && Array.isArray(full.tables)) {
+      tablesArr = full.tables;
+    } else if (full && typeof full === 'object') {
+      // 兜底：取第一个 array 类型的字段
+      for (const v of Object.values(full)) {
+        if (Array.isArray(v)) { tablesArr = v; break; }
+      }
+    }
+    if (Array.isArray(tablesArr)) {
+      return { mode: 'full', edits: null, tables: tablesArr };
+    }
+  }
 
   return { mode: 'empty', edits: null, tables: null };
 }
