@@ -9,6 +9,19 @@
 
 ## [Unreleased]
 
+## [1.0.208] - 2026-05-19
+
+### hotfix：数据编辑器窗口"变小+不能调"
+
+v1.0.205 在 SillyTavern iframe 内点过「最大化」或调过很小尺寸的用户，`rememberState` 把 `isMaximized:true` / 小 width-height 存到了 localStorage。v1.0.206 再开时 createWindow 自动 `doMaximize()`，相对于 iframe viewport 贴满 → 看着就是「小窗口」+「resize handle 失效」（最大化状态下 line 695 直接 return）。
+
+`openTableDataEditor` 入口加 saved state sanity check：
+- `isMaximized:true` 直接重置
+- `width<800` 或 `height<500` 视为损坏，重置
+- 重置目标：1200×800、isMaximized:false
+
+修复后第一次打开会回到默认 1200×800 居中，用户调整到合理尺寸（≥800×500）后 rememberState 正常保留。
+
 ## [1.0.207] - 2026-05-19
 
 ### hotfix：textarea 白底白字

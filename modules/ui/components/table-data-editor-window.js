@@ -21,7 +21,7 @@
  *   事件从 jQuery delegation 改为控件 onClick/onChange/onInput。
  */
 
-import { createWindow, closeWindow } from '../../window-manager.js';
+import { createWindow, closeWindow, windowManager } from '../../window-manager.js';
 import { logger } from '../../core/logger-service.js';
 import {
   getAssistantTableSnapshot,
@@ -1564,6 +1564,28 @@ export function openTableDataEditor(options = {}) {
     return null;
   }
   console.log('[YYT][TableDataEditor] jQuery 可用');
+
+  // v1.0.208：sanity check saved state — 之前可能存了 isMaximized=true 或者奇葩小尺寸
+  //   导致打开时自动 maximize 到 iframe viewport（看着"小"且 resize 失效）。
+  //   合理范围外的状态直接覆盖为默认 1200×800，未来用户再调整会被合理保留。
+  try {
+    const saved = windowManager.getState(WINDOW_ID);
+    if (saved) {
+      const w = Number(saved.width);
+      const h = Number(saved.height);
+      const tooSmall = (Number.isFinite(w) && w < 800) || (Number.isFinite(h) && h < 500);
+      if (saved.isMaximized || tooSmall) {
+        getLog().info('检测到不合理 saved state，重置为默认尺寸', {
+          isMaximized: saved.isMaximized, savedW: w, savedH: h
+        });
+        windowManager.saveState(WINDOW_ID, {
+          width: 1200, height: 800, isMaximized: false, x: undefined, y: undefined
+        });
+      }
+    }
+  } catch (err) {
+    getLog().warn('saved state sanity check 异常', err);
+  }
 
   if (_state.$window && _state.$window.length && document.body.contains(_state.$window[0])) {
     if (options.focusTableUid) {
