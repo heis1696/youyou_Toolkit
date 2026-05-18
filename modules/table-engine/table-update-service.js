@@ -44,6 +44,31 @@ function getLog() {
   return logger.createScope('TableUpdate');
 }
 
+// ════════════════════════════════════════════════════════════════
+// 议题 #15 §B 重试常量 + sleepWithAbort
+// shujuku update-orchestrator 风格：3 次重试 + 5s 退避 + abort 中途退出
+// ════════════════════════════════════════════════════════════════
+
+const CALL_AI_MAX_RETRIES = 3;
+const CALL_AI_RETRY_DELAY_MS = 5000;
+
+function sleepWithAbort(ms, abortSignal) {
+  return new Promise((resolve) => {
+    if (abortSignal?.aborted) { resolve(false); return; }
+    let timer;
+    const onAbort = () => {
+      clearTimeout(timer);
+      try { abortSignal?.removeEventListener?.('abort', onAbort); } catch (_) {}
+      resolve(false);
+    };
+    timer = setTimeout(() => {
+      try { abortSignal?.removeEventListener?.('abort', onAbort); } catch (_) {}
+      resolve(true);
+    }, ms);
+    try { abortSignal?.addEventListener?.('abort', onAbort); } catch (_) {}
+  });
+}
+
 function normalizeString(value, fallback = '') {
   if (value === undefined || value === null) return fallback;
   const normalized = String(value).trim();
@@ -339,31 +364,6 @@ function buildIncrementalPromptSuffix() {
   return INCREMENTAL_PROMPT_SUFFIX;
 }
 
-export function parsePatch(responseText = '') {
-  const result = sanitizeAIResponse(responseText);
-  if (result.mode === 'full' && result.tables) {
-    return { tables: cloneTableValue(result.tables), parsed: result.tables };
-  }
-  throw new Error('无法从模型响应中解析 tables JSON。');
-}
-
-export function sortEdits(edits) {
-  if (!Array.isArray(edits)) return [];
-  const priority = {
-    [TABLE_EDIT_OPERATIONS.UPDATE_ROW]: 0,
-    [TABLE_EDIT_OPERATIONS.INSERT_ROW]: 1,
-    [TABLE_EDIT_OPERATIONS.DELETE_ROW]: 2
-  };
-  return [...edits].sort((a, b) => {
-    const pa = priority[a.op] ?? 99;
-    const pb = priority[b.op] ?? 99;
-    if (pa === 2 && pb === 2) {
-      return (b.rowIndex ?? 0) - (a.rowIndex ?? 0);
-    }
-    return pa - pb;
-  });
-}
-
 export function applyIncrementalEdits(tables, edits, locks, runScope = null) {
   const result = normalizeRuntimeTables(tables || []);
   const lockMap = locks || {};
@@ -433,13 +433,12 @@ export function applyIncrementalEdits(tables, edits, locks, runScope = null) {
 
 export async function buildRequest({ executionContext, targetSnapshot, loadResult, config, assistantSnapshot, fillMode, runScope } = {}) {
   const normalizedConfig = normalizeTableWorkbenchConfig(config);
-  const toolConfig = buildTableWorkbenchToolConfig(normalizedConfig);
+  const isIncremental = fillMode === 'incremental' || (!fillMode && normalizedConfig.fillMode !== 'full');
+  const toolConfig = buildTableWorkbenchToolConfig(normalizedConfig, { skipResponseContract: isIncremental });
   const requestPayload = buildRequestPayload(targetSnapshot, loadResult, runScope);
   const previousTables = Array.isArray(assistantSnapshot?.tableState?.tables)
     ? normalizeRuntimeTables(assistantSnapshot.tableState.tables)
     : [];
-
-  const isIncremental = fillMode === 'incremental' || (!fillMode && normalizedConfig.fillMode !== 'full');
 
   const rawMessages = executionContext?.chatHistory || executionContext?.chatMessages || [];
   const { contextDepth, contextRoles, contextExtractTags, contextUseGlobalRules, sendLatestRows } = normalizedConfig;
@@ -819,13 +818,57 @@ async function runTableUpdate({
       runScope
     });
     getLog().info('请求已构建', { messageCount: request?.messages?.length, fillMode: request?.fillMode });
-    const responseText = await provider.sendRequest({ sendRequest }, request, {
-      config,
-      abortSignal
-    });
-    getLog().info('API 响应已收到', { responseLength: responseText?.length || 0 });
-    const parsed = provider.parseResponse({ parseResponse: sanitizeAIResponse }, responseText);
-    getLog().info('响应已解析', { mode: parsed?.mode, hasEdits: !!parsed?.edits, hasTables: !!parsed?.tables });
+    // ────────────────────────────────────────────────────────
+    // 议题 #15 §B：sendRequest + parseResponse 套 3 次重试 + 5s 退避
+    // tableEdit 缺失（parsed.mode === 'empty'）当作失败触发重试；
+    // abort signal 中途取消立刻退出（不再等待重试）。
+    // ────────────────────────────────────────────────────────
+    let responseText = '';
+    let parsed = null;
+    let lastAttemptError = null;
+
+    for (let attempt = 1; attempt <= CALL_AI_MAX_RETRIES; attempt++) {
+      if (abortSignal?.aborted) {
+        throw new Error('请求已取消');
+      }
+      try {
+        responseText = await provider.sendRequest({ sendRequest }, request, {
+          config,
+          abortSignal
+        });
+        getLog().info('API 响应已收到', { attempt, responseLength: responseText?.length || 0 });
+
+        parsed = provider.parseResponse({ parseResponse: sanitizeAIResponse }, responseText);
+        getLog().info('响应已解析', { attempt, mode: parsed?.mode, hasEdits: !!parsed?.edits, hasTables: !!parsed?.tables });
+
+        // tableEdit 缺失门控：mode 为 empty 或无 edits/tables 都视为失败
+        const hasUsefulPayload = (parsed?.mode === 'incremental' && Array.isArray(parsed.edits) && parsed.edits.length > 0)
+          || (parsed?.mode === 'full' && parsed?.tables);
+        if (!hasUsefulPayload) {
+          throw new Error('AI 响应中未找到有效的 <tableEdit> 标签或表格 JSON');
+        }
+
+        // 成功
+        lastAttemptError = null;
+        break;
+      } catch (err) {
+        lastAttemptError = err;
+        getLog().warn(`填表 attempt ${attempt}/${CALL_AI_MAX_RETRIES} 失败`, {
+          error: err?.message || String(err)
+        });
+
+        if (attempt < CALL_AI_MAX_RETRIES) {
+          const completed = await sleepWithAbort(CALL_AI_RETRY_DELAY_MS, abortSignal);
+          if (!completed) {
+            throw new Error('请求已取消（重试等待期间）');
+          }
+        }
+      }
+    }
+
+    if (lastAttemptError) {
+      throw new Error(`填表失败（${CALL_AI_MAX_RETRIES} 次重试后仍失败）: ${lastAttemptError?.message || String(lastAttemptError)}`);
+    }
 
     let nextTables;
     let diff = null;
@@ -833,11 +876,15 @@ async function runTableUpdate({
     let scopeStats = null;
 
     if (parsed.mode === 'incremental' && parsed.edits) {
-      const locks = getLocks(loadResult?.state);
+      // 议题 #15：锁存储已迁移到 storage namespace `tableLocks`，按 scopeKey + sheetUid 索引。
+      // 旧 boundState.meta.locks 不再使用；传 previousTables 给 getLocks 用于映射 tableIndex → sheetUid。
+      const locks = getLocks(loadResult?.state, previousTables);
       const filterResult = filterIncrementalEditsByScope(parsed.edits, previousTables, runScope, locks);
       scopeStats = filterResult.stats;
-      const sortedEdits = sortEdits(filterResult.edits);
-      nextTables = applyIncrementalEdits(previousTables, sortedEdits, locks, runScope);
+      // 议题 #15 修复：按 AI 原始顺序应用 edits，不再重排。
+      // shujuku update-orchestrator.ts 也是按原始顺序逐条 applyEdits。
+      // 重排（update→insert→delete）会让 "AI 同轮内先 insert 再 update 新行" 失效。
+      nextTables = applyIncrementalEdits(previousTables, filterResult.edits, locks, runScope);
       fillMode = 'incremental';
       if (scopeStats.droppedByScope > 0 || scopeStats.droppedByLock > 0) {
         getLog().info('scope 过滤', scopeStats);
@@ -852,6 +899,33 @@ async function runTableUpdate({
 
     diff = computeTableDiff(previousTables, nextTables);
     getLog().info('差异已计算', { fillMode });
+
+    if (isAutoRun) {
+      const abortState = resolveAutoAbortState(autoMeta);
+      if (abortState) {
+        applyRuntimePatch(buildAutoRuntimePatch({
+          status: TABLE_WORKBENCH_RUNTIME_STATUS.ABORTED,
+          targetSnapshot,
+          startedAt,
+          skipReason: abortState.reason,
+          error: '写回前已取消'
+        }), runSource);
+        return {
+          success: false,
+          error: '写回前已取消',
+          targetSnapshot,
+          meta: buildAutoResultMeta({
+            targetSnapshot,
+            startedAt,
+            status: TABLE_WORKBENCH_RUNTIME_STATUS.ABORTED,
+            aborted: abortState.aborted === true,
+            stale: abortState.stale === true,
+            abortReason: abortState.reason,
+            error: '写回前已取消'
+          })
+        };
+      }
+    }
 
     const writeback = await writeTableState({
       targetSnapshot,
@@ -1017,8 +1091,6 @@ async function runTableUpdate({
 export default {
   buildRequest,
   sendRequest,
-  parsePatch,
-  sortEdits,
   applyIncrementalEdits,
   runManualTableUpdate,
   runAutoTableUpdate

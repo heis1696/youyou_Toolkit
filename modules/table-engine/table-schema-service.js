@@ -1282,19 +1282,20 @@ export function updateTableWorkbenchRuntime(runtimePatch = {}) {
   return nextConfig.runtime;
 }
 
-export function buildTableWorkbenchPromptTemplate(config = {}) {
+export function buildTableWorkbenchPromptTemplate(config = {}, options = {}) {
   const normalized = normalizeTableWorkbenchConfig(config);
   const basePrompt = normalizeString(normalized.promptTemplate, DEFAULT_TABLE_WORKBENCH_PROMPT_TEMPLATE);
+  if (options.skipResponseContract) return basePrompt.trim();
   return `${basePrompt}\n\n${TABLE_WORKBENCH_RESPONSE_CONTRACT}`.trim();
 }
 
-export function buildTableWorkbenchToolConfig(config = {}) {
+export function buildTableWorkbenchToolConfig(config = {}, options = {}) {
   const normalized = normalizeTableWorkbenchConfig(config);
 
   return {
     id: 'tableWorkbench',
     name: '填表工作台',
-    promptTemplate: buildTableWorkbenchPromptTemplate(normalized),
+    promptTemplate: buildTableWorkbenchPromptTemplate(normalized, options),
     bypass: {
       enabled: normalized.bypass?.enabled === true,
       presetId: normalized.bypass?.presetId || normalized.promptPreset || ''
