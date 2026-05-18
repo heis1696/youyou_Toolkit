@@ -83,7 +83,8 @@ export const WORKBENCH_VIEW_STYLES = `
 
   display: flex; flex-direction: column;
   min-height: 100%;
-  background: var(--tww-canvas); color: var(--tww-text);
+  /* 议题 #15 hotfix v1.0.173：父容器（popup yyt-content）已是深色，本容器透明继承避免边界错位 */
+  background: transparent; color: var(--tww-text);
   font-size: 13px; line-height: 1.5;
 }
 .yyt-tww-hero {
@@ -194,25 +195,19 @@ export const WORKBENCH_VIEW_STYLES = `
 .yyt-tww-row-meta a { color: var(--tww-accent); text-decoration: none; font-weight: 600; cursor: pointer; }
 .yyt-tww-row-meta a:hover { text-decoration: underline; }
 
+/* 议题 #15 hotfix v1.0.173：
+   工作台 select/input 直接借用 toolkit 的 yyt-select / yyt-input 预制体（带 !important 防御样式 reset），
+   在此用 .yyt-tww-ctrl override 缩小到 binding-row 用的紧凑尺寸 */
 .yyt-tww-ctrl {
-  width: 100%; padding: 7px 10px;
-  background: var(--tww-canvas);
-  border: 1px solid var(--tww-hairline-strong);
-  border-radius: 6px;
-  color: var(--tww-text); font-size: 12px;
-  outline: none;
-  transition: border-color 0.12s ease;
-  font-family: inherit;
-}
-.yyt-tww-ctrl:focus {
-  border-color: var(--tww-accent);
-  box-shadow: 0 0 0 2px var(--tww-accent-soft);
+  min-height: 32px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  width: 100%;
 }
 select.yyt-tww-ctrl {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a8b7ca' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center;
-  background-size: 10px; padding-right: 28px; cursor: pointer;
+  padding-right: 28px !important;
+  background-size: 10px !important;
+  background-position: right 10px center !important;
 }
 
 .yyt-tww-toggle-row {
@@ -399,7 +394,7 @@ function buildBindingsHtml(state) {
         <span class="yyt-tww-row-label-text">填表模板</span>
         <span class="yyt-tww-row-label-hint">表结构 + 填表提示词</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="template">${tplOpts}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="template">${tplOpts}</select>
       <div class="yyt-tww-row-meta">
         <span>${activeTemplate?.mode === 'inherit_global' ? '继承全局' : activeTemplate?.mode === 'chat_override' ? 'chat 覆盖' : activeTemplate?.mode === 'preset_link' ? '链接预设' : ''}</span>
       </div>
@@ -410,7 +405,7 @@ function buildBindingsHtml(state) {
         <span class="yyt-tww-row-label-text">触发模式</span>
         <span class="yyt-tww-row-label-hint">自动随 AI 回复 / 仅手动</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="triggerMode">
+      <select class="yyt-select yyt-tww-ctrl" data-binding="triggerMode">
         <option value="auto" ${triggerVal === 'auto' ? 'selected' : ''}>自动 — 回复完成后填表</option>
         <option value="manual" ${triggerVal === 'manual' ? 'selected' : ''}>手动 — 仅在点"立即填表"时</option>
       </select>
@@ -422,7 +417,7 @@ function buildBindingsHtml(state) {
         <span class="yyt-tww-row-label-text">API 预设</span>
         <span class="yyt-tww-row-label-hint">填表请求走哪个 API</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="apiPreset">${apiOpts}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="apiPreset">${apiOpts}</select>
       <div class="yyt-tww-row-meta"><a data-link="api-presets">管理…</a></div>
     </div>
 
@@ -431,7 +426,7 @@ function buildBindingsHtml(state) {
         <span class="yyt-tww-row-label-text">Ai 指令预设</span>
         <span class="yyt-tww-row-label-hint">附加在 system/user 前的指令</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="bypassPreset">${bypassOpts}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="bypassPreset">${bypassOpts}</select>
       <div class="yyt-tww-row-meta"><a data-link="bypass">管理…</a></div>
     </div>
 
@@ -440,7 +435,7 @@ function buildBindingsHtml(state) {
         <span class="yyt-tww-row-label-text">正则提取预设</span>
         <span class="yyt-tww-row-label-hint">决定从 AI 回复中如何抽取</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="regexPreset">${regexOpts}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="regexPreset">${regexOpts}</select>
       <div class="yyt-tww-row-meta"><a data-link="regex">管理…</a></div>
     </div>
 
@@ -449,7 +444,7 @@ function buildBindingsHtml(state) {
         <span class="yyt-tww-row-label-text">世界书预设</span>
         <span class="yyt-tww-row-label-hint">注入到 prompt 的 {{toolWorldbookContent}}</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="worldbookPreset">${wbOpts}</select>
+      <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookPreset">${wbOpts}</select>
       <div class="yyt-tww-row-meta"><a data-link="worldbook">管理…</a></div>
     </div>
 
@@ -458,7 +453,7 @@ function buildBindingsHtml(state) {
         <span class="yyt-tww-row-label-text">作用域</span>
         <span class="yyt-tww-row-label-hint">数据状态绑定的范围</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="runScope">
+      <select class="yyt-select yyt-tww-ctrl" data-binding="runScope">
         <option value="current" ${scopeVal === 'current' ? 'selected' : ''}>仅当前活动表</option>
         <option value="selected" ${scopeVal === 'selected' ? 'selected' : ''}>当前选中表</option>
         <option value="enabled" ${scopeVal === 'enabled' ? 'selected' : ''}>所有启用的表</option>
@@ -481,7 +476,7 @@ function buildBehaviorHtml(state) {
         <span class="yyt-tww-row-label-text">填充模式</span>
         <span class="yyt-tww-row-label-hint">增量更新 / 全表重填</span>
       </div>
-      <select class="yyt-tww-ctrl" data-binding="fillMode">
+      <select class="yyt-select yyt-tww-ctrl" data-binding="fillMode">
         <option value="incremental" ${fillMode === 'incremental' ? 'selected' : ''}>增量 — 仅修改变化字段</option>
         <option value="full" ${fillMode === 'full' ? 'selected' : ''}>全量 — 整张表重新生成</option>
       </select>
@@ -493,7 +488,7 @@ function buildBehaviorHtml(state) {
         <span class="yyt-tww-row-label-text">上下文消息数</span>
         <span class="yyt-tww-row-label-hint">从最新一条往前取的条数</span>
       </div>
-      <input class="yyt-tww-ctrl" type="number" min="1" max="50" data-binding="contextDepth" value="${esc(contextDepth)}">
+      <input class="yyt-input yyt-tww-ctrl" type="number" min="1" max="50" data-binding="contextDepth" value="${esc(contextDepth)}">
       <div class="yyt-tww-row-meta"></div>
     </div>
 
