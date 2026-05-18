@@ -487,14 +487,15 @@ chat-α 把表格数据同步到 worldbook 后，切换到 chat-β 再触发同�
 
 ---
 
-### N10 — Bug #33 系列：shujuku 模板无法填表（v1.0.181-190 8 个子修复闭环）
+### N10 — Bug #33 系列：模板适配器架构 + 列 key 错位（v1.0.181-192 9 个子修复闭环）
 
 **现象描述**：用户导入 shujuku 模板（`TavernDB_template_默认.json`）后：
 1. 表格预览能看到 6 张表
 2. 但 AI 填表始终失败，数据不写入
 3. 默认模板表现也异常（只第一张表有数据）
+4. 单表 disable 不生效（用户 toggle 关闭还是被 AI 填了）
 
-**问题根因**（8 层连锁）：
+**问题根因**（9 层连锁）：
 
 | 子修复 | 版本 | 根因 |
 |---|---|---|
@@ -506,6 +507,7 @@ chat-α 把表格数据同步到 worldbook 后，切换到 chat-β 再触发同�
 | #33-F | 187 | `worldbook-sync.mergeTablesWithSchema` 同样的 schema/runtime 错位问题 |
 | #33-G | 188-189 | UI 没显示 scope mode，用户没意识到自己设了 `mode='current'` |
 | #33-H | 190 | scope 保存丢失（H7 同模式：select 顶层 runScope 没同步 scope.mode）+ 缺单表激活 UI |
+| #33-I | 192 | toggle 保存到 config.tables 但主链没读，scope filter 不排除 disabled 表 |
 
 **修复（关键架构变更）**：
 
@@ -526,7 +528,9 @@ chat-α 把表格数据同步到 worldbook 后，切换到 chat-β 再触发同�
    - UI select onChange 同步 `runScope` 和 `scope.mode`
    - `normalizeTableWorkbenchConfig` 顶层 runScope 优先于嵌套 scope.mode
 
-5. **单表激活/禁用 toggle**（v1.0.190）：表格概览每张卡片左上加开关
+5. **单表激活独立 overrides**（v1.0.192）：
+   - `config.tableEnabledOverrides = { [tableId]: bool }`，不依赖 config.tables 是否同步激活模板
+   - 主链 scopeTables 合并 overrides，runScope filter / buildRequest / worldbook-sync 全链路统一
 
 **手动验证清单**:
 - [x] shujuku 模板导入后表格概览显示正确
@@ -534,10 +538,10 @@ chat-α 把表格数据同步到 worldbook 后，切换到 chat-β 再触发同�
 - [x] AI 用任何列 key 风格（"0"/"col"/"name"）都能正确填入 cells
 - [x] 世界书条目数据非空
 - [x] hero 范围 chip 显示当前 scope mode
-- [x] 单表 toggle 切换后保存 + filter 生效
+- [x] 单表 toggle 切换后保存 + filter 生效（disabled 表 AI 不填 + worldbook 不写）
 - [x] scope 设置保存后切换界面回来不会重置
 
-**Sign-off 状态**: ☑ Verified (v1.0.190)
+**Sign-off 状态**: ☑ Verified (v1.0.192)
 
 ---
 

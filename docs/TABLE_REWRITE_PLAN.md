@@ -218,7 +218,7 @@ Stage 4
 
 ## 8. 优先级与起步建议
 
-**v1.0.170 → v1.0.180 hotfix 期间发现并已修的隐藏 bug**（不在原任务清单内的回归）：
+**v1.0.170 → v1.0.192 hotfix 流水线**（不在原任务清单内的回归 + #33 系列）：
 
 | Hotfix | 现象 | 根因 | 修复版本 |
 |---|---|---|---|
@@ -231,22 +231,32 @@ Stage 4
 | H7 | 绑定区切换后切回工作台回到默认值 | normalizeTableWorkbenchConfig 白名单丢 5 类字段（bypassPresetId / automation.enabled / extraction.regexPresetId / worldbooks.presetId / worldbookSync.wrapperConfig.*） | v1.0.178 |
 | H8 | 数据编辑器窗口创建后不可见 | window-manager 用 `document.body/head` 但 SillyTavern iframe 嵌套时 module 的 document ≠ UI 的 document，CSS 和元素都在隐藏 iframe | v1.0.179 |
 | H9 | 数据编辑器三 mode 内容相同 + sidebar 无表 + schema/global mode 完全没内容 | renderMainPane 第一段不区分 mode 直接 return 空提示 + slot 空时没 fallback 到模板 | v1.0.180 |
+| **#33-A** | shujuku 模板格式不被识别 | `normalizeTemplate` 只认 `{tables:[]}`，shujuku 是 `{mate, sheet_x}` 对象 | v1.0.181 |
+| **#33-B** | 切换激活模板后聊天仍用旧数据 | templateTables 读 config.tables 旧快照而非激活模板 | v1.0.182 |
+| **#33-C** | AI 返回多表只填第一张 | runScope 用 config.tables 解析 allowedTableIds，跟 previousTables（激活模板）id 不重合 | v1.0.183 |
+| **#33-D** | mode='current' + activeTableId 失效时填表卡死 | scope 解析需 stale fallback | v1.0.185 |
+| **#33-E** | 列 key 错位写入空数据 | shujuku `col`/`col_2` vs youyou `name`/`gender_age` 不统一 + prompt 矛盾 → 适配器架构 + 位置映射 | v1.0.186 |
+| **#33-F** | 世界书条目数据空 | `worldbook-sync.mergeTablesWithSchema` 同样的 schema/runtime 错位 | v1.0.187 |
+| **#33-G** | scope 设置看不见 | hero 加范围 chip + 一键重置 | v1.0.188-189 |
+| **#33-H** | scope 保存丢失 + 缺单表激活 UI | runScope select 顶层没同步 scope.mode + 加 toggle | v1.0.190 |
+| **#33-I** | 单表 disable 不生效 | enabled 状态保存到 config.tables 但主链没读，独立到 `tableEnabledOverrides` | v1.0.192 |
 
-**当前仍待修 bug**：
-
-| Bug | 现象 | 优先级 |
-|---|---|---|
-| Bug 7 (#33) | 导入新 DSL 模板切换后表格概览仍空，无诊断日志 | P0 — 用户测试时遇到 |
+**当前状态**：v1.0.192 主链稳定，无已知阻塞 bug。
 
 ---
 
-**剩余 4 项任务（按推荐执行顺序）**：
+**剩余收尾任务（按推荐执行顺序）**：
 
 **P0 用户体感最大**：
 - **#33 新模板不能解析诊断+修**（v1.0.180 实测发现） — resolveActiveTemplate / template-service 加诊断 + 修可能的 normalize 丢字段
 
 **P1 主链最终对齐**：
-- **#16 schema-service 重写**（1376 行最大风险，按 Sheet 模型 + sourceData 5 段 + updateConfig sentinel + 索引列锁等）。完成后 v3 预览的"结构配置"/"全局注入"两 mode 才能完整接入
+- **#16 schema-service 重写**（分阶段做，降低风险）
+  - ✅ **阶段 1**（v1.0.191 完成）：拆默认值常量到 `table-defaults.js`（1433 → 1210 行）
+  - ⏳ **阶段 2**：normalize 函数族 → `table-normalize-service.js`
+  - ⏳ **阶段 3**：validate 函数族 → `table-validation-service.js`
+  - ⏳ **阶段 4**：config CRUD → `table-config-service.js`
+  - 注：原议题 §A D5 说"按 Sheet 模型重写"，实际不需要切 shujuku 二维数组 content；保留 youyou `{columns, rows}` 模型 + 仅做模块拆分即可
 
 **P2 收尾**：
 - **#8 orchestrator 整理**（命名约定 `table-update-orchestrator.js` + 内部 7 步拆函数。功能上已对齐，仅命名/拆分清理）
@@ -254,7 +264,7 @@ Stage 4
 
 ---
 
-**策略**：先在 v1.0.180 跑完整 e2e 测试验证议题 #15 主链（填表 DSL + 重填 + 数据编辑器 + 写回世界书 + Provider 双轨 + chat 隔离）。问题反馈后修 Bug 7 / #16，然后 #8/#12 收尾。
+**策略**：v1.0.190-192 主链稳定，无已知阻塞 bug。剩余收尾任务非紧急，可按 #16 阶段 2-4 → #8 → #12 顺序推进。
 
 ---
 

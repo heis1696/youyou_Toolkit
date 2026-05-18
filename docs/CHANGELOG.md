@@ -9,6 +9,32 @@
 
 ## [Unreleased]
 
+## [1.0.192] - 2026-05-18
+
+### 修复
+
+- **单表 disable 不生效**（议题 #15 Bug #33-I）：v1.0.190 toggle 把 enabled 状态保存到 `config.tables[i].enabled`，但 `config.tables` 在用户切换激活模板时不同步（id 都不一样，sheet_xxx vs default_xxx）。主链 `scopeTables = resolveActiveTemplate().tables`，永远 enabled=true，**完全没读用户的 toggle 状态**。结果：runScope 不排除 disabled 表 → AI 填了 → 写回 worldbook 也包含
+- **修复**：把 enabled 状态独立到 `config.tableEnabledOverrides = { [tableId]: bool }`，不依赖 config.tables 是否同步。主链 scopeTables 合并 overrides，runScope filter / buildScopedRequestTables / worldbook-sync 全链路看 scopeTables.enabled
+
+### 诊断
+
+- `table-json-sanitizer.parseIncrementalEdits` 加 `console.warn`：解析失败的指令行打印失败行内容（疑似 AI 给的指令但语法错误）
+- `applyIncrementalEdits` 加 warn：insertRow 应用时如果 newRow.cells 为空 + name 为空，warn 出 editDataKeys + editDataPreview，便于下次复现「空数据行」时定位根因
+
+## [1.0.191] - 2026-05-18
+
+### 重构
+
+- **议题 #15 #16 第一阶段**：拆默认值常量到独立模块
+  - 新建 `modules/table-engine/table-defaults.js` (273 行)：runtime status / fill mode / 默认 prompt / 响应契约 / column type / 8 张默认表
+  - `table-schema-service.js` 1433 → 1210 行 (-223)，re-export 这些常量保持向后兼容
+  - table-defaults 是叶子模块，零外部依赖，零功能影响
+
+### 文档
+
+- CHANGELOG.md 补 v1.0.181-190 完整条目
+- TABLE_ACCEPTANCE_TESTS.md 第 5 节补 N1-N10 新发现 bug（涵盖 H1-H9 + Bug #33-A 到 H 8 个子修复），均已 sign-off
+
 ## [1.0.190] - 2026-05-18
 
 ### 修复
