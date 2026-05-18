@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.0.209] - 2026-05-19
+
+### fix：写回标签不生效，正则预设多标签互相覆盖
+
+工具配置了「写回标签」(writebackTag) 后写回仍用正则预设的全部 include 规则剥离 AI 消息原文，导致同一预设里其他提取标签的内容被一并删除。
+
+修复：`tool-output-service.js` 两处执行路径 (`runToolPostResponse` / `runToolFollowAiManual`) 写回时，若 `writebackTag` 已配置则只用该标签做剥离，不再用全部 extraction selectors。未配置时行为不变。
+
 ## [1.0.208] - 2026-05-19
 
 ### hotfix：数据编辑器窗口"变小+不能调"

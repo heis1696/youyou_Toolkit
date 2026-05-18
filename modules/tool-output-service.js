@@ -193,13 +193,15 @@ class ToolOutputService {
     const sessionKey = rawContext?.sessionKey || '';
     const executionKey = rawContext?.executionKey || '';
     const selectors = this._getExtractionSelectors(toolConfig);
+    const writebackTag = toolConfig?.extraction?.writebackTag?.trim();
+    const writebackSelectors = writebackTag ? [writebackTag] : selectors;
     const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
     let failureStage = '';
     let writebackStatus = TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
     let writebackDetails = null;
     let messages = [];
     let outputContent = '';
-    
+
     log.info(`开始执行工具: ${toolId}`);
     
     // 发送执行开始事件
@@ -302,7 +304,7 @@ class ToolOutputService {
           slotBindingKey: rawContext.slotBindingKey || '',
           slotRevisionKey: rawContext.slotRevisionKey || '',
           slotTransactionId: rawContext.slotTransactionId || '',
-          extractionSelectors: selectors,
+          extractionSelectors: writebackSelectors,
           traceId: executionTraceId,
           sessionKey,
           signal: rawContext.signal,
@@ -431,6 +433,8 @@ class ToolOutputService {
     const executionKey = rawContext?.executionKey || '';
     const apiPreset = toolConfig.output?.apiPreset || toolConfig.apiPreset || '';
     const selectors = this._getExtractionSelectors(toolConfig);
+    const writebackTag = toolConfig?.extraction?.writebackTag?.trim();
+    const writebackSelectors = writebackTag ? [writebackTag] : selectors;
     let failureStage = '';
     let writebackStatus = TOOL_WRITEBACK_STATUS.NOT_APPLICABLE;
     let writebackDetails = null;
@@ -472,7 +476,7 @@ class ToolOutputService {
           slotBindingKey: rawContext.slotBindingKey || '',
           slotRevisionKey: rawContext.slotRevisionKey || '',
           slotTransactionId: rawContext.slotTransactionId || '',
-          extractionSelectors: selectors,
+          extractionSelectors: writebackSelectors,
           traceId: executionTraceId,
           sessionKey
         });
