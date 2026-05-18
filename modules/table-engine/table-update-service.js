@@ -144,10 +144,12 @@ function formatTableGuidance(tables = []) {
       `新增说明: ${normalizeString(instructions.create, '无')}`,
       `更新说明: ${normalizeString(instructions.update, '无')}`,
       `删除说明: ${normalizeString(instructions.delete, '无')}`,
-      '字段:'
+      '字段（请用列索引作为 data key）:'
     ];
-    columns.forEach((column) => {
-      lines.push(`- ${normalizeString(column?.title || column?.key, '未命名字段')} (${normalizeString(column?.key, '')}): ${normalizeString(column?.description, '无')}`);
+    // 议题 #15 Bug #33-E：改为 [idx]: title — description 形式，
+    //   不再显示 column.key（避免 AI 用语义 key 而绕过位置映射）
+    columns.forEach((column, columnIndex) => {
+      lines.push(`- [${columnIndex}]: ${normalizeString(column?.title || column?.key, '未命名字段')} — ${normalizeString(column?.description, '无')}`);
     });
     return lines.join('\n');
   }).join('\n\n');
@@ -345,18 +347,21 @@ const INCREMENTAL_PROMPT_SUFFIX = `
 【表格编辑指令格式】
 请使用 <tableEdit> 标签返回对表格的修改，支持三种操作：
 
-1. 插入新行：insertRow(表索引, {"列键": "值", ...})
-2. 更新现有行：updateRow(表索引, 行索引, {"列键": "新值", ...})
+1. 插入新行：insertRow(表索引, {"列索引": "值", ...})
+2. 更新现有行：updateRow(表索引, 行索引, {"列索引": "新值", ...})
 3. 删除行：deleteRow(表索引, 行索引)
 
-其中表索引从0开始，行索引也是从0开始。
-一次可以包含多个操作，每个操作一行。
-如果不需要修改表格，返回空的 <tableEdit></tableEdit>。
+约定：
+- 表索引、行索引、列索引都从 0 开始（行索引不含表头行）
+- data 对象的键统一用列索引字符串（"0"、"1"、"2" ...），不要用列名
+- updateRow 只列要改的列，未提及的列保留原值
+- 一次可以包含多个操作，每个操作一行
+- 如果不需要修改表格，返回空的 <tableEdit></tableEdit>
 
-示例：
+示例（假设第 0 张表有 3 列）：
 <tableEdit>
-insertRow(0, {"name": "新角色", "age": "25", "role": "战士"})
-updateRow(0, 1, {"age": "26"})
+insertRow(0, {"0": "新角色", "1": "25", "2": "战士"})
+updateRow(0, 1, {"1": "26"})
 deleteRow(1, 0)
 </tableEdit>
 
@@ -366,9 +371,48 @@ function buildIncrementalPromptSuffix() {
   return INCREMENTAL_PROMPT_SUFFIX;
 }
 
+/**
+ * 议题 #15 Bug #33-E：把 AI 返回的 data key 解析为 column.key（位置映射 + 别名容错）
+ *
+ * 优先级：
+ *   1. 精确命中现有 column.key
+ *   2. 纯数字索引 "0"/"1"/... → columns[N].key（议题 #15 文档约定）
+ *   3. col / col_N 风格 → columns[N-1].key（shujuku 风格：第一列 col，第二列 col_2）
+ *   4. 兜底 — 返回原始 rawKey（仍写入 cells，便于诊断）
+ *
+ * @returns {{ key: string, source: 'direct'|'index'|'col_n'|'fallback' }}
+ */
+function resolveColumnKeyFromRawKey(rawKey, columns) {
+  if (!rawKey || typeof rawKey !== 'string') return { key: rawKey, source: 'fallback' };
+  if (!Array.isArray(columns) || columns.length === 0) return { key: rawKey, source: 'fallback' };
+
+  // 1. 精确命中
+  for (const col of columns) {
+    if (col?.key === rawKey) return { key: rawKey, source: 'direct' };
+  }
+  // 2. 纯数字索引
+  if (/^\d+$/.test(rawKey)) {
+    const idx = parseInt(rawKey, 10);
+    if (idx >= 0 && idx < columns.length && columns[idx]?.key) {
+      return { key: columns[idx].key, source: 'index' };
+    }
+  }
+  // 3. col / col_N 风格
+  const colMatch = rawKey.match(/^col(?:_(\d+))?$/i);
+  if (colMatch) {
+    const idx = colMatch[1] ? parseInt(colMatch[1], 10) - 1 : 0;
+    if (idx >= 0 && idx < columns.length && columns[idx]?.key) {
+      return { key: columns[idx].key, source: 'col_n' };
+    }
+  }
+  // 4. 兜底
+  return { key: rawKey, source: 'fallback' };
+}
+
 export function applyIncrementalEdits(tables, edits, locks, runScope = null) {
   const result = normalizeRuntimeTables(tables || []);
   const lockMap = locks || {};
+  const keyResolveStats = { direct: 0, index: 0, col_n: 0, fallback: 0 };
 
   for (const edit of edits) {
     const ti = edit.tableIndex;
@@ -387,16 +431,11 @@ export function applyIncrementalEdits(tables, edits, locks, runScope = null) {
       if (edit.data && typeof edit.data === 'object') {
         newRow.name = normalizeString(edit.data.name, '');
         const columns = Array.isArray(table.columns) ? table.columns : [];
-        for (const col of columns) {
-          const key = col.key;
-          if (edit.data[key] !== undefined) {
-            newRow.cells[key] = normalizeString(edit.data[key]);
-          }
-        }
-        for (const [key, val] of Object.entries(edit.data)) {
-          if (key !== 'name' && newRow.cells[key] === undefined) {
-            newRow.cells[key] = normalizeString(val);
-          }
+        for (const [rawKey, val] of Object.entries(edit.data)) {
+          if (rawKey === 'name') continue;
+          const { key: resolvedKey, source } = resolveColumnKeyFromRawKey(rawKey, columns);
+          newRow.cells[resolvedKey] = normalizeString(val);
+          keyResolveStats[source] = (keyResolveStats[source] || 0) + 1;
         }
       }
       table.rows.push(newRow);
@@ -418,16 +457,23 @@ export function applyIncrementalEdits(tables, edits, locks, runScope = null) {
       row.id = ensureTableRowId(row.id || row.rowId, ri);
       row.cells = row.cells || {};
       if (edit.data && typeof edit.data === 'object') {
-        for (const [key, val] of Object.entries(edit.data)) {
-          if (key === 'name') continue;
-          if (isLocked(lockMap, ti, ri, key)) continue;
-          row.cells[key] = normalizeString(val);
+        const columns = Array.isArray(table.columns) ? table.columns : [];
+        for (const [rawKey, val] of Object.entries(edit.data)) {
+          if (rawKey === 'name') continue;
+          const { key: resolvedKey, source } = resolveColumnKeyFromRawKey(rawKey, columns);
+          if (isLocked(lockMap, ti, ri, resolvedKey)) continue;
+          row.cells[resolvedKey] = normalizeString(val);
+          keyResolveStats[source] = (keyResolveStats[source] || 0) + 1;
         }
         if (edit.data.name !== undefined) {
           row.name = normalizeString(edit.data.name, row.name);
         }
       }
     }
+  }
+
+  if (Object.values(keyResolveStats).some((v) => v > 0)) {
+    getLog().info('列 key 解析统计', keyResolveStats);
   }
 
   return normalizeRuntimeTables(result);

@@ -500,6 +500,9 @@ function ensureUniqueColumnKey(baseKey, usedKeys = new Set()) {
   return candidate;
 }
 
+// 议题 #15 Bug #33-E：template-adapters 复用这些 helper
+export { sanitizeColumnKey, ensureUniqueColumnKey, normalizeCellValue, parseShujukuNoteColumns };
+
 function getSourceColumnsFromRows(rows = []) {
   const keys = [];
   let maxArrayLength = 0;

@@ -27,12 +27,12 @@ import {
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID,
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_NAME,
   DEFAULT_TABLE_WORKBENCH_TABLES,
-  parseTableWorkbenchTemplate,
   validateTableDraftDeep
 } from './table-schema-service.js';
 import { cloneTableValue, TABLE_TEMPLATE_SCOPE_MODE } from './table-types.js';
 import { tableChatScope } from './table-chat-scope-service.js';
 import { tableIsolation } from './table-isolation-service.js';
+import { importTemplateAuto } from './template-adapters/index.js';
 
 const templateStorage = storage.namespace('tableWorkbenchTemplates');
 const TEMPLATE_LIST_KEY = 'templates';
@@ -55,38 +55,34 @@ function createTemplateId(prefix = 'template') {
 }
 
 function normalizeTemplate(value = {}) {
-  // 议题 #15 Bug #33 修复：兼容多种导入格式
-  //   - youyou 原生：{ name, tables: [...] }
-  //   - shujuku 导出：{ mate:{type:'chatSheets'}, sheet_0:{...}, sheet_1:{...} }
-  //   - shujuku 包装：{ tables: { sheet_0:{...} } } 之类的嵌套
-  let tables;
-  if (Array.isArray(value?.tables)) {
-    tables = cloneTableValue(value.tables);
-  } else if (value?.tables && typeof value.tables === 'object') {
-    // value.tables 是对象 → 走 shujuku {sheet_xxx} 解析
-    tables = parseTableWorkbenchTemplate(value.tables);
-    if (!Array.isArray(tables) || tables.length === 0) {
-      getLog().warn('normalizeTemplate: value.tables 对象但解析为空', { keys: Object.keys(value.tables || {}).slice(0, 10) });
-    }
-  } else if (value && typeof value === 'object' && Object.keys(value).some((k) => k.startsWith('sheet_'))) {
-    // 整个 value 就是 shujuku 模板根对象（导入文件常见）
-    tables = parseTableWorkbenchTemplate(value);
-    if (!Array.isArray(tables) || tables.length === 0) {
-      getLog().warn('normalizeTemplate: 检测到 shujuku 根对象但解析为空', { sheetKeys: Object.keys(value).filter((k) => k.startsWith('sheet_')).slice(0, 10) });
-    } else {
-      getLog().info('normalizeTemplate: 识别为 shujuku 格式', { sheetCount: tables.length });
-    }
-  } else {
-    tables = [];
+  // 议题 #15 v1.0.186：走模板格式适配器注册中心，自动识别 youyou / shujuku / ...
+  // 之前 v1.0.181 用三路 if 手写检测，现在统一交给 template-adapters。
+  const imported = importTemplateAuto(value);
+  let tables = [];
+  let detectedFormat = '';
+  let importedName = '';
+  let importedDescription = '';
+  let importedPromptTemplate = '';
+  if (imported) {
+    tables = imported.tables;
+    detectedFormat = imported.formatId || '';
+    importedName = imported.name || '';
+    importedDescription = imported.description || '';
+    importedPromptTemplate = imported.promptTemplate || '';
+  } else if (value && typeof value === 'object') {
+    getLog().warn('normalizeTemplate: 无适配器命中，按空模板处理', {
+      keys: Object.keys(value).slice(0, 10)
+    });
   }
   const validation = validateTableDraftDeep({ tables });
   const id = normalizeString(value?.id, createTemplateId());
   return {
     id,
-    name: normalizeString(value?.name, '未命名模板'),
-    description: normalizeString(value?.description, ''),
+    name: normalizeString(value?.name || importedName, '未命名模板'),
+    description: normalizeString(value?.description || importedDescription, ''),
     tables: validation.tables || tables,
-    promptTemplate: normalizeString(value?.promptTemplate, ''),
+    promptTemplate: normalizeString(value?.promptTemplate || importedPromptTemplate, ''),
+    sourceFormat: detectedFormat,
     createdAt: normalizeString(value?.createdAt, new Date().toISOString()),
     updatedAt: normalizeString(value?.updatedAt, new Date().toISOString())
   };
