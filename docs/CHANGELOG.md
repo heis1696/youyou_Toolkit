@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.0.200] - 2026-05-18
+
+### 修复
+
+- **Hero 滚动常驻**（#3）：改为 flex 布局分流——`.yyt-tww` 设 `height:100%;overflow:hidden`，hero 在 scroll 区域外自然常驻，`.yyt-tww-body` 独立滚动
+- **词条面板操作后不关闭**（#5）：`store.updatePreset` 加 `{ silent: true }` 跳过 eventBus，不触发面板重渲染
+- **源禁用词条不可交互**（#5）：无 override 的源禁用词条 toggle 设 disabled + 半透明 + `(源禁用)` 标记
+- **词条 override 高亮可清除**（#5）：toggle 回到原始状态时删除 override 而非保留空 override，✕ 按钮动态创建/销毁
+- **词条面板可滚动**（#5）：panel 自身 `maxHeight:320px;overflowY:auto`，不再依赖子容器滚动
+
 ## [1.0.198] - 2026-05-18
 
 ### 修复

@@ -175,7 +175,7 @@ export function createPreset(partial = {}) {
 /**
  * 更新预设（局部 merge）。内置预设拒绝修改。
  */
-export function updatePreset(id, patch = {}) {
+export function updatePreset(id, patch = {}, { silent = false } = {}) {
   if (!id) return null;
   const map = _readAll();
   let existing = map[id];
@@ -195,7 +195,7 @@ export function updatePreset(id, patch = {}) {
   });
   map[id] = merged;
   _writeAll(map);
-  eventBus.emit(EVENTS.PRESET_UPDATED, { kind: 'worldbook', id });
+  if (!silent) eventBus.emit(EVENTS.PRESET_UPDATED, { kind: 'worldbook', id });
   return merged;
 }
 

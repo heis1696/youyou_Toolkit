@@ -310,7 +310,6 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
   const existing = wrapEl.querySelector('.yyt-wb-entry-panel');
   if (existing) {
     existing.remove();
-    // 更新按钮文本
     const btn = wrapEl.querySelector('[title="展开/收起词条级 override"]');
     if (btn) btn.textContent = '▸ 词条';
     return;
@@ -330,7 +329,9 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
       fontSize: '12px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '4px'
+      gap: '4px',
+      maxHeight: '320px',
+      overflowY: 'auto'
     }
   });
   panel.appendChild(el('div', {
@@ -350,26 +351,31 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
     }
 
     const overrides = book.entryOverrides || {};
+    panel.innerHTML = '';
+
     const searchInput = el('input', {
       className: 'yyt-input',
       attrs: { type: 'text', placeholder: `搜索 ${entries.length} 个词条…`, autocomplete: 'off' },
-      style: { padding: '5px 8px', fontSize: '11px', marginBottom: '4px' }
+      style: { padding: '5px 8px', fontSize: '11px', marginBottom: '4px', flexShrink: '0' }
     });
-    panel.innerHTML = '';
     panel.appendChild(searchInput);
 
     const listEl = el('div', {
-      style: { display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '240px', overflowY: 'auto' }
+      style: { display: 'flex', flexDirection: 'column', gap: '2px', flex: '1', minHeight: '0' }
     });
+
     const items = [];
 
     for (const entry of entries) {
       const uid = String(entry.uid ?? '');
       const rawComment = entry.comment || entry.key || entry.name || '';
       const comment = String(Array.isArray(rawComment) ? rawComment[0] : rawComment).trim() || `条目 ${entry.uid}`;
-      const isDisabled = entry.enabled === false || entry.disable === true;
+      const isSourceDisabled = entry.enabled === false || entry.disable === true;
       const ov = overrides[uid];
       const hasOverride = ov && typeof ov.enabled === 'boolean';
+
+      // 无 override 时，源禁用的词条显示为半透明不可交互
+      const effectivelyDisabled = isSourceDisabled && !hasOverride;
 
       const row = el('div', {
         style: {
@@ -379,24 +385,67 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
           padding: '5px 8px',
           borderRadius: '4px',
           background: hasOverride ? 'rgba(123,183,255,0.08)' : 'transparent',
-          opacity: isDisabled && !hasOverride ? '0.5' : '1'
+          opacity: effectivelyDisabled ? '0.4' : '1'
         }
       });
 
+      const updateRowStyle = (nowHasOverride) => {
+        row.style.background = nowHasOverride ? 'rgba(123,183,255,0.08)' : 'transparent';
+        label.style.color = nowHasOverride ? 'var(--yyt-accent)' : 'var(--yyt-text)';
+        if (nowHasOverride) {
+          if (!resetBtn) {
+            resetBtn = createResetBtn();
+            row.appendChild(resetBtn);
+          }
+        } else {
+          if (resetBtn) { resetBtn.remove(); resetBtn = null; }
+          row.style.opacity = isSourceDisabled ? '0.4' : '1';
+        }
+      };
+
+      let resetBtn = null;
+      const createResetBtn = () => {
+        const rb = el('span', {
+          text: '✕',
+          style: { cursor: 'pointer', color: 'var(--yyt-text-muted)', fontSize: '10px', flexShrink: '0' },
+          attrs: { title: '清除 override' }
+        });
+        rb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (readonly) return;
+          const currentPreset = store.getPreset(preset.id);
+          if (!currentPreset) return;
+          const bk = currentPreset.bookList.find(b => b.bookName === book.bookName);
+          if (!bk) return;
+          bk.entryOverrides = bk.entryOverrides || {};
+          delete bk.entryOverrides[uid];
+          store.updatePreset(preset.id, { bookList: [...currentPreset.bookList] }, { silent: true });
+          resetBtn = null;
+          updateRowStyle(false);
+        });
+        return rb;
+      };
+
       row.appendChild(toggle({
-        checked: hasOverride ? ov.enabled : (isDisabled ? false : true),
-        disabled: readonly,
+        checked: hasOverride ? ov.enabled : !isSourceDisabled,
+        disabled: readonly || effectivelyDisabled,
         onChange: (v) => {
           const currentPreset = store.getPreset(preset.id);
           if (!currentPreset) return;
           const bk = currentPreset.bookList.find(b => b.bookName === book.bookName);
           if (!bk) return;
           bk.entryOverrides = bk.entryOverrides || {};
-          bk.entryOverrides[uid] = { enabled: v };
-          store.updatePreset(preset.id, { bookList: [...currentPreset.bookList] });
-          // 更新行样式
-          row.style.background = 'rgba(123,183,255,0.08)';
-          if (isDisabled) row.style.opacity = v ? '1' : '0.5';
+          // 如果 toggle 回到源状态，删除 override 而非保留
+          const originalEnabled = !isSourceDisabled;
+          if (v === originalEnabled) {
+            delete bk.entryOverrides[uid];
+          } else {
+            bk.entryOverrides[uid] = { enabled: v };
+          }
+          const nowHasOverride = v !== originalEnabled;
+          store.updatePreset(preset.id, { bookList: [...currentPreset.bookList] }, { silent: true });
+          updateRowStyle(nowHasOverride);
+          row.style.opacity = effectivelyDisabled ? '0.4' : '1';
         }
       }).el);
 
@@ -410,33 +459,12 @@ function toggleEntryList(wrapEl, preset, book, readonly, refresh) {
           color: hasOverride ? 'var(--yyt-accent)' : 'var(--yyt-text)',
           fontSize: '11px'
         },
-        text: comment
+        text: comment + (effectivelyDisabled ? ' (源禁用)' : '')
       });
       row.appendChild(label);
 
       if (hasOverride) {
-        const resetBtn = el('span', {
-          text: '✕',
-          style: {
-            cursor: 'pointer',
-            color: 'var(--yyt-text-muted)',
-            fontSize: '10px',
-            flexShrink: '0'
-          },
-          attrs: { title: '清除 override' }
-        });
-        resetBtn.addEventListener('click', () => {
-          if (readonly) return;
-          const currentPreset = store.getPreset(preset.id);
-          if (!currentPreset) return;
-          const bk = currentPreset.bookList.find(b => b.bookName === book.bookName);
-          if (!bk || !bk.entryOverrides) return;
-          delete bk.entryOverrides[uid];
-          store.updatePreset(preset.id, { bookList: [...currentPreset.bookList] });
-          row.style.background = 'transparent';
-          label.style.color = 'var(--yyt-text)';
-          resetBtn.remove();
-        });
+        resetBtn = createResetBtn();
         row.appendChild(resetBtn);
       }
 

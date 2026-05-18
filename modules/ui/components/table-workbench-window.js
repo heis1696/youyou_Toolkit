@@ -156,7 +156,8 @@ export const WORKBENCH_VIEW_STYLES = `
   --tww-purple-soft: rgba(167,139,250,0.12);
 
   display: flex; flex-direction: column;
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
   /* 议题 #15 hotfix v1.0.173：父容器（popup yyt-content）已是深色，本容器透明继承避免边界错位 */
   background: transparent; color: var(--tww-text);
   font-size: 13px; line-height: 1.5;
@@ -167,7 +168,6 @@ export const WORKBENCH_VIEW_STYLES = `
   border-bottom: 1px solid var(--tww-hairline);
   background: var(--tww-surface-1);
   display: flex; flex-direction: column; gap: 8px;
-  position: sticky; top: 0; z-index: 10;
 }
 .yyt-tww-hero-row1 { display: flex; align-items: center; gap: 12px; }
 .yyt-tww-hero-icon {
@@ -235,6 +235,9 @@ export const WORKBENCH_VIEW_STYLES = `
 
 .yyt-tww-body {
   padding: 0 18px 22px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .yyt-tww-section { padding-top: 22px; }
 .yyt-tww-section:first-child { padding-top: 18px; }
