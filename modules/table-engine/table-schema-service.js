@@ -1140,7 +1140,13 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     : (nextValue.bypassPresetId ? { presetId: nextValue.bypassPresetId, enabled: !!nextValue.bypassPresetId } : undefined);
   const bypass = normalizeBypassConfig(bypassInput, nextValue.promptPreset);
   const tables = normalizeTables(nextValue.tables, { seedDefaultWhenMissing: !Object.prototype.hasOwnProperty.call(nextValue, 'tables') });
-  const scope = normalizeRunScopeConfig(nextValue.scope, {
+  // v1.0.190：顶层 runScope 优先于嵌套 scope.mode（防 H7 类型 bug：
+  // UI select 单独保存 runScope 时若 scope.mode 是旧值，normalize 会用旧 scope.mode）
+  const incomingScope = nextValue.scope && typeof nextValue.scope === 'object' ? nextValue.scope : {};
+  const effectiveScopeInput = (typeof nextValue.runScope === 'string' && nextValue.runScope)
+    ? { ...incomingScope, mode: nextValue.runScope }
+    : incomingScope;
+  const scope = normalizeRunScopeConfig(effectiveScopeInput, {
     mode: nextValue.runScope,
     selectedTableIds: nextValue.selectedTableIds,
     activeTableId: nextValue.activeTableId

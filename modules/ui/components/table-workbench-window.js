@@ -311,7 +311,25 @@ select.yyt-tww-ctrl {
   display: flex; flex-direction: column; gap: 6px;
 }
 .yyt-tww-table-card:hover { border-color: var(--tww-accent); background: var(--tww-surface-2); }
+.yyt-tww-table-card-disabled { opacity: 0.55; }
+.yyt-tww-table-card-disabled .yyt-tww-table-card-name { text-decoration: line-through; color: var(--tww-text-muted); }
 .yyt-tww-table-card-header { display: flex; align-items: center; gap: 8px; }
+.yyt-tww-table-card-toggle {
+  position: relative; display: inline-flex; width: 32px; height: 18px;
+  cursor: pointer; flex-shrink: 0;
+}
+.yyt-tww-table-card-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.yyt-tww-table-card-toggle-slider {
+  position: absolute; inset: 0; background: #555; border-radius: 18px;
+  transition: background 0.15s; cursor: pointer;
+}
+.yyt-tww-table-card-toggle-slider::before {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; background: #fff; border-radius: 50%;
+  transition: transform 0.15s;
+}
+.yyt-tww-table-card-toggle input:checked + .yyt-tww-table-card-toggle-slider { background: var(--tww-accent, #4caf50); }
+.yyt-tww-table-card-toggle input:checked + .yyt-tww-table-card-toggle-slider::before { transform: translateX(14px); }
 .yyt-tww-table-card-name { flex: 1; font-size: 13px; font-weight: 700; color: var(--tww-text); }
 .yyt-tww-table-card-arrow {
   color: var(--tww-text-muted); font-size: 10px;
@@ -684,8 +702,12 @@ function buildTablesOverviewHtml(tablesPreview) {
   return `
     <div class="yyt-tww-table-grid">
       ${tablesPreview.map((t, i) => `
-        <div class="yyt-tww-table-card" data-table-index="${i}">
+        <div class="yyt-tww-table-card${t.enabled === false ? ' yyt-tww-table-card-disabled' : ''}" data-table-index="${i}" data-table-id="${esc(t.id || '')}">
           <div class="yyt-tww-table-card-header">
+            <label class="yyt-tww-table-card-toggle" title="${t.enabled === false ? '已禁用 — AI 不会填这张表' : '已启用 — AI 会填这张表'}">
+              <input type="checkbox" data-action="toggle-table-enabled" data-table-id="${esc(t.id || '')}" ${t.enabled === false ? '' : 'checked'} />
+              <span class="yyt-tww-table-card-toggle-slider"></span>
+            </label>
             <span class="yyt-tww-table-card-name">${esc(t.name || `表 ${i + 1}`)}</span>
             <i class="fa-solid fa-arrow-right yyt-tww-table-card-arrow"></i>
           </div>
@@ -730,12 +752,24 @@ export function loadWorkbenchState() {
   } catch (_) { /* fallback to template */ }
 
   const previewSource = slotTables || activeTemplate?.template?.tables || config?.tables || [];
-  const tablesPreview = previewSource.map((t) => ({
-    name: t?.name || '',
-    rowCount: Array.isArray(t?.rows) ? t.rows.length : 0,
-    colCount: Array.isArray(t?.columns) ? t.columns.length : 0,
-    updatedHint: slotTables && slotUpdatedAt > 0 ? fmtTime(slotUpdatedAt) : ''
-  }));
+  // 议题 #15 #33-H：单表 enabled 状态从 config.tables 取（持久化），fallback 到模板的 enabled
+  const configTablesById = new Map();
+  if (Array.isArray(config?.tables)) {
+    for (const ct of config.tables) {
+      if (ct?.id) configTablesById.set(ct.id, ct);
+    }
+  }
+  const tablesPreview = previewSource.map((t) => {
+    const persisted = t?.id ? configTablesById.get(t.id) : null;
+    return {
+      id: t?.id || '',
+      name: t?.name || '',
+      enabled: persisted?.enabled !== undefined ? persisted.enabled !== false : (t?.enabled !== false),
+      rowCount: Array.isArray(t?.rows) ? t.rows.length : 0,
+      colCount: Array.isArray(t?.columns) ? t.columns.length : 0,
+      updatedHint: slotTables && slotUpdatedAt > 0 ? fmtTime(slotUpdatedAt) : ''
+    };
+  });
 
   return {
     config,
@@ -939,6 +973,9 @@ export function bindWorkbenchEvents($container, refresh) {
 
   // 表格概览卡片点击 → 打开数据编辑器并聚焦该表
   $container.on('click.tww', '[data-table-index]', function (e) {
+    // v1.0.190：toggle 自身不应触发卡片点击
+    if ($(e.target).closest('[data-action="toggle-table-enabled"]').length > 0) return;
+    if ($(e.target).is('label, label *')) return;
     e.preventDefault();
     const idx = Number($(this).attr('data-table-index'));
     if (!Number.isFinite(idx) || idx < 0) return;
@@ -955,6 +992,31 @@ export function bindWorkbenchEvents($container, refresh) {
       console.error('[YYT][TableWorkbench] 打开数据编辑器异常:', err);
       getLog().error('打开数据编辑器异常', err);
       showToast('error', `打开失败：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.190 #33-H：单表激活/禁用 toggle
+  $container.on('change.tww', '[data-action="toggle-table-enabled"]', function (e) {
+    e.stopPropagation();
+    const tableId = $(this).attr('data-table-id');
+    const enabled = $(this).is(':checked');
+    if (!tableId) return;
+    try {
+      const config = getTableWorkbenchConfig();
+      const tables = Array.isArray(config.tables) ? config.tables : [];
+      const idx = tables.findIndex((t) => t?.id === tableId);
+      if (idx < 0) {
+        showToast('error', `未找到表 ${tableId}`);
+        return;
+      }
+      const nextTables = tables.map((t, i) => i === idx ? { ...t, enabled } : t);
+      saveTableWorkbenchConfig({ ...config, tables: nextTables });
+      showToast('success', enabled ? `已启用 ${tables[idx].name || tableId}` : `已禁用 ${tables[idx].name || tableId}`);
+      getLog().info('toggle 单表激活', { tableId, enabled });
+      if (typeof refresh === 'function') refresh();
+    } catch (err) {
+      getLog().error('toggle 单表激活异常', err);
+      showToast('error', `切换失败：${err?.message || err}`);
     }
   });
 
@@ -1002,7 +1064,18 @@ export function bindWorkbenchEvents($container, refresh) {
       const value = $(this).val();
       try {
         const config = getTableWorkbenchConfig();
-        saveTableWorkbenchConfig({ ...config, [key]: value });
+        // v1.0.190：runScope 变更时必须同步 scope.mode，否则 normalize 优先用旧 scope.mode
+        // 跟 H7 同模式（顶层字段单独保存会被 normalize 用嵌套对象旧值覆盖）
+        const patch = { ...config, [key]: value };
+        if (key === 'runScope') {
+          patch.scope = {
+            ...(config.scope || {}),
+            mode: value,
+            // 切到 'enabled' 时清掉 activeTableId/selectedTableIds 残留
+            ...(value === 'enabled' ? { activeTableId: '', selectedTableIds: [] } : {})
+          };
+        }
+        saveTableWorkbenchConfig(patch);
         showToast('success', '已保存');
       } catch (err) {
         getLog().error(`保存 ${key} 异常`, err);
