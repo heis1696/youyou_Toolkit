@@ -76,6 +76,7 @@ const _providerStats = {
   lastError: null,      // string | null
   lastRefreshAt: 0
 };
+let _statsRefreshedOnce = false;
 
 export async function refreshProviderStats() {
   try {
@@ -1022,10 +1023,14 @@ export function bindWorkbenchEvents($container, refresh) {
 
   $container.off('.tww');
 
-  // v1.0.194+ Task A：bind 时异步刷新 Provider stats，刷新完触发 refresh 重渲染 chip
-  refreshProviderStats().then(() => {
-    if (typeof refresh === 'function') refresh();
-  }).catch(() => {});
+  // v1.0.194+ Task A + v1.0.196 hotfix：首次 bind 才异步刷新 Provider stats，
+  // 避免每次 refresh 都触发刷新 → refresh → bind → 刷新...的死循环（UI 闪烁点不到）
+  if (!_statsRefreshedOnce) {
+    _statsRefreshedOnce = true;
+    refreshProviderStats().then(() => {
+      if (typeof refresh === 'function') refresh();
+    }).catch(() => {});
+  }
 
   // 立即填表
   $container.on('click.tww', '[data-action="run-now"]', async () => {
