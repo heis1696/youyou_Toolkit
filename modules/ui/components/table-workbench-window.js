@@ -370,11 +370,12 @@ export function renderWorkbenchHtml(state) {
         <span class="yyt-tww-chip preset">指令: ${esc(bypassPreset)}</span>
         ${(() => {
           const sm = config?.runScope || config?.scope?.mode || 'enabled';
-          const smLabel = sm === 'current' ? '⚠️ 仅当前表'
-            : sm === 'selected' ? '仅选中表'
-            : '所有启用表';
-          const smCls = sm === 'enabled' ? 'preset' : 'status-failed';
-          return `<span class="yyt-tww-chip ${smCls}" title="可在下方「填表范围」选择器修改">范围: ${esc(smLabel)}</span>`;
+          if (sm === 'enabled') {
+            return `<span class="yyt-tww-chip preset">范围: 所有启用表</span>`;
+          }
+          const smLabel = sm === 'current' ? '⚠️ 仅当前表' : '仅选中表';
+          // v1.0.189：非 enabled 时改为可点击按钮，点一下立刻重置到 enabled
+          return `<button class="yyt-tww-chip status-failed" data-action="reset-run-scope" title="当前 AI 只会填部分表，点击重置为「所有启用表」" style="border:0;cursor:pointer;">范围: ${esc(smLabel)} — 点此重置</button>`;
         })()}
         ${isolationKey ? `<span class="yyt-tww-chip">隔离: ${esc(isolationKey)}</span>` : ''}
         <span class="yyt-tww-chip status-${statusCls === 'success' ? 'success' : statusCls === 'error' ? 'failed' : ''}">${esc(statusText)}</span>
@@ -875,6 +876,29 @@ export function bindWorkbenchEvents($container, refresh) {
     } catch (err) {
       getLog().error('重填异常', err);
       showToast('error', `异常：${err?.message || err}`);
+    }
+  });
+
+  // 重置 runScope (v1.0.189)：hero chip 一键切到「所有启用表」+ 清掉 activeTableId
+  $container.on('click.tww', '[data-action="reset-run-scope"]', () => {
+    try {
+      const config = getTableWorkbenchConfig();
+      saveTableWorkbenchConfig({
+        ...config,
+        runScope: 'enabled',
+        scope: {
+          ...(config.scope || {}),
+          mode: 'enabled',
+          activeTableId: '',
+          selectedTableIds: []
+        }
+      });
+      showToast('success', '已重置范围为「所有启用表」');
+      getLog().info('用户重置 runScope 为 enabled');
+      if (typeof refresh === 'function') refresh();
+    } catch (err) {
+      getLog().error('重置范围异常', err);
+      showToast('error', `重置失败：${err?.message || err}`);
     }
   });
 
