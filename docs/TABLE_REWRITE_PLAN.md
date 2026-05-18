@@ -176,40 +176,40 @@ deleteRow(0, 3)
 
 ---
 
-## 7. 修订后任务清单（19 项）
+## 7. 修订后任务清单（19 项；v1.0.170 已完成 15 项）
 
-依赖图：
+进度状态（更新于 2026-05-18 v1.0.170 发布）：
 
 ```
-Stage 0 前置
-├─ #27 写本文档 (in_progress)
-│   └─ #6  写 docs/TABLE_ACCEPTANCE_TESTS.md (7 个 bug 复现)
+✓ Stage 0 前置
+├─ ✓ #27 写本文档 (v1.0.169)
+│   └─ ✓ #6  写 docs/TABLE_ACCEPTANCE_TESTS.md (v1.0.169)
 │
 Stage 1 数据
-├─ #17 重写 table-types.js (Sheet 严格定义 + 锁/DSL 常量)
-│   ├─ #22 ★ 新建 table-isolation-service.js (隔离基座)
-│   │   ├─ #25 ★ 新建 table-chat-scope-service.js (chat[0] 容器)
-│   │   ├─ #16 重写 table-schema-service.js (按 Sheet 模型)
-│   │   ├─ #9  重写 state + history (per slot + isolationKey)
-│   │   ├─ #18 重写 table-template-service.js (三模式 + archives)
-│   │   └─ #14 重写 table-lock-service.js (三级锁 + scopeKey 复合)
+├─ ✓ #17 重写 table-types.js (v1.0.169)
+│   ├─ ✓ #22 新建 table-isolation-service.js (v1.0.169)
+│   │   ├─ ✓ #25 新建 table-chat-scope-service.js (v1.0.169)
+│   │   ├─ 🔲 #16 重写 table-schema-service.js (1376 行最大风险，待 v1.0.171+)
+│   │   ├─ ✓ #9  重写 state + history 按 isolationKey 分桶 (v1.0.170)
+│   │   ├─ ✓ #18 重写 table-template-service.js 三模式 (v1.0.170)
+│   │   └─ ✓ #14 重写 table-lock-service.js 四级锁 (v1.0.169)
 │
-Stage 2 AI（拆得更细，4 个低耦合修复）
-├─ #21 ★ parsePatch 接通 + 删 sortEdits（议题 #15 最核心，最高价值）
-├─ #26 ★ callAI 3 次重试 + 5s 退避 + tableEdit 门控
-├─ #23 ★ 补 clearBeforeUpdate 重填三段式 (修 C1/C2)
-├─ #24 ★ 补 loadBaseData 倒序遍历
-├─ #19 重写 writeback + worldbook-sync (chat 隔离 + isolationKey)
-└─ #8  整理 7 步骨架到 update-orchestrator.js（其他子修复完成后收尾）
+Stage 2 AI（4 个低耦合修复 + writeback 加固）
+├─ ✓ #21 parsePatch 接通 + 删 sortEdits（议题 #15 最核心，v1.0.169）
+├─ ✓ #26 callAI 3 次重试 + 5s 退避 + tableEdit 门控（v1.0.169）
+├─ ✓ #23 clearBeforeUpdate 重填三段式 (修 C1/C2，v1.0.170)
+├─ ✓ #24 loadBaseData 倒序遍历 (合并到 #9，v1.0.170)
+├─ ✓ #19 worldbook 同步 chat 隔离加固 (修 A2，v1.0.170)
+└─ 🔲 #8  整理 7 步骨架到 update-orchestrator.js（命名/拆分清理，不阻塞主路径）
 │
 Stage 3 UI
-├─ #7  更新预览加全局注入 mode（不改 card-grid 方向）
-├─ #10 工具台窗口
-├─ #11 数据编辑器窗口（含全局注入 + sourceData 5 段 + 双档保存）
-└─ #13 瘦身 panel 为 launcher
+├─ ✓ #7  更新预览加全局注入 mode（v1.0.169）
+├─ ✓ #10 工具台窗口（v1.0.170）
+├─ 🔲 #11 数据编辑器窗口（含全局注入 + sourceData 5 段 + 双档保存）— v1.0.170 仅占位 toast
+└─ ✓ #13 瘦身 panel 为 launcher（v1.0.170）
 │
 Stage 4
-└─ #12 build + 7 项 acceptance 验收
+└─ 🔲 #12 build + 7 项 acceptance 验收
 ```
 
 ★ = 因 shujuku 调研发现而新增/重定向的任务
@@ -218,26 +218,17 @@ Stage 4
 
 ## 8. 优先级与起步建议
 
-**P0 必做（核心对标，最高价值）**：
-- #21 接通 parser + 删 sortEdits（一个文件 ~20 行改动，蛋核心修复）
-- #6 写 acceptance tests（定 sign-off 基准）
-- #22 isolation-service（隔离/锁/模板基座）
-- #25 chat-scope-service（chat 级覆盖基座）
+**v1.0.170 当前剩余（4 项）**：
 
-**P1 重要**：
-- #17/#16/#9/#18/#14 Stage 1 数据层重写
-- #23/#24/#26 Stage 2 AI 补全
-- #19 writeback 修 chat 隔离
+**P1 数据编辑能力补全**：
+- **#11 数据编辑器窗口** — 当前 v1.0.170 工作台窗口"打开数据编辑器"仍 toast 提示，用户无法手动编辑表行 / 字段 / 单元格（旧 panel 的 drawer 已删）。这是 v1.0.170 用户体感最大缺口，应优先补。
 
-**P2 锦上添花**：
-- #7/#10/#11/#13 UI 完善
-- #8 整理 7 步骨架
+**P2 主链最终对齐**：
+- **#16 schema-service 重写**（1376 行最大风险，按 Sheet 模型 + sourceData 5 段 + updateConfig sentinel + 索引列锁等）。完成后 v3 预览的"结构配置"/"全局注入"两 mode 才能完整接入。
+- **#8 orchestrator 整理**（命名约定 `table-update-orchestrator.js` + 内部 7 步拆函数。功能上已对齐 shujuku 7 步，仅命名 / 拆分清理）。
 
-**P3 不做**：
-- shujuku AI 改表助手 dock（议题 #15 已定不抄）
-- SQLite 5 张表 migration（shujuku 实际不靠 SQLite 存状态）
-- DDL / 索引列特锁（纪要表专用）
-- 多 placement 配置（youyou 用 wrapper 模型）
+**P3 验收闭环**：
+- **#12 build + 7 项 acceptance 验收**（议题 #15 sign-off 关闭前置）
 
 ---
 

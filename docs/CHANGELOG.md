@@ -9,6 +9,44 @@
 
 ## [Unreleased]
 
+## [1.0.170] - 2026-05-18
+
+### 新增
+- **议题 #15 #10：填表工具台独立窗口**（`modules/ui/components/table-workbench-window.js` 新建）。对应 `preview-table-workbench.html` v3 设计：Hero + 4 列 stat row + 7 binding-row（模板/触发模式/API 预设/Ai 指令/正则预设/世界书预设/作用域）+ 填表行为（填充模式/上下文消息数/同步 toggles）+ 表格概览 cards。复用 `window-manager.createWindow`，记忆位置/尺寸。
+- **议题 #15 #13：popup tab 改为 launcher**（`modules/ui/components/table-workbench-panel.js` 从 1441 行瘦身到 ~200 行）。tab 内只放标题/描述/状态 chips/「打开填表工作台」「立即填表」按钮，实际功能下沉到独立窗口。
+- 工具台窗口暴露「立即填表」「重填」两个快捷动作，「重填」内部调 `runManualTableUpdate(null, { clearBeforeUpdate: true })` 触发议题 #15 #23 的清空-重读-重生成三段式。
+
+### 改善
+- **议题 #15 #18：模板服务接入三模式作用域**（`modules/table-engine/table-template-service.js`）。新增 `getActiveGlobalTemplate / setActiveGlobalTemplateId / resolveActiveTemplate({chatId, isolationKey})` 按 chat × isolationKey 解析当前生效模板；新增 `applyTemplateAsChatOverride / linkPresetToChat / resetChatTemplateScope / listChatTemplateArchives / restoreChatTemplateArchive`。
+- **议题 #15 #9 / #24：state + history 按 isolationKey 分桶**（`modules/table-engine/table-state-service.js` + `table-history-service.js`）。message 自定义字段 `YouYouToolkit_tableState` / `YouYouToolkit_tableBindings` 改为 `{ [isolationKey]: BoundState }` 结构，旧格式自动迁移为 `DEFAULT_ISOLATION_KEY` 桶。history-service 倒序遍历按 isolation 过滤（对应议题 #15 #24 loadBaseData）。新增 `clearStateAtMessageIndex` / `clearStateInChat` 供重填路径调用。
+- **议题 #15 #23：重填三段式**（`modules/table-engine/table-update-service.js`）。`runManualTableUpdate(configInput, { clearBeforeUpdate: true })` 入口；先 `clearStateAtMessageIndex(targetMessageIndex)` 清空当前楼层 → state-service 内部 getMessageForTarget 自动重读最新 chat → 后续 `loadBoundStateOrTemplate` 走 history-service 倒序找前驱（对应 shujuku `clearTableDataAtFloors → loadAllChatMessages → refreshData` 三段式，修 议题 #15 C1/C2 bug）。
+- **议题 #15 #19：worldbook 同步 chat 隔离加固**（`modules/table-engine/table-worldbook-sync-service.js`）。entry comment 前缀升级为 `YYT-[YY:chatId=${normalized_id}]-` 严格边界格式（旧 `YYT-[chatId]-` 仍能识别，向后兼容）；新增 `isOwnedByChat(comment, chatId)` helper，upsert / cleanup 严格按 isOwnedByChat 过滤，跨 chat 条目不再误更新或误删（修 议题 #15 A2 bug）。
+
+### 已知缺口（待 v1.0.171+）
+- **#11 数据编辑器窗口未做**：工作台窗口的"打开数据编辑器"按钮目前 toast 提示。手动编辑表行 / 字段 / 单元格的 UI 暂无（旧 panel 的 drawer 已删）。期间用户只能通过"立即填表"让 AI 填，不能手动改数据。
+- **#16 schema-service 重写未做**：1376 行旧 schema 模型仍在用；工具台窗口的模板 select 切换可以保存，但 Sheet 模型的 sourceData 5 段 / updateConfig sentinel / 索引列锁等议题 #15 §3 抽象 UI 上未暴露。
+- **#8 orchestrator 7 步整理未做**：议题 #15 §5 的命名约定（`table-update-orchestrator.js`）暂未重命名，主链仍叫 `table-update-service.js`，内部已按 7 步关键节点对齐。
+
+## [1.0.169] - 2026-05-18
+
+### 新增（议题 #15 Stage 0 前置）
+- **`docs/TABLE_REWRITE_PLAN.md`**（350 行）：议题 #15 修订版。明确 9 项关键决策 D1-D9 sign-off + shujuku 真实架构对标 + youyou_Toolkit gap 表 + 修订后任务清单 + 依赖图 + 优先级。重要勘误：shujuku 实际不存 5 张 SQLite 系统表（议题 #15 文档提案误读，实际只 `_acu_sheet_meta` 一张 + 业务表镜像，状态走 settings + ChatMessage 自定义字段）；shujuku UI 实际是 card-grid 不是 HTML table；模板实际三模式不是双模式；AI DSL 实际首参 tableIndex 整数 + 列索引对象语法。
+- **`docs/TABLE_ACCEPTANCE_TESTS.md`**（431 行）：7 个旧 bug（A1/A2/A3/B1/B2/C1/C2）的复现步骤 + 期望行为 + 自动化验证思路 + 手动验证清单 + sign-off 状态行。重写完成前必须先 sign-off 全部 7 项。
+
+### 新增（议题 #15 Stage 1 数据基础）
+- **`modules/table-engine/table-types.js` 大幅扩充**：保留原有 12 个下游 import 兼容，新增 Sheet 严格结构（`content: (string|null)[][]`, `content[0][0]` 固定 `'row_id'`）+ Sheet helpers（`createSheet / normalizeSheet / cloneSheet / getSheetCell / setSheetCell`）+ sourceData 5 段常量 + updateConfig sentinel + 模板三模式枚举 `TABLE_TEMPLATE_SCOPE_MODE` + isolationKey helpers（`DEFAULT_ISOLATION_KEY / normalizeIsolationKey`）+ scopeKey 复合（`makeLockScopeKey / parseLockScopeKey`）+ 锁定四级类型扩展（行 / 列 / 单元格 / 索引列）+ DSL `createDslEdit` 工厂 + chat[0] / per-message 字段 key（`TABLE_SCOPED_CONFIG_KEY / TABLE_ISOLATED_DATA_KEY`）+ 表 ID 双层（container key `sheet_xxxx` + uid）。
+- **`modules/table-engine/table-isolation-service.js` 新建**：isolationKey 抽象层。`tableIsolation.getState / isEnabled / getKey / setEnabled / setKey / updateState / reset / getScopeKey(chatKey) / subscribe(handler)`。基于 storage 全局命名空间，订阅模型支持下游切换时整库销毁重建。
+- **`modules/table-engine/table-chat-scope-service.js` 新建**：chat[0] ScopedConfig 容器层。`tableChatScope.getTemplateScope / setTemplateScope / clearTemplateScope / archiveCurrentTemplate / listTemplateArchives / restoreTemplateArchive / clearTemplateArchives / resetChat`。模板归档按指纹去重，每 isolationKey 最多保留 8 份历史。v1 实现走 storage namespace by chatId，v2 待迁移到 chat[0] 消息字段方案。
+- **`modules/table-engine/table-lock-service.js` 重写**：四级锁（行 / 列 / 单元格 / 索引列）+ storage 全局 by `${chatKey}::${isolationKey}` / sheetUid（shujuku 风格，不再绑定 boundState.meta）。新 API：`getSheetLockState / setRowLock / setColLock / setCellLock / setIndexColumnLock / clearSheetLocks / clearScopeLocks / isIndexColumnLocked`。旧 API（`getLocks / isLocked / isRowLocked / isColumnLocked`）签名兼容，`getLocks(boundState, tables)` 加 tables 参数用于 tableIndex → sheetUid 映射。**v1.0.168 及以下版本的 `boundState.meta.locks` 数据废弃**（议题 #15 §I 用户确认无生产数据）。
+
+### 修复（议题 #15 Stage 2 AI 核心）
+- **议题 #15 #21：parser 主链接通 + 删 sortEdits 重排**（`modules/table-engine/table-update-service.js`）。删除 `parsePatch` 孤儿函数（0 调用者，仅 export 不接主流程）+ 删除 `sortEdits` 重排函数（旧逻辑按 update→insert→delete 倒序重排，会让 AI 同轮 "先 insert 再 update 新行" 失败）。主链直接走 `sanitizeAIResponse` + applyIncrementalEdits 按 AI 原始顺序应用。
+- **议题 #15 #26：callAI 3 次重试 + 5s 退避 + tableEdit 缺失门控**。`sendRequest + parseResponse` 套 `for (attempt = 1; attempt <= 3; attempt++)`；空 mode / 无 edits / 无 tables 视为失败触发重试；abort signal 中途取消立即退出（不再等待重试）；3 次后仍失败抛错。
+
+### Phase B 收尾（议题 #47 链路质量）
+- `modules/table-engine/table-json-sanitizer.js` 重写为 5 层 JSON 清洗管线 + 4 步命令解析回退（+497 行）。已实现 shujuku DSL parser 全部能力，主链通过 `sanitizeAIResponse` 调用。
+- `modules/table-engine/table-schema-service.js` 修复 incremental / full prompt 指令矛盾：增加 `skipResponseContract` 选项让 incremental 模式跳过 full 响应契约段。
+
 ## [1.0.168] - 2026-05-17
 
 ### 改善
