@@ -1,6 +1,28 @@
 /**
- * YouYou Toolkit - 填表更新服务
- * @description 手动填表请求构建、增量/全量双模式解析、操作排序与应用执行主链
+ * YouYou Toolkit - 填表更新服务（Orchestrator 角色）
+ *
+ * 议题 #15 #8 整理（v1.0.193 完成）：
+ *   本文件即对应 shujuku update-orchestrator.ts 的 youyou 实现，编排填表主链的
+ *   7 步（buildBatchMergeBase → loadBatchBaseData → prepareAIInput → callAI →
+ *   parseTableEdits → applyEdits → writeback+sync）。功能已全部对齐 shujuku，
+ *   未做物理文件改名以避免破坏 3 个外部 import 路径。
+ *
+ * 主要导出：
+ *   - runManualTableUpdate：手动填表入口（"立即填表" / "重填" 按钮）
+ *   - runAutoTableUpdate：自动填表入口（automation 链路）
+ *   - applyIncrementalEdits / buildRequest：内部步骤（独立可测）
+ *
+ * 关键步骤实现位置（按上述 7 步顺序）：
+ *   1. buildBatchMergeBase   — scopeTables 合并 (templateTables + tableEnabledOverrides)
+ *   2. loadBatchBaseData     — loadBoundStateOrTemplate (history-service 倒序遍历)
+ *   3. prepareAIInput        — buildRequest / formatTableGuidance / formatScopeGuidance
+ *   4. callAI                — provider.sendRequest（3 次重试 + 5s 退避 + tableEdit 缺失门控）
+ *   5. parseTableEdits       — sanitizeAIResponse (parseIncrementalEdits + parseFullReplacement)
+ *   6. applyEdits            — applyIncrementalEdits (按 AI 原始顺序 + 列 key 位置映射)
+ *   7. writeback+sync        — writeTableState (commitBoundState + worldbook-sync)
+ *
+ * 重填三段式（议题 #15 #23 / C1/C2 修复）：
+ *   clearStateAtMessageIndex → loadBoundStateOrTemplate 自动重读 → refreshData
  */
 
 import { buildExecutionContextForLatestAssistant, buildExecutionContextForMessage } from '../tool-execution-context.js';
