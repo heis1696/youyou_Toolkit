@@ -23,7 +23,9 @@ import {
 import {
   getAllTableTemplates,
   resolveActiveTemplate,
-  setActiveGlobalTemplateId
+  setActiveGlobalTemplateId,
+  listChatTemplateArchives,
+  restoreChatTemplateArchive
 } from '../../table-engine/table-template-service.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
@@ -331,6 +333,31 @@ select.yyt-tww-ctrl {
 .yyt-tww-table-card-toggle input:checked + .yyt-tww-table-card-toggle-slider { background: var(--tww-accent, #4caf50); }
 .yyt-tww-table-card-toggle input:checked + .yyt-tww-table-card-toggle-slider::before { transform: translateX(14px); }
 .yyt-tww-table-card-name { flex: 1; font-size: 13px; font-weight: 700; color: var(--tww-text); }
+
+/* 模板归档列表（议题 #15 盲区 4，v1.0.193+） */
+.yyt-tww-archives {
+  margin: 8px 0; padding: 12px; border-radius: 8px;
+  background: var(--tww-surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--tww-border, rgba(255,255,255,0.08));
+}
+.yyt-tww-archives-header {
+  font-size: 12px; font-weight: 600; color: var(--tww-text-muted);
+  margin-bottom: 8px;
+}
+.yyt-tww-archives-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.yyt-tww-archive-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; border-radius: 6px;
+  background: var(--tww-surface, rgba(255,255,255,0.02));
+  border: 1px solid var(--tww-border, rgba(255,255,255,0.06));
+}
+.yyt-tww-archive-meta {
+  display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;
+}
+.yyt-tww-archive-time { font-size: 12px; color: var(--tww-text); }
+.yyt-tww-archive-mode { font-size: 11px; color: var(--tww-text-muted); }
 .yyt-tww-table-card-arrow {
   color: var(--tww-text-muted); font-size: 10px;
   transition: color 0.12s ease, transform 0.12s ease;
@@ -355,7 +382,7 @@ select.yyt-tww-ctrl {
 // ────────────────────────────────────────────────────────────────
 
 export function renderWorkbenchHtml(state) {
-  const { config, activeTemplate, isolationKey, tablesPreview } = state;
+  const { config, activeTemplate, isolationKey, tablesPreview, templateArchives = [] } = state;
   const runtime = config?.runtime || {};
   const statusText = runtime.lastStatus === 'success' ? '✓ 上次成功'
     : runtime.lastStatus === 'failed' ? '✗ 上次失败'
@@ -366,6 +393,7 @@ export function renderWorkbenchHtml(state) {
   const triggerMode = config?.automation?.enabled ? '自动' : '手动';
   const apiPreset = config?.apiPreset || '跟随主 API';
   const bypassPreset = config?.bypassPresetId ? '已绑定' : '无';
+  const archiveCount = Array.isArray(templateArchives) ? templateArchives.length : 0;
 
   return `
   <div class="yyt-tww">
@@ -377,6 +405,7 @@ export function renderWorkbenchHtml(state) {
         <div class="yyt-tww-hero-actions">
           <button class="yyt-tww-btn yyt-tww-btn-small" data-action="run-now"><i class="fa-solid fa-play"></i> 立即填表</button>
           <button class="yyt-tww-btn yyt-tww-btn-small" data-action="run-clear"><i class="fa-solid fa-rotate-left"></i> 重填</button>
+          ${archiveCount > 0 ? `<button class="yyt-tww-btn yyt-tww-btn-small" data-action="toggle-archives" title="模板归档历史（chat × isolationKey 维度，最多 8 份）"><i class="fa-solid fa-clock-rotate-left"></i> 归档 (${archiveCount})</button>` : ''}
           <button class="yyt-tww-btn yyt-tww-btn-small yyt-tww-btn-danger" data-action="reset-chat-data" title="清空当前聊天所有楼层的表格数据，让模板切换后从头开始"><i class="fa-solid fa-trash-can"></i> 清空 chat 数据</button>
         </div>
       </div>
@@ -398,6 +427,11 @@ export function renderWorkbenchHtml(state) {
         ${isolationKey ? `<span class="yyt-tww-chip">隔离: ${esc(isolationKey)}</span>` : ''}
         <span class="yyt-tww-chip status-${statusCls === 'success' ? 'success' : statusCls === 'error' ? 'failed' : ''}">${esc(statusText)}</span>
       </div>
+    </div>
+
+    <!-- 模板归档列表（默认隐藏，hero 按钮 toggle） -->
+    <div class="yyt-tww-archives" data-archives-panel style="display:none;">
+      ${buildArchivesHtml(templateArchives)}
     </div>
 
     <!-- Runtime stats -->
@@ -695,6 +729,36 @@ function buildWorldbookSubZoneHtml(state) {
   `;
 }
 
+// 议题 #15 盲区 4 (v1.0.193)：模板归档列表 HTML
+function buildArchivesHtml(archives = []) {
+  if (!Array.isArray(archives) || archives.length === 0) {
+    return `<div class="yyt-tww-empty">当前 chat × isolationKey 暂无归档（仅在切换模板时自动归档当前状态）</div>`;
+  }
+  return `
+    <div class="yyt-tww-archives-header">模板归档历史 (${archives.length}/8)</div>
+    <div class="yyt-tww-archives-list">
+      ${archives.map((entry, i) => {
+        const state = entry?.state || {};
+        const mode = state.mode || 'unknown';
+        const archivedAt = entry?.archivedAt ? new Date(entry.archivedAt).toLocaleString() : '未知时间';
+        const presetName = state.presetName || '';
+        const summary = mode === 'preset_link' ? `预设链接: ${esc(presetName)}`
+          : mode === 'chat_override' ? 'chat 级覆盖模板'
+          : mode === 'inherit_global' ? '继承全局' : esc(mode);
+        return `
+          <div class="yyt-tww-archive-item" data-archive-index="${i}">
+            <div class="yyt-tww-archive-meta">
+              <span class="yyt-tww-archive-time">${esc(archivedAt)}</span>
+              <span class="yyt-tww-archive-mode">${summary}</span>
+            </div>
+            <button class="yyt-tww-btn yyt-tww-btn-small" data-action="restore-archive" data-archive-index="${i}" title="恢复此归档（恢复前自动归档当前状态）">恢复</button>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 function buildTablesOverviewHtml(tablesPreview) {
   if (!Array.isArray(tablesPreview) || tablesPreview.length === 0) {
     return `<div class="yyt-tww-empty">当前 slot 暂无表数据。请先"立即填表"或在数据编辑器中初始化。</div>`;
@@ -772,6 +836,11 @@ export function loadWorkbenchState() {
     };
   });
 
+  // 议题 #15 盲区 4 (v1.0.193)：模板归档列表（chat × isolationKey 维度，最多 8 份）
+  const templateArchives = (() => {
+    try { return listChatTemplateArchives() || []; } catch (_) { return []; }
+  })();
+
   return {
     config,
     activeTemplate,
@@ -784,7 +853,8 @@ export function loadWorkbenchState() {
     boundLorebook,
     chatOpen,
     isolationKey,
-    tablesPreview
+    tablesPreview,
+    templateArchives
   };
 }
 
@@ -993,6 +1063,39 @@ export function bindWorkbenchEvents($container, refresh) {
       console.error('[YYT][TableWorkbench] 打开数据编辑器异常:', err);
       getLog().error('打开数据编辑器异常', err);
       showToast('error', `打开失败：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.193 盲区 4：模板归档面板 toggle 显示
+  $container.on('click.tww', '[data-action="toggle-archives"]', function (e) {
+    e.preventDefault();
+    const panel = $container.find('[data-archives-panel]').first();
+    if (!panel.length) return;
+    if (panel.css('display') === 'none') {
+      panel.css('display', 'block');
+    } else {
+      panel.css('display', 'none');
+    }
+  });
+
+  // v1.0.193 盲区 4：恢复模板归档
+  $container.on('click.tww', '[data-action="restore-archive"]', async function (e) {
+    e.stopPropagation();
+    const idx = Number($(this).attr('data-archive-index'));
+    if (!Number.isFinite(idx) || idx < 0) return;
+    if (!window.confirm(`恢复归档 #${idx}？恢复前会自动归档当前状态，可再次恢复回来。`)) return;
+    try {
+      const result = restoreChatTemplateArchive(idx);
+      if (result?.success) {
+        showToast('success', '已恢复归档');
+        getLog().info('restoreChatTemplateArchive 成功', { index: idx, scopeState: result.scopeState });
+      } else {
+        showToast('error', `恢复失败：${result?.error || '未知'}`);
+      }
+      if (typeof refresh === 'function') refresh();
+    } catch (err) {
+      getLog().error('恢复归档异常', err);
+      showToast('error', `异常：${err?.message || err}`);
     }
   });
 

@@ -34,6 +34,11 @@ import {
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_NAME,
   DEFAULT_TABLE_WORKBENCH_TABLES
 } from './table-defaults.js';
+import {
+  normalizeCellValue,
+  sanitizeColumnKey,
+  ensureUniqueColumnKey
+} from './table-schema-helpers.js';
 
 // 向后兼容 re-export
 export {
@@ -45,7 +50,10 @@ export {
   TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS,
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_ID,
   DEFAULT_TABLE_WORKBENCH_TEMPLATE_NAME,
-  DEFAULT_TABLE_WORKBENCH_TABLES
+  DEFAULT_TABLE_WORKBENCH_TABLES,
+  normalizeCellValue,
+  sanitizeColumnKey,
+  ensureUniqueColumnKey
 };
 
 const tableWorkbenchStorage = storage.namespace('tableWorkbench');
@@ -238,47 +246,11 @@ function parseTableTemplateValue(value) {
   return [];
 }
 
-function normalizeCellValue(value) {
-  if (value === undefined || value === null) {
-    return '';
-  }
-
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch (_) {
-    return String(value);
-  }
-}
-
-function sanitizeColumnKey(value, fallback = 'col') {
-  const normalized = normalizeString(value, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  return normalized || fallback;
-}
-
-function ensureUniqueColumnKey(baseKey, usedKeys = new Set()) {
-  const base = sanitizeColumnKey(baseKey, 'col');
-  let candidate = base;
-  let suffix = 2;
-
-  while (usedKeys.has(candidate)) {
-    candidate = `${base}_${suffix}`;
-    suffix += 1;
-  }
-
-  usedKeys.add(candidate);
-  return candidate;
-}
-
-// 议题 #15 Bug #33-E：template-adapters 复用这些 helper
-export { sanitizeColumnKey, ensureUniqueColumnKey, normalizeCellValue, parseShujukuNoteColumns };
+// 议题 #15 #16 阶段 2 (v1.0.193)：normalizeCellValue / sanitizeColumnKey /
+//   ensureUniqueColumnKey 已迁移到 table-schema-helpers.js，本文件通过 import
+//   引用 + re-export 给外部。下面保留 parseShujukuNoteColumns 等 shujuku 转换
+//   作为 legacy fallback（importTemplateAuto 是主路径）。
+export { parseShujukuNoteColumns };
 
 function getSourceColumnsFromRows(rows = []) {
   const keys = [];
@@ -325,7 +297,7 @@ function getSourceColumnsFromRows(rows = []) {
 
 function normalizeColumnType(value, fallback = DEFAULT_TABLE_WORKBENCH_COLUMN_TYPE) {
   const normalized = normalizeString(value, fallback);
-  return TABLE_WORKBENCH_COLUMN_TYPES.some((option) => option.value === normalized)
+  return TABLE_WORKBENCH_COLUMN_TYPE_OPTIONS.some((option) => option.value === normalized)
     ? normalized
     : fallback;
 }
