@@ -101,17 +101,31 @@ function normalizePreset(input = {}) {
  */
 export function listPresets() {
   const map = _readAll();
+  const overrideIds = new Set();
+  const result = [];
+  for (const builtin of _builtinPresets) {
+    const override = map[builtin.id];
+    if (override) {
+      result.push(normalizePreset(override));
+      overrideIds.add(builtin.id);
+    } else {
+      result.push(builtin);
+    }
+  }
   const userList = Object.values(map)
     .map(normalizePreset)
+    .filter((p) => !overrideIds.has(p.id))
     .sort((a, b) => b.updatedAt - a.updatedAt);
-  return [..._builtinPresets, ...userList];
+  result.push(...userList);
+  return result;
 }
 
 export function getPreset(id) {
   if (!id) return null;
-  if (_isBuiltinId(id)) return _findBuiltin(id);
   const map = _readAll();
-  return map[id] ? normalizePreset(map[id]) : null;
+  if (map[id]) return normalizePreset(map[id]);
+  if (_isBuiltinId(id)) return _findBuiltin(id);
+  return null;
 }
 
 export function getCurrentPresetId() {
@@ -163,12 +177,11 @@ export function createPreset(partial = {}) {
  */
 export function updatePreset(id, patch = {}) {
   if (!id) return null;
-  if (_isBuiltinId(id)) {
-    log.warn(`拒绝修改内置预设: ${id}`);
-    return null;
-  }
   const map = _readAll();
-  const existing = map[id];
+  let existing = map[id];
+  if (!existing && _isBuiltinId(id)) {
+    existing = _findBuiltin(id);
+  }
   if (!existing) {
     log.warn(`updatePreset 找不到预设: ${id}`);
     return null;

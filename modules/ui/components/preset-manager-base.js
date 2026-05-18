@@ -266,13 +266,11 @@ export function createPresetManagerPanel(spec = {}) {
       // ── 编辑器区 ──
       const selected = currentId ? presets.find((p) => p.id === currentId) : null;
       if (selected) {
-        const isReadonly = isBuiltinId(selected.id);
         let editorContent = null;
         try {
           editorContent = renderEditor(selected, {
-            readonly: isReadonly,
+            readonly: false,
             onChange: (patch) => {
-              if (isReadonly) return; // 内置预设不允许编辑
               if (!patch || typeof patch !== 'object') return;
               try {
                 store.updatePreset(selected.id, patch);
@@ -291,7 +289,7 @@ export function createPresetManagerPanel(spec = {}) {
         }
 
         const editorSection = flowSection({
-          heading: isReadonly ? `编辑「${selected.name}」（内置只读）` : `编辑「${selected.name}」`,
+          heading: `编辑「${selected.name}」`,
           icon: '✎',
           content: [editorContent].filter(Boolean)
         });

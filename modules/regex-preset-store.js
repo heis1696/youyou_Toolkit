@@ -192,19 +192,34 @@ function migrateIfNeeded() {
 export function listPresets() {
   migrateIfNeeded();
   const map = _readAll();
+  const overrideIds = new Set();
+  const result = [];
+  // 内置预设排在最前面；如果 storage 有覆盖版本则用覆盖版本
+  for (const builtin of _builtinPresets) {
+    const override = map[builtin.id];
+    if (override) {
+      result.push(normalizePreset(override));
+      overrideIds.add(builtin.id);
+    } else {
+      result.push(builtin);
+    }
+  }
   const userList = Object.values(map)
     .map(normalizePreset)
+    .filter((p) => !overrideIds.has(p.id))
     .sort((a, b) => b.updatedAt - a.updatedAt);
-  // 内置预设排在最前面，按定义顺序
-  return [..._builtinPresets, ...userList];
+  result.push(...userList);
+  return result;
 }
 
 export function getPreset(id) {
   if (!id) return null;
-  if (_isBuiltinId(id)) return _findBuiltin(id);
   migrateIfNeeded();
   const map = _readAll();
-  return map[id] ? normalizePreset(map[id]) : null;
+  // storage 覆盖优先（编辑过的内置预设）
+  if (map[id]) return normalizePreset(map[id]);
+  if (_isBuiltinId(id)) return _findBuiltin(id);
+  return null;
 }
 
 export function getCurrentPresetId() {
@@ -254,12 +269,12 @@ export function createPreset(partial = {}) {
 
 export function updatePreset(id, patch = {}) {
   if (!id) return null;
-  if (_isBuiltinId(id)) {
-    log.warn(`拒绝修改内置预设: ${id}`);
-    return null;
-  }
   const map = _readAll();
-  const existing = map[id];
+  let existing = map[id];
+  // 内置预设首次编辑时从内存取原始版本作为 base
+  if (!existing && _isBuiltinId(id)) {
+    existing = _findBuiltin(id);
+  }
   if (!existing) return null;
   const merged = normalizePreset({
     ...existing,
