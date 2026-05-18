@@ -25,6 +25,7 @@ import {
 } from '../../table-engine/table-state-service.js';
 import { resolveLatestTableTarget } from '../../table-engine/table-target-resolver.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
+import { resolveActiveTemplate } from '../../table-engine/table-template-service.js';
 import { cloneTableValue, createRuntimeTableRowId } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { showToast } from '../utils.js';
@@ -48,6 +49,7 @@ const _state = {
   tempData: null,          // 深拷贝的 tables（runtime 格式 [{uid, name, columns, rows}]）
   currentTableIndex: -1,
   isDirty: false,
+  isFromTemplate: false,   // v1.0.180：当 slot 空时从模板 fallback 加载，编辑保存时会初始化 slot
   targetSnapshot: null
 };
 
@@ -363,9 +365,11 @@ function injectStyles() {
 function loadEditorData() {
   let tables = [];
   let targetSnapshot = null;
+  let isFromTemplate = false;
+
   try {
     const snapshot = getAssistantTableSnapshot(null);
-    if (snapshot?.tableState?.tables) {
+    if (Array.isArray(snapshot?.tableState?.tables) && snapshot.tableState.tables.length > 0) {
       tables = snapshot.tableState.tables;
     }
     targetSnapshot = snapshot ? {
@@ -382,9 +386,26 @@ function loadEditorData() {
   } catch (err) {
     getLog().warn('loadEditorData 异常', err);
   }
+
+  // v1.0.180 hotfix：slot 没数据时从当前激活模板的表 schema fallback，sidebar 和 schema mode 才能显示
+  if (tables.length === 0) {
+    try {
+      const activeTemplate = resolveActiveTemplate({});
+      const tplTables = activeTemplate?.template?.tables;
+      if (Array.isArray(tplTables) && tplTables.length > 0) {
+        tables = cloneTableValue(tplTables);
+        isFromTemplate = true;
+      }
+    } catch (err) {
+      getLog().warn('从模板 fallback 失败', err);
+    }
+  }
+
   _state.tempData = cloneTableValue(tables) || [];
   _state.targetSnapshot = targetSnapshot;
   _state.isDirty = false;
+  _state.isFromTemplate = isFromTemplate;
+
   if (_state.currentTableIndex >= _state.tempData.length) {
     _state.currentTableIndex = _state.tempData.length > 0 ? 0 : -1;
   } else if (_state.currentTableIndex < 0 && _state.tempData.length > 0) {
@@ -453,23 +474,35 @@ function renderSidebar() {
 
 function renderMainPane() {
   const tables = _state.tempData || [];
-  if (tables.length === 0) {
-    return `<div class="yyt-tde-empty">当前 slot 没有表数据。先在工作台点"立即填表"让 AI 初始化。</div>`;
-  }
   const ti = _state.currentTableIndex;
-  if (ti < 0 || ti >= tables.length) {
+  const table = (ti >= 0 && ti < tables.length) ? tables[ti] : null;
+
+  // v1.0.180 hotfix：global mode 不依赖 tables 数据（跨表设置 / 占位）
+  if (_state.mode === 'global') {
+    return renderGlobalMode();
+  }
+
+  if (tables.length === 0) {
+    return `<div class="yyt-tde-empty">当前 slot 没有表数据，模板也未配置表。<br>请先在工作台点"立即填表"让 AI 初始化，或到「预设管理 → 表格模板」配置模板。</div>`;
+  }
+
+  if (!table) {
     return `<div class="yyt-tde-empty">请从左侧选择一张表。</div>`;
   }
-  const table = tables[ti];
+
   if (_state.mode === 'data') return renderDataMode(table, ti);
   if (_state.mode === 'schema') return renderSchemaMode(table, ti);
-  if (_state.mode === 'global') return renderGlobalMode(table, ti);
   return '';
 }
 
 function renderDataMode(table, tableIndex) {
   const columns = Array.isArray(table?.columns) ? table.columns : [];
   const rows = Array.isArray(table?.rows) ? table.rows : [];
+
+  // v1.0.180：fromTemplate 状态显示提示
+  const fromTemplateHint = _state.isFromTemplate
+    ? `<div class="yyt-tde-schema-hint" style="margin-bottom:12px;">当前显示<b>模板默认结构</b>（slot 尚无数据）。直接添加行或编辑会创建 slot 数据；或工作台点"立即填表"让 AI 填。</div>`
+    : '';
 
   const cards = rows.map((row, ri) => {
     const cells = row?.cells || {};
@@ -505,6 +538,7 @@ function renderDataMode(table, tableIndex) {
   }).join('');
 
   return `
+    ${fromTemplateHint}
     <div class="yyt-tde-card-grid">
       ${cards}
       <button class="yyt-tde-card-add" data-action="add-row">
