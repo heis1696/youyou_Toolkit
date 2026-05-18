@@ -63,6 +63,7 @@ import { getLocks, isLocked, isRowLocked } from './table-lock-service.js';
 import { resolveActiveTemplate } from './table-template-service.js';
 import { buildSelectedWorldbookContent } from '../tool-worldbook-service.js';
 import { extractTagContent, getTagRules, getContentBlacklist } from '../regex-extractor.js';
+import regexPresetStore from '../regex-preset-store.js';
 
 function getLog() {
   return logger.createScope('TableUpdate');
@@ -111,28 +112,51 @@ function formatRecentMessages(messages = [], limit = 8, roles = 'all') {
     .join('\n\n');
 }
 
-function applyContextExtractionRules(text, { extractTags = [], useGlobalRules = false } = {}) {
+function applyContextExtractionRules(text, { extractTags = [], useGlobalRules = false, regexPresetId = '' } = {}) {
   if (!text) return text;
   const hasCustomTags = Array.isArray(extractTags) && extractTags.length > 0;
-  if (!hasCustomTags && !useGlobalRules) return text;
+  const hasPreset = typeof regexPresetId === 'string' && regexPresetId.trim().length > 0;
+  if (!hasCustomTags && !useGlobalRules && !hasPreset) return text;
   try {
     let rules = [];
     let blacklist = [];
 
+    // v1.0.197 修复：接入 extraction.regexPresetId（之前完全没读，工作台切预设无效）
+    if (hasPreset) {
+      try {
+        const preset = regexPresetStore.getPreset(regexPresetId);
+        if (preset) {
+          const presetRules = Array.isArray(preset.rules)
+            ? preset.rules.filter((r) => r && r.enabled !== false && r.value)
+            : [];
+          rules.push(...presetRules);
+          if (Array.isArray(preset.blacklist)) {
+            blacklist.push(...preset.blacklist
+              .map((s) => String(s || '').trim())
+              .filter(Boolean));
+          }
+        } else {
+          getLog().warn('applyContextExtractionRules: 找不到正则预设', { regexPresetId });
+        }
+      } catch (err) {
+        getLog().warn('applyContextExtractionRules: 加载正则预设失败', err);
+      }
+    }
+
     if (hasCustomTags) {
-      rules = extractTags.map(tag => {
+      rules.push(...extractTags.map((tag) => {
         const t = String(tag || '').trim();
         if (t.startsWith('regex:')) {
           return { type: 'regex_include', value: t.slice(6).trim(), enabled: true };
         }
         return { type: 'include', value: t, enabled: true };
-      }).filter(r => r.value);
+      }).filter((r) => r.value));
     }
 
     if (useGlobalRules) {
       const globalRules = getTagRules() || [];
-      rules = [...rules, ...globalRules.filter(r => r?.enabled)];
-      blacklist = getContentBlacklist() || [];
+      rules = [...rules, ...globalRules.filter((r) => r?.enabled)];
+      blacklist = [...blacklist, ...(getContentBlacklist() || [])];
     }
 
     if (rules.length === 0 && blacklist.length === 0) return text;
@@ -539,17 +563,20 @@ export async function buildRequest({ executionContext, targetSnapshot, loadResul
 
   const rawMessages = executionContext?.chatHistory || executionContext?.chatMessages || [];
   const { contextDepth, contextRoles, contextExtractTags, contextUseGlobalRules, sendLatestRows } = normalizedConfig;
+  const regexPresetId = normalizedConfig?.extraction?.regexPresetId || '';
 
   const recentText = formatRecentMessages(rawMessages, contextDepth, contextRoles);
   const rawRecentText = formatRecentMessages(rawMessages, contextDepth, 'all');
 
   const processedRecentText = applyContextExtractionRules(recentText, {
     extractTags: contextExtractTags,
-    useGlobalRules: contextUseGlobalRules
+    useGlobalRules: contextUseGlobalRules,
+    regexPresetId
   });
   const processedRawRecentText = applyContextExtractionRules(rawRecentText, {
     extractTags: contextExtractTags,
-    useGlobalRules: contextUseGlobalRules
+    useGlobalRules: contextUseGlobalRules,
+    regexPresetId
   });
 
   const worldbookContent = await buildSelectedWorldbookContent({ worldbooks: normalizedConfig.worldbooks });
