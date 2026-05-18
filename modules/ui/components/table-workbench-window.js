@@ -27,7 +27,7 @@ import {
 } from '../../table-engine/table-template-service.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { runManualTableUpdate } from '../../table-engine/table-update-service.js';
-import { getAssistantTableSnapshot } from '../../table-engine/table-state-service.js';
+import { getAssistantTableSnapshot, clearStateInChat } from '../../table-engine/table-state-service.js';
 import { openTableDataEditor } from './table-data-editor-window.js';
 import { cloneTableValue } from '../../table-engine/table-types.js';
 
@@ -359,6 +359,7 @@ export function renderWorkbenchHtml(state) {
         <div class="yyt-tww-hero-actions">
           <button class="yyt-tww-btn yyt-tww-btn-small" data-action="run-now"><i class="fa-solid fa-play"></i> 立即填表</button>
           <button class="yyt-tww-btn yyt-tww-btn-small" data-action="run-clear"><i class="fa-solid fa-rotate-left"></i> 重填</button>
+          <button class="yyt-tww-btn yyt-tww-btn-small yyt-tww-btn-danger" data-action="reset-chat-data" title="清空当前聊天所有楼层的表格数据，让模板切换后从头开始"><i class="fa-solid fa-trash-can"></i> 清空 chat 数据</button>
         </div>
       </div>
       <div class="yyt-tww-hero-desc">从对话内容提取结构化数据，自动维护表格状态。</div>
@@ -865,6 +866,24 @@ export function bindWorkbenchEvents($container, refresh) {
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('重填异常', err);
+      showToast('error', `异常：${err?.message || err}`);
+    }
+  });
+
+  // 清空 chat 数据（v1.0.182：配合模板切换后，让旧 slot 数据不再干扰）
+  $container.on('click.tww', '[data-action="reset-chat-data"]', async () => {
+    if (!window.confirm('将清空当前聊天所有楼层的表格数据（不影响模板/配置）。下次填表会按当前激活模板从头开始。确定？')) return;
+    try {
+      const result = await clearStateInChat();
+      if (result?.success) {
+        showToast('success', `已清空 ${result.touched || 0} 条消息的表格数据`);
+        getLog().info('清空 chat 数据完成', result);
+      } else {
+        showToast('error', '清空失败');
+      }
+      if (typeof refresh === 'function') refresh();
+    } catch (err) {
+      getLog().error('清空 chat 数据异常', err);
       showToast('error', `异常：${err?.message || err}`);
     }
   });

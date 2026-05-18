@@ -38,6 +38,7 @@ import { computeTableDiff } from './table-diff-service.js';
 import { resolveTableRunScope } from './table-scope-service.js';
 import { getTableProvider } from './table-provider-service.js';
 import { getLocks, isLocked, isRowLocked } from './table-lock-service.js';
+import { resolveActiveTemplate } from './table-template-service.js';
 import { buildSelectedWorldbookContent } from '../tool-worldbook-service.js';
 import { extractTagContent, getTagRules, getContentBlacklist } from '../regex-extractor.js';
 
@@ -822,8 +823,35 @@ async function runTableUpdate({
     }
 
     const assistantSnapshot = getAssistantTableSnapshot(targetSnapshot.sourceMessageId);
+
+    // 议题 #15 Bug #33 跟进修复：templateTables 优先取激活模板的 tables，
+    // 而不是 config.tables — 后者是工作台配置快照，切换激活模板时不会同步。
+    // 这样切换模板后，新 chat / 没有 slot 数据的 chat 立即用上新模板。
+    let templateTables = config.tables;
+    try {
+      const activeTpl = resolveActiveTemplate({});
+      const activeTables = activeTpl?.template?.tables;
+      if (Array.isArray(activeTables) && activeTables.length > 0) {
+        templateTables = activeTables;
+        getLog().info('templateTables 取自激活模板', {
+          templateId: activeTpl?.template?.id,
+          templateName: activeTpl?.template?.name,
+          mode: activeTpl?.mode,
+          tableCount: activeTables.length,
+          firstTableName: activeTables[0]?.name || ''
+        });
+      } else {
+        getLog().info('templateTables 退回 config.tables', {
+          tableCount: Array.isArray(config.tables) ? config.tables.length : 0,
+          firstTableName: config.tables?.[0]?.name || ''
+        });
+      }
+    } catch (err) {
+      getLog().warn('resolveActiveTemplate 失败，退回 config.tables', err);
+    }
+
     const loadResult = loadBoundStateOrTemplate(targetSnapshot, {
-      templateTables: config.tables
+      templateTables
     });
     const previousTables = normalizeRuntimeTables(loadResult?.state?.tables || []);
     const provider = getTableProvider();
