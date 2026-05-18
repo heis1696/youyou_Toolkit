@@ -368,6 +368,14 @@ export function renderWorkbenchHtml(state) {
         <span class="yyt-tww-chip preset">模板: ${esc(activeTemplate?.template?.name || '默认')}</span>
         <span class="yyt-tww-chip preset">API: ${esc(apiPreset)}</span>
         <span class="yyt-tww-chip preset">指令: ${esc(bypassPreset)}</span>
+        ${(() => {
+          const sm = config?.runScope || config?.scope?.mode || 'enabled';
+          const smLabel = sm === 'current' ? '⚠️ 仅当前表'
+            : sm === 'selected' ? '仅选中表'
+            : '所有启用表';
+          const smCls = sm === 'enabled' ? 'preset' : 'status-failed';
+          return `<span class="yyt-tww-chip ${smCls}" title="可在下方「填表范围」选择器修改">范围: ${esc(smLabel)}</span>`;
+        })()}
         ${isolationKey ? `<span class="yyt-tww-chip">隔离: ${esc(isolationKey)}</span>` : ''}
         <span class="yyt-tww-chip status-${statusCls === 'success' ? 'success' : statusCls === 'error' ? 'failed' : ''}">${esc(statusText)}</span>
       </div>
