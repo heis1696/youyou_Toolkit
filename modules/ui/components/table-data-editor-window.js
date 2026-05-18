@@ -29,7 +29,7 @@ import { resolveActiveTemplate, saveTableTemplate, getActiveGlobalTemplate } fro
 import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-engine/table-schema-service.js';
 import { cloneTableValue, createRuntimeTableRowId } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
-import { getSheetLockState, setColLock } from '../../table-engine/table-lock-service.js';
+import { getSheetLockState, setColLock, setRowLock, setCellLock, setIndexColumnLock } from '../../table-engine/table-lock-service.js';
 import { showToast } from '../utils.js';
 
 const WINDOW_ID = 'yyt-table-data-editor';
@@ -429,6 +429,24 @@ textarea.yyt-tde-input { min-height: 40px; resize: vertical; }
   border-left: 2px solid var(--tde-warning, #fbbf24);
   background: var(--tde-warning-soft, rgba(251,191,36,0.06));
 }
+/* v1.0.205 M1+: data mode 行/单元格锁视觉 */
+.yyt-tde-row-locked {
+  border-color: var(--tde-warning, #fbbf24) !important;
+  box-shadow: 0 0 0 1px var(--tde-warning-soft, rgba(251,191,36,0.2)) inset;
+}
+.yyt-tde-cell-locked-bg {
+  background: var(--tde-warning-soft, rgba(251,191,36,0.06));
+  color: var(--tde-text-muted);
+}
+.yyt-tde-cell-lock-btn {
+  background: transparent; border: none; color: var(--tde-text-muted);
+  cursor: pointer; padding: 2px 4px; border-radius: 3px;
+  font-size: 9px;
+}
+.yyt-tde-cell-lock-btn:hover { background: var(--tde-surface-3); }
+.yyt-tde-field-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+}
 .yyt-tde-btn-add-field {
   margin-top: 8px;
   background: transparent;
@@ -660,6 +678,16 @@ function renderDataMode(table, tableIndex) {
   const columns = Array.isArray(table?.columns) ? table.columns : [];
   const rows = Array.isArray(table?.rows) ? table.rows : [];
 
+  // v1.0.205 M1+：拿当前 chat × isolation × sheet 的锁集合
+  const chatId = _state.targetSnapshot?.chatId || '';
+  const sheetUid = table?.uid || table?.id || '';
+  let lockState = { cols: {}, rows: {}, cells: {}, indexCol: false };
+  try {
+    lockState = getSheetLockState({ chatId, isolationKey: tableIsolation.getKey() }, sheetUid) || lockState;
+  } catch (_) { /* ignore */ }
+  const rowLocks = lockState?.rows || {};
+  const cellLocks = lockState?.cells || {};
+
   // v1.0.180：fromTemplate 状态显示提示
   const fromTemplateHint = _state.isFromTemplate
     ? `<div class="yyt-tde-schema-hint" style="margin-bottom:12px;">当前显示<b>模板默认结构</b>（slot 尚无数据）。直接添加行或编辑会创建 slot 数据；或工作台点"立即填表"让 AI 填。</div>`
@@ -667,17 +695,23 @@ function renderDataMode(table, tableIndex) {
 
   const cards = rows.map((row, ri) => {
     const cells = row?.cells || {};
+    const rowLocked = !!rowLocks[ri];
     const fieldsHtml = columns.map((col) => {
       const key = col?.key || '';
       const title = col?.title || key;
       const value = cells[key];
       const isEmpty = value === undefined || value === null || value === '';
       const display = isEmpty ? '（空）' : String(value);
+      const cellLockKey = `${ri}::${key}`;
+      const cellLocked = !!cellLocks[cellLockKey];
       return `
-        <div class="yyt-tde-field">
-          <div class="yyt-tde-field-label">${esc(title)}</div>
-          <div class="yyt-tde-field-cell ${isEmpty ? 'yyt-tde-field-cell--empty' : ''}"
-               contenteditable
+        <div class="yyt-tde-field${cellLocked ? ' yyt-tde-cell-locked' : ''}">
+          <div class="yyt-tde-field-label">
+            ${esc(title)}
+            <button class="yyt-tde-cell-lock-btn ${cellLocked ? 'yyt-tde-locked-btn' : ''}" data-action="cell-lock" data-sheet-uid="${esc(sheetUid)}" data-row-index="${ri}" data-col-key="${esc(key)}" title="${cellLocked ? '已锁定此单元格' : '锁定此单元格（AI 不会改）'}"><i class="fa-solid ${cellLocked ? 'fa-lock' : 'fa-unlock'}"></i></button>
+          </div>
+          <div class="yyt-tde-field-cell ${isEmpty ? 'yyt-tde-field-cell--empty' : ''}${cellLocked ? ' yyt-tde-cell-locked-bg' : ''}"
+               contenteditable="${cellLocked ? 'false' : 'true'}"
                data-row-index="${ri}"
                data-col-key="${esc(key)}">${esc(display)}</div>
         </div>
@@ -685,12 +719,13 @@ function renderDataMode(table, tableIndex) {
     }).join('');
 
     return `
-      <article class="yyt-tde-card" data-row-index="${ri}">
+      <article class="yyt-tde-card${rowLocked ? ' yyt-tde-row-locked' : ''}" data-row-index="${ri}">
         <header class="yyt-tde-card-header">
           <span class="yyt-tde-card-index">#${ri + 1}</span>
-          <input class="yyt-tde-card-name" value="${esc(row?.name || '')}" data-row-name-index="${ri}" placeholder="行名">
+          <input class="yyt-tde-card-name" value="${esc(row?.name || '')}" data-row-name-index="${ri}" placeholder="行名"${rowLocked ? ' readonly' : ''}>
           <div class="yyt-tde-card-actions">
-            <button class="yyt-tde-icon-btn danger" data-action="delete-row" data-row-index="${ri}" title="删除行"><i class="fa-regular fa-trash-can"></i></button>
+            <button class="yyt-tde-icon-btn ${rowLocked ? 'yyt-tde-locked-btn' : ''}" data-action="row-lock" data-sheet-uid="${esc(sheetUid)}" data-row-index="${ri}" title="${rowLocked ? '已锁定此行' : '锁定此行（AI 不会改）'}"><i class="fa-solid ${rowLocked ? 'fa-lock' : 'fa-unlock'}"></i></button>
+            <button class="yyt-tde-icon-btn danger" data-action="delete-row" data-row-index="${ri}" title="删除行"${rowLocked ? ' disabled' : ''}><i class="fa-regular fa-trash-can"></i></button>
           </div>
         </header>
         <div class="yyt-tde-card-body">${fieldsHtml || '<div style="padding:8px;color:var(--tde-text-muted);font-size:12px;">该表没有列定义</div>'}</div>
@@ -1126,6 +1161,50 @@ function bindEditorEvents($window) {
       refresh();
     } catch (err) {
       getLog().error('field-lock 异常', err);
+      showToast('error', `锁定失败：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.205 Task M1+：行锁 toggle（data mode 卡片头部锁按钮）
+  $window.on('click.tde', '[data-action="row-lock"]', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const sheetUid = $(this).attr('data-sheet-uid');
+    const rowIndex = Number($(this).attr('data-row-index'));
+    if (!sheetUid || !Number.isFinite(rowIndex)) return;
+    try {
+      const scope = { chatId: _state.targetSnapshot?.chatId || '', isolationKey: tableIsolation.getKey() };
+      const current = getSheetLockState(scope, sheetUid) || { rows: {} };
+      const isLocked = !!(current.rows && current.rows[rowIndex]);
+      setRowLock(scope, sheetUid, rowIndex, !isLocked);
+      showToast('success', isLocked ? `已解锁行 #${rowIndex + 1}` : `已锁定行 #${rowIndex + 1}（AI 不会改这行）`);
+      getLog().info('row-lock toggled', { sheetUid, rowIndex, locked: !isLocked });
+      refresh();
+    } catch (err) {
+      getLog().error('row-lock 异常', err);
+      showToast('error', `锁定失败：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.205 Task M1+：单元格锁 toggle
+  $window.on('click.tde', '[data-action="cell-lock"]', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const sheetUid = $(this).attr('data-sheet-uid');
+    const rowIndex = Number($(this).attr('data-row-index'));
+    const colKey = $(this).attr('data-col-key');
+    if (!sheetUid || !Number.isFinite(rowIndex) || !colKey) return;
+    try {
+      const scope = { chatId: _state.targetSnapshot?.chatId || '', isolationKey: tableIsolation.getKey() };
+      const current = getSheetLockState(scope, sheetUid) || { cells: {} };
+      const cellKey = `${rowIndex}::${colKey}`;
+      const isLocked = !!(current.cells && current.cells[cellKey]);
+      setCellLock(scope, sheetUid, rowIndex, colKey, !isLocked);
+      showToast('success', isLocked ? `已解锁 [${rowIndex}][${colKey}]` : `已锁定 [${rowIndex}][${colKey}]`);
+      getLog().info('cell-lock toggled', { sheetUid, rowIndex, colKey, locked: !isLocked });
+      refresh();
+    } catch (err) {
+      getLog().error('cell-lock 异常', err);
       showToast('error', `锁定失败：${err?.message || err}`);
     }
   });

@@ -29,7 +29,9 @@ import {
   restoreChatTemplateArchive,
   exportUserTemplates,
   applyTemplateAsChatOverride,
-  resetChatTemplateScope
+  resetChatTemplateScope,
+  linkPresetToChat,
+  getActiveGlobalTemplate
 } from '../../table-engine/table-template-service.js';
 import { TABLE_TEMPLATE_SCOPE_MODE } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
@@ -617,6 +619,17 @@ function buildBindingsHtml(state) {
         <span>${activeTemplate?.mode === 'inherit_global' ? '继承全局' : activeTemplate?.mode === 'chat_override' ? 'chat 覆盖' : activeTemplate?.mode === 'preset_link' ? '链接预设' : ''}</span>
       </div>
     </div>
+    <!-- v1.0.205 chat-template-UI: chat 级模板操作入口 -->
+    <div class="yyt-tww-row">
+      <div class="yyt-tww-row-label">
+        <span class="yyt-tww-row-label-text">chat 级模板</span>
+        <span class="yyt-tww-row-label-hint">本聊天独立的模板状态（独立 / 链接 / 继承）</span>
+      </div>
+      <div class="yyt-tww-ctrl" style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="yyt-tww-btn yyt-tww-btn-small" data-action="chat-template-override" title="把当前激活模板深拷贝一份做 chat 独立副本。后续修改不影响全局，操作前自动归档。"><i class="fa-solid fa-clone"></i> 设为 chat 专属</button>
+        <button class="yyt-tww-btn yyt-tww-btn-small" data-action="chat-template-link" title="把本 chat 链接到一个全局预设，跟随该预设更新。"><i class="fa-solid fa-link"></i> 链接到预设</button>
+      </div>
+    </div>
 
     <div class="yyt-tww-row">
       <div class="yyt-tww-row-label">
@@ -1153,6 +1166,60 @@ export function bindWorkbenchEvents($container, refresh) {
       }
     } catch (err) {
       getLog().error('reset-template-scope 异常', err);
+      showToast('error', `异常：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.205 chat-template-UI：把当前全局激活模板深拷贝为本 chat 的独立副本
+  $container.on('click.tww', '[data-action="chat-template-override"]', () => {
+    if (!window.confirm('把当前激活模板深拷贝为本 chat 的独立副本？\n之后修改不影响全局模板。操作前自动归档当前状态。')) return;
+    try {
+      const tpl = getActiveGlobalTemplate();
+      if (!tpl) {
+        showToast('error', '没有可用的全局激活模板');
+        return;
+      }
+      const result = applyTemplateAsChatOverride(tpl, { source: 'workbench-chat-override' });
+      if (result?.success) {
+        showToast('success', `已设为 chat 专属：${tpl.name}`);
+        getLog().info('chat-template-override 完成', { templateId: tpl.id, name: tpl.name });
+        if (typeof refresh === 'function') refresh();
+      } else {
+        showToast('error', `设置失败：${result?.error || '未知'}`);
+      }
+    } catch (err) {
+      getLog().error('chat-template-override 异常', err);
+      showToast('error', `异常：${err?.message || err}`);
+    }
+  });
+
+  // v1.0.205 chat-template-UI：链接本 chat 到全局预设
+  $container.on('click.tww', '[data-action="chat-template-link"]', () => {
+    const allTpls = (() => { try { return getAllTableTemplates() || []; } catch (_) { return []; } })();
+    if (allTpls.length === 0) {
+      showToast('info', '没有可用的模板');
+      return;
+    }
+    const names = allTpls.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
+    const choice = window.prompt(`链接到哪个全局预设？输入编号（1-${allTpls.length}）：\n\n${names}`, '1');
+    if (!choice) return;
+    const idx = parseInt(choice, 10) - 1;
+    if (!Number.isFinite(idx) || idx < 0 || idx >= allTpls.length) {
+      showToast('error', '编号无效');
+      return;
+    }
+    const target = allTpls[idx];
+    try {
+      const result = linkPresetToChat(target.name, { source: 'workbench-link-preset' });
+      if (result?.success) {
+        showToast('success', `已链接到预设：${target.name}`);
+        getLog().info('chat-template-link 完成', { presetName: target.name });
+        if (typeof refresh === 'function') refresh();
+      } else {
+        showToast('error', `链接失败：${result?.error || '未知'}`);
+      }
+    } catch (err) {
+      getLog().error('chat-template-link 异常', err);
       showToast('error', `异常：${err?.message || err}`);
     }
   });

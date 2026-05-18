@@ -9,6 +9,44 @@
 
 ## [Unreleased]
 
+## [1.0.205] - 2026-05-19
+
+### 收尾批次：剩余 v1.1+ 任务全部完成
+
+**L3 表级 API 预设覆盖接入**：
+- `buildRequest` 检查 scopeTables 的所有 enabled 表如果都设了相同 `updateConfig.apiPreset`，临时覆盖全局
+- `sendRequest` 优先读 `config._effectiveApiPreset`
+- 使用场景：角色表用 Claude、纪要表用 GPT（per-table AI 模型）
+
+**G2+ per-table updateFrequency=N 精细调度**：
+- 新建 `modules/table-engine/table-auto-schedule-service.js`
+- storage namespace `tableAutoSchedule` 跟踪 `${chatId}::${isolationKey}::${sheetUid}` 的 lastUpdatedMessageIndex
+- `buildAutoSchedulePlan`: freq -1/未设=每轮 / 0=永不 / N≥1=每 N 条消息
+- writeback 后 `recordTablesUpdated` 更新跟踪状态
+
+**chat 级模板 UI 触发入口**：
+- 工作台「填表模板」row 下新增「chat 级模板」row
+- 「设为 chat 专属」按钮 → applyTemplateAsChatOverride（深拷贝 + 自动归档）
+- 「链接到预设」按钮 → linkPresetToChat（prompt 选编号）
+- 让 v1.0.193 归档 UI 真正能产生数据
+
+**M1+ 完整 4 级锁 UI**：
+- data mode 卡片 header 加行锁按钮（setRowLock）
+- 每个 field label 加单元格锁按钮（setCellLock）
+- 视觉反馈：黄色边框 + readonly 输入 + contenteditable=false
+
+## [1.0.204] - 2026-05-19
+
+### 修复
+
+- **save-chat 后 reload 被全局模板覆盖**：v1.0.203 加的 `_afterSaveGlobalAt` 5 分钟窗口没考虑 save-chat 后清窗口
+
+## [1.0.203] - 2026-05-19
+
+### 修复
+
+- **save-global 后 reload 看不到改动**：save-global 改全局模板但 slot 独立，reload 读 slot 看不到。修复：5 分钟窗口期内 reload 优先读模板 + 立刻同步 result.template.tables 回 tempData
+
 ## [1.0.202] - 2026-05-18
 
 ### 修复

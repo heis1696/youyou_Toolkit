@@ -75,6 +75,8 @@ import { resolveActiveTemplate } from './table-template-service.js';
 import { buildSelectedWorldbookContent } from '../tool-worldbook-service.js';
 import { extractTagContent, getTagRules, getContentBlacklist } from '../regex-extractor.js';
 import regexPresetStore from '../regex-preset-store.js';
+import { buildAutoSchedulePlan, recordTablesUpdated } from './table-auto-schedule-service.js';
+import { tableIsolation } from './table-isolation-service.js';
 
 function getLog() {
   return logger.createScope('TableUpdate');
@@ -628,6 +630,27 @@ export async function buildRequest({ executionContext, targetSnapshot, loadResul
     throw new Error('填表请求消息构建失败。');
   }
 
+  // v1.0.205 Task L3：per-table API 预设覆盖
+  //   如果本次 run 涉及的所有 enabled 表都设了相同的 updateConfig.apiPreset，用它覆盖全局
+  //   否则用 normalizedConfig.apiPreset（全局）
+  let effectiveApiPreset = normalizedConfig.apiPreset || '';
+  try {
+    const activeTablesForRun = Array.isArray(requestPayload?.tables) ? requestPayload.tables : [];
+    const tablePresets = activeTablesForRun
+      .filter((t) => t?.scopeEditable !== false)
+      .map((t) => normalizeString(t?.updateConfig?.apiPreset, ''))
+      .filter(Boolean);
+    if (tablePresets.length > 0 && tablePresets.every((p) => p === tablePresets[0])) {
+      effectiveApiPreset = tablePresets[0];
+      getLog().info('L3: 表级 API 预设生效', {
+        preset: effectiveApiPreset,
+        affectedTables: activeTablesForRun.filter((t) => t?.scopeEditable !== false).map((t) => t?.name || t?.id)
+      });
+    }
+  } catch (err) {
+    getLog().warn('L3 表级 API 预设解析失败，用全局', err);
+  }
+
   return {
     toolConfig,
     context,
@@ -635,13 +658,15 @@ export async function buildRequest({ executionContext, targetSnapshot, loadResul
     promptText,
     messages,
     fillMode: isIncremental ? 'incremental' : 'full',
+    effectiveApiPreset,  // v1.0.205 L3
     runScope: typeof runScope?.toJSON === 'function' ? runScope.toJSON() : null
   };
 }
 
 export async function sendRequest(messages, config = {}, abortSignal = null) {
   const normalizedConfig = normalizeTableWorkbenchConfig(config);
-  const presetName = normalizeString(normalizedConfig.apiPreset, '');
+  // v1.0.205 L3：如果 config 上有 _effectiveApiPreset（来自 buildRequest），优先用
+  const presetName = normalizeString(config?._effectiveApiPreset || normalizedConfig.apiPreset, '');
 
   if (presetName) {
     if (!hasEffectiveApiPreset(presetName)) {
@@ -846,20 +871,33 @@ async function runTableUpdate({
         const userOverride = tid && Object.prototype.hasOwnProperty.call(overrides, tid)
           ? overrides[tid]
           : undefined;
-        let enabled = userOverride !== undefined ? userOverride : (t.enabled !== false);
-        // v1.0.201 Task G2：自动填表时，per-table updateConfig.updateFrequency === 0
-        //   表示永不自动填，临时禁用（手动填表不受影响）
-        if (isAutoRun && enabled) {
-          const freq = t?.updateConfig?.updateFrequency;
-          if (Number.isFinite(freq) && freq === 0) {
-            enabled = false;
-          }
-        }
+        const enabled = userOverride !== undefined ? userOverride : (t.enabled !== false);
         return {
           ...t,
           enabled
         };
       });
+
+      // v1.0.205 Task G2+：自动填表时按 per-table updateFrequency 调度
+      //   freq=0 → 跳过；freq=N → 检查 lastUpdated，每 N 条消息触发一次；其它 → 每轮触发
+      if (isAutoRun) {
+        const currentMessageIndex = Number.isFinite(targetSnapshot?.targetMessageIndex)
+          ? targetSnapshot.targetMessageIndex
+          : -1;
+        const plan = buildAutoSchedulePlan({
+          chatId: targetSnapshot?.chatId || '',
+          isolationKey: tableIsolation.getKey ? tableIsolation.getKey() : '',
+          currentMessageIndex,
+          scopeTables
+        });
+        scopeTables = scopeTables.map((t) => {
+          const uid = t?.id || t?.uid || '';
+          if (uid && !plan.shouldUpdate.has(uid)) {
+            return { ...t, enabled: false };
+          }
+          return t;
+        });
+      }
       const disabledList = scopeTables.filter((t) => t.enabled === false).map((t) => t?.name || t?.id);
       if (disabledList.length > 0) {
         getLog().info('scopeTables: 用户禁用了部分表', {
@@ -1060,7 +1098,7 @@ async function runTableUpdate({
       }
       try {
         responseText = await provider.sendRequest({ sendRequest }, request, {
-          config,
+          config: { ...config, _effectiveApiPreset: request?.effectiveApiPreset || '' },
           abortSignal
         });
         getLog().info('API 响应已收到', { attempt, responseLength: responseText?.length || 0 });
@@ -1208,6 +1246,28 @@ async function runTableUpdate({
 
     if (!writeback?.success) {
       throw new Error(writeback?.error || '结构化写回失败');
+    }
+
+    // v1.0.205 Task G2+：writeback 成功后记录 lastUpdated（仅自动填表）
+    if (isAutoRun) {
+      try {
+        const currentMessageIndex = Number.isFinite(targetSnapshot?.targetMessageIndex)
+          ? targetSnapshot.targetMessageIndex
+          : -1;
+        const updatedUids = scopeTables
+          .filter((t) => t?.enabled !== false && (t?.id || t?.uid))
+          .map((t) => t.id || t.uid);
+        if (updatedUids.length > 0 && currentMessageIndex >= 0) {
+          recordTablesUpdated(
+            targetSnapshot?.chatId || '',
+            tableIsolation.getKey ? tableIsolation.getKey() : '',
+            updatedUids,
+            currentMessageIndex
+          );
+        }
+      } catch (err) {
+        getLog().warn('recordTablesUpdated 失败（不影响主流程）', err);
+      }
     }
 
     const durationMs = Date.now() - startedAt;
