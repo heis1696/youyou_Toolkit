@@ -455,6 +455,16 @@ export function applyIncrementalEdits(tables, edits, locks, runScope = null) {
           keyResolveStats[source] = (keyResolveStats[source] || 0) + 1;
         }
       }
+      // v1.0.192：诊断 — AI 返回了 insertRow 但 data 为空（parser fallback / 数据丢失）
+      const cellCount = Object.keys(newRow.cells).length;
+      if (cellCount === 0 && !newRow.name) {
+        getLog().warn('applyIncrementalEdits: 插入空行（data 解析为空）', {
+          tableIndex: ti,
+          tableName: table.name,
+          editDataKeys: edit.data ? Object.keys(edit.data) : [],
+          editDataPreview: JSON.stringify(edit.data || {}).slice(0, 200)
+        });
+      }
       table.rows.push(newRow);
       continue;
     }
@@ -758,17 +768,36 @@ async function runTableUpdate({
 
   const runtime = config.runtime || {};
 
-  // 议题 #15 Bug #33-C：runScope 必须基于「激活模板的 tables」而不是 config.tables。
-  //   config.tables 是工作台旧配置快照，切换激活模板后不会同步；
-  //   而 previousTables / loadBoundStateOrTemplate 已经基于激活模板。
-  //   两者用不同表 id 集合 → runScope.includes 全 false → filterIncrementalEditsByScope
-  //   把所有 edits 都 droppedByScope，最终 rows: [] 写回。
+  // 议题 #15 #33-I (v1.0.192)：合并 config.tableEnabledOverrides 到激活模板
+  //   UI toggle 关闭一张表后，状态保存到 config.tableEnabledOverrides[tableId]，
+  //   独立于 config.tables（后者不跟激活模板同步）。
+  //   主链合并：用户 toggle 优先于激活模板默认值，确保 disabled 表全链路被排除
+  //   （runScope filter / buildScopedRequestTables / worldbook-sync 都看 scopeTables.enabled）。
   let scopeTables = Array.isArray(config.tables) ? config.tables : [];
   try {
     const activeTpl = resolveActiveTemplate({});
     const activeTables = activeTpl?.template?.tables;
     if (Array.isArray(activeTables) && activeTables.length > 0) {
-      scopeTables = activeTables;
+      const overrides = (config.tableEnabledOverrides && typeof config.tableEnabledOverrides === 'object')
+        ? config.tableEnabledOverrides
+        : {};
+      scopeTables = activeTables.map((t) => {
+        const tid = t?.id;
+        const userOverride = tid && Object.prototype.hasOwnProperty.call(overrides, tid)
+          ? overrides[tid]
+          : undefined;
+        return {
+          ...t,
+          enabled: userOverride !== undefined ? userOverride : (t.enabled !== false)
+        };
+      });
+      const disabledList = scopeTables.filter((t) => t.enabled === false).map((t) => t?.name || t?.id);
+      if (disabledList.length > 0) {
+        getLog().info('scopeTables: 用户禁用了部分表', {
+          disabledCount: disabledList.length,
+          disabledNames: disabledList
+        });
+      }
     }
   } catch (_) { /* fall back to config.tables */ }
 

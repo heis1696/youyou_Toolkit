@@ -752,19 +752,20 @@ export function loadWorkbenchState() {
   } catch (_) { /* fallback to template */ }
 
   const previewSource = slotTables || activeTemplate?.template?.tables || config?.tables || [];
-  // 议题 #15 #33-H：单表 enabled 状态从 config.tables 取（持久化），fallback 到模板的 enabled
-  const configTablesById = new Map();
-  if (Array.isArray(config?.tables)) {
-    for (const ct of config.tables) {
-      if (ct?.id) configTablesById.set(ct.id, ct);
-    }
-  }
+  // 议题 #15 #33-H/I：enabled 状态独立到 config.tableEnabledOverrides
+  //   不依赖 config.tables 是否包含该表（切换模板时 config.tables 不同步）
+  const overrides = (config?.tableEnabledOverrides && typeof config.tableEnabledOverrides === 'object')
+    ? config.tableEnabledOverrides
+    : {};
   const tablesPreview = previewSource.map((t) => {
-    const persisted = t?.id ? configTablesById.get(t.id) : null;
+    const tid = t?.id || '';
+    const userOverride = tid && Object.prototype.hasOwnProperty.call(overrides, tid)
+      ? overrides[tid]
+      : undefined;
     return {
-      id: t?.id || '',
+      id: tid,
       name: t?.name || '',
-      enabled: persisted?.enabled !== undefined ? persisted.enabled !== false : (t?.enabled !== false),
+      enabled: userOverride !== undefined ? userOverride : (t?.enabled !== false),
       rowCount: Array.isArray(t?.rows) ? t.rows.length : 0,
       colCount: Array.isArray(t?.columns) ? t.columns.length : 0,
       updatedHint: slotTables && slotUpdatedAt > 0 ? fmtTime(slotUpdatedAt) : ''
@@ -995,7 +996,9 @@ export function bindWorkbenchEvents($container, refresh) {
     }
   });
 
-  // v1.0.190 #33-H：单表激活/禁用 toggle
+  // v1.0.190 #33-H + v1.0.192 #33-I：单表激活/禁用 toggle
+  //   状态存 config.tableEnabledOverrides = { [tableId]: boolean }（不依赖 config.tables，
+  //   因为切换激活模板时 config.tables 不同步，会找不到 id）
   $container.on('change.tww', '[data-action="toggle-table-enabled"]', function (e) {
     e.stopPropagation();
     const tableId = $(this).attr('data-table-id');
@@ -1003,15 +1006,10 @@ export function bindWorkbenchEvents($container, refresh) {
     if (!tableId) return;
     try {
       const config = getTableWorkbenchConfig();
-      const tables = Array.isArray(config.tables) ? config.tables : [];
-      const idx = tables.findIndex((t) => t?.id === tableId);
-      if (idx < 0) {
-        showToast('error', `未找到表 ${tableId}`);
-        return;
-      }
-      const nextTables = tables.map((t, i) => i === idx ? { ...t, enabled } : t);
-      saveTableWorkbenchConfig({ ...config, tables: nextTables });
-      showToast('success', enabled ? `已启用 ${tables[idx].name || tableId}` : `已禁用 ${tables[idx].name || tableId}`);
+      const overrides = { ...(config.tableEnabledOverrides || {}) };
+      overrides[tableId] = enabled;
+      saveTableWorkbenchConfig({ ...config, tableEnabledOverrides: overrides });
+      showToast('success', enabled ? `已启用 ${tableId}` : `已禁用 ${tableId}`);
       getLog().info('toggle 单表激活', { tableId, enabled });
       if (typeof refresh === 'function') refresh();
     } catch (err) {

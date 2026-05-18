@@ -904,6 +904,7 @@ export function getTableWorkbenchDefaultConfig() {
       wrapperHint: '以下是在这个时间点，当前场景下剧情相关的最新数据与记录，你在进行剧情分析时必须以此最新的数据为准，以下数据与记录的优先级高于其他任何背景设定：',
       wrapperPlacement: { position: 'before_character_definition', depth: 2, order: 0 }
     },
+    tableEnabledOverrides: {},
     runtime: normalizeRuntime()
   };
 }
@@ -997,6 +998,10 @@ export function normalizeTableWorkbenchConfig(value = {}) {
         order: Number.isFinite(Number(nextValue.wrapperConfig?.wrapperPlacement?.order)) ? Math.floor(Number(nextValue.wrapperConfig?.wrapperPlacement?.order)) : defaults.wrapperConfig.wrapperPlacement.order
       }
     },
+    // v1.0.192 #33-I：单表激活/禁用 override，独立于 config.tables（后者不跟激活模板同步）
+    tableEnabledOverrides: (nextValue.tableEnabledOverrides && typeof nextValue.tableEnabledOverrides === 'object' && !Array.isArray(nextValue.tableEnabledOverrides))
+      ? Object.fromEntries(Object.entries(nextValue.tableEnabledOverrides).filter(([k, v]) => typeof k === 'string' && k && typeof v === 'boolean'))
+      : {},
     runtime: normalizeRuntime({
       ...defaults.runtime,
       ...(nextValue.runtime || {})

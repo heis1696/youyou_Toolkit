@@ -459,6 +459,7 @@ function parseIncrementalEdits(text) {
   if (!blocks.length) return null;
 
   const edits = [];
+  const failedLines = [];
   for (const block of blocks) {
     const stripped = block.replace(/<!--|-->/g, '').trim();
     if (!stripped) continue;
@@ -466,8 +467,20 @@ function parseIncrementalEdits(text) {
     for (const line of lines) {
       const parsed = parseCommandLine(line);
       const edit = normalizeCommandToEdit(parsed);
-      if (edit) edits.push(edit);
+      if (edit) {
+        edits.push(edit);
+      } else if (line && /^(insertRow|updateRow|deleteRow)/.test(line)) {
+        // v1.0.192：记录解析失败的行（疑似 AI 给的指令但解析失败 → 后续会以空行写入）
+        failedLines.push(line.slice(0, 200));
+      }
     }
+  }
+
+  // 通过 console.warn 直接 surface（不依赖 logger 因为 sanitizer 是纯函数模块）
+  if (failedLines.length > 0) {
+    try {
+      console.warn('[TableJsonSanitizer] parseIncrementalEdits: %d 条指令解析失败', failedLines.length, failedLines);
+    } catch (_) {}
   }
   return edits.length ? edits : null;
 }
