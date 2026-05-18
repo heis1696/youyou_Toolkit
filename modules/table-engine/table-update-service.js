@@ -710,6 +710,13 @@ async function runTableUpdate({
   } catch (_) { /* fall back to config.tables */ }
 
   const runScope = resolveTableRunScope(config.scope || config, scopeTables);
+  getLog().info('runScope 已解析', {
+    mode: runScope.mode,
+    scopeTablesCount: Array.isArray(scopeTables) ? scopeTables.length : 0,
+    allowedTableIds: runScope.allowedTableIds,
+    allTableIds: runScope.allTableIds,
+    scopeTablesEnabled: Array.isArray(scopeTables) ? scopeTables.map((t) => ({ id: t?.id, name: t?.name, enabled: t?.enabled })) : []
+  });
   if ((runScope.mode === 'current' || runScope.mode === 'selected') && runScope.allowedTableIds.length === 0) {
     const scopeError = runScope.mode === 'current' ? '未指定当前表格，无法执行。' : '未选择任何表格，无法执行。';
     getLog().warn(scopeError, { mode: runScope.mode });
