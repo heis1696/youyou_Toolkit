@@ -85,6 +85,31 @@ function pinWorkbenchHeight($container) {
   tabContent.__yytwwROTarget = yyContent;
 }
 
+/**
+ * v1.0.209 #3 修复（最终方案）：hero 已物理提到 .yyt-tww-scroll 同级（不在滚动区内），
+ * 不会被滚走。这里监听 .yyt-tww-scroll 的 scrollTop，> 0 时给 hero 加 compact class
+ * 压缩 padding 并隐藏 desc/chips；= 0 时恢复完整 hero。
+ *
+ * refresh 时 .yyt-tww-scroll 是新元素，listener 随旧 DOM 自动 GC，每次重新 attach。
+ */
+function setupScrollCompact($container) {
+  const tabContent = $container?.[0];
+  if (!tabContent) return;
+  const hero = tabContent.querySelector('.yyt-tww-hero');
+  const scroll = tabContent.querySelector('.yyt-tww-scroll');
+  if (!hero || !scroll) return;
+
+  const onScroll = () => {
+    if (scroll.scrollTop > 0) {
+      hero.classList.add('yyt-tww-hero--compact');
+    } else {
+      hero.classList.remove('yyt-tww-hero--compact');
+    }
+  };
+  onScroll();
+  scroll.addEventListener('scroll', onScroll, { passive: true });
+}
+
 export const TableWorkbenchPanel = {
   id: 'tableWorkbenchPanel',
 
@@ -111,6 +136,7 @@ export const TableWorkbenchPanel = {
         // 重新 bind events（off + on 在 bindWorkbenchEvents 内做）
         bindWorkbenchEvents($container, refresh);
         pinWorkbenchHeight($container);
+        setupScrollCompact($container);
       } catch (err) {
         log.error('refresh 异常', err);
       }
@@ -118,6 +144,7 @@ export const TableWorkbenchPanel = {
 
     bindWorkbenchEvents($container, refresh);
     pinWorkbenchHeight($container);
+    setupScrollCompact($container);
   },
 
   /**

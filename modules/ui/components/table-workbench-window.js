@@ -163,22 +163,34 @@ export const WORKBENCH_VIEW_STYLES = `
 
   display: flex; flex-direction: column;
   /* 议题 #15 hotfix v1.0.173：父容器（popup yyt-content）已是深色，本容器透明继承避免边界错位
-     v1.0.208 #3 修复：CSS height chain 在宿主环境不可靠（.yyt-tab-content height:100% 解析失败
-     导致内容溢出到外层 .yyt-content）。改为本容器自己作滚动容器 + JS ResizeObserver 强制 height，
-     hero sticky 锚到本容器内即可生效。*/
-  overflow-y: auto;
+     v1.0.209 #3 修复：hero 独立提到 .yyt-tww 直接子层级，与 .yyt-tww-scroll 滚动区同级；
+     hero 物理上不在滚动区内 → 不会被滚走。.yyt-tww 自身 overflow:hidden 防整体溢出，
+     滚动由 .yyt-tww-scroll 接管，配合 pinWorkbenchHeight 固定 .yyt-tww 总高度。*/
+  overflow: hidden;
   background: transparent; color: var(--tww-text);
   font-size: 13px; line-height: 1.5;
 }
 .yyt-tww-hero {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   flex-shrink: 0;
   padding: 14px 18px;
   border-bottom: 1px solid var(--tww-hairline);
   background: var(--tww-surface-1);
   display: flex; flex-direction: column; gap: 8px;
+  transition: padding 0.18s ease, gap 0.18s ease;
+}
+.yyt-tww-hero.yyt-tww-hero--compact {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  gap: 0;
+}
+.yyt-tww-hero.yyt-tww-hero--compact .yyt-tww-hero-desc,
+.yyt-tww-hero.yyt-tww-hero--compact .yyt-tww-hero-chips {
+  display: none;
+}
+.yyt-tww-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .yyt-tww-hero-row1 { display: flex; align-items: center; gap: 12px; }
 .yyt-tww-hero-icon {
@@ -523,6 +535,10 @@ export function renderWorkbenchHtml(state) {
       </div>
     </div>
 
+    <!-- v1.0.209 #3 修复：hero 提到滚动区外面（同 .yyt-tww 直接子），下面所有内容包进 .yyt-tww-scroll 单一滚动容器。
+         hero 物理上就不在滚动区内 → 不会被滚走。JS 监听 scrollTop > 0 切换 compact 态压缩 hero。 -->
+    <div class="yyt-tww-scroll">
+
     <!-- 模板归档列表（默认隐藏，hero 按钮 toggle） -->
     <div class="yyt-tww-archives" data-archives-panel style="display:none;">
       ${buildArchivesHtml(templateArchives)}
@@ -577,6 +593,8 @@ export function renderWorkbenchHtml(state) {
         </div>
         ${buildTablesOverviewHtml(state.tablesPreview)}
       </section>
+
+    </div>
 
     </div>
   </div>

@@ -167,7 +167,12 @@
       "Bash(sed -i \"290s/extractTags: \\\\['youyou'\\\\]/extractTags: []/\" modules/tool-registry.js)",
       "Bash(grep -C10 -n \"saveToolConfig\\(toolId, { ...cur, extraction: patch\" modules/ui/components/tool-config-panel-factory.js)",
       "Bash(grep -o \"YYT_PRESET_DEBUG[^,]\\\\{0,80\\\\}\" dist/bundle.js)",
-      "Bash(xargs grep -l \"parseResponse\\\\|parseEdit\\\\|sanitize\\\\|tableEdit\\\\|insertRow\\\\|updateRow\\\\|deleteRow\")"
+      "Bash(xargs grep -l \"parseResponse\\\\|parseEdit\\\\|sanitize\\\\|tableEdit\\\\|insertRow\\\\|updateRow\\\\|deleteRow\")",
+      "Bash(awk NR>=466 && NR<=620 *)",
+      "Bash(awk NR>=300 && NR<=360 *)",
+      "Bash(awk NR>=690 && NR<=790 *)",
+      "Bash(awk NR>=60 && NR<=125 *)",
+      "Bash(awk NR>=355 && NR<=440 *)"
     ]
   },
   "spinnerTipsEnabled": false,
