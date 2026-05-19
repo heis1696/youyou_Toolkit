@@ -94,7 +94,8 @@ export function getLastWorldbookDiagnostics() {
   return lastWorldbookDiagnostics ? { ...lastWorldbookDiagnostics } : null;
 }
 
-async function resolveCharacterWorldbooks(helper) {
+export async function resolveCharacterWorldbooks(helper) {
+  if (!helper) helper = getTavernHelper();
   if (!helper || typeof helper.getCharLorebooks !== 'function') {
     return [];
   }

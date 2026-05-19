@@ -19,7 +19,8 @@ import {
 } from './controls/index.js';
 
 import store, { BINDING_MODES } from '../../worldbook-preset-store.js';
-import { getAvailableWorldbooks, getCachedAvailableWorldbooks, getEntriesForBook } from '../../tool-worldbook-service.js';
+import { getAvailableWorldbooks, getCachedAvailableWorldbooks, getEntriesForBook, resolveCharacterWorldbooks } from '../../tool-worldbook-service.js';
+import { hostEvents, HOST_EVENTS } from '../../core/host-event-service.js';
 import { dialog } from './controls/dialog.js';
 import { logger } from '../../core/logger-service.js';
 import { createPresetManagerPanel } from './preset-manager-base.js';
@@ -188,7 +189,6 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
 
   // 选中的世界书
   const isCharacterMode = preset.bindingMode === BINDING_MODES.CHARACTER_CARD;
-  const availableBooks = getCachedAvailableWorldbooks();
 
   const bookListWrapper = el('div', { style: { display: 'flex', flexDirection: 'column' } });
 
@@ -202,7 +202,7 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
     }),
     el('div', {
       text: isCharacterMode
-        ? '以下来自当前角色卡的世界书将被注入；可单独关闭某本（不影响其他工具）'
+        ? '以下来自当前角色卡的世界书将被自动注入，列表随角色卡变动自动更新'
         : '本预设固定注入下列世界书；点击"+ 添加"从可用列表多选',
       style: { fontSize: '11px', color: 'var(--yyt-text-muted)', lineHeight: '1.5' }
     })
@@ -216,43 +216,71 @@ function renderEditor(preset, { onChange, readonly, refresh }) {
       onClick: () => openAddBooksDialog(preset, refresh)
     }).el);
   }
-  headerActions.appendChild(button({
-    label: '🔄 刷新',
-    size: 'small',
-    variant: 'ghost',
-    onClick: async () => {
-      try { await getAvailableWorldbooks(); } catch (e) { log.warn('刷新失败', { e }); }
-      refresh && refresh();
-    }
-  }).el);
+  if (!isCharacterMode) {
+    headerActions.appendChild(button({
+      label: '🔄 刷新',
+      size: 'small',
+      variant: 'ghost',
+      onClick: async () => {
+        try { await getAvailableWorldbooks(); } catch (e) { log.warn('刷新失败', { e }); }
+        refresh && refresh();
+      }
+    }).el);
+  }
   headerRow.appendChild(headerActions);
 
   appendChild(bookListWrapper, headerRow);
 
   let rows = [];
   if (isCharacterMode) {
-    if (!availableBooks.length) {
-      rows = [el('div', {
-        style: { padding: '14px 0', color: 'var(--yyt-text-muted)', fontSize: '12px' },
-        text: '当前角色卡未绑定世界书 — 切换到"自定义"可以手动选择任意世界书。'
-      })];
-    } else {
-      rows = availableBooks.map((bookName) => {
-        const existing = preset.bookList.find((b) => b.bookName === bookName);
-        const enabled = existing ? existing.enabled !== false : true;
-        return listRow({
-          name: bookName,
-          desc: enabled ? '已启用 · 整本注入' : '已禁用',
-          actions: [
-            toggle({
-              checked: enabled,
-              disabled: readonly,
-              onChange: (v) => toggleBookInPreset(preset, bookName, v)
+    const charBookListEl = el('div', {
+      style: { display: 'flex', flexDirection: 'column', gap: '4px' }
+    });
+    charBookListEl.appendChild(el('div', {
+      text: '正在获取角色卡绑定的世界书…',
+      style: { padding: '14px 0', color: 'var(--yyt-text-muted)', fontSize: '12px' }
+    }));
+
+    resolveCharacterWorldbooks().then((charBooks) => {
+      charBookListEl.innerHTML = '';
+      if (!charBooks.length) {
+        charBookListEl.appendChild(el('div', {
+          style: { padding: '14px 0', color: 'var(--yyt-text-muted)', fontSize: '12px' },
+          text: '当前角色卡未绑定世界书 — 切换到"自定义"可以手动选择任意世界书。'
+        }));
+      } else {
+        for (const bookName of charBooks) {
+          charBookListEl.appendChild(el('div', {
+            style: {
+              padding: '8px 10px',
+              borderRadius: 'var(--yyt-radius-sm, 6px)',
+              background: 'var(--yyt-surface-2, rgba(255,255,255,0.03))',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              opacity: '0.7'
+            }
+          },
+            el('span', { text: '📖', style: { fontSize: '11px' } }),
+            el('span', { text: bookName, style: { flex: '1', color: 'var(--yyt-text)' } }),
+            el('span', {
+              text: '随角色卡注入',
+              style: { fontSize: '11px', color: 'var(--yyt-text-muted)' }
             })
-          ]
-        });
-      });
-    }
+          ));
+        }
+      }
+    }).catch((err) => {
+      log.warn('获取角色卡世界书失败', err);
+      charBookListEl.innerHTML = '';
+      charBookListEl.appendChild(el('div', {
+        style: { padding: '14px 0', color: 'var(--yyt-danger, #f87171)', fontSize: '12px' },
+        text: '获取角色卡世界书失败'
+      }));
+    });
+
+    rows = [charBookListEl];
   } else if (!preset.bookList.length) {
     rows = [el('div', {
       style: { padding: '14px 0', color: 'var(--yyt-text-muted)', fontSize: '12px' },
@@ -526,6 +554,21 @@ export const WorldbookPresetPanel = createPresetManagerPanel({
   store,
   renderEditor,
   renderListItemMeta
+});
+
+// character_card 模式下，聊天/角色卡切换时自动刷新世界书列表
+let _lastContainer = null;
+const _baseRenderTo = WorldbookPresetPanel.renderTo;
+WorldbookPresetPanel.renderTo = function ($container) {
+  _lastContainer = $container;
+  _baseRenderTo.call(this, $container);
+};
+
+hostEvents.subscribe(HOST_EVENTS.CHAT_CHANGED, () => {
+  if (!_lastContainer) return;
+  const current = store.getCurrentPreset();
+  if (!current || current.bindingMode !== BINDING_MODES.CHARACTER_CARD) return;
+  _baseRenderTo.call(WorldbookPresetPanel, _lastContainer);
 });
 
 export default WorldbookPresetPanel;
