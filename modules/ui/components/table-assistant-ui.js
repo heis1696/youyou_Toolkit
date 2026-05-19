@@ -487,14 +487,15 @@ export function getAssistantPanelStyles() {
     .yyt-assistant-panel {
       border: 1px solid var(--tww-hairline-strong);
       border-radius: 8px;
-      background: var(--tww-surface-1);
+      background: var(--tww-canvas);
       color: var(--tww-text);
       overflow: hidden;
     }
     .yyt-assistant-header {
       display: flex; justify-content: space-between; align-items: center;
       padding: 10px 12px;
-      border-bottom: 1px solid var(--tww-hairline);
+      background: var(--tww-surface-2);
+      border-bottom: 1px solid var(--tww-hairline-strong);
     }
     .yyt-assistant-hint { font-size: 12px; color: var(--tww-text-muted); margin-top: 2px; }
     .yyt-assistant-chat {
@@ -514,8 +515,8 @@ export function getAssistantPanelStyles() {
     }
     .yyt-assistant-bubble-ai {
       align-self: flex-start;
-      background: var(--tww-surface-2);
-      border: 1px solid var(--tww-hairline);
+      background: var(--tww-surface-3);
+      border: 1px solid var(--tww-hairline-strong);
     }
     .yyt-assistant-bubble-error {
       align-self: flex-start;
@@ -532,8 +533,8 @@ export function getAssistantPanelStyles() {
     .yyt-assistant-detail {
       font-size: 12px; line-height: 1.5; margin-top: 6px;
       padding: 8px; border-radius: 6px;
-      background: var(--tww-canvas);
-      border: 1px solid var(--tww-hairline);
+      background: var(--tww-surface-1);
+      border: 1px solid var(--tww-hairline-strong);
     }
     .yyt-assistant-detail ul { margin: 4px 0; padding-left: 16px; }
     .yyt-assistant-detail li { margin: 2px 0; }
@@ -548,8 +549,8 @@ export function getAssistantPanelStyles() {
     .yyt-assistant-apply-btn { margin-top: 8px; }
     .yyt-assistant-footer {
       padding: 10px 12px;
-      border-top: 1px solid var(--tww-hairline);
-      background: var(--tww-surface-1);
+      border-top: 1px solid var(--tww-hairline-strong);
+      background: var(--tww-surface-2);
     }
     .yyt-assistant-controls {
       display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
@@ -558,8 +559,8 @@ export function getAssistantPanelStyles() {
     #yyt-assistant-host .yyt-assistant-input,
     #yyt-assistant-host .yyt-assistant-select,
     #yyt-assistant-host .yyt-assistant-textarea {
-      background-color: var(--tww-surface-2) !important;
-      background: var(--tww-surface-2) !important;
+      background-color: var(--tww-surface-1) !important;
+      background: var(--tww-surface-1) !important;
       border: 1px solid var(--tww-hairline-strong) !important;
       color: var(--tww-text) !important;
       -webkit-text-fill-color: var(--tww-text) !important;
