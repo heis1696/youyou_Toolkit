@@ -22,6 +22,7 @@
  */
 
 import { createWindow, closeWindow, windowManager } from '../../window-manager.js';
+import { getTargetDocument } from '../../ui/utils.js';
 import { logger } from '../../core/logger-service.js';
 import {
   getAssistantTableSnapshot,
@@ -1583,7 +1584,7 @@ export function openTableDataEditor(options = {}) {
     getLog().warn('saved state sanity check 异常', err);
   }
 
-  if (_state.$window && _state.$window.length && document.body.contains(_state.$window[0])) {
+  if (_state.$window && _state.$window.length && getTargetDocument().body.contains(_state.$window[0])) {
     if (options.focusTableUid) {
       const tables = _state.tempData || [];
       const idx = tables.findIndex((t) => (t?.uid || t?.id) === options.focusTableUid);

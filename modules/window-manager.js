@@ -148,12 +148,7 @@ function injectWindowStyles() {
       z-index: 9999;
       animation: yytWindowFadeIn 0.2s ease-out;
     }
-    
-    @keyframes yytWindowFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
+
     .yyt-window {
       position: fixed;
       display: flex;
@@ -175,18 +170,7 @@ function injectWindowStyles() {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
       color: rgba(255, 255, 255, 0.92);
     }
-    
-    @keyframes yytWindowSlideIn {
-      from { 
-        opacity: 0; 
-        transform: scale(0.95) translateY(-20px); 
-      }
-      to { 
-        opacity: 1; 
-        transform: scale(1) translateY(0); 
-      }
-    }
-    
+
     .yyt-window.maximized {
       top: 10px !important;
       left: 10px !important;
@@ -482,6 +466,10 @@ export function createWindow(options) {
   // 确保样式已注入
   injectWindowStyles();
 
+  // 统一解析目标 document 和 window（SillyTavern iframe 嵌套下，窗口挂载在父文档）
+  const targetDoc = getTargetDocument();
+  const targetWin = targetDoc.defaultView || window.parent || window;
+
   // 获取jQuery
   const $ = window.jQuery || window.parent?.jQuery;
   if (!$) {
@@ -495,9 +483,9 @@ export function createWindow(options) {
     return windowManager.getWindow(id);
   }
 
-  // 计算初始位置（居中）
-  const viewW = window.innerWidth || 1200;
-  const viewH = window.innerHeight || 800;
+  // 计算初始位置（居中）—— 用目标窗口的视口尺寸
+  const viewW = targetWin.innerWidth || 1200;
+  const viewH = targetWin.innerHeight || 800;
 
   // 窄屏检测
   const isNarrowScreen = viewW <= 1100;
@@ -556,17 +544,15 @@ export function createWindow(options) {
     </div>
   `;
 
-  // v1.0.179 hotfix Bug 2：模态遮罩附加到 top document.body（不是 iframe body）
-  const targetDocForAppend = getTargetDocument();
   let $overlay = null;
   if (modal) {
     $overlay = $(`<div class="yyt-window-overlay" data-for="${id}"></div>`);
-    $(targetDocForAppend.body).append($overlay);
+    $(targetDoc.body).append($overlay);
   }
 
-  // 插入窗口（同样到 top document.body）
+  // 插入窗口
   const $window = $(windowHtml);
-  $(targetDocForAppend.body).append($window);
+  $(targetDoc.body).append($window);
 
   // 注册到窗口管理器
   windowManager.register(id, $window);
@@ -636,8 +622,8 @@ export function createWindow(options) {
     if ($overlay) $overlay.remove();
     $window.remove();
     windowManager.unregister(id);
-    $(document).off('.yytWindowDrag' + id);
-    $(document).off('.yytWindowResize' + id);
+    $(targetDoc).off('.yytWindowDrag' + id);
+    $(targetDoc).off('.yytWindowResize' + id);
   });
 
   // 遮罩层点击（可选关闭）
@@ -663,10 +649,10 @@ export function createWindow(options) {
     windowStartX = parseInt($window.css('left'));
     windowStartY = parseInt($window.css('top'));
 
-    $(document.body).css('user-select', 'none');
+    $(targetDoc.body).css('user-select', 'none');
   });
 
-  $(document).on('mousemove.yytWindowDrag' + id, (e) => {
+  $(targetDoc).on('mousemove.yytWindowDrag' + id, (e) => {
     if (!isDragging) return;
 
     const dx = e.clientX - dragStartX;
@@ -678,10 +664,10 @@ export function createWindow(options) {
     });
   });
 
-  $(document).on('mouseup.yytWindowDrag' + id, () => {
+  $(targetDoc).on('mouseup.yytWindowDrag' + id, () => {
     if (isDragging) {
       isDragging = false;
-      $(document.body).css('user-select', '');
+      $(targetDoc.body).css('user-select', '');
     }
   });
 
@@ -712,11 +698,11 @@ export function createWindow(options) {
       startLeft = parseInt($window.css('left'));
       startTop = parseInt($window.css('top'));
 
-      $(document.body).css('user-select', 'none');
+      $(targetDoc.body).css('user-select', 'none');
       e.stopPropagation();
     });
 
-    $(document).on('mousemove.yytWindowResize' + id, (e) => {
+    $(targetDoc).on('mousemove.yytWindowResize' + id, (e) => {
       if (!isResizing) return;
 
       const dx = e.clientX - resizeStartX;
@@ -750,18 +736,18 @@ export function createWindow(options) {
       });
     });
 
-    $(document).on('mouseup.yytWindowResize' + id, () => {
+    $(targetDoc).on('mouseup.yytWindowResize' + id, () => {
       if (isResizing) {
         isResizing = false;
-        $(document.body).css('user-select', '');
+        $(targetDoc.body).css('user-select', '');
       }
     });
   }
 
   // 清理事件（窗口关闭时）
   $window.on('remove', () => {
-    $(document).off('.yytWindowDrag' + id);
-    $(document).off('.yytWindowResize' + id);
+    $(targetDoc).off('.yytWindowDrag' + id);
+    $(targetDoc).off('.yytWindowResize' + id);
   });
 
   // 回调
@@ -781,9 +767,10 @@ export function closeWindow(id) {
   if ($window) {
     const $ = window.jQuery || window.parent?.jQuery;
     if ($) {
+      const targetDoc = getTargetDocument();
       $(`.yyt-window-overlay[data-for="${id}"]`).remove();
-      $(document).off('.yytWindowDrag' + id);
-      $(document).off('.yytWindowResize' + id);
+      $(targetDoc).off('.yytWindowDrag' + id);
+      $(targetDoc).off('.yytWindowResize' + id);
     }
     $window.remove();
     windowManager.unregister(id);
