@@ -16,6 +16,7 @@ import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-e
 import { cloneTableValue } from '../../table-engine/table-types.js';
 import { normalizePositiveInt } from '../../table-engine/table-assistant-types.js';
 import { getPresetNames } from '../../preset-manager.js';
+import { button, selectInput, textInput, toolbar } from './controls/index.js';
 
 const log = logger.createScope('TableAssistantUI');
 
@@ -45,6 +46,7 @@ let _apiPreset = '';
 let _guardController = null;
 let _transcript = [];
 let _runningSessionId = 0;
+let _mountedPrefabControls = [];
 
 function generateTurnId() {
   return `turn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -167,7 +169,7 @@ function renderTranscriptHtml() {
       html += `</div>`; // detail
 
       if (showApply) {
-        html += `<button class="yyt-tww-btn yyt-tww-btn-small yyt-assistant-apply-btn" data-turn-id="${escHtml(turn.id)}" ${!allRisksConfirmed ? 'disabled' : ''}>应用到工作台</button>`;
+        html += `<button class="yyt-btn yyt-btn-primary yyt-btn-small yyt-assistant-apply-btn" type="button" data-turn-id="${escHtml(turn.id)}" ${!allRisksConfirmed ? 'disabled' : ''}>应用到工作台</button>`;
       }
 
       html += `</div>`; // bubble
@@ -177,39 +179,32 @@ function renderTranscriptHtml() {
   }).join('');
 }
 
-function renderPresetOptions() {
+function getPresetOptions() {
   let names = [];
   try { names = getPresetNames() || []; } catch { /* ignore */ }
-  const options = names.map((n) => `<option value="${escHtml(n)}" ${n === _apiPreset ? 'selected' : ''}>${escHtml(n)}</option>`).join('');
-  return `<option value="" ${!_apiPreset ? 'selected' : ''}>默认</option>${options}`;
+  return [
+    { value: '', label: '默认' },
+    ...names.map((name) => ({ value: name, label: name })),
+  ];
 }
 
 function renderAssistantPanelHtml() {
-  const disabled = _isGenerating || !_userInput.trim();
   return `
     <div id="yyt-assistant-panel" class="yyt-assistant-panel">
       <div class="yyt-assistant-header">
         <div>
-          <div style="font-weight:600;">AI 改表助手</div>
+          <div class="yyt-assistant-title">AI 改表助手</div>
           <div class="yyt-assistant-hint">当前表：${escHtml(getCurrentTableLabel())}</div>
         </div>
-        <button class="yyt-tww-btn yyt-tww-btn-small" data-action="close-assistant">关闭</button>
+        <div id="yyt-assistant-close-slot"></div>
       </div>
       <div class="yyt-assistant-chat">
         ${renderTranscriptHtml()}
       </div>
       <div class="yyt-assistant-footer">
-        <div class="yyt-assistant-controls">
-          <label>API 预设</label>
-          <select class="yyt-assistant-input yyt-assistant-select" id="yyt-assistant-preset">${renderPresetOptions()}</select>
-          <label>最大轮次</label>
-          <input type="number" min="1" class="yyt-assistant-input" id="yyt-assistant-max-rounds" value="${escHtml(_maxRoundsInput)}">
-        </div>
-        <textarea class="yyt-assistant-textarea" id="yyt-assistant-input" placeholder="例如：新增一张战利品表，关闭背包物品表的独立导出。">${escHtml(_userInput)}</textarea>
-        <div class="yyt-assistant-actions">
-          <button class="yyt-tww-btn yyt-tww-btn-primary" id="yyt-assistant-send" ${disabled ? 'disabled' : ''}>${_isGenerating ? '生成中...' : '发送'}</button>
-          <button class="yyt-tww-btn yyt-tww-btn-small" id="yyt-assistant-stop" ${!_isGenerating ? 'disabled' : ''}>停止</button>
-        </div>
+        <div id="yyt-assistant-control-slot" class="yyt-assistant-controls"></div>
+        <textarea class="yyt-textarea yyt-assistant-textarea" id="yyt-assistant-input" placeholder="例如：新增一张战利品表，关闭背包物品表的独立导出。">${escHtml(_userInput)}</textarea>
+        <div id="yyt-assistant-action-slot" class="yyt-assistant-actions"></div>
       </div>
     </div>
   `;
@@ -231,27 +226,120 @@ function refreshPanel() {
   bindPanelEvents();
 }
 
+function clearMountedPrefabControls() {
+  for (const ctrl of _mountedPrefabControls) {
+    try { ctrl?.destroy?.(); } catch (err) { console.error('[TableAssistantUI] prefab destroy 异常', err); }
+  }
+  _mountedPrefabControls = [];
+}
+
+function trackPrefabControl(ctrl) {
+  if (ctrl) _mountedPrefabControls.push(ctrl);
+  return ctrl;
+}
+
+function mountPrefabControls(host) {
+  clearMountedPrefabControls();
+  const closeSlot = host.querySelector('#yyt-assistant-close-slot');
+  if (closeSlot) {
+    const closeButton = trackPrefabControl(button({
+      label: '关闭',
+      size: 'small',
+      variant: 'ghost',
+      onClick: handleClose,
+    }));
+    closeSlot.replaceChildren(closeButton.el);
+  }
+
+  const controlSlot = host.querySelector('#yyt-assistant-control-slot');
+  if (controlSlot) {
+    const presetSelect = selectInput({
+      id: 'assistantPreset',
+      options: getPresetOptions(),
+      value: _apiPreset,
+      onChange: (value) => {
+        _apiPreset = value || '';
+      },
+      className: 'yyt-assistant-preset-select',
+    });
+    const maxRoundsInput = textInput({
+      id: 'assistantMaxRounds',
+      type: 'number',
+      value: _maxRoundsInput,
+      onInput: (value) => {
+        _maxRoundsInput = value || String(DEFAULT_MAX_ROUNDS);
+      },
+      className: 'yyt-assistant-rounds-input',
+      attrs: { min: '1' },
+    });
+
+    const presetField = createInlineField('API 预设', presetSelect);
+    const maxRoundsField = createInlineField('最大轮次', maxRoundsInput);
+    const controls = trackPrefabControl(toolbar({
+      items: [presetField, maxRoundsField],
+      gap: '10px',
+      wrap: true,
+      className: 'yyt-assistant-control-toolbar',
+    }));
+    controlSlot.replaceChildren(controls.el);
+  }
+
+  const actionSlot = host.querySelector('#yyt-assistant-action-slot');
+  if (actionSlot) {
+    const actions = trackPrefabControl(toolbar({
+      items: [
+        button({
+          id: 'assistantSend',
+          label: _isGenerating ? '生成中...' : '发送',
+          variant: 'primary',
+          disabled: _isGenerating || !_userInput.trim(),
+          onClick: handleSend,
+          attrs: { id: 'yyt-assistant-send' },
+        }),
+        button({
+          id: 'assistantStop',
+          label: '停止',
+          size: 'small',
+          disabled: !_isGenerating,
+          onClick: handleStop,
+          attrs: { id: 'yyt-assistant-stop' },
+        }),
+      ],
+      gap: '8px',
+      wrap: false,
+    }));
+    actionSlot.replaceChildren(actions.el);
+  }
+}
+
+function createInlineField(labelText, control) {
+  const doc = _getTopDoc();
+  const wrap = doc.createElement('label');
+  wrap.className = 'yyt-assistant-inline-field';
+  const label = doc.createElement('span');
+  label.textContent = labelText;
+  wrap.appendChild(label);
+  wrap.appendChild(control.el);
+  return {
+    el: wrap,
+    destroy: () => {
+      control.destroy?.();
+      wrap.remove();
+    },
+  };
+}
+
 function bindPanelEvents() {
   const host = getHostElement();
   if (!host) return;
+
+  mountPrefabControls(host);
 
   host.querySelector('#yyt-assistant-input')?.addEventListener('input', (e) => {
     _userInput = e.target.value || '';
     const sendBtn = host.querySelector('#yyt-assistant-send');
     if (sendBtn) sendBtn.disabled = _isGenerating || !_userInput.trim();
   });
-
-  host.querySelector('#yyt-assistant-preset')?.addEventListener('change', (e) => {
-    _apiPreset = e.target.value || '';
-  });
-
-  host.querySelector('#yyt-assistant-max-rounds')?.addEventListener('input', (e) => {
-    _maxRoundsInput = e.target.value || String(DEFAULT_MAX_ROUNDS);
-  });
-
-  host.querySelector('#yyt-assistant-send')?.addEventListener('click', handleSend);
-  host.querySelector('#yyt-assistant-stop')?.addEventListener('click', handleStop);
-  host.querySelector('[data-action="close-assistant"]')?.addEventListener('click', handleClose);
 
   // 折叠详情 toggle
   host.querySelectorAll('.yyt-assistant-toggle').forEach((el) => {
@@ -423,6 +511,7 @@ function handleClose() {
   _isOpen = false;
   const host = getHostElement();
   if (host) host.style.display = 'none';
+  clearMountedPrefabControls();
 }
 
 function buildPriorTurns() {
@@ -461,6 +550,7 @@ export function toggleAssistant(workbenchRefresh, containerEl) {
   } else {
     const host = getHostElement();
     if (host) host.style.display = 'none';
+    clearMountedPrefabControls();
   }
 }
 
@@ -485,108 +575,105 @@ export function getAssistantPanelStyles() {
   return `
     #yyt-assistant-host { margin-top: 12px; }
     .yyt-assistant-panel {
-      border: 1px solid var(--tww-hairline-strong);
-      border-radius: 8px;
-      background: var(--tww-canvas);
-      color: var(--tww-text);
+      border: 1px solid var(--yyt-border-strong);
+      border-radius: var(--yyt-radius-lg);
+      background: var(--yyt-surface);
+      color: var(--yyt-text);
       overflow: hidden;
     }
     .yyt-assistant-header {
       display: flex; justify-content: space-between; align-items: center;
       padding: 10px 12px;
-      background: var(--tww-surface-2);
-      border-bottom: 1px solid var(--tww-hairline-strong);
+      background: var(--yyt-surface-2);
+      border-bottom: 1px solid var(--yyt-border-strong);
     }
-    .yyt-assistant-hint { font-size: 12px; color: var(--tww-text-muted); margin-top: 2px; }
+    .yyt-assistant-title { font-weight: 600; color: var(--yyt-text); }
+    .yyt-assistant-hint { font-size: 12px; color: var(--yyt-text-secondary); margin-top: 2px; }
     .yyt-assistant-chat {
       max-height: 340px; overflow-y: auto;
       padding: 12px; display: flex; flex-direction: column; gap: 10px;
-      background: var(--tww-canvas);
+      background: var(--yyt-bg-base);
     }
     .yyt-assistant-empty {
-      text-align: center; padding: 32px 16px; color: var(--tww-text-muted); font-size: 13px;
-      border: 1px dashed var(--tww-hairline-strong); border-radius: 8px;
+      text-align: center; padding: 32px 16px; color: var(--yyt-text-muted); font-size: 13px;
+      border: 1px dashed var(--yyt-border-strong); border-radius: var(--yyt-radius);
+      background: var(--yyt-surface);
     }
-    .yyt-assistant-bubble { padding: 10px 12px; border-radius: 10px; max-width: 92%; word-break: break-word; }
+    .yyt-assistant-bubble { padding: 10px 12px; border-radius: var(--yyt-radius); max-width: 92%; word-break: break-word; }
     .yyt-assistant-bubble-user {
       align-self: flex-end;
-      background: var(--tww-accent-soft);
-      border: 1px solid color-mix(in srgb, var(--tww-accent) 30%, transparent);
+      background: var(--yyt-accent-soft);
+      border: 1px solid var(--yyt-border-focus);
     }
     .yyt-assistant-bubble-ai {
       align-self: flex-start;
-      background: var(--tww-surface-3);
-      border: 1px solid var(--tww-hairline-strong);
+      background: var(--yyt-surface-2);
+      border: 1px solid var(--yyt-border-strong);
     }
     .yyt-assistant-bubble-error {
       align-self: flex-start;
-      background: var(--tww-error-soft);
-      border: 1px solid color-mix(in srgb, var(--tww-error) 36%, transparent);
+      background: var(--yyt-danger-soft);
+      border: 1px solid color-mix(in srgb, var(--yyt-danger) 36%, transparent);
     }
-    .yyt-assistant-label { font-size: 11px; font-weight: 600; color: var(--tww-text-secondary); margin-bottom: 4px; }
-    .yyt-assistant-content { font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--tww-text); }
+    .yyt-assistant-label { font-size: 11px; font-weight: 600; color: var(--yyt-text-secondary); margin-bottom: 4px; }
+    .yyt-assistant-content { font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--yyt-text); }
     .yyt-assistant-toggle {
-      font-size: 12px; color: var(--tww-text-muted); cursor: pointer; margin-top: 6px;
+      font-size: 12px; color: var(--yyt-text-muted); cursor: pointer; margin-top: 6px;
       padding: 4px 0; user-select: none;
     }
-    .yyt-assistant-toggle:hover { color: var(--tww-text-secondary); }
+    .yyt-assistant-toggle:hover { color: var(--yyt-text-secondary); }
     .yyt-assistant-detail {
       font-size: 12px; line-height: 1.5; margin-top: 6px;
-      padding: 8px; border-radius: 6px;
-      background: var(--tww-surface-1);
-      border: 1px solid var(--tww-hairline-strong);
+      padding: 8px; border-radius: var(--yyt-radius-sm);
+      background: var(--yyt-surface);
+      border: 1px solid var(--yyt-border);
     }
     .yyt-assistant-detail ul { margin: 4px 0; padding-left: 16px; }
     .yyt-assistant-detail li { margin: 2px 0; }
     .yyt-assistant-risk-list { display: flex; flex-direction: column; gap: 4px; }
     #yyt-assistant-host .yyt-assistant-risk-item {
       display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;
-      color: var(--tww-text);
+      color: var(--yyt-text);
     }
     #yyt-assistant-host input[type="checkbox"] {
-      accent-color: var(--tww-accent);
+      accent-color: var(--yyt-accent);
     }
     .yyt-assistant-apply-btn { margin-top: 8px; }
     .yyt-assistant-footer {
       padding: 10px 12px;
-      border-top: 1px solid var(--tww-hairline-strong);
-      background: var(--tww-surface-2);
+      border-top: 1px solid var(--yyt-border-strong);
+      background: var(--yyt-surface-2);
     }
-    .yyt-assistant-controls {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    .yyt-assistant-controls { margin-bottom: 8px; }
+    .yyt-assistant-control-toolbar { width: 100%; }
+    .yyt-assistant-inline-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--yyt-text-secondary);
+      font-size: 12px;
+      white-space: nowrap;
     }
-    .yyt-assistant-controls label { font-size: 12px; color: var(--tww-text-muted); white-space: nowrap; }
-    #yyt-assistant-host .yyt-assistant-input,
-    #yyt-assistant-host .yyt-assistant-select,
-    #yyt-assistant-host .yyt-assistant-textarea {
-      background-color: var(--tww-surface-1) !important;
-      background: var(--tww-surface-1) !important;
-      border: 1px solid var(--tww-hairline-strong) !important;
-      color: var(--tww-text) !important;
-      -webkit-text-fill-color: var(--tww-text) !important;
-      caret-color: var(--tww-text) !important;
-      border-radius: 6px; font-size: 13px;
-      font-family: inherit;
-      box-shadow: none !important;
-      outline-color: var(--tww-accent);
+    #yyt-assistant-host .yyt-assistant-preset-select {
+      width: 160px;
+      min-height: 32px;
+      padding-top: 6px;
+      padding-bottom: 6px;
     }
-    #yyt-assistant-host .yyt-assistant-input {
-      width: 56px; text-align: center; padding: 3px 6px;
-    }
-    #yyt-assistant-host .yyt-assistant-select {
-      cursor: pointer; padding: 3px 6px; min-width: 100px;
-    }
-    #yyt-assistant-host .yyt-assistant-select option {
-      background-color: var(--tww-surface-2) !important;
-      color: var(--tww-text) !important;
+    #yyt-assistant-host .yyt-assistant-rounds-input {
+      width: 64px;
+      min-height: 32px;
+      padding: 6px 8px;
+      text-align: center;
     }
     #yyt-assistant-host .yyt-assistant-textarea {
       width: 100%; min-height: 68px; resize: vertical; box-sizing: border-box;
       padding: 8px; line-height: 1.5;
+      background: var(--yyt-control-bg) !important;
+      color: var(--yyt-text) !important;
+      -webkit-text-fill-color: var(--yyt-text) !important;
     }
-    #yyt-assistant-host .yyt-assistant-textarea::placeholder { color: var(--tww-text-muted); }
-    .yyt-assistant-actions {
-      display: flex; gap: 8px; margin-top: 6px;
-    }
+    #yyt-assistant-host .yyt-assistant-textarea::placeholder { color: var(--yyt-text-muted); }
+    .yyt-assistant-actions { margin-top: 8px; }
   `;
 }

@@ -1092,14 +1092,22 @@
 
 .yyt-select option,
 .yyt-select optgroup {
-  background: var(--yyt-surface) !important;
+  background: var(--yyt-select-option-bg) !important;
+  background-color: var(--yyt-select-option-bg) !important;
+  color: var(--yyt-text) !important;
+}
+
+.yyt-select option:hover {
+  background: var(--yyt-select-option-hover-bg) !important;
+  background-color: var(--yyt-select-option-hover-bg) !important;
   color: var(--yyt-text) !important;
 }
 
 .yyt-select option:checked,
 .yyt-select option[selected] {
-  background: var(--yyt-surface-3);
-  color: #f5fbff;
+  background: var(--yyt-select-option-selected-bg) !important;
+  background-color: var(--yyt-select-option-selected-bg) !important;
+  color: var(--yyt-text) !important;
 }
 
 .yyt-select option:disabled {
