@@ -52,11 +52,33 @@ const log = logger.createScope('ToolConfigPanel');
 // 新版面板自身样式都复用 main.css 中的 yyt-* 前缀类，所以这里只保留旧消费者会用到的最小集
 // ──────────────────────────────────────────────────────────────
 export const TOOL_CONFIG_PANEL_STYLES = `
-  .yyt-tool-panel { display: flex; flex-direction: column; height: 100%; gap: 0; }
+  /* v1.0.211 #3 修复：hero 提到 .yyt-tool-panel-scroll 外面，hero 物理上不在滚动区内 →
+     不会被滚走。.yyt-tool-panel 自身 overflow:hidden 防整体溢出，JS pinHeight 用
+     .yyt-popup-body 测高强制写到 .yyt-tool-panel.style.height 上。*/
+  .yyt-tool-panel {
+    display: flex; flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    gap: 0;
+  }
   .yyt-tool-panel-hero {
+    flex-shrink: 0;
     padding: 16px 20px;
     border-bottom: 1px solid var(--yyt-border);
     display: flex; flex-direction: column; gap: 8px;
+    transition: padding 0.18s ease, gap 0.18s ease;
+  }
+  .yyt-tool-panel-hero.yyt-tool-panel-hero--compact {
+    padding-top: 10px; padding-bottom: 10px;
+    gap: 0;
+  }
+  .yyt-tool-panel-hero.yyt-tool-panel-hero--compact .yyt-tool-panel-hero-desc,
+  .yyt-tool-panel-hero.yyt-tool-panel-hero--compact .yyt-tool-panel-hero-chips {
+    display: none;
+  }
+  .yyt-tool-panel-scroll {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
   }
   .yyt-tool-panel-hero-row1 { display: flex; align-items: center; gap: 12px; }
   .yyt-tool-panel-hero-icon {
@@ -148,6 +170,69 @@ function fmtTime(ts) {
 // 议题 #45 Stage 5：删除 mirror 函数（mirrorRegexPresetToSelectors / mirrorWorldbookPresetToLegacy）。
 // runtime 现在直接读 extraction.regexPresetId / worldbooks.presetId 的预设规则。
 
+/**
+ * v1.0.211 #3 修复：嵌套 height:100% chain（.yyt-content / .yyt-tab-content / .yyt-sub-content /
+ * .yyt-tool-panel）在宿主环境多层 flex item main-axis 解析后断裂，.yyt-tool-panel 被内容撑大，
+ * 真正滚动跑到外层 .yyt-content，hero 跟着滚走。
+ *
+ * 这里用 .yyt-popup-body 作稳定锚（popup 核心结构），getBoundingClientRect 直接算
+ * tabContent 顶到 popup-body 底的可用高度，强制写到 .yyt-tool-panel.style.height。
+ *
+ * 返回 cleanup 函数。
+ */
+function pinToolPanelHeight(containerEl) {
+  if (!containerEl) return null;
+  const popupBody = containerEl.closest('.yyt-popup-body');
+  if (!popupBody) {
+    log.warn('pinToolPanelHeight: 找不到 .yyt-popup-body 祖先');
+    return null;
+  }
+
+  const apply = () => {
+    const panel = containerEl.querySelector('.yyt-tool-panel');
+    if (!panel) return;
+    const popupRect = popupBody.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const h = popupRect.bottom - panelRect.top - 8;
+    if (h > 100) {
+      panel.style.height = `${h}px`;
+    } else {
+      log.warn(`pinToolPanelHeight: 计算高度异常 h=${h}`);
+    }
+  };
+
+  apply();
+  requestAnimationFrame(() => requestAnimationFrame(apply));
+
+  if (typeof ResizeObserver === 'undefined') return null;
+  const ro = new ResizeObserver(() => apply());
+  ro.observe(popupBody);
+  return () => {
+    try { ro.disconnect(); } catch (_) {}
+  };
+}
+
+/**
+ * 监听 .yyt-tool-panel-scroll 的 scrollTop，> 0 时给 hero 加 compact class。
+ * refresh 时 scroll 元素是新的，listener 随旧 DOM 自动 GC。
+ */
+function setupToolPanelScrollCompact(containerEl) {
+  if (!containerEl) return;
+  const hero = containerEl.querySelector('.yyt-tool-panel-hero');
+  const scroll = containerEl.querySelector('.yyt-tool-panel-scroll');
+  if (!hero || !scroll) return;
+
+  const onScroll = () => {
+    if (scroll.scrollTop > 0) {
+      hero.classList.add('yyt-tool-panel-hero--compact');
+    } else {
+      hero.classList.remove('yyt-tool-panel-hero--compact');
+    }
+  };
+  onScroll();
+  scroll.addEventListener('scroll', onScroll, { passive: true });
+}
+
 // ──────────────────────────────────────────────────────────────
 // 工厂主函数
 // ──────────────────────────────────────────────────────────────
@@ -185,28 +270,40 @@ export function createToolConfigPanel(options = {}) {
       const root = el('div', { className: 'yyt-tool-panel', dataset: { toolId } });
       const sectionsToDestroy = [];
 
-      // ===== Hero =====
+      // ===== Hero（提到 scroll-wrap 外面，物理上不在滚动区内）=====
       root.appendChild(buildHero(config, toolId, refresh, postResponseHint));
 
-      // ===== Runtime overview =====
-      root.appendChild(buildRuntimeRow(config));
+      // ===== Scroll wrap：runtime + binding + config =====
+      const scrollWrap = el('div', { className: 'yyt-tool-panel-scroll' });
 
-      // ===== Binding section =====
+      // Runtime overview
+      scrollWrap.appendChild(buildRuntimeRow(config));
+
+      // Binding section
       const bindingSec = buildBindingSection(config, toolId, refresh);
       sectionsToDestroy.push(bindingSec);
-      root.appendChild(bindingSec.el);
+      scrollWrap.appendChild(bindingSec.el);
 
-      // ===== Config section =====
+      // Config section
       const configSec = buildConfigSection(config, toolId, refresh, $container, previewDialogId, previewTitle);
       sectionsToDestroy.push(configSec);
-      root.appendChild(configSec.el);
+      scrollWrap.appendChild(configSec.el);
+
+      root.appendChild(scrollWrap);
 
       containerEl.innerHTML = '';
       containerEl.appendChild(root);
 
+      // 锁 .yyt-tool-panel 高度 + scroll compact 监听
+      const pinCleanup = pinToolPanelHeight(containerEl);
+      setupToolPanelScrollCompact(containerEl);
+
       containerEl._yytToolPanelCleanup = () => {
         for (const s of sectionsToDestroy) {
           try { s.destroy(); } catch (_) {}
+        }
+        if (typeof pinCleanup === 'function') {
+          try { pinCleanup(); } catch (_) {}
         }
         delete containerEl._yytToolPanelCleanup;
       };
