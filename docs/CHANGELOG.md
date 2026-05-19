@@ -9,6 +9,37 @@
 
 ## [Unreleased]
 
+## [1.0.213] - 2026-05-19
+
+### fix：世界书预设「跟随角色卡」模式多处 bug
+
+**现象**：选择绑定模式「跟随角色卡」后，点击刷新会加载全部世界书并允许交互，而非只展示角色卡绑定的世界书。
+
+**根因**：
+- `renderEditor` 同步读 `getCachedAvailableWorldbooks()` 全量缓存（角色卡 + 所有世界书的合并列表），而非角色卡专属数据
+- 刷新按钮未按模式守卫，点击后写入全量缓存导致 character 模式展示全部世界书
+- character 模式下列表带 toggle 控件，用户可交互修改
+- 无角色卡切换事件监听，切换角色后列表不更新
+
+**修复**：
+- `tool-worldbook-service.js`：`resolveCharacterWorldbooks` 改为 export + 无参自动获取 helper
+- `worldbook-preset-panel.js`：
+  - character_card 模式隐藏刷新按钮和添加按钮
+  - 改为 async 调 `resolveCharacterWorldbooks()` 只获取角色卡绑定的世界书
+  - 列表改为纯只读展示（无 toggle / 操作按钮）
+  - 订阅 `CHAT_CHANGED` 事件，character_card 预设激活时自动重新渲染
+
+### feat：HOST_EVENTS 补全宿主事件常量
+
+`host-event-service.js` 的 `HOST_EVENTS` 从 10 个扩充到 25 个，补全：
+- 应用生命周期：`APP_READY`
+- 消息：`MESSAGE_SWIPED`、`CHARACTER_MESSAGE_RENDERED`
+- 生成：`GENERATION_STARTED`、`GENERATION_ENDED`
+- 聊天/角色：`CHAT_CREATED`、`CHAT_DELETED`、`CHARACTER_PAGE_LOADED`、`CHARACTER_EDITOR_OPENED`、`CHARACTER_EDITED`
+- 世界书：`WORLDINFO_UPDATED`
+
+现有订阅者不受影响，仅新增常量定义。
+
 ## [1.0.209] - 2026-05-19
 
 ### fix：写回标签不生效，正则预设多标签互相覆盖
