@@ -538,9 +538,12 @@ export function getAssistantPanelStyles() {
     .yyt-assistant-detail ul { margin: 4px 0; padding-left: 16px; }
     .yyt-assistant-detail li { margin: 2px 0; }
     .yyt-assistant-risk-list { display: flex; flex-direction: column; gap: 4px; }
-    .yyt-assistant-risk-item {
+    #yyt-assistant-host .yyt-assistant-risk-item {
       display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;
       color: var(--tww-text);
+    }
+    #yyt-assistant-host input[type="checkbox"] {
+      accent-color: var(--tww-accent);
     }
     .yyt-assistant-apply-btn { margin-top: 8px; }
     .yyt-assistant-footer {
@@ -552,21 +555,24 @@ export function getAssistantPanelStyles() {
       display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
     }
     .yyt-assistant-controls label { font-size: 12px; color: var(--tww-text-muted); white-space: nowrap; }
-    .yyt-assistant-input {
-      width: 56px; text-align: center;
+    #yyt-assistant-host .yyt-assistant-input,
+    #yyt-assistant-host .yyt-assistant-select,
+    #yyt-assistant-host .yyt-assistant-textarea {
       background: var(--tww-surface-2); border: 1px solid var(--tww-hairline-strong);
-      color: var(--tww-text); border-radius: 4px; padding: 3px 6px; font-size: 13px;
-    }
-    .yyt-assistant-select {
-      cursor: pointer;
-    }
-    .yyt-assistant-textarea {
-      width: 100%; min-height: 68px; resize: vertical; box-sizing: border-box;
-      background: var(--tww-surface-2); border: 1px solid var(--tww-hairline-strong);
-      color: var(--tww-text); border-radius: 6px; padding: 8px; font-size: 13px; line-height: 1.5;
+      color: var(--tww-text); border-radius: 6px; font-size: 13px;
       font-family: inherit;
     }
-    .yyt-assistant-textarea::placeholder { color: var(--tww-text-muted); }
+    #yyt-assistant-host .yyt-assistant-input {
+      width: 56px; text-align: center; padding: 3px 6px;
+    }
+    #yyt-assistant-host .yyt-assistant-select {
+      cursor: pointer; padding: 3px 6px; min-width: 100px;
+    }
+    #yyt-assistant-host .yyt-assistant-textarea {
+      width: 100%; min-height: 68px; resize: vertical; box-sizing: border-box;
+      padding: 8px; line-height: 1.5;
+    }
+    #yyt-assistant-host .yyt-assistant-textarea::placeholder { color: var(--tww-text-muted); }
     .yyt-assistant-actions {
       display: flex; gap: 8px; margin-top: 6px;
     }
