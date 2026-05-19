@@ -34,7 +34,7 @@ import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-e
 import { cloneTableValue, createRuntimeTableRowId } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { getSheetLockState, setColLock, setRowLock, setCellLock } from '../../table-engine/table-lock-service.js';
-import { showToast } from '../utils.js';
+
 import { button, textInput, selectInput, toggle, el } from './controls/index.js';
 
 const WINDOW_ID = 'yyt-table-data-editor';
@@ -1274,12 +1274,12 @@ function handleReload() {
     }
   });
   refresh();
-  showToast('success', '已重新加载');
+  getLog().info('已重新加载', null, { toast: 'success' });
 }
 
 async function handleSaveChat() {
   if (!_state.isDirty) {
-    showToast('info', '没有修改');
+    getLog().info('没有修改', null, { toast: true });
     return;
   }
   try {
@@ -1288,7 +1288,7 @@ async function handleSaveChat() {
       target = await resolveLatestTableTarget();
     }
     if (!target?.sourceMessageId) {
-      showToast('error', '无法定位当前消息（找不到 assistant 消息）');
+      getLog().error('无法定位当前消息（找不到 assistant 消息）', null, { toast: true });
       return;
     }
     const result = await commitBoundState(target, {
@@ -1322,27 +1322,27 @@ async function handleSaveChat() {
         _state.isFromTemplate = false;
       }
       _state._afterSaveGlobalAt = 0;
-      showToast('success', '已保存到 chat');
+      getLog().info('已保存到 chat', null, { toast: 'success' });
       refresh();
     } else {
-      showToast('error', `保存失败：${result?.error || '未知'}`);
+      getLog().error(`保存失败：${result?.error || '未知'}`, null, { toast: true });
     }
   } catch (err) {
     getLog().error('保存异常', err);
-    showToast('error', `保存异常：${err?.message || err}`);
+    getLog().error(`保存异常：${err?.message || err}`, null, { toast: true });
   }
 }
 
 async function handleSaveGlobal() {
   if (!Array.isArray(_state.tempData) || _state.tempData.length === 0) {
-    showToast('info', '没有可保存的数据');
+    getLog().info('没有可保存的数据', null, { toast: true });
     return;
   }
   if (!window.confirm('保存到「全局激活模板」会影响后续所有 chat 的新填表（已有 slot 数据不受影响）。继续？')) return;
   try {
     const activeTpl = getActiveGlobalTemplate();
     if (!activeTpl?.id) {
-      showToast('error', '没有可用的全局激活模板');
+      getLog().error('没有可用的全局激活模板', null, { toast: true });
       return;
     }
     const tablesSchemaOnly = (_state.tempData || []).map((t) => ({
@@ -1376,15 +1376,15 @@ async function handleSaveGlobal() {
         _state.isFromTemplate = true;
         _state._afterSaveGlobalAt = Date.now();
       }
-      showToast('success', `已保存到全局模板「${activeTpl.name}」`);
+      getLog().info(`已保存到全局模板「${activeTpl.name}」`, null, { toast: 'success' });
       getLog().info('保存到全局模板成功', { templateId: activeTpl.id, name: activeTpl.name, tableCount: tablesSchemaOnly.length });
       refresh();
     } else {
-      showToast('error', `保存失败：${result?.error || '未知'}`);
+      getLog().error(`保存失败：${result?.error || '未知'}`, null, { toast: true });
     }
   } catch (err) {
     getLog().error('保存到全局模板异常', err);
-    showToast('error', `保存异常：${err?.message || err}`);
+    getLog().error(`保存异常：${err?.message || err}`, null, { toast: true });
   }
 }
 
@@ -1393,15 +1393,15 @@ async function handleRunNow() {
   try {
     const result = await runManualTableUpdate();
     if (result?.success) {
-      showToast('success', '填表完成');
+      getLog().info('填表完成', null, { toast: 'success' });
       loadEditorData();
       refresh();
     } else {
-      showToast('error', `填表失败：${result?.error || '未知'}`);
+      getLog().error(`填表失败：${result?.error || '未知'}`, null, { toast: true });
     }
   } catch (err) {
     getLog().error('立即填表异常', err);
-    showToast('error', `异常：${err?.message || err}`);
+    getLog().error(`异常：${err?.message || err}`, null, { toast: true });
   }
 }
 
@@ -1460,12 +1460,12 @@ function handleRowLock(sheetUid, rowIndex) {
     const current = getSheetLockState(scope, sheetUid) || { rows: {} };
     const isLocked = !!(current.rows && current.rows[rowIndex]);
     setRowLock(scope, sheetUid, rowIndex, !isLocked);
-    showToast('success', isLocked ? `已解锁行 #${rowIndex + 1}` : `已锁定行 #${rowIndex + 1}（AI 不会改这行）`);
+    getLog().info(isLocked ? `已解锁行 #${rowIndex + 1}` : `已锁定行 #${rowIndex + 1}（AI 不会改这行）`, null, { toast: 'success' });
     getLog().info('row-lock toggled', { sheetUid, rowIndex, locked: !isLocked });
     refresh();
   } catch (err) {
     getLog().error('row-lock 异常', err);
-    showToast('error', `锁定失败：${err?.message || err}`);
+    getLog().error(`锁定失败：${err?.message || err}`, null, { toast: true });
   }
 }
 
@@ -1477,12 +1477,12 @@ function handleCellLock(sheetUid, rowIndex, colKey) {
     const cellKey = `${rowIndex}::${colKey}`;
     const isLocked = !!(current.cells && current.cells[cellKey]);
     setCellLock(scope, sheetUid, rowIndex, colKey, !isLocked);
-    showToast('success', isLocked ? `已解锁 [${rowIndex}][${colKey}]` : `已锁定 [${rowIndex}][${colKey}]`);
+    getLog().info(isLocked ? `已解锁 [${rowIndex}][${colKey}]` : `已锁定 [${rowIndex}][${colKey}]`, null, { toast: 'success' });
     getLog().info('cell-lock toggled', { sheetUid, rowIndex, colKey, locked: !isLocked });
     refresh();
   } catch (err) {
     getLog().error('cell-lock 异常', err);
-    showToast('error', `锁定失败：${err?.message || err}`);
+    getLog().error(`锁定失败：${err?.message || err}`, null, { toast: true });
   }
 }
 
@@ -1509,7 +1509,7 @@ function handleAddRow() {
 
 function handleFieldLock(sheetUid, colKey) {
   if (!sheetUid || !colKey) {
-    showToast('error', '列锁定失败：缺少 sheetUid 或 colKey');
+    getLog().error('列锁定失败：缺少 sheetUid 或 colKey', null, { toast: true });
     return;
   }
   try {
@@ -1518,12 +1518,12 @@ function handleFieldLock(sheetUid, colKey) {
     const current = getSheetLockState(scope, sheetUid) || { cols: {} };
     const isLocked = !!(current.cols && current.cols[colKey]);
     setColLock(scope, sheetUid, colKey, !isLocked);
-    showToast('success', isLocked ? `已解锁 ${colKey}` : `已锁定 ${colKey}（AI 不会改这列）`);
+    getLog().info(isLocked ? `已解锁 ${colKey}` : `已锁定 ${colKey}（AI 不会改这列）`, null, { toast: 'success' });
     getLog().info('field-lock toggled', { sheetUid, colKey, locked: !isLocked });
     refresh();
   } catch (err) {
     getLog().error('field-lock 异常', err);
-    showToast('error', `锁定失败：${err?.message || err}`);
+    getLog().error(`锁定失败：${err?.message || err}`, null, { toast: true });
   }
 }
 
@@ -1551,20 +1551,16 @@ function handleFieldAdd() {
 // ════════════════════════════════════════════════════════════════
 
 export function openTableDataEditor(options = {}) {
-  console.log('[YYT][TableDataEditor] openTableDataEditor called', { options });
   getLog().info('openTableDataEditor 调用', { options });
 
   injectStyles();
   const $ = window.jQuery || window.parent?.jQuery;
   if (!$) {
     const msg = 'jQuery 不可用（window.jQuery 和 window.parent.jQuery 都是 undefined）';
-    console.error('[YYT][TableDataEditor]', msg);
     getLog().error(msg);
-    try { showToast('error', `数据编辑器打开失败：${msg}`); } catch (_) { /* ignore */ }
+    try { getLog().error(`数据编辑器打开失败：${msg}`, null, { toast: true }); } catch (_) { /* ignore */ }
     return null;
   }
-  console.log('[YYT][TableDataEditor] jQuery 可用');
-
   // v1.0.208：sanity check saved state — 之前可能存了 isMaximized=true 或者奇葩小尺寸
   //   导致打开时自动 maximize 到 iframe viewport（看着"小"且 resize 失效）。
   //   合理范围外的状态直接覆盖为默认 1200×800，未来用户再调整会被合理保留。
@@ -1601,7 +1597,6 @@ export function openTableDataEditor(options = {}) {
   }
 
   loadEditorData();
-  console.log('[YYT][TableDataEditor] loadEditorData 完成，tempData 表数:', _state.tempData?.length);
   if (options.focusTableUid) {
     const tables = _state.tempData || [];
     const idx = tables.findIndex((t) => (t?.uid || t?.id) === options.focusTableUid);
@@ -1611,7 +1606,6 @@ export function openTableDataEditor(options = {}) {
     _state.mode = options.focusMode;
   }
 
-  console.log('[YYT][TableDataEditor] 即将调 createWindow');
   let $win;
   try {
     $win = createWindow({
@@ -1625,7 +1619,6 @@ export function openTableDataEditor(options = {}) {
       maximizable: true,
       rememberState: true,
       onReady: ($el) => {
-        console.log('[YYT][TableDataEditor] onReady triggered', { $el: !!$el });
         _state.$window = $el;
         refresh();
       },
@@ -1637,11 +1630,9 @@ export function openTableDataEditor(options = {}) {
         _state._refs = { saveBtn: null, saveGlobalBtn: null, dirtyBadge: null };
       }
     });
-    console.log('[YYT][TableDataEditor] createWindow 返回:', !!$win);
   } catch (err) {
-    console.error('[YYT][TableDataEditor] createWindow 抛错:', err);
     getLog().error('createWindow 抛错', err);
-    try { showToast('error', `创建窗口失败：${err?.message || err}`); } catch (_) { /* ignore */ }
+    try { getLog().error(`创建窗口失败：${err?.message || err}`, null, { toast: true }); } catch (_) { /* ignore */ }
     return null;
   }
 

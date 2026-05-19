@@ -9,6 +9,48 @@
 
 ## [Unreleased]
 
+## [1.0.214] - 2026-05-19
+
+### refactor：日志模块统一用户通知接口，全量清理日志规范
+
+**日志模块扩展**（`logger-service.js`）：
+- 作用域方法新增第三参数 `options`，支持 `{ toast, topNotice, duration }`
+- `toast: true` 自动映射日志级别 → toast 类型（INFO→info, WARN→warning, ERROR→error）
+- `toast: 'success'` 显式指定类型
+- `topNotice: { noticeId, sticky, duration }` 触发顶部通知
+- 新增 `setToastHandler` / `levelToToastType` 公共方法
+- `bootstrap.js` 注册 handler 桥接 `showToast` / `showTopNotice` 底层渲染
+
+**全量迁移 showToast / showTopNotice**（~95 处调用 → 0 处直接调用）：
+
+| 文件 | 改动 |
+|------|------|
+| `tool-trigger.js` | 4 showToast + 5 showTopNotice → 5 个 log 调用（含 toast+topNotice 组合） |
+| `tool-config-panel-factory.js` | 8 showToast → log |
+| `local-transform-tool-panel-factory.js` | 6 showToast → log |
+| `settings-panel.js` | 3 showToast → log，新增 SettingsPanel scope |
+| `tool-manage-panel.js` | 12 showToast → log，新增 logger + ToolManagePanel scope |
+| `bypass-panel.js` | 13 showToast → log，新增 logger + BypassPanel scope |
+| `table-workbench-window.js` | 38 showToast → log |
+| `table-data-editor-window.js` | 23 showToast → log |
+| `popup-shell.js` | 1 处 `toastr.success` 直调 → logger toast |
+| `ui-components.js` | 清除死 showToast import |
+
+**清理 console.\* 遗留**（17 处 → 0 处）：
+- `table-workbench-window.js` — 删除 6 条与 getLog() 重复的 console.log/error
+- `table-data-editor-window.js` — 删除 8 条与 getLog() 重复的 console.log/error
+- `tool-registry.js` — 2 处 `YYT_PRESET_DEBUG` console.log → `log.debug`
+- `dialog.js` — console.error → log.error，新增 Dialog scope
+
+**清除 `_log()` 转发器模式**（4 个模块 → 0 处）：
+- `variable-resolver.js` — 5 处 → info/error，删除 `_log` 方法
+- `tool-prompt-service.js` — 2 处 → error/debug，删除 `_log` 方法
+- `tool-output-service.js` — 1 处死调用（`this._log` 方法不存在）→ `log.warn`
+- `bypass-manager.js` — 4 处 → info，删除 `_log` 方法
+
+**文档更新**：
+- `LOGGING_GUIDE.md` 新增「用户通知 (toast / topNotice)」章节、规则 #7、更新 API 签名和检查清单
+
 ## [1.0.213] - 2026-05-19
 
 ### fix：世界书预设「跟随角色卡」模式多处 bug

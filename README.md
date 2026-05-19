@@ -113,10 +113,12 @@ YouYou Toolkit 是运行在 SillyTavern / TavernHelper 宿主环境中的可配�
 ├── docs/
 │   ├── API_DOCUMENTATION.md
 │   ├── ARCHITECTURE_ANALYSIS.md
-│   ├── FRAMEWORK_ARCHITECTURE.md
 │   ├── CHANGELOG.md
-│   ├── TABLE_WORKBENCH_PROGRESS.md
-│   ├── TABLE_INJECTION_REFERENCE.md
+│   ├── PHASE3_ARCHITECTURE.md
+│   ├── PANEL_LAYOUT_AUDIT.md
+│   ├── TABLE_REWRITE_PLAN.md
+│   ├── TABLE_ACCEPTANCE_TESTS.md
+│   ├── TABLE_PARITY_WITH_SHUJUKU.md
 │   ├── LOGGING_GUIDE.md
 │   ├── UI_STYLE_GUIDE.md
 │   └── TODO.md
@@ -176,14 +178,16 @@ import 'https://gcore.jsdelivr.net/gh/heis1696/youyou_Toolkit@latest/dist/bundle
 
 ## 推荐阅读
 
-- [框架文档](./docs/FRAMEWORK_ARCHITECTURE.md)
 - [架构分析](./docs/ARCHITECTURE_ANALYSIS.md)
 - [API 文档](./docs/API_DOCUMENTATION.md)
-- [更新日志](./docs/CHANGELOG.md)
-- [填表施工进度](./docs/TABLE_WORKBENCH_PROGRESS.md)
-- [世界书注入参考](./docs/TABLE_INJECTION_REFERENCE.md)
+- [Phase 3 架构决策](./docs/PHASE3_ARCHITECTURE.md)
+- [面板布局 / Flat Flow 设计规范](./docs/PANEL_LAYOUT_AUDIT.md)
+- [填表工作台重写计划](./docs/TABLE_REWRITE_PLAN.md)
+- [填表验收测试](./docs/TABLE_ACCEPTANCE_TESTS.md)
+- [填表 vs shujuku 能力对比](./docs/TABLE_PARITY_WITH_SHUJUKU.md)
 - [日志编写指南](./docs/LOGGING_GUIDE.md)
 - [UI 样式规范](./docs/UI_STYLE_GUIDE.md)
+- [更新日志](./docs/CHANGELOG.md)
 - [待办事项](./docs/TODO.md)
 
 ## 版本说明

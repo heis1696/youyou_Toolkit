@@ -4,6 +4,7 @@
  */
 
 import { logger } from '../core/logger-service.js';
+import { showToast, showTopNotice } from '../ui/utils.js';
 
 export function createBootstrap(context, options = {}) {
   const { constants, topLevelWindow, modules } = context;
@@ -18,6 +19,16 @@ export function createBootstrap(context, options = {}) {
   let uiInitialized = false;
 
   const scopeLogger = logger.createScope('Bootstrap');
+
+  logger.setToastHandler((type, message, opts) => {
+    if (opts.toast) {
+      showToast(opts.toast === true ? type : opts.toast, message, opts.duration);
+    }
+    if (opts.topNotice) {
+      const noticeOpts = typeof opts.topNotice === 'object' ? opts.topNotice : {};
+      showTopNotice(type, message, noticeOpts);
+    }
+  });
 
   function log(...args) {
     scopeLogger.log(args.join(' '));

@@ -8,7 +8,9 @@ import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { settingsService, DEFAULT_SETTINGS } from '../../core/settings-service.js';
 import { logger, LOG_LEVEL } from '../../core/logger-service.js';
 import { variableResolver } from '../../variable-resolver.js';
-import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, getJQuery, isContainerValid, showConfirm } from '../utils.js';
+import { destroyEnhancedCustomSelects, enhanceNativeSelects, getJQuery, isContainerValid, showConfirm } from '../utils.js';
+
+const log = logger.createScope('SettingsPanel');
 
 // ============================================================
 // 主题配置
@@ -513,7 +515,7 @@ export const SettingsPanel = {
         settingsService.resetSettings();
         applyUiPreferences(DEFAULT_SETTINGS.ui, getTargetDocument());
         self.renderTo($container);
-        showToast('success', '设置已重置');
+        log.info('设置已重置', null, { toast: 'success' });
       }
     });
 
@@ -545,7 +547,7 @@ export const SettingsPanel = {
       const raw = $input.val();
       const val = parseInt(raw, 10);
       if (isNaN(val) || val < field.min || val > field.max) {
-        showToast('warning', `${field.label} 须在 ${field.min} ~ ${field.max} 之间`);
+        log.warn(`${field.label} 须在 ${field.min} ~ ${field.max} 之间`, null, { toast: true });
         $input.trigger('focus').trigger('select');
         return;
       }
@@ -579,7 +581,7 @@ export const SettingsPanel = {
     settingsService.saveSettings(settings);
     logger.setLevel(settings.debug.enableDebugLog ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
     applyUiPreferences(settings.ui, getTargetDocument());
-    showToast('success', '设置已保存');
+    log.info('设置已保存', null, { toast: 'success' });
   },
 
   _getAutomationRuntime() {

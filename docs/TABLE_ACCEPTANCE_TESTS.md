@@ -607,7 +607,8 @@ chat-α 把表格数据同步到 worldbook 后，切换到 chat-β 再触发同�
 ## 7. 关联文档
 
 - [TABLE_REWRITE_PLAN.md](./TABLE_REWRITE_PLAN.md) — 重写计划全貌（19 项任务 + 优先级 + Gap 表）
+- [TABLE_PARITY_WITH_SHUJUKU.md](./TABLE_PARITY_WITH_SHUJUKU.md) — v1.0.193 sign-off 后的能力差距盘点
 - [PHASE3_ARCHITECTURE.md](./PHASE3_ARCHITECTURE.md) §15 — 议题 #15 原始决策与勘误对照
 - `Reference/shujuku-spv3.7/` — 对标参考实现
-- [FRAMEWORK_ARCHITECTURE.md](./FRAMEWORK_ARCHITECTURE.md) — 框架架构总览
+- [ARCHITECTURE_ANALYSIS.md](./ARCHITECTURE_ANALYSIS.md) — 框架架构总览
 - [CHANGELOG.md](./CHANGELOG.md) — 版本变更历史

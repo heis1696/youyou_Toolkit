@@ -19,7 +19,6 @@ import {
   getCurrentCharacter
 } from './tool-execution-context.js';
 import { runLocalTransformTool } from './tool-local-transform-service.js';
-import { showToast, showTopNotice } from './ui/utils.js';
 import { logger } from './core/logger-service.js';
 
 const log = logger.createScope('ToolTrigger');
@@ -110,9 +109,8 @@ async function executeManualTool(tool, context) {
     lastRefreshConfirmedBy: ''
   });
 
-  showTopNotice('info', `正在手动执行 ${tool.name}`, {
-    sticky: true,
-    noticeId
+  log.info(`正在手动执行 ${tool.name}`, null, {
+    topNotice: { sticky: true, noticeId }
   });
 
   try {
@@ -157,10 +155,9 @@ async function executeManualTool(tool, context) {
         lastRefreshConfirmedBy: writebackDetails?.refresh?.confirmedBy || ''
       });
 
-      showToast('success', `${tool.name} 手动执行完成`);
-      showTopNotice('success', `${tool.name} 手动执行完成`, {
-        duration: 3200,
-        noticeId
+      log.info(`${tool.name} 手动执行完成`, null, {
+        toast: 'success',
+        topNotice: { duration: 3200, noticeId }
       });
       return { success: true, duration, result };
     }
@@ -203,10 +200,9 @@ async function executeManualTool(tool, context) {
       lastRefreshConfirmedBy: writebackDetails?.refresh?.confirmedBy || ''
     });
 
-    showToast('error', `${tool.name} 执行失败：${errorMessage}`);
-    showTopNotice('error', `${tool.name} 执行失败：${errorMessage}`, {
-      sticky: true,
-      noticeId
+    log.error(`${tool.name} 执行失败：${errorMessage}`, null, {
+      toast: true,
+      topNotice: { sticky: true, noticeId }
     });
     return { success: false, duration, error: errorMessage, result };
   } catch (error) {
@@ -244,10 +240,9 @@ async function executeManualTool(tool, context) {
       lastRefreshConfirmedBy: ''
     });
 
-    showToast('error', `${tool.name} 执行失败：${errorMessage}`);
-    showTopNotice('error', `${tool.name} 执行失败：${errorMessage}`, {
-      sticky: true,
-      noticeId
+    log.error(`${tool.name} 执行失败：${errorMessage}`, null, {
+      toast: true,
+      topNotice: { sticky: true, noticeId }
     });
     throw error;
   }
@@ -285,9 +280,8 @@ export async function runToolManually(toolId) {
       emitEvent: false
     });
 
-    showTopNotice('warning', `${tool.name} 未启用，无法手动执行`, {
-      duration: 2800,
-      noticeId: `yyt-tool-run-${toolId}`
+    log.warn(`${tool.name} 未启用，无法手动执行`, null, {
+      topNotice: { duration: 2800, noticeId: `yyt-tool-run-${toolId}` }
     });
     return { success: false, error: '工具未启用' };
   }

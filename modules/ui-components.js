@@ -29,7 +29,6 @@ import {
   getAllStyles,
   SCRIPT_ID,
   escapeHtml,
-  showToast,
   getJQuery,
   isContainerValid,
   getFormApiConfig,
@@ -196,7 +195,6 @@ export {
   getAllStyles,
   SCRIPT_ID,
   escapeHtml,
-  showToast,
   getJQuery,
   isContainerValid,
   getFormApiConfig,
@@ -243,7 +241,6 @@ export default {
   // 工具函数
   SCRIPT_ID,
   escapeHtml,
-  showToast,
   getJQuery,
   isContainerValid,
   getFormApiConfig,

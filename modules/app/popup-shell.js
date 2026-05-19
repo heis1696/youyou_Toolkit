@@ -1277,10 +1277,7 @@ export function createPopupShell(context) {
     $container.find('#yyt-save-tool-preset').on('click', function onSavePresetClick() {
       const presetName = $container.find('#yyt-tool-api-preset').val();
       modules.toolRegistryModule?.setToolApiPreset(toolId, presetName);
-      const toastr = topLevelWindow.toastr;
-      if (toastr) {
-        toastr.success('API预设绑定已保存', 'YouYou 工具箱');
-      }
+      scopeLogger.info('API预设绑定已保存', null, { toast: 'success' });
     });
   }
 

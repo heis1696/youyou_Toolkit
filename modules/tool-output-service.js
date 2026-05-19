@@ -861,7 +861,7 @@ class ToolOutputService {
         : [];
       return { rules, blacklist };
     } catch (error) {
-      this._log('warn', '_resolveExtractionContext 异常', { error });
+      log.warn('_resolveExtractionContext 异常', { error });
       return { rules: [], blacklist: [] };
     }
   }

@@ -37,13 +37,14 @@ class LoggerService {
     this._eventKey = 'logger:entry';
     this._statsEventKey = 'logger:statsChanged';
     this._pendingFlush = false;
+    this._toastHandler = null;
   }
 
   // ============================================================
   // 日志写入
   // ============================================================
 
-  _write(level, scope, message, data) {
+  _write(level, scope, message, data, options) {
     const entry = {
       id: this._nextId++,
       timestamp: Date.now(),
@@ -59,6 +60,12 @@ class LoggerService {
     }
 
     this._forwardToConsole(entry);
+
+    if (this._toastHandler && options) {
+      try {
+        this._toastHandler(this.levelToToastType(level), message, options);
+      } catch (_) {}
+    }
 
     if (!this._pendingFlush) {
       this._pendingFlush = true;
@@ -93,28 +100,28 @@ class LoggerService {
     } catch (_) {}
   }
 
-  debug(scope, message, data) {
+  debug(scope, message, data, options) {
     if (LOG_LEVEL.DEBUG < this._minLevel) return;
-    this._write(LOG_LEVEL.DEBUG, scope, message, data);
+    this._write(LOG_LEVEL.DEBUG, scope, message, data, options);
   }
 
-  info(scope, message, data) {
+  info(scope, message, data, options) {
     if (LOG_LEVEL.INFO < this._minLevel) return;
-    this._write(LOG_LEVEL.INFO, scope, message, data);
+    this._write(LOG_LEVEL.INFO, scope, message, data, options);
   }
 
-  log(scope, message, data) {
-    this.info(scope, message, data);
+  log(scope, message, data, options) {
+    this.info(scope, message, data, options);
   }
 
-  warn(scope, message, data) {
+  warn(scope, message, data, options) {
     if (LOG_LEVEL.WARN < this._minLevel) return;
-    this._write(LOG_LEVEL.WARN, scope, message, data);
+    this._write(LOG_LEVEL.WARN, scope, message, data, options);
   }
 
-  error(scope, message, data) {
+  error(scope, message, data, options) {
     if (LOG_LEVEL.ERROR < this._minLevel) return;
-    this._write(LOG_LEVEL.ERROR, scope, message, data);
+    this._write(LOG_LEVEL.ERROR, scope, message, data, options);
   }
 
   // ============================================================
@@ -123,12 +130,24 @@ class LoggerService {
 
   createScope(name) {
     return {
-      debug: (msg, data) => this.debug(name, msg, data),
-      info: (msg, data) => this.info(name, msg, data),
-      log: (msg, data) => this.log(name, msg, data),
-      warn: (msg, data) => this.warn(name, msg, data),
-      error: (msg, data) => this.error(name, msg, data)
+      debug: (msg, data, options) => this.debug(name, msg, data, options),
+      info: (msg, data, options) => this.info(name, msg, data, options),
+      log: (msg, data, options) => this.log(name, msg, data, options),
+      warn: (msg, data, options) => this.warn(name, msg, data, options),
+      error: (msg, data, options) => this.error(name, msg, data, options)
     };
+  }
+
+  setToastHandler(handler) {
+    this._toastHandler = handler;
+  }
+
+  levelToToastType(level) {
+    switch (level) {
+      case LOG_LEVEL.WARN: return 'warning';
+      case LOG_LEVEL.ERROR: return 'error';
+      default: return 'info';
+    }
   }
 
   // ============================================================

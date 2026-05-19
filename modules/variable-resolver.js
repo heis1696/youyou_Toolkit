@@ -242,7 +242,7 @@ class VariableResolver {
     if (!name) return;
     
     this.customVariables.set(name, handler);
-    this._log(`注册自定义变量: ${name}`);
+    log.info(`注册自定义变量: ${name}`);
   }
 
   /**
@@ -251,7 +251,7 @@ class VariableResolver {
    */
   unregisterVariable(name) {
     this.customVariables.delete(name);
-    this._log(`注销自定义变量: ${name}`);
+    log.info(`注销自定义变量: ${name}`);
   }
 
   /**
@@ -262,7 +262,7 @@ class VariableResolver {
   registerHandler(prefix, handler) {
     if (!prefix || typeof handler !== 'function') return;
     this.variableHandlers.set(prefix, handler);
-    this._log(`注册变量处理器: ${prefix}`);
+    log.info(`注册变量处理器: ${prefix}`);
   }
 
   // ============================================================
@@ -444,7 +444,7 @@ class VariableResolver {
           try {
             return handler(context);
           } catch (e) {
-            this._log(`变量处理错误 ${name}:`, e);
+            log.error(`变量处理错误 ${name}:`, e);
             return '';
           }
         });
@@ -470,7 +470,7 @@ class VariableResolver {
         try {
           return handler(varName, context);
         } catch (e) {
-          this._log(`变量处理错误 ${prefix}.${varName}:`, e);
+          log.error(`变量处理错误 ${prefix}.${varName}:`, e);
           return '';
         }
       });
@@ -520,13 +520,6 @@ class VariableResolver {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  /**
-   * 日志输出
-   * @private
-   */
-  _log(...args) {
-    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
-  }
 }
 
 // ============================================================

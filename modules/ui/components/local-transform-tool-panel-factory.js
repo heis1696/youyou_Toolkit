@@ -24,7 +24,7 @@ import {
   el
 } from './controls/index.js';
 
-import { SCRIPT_ID, getJQuery, isContainerValid, showToast, createDialogHtml, bindDialogEvents } from '../utils.js';
+import { SCRIPT_ID, getJQuery, isContainerValid, createDialogHtml, bindDialogEvents } from '../utils.js';
 import {
   getToolFullConfig,
   saveToolConfig
@@ -154,15 +154,15 @@ function buildHero(config, toolId, refresh, processorDirections, heroHint) {
     onClick: async () => {
       try {
         await runToolManually(toolId);
-        showToast('success', '已触发手动执行');
+        log.info('已触发手动执行', null, { toast: 'success' });
       } catch (error) {
-        showToast('error', `执行失败：${error?.message || error}`);
+        log.error(`执行失败：${error?.message || error}`, null, { toast: true });
       }
     }
   }).el);
   actions.appendChild(button({
     label: '💾 保存配置', size: 'small', variant: 'primary',
-    onClick: () => { showToast('success', '配置已保存'); refresh(); }
+    onClick: () => { log.info('配置已保存', null, { toast: 'success' }); refresh(); }
   }).el);
   row1.appendChild(actions);
   hero.appendChild(row1);
@@ -246,9 +246,9 @@ function buildBindingSection(config, toolId, refresh) {
         const patch = { ...(cur.extraction || {}), regexPresetId: v };
         if (v) {
           const preset = regexStore.getPreset(v);
-          showToast('success', `已绑定正则预设：${preset?.name || v}`);
+          log.info(`已绑定正则预设：${preset?.name || v}`, null, { toast: 'success' });
         } else {
-          showToast('success', '已解绑正则预设，工具将不进行内容提取');
+          log.info('已解绑正则预设，工具将不进行内容提取', null, { toast: 'success' });
         }
         saveToolConfig(toolId, { ...cur, extraction: patch });
         refresh();
@@ -419,7 +419,7 @@ function buildConfigSection(config, toolId, refresh, $container, processorDirect
         const result = await previewToolExtraction(toolId);
         showExtractionDialog($container, result, previewDialogId, previewTitle);
       } catch (error) {
-        showToast('error', `测试提取失败：${error?.message || error}`);
+        log.error(`测试提取失败：${error?.message || error}`, null, { toast: true });
       }
     }
   }).el);

@@ -19,6 +19,9 @@
  */
 
 import { el, appendChild } from './_internal.js';
+import { logger } from '../../../core/logger-service.js';
+
+const log = logger.createScope('Dialog');
 
 let _dialogCounter = 0;
 
@@ -295,7 +298,7 @@ export function custom(options = {}) {
       try {
         cfg.onClick?.(close, body);
       } catch (err) {
-        console.error('[dialog.custom] button onClick error', err);
+        log.error('button onClick error', err);
         close(null);
       }
     });

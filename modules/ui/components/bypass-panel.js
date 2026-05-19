@@ -6,7 +6,10 @@
 
 import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { bypassManager, DEFAULT_BYPASS_PRESETS } from '../../bypass-manager.js';
-import { destroyEnhancedCustomSelects, enhanceNativeSelects, showToast, showConfirm, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
+import { destroyEnhancedCustomSelects, enhanceNativeSelects, showConfirm, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
+import { logger } from '../../core/logger-service.js';
+
+const log = logger.createScope('BypassPanel');
 
 // ============================================================
 // 组件定义
@@ -274,12 +277,12 @@ export const BypassPanel = {
         }
         // 刷新列表
         this._refreshPresetList($container, $);
-        showToast('success', '预设已删除');
+        log.info('预设已删除', null, { toast: 'success' });
       } else {
-        showToast('error', result?.message || '删除预设失败');
+        log.error(result?.message || '删除预设失败', null, { toast: true });
       }
     });
-    
+
     // 新建预设
     $container.on('click.yytBypass', '#yyt-bypass-add', () => {
       this._createNewPreset($container, $);
@@ -373,10 +376,10 @@ export const BypassPanel = {
       try {
         const text = await readFileContent(file);
         const result = bypassManager.importPresets(text);
-        showToast(result.success ? 'success' : 'error', result.message);
+        result.success ? log.info(result.message, null, { toast: 'success' }) : log.error(result.message, null, { toast: true });
         if (result.success) this.renderTo($container);
       } catch (err) {
-        showToast('error', `导入失败: ${err.message}`);
+        log.error(`导入失败: ${err.message}`, null, { toast: true });
       }
       $(e.target).val('');
     });
@@ -386,9 +389,9 @@ export const BypassPanel = {
       try {
         const json = bypassManager.exportPresets();
         downloadJson(json, `bypass_presets_${Date.now()}.json`);
-        showToast('success', '预设已导出');
+        log.info('预设已导出', null, { toast: 'success' });
       } catch (err) {
-        showToast('error', `导出失败: ${err.message}`);
+        log.error(`导出失败: ${err.message}`, null, { toast: true });
       }
     });
   },
@@ -434,9 +437,9 @@ export const BypassPanel = {
     if (result.success) {
       this.renderTo($container);
       this._selectPreset($container, $, id);
-      showToast('success', '预设已创建');
+      log.info('预设已创建', null, { toast: 'success' });
     } else {
-      showToast('error', result?.message || '创建预设失败');
+      log.error(result?.message || '创建预设失败', null, { toast: true });
     }
   },
   
@@ -453,7 +456,7 @@ export const BypassPanel = {
     const description = $editor.find('.yyt-bypass-description-input').val().trim();
     
     if (!name) {
-      showToast('warning', '请输入预设名称');
+      log.warn('请输入预设名称', null, { toast: true });
       $editor.find('.yyt-bypass-name-input').trigger('focus').trigger('select');
       return;
     }
@@ -478,11 +481,11 @@ export const BypassPanel = {
     });
     
     if (result.success) {
-      showToast('success', '预设已保存');
+      log.info('预设已保存', null, { toast: 'success' });
       // 刷新列表
       this._refreshPresetList($container, $);
     } else {
-      showToast('error', result?.message || '保存预设失败');
+      log.error(result?.message || '保存预设失败', null, { toast: true });
     }
   },
   
@@ -502,12 +505,12 @@ export const BypassPanel = {
     
     if (result.success) {
       this.renderTo($container);
-      showToast('success', '预设已删除');
+      log.info('预设已删除', null, { toast: 'success' });
     } else {
-      showToast('error', result?.message || '删除预设失败');
+      log.error(result?.message || '删除预设失败', null, { toast: true });
     }
   },
-  
+
   /**
    * 复制当前预设
    * @private
@@ -523,9 +526,9 @@ export const BypassPanel = {
     if (result.success) {
       this.renderTo($container);
       this._selectPreset($container, $, newId);
-      showToast('success', '预设已复制');
+      log.info('预设已复制', null, { toast: 'success' });
     } else {
-      showToast('error', result?.message || '复制预设失败');
+      log.error(result?.message || '复制预设失败', null, { toast: true });
     }
   },
   
@@ -546,7 +549,7 @@ export const BypassPanel = {
       $container.find('.yyt-bypass-editor').html(this._renderEditor(preset));
     }
 
-    showToast('success', '已设为默认预设');
+    log.info('已设为默认预设', null, { toast: 'success' });
   },
   
   /**

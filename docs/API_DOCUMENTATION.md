@@ -1,6 +1,6 @@
 # API 文档
 
-本文档说明当前 `1.0.140` 代码基线下的公开 API、执行入口与运行模型。
+本文档说明当前 `1.0.212` 代码基线下的公开 API、执行入口与运行模型。
 
 当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 
@@ -234,8 +234,8 @@ const result = await window.YouYouToolkit.processCurrentAssistantMessage({ force
   -> _ownWriteMessageIds 黑名单检查（自写消息跳过）
   -> _recentlyProcessedSlots 槽位去重检查
   -> buildExecutionContextForMessage()
-  -> 筛选 automation.enabled === true 的 post_response_api 工具
-  -> 按 slot 串行执行 runToolPostResponse()
+  -> 按 outputMode 筛选自动工具：post_response_api + local_transform（议题 #5）
+  -> 按 slot 串行执行：local_transform 先（本地变换），post_response_api 后
   -> 若 tableWorkbench.autoUpdateEnabled === true 且 trigger=assistantMessage，则继续执行 runAutoTableUpdate()
   -> context-injector.injectDetailed() / table structured commit
   -> 以 refreshConfirmed 等结果更新事务状态
@@ -243,8 +243,9 @@ const result = await window.YouYouToolkit.processCurrentAssistantMessage({ force
 ```
 
 说明：
-- 自动链当前主线执行自动条件满足的 `post_response_api` 工具，以及挂在同一事务里的 tableWorkbench 自动填表。
-- 自动链不把 `follow_ai`、`local_transform`、compatibility 路径作为主线自动执行入口。
+- 自动链主线根据 `outputMode` 自动判定：`post_response_api` 和 `local_transform` 入自动队列，`follow_ai` 永远手动（详见议题 #5）。
+- `tool.automation.enabled` 字段已废弃，由 outputMode 替代判定。
+- compatibility fallback 路径不进入主线自动执行。
 
 ### 5.2 手动执行链
 
@@ -343,7 +344,7 @@ runScope 模式（控制 AI 可编辑哪些表）：
 
 ### `local_transform`
 
-- 当前只走手动链
+- 手动与自动主线都支持（议题 #5）
 - 在本地对提取文本做 transform
 - 之后仍通过 `context-injector` 写回
 

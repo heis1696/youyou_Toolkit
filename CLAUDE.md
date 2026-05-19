@@ -182,12 +182,17 @@ Do not casually simplify message identity, swipe handling, content fingerprintin
 ## Documentation to consult
 
 - `README.md` — current product overview and active feature scope
-- `docs/FRAMEWORK_ARCHITECTURE.md` — maintainer-oriented framework map and routing between major runtime layers
-- `docs/ARCHITECTURE_ANALYSIS.md` — architecture walkthrough
+- `docs/ARCHITECTURE_ANALYSIS.md` — architecture walkthrough (current source-aligned)
 - `docs/API_DOCUMENTATION.md` — public API and execution model
+- `docs/PHASE3_ARCHITECTURE.md` — Phase 3 architectural decisions (议题 1-15) with implementation status
+- `docs/PANEL_LAYOUT_AUDIT.md` — Flat Flow design spec + panel layout audit
+- `docs/TABLE_REWRITE_PLAN.md` — 议题 #15 填表工作台重写计划（含 shujuku 勘误表）
+- `docs/TABLE_PARITY_WITH_SHUJUKU.md` — youyou vs shujuku 填表能力差距盘点（v1.1+ 增强方向）
+- `docs/TABLE_ACCEPTANCE_TESTS.md` — 议题 #15 验收测试基准
+- `docs/LOGGING_GUIDE.md` — logger usage convention
+- `docs/UI_STYLE_GUIDE.md` — UI design tokens and component rules
 - `docs/CHANGELOG.md` — recent behavior changes and migration history
 
-There is currently no checked-in `docs/HOST_REGRESSION_CHECKLIST.md` even though older docs may mention it.
 Some docs still refer to older version labels or earlier architecture wording. When docs and source disagree, prefer the current source in `index.js`, `package.json`, and `modules/`.
 
 ## Practical guidance for edits

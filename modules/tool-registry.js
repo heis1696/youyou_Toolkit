@@ -923,17 +923,15 @@ export function getToolFullConfig(toolId) {
     id: toolId
   }, userConfig, legacyApiPresetBinding);
 
-  // 议题 #45 诊断日志：跟踪预设字段读取（默认关闭；在 console 设 window.YYT_PRESET_DEBUG=true 启用）
-  if (typeof window !== 'undefined' && window.YYT_PRESET_DEBUG && typeof console !== 'undefined' && console.log) {
-    console.log(`[YYT-DEBUG][getToolFullConfig] ${toolId}`, {
-      base_extraction: JSON.parse(JSON.stringify(baseConfig.extraction || {})),
-      base_worldbooks: JSON.parse(JSON.stringify(baseConfig.worldbooks || {})),
-      user_extraction: JSON.parse(JSON.stringify(userConfig.extraction || {})),
-      user_worldbooks: JSON.parse(JSON.stringify(userConfig.worldbooks || {})),
-      merged_extraction: JSON.parse(JSON.stringify(merged.extraction || {})),
-      merged_worldbooks: JSON.parse(JSON.stringify(merged.worldbooks || {}))
-    });
-  }
+  // 议题 #45 诊断日志：跟踪预设字段读取（log.debug 由 minLevel 控制，无需 YYT_PRESET_DEBUG 守卫）
+  log.debug(`[PRESET] getToolFullConfig ${toolId}`, {
+    base_extraction: JSON.parse(JSON.stringify(baseConfig.extraction || {})),
+    base_worldbooks: JSON.parse(JSON.stringify(baseConfig.worldbooks || {})),
+    user_extraction: JSON.parse(JSON.stringify(userConfig.extraction || {})),
+    user_worldbooks: JSON.parse(JSON.stringify(userConfig.worldbooks || {})),
+    merged_extraction: JSON.parse(JSON.stringify(merged.extraction || {})),
+    merged_worldbooks: JSON.parse(JSON.stringify(merged.worldbooks || {}))
+  });
 
   return merged;
 }
@@ -1063,16 +1061,14 @@ export function saveToolConfig(toolId, config, options = {}) {
   bindings[toolId] = resolvedApiPreset;
   storage.set(TOOL_API_PRESET_BINDING_KEY, bindings);
 
-  // 议题 #45 诊断日志：跟踪预设字段保存（默认关闭；window.YYT_PRESET_DEBUG=true 启用）
-  if (typeof window !== 'undefined' && window.YYT_PRESET_DEBUG && typeof console !== 'undefined' && console.log) {
-    console.log(`[YYT-DEBUG][saveToolConfig] ${toolId}`, {
-      input_extraction: JSON.parse(JSON.stringify(config.extraction || {})),
-      input_worldbooks: JSON.parse(JSON.stringify(config.worldbooks || {})),
-      saved_extraction: JSON.parse(JSON.stringify(userConfigs[toolId].extraction || {})),
-      saved_worldbooks: JSON.parse(JSON.stringify(userConfigs[toolId].worldbooks || {})),
-      verify_storage: JSON.parse(JSON.stringify((storage.get(TOOL_CONFIG_STORAGE_KEY) || {})[toolId]?.extraction || {}))
-    });
-  }
+  // 议题 #45 诊断日志：跟踪预设字段保存（log.debug 由 minLevel 控制，无需 YYT_PRESET_DEBUG 守卫）
+  log.debug(`[PRESET] saveToolConfig ${toolId}`, {
+    input_extraction: JSON.parse(JSON.stringify(config.extraction || {})),
+    input_worldbooks: JSON.parse(JSON.stringify(config.worldbooks || {})),
+    saved_extraction: JSON.parse(JSON.stringify(userConfigs[toolId].extraction || {})),
+    saved_worldbooks: JSON.parse(JSON.stringify(userConfigs[toolId].worldbooks || {})),
+    verify_storage: JSON.parse(JSON.stringify((storage.get(TOOL_CONFIG_STORAGE_KEY) || {})[toolId]?.extraction || {}))
+  });
 
   if (emitEvent) {
     eventBus.emit(EVENTS.TOOL_UPDATED, { toolId, config: userConfigs[toolId] });

@@ -61,7 +61,6 @@ import { getAllPresets as getApiPresets } from '../../preset-manager.js';
 import { getPresetList as getBypassPresets } from '../../bypass-manager.js';
 import regexStore from '../../regex-preset-store.js';
 import worldbookStore from '../../worldbook-preset-store.js';
-import { showToast } from '../utils.js';
 
 let _log;
 function getLog() {
@@ -1094,12 +1093,12 @@ export function bindWorkbenchEvents($container, refresh) {
   $container.on('click.tww', '[data-action="run-now"]', async () => {
     try {
       const result = await runManualTableUpdate();
-      if (result?.success) showToast('success', '填表完成');
-      else showToast('error', `填表失败：${result?.error || '未知'}`);
+      if (result?.success) getLog().info('填表完成', null, { toast: 'success' });
+      else getLog().error(`填表失败：${result?.error || '未知'}`, null, { toast: true });
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('立即填表异常', err);
-      showToast('error', `异常：${err?.message || err}`);
+      getLog().error(`异常：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1108,12 +1107,12 @@ export function bindWorkbenchEvents($container, refresh) {
     if (!window.confirm('重填会清空当前消息楼层的表格数据并重新生成，确定？')) return;
     try {
       const result = await runManualTableUpdate(null, { clearBeforeUpdate: true });
-      if (result?.success) showToast('success', '重填完成');
-      else showToast('error', `重填失败：${result?.error || '未知'}`);
+      if (result?.success) getLog().info('重填完成', null, { toast: 'success' });
+      else getLog().error(`重填失败：${result?.error || '未知'}`, null, { toast: true });
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('重填异常', err);
-      showToast('error', `异常：${err?.message || err}`);
+      getLog().error(`异常：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1131,12 +1130,12 @@ export function bindWorkbenchEvents($container, refresh) {
           selectedTableIds: []
         }
       });
-      showToast('success', '已重置范围为「所有启用表」');
+      getLog().info('已重置范围为「所有启用表」', null, { toast: 'success' });
       getLog().info('用户重置 runScope 为 enabled');
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('重置范围异常', err);
-      showToast('error', `重置失败：${err?.message || err}`);
+      getLog().error(`重置失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1163,11 +1162,11 @@ export function bindWorkbenchEvents($container, refresh) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       const count = Array.isArray(data?.templates) ? data.templates.length : 0;
-      showToast('success', `已导出 ${count} 个模板到下载文件夹`);
+      getLog().info(`已导出 ${count} 个模板到下载文件夹`, null, { toast: 'success' });
       getLog().info('export-templates 完成', { count });
     } catch (err) {
       getLog().error('export-templates 异常', err);
-      showToast('error', `导出失败：${err?.message || err}`);
+      getLog().error(`导出失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1177,15 +1176,15 @@ export function bindWorkbenchEvents($container, refresh) {
     try {
       const result = resetChatTemplateScope({ archive: true });
       if (result?.success) {
-        showToast('success', '已恢复为继承全局');
+        getLog().info('已恢复为继承全局', null, { toast: 'success' });
         getLog().info('reset-template-scope 完成');
         if (typeof refresh === 'function') refresh();
       } else {
-        showToast('error', `恢复失败：${result?.error || '未知'}`);
+        getLog().error(`恢复失败：${result?.error || '未知'}`, null, { toast: true });
       }
     } catch (err) {
       getLog().error('reset-template-scope 异常', err);
-      showToast('error', `异常：${err?.message || err}`);
+      getLog().error(`异常：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1195,20 +1194,20 @@ export function bindWorkbenchEvents($container, refresh) {
     try {
       const tpl = getActiveGlobalTemplate();
       if (!tpl) {
-        showToast('error', '没有可用的全局激活模板');
+        getLog().error('没有可用的全局激活模板', null, { toast: true });
         return;
       }
       const result = applyTemplateAsChatOverride(tpl, { source: 'workbench-chat-override' });
       if (result?.success) {
-        showToast('success', `已设为 chat 专属：${tpl.name}`);
+        getLog().info(`已设为 chat 专属：${tpl.name}`, null, { toast: 'success' });
         getLog().info('chat-template-override 完成', { templateId: tpl.id, name: tpl.name });
         if (typeof refresh === 'function') refresh();
       } else {
-        showToast('error', `设置失败：${result?.error || '未知'}`);
+        getLog().error(`设置失败：${result?.error || '未知'}`, null, { toast: true });
       }
     } catch (err) {
       getLog().error('chat-template-override 异常', err);
-      showToast('error', `异常：${err?.message || err}`);
+      getLog().error(`异常：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1216,7 +1215,7 @@ export function bindWorkbenchEvents($container, refresh) {
   $container.on('click.tww', '[data-action="chat-template-link"]', () => {
     const allTpls = (() => { try { return getAllTableTemplates() || []; } catch (_) { return []; } })();
     if (allTpls.length === 0) {
-      showToast('info', '没有可用的模板');
+      getLog().info('没有可用的模板', null, { toast: true });
       return;
     }
     const names = allTpls.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
@@ -1224,22 +1223,22 @@ export function bindWorkbenchEvents($container, refresh) {
     if (!choice) return;
     const idx = parseInt(choice, 10) - 1;
     if (!Number.isFinite(idx) || idx < 0 || idx >= allTpls.length) {
-      showToast('error', '编号无效');
+      getLog().error('编号无效', null, { toast: true });
       return;
     }
     const target = allTpls[idx];
     try {
       const result = linkPresetToChat(target.name, { source: 'workbench-link-preset' });
       if (result?.success) {
-        showToast('success', `已链接到预设：${target.name}`);
+        getLog().info(`已链接到预设：${target.name}`, null, { toast: 'success' });
         getLog().info('chat-template-link 完成', { presetName: target.name });
         if (typeof refresh === 'function') refresh();
       } else {
-        showToast('error', `链接失败：${result?.error || '未知'}`);
+        getLog().error(`链接失败：${result?.error || '未知'}`, null, { toast: true });
       }
     } catch (err) {
       getLog().error('chat-template-link 异常', err);
-      showToast('error', `异常：${err?.message || err}`);
+      getLog().error(`异常：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1249,32 +1248,28 @@ export function bindWorkbenchEvents($container, refresh) {
     try {
       const result = await clearStateInChat();
       if (result?.success) {
-        showToast('success', `已清空 ${result.touched || 0} 条消息的表格数据`);
+        getLog().info(`已清空 ${result.touched || 0} 条消息的表格数据`, null, { toast: 'success' });
         getLog().info('清空 chat 数据完成', result);
       } else {
-        showToast('error', '清空失败');
+        getLog().error('清空失败', null, { toast: true });
       }
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('清空 chat 数据异常', err);
-      showToast('error', `异常：${err?.message || err}`);
+      getLog().error(`异常：${err?.message || err}`, null, { toast: true });
     }
   });
 
   // 打开数据编辑器（议题 #15 #11，v1.0.176+）
   $container.on('click.tww', '[data-action="open-editor"]', (e) => {
     e.preventDefault();
-    // v1.0.178 hotfix Bug 2：诊断日志
-    console.log('[YYT][TableWorkbench] open-editor button clicked');
     getLog().info('open-editor button clicked');
     try {
       const result = openTableDataEditor();
-      console.log('[YYT][TableWorkbench] openTableDataEditor returned:', result);
       getLog().info('openTableDataEditor 调用完成', { hasReturn: !!result });
     } catch (err) {
-      console.error('[YYT][TableWorkbench] 打开数据编辑器异常:', err);
       getLog().error('打开数据编辑器异常', err);
-      showToast('error', `打开失败：${err?.message || err}`);
+      getLog().error(`打开失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1286,7 +1281,6 @@ export function bindWorkbenchEvents($container, refresh) {
     e.preventDefault();
     const idx = Number($(this).attr('data-table-index'));
     if (!Number.isFinite(idx) || idx < 0) return;
-    console.log('[YYT][TableWorkbench] table card clicked, idx=', idx);
     try {
       // 从当前 slot tableState 拿对应表的 uid 传给编辑器
       const snapshot = getAssistantTableSnapshot(null);
@@ -1294,11 +1288,9 @@ export function bindWorkbenchEvents($container, refresh) {
       const result = openTableDataEditor({
         focusTableUid: table?.uid || table?.id || ''
       });
-      console.log('[YYT][TableWorkbench] openTableDataEditor returned:', result);
     } catch (err) {
-      console.error('[YYT][TableWorkbench] 打开数据编辑器异常:', err);
       getLog().error('打开数据编辑器异常', err);
-      showToast('error', `打开失败：${err?.message || err}`);
+      getLog().error(`打开失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1323,15 +1315,15 @@ export function bindWorkbenchEvents($container, refresh) {
     try {
       const result = restoreChatTemplateArchive(idx);
       if (result?.success) {
-        showToast('success', '已恢复归档');
+        getLog().info('已恢复归档', null, { toast: 'success' });
         getLog().info('restoreChatTemplateArchive 成功', { index: idx, scopeState: result.scopeState });
       } else {
-        showToast('error', `恢复失败：${result?.error || '未知'}`);
+        getLog().error(`恢复失败：${result?.error || '未知'}`, null, { toast: true });
       }
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('恢复归档异常', err);
-      showToast('error', `异常：${err?.message || err}`);
+      getLog().error(`异常：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1348,12 +1340,12 @@ export function bindWorkbenchEvents($container, refresh) {
       const overrides = { ...(config.tableEnabledOverrides || {}) };
       overrides[tableId] = enabled;
       saveTableWorkbenchConfig({ ...config, tableEnabledOverrides: overrides });
-      showToast('success', enabled ? `已启用 ${tableId}` : `已禁用 ${tableId}`);
+      getLog().info(enabled ? `已启用 ${tableId}` : `已禁用 ${tableId}`, null, { toast: 'success' });
       getLog().info('toggle 单表激活', { tableId, enabled });
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('toggle 单表激活异常', err);
-      showToast('error', `切换失败：${err?.message || err}`);
+      getLog().error(`切换失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1364,11 +1356,11 @@ export function bindWorkbenchEvents($container, refresh) {
       setActiveGlobalTemplateId(templateId);
       const config = getTableWorkbenchConfig();
       saveTableWorkbenchConfig({ ...config, activeTemplate: templateId });
-      showToast('success', '模板已切换');
+      getLog().info('模板已切换', null, { toast: 'success' });
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('切换模板异常', err);
-      showToast('error', `切换失败：${err?.message || err}`);
+      getLog().error(`切换失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1381,11 +1373,11 @@ export function bindWorkbenchEvents($container, refresh) {
         ...config,
         autoUpdateEnabled: mode === 'auto'
       });
-      showToast('success', mode === 'auto' ? '已切换为自动模式' : '已切换为手动模式');
+      getLog().info(mode === 'auto' ? '已切换为自动模式' : '已切换为手动模式', null, { toast: 'success' });
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       getLog().error('切换触发模式异常', err);
-      showToast('error', `切换失败：${err?.message || err}`);
+      getLog().error(`切换失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1413,10 +1405,10 @@ export function bindWorkbenchEvents($container, refresh) {
           };
         }
         saveTableWorkbenchConfig(patch);
-        showToast('success', '已保存');
+        getLog().info('已保存', null, { toast: 'success' });
       } catch (err) {
         getLog().error(`保存 ${key} 异常`, err);
-        showToast('error', `保存失败：${err?.message || err}`);
+        getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
       }
     });
   }
@@ -1430,10 +1422,10 @@ export function bindWorkbenchEvents($container, refresh) {
         ...config,
         bypass: { ...(config.bypass || {}), presetId: value, enabled: !!value }
       });
-      showToast('success', 'Ai 指令预设已保存');
+      getLog().info('Ai 指令预设已保存', null, { toast: 'success' });
     } catch (err) {
       getLog().error('保存 bypass 异常', err);
-      showToast('error', `保存失败：${err?.message || err}`);
+      getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1445,10 +1437,10 @@ export function bindWorkbenchEvents($container, refresh) {
         ...config,
         extraction: { ...(config.extraction || {}), regexPresetId: value }
       });
-      showToast('success', '正则预设已更新');
+      getLog().info('正则预设已更新', null, { toast: 'success' });
     } catch (err) {
       getLog().error('保存 regexPreset 异常', err);
-      showToast('error', `保存失败：${err?.message || err}`);
+      getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1460,10 +1452,10 @@ export function bindWorkbenchEvents($container, refresh) {
         ...config,
         worldbooks: { ...(config.worldbooks || {}), presetId: value }
       });
-      showToast('success', '世界书预设已更新');
+      getLog().info('世界书预设已更新', null, { toast: 'success' });
     } catch (err) {
       getLog().error('保存 worldbookPreset 异常', err);
-      showToast('error', `保存失败：${err?.message || err}`);
+      getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1472,10 +1464,10 @@ export function bindWorkbenchEvents($container, refresh) {
     try {
       const config = getTableWorkbenchConfig();
       saveTableWorkbenchConfig({ ...config, contextDepth: value });
-      showToast('success', '已保存');
+      getLog().info('已保存', null, { toast: 'success' });
     } catch (err) {
       getLog().error('保存 contextDepth 异常', err);
-      showToast('error', `保存失败：${err?.message || err}`);
+      getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1491,13 +1483,13 @@ export function bindWorkbenchEvents($container, refresh) {
         ...config,
         worldbookSync: { ...(config.worldbookSync || {}), enabled: next }
       });
-      showToast('success', next ? '已启用世界书同步' : '已停用世界书同步');
+      getLog().info(next ? '已启用世界书同步' : '已停用世界书同步', null, { toast: 'success' });
       // 启用后需要 refresh 展开 sub-zone（议题 #15 #30）
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       $t.toggleClass('on', isOn);
       getLog().error('toggle worldbookSync 异常', err);
-      showToast('error', `保存失败：${err?.message || err}`);
+      getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
@@ -1517,7 +1509,7 @@ export function bindWorkbenchEvents($container, refresh) {
           wrapperConfig: { ...(ws.wrapperConfig || {}), enabled: next }
         }
       });
-      showToast('success', next ? '已启用 Wrapper 包裹' : '已停用 Wrapper');
+      getLog().info(next ? '已启用 Wrapper 包裹' : '已停用 Wrapper', null, { toast: 'success' });
     } catch (err) {
       $t.toggleClass('on', isOn);
       getLog().error('toggle worldbookWrapperEnabled 异常', err);
@@ -1542,10 +1534,10 @@ export function bindWorkbenchEvents($container, refresh) {
         const ws = cloneDeep(config.worldbookSync || {});
         setNestedPath(ws, path, value);
         saveTableWorkbenchConfig({ ...config, worldbookSync: ws });
-        showToast('success', '已保存');
+        getLog().info('已保存', null, { toast: 'success' });
       } catch (err) {
         getLog().error(`保存 worldbookSync.${path} 异常`, err);
-        showToast('error', `保存失败：${err?.message || err}`);
+        getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
       }
     });
   }
@@ -1554,7 +1546,7 @@ export function bindWorkbenchEvents($container, refresh) {
   $container.on('click.tww', '[data-action="refresh-worldbooks"]', function (e) {
     e.preventDefault();
     if (typeof refresh === 'function') refresh();
-    showToast('success', '已刷新世界书列表');
+    getLog().info('已刷新世界书列表', null, { toast: 'success' });
   });
 
   $container.on('click.tww', '[data-toggle="mirrorToMessage"]', function () {
@@ -1565,18 +1557,18 @@ export function bindWorkbenchEvents($container, refresh) {
     try {
       const config = getTableWorkbenchConfig();
       saveTableWorkbenchConfig({ ...config, mirrorToMessage: next });
-      showToast('success', next ? '已启用正文镜像' : '已停用正文镜像');
+      getLog().info(next ? '已启用正文镜像' : '已停用正文镜像', null, { toast: 'success' });
     } catch (err) {
       $t.toggleClass('on', isOn);
       getLog().error('toggle mirrorToMessage 异常', err);
-      showToast('error', `保存失败：${err?.message || err}`);
+      getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
     }
   });
 
   // 管理链接
   $container.on('click.tww', '[data-link]', function (e) {
     e.preventDefault();
-    showToast('info', `跳转到预设管理面板（待接入）`);
+    getLog().info(`跳转到预设管理面板（待接入）`, null, { toast: true });
   });
 }
 

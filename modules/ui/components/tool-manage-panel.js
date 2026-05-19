@@ -9,13 +9,15 @@ import {
   destroyEnhancedCustomSelects,
   enhanceNativeSelects,
   escapeHtml,
-  showToast,
   getJQuery,
   isContainerValid,
   downloadJson,
   readFileContent,
   showConfirm
 } from '../utils.js';
+
+import { logger } from '../../core/logger-service.js';
+const log = logger.createScope('ToolManagePanel');
 
 // 工具管理导入
 import { 
@@ -65,7 +67,7 @@ export const ToolManagePanel = {
     const hostWindow = this._getToolkitWindow();
     const toolkit = hostWindow?.YouYouToolkit || window.YouYouToolkit;
     if (!toolkit) {
-      showToast('warning', '未找到工具箱实例，无法跳转到工具配置');
+      log.warn('未找到工具箱实例，无法跳转到工具配置', null, { toast: true });
       return;
     }
 
@@ -226,7 +228,7 @@ export const ToolManagePanel = {
       setToolEnabled(toolId, enabled);
       $item.toggleClass('yyt-tool-item-enabled', enabled).toggleClass('yyt-tool-item-disabled', !enabled);
       $item.find('.yyt-status-dot').toggleClass('yyt-status-dot-on', enabled).toggleClass('yyt-status-dot-off', !enabled);
-      showToast('info', enabled ? '工具已启用' : '工具已禁用');
+      log.info(enabled ? '工具已启用' : '工具已禁用', null, { toast: true });
     });
 
     // 新建工具
@@ -255,12 +257,12 @@ export const ToolManagePanel = {
 
       const success = deleteTool(toolId);
       if (!success) {
-        showToast('error', '删除失败');
+        log.error('删除失败', null, { toast: true });
         return;
       }
 
       this.renderTo($container);
-      showToast('success', '工具已删除');
+      log.info('工具已删除', null, { toast: 'success' });
     });
   },
   
@@ -281,10 +283,10 @@ export const ToolManagePanel = {
       try {
         const text = await readFileContent(file);
         const result = importTools(text, { overwrite: false });
-        showToast(result.success ? 'success' : 'error', result.message);
+        result.success ? log.info(result.message, null, { toast: 'success' }) : log.error(result.message, null, { toast: true });
         if (result.success) this.renderTo($container);
       } catch (e) {
-        showToast('error', `导入失败: ${e.message}`);
+        log.error(`导入失败: ${e.message}`, null, { toast: true });
       }
       $(e.target).val('');
     });
@@ -294,9 +296,9 @@ export const ToolManagePanel = {
       try {
         const json = exportTools();
         downloadJson(json, `youyou_toolkit_tools_${Date.now()}.json`);
-        showToast('success', '工具已导出');
+        log.info('工具已导出', null, { toast: 'success' });
       } catch (e) {
-        showToast('error', `导出失败: ${e.message}`);
+        log.error(`导出失败: ${e.message}`, null, { toast: true });
       }
     });
     
@@ -305,7 +307,7 @@ export const ToolManagePanel = {
       if (await showConfirm('重置工具', '确定要重置所有工具吗？', { danger: true })) {
         resetTools();
         this.renderTo($container);
-        showToast('info', '工具已重置');
+        log.info('工具已重置', null, { toast: true });
       }
     });
   },
@@ -404,7 +406,7 @@ export const ToolManagePanel = {
       const retries = parseInt($retriesInput.val()) || 3;
       
       if (!name) {
-        showToast('warning', '请输入工具名称');
+        log.warn('请输入工具名称', null, { toast: true });
         $nameInput.trigger('focus').trigger('select');
         return;
       }
@@ -434,7 +436,7 @@ export const ToolManagePanel = {
       });
 
       if (!saveSuccess) {
-        showToast('error', isEdit ? '工具更新失败' : '工具创建失败');
+        log.error(isEdit ? '工具更新失败' : '工具创建失败', null, { toast: true });
         return;
       }
 
@@ -442,7 +444,7 @@ export const ToolManagePanel = {
       
       closeDialog();
       this.renderTo($container);
-      showToast('success', isEdit ? '工具已更新' : '工具已创建');
+      log.info(isEdit ? '工具已更新' : '工具已创建', null, { toast: 'success' });
 
       if (!isEdit) {
         this._openToolConfig(id);

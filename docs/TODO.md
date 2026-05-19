@@ -1,18 +1,5 @@
 # TODO
 
-## ~~jsDelivr `@latest` 缓存刷新不可控~~（已解决）
-
-**状态**：已解决（v1.0.144+）
-**方案**：A（动态版本号 import）+ B（换 gcore 镜像）
-
-**已完成的变更**：
-- CDN 域名从 `testingcf.jsdelivr.net` 切换至 `gcore.jsdelivr.net`（无独立缓存层问题）
-- 引导脚本通过 GitHub API 解析最新 release tag，锁定 `@v{version}` 加载，彻底绕开 `@latest` 缓存延迟
-- 解析失败时自动回退到 `@latest`
-- `scripts/release.js`、`README.md`、`CLAUDE.md` 已同步更新
-
----
-
 ## 主题系统模块化：自定义导入导出
 
 **状态**：待做

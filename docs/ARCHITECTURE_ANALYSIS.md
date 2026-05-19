@@ -1,6 +1,6 @@
 # 架构分析
 
-本文档基于当前 `1.0.140` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
+本文档基于当前 `1.0.212` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
 
 结论先行：当前仓库已经不是“旧 trigger 管理器驱动的一组散模块”，而是围绕薄入口、bootstrap 装配、popup shell、运行时 tool registry、统一 execution context、自动化事务服务与写回链组织起来的一条主线。
 
@@ -48,7 +48,7 @@
 
 当前 `loadModules()` 会装配的主线模块包括：
 
-- `storage.js`
+- `core/storage-service.js`（议题 #9 — 老 `storage.js` 兼容层已删除）
 - `api-connection.js`
 - `preset-manager.js`
 - `ui/index.js`
@@ -58,6 +58,8 @@
 - `window-manager.js`
 - `tool-registry.js`
 - `core/settings-service.js`
+- `core/host-event-service.js`（议题 #10）
+- `core/tool-data-provider.js` + `authority-provider.js` / `fallback-provider.js`（议题 #9）
 - `bypass-manager.js`
 - `variable-resolver.js`
 - `context-injector.js`
@@ -110,16 +112,14 @@
 
 当前注册的主面板包括：
 
-- API preset
-- regex extract
-- tool manage
-- summary tool
-- status block
-- youyou review
-- escape/punctuation transform
-- bypass
+- API preset、regex extract、worldbook preset、table template（4 项预设面板，议题 #12 合并到"预设管理"sub-nav 下）
+- summary tool、status block、youyou review、escape transform、punctuation transform（内置工具）
+- bypass（Ai 指令预设）
 - settings
+- logger
 - tableWorkbench
+
+（自定义工具的 sub-tab 由 `tool-registry.js` 在运行时动态生成。议题 #3 后，旧的独立 "工具管理" 主 tab 已不再注册。）
 
 ### 3.3 `modules/ui/ui-manager.js`：组件生命周期，不是主路由
 
@@ -297,16 +297,17 @@
 
 - 基于自动化设置判断是否启用
 - 构建指定 assistant 消息的 execution context
-- 筛选 `automation.enabled === true` 的自动工具
-- 执行符合条件的 `post_response_api` 工具
+- 按 `outputMode` 筛选自动工具：`post_response_api` + `local_transform` 都进自动队列（议题 #5）
+- local_transform 先执行（本地变换），post_response_api 后执行
 - 当 `tableWorkbench.autoUpdateEnabled === true` 且 `autoUpdateTrigger === assistantMessage` 时，在同一 generation 事务内继续执行自动填表
 - 记录事务历史、宿主绑定状态与 table auto 结果
 
 当前自动链不会把以下路径当成主线自动执行：
 
-- `follow_ai`
-- `local_transform`
+- `follow_ai`（永远手动）
 - `tool-executor.js` compatibility fallback
+
+注：旧字段 `tool.automation.enabled` 已废弃，自动判定改为读取 `tool.output.mode`。
 
 ### 7.4 运行时快照的价值
 
@@ -452,11 +453,12 @@ tableWorkbench 仍应被理解为当前主 execution / writeback 架构上的一
 
 当前仓库里仍有一些容易误导的旧名或兼容模块：
 
-- `modules/tool-executor.js`
-- `modules/ui-components.js`
-- `modules/prompt-editor.js`
-- `modules/storage.js`
-- `inline` 旧模式名
+- `modules/tool-executor.js`（compatibility fallback）
+- `modules/ui-components.js` / `modules/prompt-editor.js`（lazy-loaded compatibility seam，不再是 popup 主路径）
+- `modules/tool-manage-panel.js`（议题 #3 后保留代码但不再注册，靠 sub-nav toolbar 替代）
+- `inline` 旧模式名（映射到 `follow_ai`）
+
+注：`modules/storage.js` 已在议题 #9 删除，新代码统一走 `modules/core/storage-service.js`。
 
 这些对象的存在不等于它们仍是当前优先入口。
 
@@ -467,7 +469,8 @@ tableWorkbench 仍应被理解为当前主 execution / writeback 架构上的一
 - 主线工具模型：`tool-manager.js + tool-registry.js`
 - 主线上下文与执行：`tool-execution-context.js + tool-trigger.js + tool-automation-service.js + tool-output-service.js`
 - 主线写回：`context-injector.js`
-- 旧执行回退与历史兼容残留：`tool-executor.js`、`storage.js`、`inline` 旧模式名等
+- 主线持久化与事件：`core/storage-service.js` / `core/tool-data-provider.js` / `core/host-event-service.js`
+- 旧执行回退与历史兼容残留：`tool-executor.js`、`ui-components.js`、`prompt-editor.js`、`inline` 旧模式名等
 
 其中 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 虽然仍可在仓库中看到文件名，但已不再是 popup 主路径或 public API 的当前依赖。 
 

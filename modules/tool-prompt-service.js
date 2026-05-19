@@ -65,7 +65,7 @@ class ToolPromptService {
    */
   async buildToolMessages(toolConfig, context) {
     if (!toolConfig) {
-      this._log('构建失败: 工具配置为空');
+      log.error('构建失败: 工具配置为空');
       return [];
     }
 
@@ -109,7 +109,7 @@ class ToolPromptService {
       }
     }
 
-    this._log(`构建消息: ${messages.length} 条`);
+    log.debug(`构建消息: ${messages.length} 条`);
     return messages;
   }
 
@@ -202,14 +202,6 @@ class ToolPromptService {
       default:
         return 'user';
     }
-  }
-
-  /**
-   * 日志输出
-   * @private
-   */
-  _log(...args) {
-    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
   }
 
   // ============================================================

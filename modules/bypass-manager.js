@@ -245,7 +245,7 @@ class BypassManager {
     // 发送事件
     eventBus.emit(EVENTS.BYPASS_PRESET_CREATED, { presetId: trimmedId, preset });
 
-    this._log(`预设已创建: ${trimmedId}`);
+    log.info(`预设已创建: ${trimmedId}`);
     return { success: true, message: `预设 "${name}" 创建成功`, preset };
   }
 
@@ -283,7 +283,7 @@ class BypassManager {
     // 发送事件
     eventBus.emit(EVENTS.BYPASS_PRESET_UPDATED, { presetId, preset: updatedPreset });
 
-    this._log(`预设已更新: ${presetId}`);
+    log.info(`预设已更新: ${presetId}`);
     return { success: true, message: `预设 "${preset.name}" 更新成功`, preset: updatedPreset };
   }
 
@@ -323,7 +323,7 @@ class BypassManager {
     // 发送事件
     eventBus.emit(EVENTS.BYPASS_PRESET_DELETED, { presetId });
 
-    this._log(`预设已删除: ${presetId}`);
+    log.info(`预设已删除: ${presetId}`);
     return { success: true, message: `预设 "${preset.name}" 已删除` };
   }
 
@@ -498,7 +498,7 @@ class BypassManager {
     
     eventBus.emit(EVENTS.BYPASS_PRESET_ACTIVATED, { presetId });
     
-    this._log(`默认预设已设置: ${presetId}`);
+    log.info(`默认预设已设置: ${presetId}`);
     return true;
   }
 
@@ -814,13 +814,6 @@ class BypassManager {
     return candidateId;
   }
 
-  /**
-   * 日志输出
-   * @private
-   */
-  _log(...args) {
-    log.debug(args[0], args.length > 1 ? args.slice(1) : undefined);
-  }
 }
 
 // ============================================================

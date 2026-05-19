@@ -10,23 +10,27 @@ v1.0.148 完成 Flat Flow Phase 2 的 CSS 扁平化（详见 [PANEL_LAYOUT_AUDIT
 
 ## 议题状态总览
 
-| # | 议题 | 状态 |
-|---|------|------|
-| 1 | UI 控件 Prefab 化 | ✅ 方向确定 |
-| 2 | 正则提取面板定位 | ✅ 完整预设管理器 |
-| 3 | 工具列表面板 | ⏸ 方向已定，待 preview |
-| 4 | 设置面板自动化合并 | ✅ |
-| 5 | 自动触发规则扩展 | ✅ |
-| 6 | 多标签写回冲突 | ✅ |
-| 7 | 世界书注入预设 | ✅ |
-| 8 | 工具配置面板 HTML 重构 | ⏸ 依赖 1-7 + Prefab 库 |
-| 9 | 持久化重构 + Authority 接入 | ✅ |
-| 10 | 酒馆事件监听集中化 | ✅ |
-| 11 | 浮球系统 (FloatingOrb) | ✅ |
-| 12 | 预设面板合并（API/正则/世界书/表格模板） | ✅ |
-| 13 | 剧情推进辅助模块 | ✅ 架构定 / 待开发 |
-| 14 | 剧情外小剧场 (parking lot) | ✅ P3 |
-| 15 | 填表工作台重写设计 | ✅ |
+> 列含义：**决策** = 设计方案是否拍板；**实现** = v1.0.212 实测代码是否落地。
+
+| # | 议题 | 决策 | 实现 (v1.0.212) | 关键证据 |
+|---|------|------|----------------|---------|
+| 1 | UI 控件 Prefab 化 | ✅ 方向确定 | ✅ 已落地 | `modules/ui/components/controls/` 14 个控件文件 |
+| 2 | 正则提取面板定位 | ✅ 完整预设管理器 | ✅ 已落地 | `regex-extract-panel.js` 继承 PresetManagerBase |
+| 3 | 工具列表面板 | ⏸ 方向已定，待 preview | ✅ 已落地 | `tool-registry.js:411` 旧 toolManage 不再注册；sub-nav 已含新建/导入/导出按钮 |
+| 4 | 设置面板自动化合并 | ✅ | ✅ 已落地 | settings-panel.js 执行器 tab 持有 settleMs/cooldownMs；automation tab 已删 |
+| 5 | 自动触发规则扩展 | ✅ | ✅ 已落地 | `tool-automation-service.js:538` `local_transform` 进自动队列 |
+| 6 | 多标签写回冲突 | ✅ | ✅ 已落地 | `tool-config-panel-factory.js:660` `writebackTag` 字段 + datalist 自动补全 |
+| 7 | 世界书注入预设 | ✅ | ✅ 已落地 | `worldbook-preset-panel.js` 全套 CRUD；工具配置走 `worldbooks.presetId` 引用 |
+| 8 | 工具配置面板 HTML 重构 | ⏸ 依赖 1-7 + Prefab 库 | ✅ 已落地 | `tool-config-panel-factory.js` 797 行重写为 hero/chips/flow-section |
+| 9 | 持久化重构 + Authority 接入 | ✅ | ✅ 已落地 | `core/tool-data-provider.js` + `authority-provider.js` + `fallback-provider.js`；`modules/storage.js` 已删 |
+| 10 | 酒馆事件监听集中化 | ✅ | 🟡 部分落地 | service 自身完整；automation 完全迁移；context-injector 仅事件 emit 迁移、API 发现仍直读；用户消息能力（剧情推进依赖）未开发 |
+| 11 | 浮球系统 (FloatingOrb) | ✅ 设计 | 🔲 未开发 | `modules/ui/floating-orb/` 目录不存在；`panel-host-mixin.js` 不存在 |
+| 12 | 预设面板合并（API/正则/世界书/表格模板） | ✅ | ✅ 已落地 | `tool-registry.js:396` presetManagement 含 4 个 sub-nav；`preset-manager-base.js` + 4 个 panel 齐全 |
+| 13 | 剧情推进辅助模块 | ✅ 架构定 | 🔲 未开发 | `modules/plot-advance/` 目录不存在；host-event-service 基座已就位 |
+| 14 | 剧情外小剧场 (parking lot) | ⏸ P3 概念框架 | 🔲 未开发 | 仅文档记录候选场景 |
+| 15 | 填表工作台重写设计 | ✅ | ✅ 主链已落地 / 🟡 增强项待补 | v1.0.193 sign-off；6 项盲区见 [TABLE_PARITY_WITH_SHUJUKU.md](./TABLE_PARITY_WITH_SHUJUKU.md) |
+
+**汇总（v1.0.212）**：11 项已落地 / 2 项部分落地（#10/#15）/ 3 项未开发（#11/#13/#14）。
 
 ---
 
@@ -211,6 +215,8 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 
 ### 1. UI 控件 Prefab 化 ✅
 
+> **实现状态（v1.0.212）**：✅ 已落地。`modules/ui/components/controls/` 14 个控件文件齐全（flow-section / form-row / select-input / text-input / toggle / list-row / button / divider / zone-title / dialog / toolbar / preset-list-item / chip-group + _internal / index）。各预设面板与工具配置面板均已迁移到控件库。
+
 **问题**：当前各面板用模板字符串手写 HTML，相同控件在不同面板里实现不一致；样式分散在 `main.css` / `bootstrap.js:getBaseStyles()` / 组件 `getStyles()` 三处。
 
 **决定**：建立 `modules/ui/components/controls/` 控件工厂库。
@@ -238,6 +244,8 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 
 ### 2. 正则提取面板 — 完整预设管理器 ✅
 
+> **实现状态（v1.0.212）**：✅ 已落地。`regex-extract-panel.js` 继承 `preset-manager-base.js`，预设 CRUD + 导入导出齐备；工具与预设通过 `extraction.regexPresetId` ID 关联，删工具不影响预设、删预设触发工具运行时提示。
+
 **问题**：正则提取功能在多处被用到（工具配置的提取配置），但独立面板的预设管理只有雏形未完成。
 
 **决定**：升级为完整的预设管理器。
@@ -257,7 +265,9 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 
 ---
 
-### 3. 工具列表面板与 sub-nav 融合 ⏸
+### 3. 工具列表面板与 sub-nav 融合 ⏸ → ✅ 已落地
+
+> **实现状态（v1.0.212）**：✅ 已落地。`tool-registry.js:411` 注释 "旧 toolManage 入口及其 ToolManagePanel 组件保留代码但不再注册"；popup-shell sub-nav 头部已有 `新建/导入/导出` 按钮 + 筛选框。`tool-manage-panel.js` 作为冷却代码保留未删（不阻塞主路径）。
 
 **问题**：当前工具管理面板功能过于简单（只有新建/导入/导出/列表），独立成顶级面板没必要。
 
@@ -275,6 +285,8 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 ---
 
 ### 4. 设置面板自动化合并 ✅
+
+> **实现状态（v1.0.212）**：✅ 已落地。`settings-panel.js:362/367/563/564` 在执行器 tab 持有 `settleMs/cooldownMs` 输入；`automation.enabled` 已从 settings-service 移除；工具配置面板内的自动触发开关 / settleMs / cooldownMs 字段全部删除。
 
 **决定**：删除独立的"自动化"tab，相关内容合并到执行器 tab。
 
@@ -303,6 +315,8 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 
 ### 5. 自动触发规则 ✅
 
+> **实现状态（v1.0.212）**：✅ 已落地。`tool-automation-service.js:538` `localTransformTools = allConfigs.filter(c => shouldRunLocalTransform(c) && c.output?.autoTrigger !== false)`，且 local transform 先于 post_response_api 执行；判定依据已切换为 `outputMode`。
+
 **新规则**：按 `output_mode` 自动判定，工具配置面板不再有"自动触发"开关。
 
 | output_mode | 自动触发 |
@@ -318,6 +332,8 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 ---
 
 ### 6. 多标签写回冲突 ✅
+
+> **实现状态（v1.0.212）**：✅ 已落地。`tool-config-panel-factory.js:660` 新增 "写回标签" free-text input（带 datalist 自动补全），`extraction.writebackTag` 保存到工具配置；执行链命中该字段时只写回指定标签，未填则取首个。
 
 **问题**：多标签提取时写回范围互相干扰。
 
@@ -336,6 +352,8 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 ---
 
 ### 7. 世界书注入预设 ✅
+
+> **实现状态（v1.0.212）**：✅ 已落地。`worldbook-preset-panel.js` 含绑定模式（character_card / custom）、包含禁用词条开关、bookList + entryOverrides 完整 UI；工具配置 `worldbooks.presetId` 引用预设；`{{toolWorldbookContent}}` 宏由 `tool-worldbook-service.js` 解析。
 
 **术语统一**：
 - **世界书**（lorebook）= 一整本
@@ -382,7 +400,9 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 
 ---
 
-### 8. 工具配置面板 HTML 重构 ⏸
+### 8. 工具配置面板 HTML 重构 ⏸ → ✅ 已落地
+
+> **实现状态（v1.0.212）**：✅ 已落地。`tool-config-panel-factory.js`（797 行）重写为 hero（含 chips + 立即执行/保存按钮）+ 绑定区 + 配置区 + flow-section 结构；macro-hint / footer / 自动触发区 / 内嵌正则与世界书均已删除，全部走预设引用。v1.0.211 修复 hero 滚动压缩相关 #3 bug。
 
 **依赖**：1-7 全部定案 + Prefab 控件库雏形
 
@@ -421,6 +441,8 @@ yyt-tool-panel
 ---
 
 ### 9. 持久化重构 + Authority 接入 ✅
+
+> **实现状态（v1.0.212）**：✅ 已落地。`core/tool-data-provider.js` (Provider 工厂 + IToolDataProvider 接口) + `authority-provider.js` (163 行) + `fallback-provider.js` (498 行) 三件套到位；`modules/storage.js` 兼容层已删除；填表数据通过 `table-engine/table-data-service.js` 接入双轨（state-service / lock-service / chat-scope-service 双写到 IToolDataProvider）。
 
 **调研结论**（详见参考项目调研 A.1 + B）：
 
@@ -531,6 +553,14 @@ Authority 额外提供：
 
 ### 10. 酒馆事件监听集中化 ✅
 
+> **实现状态（v1.0.212）**：🟡 部分落地。
+> - ✅ `core/host-event-service.js` (414 行) 自身完整：HOST_EVENTS 常量（含 MESSAGE_SENT / USER_MESSAGE_RENDERED / GENERATION_AFTER_COMMANDS / IMPERSONATE_READY / MESSAGE_EDITED 等剧情推进所需事件）+ 统一 subscribe/emit/describe/ready/getHostApi/getHostContext API。
+> - ✅ `tool-automation-service.js:15` 完全迁移，所有事件订阅与 API 发现都走 hostEvents。
+> - 🟡 `context-injector.js:9` 仅迁移了事件 emit (MESSAGE_UPDATED)，宿主 API 发现 (line 431/1253/1263) 仍直读 `topWindow.SillyTavern`。
+> - 🔲 `table-workbench-panel.js` 没有引用 host-event-service（也已无 SillyTavern 发现代码——可能间接走了其他服务）。
+> - 🔲 用户消息能力（监听 USER_MESSAGE_RENDERED / setSendTextareaValue 封装 / 用户消息写回）未开发；剧情推进依赖项之一。
+> - 🔲 其他模块（`api-connection.js` / `tool-worldbook-service.js` / `tool-execution-context.js` / `storage-service.js` / `table-state-service.js`）仍各自直读 `topWindow.SillyTavern`，未走 service 的 `getHostApi`。
+
 **问题**：当前 3 处重复 30-50 行的宿主 API 发现代码（`tool-automation-service.js:31-101`、`context-injector.js:59-78`、`table-workbench-panel.js:1310-1332`），没有抽象层。用户消息相关事件（`MESSAGE_SENT`/`USER_MESSAGE_RENDERED`/`MESSAGE_EDITED`/`IMPERSONATE_READY`/`GENERATION_AFTER_COMMANDS`）当前未使用。
 
 **决定**：新建 `modules/core/host-event-service.js`。
@@ -586,7 +616,9 @@ await hostEvents.ready();
 
 ---
 
-### 11. 浮球系统 (FloatingOrb) ✅
+### 11. 浮球系统 (FloatingOrb) ✅ 设计
+
+> **实现状态（v1.0.212）**：🔲 未开发。`modules/ui/floating-orb/` 目录不存在；`modules/ui/panel-host-mixin.js` 也未抽出；当前仅有设计稿 + Public API 草案。
 
 **澄清**：原先误解为"可调大小的子窗口"，实际指 **iOS Assistive Touch 模式的常驻浮球 + 锚定弹出菜单**。
 
@@ -693,6 +725,8 @@ orbManager.getById('plot-advance-orb');
 
 ### 12. 预设面板合并（API/正则/世界书/表格模板）✅
 
+> **实现状态（v1.0.212）**：✅ 已落地。`tool-registry.js:396-408` `presetManagement` 顶级 tab 含 4 个 sub-nav (apiPresets / regexPresets / worldbookPresets / tableTemplates)；`preset-manager-base.js` + 4 个具体 panel 全部到位；Bypass 仍是独立顶级 tab，符合决策。
+
 **决定**：合并 3 个预设面板成一个"预设管理"主 tab，内部用 sub-nav 切换。**Bypass（Ai 指令预设）保持独立顶级面板**，因为它是消息列表编辑器形态，和"列表+表单"模式不同。
 
 #### 主导航变化
@@ -745,6 +779,8 @@ API 预设 | 正则提取 | 世界书 | 表格模板
 ---
 
 ### 13. 剧情推进辅助模块 ✅ 架构定案 / ⏸ 功能待开发
+
+> **实现状态（v1.0.212）**：🔲 未开发。`modules/plot-advance/` 目录不存在；不过依赖的 `host-event-service`（#10）+ `IToolDataProvider`（#9）基座已就位，可随时启动开发。
 
 **功能定义**：拦截用户输入 → 用绑定的 AI 预设 + 模板加工 → AI 回复作为加工后的用户输入回填 → 酒馆主流程用加工后的文本继续生成主对话回复。
 
@@ -829,6 +865,8 @@ plot-orchestrator.js
 
 ### 14. 剧情外小剧场（parking lot）⏸ P3
 
+> **实现状态（v1.0.212）**：🔲 未开发。仅文档记录候选场景与待定问题，未启动设计细化。
+
 **概念框架记录，具体设计待用户启动时再展开**。
 
 #### 初步理解（待用户确认）
@@ -871,6 +909,10 @@ plot-orchestrator.js
 ---
 
 ### 15. 填表工作台重写设计 ✅
+
+> **实现状态（v1.0.212）**：✅ 主链已落地 / 🟡 增强项待补。v1.0.193 sign-off 主链稳定（18 项核心能力对齐 shujuku，见 [TABLE_PARITY_WITH_SHUJUKU.md](./TABLE_PARITY_WITH_SHUJUKU.md)）。剩余 6 项盲区（G1 数据编辑器 config mode 可编辑 UI / G2 per-table 自动更新调度验证 / G3 AI 改表助手 dock / M1 锁定 UI / M2 模板预设 UI 完整度 / M4 sendLatestRows 等）为 v1.1+ 增强方向，不阻塞当前发布。
+>
+> ⚠️ 文档勘误：本节原始设计含 6 处与 shujuku 实际架构的偏差（5 张 SQLite 系统表 / HTML table 渲染 / 双作用域模板 / DSL 数组语法 / SQL WHERE 隔离 / 7 步独立函数），**实际重写以 [TABLE_REWRITE_PLAN.md](./TABLE_REWRITE_PLAN.md) §1 修订表为准**。
 
 **决策**：全面对标 shujuku-spv3.7 重写填表模块（仅填表，其他模块不动）。理由：现有填表"极其简陋和丑、UI 架构也要抄"，shujuku 是验证过的成熟方案（详见参考项目调研 A.3）。
 

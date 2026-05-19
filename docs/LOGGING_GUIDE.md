@@ -40,18 +40,19 @@ const log = logger.createScope('MyModuleName');
 
 ### 日志调用
 
-作用域 logger 提供五个方法，签名统一为 `(message, data?)`：
+作用域 logger 提供五个方法，签名统一为 `(message, data?, options?)`：
 
 ```js
-log.debug(msg, data);   // 开发诊断信息，生产环境默认不显示
-log.info(msg, data);     // 常规操作记录（等同于 log.log）
-log.log(msg, data);      // log 的别名，内部调用 info
-log.warn(msg, data);     // 非致命异常、降级、兼容性警告
-log.error(msg, data);    // 错误、异常、操作失败
+log.debug(msg, data, options);   // 开发诊断信息，生产环境默认不显示
+log.info(msg, data, options);    // 常规操作记录（等同于 log.log）
+log.log(msg, data, options);     // log 的别名，内部调用 info
+log.warn(msg, data, options);    // 非致命异常、降级、兼容性警告
+log.error(msg, data, options);   // 错误、异常、操作失败
 ```
 
 - `message` — `string`，简明描述发生了什么
 - `data` — 可选，结构化附加上下文（对象、数组等），不要拼接进 message 字符串
+- `options` — 可选，控制附加行为（toast 通知等），见下方「用户通知」章节
 
 ---
 
@@ -108,6 +109,60 @@ log.error('注入失败: 缺少 sourceMessageId');
 **适用场景：** 异常捕获、必要资源不可用、操作链中断、catch 块中的错误记录。
 
 **重要：** `catch` 块中的错误**必须**记录 `log.error`，不要只通过返回值静默传播。
+
+---
+
+## 用户通知 (toast / topNotice)
+
+日志模块统一管理用户可见的 Toast 通知和顶部通知。所有用户通知通过 `options` 参数触发，不再直接调用 `showToast` / `showTopNotice`。
+
+### toast 选项
+
+```js
+// 自动映射级别：INFO→info, WARN→warning, ERROR→error
+log.info('配置已保存', null, { toast: true });
+log.warn('配置不完整', null, { toast: true });
+log.error('执行失败', { error }, { toast: true });
+
+// 显式指定 toast 类型（如 success 不对应任何日志级别）
+log.info('工具已创建', { toolId }, { toast: 'success' });
+log.info('工具已删除', null, { toast: 'success' });
+
+// 自定义持续时间
+log.info('操作完成', null, { toast: true, duration: 5000 });
+```
+
+### topNotice 选项
+
+用于需要常驻或需要唯一标识的通知（如长时间操作的进度提示）。
+
+```js
+// 带唯一 ID 的顶部通知
+log.info('正在执行', null, { topNotice: { noticeId: 'exec-1', sticky: true } });
+
+// 非常驻顶部通知
+log.error('执行失败', null, { topNotice: { noticeId: 'exec-1' } });
+```
+
+### toast 与 topNotice 组合
+
+同一个日志调用可以同时触发 toast 和 topNotice：
+
+```js
+log.info('手动执行完成', null, {
+  toast: 'success',
+  topNotice: { noticeId: 'exec-1' }
+});
+```
+
+### 级别 → toast 类型映射
+
+| 日志级别 | `toast: true` 映射 | 显式指定 |
+|---------|-------------------|---------|
+| DEBUG | `info` | — |
+| INFO | `info` | `toast: 'success'` / `toast: 'info'` |
+| WARN | `warning` | `toast: 'warning'` |
+| ERROR | `error` | `toast: 'error'` |
 
 ---
 
@@ -193,6 +248,20 @@ log.error('组件渲染失败', error);
 log.info('步骤1开始');
 log.info('步骤1完成');
 ```
+
+### 7. 用户通知必须通过 logger 的 toast/topNotice 选项，禁止直接调用 showToast / showTopNotice
+
+```js
+// ✅ 正确 — 统一入口，日志和通知同步
+log.info('配置已保存', null, { toast: 'success' });
+log.error('执行失败', { error }, { toast: true });
+
+// ❌ 错误 — 绕过日志系统，日志面板无记录
+showToast('success', '配置已保存');
+showTopNotice('error', '执行失败', { noticeId: 'exec-1' });
+```
+
+`showToast` / `showTopNotice` 仅作为底层渲染函数由 handler 内部调用，业务代码不应直接引用。
 
 ---
 
@@ -296,3 +365,4 @@ logger.clear();                     // 清空所有日志
 5. **不使用 _log() 转发器** — 每个调用点直接用正确级别
 6. **作用域名不重复** — 参考上方已注册作用域清单，避免冲突
 7. **catch 块必须记日志** — 不要只返回错误对象，至少 `log.error`
+8. **用户通知走 logger** — 使用 `{ toast: true }` / `{ topNotice: {} }` 选项，不直接调用 `showToast` / `showTopNotice`
