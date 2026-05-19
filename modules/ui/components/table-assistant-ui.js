@@ -5,7 +5,6 @@
  * 由 table-workbench-window.js 的 data-action="open-assistant" 按钮触发开关。
  */
 
-import { getJQuery, isContainerValid } from '../utils.js';
 import { logger } from '../../core/logger-service.js';
 import {
   runAssistantSession,
@@ -13,9 +12,10 @@ import {
   createAssistantSessionGuard,
   AssistantSessionStoppedError,
 } from '../../table-engine/table-assistant-service.js';
-import { getTableWorkbenchConfig } from '../../table-engine/table-schema-service.js';
+import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-engine/table-schema-service.js';
 import { cloneTableValue } from '../../table-engine/table-types.js';
 import { normalizePositiveInt } from '../../table-engine/table-assistant-types.js';
+import { getPresetNames } from '../../preset-manager.js';
 
 const log = logger.createScope('TableAssistantUI');
 
@@ -36,6 +36,7 @@ const DEFAULT_MAX_ROUNDS = 3;
 // ════════════════════════════════════════════════════════════════
 
 let _containerEl = null;
+let _workbenchRefresh = null;
 let _isOpen = false;
 let _isGenerating = false;
 let _userInput = '';
@@ -176,6 +177,13 @@ function renderTranscriptHtml() {
   }).join('');
 }
 
+function renderPresetOptions() {
+  let names = [];
+  try { names = getPresetNames() || []; } catch { /* ignore */ }
+  const options = names.map((n) => `<option value="${escHtml(n)}" ${n === _apiPreset ? 'selected' : ''}>${escHtml(n)}</option>`).join('');
+  return `<option value="" ${!_apiPreset ? 'selected' : ''}>默认</option>${options}`;
+}
+
 function renderAssistantPanelHtml() {
   const disabled = _isGenerating || !_userInput.trim();
   return `
@@ -192,6 +200,8 @@ function renderAssistantPanelHtml() {
       </div>
       <div class="yyt-assistant-footer">
         <div class="yyt-assistant-controls">
+          <label>API 预设</label>
+          <select class="yyt-assistant-input yyt-assistant-select" id="yyt-assistant-preset" style="width:auto;min-width:100px;">${renderPresetOptions()}</select>
           <label>最大轮次</label>
           <input type="number" min="1" class="yyt-assistant-input" id="yyt-assistant-max-rounds" value="${escHtml(_maxRoundsInput)}">
         </div>
@@ -229,6 +239,10 @@ function bindPanelEvents() {
     _userInput = e.target.value || '';
     const sendBtn = host.querySelector('#yyt-assistant-send');
     if (sendBtn) sendBtn.disabled = _isGenerating || !_userInput.trim();
+  });
+
+  host.querySelector('#yyt-assistant-preset')?.addEventListener('change', (e) => {
+    _apiPreset = e.target.value || '';
   });
 
   host.querySelector('#yyt-assistant-max-rounds')?.addEventListener('input', (e) => {
@@ -284,6 +298,17 @@ function bindPanelEvents() {
         const applied = await applyAssistantResult(turn.result);
         if (applied) {
           log.info('assistant 草稿已应用到工作台', null, { toast: 'success' });
+          const focusId = turn.compileResult?.focusTableId;
+          if (focusId) {
+            try {
+              const cfg = getTableWorkbenchConfig();
+              if (cfg && (!cfg.scope || cfg.scope.activeTableId !== focusId)) {
+                cfg.scope = { ...(cfg.scope || {}), activeTableId: focusId };
+                saveTableWorkbenchConfig(cfg);
+              }
+            } catch { /* ignore */ }
+          }
+          if (typeof _workbenchRefresh === 'function') _workbenchRefresh();
           refreshPanel();
         } else {
           log.warn('当前结构已变化，assistant 草稿已失效，请重新生成。', null, { toast: 'warning' });
@@ -340,6 +365,7 @@ async function handleSend() {
           type: 'assistant',
           id: generateTurnId(),
           draft: progress.round.draft,
+          aiRawText: progress.round.aiRawText,
           compileResult: progress.round.perRoundCompileResult,
           sessionInfo: `第 ${progress.round.round}/${progress.maxRounds} 轮`,
           isFinal: false,
@@ -358,6 +384,7 @@ async function handleSend() {
       type: 'assistant',
       id: generateTurnId(),
       draft: result.draft,
+      aiRawText: result.aiRawText,
       compileResult: result.compileResult,
       sessionInfo: result.session ? `${result.session.roundsExecuted}轮 · ${result.session.stopReason}` : '',
       isFinal: true,
@@ -422,6 +449,7 @@ function buildPriorTurns() {
 
 export function toggleAssistant(workbenchRefresh, containerEl) {
   if (containerEl) _containerEl = containerEl;
+  if (typeof workbenchRefresh === 'function') _workbenchRefresh = workbenchRefresh;
   _isOpen = !_isOpen;
   if (_isOpen) {
     ensureHost(workbenchRefresh);
@@ -524,6 +552,9 @@ export function getAssistantPanelStyles() {
       width: 56px; text-align: center;
       background: var(--yyt-bg-2, #2a2a3e); border: 1px solid var(--yyt-border, rgba(255,255,255,0.12));
       color: inherit; border-radius: 4px; padding: 3px 6px; font-size: 13px;
+    }
+    .yyt-assistant-select {
+      cursor: pointer;
     }
     .yyt-assistant-textarea {
       width: 100%; min-height: 68px; resize: vertical; box-sizing: border-box;

@@ -1152,13 +1152,7 @@ export function bindWorkbenchEvents($container, refresh) {
   // AI 改表助手
   $container.on('click.tww', '[data-action="open-assistant"]', () => {
     try {
-      let doc;
-      try {
-        if (window.parent && window.parent !== window && window.parent.document) {
-          doc = window.parent.document;
-        }
-      } catch { /* cross-origin */ }
-      doc = doc || document;
+      const doc = $container[0].ownerDocument || document;
       if (!doc.getElementById('yyt-assistant-styles')) {
         const style = doc.createElement('style');
         style.id = 'yyt-assistant-styles';
