@@ -9,6 +9,42 @@
 
 ## [Unreleased]
 
+### fix：数据编辑器窗口不可拖拽/不可 resize/尺寸偏小
+
+**根因**：`window-manager.js` v1.0.179 hotfix 只修了 DOM 挂载点（`appendChild` 到父文档），但拖拽/resize 的 `mousemove`/`mouseup` 事件仍绑在 `$(document)`（iframe 的 document），视口尺寸仍读 `window.innerWidth/Height`（iframe 视口）。窗口 DOM 在父文档，鼠标事件在 iframe，两者不连通。
+
+**`modules/window-manager.js`**（18 处）：
+- `createWindow` 顶部统一解析 `targetDoc = getTargetDocument()` / `targetWin = targetDoc.defaultView`
+- 视口尺寸：`window.innerWidth/Height` → `targetWin.innerWidth/Height`
+- 拖拽事件：`$(document).on/off('mousemove/mouseup…Drag')` → `$(targetDoc)`
+- resize 事件：`$(document).on/off('mousemove/mouseup…Resize')` → `$(targetDoc)`
+- user-select：`$(document.body).css(…)` → `$(targetDoc.body).css(…)`
+- `closeWindow` 同样用 `getTargetDocument()` 清理事件
+
+**`modules/ui/components/table-data-editor-window.js`**（2 处）：
+- 新增 `import { getTargetDocument } from '../../ui/utils.js'`
+- 旧窗口检测：`document.body.contains(…)` → `getTargetDocument().body.contains(…)`
+
+### refactor：动画 keyframes 收束 + CSS 构建内联
+
+**动画 keyframes 统一**：
+- `styles/main.css` 补齐至 10 个 keyframes（原 4 个 + window manager 2 个 + notice/toast 4 个）
+- `modules/window-manager.js` — 删除内联 `yytWindowFadeIn` / `yytWindowSlideIn` 定义
+- `modules/ui/utils.js` — 删除内联 `yyt-top-notice-in/out` / `yyt-toast-in/out` 定义，移除 `yyt-toast-styles` 注入守卫
+- 全部 keyframes 仅在 `styles/main.css` 中定义一次，各组件通过 `animation:` 引用
+
+**CSS 构建内联（消除 getBaseStyles 副本）**：
+- 新增 `esbuild.config.js` — 统一构建配置，`--loader:.css=text` 将 CSS 作为字符串打包进 bundle
+- `modules/app/bootstrap.js` — `import mainCss from '../../styles/main.css'` 构建时内联
+- 删除 `getBaseStyles()` 函数（~3000 行手动维护的 CSS 副本）
+- `injectStyles()` 从 async + fetch + fallback 简化为同步注入 `mainCss`
+- `package.json` build/build:dev/build:iife 改为 `node esbuild.config.js`
+
+**效果**：
+- `styles/main.css` 成为 CSS 唯一源，不再需要与 bootstrap.js 手动同步
+- 运行时少一次 fetch 网络请求，样式注入从异步变为同步
+- bundle 体积 +0.48%（esbuild import wrapper 开销）
+
 ## [1.0.215] - 2026-05-19
 
 ### refactor：控件库 passthrough 透传 — baseControl 支持 style/className/attrs

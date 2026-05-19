@@ -5,10 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "esbuild index.js --bundle --format=esm --outfile=dist/bundle.js --minify",
-    "build:dev": "esbuild index.js --bundle --format=esm --outfile=dist/bundle.js",
-    "build:iife": "esbuild index.js --bundle --format=iife --global-name=YouYouToolkit --outfile=dist/bundle.iife.js --minify",
-    "watch": "esbuild index.js --bundle --format=esm --outfile=dist/bundle.js --watch",
+    "build": "node esbuild.config.js build",
+    "build:dev": "node esbuild.config.js dev",
+    "build:iife": "node esbuild.config.js iife",
+    "watch": "esbuild index.js --bundle --format=esm --outfile=dist/bundle.js --watch --loader:.css=text",
     "dev": "npm run build:dev && node -e \"console.log('构建完成: dist/bundle.js')\"",
     "release": "node scripts/release.js"
   },

@@ -245,28 +245,6 @@ export function showTopNotice(type, message, options = {}) {
         background: rgba(123, 183, 255, 0.18);
         color: #7bb7ff;
       }
-
-      @keyframes yyt-top-notice-in {
-        from {
-          opacity: 0;
-          transform: translateY(-8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      @keyframes yyt-top-notice-out {
-        from {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        to {
-          opacity: 0;
-          transform: translateY(-8px);
-        }
-      }
     `;
     targetDoc.head.appendChild(style);
   }
@@ -370,23 +348,6 @@ function _showFallbackToast(type, message, duration) {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
   `;
   toast.textContent = message;
-  
-  // 添加动画样式
-  if (!targetDoc.getElementById('yyt-toast-styles')) {
-    const style = targetDoc.createElement('style');
-    style.id = 'yyt-toast-styles';
-    style.textContent = `
-      @keyframes yyt-toast-in {
-        from { opacity: 0; transform: translateX(100px); }
-        to { opacity: 1; transform: translateX(0); }
-      }
-      @keyframes yyt-toast-out {
-        from { opacity: 1; transform: translateX(0); }
-        to { opacity: 0; transform: translateX(100px); }
-      }
-    `;
-    targetDoc.head.appendChild(style);
-  }
   
   targetDoc.body.appendChild(toast);
   
