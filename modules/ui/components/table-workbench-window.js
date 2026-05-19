@@ -1153,12 +1153,13 @@ export function bindWorkbenchEvents($container, refresh) {
   $container.on('click.tww', '[data-action="open-assistant"]', () => {
     try {
       const doc = $container[0].ownerDocument || document;
-      if (!doc.getElementById('yyt-assistant-styles')) {
-        const style = doc.createElement('style');
+      let style = doc.getElementById('yyt-assistant-styles');
+      if (!style) {
+        style = doc.createElement('style');
         style.id = 'yyt-assistant-styles';
-        style.textContent = getAssistantPanelStyles();
         (doc.head || doc.documentElement).appendChild(style);
       }
+      style.textContent = getAssistantPanelStyles();
       toggleAssistant(refresh, $container[0]);
     } catch (err) {
       getLog().error('open-assistant 异常', err);

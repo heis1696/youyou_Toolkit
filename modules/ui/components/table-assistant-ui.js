@@ -201,7 +201,7 @@ function renderAssistantPanelHtml() {
       <div class="yyt-assistant-footer">
         <div class="yyt-assistant-controls">
           <label>API 预设</label>
-          <select class="yyt-assistant-input yyt-assistant-select" id="yyt-assistant-preset" style="width:auto;min-width:100px;">${renderPresetOptions()}</select>
+          <select class="yyt-assistant-input yyt-assistant-select" id="yyt-assistant-preset">${renderPresetOptions()}</select>
           <label>最大轮次</label>
           <input type="number" min="1" class="yyt-assistant-input" id="yyt-assistant-max-rounds" value="${escHtml(_maxRoundsInput)}">
         </div>
@@ -558,15 +558,26 @@ export function getAssistantPanelStyles() {
     #yyt-assistant-host .yyt-assistant-input,
     #yyt-assistant-host .yyt-assistant-select,
     #yyt-assistant-host .yyt-assistant-textarea {
-      background: var(--tww-surface-2); border: 1px solid var(--tww-hairline-strong);
-      color: var(--tww-text); border-radius: 6px; font-size: 13px;
+      background-color: var(--tww-surface-2) !important;
+      background: var(--tww-surface-2) !important;
+      border: 1px solid var(--tww-hairline-strong) !important;
+      color: var(--tww-text) !important;
+      -webkit-text-fill-color: var(--tww-text) !important;
+      caret-color: var(--tww-text) !important;
+      border-radius: 6px; font-size: 13px;
       font-family: inherit;
+      box-shadow: none !important;
+      outline-color: var(--tww-accent);
     }
     #yyt-assistant-host .yyt-assistant-input {
       width: 56px; text-align: center; padding: 3px 6px;
     }
     #yyt-assistant-host .yyt-assistant-select {
       cursor: pointer; padding: 3px 6px; min-width: 100px;
+    }
+    #yyt-assistant-host .yyt-assistant-select option {
+      background-color: var(--tww-surface-2) !important;
+      color: var(--tww-text) !important;
     }
     #yyt-assistant-host .yyt-assistant-textarea {
       width: 100%; min-height: 68px; resize: vertical; box-sizing: border-box;
