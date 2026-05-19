@@ -2259,83 +2259,88 @@ deleteRow(1, 0)
   `}function la(){return tl?tl.querySelector("#"+el):Jd().getElementById(el)}function Xn(){let t=la();t&&(t.innerHTML=C_(),I_())}function I_(){let t=la();t&&(t.querySelector("#yyt-assistant-input")?.addEventListener("input",e=>{Qn=e.target.value||"";let r=t.querySelector("#yyt-assistant-send");r&&(r.disabled=Jn||!Qn.trim())}),t.querySelector("#yyt-assistant-preset")?.addEventListener("change",e=>{rl=e.target.value||""}),t.querySelector("#yyt-assistant-max-rounds")?.addEventListener("input",e=>{Zd=e.target.value||String(Qd)}),t.querySelector("#yyt-assistant-send")?.addEventListener("click",k_),t.querySelector("#yyt-assistant-stop")?.addEventListener("click",R_),t.querySelector('[data-action="close-assistant"]')?.addEventListener("click",M_),t.querySelectorAll(".yyt-assistant-toggle").forEach(e=>{e.addEventListener("click",()=>{let r=e.getAttribute("data-turn-id"),s=et.find(n=>n.id===r&&n.type==="assistant");s&&(s.expanded=!s.expanded,Xn())})}),t.querySelectorAll(".yyt-assistant-risk-cb").forEach(e=>{e.addEventListener("change",()=>{let r=e.getAttribute("data-turn-id"),s=Number(e.getAttribute("data-risk-idx")),n=et.find(a=>a.id===r&&a.type==="assistant");if(!n)return;n.riskConfirmations||(n.riskConfirmations={}),n.riskConfirmations[String(s)]=e.checked;let o=t.querySelector(`.yyt-assistant-apply-btn[data-turn-id="${r}"]`);if(o){let a=(n.compileResult?.highRiskItems||[]).every((i,l)=>n.riskConfirmations[String(l)]!==!1);o.disabled=!a}})}),t.querySelectorAll(".yyt-assistant-apply-btn").forEach(e=>{e.addEventListener("click",async()=>{let r=e.getAttribute("data-turn-id"),s=et.find(a=>a.id===r&&a.type==="assistant");if(!s?.result)return;let n=s.compileResult?.highRiskItems||[],o=n.every((a,i)=>s.riskConfirmations?.[String(i)]!==!1);if(n.length&&!o){ps.warn("\u8BF7\u5148\u786E\u8BA4\u6240\u6709\u9AD8\u98CE\u9669\u9879",null,{toast:"warning"});return}try{if(await wh(s.result)){ps.info("assistant \u8349\u7A3F\u5DF2\u5E94\u7528\u5230\u5DE5\u4F5C\u53F0",null,{toast:"success"});let i=s.compileResult?.focusTableId;if(i)try{let l=be();l&&(!l.scope||l.scope.activeTableId!==i)&&(l.scope={...l.scope||{},activeTableId:i},Ye(l))}catch{}typeof Xd=="function"&&Xd(),Xn()}else ps.warn("\u5F53\u524D\u7ED3\u6784\u5DF2\u53D8\u5316\uFF0Cassistant \u8349\u7A3F\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u751F\u6210\u3002",null,{toast:"warning"})}catch(a){ps.error("\u5E94\u7528\u5931\u8D25",a,{toast:"error"})}})}))}async function k_(){let t=Qn.trim();if(!t)return;let e=be(),r=e?.scope?.activeTableId||"";if(!r){ps.warn("\u8BF7\u5148\u9009\u4E2D\u4E00\u4E2A\u8868\u540E\u518D\u4F7F\u7528 AI \u6539\u8868\u52A9\u624B",null,{toast:"warning"});return}let s=P_(),n={type:"user",id:Zi(),content:t};et.push(n),Qn="",Jn=!0;let o=Qi+1;sl=qd(),Qi=o,Xn();try{let a=await bh({config:oe(e),currentTableId:r,userRequest:t,priorTurns:s,apiPreset:rl,maxRounds:Ji(Zd,Qd),guard:sl.createRunGuard(),onRoundComplete:c=>{if(o!==Qi)return;let d={type:"assistant",id:Zi(),draft:c.round.draft,aiRawText:c.round.aiRawText,compileResult:c.round.perRoundCompileResult,sessionInfo:`\u7B2C ${c.round.round}/${c.maxRounds} \u8F6E`,isFinal:!1,expanded:!1,riskConfirmations:{}};et.push(d),Xn()}});if(o!==Qi)return;let i={type:"assistant",id:Zi(),draft:a.draft,aiRawText:a.aiRawText,compileResult:a.compileResult,sessionInfo:a.session?`${a.session.roundsExecuted}\u8F6E \xB7 ${a.session.stopReason}`:"",isFinal:!0,expanded:!1,riskConfirmations:{},result:a},l=et.findLastIndex(c=>c.type==="assistant"&&!c.isFinal);l>=0?et[l]=i:et.push(i)}catch(a){if(a instanceof en){ps.warn(a.message,null,{toast:"warning"});return}et.push({type:"error",id:Zi(),errorMessage:a?.message||"\u751F\u6210\u5931\u8D25"}),ps.error("\u6539\u8868\u52A9\u624B\u6267\u884C\u5931\u8D25",a,{toast:"error"})}finally{Jn=!1,Xn()}}function R_(){sl&&sl.cancel()}function M_(){ia=!1;let t=la();t&&(t.style.display="none")}function P_(){let t=[];for(let e=0;e<et.length;e++){let r=et[e];if(r.type==="user"){let s;for(let n=e+1;n<et.length&&et[n].type!=="user";n++)et[n].type==="assistant"&&et[n].isFinal&&(s=et[n].aiRawText);t.push({user:r.content,assistant:s})}}return t}function vh(t,e){if(e&&(tl=e),typeof t=="function"&&(Xd=t),ia=!ia,ia){N_(t);let r=la();r&&(r.style.display="block",Xn())}else{let r=la();r&&(r.style.display="none")}}function N_(t){let e=tl||Jd().querySelector(".yyt-tww-scroll")||Jd().querySelector(".yyt-tww");if(!e){ps.warn("ensureHost: \u627E\u4E0D\u5230\u5DE5\u4F5C\u53F0\u5BB9\u5668");return}let r=e.querySelector("#"+el);if(r)return;r=(e.ownerDocument||document).createElement("div"),r.id=el,r.style.display=ia?"block":"none",e.appendChild(r)}function Th(){return`
     #yyt-assistant-host { margin-top: 12px; }
     .yyt-assistant-panel {
-      border: 1px solid var(--yyt-border, rgba(255,255,255,0.1));
+      border: 1px solid var(--tww-hairline-strong);
       border-radius: 8px;
-      background: var(--yyt-bg-0, #1a1a2e);
+      background: var(--tww-surface-1);
+      color: var(--tww-text);
       overflow: hidden;
     }
     .yyt-assistant-header {
       display: flex; justify-content: space-between; align-items: center;
       padding: 10px 12px;
-      border-bottom: 1px solid var(--yyt-border, rgba(255,255,255,0.1));
+      border-bottom: 1px solid var(--tww-hairline);
     }
-    .yyt-assistant-hint { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+    .yyt-assistant-hint { font-size: 12px; color: var(--tww-text-muted); margin-top: 2px; }
     .yyt-assistant-chat {
       max-height: 340px; overflow-y: auto;
       padding: 12px; display: flex; flex-direction: column; gap: 10px;
+      background: var(--tww-canvas);
     }
     .yyt-assistant-empty {
-      text-align: center; padding: 32px 16px; opacity: 0.5; font-size: 13px;
-      border: 1px dashed var(--yyt-border, rgba(255,255,255,0.15)); border-radius: 8px;
+      text-align: center; padding: 32px 16px; color: var(--tww-text-muted); font-size: 13px;
+      border: 1px dashed var(--tww-hairline-strong); border-radius: 8px;
     }
     .yyt-assistant-bubble { padding: 10px 12px; border-radius: 10px; max-width: 92%; word-break: break-word; }
     .yyt-assistant-bubble-user {
       align-self: flex-end;
-      background: color-mix(in srgb, var(--yyt-accent, #6c5ce7) 12%, var(--yyt-bg-1, #222244));
-      border: 1px solid color-mix(in srgb, var(--yyt-accent, #6c5ce7) 30%, transparent);
+      background: var(--tww-accent-soft);
+      border: 1px solid color-mix(in srgb, var(--tww-accent) 30%, transparent);
     }
     .yyt-assistant-bubble-ai {
       align-self: flex-start;
-      background: var(--yyt-bg-1, #222244);
-      border: 1px solid var(--yyt-border, rgba(255,255,255,0.1));
+      background: var(--tww-surface-2);
+      border: 1px solid var(--tww-hairline);
     }
     .yyt-assistant-bubble-error {
       align-self: flex-start;
-      background: color-mix(in srgb, #c55 12%, var(--yyt-bg-1, #222244));
-      border: 1px solid color-mix(in srgb, #c55 36%, transparent);
+      background: var(--tww-error-soft);
+      border: 1px solid color-mix(in srgb, var(--tww-error) 36%, transparent);
     }
-    .yyt-assistant-label { font-size: 11px; font-weight: 600; opacity: 0.7; margin-bottom: 4px; }
-    .yyt-assistant-content { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+    .yyt-assistant-label { font-size: 11px; font-weight: 600; color: var(--tww-text-secondary); margin-bottom: 4px; }
+    .yyt-assistant-content { font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--tww-text); }
     .yyt-assistant-toggle {
-      font-size: 12px; opacity: 0.7; cursor: pointer; margin-top: 6px;
+      font-size: 12px; color: var(--tww-text-muted); cursor: pointer; margin-top: 6px;
       padding: 4px 0; user-select: none;
     }
-    .yyt-assistant-toggle:hover { opacity: 1; }
+    .yyt-assistant-toggle:hover { color: var(--tww-text-secondary); }
     .yyt-assistant-detail {
       font-size: 12px; line-height: 1.5; margin-top: 6px;
       padding: 8px; border-radius: 6px;
-      background: var(--yyt-bg-0, #1a1a2e);
-      border: 1px solid var(--yyt-border, rgba(255,255,255,0.06));
+      background: var(--tww-canvas);
+      border: 1px solid var(--tww-hairline);
     }
     .yyt-assistant-detail ul { margin: 4px 0; padding-left: 16px; }
     .yyt-assistant-detail li { margin: 2px 0; }
     .yyt-assistant-risk-list { display: flex; flex-direction: column; gap: 4px; }
     .yyt-assistant-risk-item {
       display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;
+      color: var(--tww-text);
     }
     .yyt-assistant-apply-btn { margin-top: 8px; }
     .yyt-assistant-footer {
       padding: 10px 12px;
-      border-top: 1px solid var(--yyt-border, rgba(255,255,255,0.1));
+      border-top: 1px solid var(--tww-hairline);
+      background: var(--tww-surface-1);
     }
     .yyt-assistant-controls {
       display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
     }
-    .yyt-assistant-controls label { font-size: 12px; opacity: 0.7; white-space: nowrap; }
+    .yyt-assistant-controls label { font-size: 12px; color: var(--tww-text-muted); white-space: nowrap; }
     .yyt-assistant-input {
       width: 56px; text-align: center;
-      background: var(--yyt-bg-2, #2a2a3e); border: 1px solid var(--yyt-border, rgba(255,255,255,0.12));
-      color: inherit; border-radius: 4px; padding: 3px 6px; font-size: 13px;
+      background: var(--tww-surface-2); border: 1px solid var(--tww-hairline-strong);
+      color: var(--tww-text); border-radius: 4px; padding: 3px 6px; font-size: 13px;
     }
     .yyt-assistant-select {
       cursor: pointer;
     }
     .yyt-assistant-textarea {
       width: 100%; min-height: 68px; resize: vertical; box-sizing: border-box;
-      background: var(--yyt-bg-2, #2a2a3e); border: 1px solid var(--yyt-border, rgba(255,255,255,0.12));
-      color: inherit; border-radius: 6px; padding: 8px; font-size: 13px; line-height: 1.5;
+      background: var(--tww-surface-2); border: 1px solid var(--tww-hairline-strong);
+      color: var(--tww-text); border-radius: 6px; padding: 8px; font-size: 13px; line-height: 1.5;
       font-family: inherit;
     }
+    .yyt-assistant-textarea::placeholder { color: var(--tww-text-muted); }
     .yyt-assistant-actions {
       display: flex; gap: 8px; margin-top: 6px;
     }
@@ -6639,4 +6644,4 @@ select.yyt-tww-ctrl {
         </div>
         ${xb(ie)}
       </div>
-    `,Ft=R.createElement("div");Ft.innerHTML=ut,o.currentPopup=Ft.firstElementChild,R.body.appendChild(o.currentPopup),S(o.currentPopup).find(".yyt-popup-close").on("click",Zt),S(o.currentPopup).find(".yyt-sidebar-toggle").on("click",m);let or=J=>{J.key==="Escape"&&(R.querySelector(".yyt-dialog-overlay")||R.querySelector(".yyt-twb-editor-drawer.is-open")||(J.stopPropagation(),Zt()))},Lr=J=>{if(!(J.ctrlKey||J.metaKey)||J.key!=="s"||!o.currentPopup)return;J.preventDefault(),J.stopPropagation();let bt=S(o.currentPopup),nt=bt.find("#yyt-bypass-save:visible").first()||bt.find(`#${a}-save-api-config:visible`).first()||bt.find("#yyt-save-tool-preset:visible").first()||bt.find('[data-twb-action="save"]:visible').first();nt?.length&&nt.trigger("click")};R.addEventListener("keydown",or),R.addEventListener("keydown",Lr),u.cleanups.push(()=>{R.removeEventListener("keydown",or),R.removeEventListener("keydown",Lr)}),je(),S(o.currentPopup).find(".yyt-main-nav-item").on("click",function(){let bt=S(this).data("tab");bt&&gs(bt)}),to(),Dr(o.currentMainTab);let pt=s.toolRegistryModule?.getToolConfig(o.currentMainTab);pt?.hasSubTabs&&(S(o.currentPopup).find(".yyt-sub-nav").show(),rn(o.currentMainTab,pt.subTabs)),L(),eo($),Xe(),h("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:vb,closePopup:Zt,switchMainTab:gs,switchSubTab:ms,renderTabContent:Dr,renderSubTabContent:hs}}function ub(t,e={}){let{constants:r,modules:s}=t,{SCRIPT_ID:n,SCRIPT_VERSION:o}=r,{init:a,loadModules:i,addMenuItem:l,popupShell:c}=e;return{version:o,id:n,init:a,openPopup:c?.openPopup,closePopup:c?.closePopup,switchMainTab:c?.switchMainTab,switchSubTab:c?.switchSubTab,addMenuItem:l,getStorage:()=>s.storageModule,getApiConnection:()=>s.apiConnectionModule,getPresetManager:()=>s.presetManagerModule,getUi:()=>s.uiModule,getUiModule:()=>s.uiModule,getRegexExtractor:()=>s.regexExtractorModule,getToolManager:()=>s.toolManagerModule,getToolExecutor:()=>s.toolExecutorModule,getWindowManager:()=>s.windowManagerModule,getToolRegistry:()=>s.toolRegistryModule,getSettingsService:()=>s.settingsServiceModule,getBypassManager:()=>s.bypassManagerModule,getVariableResolver:()=>s.variableResolverModule,getContextInjector:()=>s.contextInjectorModule,getToolPromptService:()=>s.toolPromptServiceModule,getToolOutputService:()=>s.toolOutputServiceModule,getToolAutomationService:()=>s.toolAutomationServiceModule,getDataProvider:()=>s.toolDataProviderModule?.getCurrentProvider?.()||null,async getDataProviderAsync(){return await i(),s.toolDataProviderModule?.getToolDataProvider?.()||null},async getApiConfig(){return await i(),s.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(d){return await i(),s.apiConnectionModule?(s.apiConnectionModule.updateApiConfig(d),!0):!1},async getPresets(){return await i(),s.presetManagerModule?s.presetManagerModule.getAllPresets():[]},async sendApiRequest(d,u){if(await i(),s.apiConnectionModule)return s.apiConnectionModule.sendApiRequest(d,u);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await i(),s.apiConnectionModule?s.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(d,u){return s.toolRegistryModule?.registerTool(d,u)||!1},unregisterTool(d){return s.toolRegistryModule?.unregisterTool(d)||!1},getToolList(){return s.toolRegistryModule?.getToolList()||[]},createWindow(d){return s.windowManagerModule?.createWindow(d)||null},closeWindow(d){s.windowManagerModule?.closeWindow(d)},startAutomation(){return s.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){s.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return s.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},cancelAutomation(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.cancelAutomation?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}},async processCurrentAssistantMessage(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var dl="youyou_toolkit",wA="1.0.223",xA=`${dl}-menu-item`,vA=`${dl}-menu-container`,TA=`${dl}-popup`,SA=typeof window.parent<"u"?window.parent:window,ul={constants:{SCRIPT_ID:dl,SCRIPT_VERSION:wA,MENU_ITEM_ID:xA,MENU_CONTAINER_ID:vA,POPUP_ID:TA},topLevelWindow:SA,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null,toolAutomationServiceModule:null,toolDataProviderModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"presetManagement",currentSubTab:{},startupScreenDismissed:!1}},pb=db(ul),pa=ab(ul,{openPopup:pb.openPopup});ul.services.loadModules=pa.loadModules;var Eu=ub(ul,{init:pa.init,loadModules:pa.loadModules,addMenuItem:pa.addMenuItem,popupShell:pb});if(typeof window<"u"&&(window.YouYouToolkit=Eu,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Eu}catch{}var TP=Eu;pa.init();Promise.resolve().then(()=>(H(),Iu)).then(({logger:t})=>{t.createScope("Bootstrap").log("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210")});export{TP as default};
+    `,Ft=R.createElement("div");Ft.innerHTML=ut,o.currentPopup=Ft.firstElementChild,R.body.appendChild(o.currentPopup),S(o.currentPopup).find(".yyt-popup-close").on("click",Zt),S(o.currentPopup).find(".yyt-sidebar-toggle").on("click",m);let or=J=>{J.key==="Escape"&&(R.querySelector(".yyt-dialog-overlay")||R.querySelector(".yyt-twb-editor-drawer.is-open")||(J.stopPropagation(),Zt()))},Lr=J=>{if(!(J.ctrlKey||J.metaKey)||J.key!=="s"||!o.currentPopup)return;J.preventDefault(),J.stopPropagation();let bt=S(o.currentPopup),nt=bt.find("#yyt-bypass-save:visible").first()||bt.find(`#${a}-save-api-config:visible`).first()||bt.find("#yyt-save-tool-preset:visible").first()||bt.find('[data-twb-action="save"]:visible').first();nt?.length&&nt.trigger("click")};R.addEventListener("keydown",or),R.addEventListener("keydown",Lr),u.cleanups.push(()=>{R.removeEventListener("keydown",or),R.removeEventListener("keydown",Lr)}),je(),S(o.currentPopup).find(".yyt-main-nav-item").on("click",function(){let bt=S(this).data("tab");bt&&gs(bt)}),to(),Dr(o.currentMainTab);let pt=s.toolRegistryModule?.getToolConfig(o.currentMainTab);pt?.hasSubTabs&&(S(o.currentPopup).find(".yyt-sub-nav").show(),rn(o.currentMainTab,pt.subTabs)),L(),eo($),Xe(),h("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:vb,closePopup:Zt,switchMainTab:gs,switchSubTab:ms,renderTabContent:Dr,renderSubTabContent:hs}}function ub(t,e={}){let{constants:r,modules:s}=t,{SCRIPT_ID:n,SCRIPT_VERSION:o}=r,{init:a,loadModules:i,addMenuItem:l,popupShell:c}=e;return{version:o,id:n,init:a,openPopup:c?.openPopup,closePopup:c?.closePopup,switchMainTab:c?.switchMainTab,switchSubTab:c?.switchSubTab,addMenuItem:l,getStorage:()=>s.storageModule,getApiConnection:()=>s.apiConnectionModule,getPresetManager:()=>s.presetManagerModule,getUi:()=>s.uiModule,getUiModule:()=>s.uiModule,getRegexExtractor:()=>s.regexExtractorModule,getToolManager:()=>s.toolManagerModule,getToolExecutor:()=>s.toolExecutorModule,getWindowManager:()=>s.windowManagerModule,getToolRegistry:()=>s.toolRegistryModule,getSettingsService:()=>s.settingsServiceModule,getBypassManager:()=>s.bypassManagerModule,getVariableResolver:()=>s.variableResolverModule,getContextInjector:()=>s.contextInjectorModule,getToolPromptService:()=>s.toolPromptServiceModule,getToolOutputService:()=>s.toolOutputServiceModule,getToolAutomationService:()=>s.toolAutomationServiceModule,getDataProvider:()=>s.toolDataProviderModule?.getCurrentProvider?.()||null,async getDataProviderAsync(){return await i(),s.toolDataProviderModule?.getToolDataProvider?.()||null},async getApiConfig(){return await i(),s.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(d){return await i(),s.apiConnectionModule?(s.apiConnectionModule.updateApiConfig(d),!0):!1},async getPresets(){return await i(),s.presetManagerModule?s.presetManagerModule.getAllPresets():[]},async sendApiRequest(d,u){if(await i(),s.apiConnectionModule)return s.apiConnectionModule.sendApiRequest(d,u);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await i(),s.apiConnectionModule?s.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(d,u){return s.toolRegistryModule?.registerTool(d,u)||!1},unregisterTool(d){return s.toolRegistryModule?.unregisterTool(d)||!1},getToolList(){return s.toolRegistryModule?.getToolList()||[]},createWindow(d){return s.windowManagerModule?.createWindow(d)||null},closeWindow(d){s.windowManagerModule?.closeWindow(d)},startAutomation(){return s.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){s.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return s.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},cancelAutomation(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.cancelAutomation?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}},async processCurrentAssistantMessage(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var dl="youyou_toolkit",wA="1.0.224",xA=`${dl}-menu-item`,vA=`${dl}-menu-container`,TA=`${dl}-popup`,SA=typeof window.parent<"u"?window.parent:window,ul={constants:{SCRIPT_ID:dl,SCRIPT_VERSION:wA,MENU_ITEM_ID:xA,MENU_CONTAINER_ID:vA,POPUP_ID:TA},topLevelWindow:SA,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null,toolAutomationServiceModule:null,toolDataProviderModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"presetManagement",currentSubTab:{},startupScreenDismissed:!1}},pb=db(ul),pa=ab(ul,{openPopup:pb.openPopup});ul.services.loadModules=pa.loadModules;var Eu=ub(ul,{init:pa.init,loadModules:pa.loadModules,addMenuItem:pa.addMenuItem,popupShell:pb});if(typeof window<"u"&&(window.YouYouToolkit=Eu,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Eu}catch{}var TP=Eu;pa.init();Promise.resolve().then(()=>(H(),Iu)).then(({logger:t})=>{t.createScope("Bootstrap").log("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210")});export{TP as default};
