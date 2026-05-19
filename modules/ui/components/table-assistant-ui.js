@@ -35,6 +35,7 @@ const DEFAULT_MAX_ROUNDS = 3;
 // UI State
 // ════════════════════════════════════════════════════════════════
 
+let _containerEl = null;
 let _isOpen = false;
 let _isGenerating = false;
 let _userInput = '';
@@ -209,8 +210,8 @@ function renderAssistantPanelHtml() {
 // ════════════════════════════════════════════════════════════════
 
 function getHostElement() {
-  const topDoc = _getTopDoc();
-  return topDoc.getElementById(ASSISTANT_HOST_ID);
+  if (_containerEl) return _containerEl.querySelector('#' + ASSISTANT_HOST_ID);
+  return _getTopDoc().getElementById(ASSISTANT_HOST_ID);
 }
 
 function refreshPanel() {
@@ -419,7 +420,8 @@ function buildPriorTurns() {
 // 公开 API
 // ════════════════════════════════════════════════════════════════
 
-export function toggleAssistant(workbenchRefresh) {
+export function toggleAssistant(workbenchRefresh, containerEl) {
+  if (containerEl) _containerEl = containerEl;
   _isOpen = !_isOpen;
   if (_isOpen) {
     ensureHost(workbenchRefresh);
@@ -435,17 +437,17 @@ export function toggleAssistant(workbenchRefresh) {
 }
 
 function ensureHost(workbenchRefresh) {
-  const topDoc = _getTopDoc();
-  let host = topDoc.getElementById(ASSISTANT_HOST_ID);
-  if (host) return;
-
-  const container = topDoc.querySelector('.yyt-tww-scroll') || topDoc.querySelector('.yyt-tww');
+  const container = _containerEl || _getTopDoc().querySelector('.yyt-tww-scroll') || _getTopDoc().querySelector('.yyt-tww');
   if (!container) {
     log.warn('ensureHost: 找不到工作台容器');
     return;
   }
 
-  host = topDoc.createElement('div');
+  let host = container.querySelector('#' + ASSISTANT_HOST_ID);
+  if (host) return;
+
+  const doc = container.ownerDocument || document;
+  host = doc.createElement('div');
   host.id = ASSISTANT_HOST_ID;
   host.style.display = _isOpen ? 'block' : 'none';
   container.appendChild(host);

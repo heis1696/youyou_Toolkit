@@ -1152,15 +1152,20 @@ export function bindWorkbenchEvents($container, refresh) {
   // AI 改表助手
   $container.on('click.tww', '[data-action="open-assistant"]', () => {
     try {
-      // 注入 assistant 样式（幂等）
-      const doc = (window.parent && window.parent.document) ? window.parent.document : document;
+      let doc;
+      try {
+        if (window.parent && window.parent !== window && window.parent.document) {
+          doc = window.parent.document;
+        }
+      } catch { /* cross-origin */ }
+      doc = doc || document;
       if (!doc.getElementById('yyt-assistant-styles')) {
         const style = doc.createElement('style');
         style.id = 'yyt-assistant-styles';
         style.textContent = getAssistantPanelStyles();
         (doc.head || doc.documentElement).appendChild(style);
       }
-      toggleAssistant(refresh);
+      toggleAssistant(refresh, $container[0]);
     } catch (err) {
       getLog().error('open-assistant 异常', err);
     }
