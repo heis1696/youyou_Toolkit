@@ -80,6 +80,13 @@ export const TOOL_CONFIG_PANEL_STYLES = `
     flex: 1; min-height: 0;
     overflow-y: auto;
   }
+  .yyt-tool-panel-scroll > .yyt-flow-section {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .yyt-tool-runtime-row + .yyt-flow-section {
+    margin-top: 18px;
+  }
   .yyt-tool-panel-hero-row1 { display: flex; align-items: center; gap: 12px; }
   .yyt-tool-panel-hero-icon {
     width: 30px; height: 30px; border-radius: var(--yyt-radius-sm);
