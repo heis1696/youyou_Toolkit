@@ -11,6 +11,33 @@
 
 ## [1.0.215] - 2026-05-19
 
+### refactor：控件库 passthrough 透传 — baseControl 支持 style/className/attrs
+
+**基础设施**（`controls/_internal.js`）：
+- `baseControl` 签名扩展：接收 `{ el, style, className, attrs }`，自动 apply 到根节点
+  - `style` → `Object.assign` 覆盖控件默认 inline style
+  - `className` → `classList.add` 追加到根节点（不覆盖已有 class）
+  - `attrs` → `setAttribute` 设置属性（覆盖控件默认值）
+- 完全向后兼容，新参数全可选
+
+**控件层**（12 个控件）：
+- 每个控件 `baseControl` 调用新增 passthrough 参数（各 1 行）
+- `divider.js` 线型参数 `style` → `variant`，解除与 passthrough `style` 的命名冲突
+
+**消费者迁移**（DOM 操作 → 声明式 options）：
+- `regex-extract-panel.js` — 10 处 `ctrl.el.style.xxx` 迁移为 `style: {...}`
+- `api-preset-panel.js` — IIFE + `setAttribute('type','password')` 简化为 `attrs: { type: 'password' }`
+- `table-data-editor-window.js` — `fontFamily` 迁移
+- `local-transform-tool-panel-factory.js` — 独立 selectInput 迁移 + `buildBindingRow` 收敛
+- `tool-config-panel-factory.js` — `buildBindingRow` 收敛为 `Object.assign` 单行
+
+**文档同步**：
+- `UI_STYLE_GUIDE.md` / `ARCHITECTURE_ANALYSIS.md` — baseControl 签名更新
+- `PHASE3_ARCHITECTURE.md` — divider 参数名更新
+- `controls/index.js` — 注释补充 passthrough 契约说明
+
+## [1.0.215] - 2026-05-19
+
 ### fix：日志规范全面审查 — 补齐缺失 logger、修复静默 catch、更新文档
 
 **补齐缺失 logger 的模块**：
