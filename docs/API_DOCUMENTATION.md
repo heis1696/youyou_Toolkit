@@ -1,126 +1,85 @@
 # API 文档
 
-本文档说明当前 `1.0.212` 代码基线下的公开 API、执行入口与运行模型。
+基于 `1.0.212` 源码的公开 API、模块接口与执行模型文档。
 
-当前宿主侧稳定入口是 `window.YouYouToolkit`。当历史文档、旧笔记或旧调用示例与源码不一致时，应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
+宿主侧稳定入口是 `window.YouYouToolkit`。源码对齐应以 `index.js`、`modules/app/public-api.js`、`modules/tool-trigger.js`、`modules/tool-automation-service.js` 为准。
 
-## 1. 入口与装配
+---
 
-插件入口保持为薄壳：`index.js` 负责创建共享 `appContext`，装配 `bootstrap`、`popupShell` 与 `publicApi`，然后把结果暴露到：
+## 1. 全局公开 API (`window.YouYouToolkit`)
 
-```javascript
-const toolkit = window.YouYouToolkit;
-```
+### 1.1 基础信息与 UI 控制
 
-`window.YouYouToolkit` 的真实导出由 `modules/app/public-api.js` 决定。
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `version` | `string` | 版本号，如 `'1.0.212'` |
+| `id` | `string` | 插件 ID：`'youyou_toolkit'` |
+| `init()` | `void` | 触发 bootstrap 初始化 |
+| `openPopup()` | `void` | 打开弹窗 |
+| `closePopup()` | `void` | 关闭弹窗 |
+| `switchMainTab(tabId)` | `void` | 切换主标签页 |
+| `switchSubTab(tabId)` | `void` | 切换子标签页 |
+| `addMenuItem()` | `void` | 注册魔棒菜单项 |
 
-## 2. 全局公开 API
+### 1.2 API 与预设访问
 
-### 2.1 基础信息与 UI 控制
+这些方法会先 `await loadModules()` 确保模块已加载：
 
-- `version`
-- `id`
-- `init()`
-- `openPopup()`
-- `closePopup()`
-- `switchMainTab(mainTabId)`
-- `switchSubTab(mainTabId, subTabId)`
-- `addMenuItem()`
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `getApiConfig()` | `Promise<Object>` | 获取当前 API 配置 |
+| `saveApiConfig(config)` | `Promise<boolean>` | 保存 API 配置 |
+| `sendApiRequest(messages, options)` | `Promise<Object>` | 发送 API 请求 |
+| `testApiConnection()` | `Promise<Object>` | 测试连接，返回 `{success, message}` |
+| `getPresets()` | `Promise<Array>` | 获取所有 API 预设 |
 
-说明：
-- `init()` 对应 bootstrap 初始化入口。
-- `openPopup()` / `closePopup()` / `switchMainTab()` / `switchSubTab()` 由 `modules/app/popup-shell.js` 提供。
+### 1.3 模块获取器
 
-### 2.2 API 与预设访问
+返回 `appContext.modules` 中已装配的模块引用：
 
-这些方法会先确保模块已加载，再委托到底层模块：
+| 获取器 | 模块路径 |
+|--------|---------|
+| `getStorage()` | `core/storage-service.js` |
+| `getApiConnection()` | `api-connection.js` |
+| `getPresetManager()` | `preset-manager.js` |
+| `getUi()` / `getUiModule()` | `ui/index.js` |
+| `getRegexExtractor()` | `regex-extractor.js` |
+| `getToolManager()` | `tool-manager.js` |
+| `getToolExecutor()` | `tool-executor.js` |
+| `getWindowManager()` | `window-manager.js` |
+| `getToolRegistry()` | `tool-registry.js` |
+| `getSettingsService()` | `core/settings-service.js` |
+| `getBypassManager()` | `bypass-manager.js` |
+| `getVariableResolver()` | `variable-resolver.js` |
+| `getContextInjector()` | `context-injector.js` |
+| `getToolPromptService()` | `tool-prompt-service.js` |
+| `getToolOutputService()` | `tool-output-service.js` |
+| `getToolAutomationService()` | `tool-automation-service.js` |
+| `getDataProvider()` | 当前 Provider 实例（同步） |
+| `getDataProviderAsync()` | `Promise<Provider>` |
 
-- `getApiConfig()`
-- `saveApiConfig(config)`
-- `sendApiRequest(messages, options)`
-- `testApiConnection()`
-- `getPresets()`
+### 1.4 自动化控制
 
-说明：
-- `getApiConfig()` / `saveApiConfig()` / `sendApiRequest()` / `testApiConnection()` 对应 `modules/api-connection.js`。
-- `getPresets()` 对应 `modules/preset-manager.js`。
+| 方法 | 委托目标 | 说明 |
+|------|---------|------|
+| `startAutomation()` | `toolAutomationService.init()` | 启动自动执行 |
+| `stopAutomation()` | `toolAutomationService.stop()` | 停止自动执行 |
+| `getAutomationRuntime()` | `getRuntimeSnapshot()` | 获取运行时快照 |
+| `cancelAutomation(options)` | 取消 pending/in-flight 事务 | 可按 `messageId`/`slotKey`/`traceId` 定位 |
+| `processCurrentAssistantMessage(options)` | 处理当前最新助手楼层 | `force: true` 跳过启用检查 |
 
-### 2.3 工具注册与运行时访问
+### 1.5 窗口接口
 
-- `registerTool(id, config)`
-- `unregisterTool(id)`
-- `getToolList()`
+| 方法 | 委托目标 |
+|------|---------|
+| `createWindow(options)` | `window-manager.js` |
+| `closeWindow(id)` | `window-manager.js` |
 
-说明：
-- 这组接口面向运行时注册表，真实落点是 `modules/tool-registry.js`。
-- 若要修改用户自定义工具的持久化定义、导入导出或 schema 归一化，应优先看 `modules/tool-manager.js`，而不是把 `registerTool()` 当成定义层唯一入口。
+---
 
-### 2.4 模块获取器
+## 2. 核心模块接口
 
-当前公开的 getter 包括：
-
-- `getStorage()`
-- `getApiConnection()`
-- `getPresetManager()`
-- `getUi()`
-- `getUiModule()`
-- `getRegexExtractor()`
-- `getToolManager()`
-- `getToolExecutor()`
-- `getWindowManager()`
-- `getToolRegistry()`
-- `getSettingsService()`
-- `getBypassManager()`
-- `getVariableResolver()`
-- `getContextInjector()`
-- `getToolPromptService()`
-- `getToolOutputService()`
-- `getToolAutomationService()`
-
-说明：
-- 这些 getter 返回的是当前 `appContext.modules` 中已装配的模块引用。
-- 当前公开 API 以 `modules/app/public-api.js` 的实际导出为准；已删除的 compatibility API 不再属于当前接口面。
-
-### 2.5 自动化控制
-
-- `startAutomation()`
-- `stopAutomation()`
-- `getAutomationRuntime()`
-- `cancelAutomation(options = {})`
-- `processCurrentAssistantMessage(options = {})`
-
-说明：
-- 这组接口全部委托给 `modules/tool-automation-service.js`。
-- `startAutomation()` 实际调用 `toolAutomationService.init()`。
-- `stopAutomation()` 实际调用 `toolAutomationService.stop()`。
-- `getAutomationRuntime()` 返回 `toolAutomationService.getRuntimeSnapshot()` 的快照。
-- `cancelAutomation()` 用于取消自动链路中的 pending timer 或 in-flight 事务，可按 `messageId`、`slotKey`、`traceId` 定位。
-- `processCurrentAssistantMessage()` 会解析“当前最新 assistant 楼层”，然后按自动链逻辑执行一次处理，可用 `force: true` 跳过未启用时的常规短路。
-
-### 2.6 窗口接口
-
-- `createWindow(options)`
-- `closeWindow(id)`
-
-这组接口透传给 `modules/window-manager.js`。
-
-## 3. 当前不应再沿用的旧口径
-
-以下旧命名不应再作为当前事实引用：
-
-- `loadLegacyModule()`
-- `getUiComponents()`
-- `getPromptEditor()`
-- `getToolTrigger()`
-- `getAutoTriggerDiagnostics()`
-- `exportAutoTriggerDiagnostics()`
-- “旧 trigger 管理器就是自动主入口”
-
-当前自动执行主线已经切换到 `modules/tool-automation-service.js`，而 `modules/tool-trigger.js` 的职责已经收口为手动执行与提取预览入口。
-
-## 4. 核心模块职责
-
-### 4.1 `modules/tool-execution-context.js`
+### 2.1 tool-execution-context.js
 
 统一负责：
 
@@ -129,273 +88,517 @@ const toolkit = window.YouYouToolkit;
 - 构建手动链与自动链共用执行上下文
 - 生成写回绑定所需的槽位身份字段
 
-其中三个关键标识为：
+**导出函数**:
 
-- `slotBindingKey`：绑定到同一 assistant 槽位
-- `slotRevisionKey`：绑定到同一槽位下的具体内容版本
-- `slotTransactionId`：绑定到一次具体执行事务
+| 函数 | 说明 |
+|------|------|
+| `buildExecutionContextForLatestAssistant({runSource})` | 手动链入口，定位最新助手消息 |
+| `buildExecutionContextForMessage({messageId, swipeId, runSource})` | 自动链入口，定位指定消息 |
+| `getCurrentCharacter()` | 获取当前角色卡 |
+| `buildConversationSnapshot(messages)` | 归一化消息列表 |
+| `stripKnownToolBlocks(text, message)` | 剥离已写回工具块 |
+| `buildAssistantContentFingerprint(content)` | 生成 `fp_XXXX` 哈希 |
+| `getTopWindow()` | 安全访问父窗口 |
+| `getRawChatMessages()` | 获取原始聊天消息 |
 
-这三者是自动重入去重、同槽位 reroll/swipe 区分、写回确认诊断的基础键，而不是普通日志字段。
+**三级 Slot Identity**:
 
-### 4.2 `modules/tool-trigger.js`
+| 键 | 公式 | 用途 |
+|----|------|------|
+| `slotBindingKey` | `chatId::messageId` | 绑定到同一助手槽位 |
+| `slotRevisionKey` | `bindingKey::swipeId::fp_XXXX` | 绑定到具体内容版本 |
+| `slotTransactionId` | `revisionKey::eventType::traceId` | 绑定到一次具体事务 |
 
-当前职责是：
+### 2.2 tool-trigger.js
 
-- `runToolManually(toolId)`：手动执行入口
-- `previewToolExtraction(toolId)`：提取预览入口
-- 根据工具配置选择手动执行路径
+当前职责是手动执行与提取预览：
 
-当前手动路径分为：
+| 函数 | 说明 |
+|------|------|
+| `runToolManually(toolId)` | 手动执行入口 |
+| `previewToolExtraction(toolId)` | 提取预览入口 |
 
-- `manual_post_response_api`
-- `manual_local_transform`
-- `manual_compatibility`
+**手动执行路径**:
 
-其中：
-- `post_response_api` 走 `toolOutputService.runToolPostResponse()`
-- `follow_ai` 手动执行走 `toolOutputService.runToolFollowAiManual()`
-- `local_transform` 或带 `processor.type` 的工具走本地 transform 链
-- 其他旧路径回退到 `modules/tool-executor.js`
+| 路径 | 条件 | 执行函数 |
+|------|------|---------|
+| `MANUAL_POST_RESPONSE_API` | `output.mode === 'post_response_api'` | `toolOutputService.runToolPostResponse()` |
+| `MANUAL_POST_RESPONSE_API` | `output.mode === 'follow_ai'` | `toolOutputService.runToolFollowAiManual()` |
+| `MANUAL_LOCAL_TRANSFORM` | `output.mode === 'local_transform'` 或有 `processor.type` | `runLocalTransformTool()` |
+| `MANUAL_COMPATIBILITY` | 其他 | `tool-executor.executeToolWithConfig()` |
 
-### 4.3 `modules/tool-automation-service.js`
+### 2.3 tool-automation-service.js
 
-这是当前自动执行唯一入口（1.0.111 重写），负责：
+自动执行唯一入口（1.0.111 重写）。
 
-- 绑定宿主消息事件：仅订阅 `MESSAGE_RECEIVED`（3s 节流）、`CHAT_CHANGED`、`GENERATION_STOPPED`
-- 基于 `messageId::swipeId` 槽位去重，去重状态存储在 `_recentlyProcessedSlots` Map 中
-- 模块级互斥锁 `_isProcessing` boolean 保证同一时刻只有一条执行链在运行
-- Own-write 黑名单 `_ownWriteMessageIds` Set 防止自写消息触发再次自动执行循环
-- 取消：`GENERATION_STOPPED` 事件通过 `controller.abort()` 终止进行中的请求
-- 过滤可自动执行工具
-- 驱动自动 `post_response_api` 执行与结果诊断
+**事件订阅**:
 
-公开可观察状态主要通过 `getRuntimeSnapshot()` 暴露，包括：
+| 事件 | 处理 |
+|------|------|
+| `MESSAGE_RECEIVED` | 主触发，守卫过滤后去抖 800ms |
+| `GENERATION_STOPPED` | 取消所有活动事务和定时器 |
+| `CHAT_CHANGED` | 完全状态重置 |
+| `MESSAGE_DELETED` | 清理特定消息状态 |
+| `MESSAGE_SENT` | 清理待处理定时器 |
 
-- `enabled`
-- `pendingTimerCount`
-- `queuedSlotCount`
-- `recentlyProcessedSlotCount`
-- `ownWriteBlacklistSize`
-- `recentTransactions`
-- `hostBinding`
-- `settings`
+**防重放/防递归机制**:
 
-### 4.4 `modules/tool-output-service.js`
+| 机制 | 实现 |
+|------|------|
+| 槽位去重 | `_recentlyProcessedSlots` Map, `messageId::swipeId`, 滑动时间窗口 |
+| 自写黑名单 | `_ownWriteMessageIds` Map, 10s TTL |
+| 种子标记 | `_seedKnownSlots()`, 初始化标记已知 slot |
+| 取消 | `GENERATION_STOPPED` → `controller.abort()` |
 
-这是当前 `post_response_api` / `follow_ai` 主执行层，负责：
-
-- 提取最近消息与目标文本
-- 构建工具请求消息
-- 解析有效 API preset / config
-- 发送额外模型请求
-- 提取输出文本
-- 组织写回诊断信息
-- 调用 `context-injector` 写回 assistant 槽位
-
-当前导出的关键模式包括：
-
-- `follow_ai`
-- `post_response_api`
-
-另外保留 `inline -> follow_ai` 的旧模式兼容映射。
-
-### 4.5 `modules/context-injector.js`
-
-负责把工具输出写回绑定 assistant 楼层，并返回分层写回结果。当前主入口是：
-
-- `inject(toolId, content, options)`
-- `injectDetailed(toolId, content, options)`
-
-其中 `injectDetailed()` 是当前诊断更完整的主接口，会返回：
-
-- 是否写入成功
-- source message / swipe 身份
-- commit 方法与 refresh 请求信息
-- refresh 是否最终确认
-
-## 5. 执行模型
-
-### 5.1 自动执行链
-
-自动入口示例：
+**运行时快照** (`getRuntimeSnapshot()`):
 
 ```javascript
-window.YouYouToolkit.startAutomation();
-const runtime = window.YouYouToolkit.getAutomationRuntime();
-const result = await window.YouYouToolkit.processCurrentAssistantMessage({ force: true });
+{
+  enabled: boolean,
+  pendingTimerCount: number,
+  queuedSlotCount: number,
+  recentlyProcessedSlotCount: number,
+  ownWriteBlacklistSize: number,
+  recentTransactions: Transaction[],
+  hostBinding: Object,
+  settings: Object
+}
 ```
 
-当前自动执行流程：
+### 2.4 tool-output-service.js
 
-```text
-宿主事件（MESSAGE_RECEIVED / CHAT_CHANGED / GENERATION_STOPPED）
-  -> tool-automation-service 归一化事件 / 解析 messageId::swipeId
-  -> _isProcessing 互斥检查（若已占用则跳过）
-  -> _ownWriteMessageIds 黑名单检查（自写消息跳过）
-  -> _recentlyProcessedSlots 槽位去重检查
-  -> buildExecutionContextForMessage()
-  -> 按 outputMode 筛选自动工具：post_response_api + local_transform（议题 #5）
-  -> 按 slot 串行执行：local_transform 先（本地变换），post_response_api 后
-  -> 若 tableWorkbench.autoUpdateEnabled === true 且 trigger=assistantMessage，则继续执行 runAutoTableUpdate()
-  -> context-injector.injectDetailed() / table structured commit
-  -> 以 refreshConfirmed 等结果更新事务状态
-  -> GENERATION_STOPPED 事件到达时 controller.abort() 终止进行中请求
-```
+`post_response_api` / `follow_ai` 主执行层。
 
-说明：
-- 自动链主线根据 `outputMode` 自动判定：`post_response_api` 和 `local_transform` 入自动队列，`follow_ai` 永远手动（详见议题 #5）。
-- `tool.automation.enabled` 字段已废弃，由 outputMode 替代判定。
-- compatibility fallback 路径不进入主线自动执行。
+**导出常量**:
 
-### 5.2 手动执行链
+| 常量 | 值 |
+|------|----|
+| `OUTPUT_MODES` | `{FOLLOW_AI, POST_RESPONSE_API, LOCAL_TRANSFORM}` |
+| `TOOL_RUNTIME_STATUS` | `{IDLE, RUNNING, SUCCESS, ERROR}` |
+| `TOOL_FAILURE_STAGES` | `{BUILD_MESSAGES, SEND_API_REQUEST, EXTRACT_OUTPUT, INJECT_CONTEXT, COMPATIBILITY_EXECUTE, UNKNOWN}` |
+| `TOOL_WRITEBACK_STATUS` | `{SUCCESS, FAILED, SKIPPED_EMPTY_OUTPUT, NOT_APPLICABLE}` |
 
-手动入口示例：
+**核心方法**:
+
+| 方法 | 说明 |
+|------|------|
+| `runToolPostResponse(toolConfig, context)` | POST_RESPONSE_API 五阶段流水线 |
+| `runToolFollowAiManual(toolConfig, context)` | FOLLOW_AI 手动执行 |
+| `getExtractionSnapshot(toolConfig, context)` | 获取提取快照 |
+| `previewExtraction(toolConfig, context)` | 提取预览 |
+| `filterAutoPostResponseTools(configs)` | 筛选自动工具 |
+
+### 2.5 context-injector.js
+
+写回引擎。
+
+| 方法 | 说明 |
+|------|------|
+| `inject(toolId, content, options)` | 兼容接口，返回 boolean |
+| `injectDetailed(toolId, content, options)` | 主接口，返回详细写回结果 |
+
+**injectDetailed 返回结构**:
 
 ```javascript
-import { runToolManually } from './modules/tool-trigger.js';
-
-const result = await runToolManually(toolId);
+{
+  success: boolean,
+  content: string,
+  meta: {
+    sourceMessageId, sourceSwipeId, confirmedAssistantSwipeId,
+    slotBindingKey, slotRevisionKey,
+    writebackStatus, failureStage,
+    writebackDetails: {
+      contentCommitted, hostCommitApplied,
+      refreshRequested, refreshConfirmed,
+      preferredCommitMethod, appliedCommitMethod,
+      refreshMethods, refreshConfirmChecks
+    }
+  }
+}
 ```
 
-当前手动执行流程：
+### 2.6 api-connection.js
 
-```text
+API 连接管理，三级请求回退链：
+
+```
+1. TavernHelper.generateRaw (宿主主 API, useMainApi=true 时)
+2. TavernHelper.generateRaw({custom_api: config}) (TavernHelper 自定义)
+3. POST /api/backends/chat-completions/generate (SillyTavern CORS 代理)
+4. 直接 fetch (仅代理失败时)
+```
+
+**导出函数**:
+
+| 函数 | 说明 |
+|------|------|
+| `getApiConfig()` | 获取当前配置 |
+| `updateApiConfig(config)` | 更新配置 |
+| `getEffectiveApiConfig(presetName)` | 获取有效配置 (含预设) |
+| `sendApiRequest(messages, options, signal)` | 发送请求 (三级回退) |
+| `sendWithPreset(presetName, messages, options, signal)` | 指定预设发送 |
+| `testApiConnection(config)` | 测试连接 |
+| `fetchAvailableModels(config)` | 获取可用模型列表 |
+
+---
+
+## 3. 执行模型
+
+### 3.1 自动执行链
+
+```
+宿主 MESSAGE_RECEIVED
+  → host-event-service 归一化事件名
+  → tool-automation-service 守卫过滤 (非助手?太短?自写黑名单?已处理?)
+  → 去抖 800ms → processAssistantMessage()
+  → buildExecutionContextForMessage()
+  → 筛选自动工具: local_transform 先, post_response_api 后
+  → 按 slot 串行执行 (链式刷新: 每个工具的写回更新下一个工具的输入)
+  → 若 tableWorkbench.autoUpdateEnabled === true → runAutoTableUpdate()
+  → 更新运行时诊断字段
+```
+
+### 3.2 手动执行链
+
+```
 runToolManually(toolId)
-  -> buildExecutionContextForLatestAssistant()
-  -> resolveExecutionPath()
-  -> 按路径分发
-     -> manual_post_response_api: runToolPostResponse()
-     -> manual_local_transform: runLocalTextTransform() + injectDetailed()
-     -> manual_compatibility: executeToolWithConfig()
+  → buildExecutionContextForLatestAssistant({runSource: 'MANUAL'})
+  → resolveExecutionPath()
+  → 按路径分发:
+     post_response_api → runToolPostResponse()
+     follow_ai        → runToolFollowAiManual()
+     local_transform  → runLocalTextTransform() + injectDetailed()
+     compatibility    → executeToolWithConfig()
 ```
 
-补充：
-- `follow_ai` 的手动执行由 `executeToolByResolvedPath()` 分派到 `runToolFollowAiManual()`。
-- 因此 `follow_ai` 不是”什么都不做”的占位模式，而是手动链上的独立额外请求路径。
-- 填表工作台的 AI 指令预设通过 bypass-manager 绑定，走统一的 Ai 指令预设管理。手动填表入口是 `runManualTableUpdate()`，构建 context 时读取 contextDepth / contextRoles / contextExtractTags / contextUseGlobalRules / worldbooks / sendLatestRows 等上下文增强配置。
-
-### 5.3 提取预览链
+### 3.3 提取预览链
 
 ```javascript
-import { previewToolExtraction } from './modules/tool-trigger.js';
-
 const preview = await previewToolExtraction(toolId);
+// → { success, meta: { sourceText, filteredSourceText, extractedText,
+//                      messageEntries, primaryEntry, selectors, maxMessages } }
 ```
 
-当前流程：
+### 3.4 填表执行链
 
-```text
-previewToolExtraction(toolId)
-  -> buildExecutionContextForLatestAssistant()
-  -> toolOutputService.previewExtraction()
-  -> getExtractionSnapshot()
+**七步管道** (`table-update-service.js`):
+
+| 步骤 | 服务 | 说明 |
+|------|------|------|
+| 0 | `table-target-resolver` | 目标助手消息定位 |
+| 1 | `table-template-service` | 三模式模板解析 + scope 合并 |
+| 1b | `table-auto-schedule-service` | 按 updateFrequency 门控 (仅自动) |
+| 2 | `table-history-service` | 5 级状态级联 (EXACT→BINDING_FALLBACK→HISTORY→TEMPLATE→EMPTY) |
+| 3 | `table-update-service` | 构建 AI 请求 (prompt + 世界书 + 指南) |
+| 4 | `api-connection` | 发送请求 (3 次重试, 5s 退避) |
+| 5 | `ai-protocol-adapters` | 适配器链解析 (DSL→SQL→JSON), 回退到 JSON 清理器 |
+| 6 | `table-update-service` | 应用编辑 (scope 过滤 + 锁强制 + 4 级列键解析) |
+| 7 | `table-writeback-service` | commit + 消息镜像 + 世界书同步 |
+
+---
+
+## 4. 辅助模块接口
+
+### 4.1 variable-resolver.js
+
+```javascript
+variableResolver.resolveTemplate(template, context) → string
+variableResolver.resolveObject(obj, context) → Object
+variableResolver.buildToolContext(rawData) → Object
+variableResolver.registerVariable(name, handler) → void
+variableResolver.registerHandler(prefix, handler) → void
+variableResolver.getAvailableVariables() → Array
 ```
 
-返回结果主要包括：
+15 个内置变量: `lastUserMessage`, `lastAiMessage`, `chatHistory`, `userMessage`, `characterCard`, `toolName`, `toolId`, `toolPromptMacro`, `toolContentMacro`, `toolWorldbookContent`, `injectedContext`, `extractedContent`, `recentMessagesText`, `rawRecentMessagesText`, `previousToolOutput`
 
-- `sourceText`
-- `filteredSourceText`
-- `extractedText`
-- `extractedRawText`
-- `messageEntries`
-- `primaryEntry`
-- `selectors`
-- `maxMessages`
+### 4.2 regex-extractor.js
 
-### 5.4 填表执行链
+```javascript
+extractTagContent(text, options) → string
+extractSimpleTag(text, tag) → string
+extractCurlyBraceTag(text, tag) → string
+scanTextForTags(text) → Array<string>
+getTagRules() → Array
+getContentBlacklist() → Array
+saveRulesAsPreset(name, rules) → void
+testRegex(pattern, text) → Object
+```
 
-手动入口：`table-update-service.js` 中的 `runManualTableUpdate()`。
-自动入口：`tool-automation-service.js` 在收到 assistant 消息时，若 `tableWorkbench.autoUpdateEnabled === true`，则在工具执行链末尾继续调用 `runAutoTableUpdate()`。
+### 4.3 regex-preset-store.js
 
-上下文增强字段：
+```javascript
+listPresets() → Array
+getPreset(id) → Object
+createPreset(partial) → Object
+updatePreset(id, patch) → Object
+deletePreset(id) → void
+addRule(presetId, ruleInput) → Object
+getCurrentPresetId() → string
+setCurrentPresetId(id) → void
+findLinkedTools(presetId) → Promise<Array>
+```
 
-- `contextDepth`：向上取消息层数，默认 8
-- `contextRoles`：消息角色范围，`'all'` 或 `'assistant_only'`
-- `contextExtractTags`：每行自定义提取规则
-- `contextUseGlobalRules`：是否合并全局正则规则
-- `worldbooks`：`{ enabled, selected }`，控制世界书内容注入
-- `sendLatestRows`：`-1` 为全量发送，`>0` 为每张表最多发送的行数
+### 4.4 worldbook-preset-store.js
 
-runScope 模式（控制 AI 可编辑哪些表）：
+```javascript
+listPresets() → Array
+getPreset(id) → Object
+createPreset(partial) → Object
+updatePreset(id, patch, {silent}) → Object
+deletePreset(id) → void
+getCurrentPresetId() → string
+exportAll() → Object
+importPresets(payload) → Object
+```
 
-- `current`：仅当前选中表
-- `selected`：已勾选的多张表
-- `all`：所有已启用表
+### 4.5 bypass-manager.js
 
-聊天隔离：`CHAT_CHANGED` 事件触发时清空实时行缓存，防止跨聊天串数据。
+```javascript
+bypassManager.getAllPresets() → Object
+bypassManager.getPreset(id) → Object
+bypassManager.createPreset(data) → Object
+bypassManager.updatePreset(id, updates) → Object
+bypassManager.deletePreset(id) → void
+bypassManager.getEnabledMessages(toolConfig) → Array
+bypassManager.addMessage(presetId, msg) → void
+bypassManager.updateMessage(presetId, msgId, updates) → void
+bypassManager.deleteMessage(presetId, msgId) → void
+bypassManager.buildBypassMessages(toolConfig) → Array
+bypassManager.exportPresets() → Object
+bypassManager.importPresets(data) → Object
+```
 
-写回：使用 `TavernHelper.setChatMessages` 刷新宿主 UI；自动填表写回时附带 `skipNotify` 标记，避免触发二次自动执行循环。
+### 4.6 preset-manager.js
 
-## 6. 输出模式说明
+```javascript
+getAllPresets() → Array
+getPreset(name) → Object
+createPreset(data) → Object
+updatePreset(name, updates) → Object
+deletePreset(name) → void
+renamePreset(oldName, newName) → void
+duplicatePreset(source, target) → void
+switchToPreset(name) → void
+getActivePresetName() → string
+getActiveConfig() → Object
+togglePresetStar(name) → void
+exportPresets(name) → Object
+importPresets(json, options) → Object
+```
+
+### 4.7 tool-manager.js
+
+```javascript
+getAllTools() → Object
+getTool(toolId) → Object
+saveTool(toolId, toolDef) → void
+deleteTool(toolId) → void
+setToolEnabled(toolId, enabled) → void
+exportTools() → Object
+importTools(json, overwrite) → Object
+createDefaultToolDefinition(input) → Object
+normalizeToolDefinitionToRuntimeConfig(id, def) → Object
+```
+
+### 4.8 tool-registry.js
+
+```javascript
+getToolFullConfig(toolId) → Object
+getToolList() → Array
+saveToolConfig(toolId, config) → void
+patchToolRuntime(toolId, partial) → void
+getAllToolFullConfigs() → Array
+getEnabledTools() → Array
+getToolSubTabs() → Array
+setToolApiPreset(toolId, presetName) → void
+getToolApiPreset(toolId) → string
+```
+
+---
+
+## 5. 填表工作台 API
+
+### 5.1 配置
+
+```javascript
+// table-schema-service.js
+getTableWorkbenchConfig() → Object
+saveTableWorkbenchConfig(config) → void
+validateTableWorkbenchConfig(config) → Object
+
+// table-template-service.js
+getAllTableTemplates() → Array
+getTableTemplate(id) → Object
+saveTableTemplate(template) → Object
+deleteTableTemplate(id) → void
+resolveActiveTemplate({chatId, isolationKey}) → {template, mode, source}
+```
+
+### 5.2 执行
+
+```javascript
+// table-update-service.js
+runManualTableUpdate(options) → Promise<Object>
+runAutoTableUpdate(executionContext, tableConfig) → Promise<Object>
+```
+
+### 5.3 状态
+
+```javascript
+// table-state-service.js
+getBoundTableState({messageIndex, isolationKey}) → Object
+loadBoundStateOrTemplate({messageIndex, isolationKey, templateTables}) → Object
+commitBoundState({targetSnapshot, boundState}) → Object
+
+// table-lock-service.js
+getLocks({scopeKey, tables}) → Object
+setLock(scopeKey, tableIndex, lockType, key, enabled) → void
+
+// table-scope-service.js
+resolveTableRunScope(config, runScope) → {includes(table), filterTables(tables)}
+```
+
+### 5.4 世界书同步
+
+```javascript
+// table-worldbook-sync-service.js
+syncTablesToWorldbook({tables, config, chatId, isolationKey}) → Promise<void>
+```
+
+---
+
+## 6. 基础服务 API
+
+### 6.1 storage-service.js
+
+```javascript
+storage.get(key, defaultValue) → any
+storage.set(key, value) → void
+storage.remove(key) → void
+storage.has(key) → boolean
+storage.clear() → void
+storage.namespace(sub) → StorageService
+storage.exportAll() → Object
+
+toolStorage  // youyou_toolkit:tools
+presetStorage // youyou_toolkit:presets
+windowStorage // youyou_toolkit:windows
+```
+
+### 6.2 logger-service.js
+
+```javascript
+logger.createScope(name) → {debug, info, log, warn, error}
+logger.getEntries({level, scope, search, limit, offset}) → {entries, total}
+logger.getStats() → {byLevel, byScope}
+logger.setLevel(level) → void
+logger.clear() → void
+```
+
+### 6.3 host-event-service.js
+
+```javascript
+hostEvents.subscribe(eventKey, handler) → unsubscribe
+hostEvents.emit(eventKey, ...payload) → void
+hostEvents.ready({timeoutMs}) → Promise<boolean>
+hostEvents.describe() → Object
+```
+
+### 6.4 tool-data-provider.js
+
+```javascript
+getToolDataProvider(options) → Promise<IToolDataProvider>
+getCurrentProvider() → IToolDataProvider | null
+
+IToolDataProvider: {
+  kind, init, dispose, migrate, query, execute,
+  batch, transaction, backup, export, import, describe
+}
+```
+
+---
+
+## 7. 输出模式说明
 
 ### `post_response_api`
 
 - 手动与自动主线都支持
-- 会构建消息并发送额外 API 请求
-- 有输出时会尝试写回 assistant 楼层
-- 自动化只围绕这一路径做筛选与事务管理
+- 构建 OpenAI 格式消息 → 发送额外 API 请求 → 提取输出 → 写回助手楼层
+- 自动化围绕这一路径做筛选与事务管理
 
 ### `follow_ai`
 
-- 当前只在手动链作为正式执行路径使用
-- 仍会构建消息并发送额外 API 请求
-- 有输出时同样会走写回链
-- 旧 `inline` 名称仅作为兼容别名保留
+- 手动链独立执行路径
+- 仍会构建消息并发送额外 API 请求，不是"什么都不做"的占位
+- 有输出时走写回链
 
 ### `local_transform`
 
-- 手动与自动主线都支持（议题 #5）
-- 在本地对提取文本做 transform
-- 之后仍通过 `context-injector` 写回
+- 手动与自动主线都支持
+- 在本地对提取文本做纯文本变换 (escape/punctuation)
+- 通过 `context-injector.injectDetailed()` 写回
+
+### `local_transform` 处理器类型
+
+| 类型 | 说明 |
+|------|------|
+| `ESCAPE_TRANSFORM` | 转义/反转义换行、双引号、单引号 |
+| `PUNCTUATION_TRANSFORM` | 英文标点转中文标点 (仅 en_to_zh) |
 
 ### compatibility fallback
 
-- 由 `modules/tool-executor.js` 承接旧执行路径
-- 应视为兼容回退，而不是当前推荐主线
+- 由 `tool-executor.js` 承接旧执行路径
+- 兼容回退，不是推荐主线
+- 通过 `import()` 懒加载
 
-## 7. 写回结果与诊断字段
+---
 
-`runToolPostResponse()`、`runToolFollowAiManual()`、本地 transform 手动链返回的 `meta` 中，常见字段包括：
+## 8. 写回结果与诊断字段
 
-- `traceId`
-- `sessionKey`
-- `executionKey`
-- `slotBindingKey`
-- `slotRevisionKey`
-- `slotTransactionId`
-- `sourceMessageId`
-- `sourceSwipeId`
-- `confirmedAssistantSwipeId`
-- `effectiveSwipeId`
-- `selectors`
-- `writebackStatus`
-- `failureStage`
-- `writebackDetails`
-- `phases`
+`runToolPostResponse` / `runToolFollowAiManual` / 本地 transform 返回的 `meta`:
 
-其中：
-- `writebackStatus` 用于区分成功、失败、空输出跳过与不适用。
-- `failureStage` 用于判断失败落在哪个阶段，例如 `build_messages`、`send_api_request`、`extract_output`、`inject_context`。
-- `writebackDetails` 用于查看内容是否真正提交、宿主 commit 是否应用、refresh 是否请求及是否确认。
-- `phases` 汇总 request / extract / writeback / refresh 的阶段化结果。
+| 字段 | 说明 |
+|------|------|
+| `traceId` | 事务追踪 ID |
+| `sessionKey` | 会话键 |
+| `executionKey` | 执行键 |
+| `slotBindingKey` | 槽位绑定键 |
+| `slotRevisionKey` | 槽位修订键 |
+| `slotTransactionId` | 槽位事务键 |
+| `sourceMessageId` | 源消息 ID |
+| `sourceSwipeId` | 源 swipe ID |
+| `writebackStatus` | `SUCCESS` / `FAILED` / `SKIPPED_EMPTY_OUTPUT` / `NOT_APPLICABLE` |
+| `failureStage` | 失败阶段: `BUILD_MESSAGES` / `SEND_API_REQUEST` / `EXTRACT_OUTPUT` / `INJECT_CONTEXT` |
+| `writebackDetails` | 写回详情: contentCommitted, hostCommitApplied, refreshRequested, refreshConfirmed, commitMethod |
+| `phases` | 阶段化结果: request, extract, writeback, refresh |
 
-## 8. 调试顺序建议
+---
 
-当用户反馈“工具执行了但没写回”或“自动化没有触发”时，建议按下面顺序排查：
+## 9. 调试顺序建议
 
-1. `modules/tool-execution-context.js` 是否解析到了正确 assistant 槽位与身份键
-2. `modules/tool-trigger.js` 或 `modules/tool-automation-service.js` 是否走到了预期入口
-3. `modules/tool-output-service.js` 是否正确构建请求消息、提取输出并记录失败阶段
-4. `modules/api-connection.js` 是否拿到了有效 preset / config 并返回响应
-5. `modules/context-injector.js` 是否成功提交并确认 refresh
-6. `getAutomationRuntime()` 与 `tool-registry` runtime 中是否记录了最近事务与失败信息
+| 问题 | 排查路径 |
+|------|---------|
+| 自动化没触发 | `tool-automation-service` 守卫 → `host-event-service` 绑定 → `settingsService` 自动化设置 |
+| 工具执行了没写回 | `context-injector` source message 绑定 → host commit → refresh 确认 |
+| 写回后看不到结果 | `context-injector._confirmRefresh` 验证 → 多字段同步 (mes/message/content/text) |
+| API 请求失败 | `api-connection` 三级回退 → preset 配置 → URL/API key |
+| 填表 AI 不修改表 | 适配器链解析 → scope 过滤 → 锁强制 → 列键解析 |
+| 跨聊天数据串 | isolation key → chat scope → 世界书命名空间 (`[YY:chatId=xxx]`) |
 
-## 9. 兼容性说明
+---
 
-当前仓库仍保留若干旧文件名与兼容接口，但命名存在不代表它们仍是主链：
+## 10. 已废弃接口
 
-- `tool-trigger.js` 仍在，但当前主要负责手动执行与提取预览
-- `tool-executor.js` 仍在，但主用途是 compatibility fallback
-- `inline` 模式仍可被识别，但会映射到 `follow_ai`
+以下旧命名不应再作为当前事实引用：
 
-判断当前行为时，应始终优先看实际导出与实际调用链，而不是沿用旧命名习惯。
+| 旧名称 | 当前替代 |
+|--------|---------|
+| `loadLegacyModule()` | 已移除 |
+| `getUiComponents()` | `getUi()` |
+| `getPromptEditor()` | 直接 import `prompt-editor.js` |
+| `getToolTrigger()` | `getToolTrigger()` 或直接 import |
+| `getAutoTriggerDiagnostics()` | `getAutomationRuntime()` |
+| `inline` 模式名 | `follow_ai` |
+| `tool.automation.enabled` 字段 | 由 `tool.output.mode` 判定 |
+| `modules/storage.js` | `modules/core/storage-service.js` |

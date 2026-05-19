@@ -1,501 +1,831 @@
 # 架构分析
 
-本文档基于当前 `1.0.212` 源码，对仓库主线结构、分层边界与主要执行链做一次源码对齐后的整理。
+基于 `1.0.212` 源码的完整架构文档，覆盖分层边界、模块职责、执行链路和数据流。
 
-结论先行：当前仓库已经不是“旧 trigger 管理器驱动的一组散模块”，而是围绕薄入口、bootstrap 装配、popup shell、运行时 tool registry、统一 execution context、自动化事务服务与写回链组织起来的一条主线。
+---
 
-## 1. 当前主线结论
+## 1. 架构总览
 
-当前代码最重要的结构事实是：
+项目共 ~81 个 JS 源文件（不含 `Reference/` 和 `dist/`），分为 6 层：
 
-1. `index.js` 仍是薄入口，只负责创建共享上下文、装配壳层并立即启动。
-2. `modules/app/bootstrap.js` 是启动装配中心，负责模块加载、样式注入、菜单入口与自动化初始化。
-3. `modules/app/popup-shell.js` 是单弹窗工作区的真实 UI 壳层与路由器，不是 `ui-manager.js`。
-4. `modules/tool-registry.js` 与 `modules/tool-manager.js` 已形成“运行时模型层 / 定义层”分层。
-5. `modules/tool-execution-context.js` 是手动链与自动链共用的 assistant 槽位上下文构建层。
-6. `modules/tool-automation-service.js` 是自动执行唯一入口，基于 generation-aware 事务模型处理宿主消息事件。
-7. `modules/tool-trigger.js` 现在主要负责手动执行与提取预览入口。
-8. `post_response_api` 与 `follow_ai` 的主执行/写回链集中在 `tool-output-service.js -> tool-prompt-service.js -> api-connection.js -> context-injector.js`。
-9. `modules/tool-executor.js` 仍在并承担旧执行回退；而 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 已从 popup 主路径与 public API 中收口，不应再被当成当前主线入口。
+```
+┌─────────────────────────────────────────────────────────┐
+│  index.js (薄入口 ~90行)                                 │
+├─────────────────────────────────────────────────────────┤
+│  modules/app/ (启动编排层, 3 文件)                        │
+│    bootstrap.js · popup-shell.js · public-api.js         │
+├─────────────────────────────────────────────────────────┤
+│  modules/core/ (基础服务层, 8 文件)                       │
+│    storage-service · event-bus · settings-service        │
+│    logger-service · host-event-service                   │
+│    tool-data-provider · authority-provider               │
+│    fallback-provider                                     │
+├─────────────────────────────────────────────────────────┤
+│  modules/ (核心业务层, ~22 文件)                          │
+│    tool-manager · tool-registry · tool-execution-context │
+│    tool-output-service · tool-prompt-service             │
+│    api-connection · context-injector                     │
+│    tool-automation-service · tool-trigger                │
+│    tool-local-transform-service · tool-executor          │
+│    variable-resolver · regex-extractor                   │
+│    regex-preset-store · worldbook-preset-store           │
+│    tool-worldbook-service · bypass-manager               │
+│    preset-manager · preset-bootstrap · window-manager    │
+├─────────────────────────────────────────────────────────┤
+│  modules/table-engine/ (填表子系统, 23 文件)              │
+│    配置: schema-service · schema-helpers · defaults · types │
+│    执行: update-service · provider-service · json-sanitizer │
+│    状态: state-service · history-service · target-resolver │
+│    写回: writeback-service · worldbook-sync-service      │
+│    辅助: lock · diff · guide · scope · isolation         │
+│          auto-schedule · chat-scope · data-service       │
+│          worldbook-order · worldbook-placement           │
+│    适配: ai-protocol-adapters (dsl/sql/full-json)        │
+│          template-adapters (youyou/shujuku)              │
+├─────────────────────────────────────────────────────────┤
+│  modules/ui/ (UI层, ~25 文件)                            │
+│    ui-manager · index · utils                            │
+│    components/ (面板组件 + controls 控件库)               │
+└─────────────────────────────────────────────────────────┘
+```
 
-## 2. 启动层与应用装配
+---
 
-### 2.1 `index.js`：薄入口
+## 2. 启动层
 
-`index.js` 当前只做几件事：
+### 2.1 index.js — 薄入口 (~90行)
 
-- 创建 `appContext`
-- 挂入常量、模块引用缓存、服务引用与 UI 状态
-- 创建 `popupShell`
-- 创建 `bootstrap`
-- 创建 `publicApi`
-- 暴露 `window.YouYouToolkit`
-- 立即调用 `bootstrap.init()`
+```
+创建 appContext (常量 + 模块缓存 + 服务 + UI状态)
+→ 创建 popupShell (createPopupShell)
+→ 创建 bootstrap (createBootstrap, 注入 openPopup)
+→ 创建 publicApi (createPublicApi)
+→ 暴露 window.YouYouToolkit
+→ 立即调用 bootstrap.init()
+```
 
-这意味着：
-- 不应继续把业务逻辑堆回 `index.js`
-- 启动、UI、公开 API 的修改应分别落到 `modules/app/bootstrap.js`、`modules/app/popup-shell.js`、`modules/app/public-api.js`
+appContext 是整个应用的共享状态对象，所有 app 层工厂函数接收它作为第一个参数。
 
-### 2.2 `modules/app/bootstrap.js`：启动与模块装配中心
+### 2.2 bootstrap.js — 启动装配中心
 
-`bootstrap.js` 的职责包括：
+`createBootstrap(context, {openPopup})` 返回 `{loadModules, injectStyles, addMenuItem, init}`。
 
-- `loadModules()`：加载当前主线模块
-- 注入基础样式与主题变量
-- 初始化 UI 模块
-- 注册菜单入口
-- 初始化自动化服务
+**init() 执行序列**:
 
-当前 `loadModules()` 会装配的主线模块包括：
+1. `injectStyles()` — 加载外部 `styles/main.css`，失败则用内嵌 ~3000 行 CSS fallback
+2. `loadModules()` — 异步 `import()` 加载 15+ 业务模块，单次 Promise 缓存
+3. `initUI()` — 注册面板到 uiManager
+4. `injectComponentStyles()` — 聚合面板样式
+5. `applySavedTheme()` — 应用保存的 UI 主题
+6. `ensurePresetSystem()` — 注册内置预设 + 一次性迁移（必须在自动化服务前）
+7. `toolAutomationService.init()` — 初始化自动执行服务
+8. `addMenuItem()` — 注册 SillyTavern 魔棒菜单项（延迟 1s）
 
-- `core/storage-service.js`（议题 #9 — 老 `storage.js` 兼容层已删除）
-- `api-connection.js`
-- `preset-manager.js`
-- `ui/index.js`
-- `regex-extractor.js`
-- `tool-manager.js`
-- `tool-executor.js`
-- `window-manager.js`
-- `tool-registry.js`
-- `core/settings-service.js`
-- `core/host-event-service.js`（议题 #10）
-- `core/tool-data-provider.js` + `authority-provider.js` / `fallback-provider.js`（议题 #9）
-- `bypass-manager.js`
-- `variable-resolver.js`
-- `context-injector.js`
-- `tool-prompt-service.js`
-- `tool-output-service.js`
-- `tool-automation-service.js`
+`loadModules()` 装配的模块列表：
 
-同时它还会在模块加载完成后，把 `toolOutputService` 与 `api-connection` 绑定起来。
+| 模块 | 存储键 |
+|------|--------|
+| `storageModule` | `core/storage-service.js` |
+| `apiConnectionModule` | `api-connection.js` |
+| `presetManagerModule` | `preset-manager.js` |
+| `uiModule` | `ui/index.js` |
+| `regexExtractorModule` | `regex-extractor.js` |
+| `toolManagerModule` | `tool-manager.js` |
+| `toolExecutorModule` | `tool-executor.js` |
+| `windowManagerModule` | `window-manager.js` |
+| `toolRegistryModule` | `tool-registry.js` |
+| `settingsServiceModule` | `core/settings-service.js` |
+| `bypassManagerModule` | `bypass-manager.js` |
+| `variableResolverModule` | `variable-resolver.js` |
+| `contextInjectorModule` | `context-injector.js` |
+| `toolPromptServiceModule` | `tool-prompt-service.js` |
+| `toolOutputServiceModule` | `tool-output-service.js` |
+| `toolAutomationServiceModule` | `tool-automation-service.js` |
+| `toolDataProviderModule` | `core/tool-data-provider.js` |
+| `presetBootstrapModule` | `preset-bootstrap.js` |
 
-### 2.3 `modules/app/public-api.js`：宿主侧门面
+`toolOutputService` 加载后立即绑定 `apiConnection`。
 
-`public-api.js` 负责对外暴露当前运行时门面，主要分为四类：
+### 2.3 popup-shell.js — UI 壳层与路由
 
-- UI 控制：`openPopup()` / `closePopup()` / tab 切换
-- API / preset 访问：`getApiConfig()` / `saveApiConfig()` / `sendApiRequest()` / `getPresets()`
-- 模块 getter：`getToolRegistry()` / `getToolOutputService()` / `getToolAutomationService()` 等
-- 自动化控制：`startAutomation()` / `stopAutomation()` / `getAutomationRuntime()` / `processCurrentAssistantMessage()`
+`createPopupShell(context)` 返回 `{openPopup, closePopup, switchMainTab, switchSubTab}`。
 
-这里是判断“哪些能力真的是宿主可用公开接口”的第一事实来源。
+- 弹窗创建/关闭/拖拽（可拖动 header）
+- 侧栏可折叠（`yyt-collapsed` class）
+- 主导航渲染（`TOOL_REGISTRY` 定义 6 个主标签页）
+- 子导航渲染（内置工具 + `buildToolsSubTabs()` 动态生成自定义工具子标签）
+- 面板内容区刷新（`refreshCurrentPanel()`）
+- 事件总线联动（`UI_TAB_CHANGED`, `UI_SUBTAB_CHANGED`）
 
-## 3. UI 壳层与组件层分工
+### 2.4 public-api.js — 全局 API 门面
 
-### 3.1 `modules/app/popup-shell.js`：真实 UI 壳层
+暴露 `window.YouYouToolkit`，分为 5 类接口：
 
-当前单弹窗工作区主要由 `popup-shell.js` 负责，它处理：
+- **基础信息**: `version`, `id`
+- **UI 控制**: `openPopup`, `closePopup`, `switchMainTab`, `switchSubTab`
+- **API/预设**: `getApiConfig`, `saveApiConfig`, `sendApiRequest`, `testApiConnection`, `getPresets`
+- **模块 getter**: `getStorage`, `getApiConnection`, `getToolManager`, `getToolRegistry`, `getSettingsService`, `getBypassManager`, `getVariableResolver`, `getContextInjector`, `getToolOutputService`, `getToolAutomationService`, `getDataProvider`, `getDataProviderAsync` 等
+- **自动化控制**: `startAutomation`, `stopAutomation`, `getAutomationRuntime`, `cancelAutomation`, `processCurrentAssistantMessage`
 
-- 弹窗创建、关闭与拖动
-- 主导航渲染
-- 子导航渲染
-- 当前 main tab / sub tab 状态维护
-- 动态 custom tool 子页签切换
-- 面板内容区域刷新
-- 与事件总线联动后的局部刷新
+---
 
-关键点：
-- `popup-shell.js` 以 `tool-registry.js` 作为导航数据来源
-- `resolveActiveSubTabId()` 会根据运行时工具配置决定实际激活的子页签
-- `refreshCurrentPanel()` 才是真正驱动当前面板重渲染的壳层入口
+## 3. 基础服务层
 
-因此，当前 UI 路由中心不是 `ui-manager.js`，而是 `popup-shell.js + tool-registry.js` 这对组合。
+### 3.1 storage-service.js — 存储抽象
 
-### 3.2 `modules/ui/index.js`：面板注册入口
+**设计模式**: Strategy (后端选择) + Adapter (统一接口) + Cache-aside (内存缓存) + Namespace Isolation
 
-`ui/index.js` 的职责是：
+```
+StorageService (class)
+  constructor(namespace) → 创建命名空间实例
+  _getStorage() → 延迟探测 SillyTavern extensionSettings → localStorage 回退
+  get(key, defaultValue) → 内存缓存 → 后端读取 → JSON 解析
+  set(key, value) → 写后端 + 更新缓存
+  namespace(sub) → 创建子命名空间 (冒号分隔, 如 youyou_toolkit:tools)
+  remove / has / clear / getMultiple / setMultiple / exportAll
+```
 
-- 导出 UI 工具与组件
-- 调用 `registerComponents()` 把面板注册到 `uiManager`
-- 提供便捷渲染函数
-- 初始化 `uiManager`
+**四个预创建单例**:
 
-当前注册的主面板包括：
+| 单例 | 命名空间 | 用途 |
+|------|---------|------|
+| `storage` | `youyou_toolkit` | 主存储 |
+| `toolStorage` | `youyou_toolkit:tools` | 工具数据 |
+| `presetStorage` | `youyou_toolkit:presets` | 预设数据 |
+| `windowStorage` | `youyou_toolkit:windows` | 窗口状态 |
 
-- API preset、regex extract、worldbook preset、table template（4 项预设面板，议题 #12 合并到"预设管理"sub-nav 下）
-- summary tool、status block、youyou review、escape transform、punctuation transform（内置工具）
-- bypass（Ai 指令预设）
-- settings
-- logger
-- tableWorkbench
+SillyTavern 路径存储在 `extensionSettings` 对象（直接存 JS 值），localStorage 路径需要 JSON 序列化 + 命名空间前缀键。
 
-（自定义工具的 sub-tab 由 `tool-registry.js` 在运行时动态生成。议题 #3 后，旧的独立 "工具管理" 主 tab 已不再注册。）
+### 3.2 event-bus.js — 跨模块事件总线
 
-### 3.3 `modules/ui/ui-manager.js`：组件生命周期，不是主路由
+80+ 事件类型，分 8 类：存储、预设、API、工具、UI、应用、设置、破限词。
 
-`ui-manager.js` 当前负责：
+```javascript
+EventBus {
+  listeners: Map<event, Set<{callback, priority}>>
+  history: Array<{event, data, timestamp}>  // 环形缓冲, 上限 100
+  on(event, callback, {priority}) → unsubscribe 函数
+  once(event, callback) → unsubscribe 函数
+  emit(event, data)    // 按优先级降序执行
+  wait(event, timeout) → Promise  // 等待事件触发, 支持超时
+  hasListeners / listenerCount / removeAllListeners / getHistory
+}
+```
 
-- 组件注册/注销
-- 组件 render / destroy
-- 样式聚合与注入
-- 兼容层 tab/subtab 状态保留
+### 3.3 settings-service.js — 全局配置
 
-它本身并不负责 popup shell 的主路由决策。文件注释里也已明确：`currentTab` / `currentSubTab` 仅保留给兼容层查询，不再作为 popup shell 主路由源。
+```
+SettingsService (单例) {
+  _cache: Object | null
+  getSettings() → 四大分类:
+    executor: {maxConcurrent:3, maxRetries:2, retryDelayMs:5000, requestTimeoutMs:90000, queueStrategy:'fifo'}
+    automation: {settleMs:1200, cooldownMs:5000, maxConcurrentSlots:1}
+    debug: {enableDebugLog:false, saveExecutionHistory:true, showRuntimeBadge:true}
+    ui: {compactMode:false, animationEnabled:true, theme:'dark-blue', startupScreenDismissed:false}
+  updateSettings(partial) → 深度合并
+  get('executor.maxConcurrent') → 点分路径访问
+  set('ui.theme', 'dark-purple') → 点分路径写入
+  _migrateLegacy() → 清理废弃字段 (如 #48 删除 automation.enabled)
+}
+```
 
-### 3.4 `modules/ui/components/tool-config-panel-factory.js`：共享配置面板工厂
+### 3.4 logger-service.js — 集中式日志
 
-这个工厂是 built-in tool 与动态工具面板复用的重要基础，主要统一：
+```
+LoggerService (单例) {
+  _entries: Array<Entry>  // 环形缓冲, 上限 2000
+  _minLevel: INFO         // DEBUG | INFO | WARN | ERROR
 
-- 工具面板壳样式
-- 配置保存入口
-- 手动执行入口 `runToolManually()`
-- 提取预览入口 `previewToolExtraction()`
-- preset / bypass / worldbook 等通用表单逻辑
+  createScope(name) → { debug, info, log, warn, error }  // 绑定 scope 的方法集
+  getEntries({level, scope, search, limit:500, offset}) → {entries, total}
+  getStats() → { byLevel, byScope }
+  setToastHandler(fn) → 注册 UI toast 回调
+  setLevel / setMaxSize / clear / levelLabel
+}
+```
 
-这意味着工具页的“配置面板长得像什么、怎么触发手动执行、怎么做提取预览”并不是各个工具独立复制实现，而是大量复用这里的公共工厂。
+每条日志通过 `queueMicrotask` 批量推送到 EventBus (`logger:entry` 事件)，UI LoggerPanel 订阅实时显示。
+
+### 3.5 host-event-service.js — 宿主事件桥接
+
+**18 个 HOST_EVENTS 常量**: APP_READY, MESSAGE_SENT/RECEIVED/UPDATED/DELETED/EDITED/SWIPED, GENERATION_STARTED/STOPPED/ENDED, CHAT_CHANGED/CREATED/DELETED, CHARACTER_* 等。
+
+```
+HostEventService (单例) {
+  _pending: Array    // 宿主未就绪时的排队订阅
+  _attached: Array   // 已绑定订阅
+  subscribe(eventKey, handler) → unsubscribe
+  ready({timeoutMs:10000}) → Promise<boolean>
+  emit(eventKey, ...payload) → 通过宿主 eventSource 发射
+  reinit() → 强制重新探测
+  describe() → 诊断信息
+}
+```
+
+**探测链**: `SillyTavern.eventSource` → `getContext().eventSource` → `topWindow.eventSource`
+
+**事件名归一化**: 调用方使用 `HOST_EVENTS.MESSAGE_RECEIVED`，服务通过宿主 `eventTypes` 映射解析为原生事件名。
+
+**就绪等待**: 宿主未就绪时订阅排队，1.5s 轮询（最多 20 次），就绪后自动绑定。
+
+### 3.6 tool-data-provider.js — Provider 抽象工厂
+
+```
+getToolDataProvider({extensionVersion}) → Promise<IToolDataProvider>
+  → 尝试 AuthorityProvider (SDK → SQLite)
+  → 失败则 FallbackProvider (内存 SQL 引擎 + JSON 持久化)
+  → Promise 缓存，并发调用共享单次初始化
+
+IToolDataProvider 接口: init, dispose, migrate, query, execute, batch, transaction, backup, export, import, describe
+```
+
+### 3.7 authority-provider.js — SQLite Provider
+
+包装 `window.STAuthority.AuthoritySDK` 的 `sql` 客户端。声明 `private` SQL 权限。提供 `migrate/query/execute/batch/transaction/paginate/pageAll` 方法。backup/export/import 为 stub（Authority 框架原生处理）。
+
+### 3.8 fallback-provider.js — 内存 SQL 引擎
+
+实现了一个受限 SQL 解释器（无 JOIN/GROUP BY/子查询/OR），支持 CREATE TABLE/INSERT/UPDATE/DELETE/SELECT(WHERE+ORDER BY+LIMIT)。事务通过快照+回滚实现 ACID-like 语义。通过 `toolStorage` 持久化为单个 JSON blob。
+
+---
 
 ## 4. 工具定义层与运行时层
 
-### 4.1 `modules/tool-manager.js`：定义层
+### 4.1 tool-manager.js — 定义层 (520行)
+
+管理用户可自定义的工具定义，重点在持久化和标准化：
 
-`tool-manager.js` 负责用户可管理工具定义本身，重点在：
+```
+DEFAULT_TOOL_STRUCTURE → {
+  id, name, description, icon, order, category,
+  promptTemplate, extractTags,
+  config: { execution, api, messages, context, automation, worldbooks },
+  enabled, metadata
+}
+
+关键函数:
+  createDefaultToolDefinition(input)    → 创建并填充默认值
+  normalizeToolDefinitionToRuntimeConfig(id, def) → 扁平化为运行时模型
+  getAllTools / saveTool / deleteTool / importTools / exportTools
+  setToolEnabled / resetTools
+```
 
-- 自定义工具定义结构
-- schema 归一化
-- automation/worldbooks/context/messages 等定义层字段归一化
-- promptTemplate 推导
-- 导入 / 导出 / 持久化
+**模板三级回退**: 显式 `promptTemplate` → 消息数组序列化 (`【ROLE】` 块) → 中文默认字符串。
 
-它处理的是“工具定义长什么样，如何存，如何标准化”。
+### 4.2 tool-registry.js — 运行时层 (1395行)
+
+把内置工具与自定义工具合并为 UI 和执行链消费的运行时模型。
+
+**5 个内置工具**: summaryTool, statusBlock, youyouReview, escapeTransformTool, punctuationTransformTool
+
+**配置三级合并**:
+```
+getToolFullConfig(toolId):
+  baseDefaultConfig → 用户覆盖 (storage 'tool_configs') → 旧版 API 预设绑定
+```
 
-### 4.2 `modules/tool-registry.js`：运行时层
+**运行时状态** (~30 个字段):
+```
+lastRunAt, lastStatus, lastError, lastDurationMs,
+successCount, errorCount,
+lastSlotBindingKey, lastSlotRevisionKey, lastSlotTransactionId,
+lastSourceMessageId, lastSourceSwipeId,
+lastWritebackStatus, lastFailureStage,
+lastContentCommitted, lastHostCommitApplied,
+lastRefreshRequested, lastRefreshConfirmed,
+lastPreferredCommitMethod, lastAppliedCommitMethod,
+lastTraceId,
+lastAutoRunAt, lastAutoStatus, lastAutoMessageId, ...
+recentWritebackHistory (10~50 条)
+```
+
+**判断标准**:
+- 改"用户工具定义怎么存" → `tool-manager.js`
+- 改"工具在 UI 和执行链里长什么样" → `tool-registry.js`
+
+### 4.3 tool-execution-context.js — 执行上下文构建
+
+读取宿主聊天状态，生成标准化执行上下文：
+
+```
+getTopWindow() → 安全访问父窗口
+getSillyTavernAPI() → 获取宿主 API
+buildConversationSnapshot(messages) → 归一化消息列表
+stripKnownToolBlocks(text, message) → 剥离已写回工具块
+buildAssistantContentFingerprint(content) → "fp_XXXX" 哈希
+```
+
+**三级 Slot Identity**:
+
+| 键 | 公式 | 语义 |
+|----|------|------|
+| `slotBindingKey` | `chatId::messageId` | 粗定位到同一助手槽位 |
+| `slotRevisionKey` | `bindingKey::swipeId::fp_XXXX` | 精确定位到具体内容版本 |
+| `slotTransactionId` | `revisionKey::eventType::traceId` | 唯一标识一次执行事务 |
+
+`assistantBaseText` = AI 原始输出（已剥离工具写回块），用于指纹计算和提取，避免重复提取和写回污染。
+
+---
+
+## 5. 执行链
+
+### 5.1 tool-output-service.js — 执行核心
+
+**三种输出模式**:
+- `POST_RESPONSE_API` — 额外 API 请求 → 提取 → 写回
+- `FOLLOW_AI` — 手动链独立执行路径
+- `LOCAL_TRANSFORM` — 本地文本变换
+
+**runToolPostResponse 五阶段流水线**:
+
+```
+1. BUILD_MESSAGES  → _buildToolMessages()
+     收集最近助手消息 → 全局规则过滤 → 工具特定提取
+2. [abort check]   → shouldAbortAutoWriteback()
+3. SEND_API_REQUEST → api-connection.sendWithPreset()
+4. EXTRACT_OUTPUT   → _extractOutputContent() + _applyOutputExtractionSelectors()
+5. INJECT_CONTEXT   → contextInjector.injectDetailed()
+```
+
+每阶段失败记录 `failureStage` (`BUILD_MESSAGES` / `SEND_API_REQUEST` / `EXTRACT_OUTPUT` / `INJECT_CONTEXT`) 和 `writebackStatus` (`SUCCESS` / `FAILED` / `SKIPPED_EMPTY_OUTPUT` / `NOT_APPLICABLE`)。
+
+**提取上下文解析**: `_resolveExtractionContext()` 从绑定的正则预设 (`extraction.regexPresetId`) 加载 include/exclude/regex_include/regex_exclude 规则 + 黑名单。
+
+### 5.2 tool-prompt-service.js — 消息构建
+
+```
+buildToolMessages(toolConfig, context):
+  1. _buildVariableContext → 解析世界书内容 + 模板变量
+  2. _getBypassMessages → 获取 bypass 消息 (如果启用)
+  3. 检查 bypass mainSlot (A/B) → 有则替换主提示词
+  4. 否则使用 promptMessages 数组或默认模板
+  5. 返回 [{role, content}] 消息数组 (OpenAI 格式)
+```
+
+**Main Slot 机制**: bypass 消息可声明 `mainSlot: 'A'` 或 `'B'`，接管"主提示词"位置。
+
+### 5.3 api-connection.js — API 连接管理
+
+**三级请求回退链**:
+
+```
+1. sendViaMainApi → TavernHelper.generateRaw (宿主主 API)
+2. sendViaCustomApi:
+   a. TavernHelper.generateRaw({custom_api: config})
+   b. POST /api/backends/chat-completions/generate (SillyTavern CORS 代理)
+   c. 直接 fetch (仅代理返回 404/405/501/502 时)
+```
 
-`tool-registry.js` 负责把内置工具与自定义工具合并成 UI 与执行链真正使用的运行时模型，重点在：
+**中止检测**: `AbortError` / "停止按钮" / "stop button" / "Clicked stop" / "请求已取消"。
+
+### 5.4 context-injector.js — 写回引擎
+
+**核心方法**: `injectDetailed(toolId, content, options)`
+
+```
+写回流程:
+  1. 查找目标助手消息 (sourceMessageId)
+  2. 读取现有工具输出 (message[YouYouToolkit_toolOutputs])
+  3. 精确块替换 → 选择器剥离 → 旧内容剥离
+  4. 追加新内容到消息文本
+  5. 更新所有文本字段 (mes, message, content, text) + swipe 数组
+  6. 写入输出镜像 (message[YouYouToolkit_toolOutputs])
+  7. 重建聚合上下文 (message[YouYouToolkit_injectedContext])
+  8. 同步 context.chat 和 api.chat 数组
+  9. TavernHelper.setChatMessages → 宿主刷新
+  10. saveChat / saveChatDebounced
+  11. 发射 MESSAGE_UPDATED
+  12. _confirmRefresh (3 次重试, 60ms 间隔)
+```
 
-- 合并 built-in 与 custom 工具
-- 规范化运行时 `output` / `automation` / `extraction` / `runtime`
-- 保存最近执行状态、失败阶段、写回状态、slot/source 诊断信息
-- 输出 popup shell 直接可消费的导航结构
+返回详细写回结果含：成功/失败、验证状态、冲突检测、提交方法、刷新确认。
 
-一个实用判断标准是：
-- 要改“用户工具定义怎么存”，看 `tool-manager.js`
-- 要改“工具在 UI 和执行链里长什么样”，看 `tool-registry.js`
+### 5.5 tool-automation-service.js — 自动触发服务
 
-### 4.3 当前 runtime 字段的意义
+**Transaction 模型**:
 
-`tool-registry.js` 当前 runtime 已经明显偏向执行诊断，而不是旧 trigger 状态残留。它重点维护：
+```
+TX_PHASE: RECEIVED → CONFIRMED → CONTEXT_BUILT → REQUEST_STARTED →
+REQUEST_FINISHED → WRITEBACK_STARTED → WRITEBACK_COMMITTED → REFRESH_CONFIRMED
+(或 SKIPPED / FAILED)
+```
 
-- 最近执行状态
-- 最近错误
-- 最近耗时
-- 最近执行路径
-- 最近写回状态
-- `slotBindingKey` / `slotRevisionKey` / `slotTransactionId`
-- `sourceMessageId` / `sourceSwipeId`
-- refresh 请求与确认结果
-- auto run 的最近状态
+**防重放/防递归**:
 
-这也是当前 UI 诊断信息和问题排查的主要来源之一。
+| 机制 | 实现 |
+|------|------|
+| 槽位去重 | `_recentlyProcessedSlots` Map, 键 `messageId::swipeId`, 滑动时间窗口 |
+| 自写黑名单 | `_ownWriteMessageIds` Map, 10s TTL, 防止写回触发递归 |
+| 种子标记 | `_seedKnownSlots()`, 初始化时标记当前最新助手 slot 为永久已知 |
+| 并发控制 | 按 slot 串行排队 (`_enqueueSlot`) |
+| 取消 | `GENERATION_STOPPED` → 取消所有活动事务和定时器 |
 
-## 5. 执行上下文与槽位身份模型
+**事件订阅**:
 
-### 5.1 `modules/tool-execution-context.js` 的角色
+| 事件 | 处理 |
+|------|------|
+| `MESSAGE_RECEIVED` | 主触发, 守卫过滤后去抖 800ms 调度处理 |
+| `GENERATION_STOPPED` | 取消所有活动事务和定时器 |
+| `CHAT_CHANGED` | 完全状态重置 |
+| `MESSAGE_DELETED` | 清理特定消息状态, 重新种子标记 |
+| `MESSAGE_SENT` | 清理待处理定时器 |
 
-`tool-execution-context.js` 当前是手动链与自动链共享的上下文层，它负责：
+**处理流程**: 守卫过滤 → 去抖 settle → `processAssistantMessage()` → 构建上下文 → 收集自动工具 (local_transform 先, post_response_api 后) → 串行执行 (链式刷新) → 可选填表自动更新 → 更新运行时诊断。
 
-- 读取宿主聊天消息
-- 归一化 role / messageId / swipeId
-- 构建 conversation snapshot
-- 找到目标 assistant 楼层
-- 去除已写回工具块，得到 `assistantBaseText`
-- 生成内容 fingerprint
-- 生成执行上下文对象
+### 5.6 tool-trigger.js — 手动执行入口
 
-### 5.2 三个关键槽位键
+```
+runToolManually(toolId):
+  1. 验证工具存在和启用
+  2. buildExecutionContextForLatestAssistant({runSource: 'MANUAL'})
+  3. resolveExecutionPath:
+     LOCAL_TRANSFORM  → tool.output.mode === 'local_transform' 或有 processor.type
+     POST_RESPONSE_API → tool.output.mode === 'post_response_api'
+     FOLLOW_AI        → tool.output.mode === 'follow_ai'
+     COMPATIBILITY    → 其他 (懒加载 tool-executor.js)
+  4. 分发执行
+  5. 更新运行时状态 (~17 个跟踪字段)
 
-当前最重要的三个身份键是：
+previewToolExtraction(toolId):
+  → toolOutputService.previewExtraction (仅提取预览, 不执行)
+```
 
-- `slotBindingKey = chatId::messageId`
-- `slotRevisionKey = slotBindingKey::effectiveSwipeId::assistantContentFingerprint`
-- `slotTransactionId = slotRevisionKey::eventType::traceId`
+### 5.7 tool-local-transform-service.js — 本地变换
 
-它们的语义分别是：
+```
+LOCAL_PROCESSOR_TYPES: { ESCAPE_TRANSFORM, PUNCTUATION_TRANSFORM }
 
-- `slotBindingKey`：同一个 assistant 槽位
-- `slotRevisionKey`：同一个槽位下的具体内容版本
-- `slotTransactionId`：一次具体执行事务
+runLocalTransformTool(tool, context):
+  getExtractionSnapshot → 提取源文本
+  → runLocalTextTransform (escape 或 punctuation 纯文本变换)
+  → applyLocalTransformToFullMessage (在全文中替换)
+  → contextInjector.injectDetailed (写回)
+```
 
-这三个键不仅用于日志，也直接影响：
+### 5.8 tool-executor.js — 兼容回退
 
-- 自动化 dedupe
-- reroll/swipe 区分
-- 写回目标绑定
-- refresh 确认诊断
+早期通用任务调度器 (`TaskScheduler`，并发控制 max 3、重试线性退避、批量执行)。已被 `tool-output-service` + `tool-automation-service` 取代，仅通过 `import()` 懒加载作为兼容路径。
 
-### 5.3 `assistantBaseText` 的重要性
+---
 
-执行上下文会先调用 `stripKnownToolBlocks()` 从 assistant 原文里剥离已知工具写回块，再生成 `assistantBaseText` 和 `assistantBaseFingerprint`。
+## 6. 辅助业务模块
 
-这一步很关键，因为主线不是简单把“当前消息全文”当作输入，而是尽量围绕“去掉旧工具块后的原始 assistant 内容”工作，以减少重复提取和写回污染。
+### 6.1 variable-resolver.js — 模板变量解析
 
-## 6. 手动执行链
+**15 个内置变量** (4 类):
 
-### 6.1 `modules/tool-trigger.js` 的真实职责
+| 类 | 变量 |
+|----|------|
+| chat | `lastUserMessage`, `lastAiMessage`, `chatHistory`, `userMessage` |
+| character | `characterCard` |
+| tool | `toolName`, `toolId`, `toolPromptMacro`, `toolContentMacro`, `toolWorldbookContent` |
+| context | `injectedContext`, `extractedContent`, `recentMessagesText`, `rawRecentMessagesText`, `previousToolOutput` |
 
-当前 `tool-trigger.js` 已不再承担旧自动触发监听器角色，而是：
+**三阶段解析**: 内置变量 (regex 直替换) → 自定义变量 (支持函数处理器) → 命名空间变量 (`regex.xxx` 前缀)。
 
-- 读取工具完整配置
-- 构建最新 assistant 上下文
-- 决定手动执行路径
-- 执行手动工具
-- 提供提取预览
-- 将结果写入 runtime 诊断字段
+### 6.2 regex-extractor.js — 正则提取引擎 (1060行)
 
-### 6.2 当前手动执行路径分层
+**四种标签格式**: Simple (`<tag>content</tag>`), Curly (`{tag|content}`), Complex (自定义起止), HTML (带属性)
 
-`resolveExecutionPath()` 目前会把手动执行分成三条路径：
+**提取三阶段管道**:
+```
+Phase 1: 块级排除 (移除 <exclude> 块)
+Phase 2: 内容提取 (include 规则尝试 simple + curly; regex_include 用捕获组)
+Phase 3: 清理 (regex_exclude 移除匹配 + 黑名单过滤)
+```
 
-- `manual_post_response_api`
-- `manual_local_transform`
-- `manual_compatibility`
+`scanTextForTags` 支持 50KB 分块 + 5s 超时保护。
 
-实际调度上还包含一个重要分支：
-- 若 `tool.output.mode === post_response_api`，走 `runToolPostResponse()`
-- 若 `tool.output.mode === follow_ai`，走 `runToolFollowAiManual()`
-- 若 `tool.output.mode === local_transform` 或存在 `processor.type`，走本地 transform
-- 其他情况再落入 compatibility 模块 `tool-executor.js`
+### 6.3 regex-preset-store.js — 正则预设商店
 
-因此“manual_compatibility”不是唯一的非 `post_response_api` 分支；`follow_ai` 现在也有明确的正式手动执行链。
+```
+CRUD: listPresets, getPreset, createPreset, updatePreset, deletePreset, duplicatePreset
+规则级: addRule, updateRule, deleteRule, moveRule
+引擎同步: syncEngineFromPreset → 动态 import regex-extractor → 推送规则 + 黑名单
+内置预设: _builtinPresets (ID 前缀 builtin_regex_)
+旧版迁移: migrateIfNeeded() 从 settings.tagRulePresets 迁移 (一次性, 标记 regex_presets_migrated)
+跨模块: findLinkedTools(presetId) → 扫描所有工具配置查找引用
+```
 
-### 6.3 本地 transform 的位置
+### 6.4 tool-worldbook-service.js — 世界书服务
 
-本地 transform 并不是脱离主线的旁路。它虽然不请求额外 API，但仍会：
+```
+getAvailableWorldbooks() → 探测 TavernHelper + SillyTavern API → 缓存世界书列表
+buildSelectedWorldbookContent(arg):
+  bindingMode: 'character_card' → 动态获取角色绑定的世界书 + 预设覆盖
+  bindingMode: 'custom' → 仅使用预设中启用的世界书
+```
 
-- 基于提取快照获得目标文本
-- 在本地完成 transform
-- 通过 `context-injector.injectDetailed()` 写回 assistant 槽位
+支持条目级覆盖: 预设可为每个世界书条目设置 `enabled/disabled`。
 
-所以它仍共享 slot identity / writeback / refresh 这一整套边界。
+### 6.5 worldbook-preset-store.js — 世界书预设商店
 
-## 7. 自动执行链
+结构与 regex-preset-store 类似。每个预设有 `bookList`，每条目可含 `entryOverrides: Map<uid, {enabled}>`。
 
-### 7.1 `modules/tool-automation-service.js`：唯一自动入口
+### 6.6 bypass-manager.js — AI 指令预设 (852行)
 
-当前自动执行唯一主入口是 `tool-automation-service.js`。它负责：
+管理有序消息列表注入 API 请求。
 
-- 只监听 `MESSAGE_RECEIVED`（3 秒 throttle，leading edge），不再监听 `GENERATION_ENDED`
-- 监听 `CHAT_CHANGED` 做 teardown + rebuild
-- 监听 `GENERATION_STOPPED` 做 cancel（`controller.abort()`）
-- 把事件名统一归一化成 `UPPER_SNAKE_CASE`
-- 从事件参数提取 message identity
-- 调度 assistant 消息处理
-- 维护 `_recentlyProcessedSlots` Map 与 `_ownWriteMessageIds` Set
-- 输出 transaction history 与 host binding 状态
+```
+DEFAULT_BYPASS_PRESETS → table_workbench_fill_default (8 条内置消息)
+消息规范化: $0→{{toolContentMacro}}, $1→{{rawRecentMessagesText}}, ...
+CRUD: getAllPresets, createPreset, updatePreset, deletePreset, duplicatePreset
+消息级: addMessage, updateMessage, deleteMessage
+构建: buildBypassMessages(toolConfig) → 返回启用消息数组
+Main Slot: 消息可声明 mainSlot: 'A'/'B' 接管主提示词位置
+```
 
-### 7.2 slot-based 去重与 own-write 防循环
+### 6.7 preset-manager.js — API 预设管理
 
-1.0.111 重写后，去重模型从 `messageId + contentHash` 改为 slot-based：
+管理 API 连接参数 (URL, key, model, temperature 等)。数组存储 (按 name 查找)。支持收藏星标、重命名、导入导出。
 
-- 去重键为 `messageId::swipeId`，存入 `_recentlyProcessedSlots` Map（带 TTL）
-- 模块级 `_isProcessing` boolean mutex 阻止并发执行
-- `_ownWriteMessageIds` Set 记录自己刚写回的 messageId，throttle 窗口内同 messageId 事件直接跳过，防止写回 → 事件 → 重触发的自激循环
-- `GENERATION_STOPPED` 事件触发 `controller.abort()` + cancelled 标志，写回前检查
+### 6.8 preset-bootstrap.js — 预设系统引导
 
-### 7.3 自动链做什么，不做什么
+**一次性迁移 (Issue #45)**:
+```
+ensurePresetSystem():
+  1. registerBuiltinPresets() → 注入 3 个内置正则预设 (boo_FM, status_block, youyou)
+  2. runMigrationOnce():
+     - 备份现有工具配置
+     - 为每个缺少 extraction.regexPresetId 的工具匹配/创建正则预设
+     - 为每个缺少 worldbooks.presetId 的工具创建世界书预设
+     - 失败则不设置完成标记, 保留旧字段
+```
 
-当前自动链会：
+### 6.9 window-manager.js — 浮动窗口管理 (809行)
 
-- 基于自动化设置判断是否启用
-- 构建指定 assistant 消息的 execution context
-- 按 `outputMode` 筛选自动工具：`post_response_api` + `local_transform` 都进自动队列（议题 #5）
-- local_transform 先执行（本地变换），post_response_api 后执行
-- 当 `tableWorkbench.autoUpdateEnabled === true` 且 `autoUpdateTrigger === assistantMessage` 时，在同一 generation 事务内继续执行自动填表
-- 记录事务历史、宿主绑定状态与 table auto 结果
+```
+createWindow(options) → 浮动窗口
+特性: 8方向缩放, 拖拽, 最大化/还原, z-index 层叠管理,
+      状态持久化 (windowStorage), 响应式 (3断点), iframe 兼容
+```
 
-当前自动链不会把以下路径当成主线自动执行：
+---
 
-- `follow_ai`（永远手动）
-- `tool-executor.js` compatibility fallback
+## 7. 填表工作台子系统
 
-注：旧字段 `tool.automation.enabled` 已废弃，自动判定改为读取 `tool.output.mode`。
-
-### 7.4 运行时快照的价值
-
-`getRuntimeSnapshot()` 当前会暴露：
-
-- 当前 chatId
-- enabled 状态
-- pending timer / `_recentlyProcessedSlots` / `_ownWriteMessageIds` 统计
-- 最近事务快照
-- host event binding 状态
-- 当前自动化设置
-
-这使它成为排查“为什么自动化没跑”“宿主事件到底绑上没”“最近事务卡在哪个阶段”的首选观测窗口。
-
-## 8. 输出链与写回链
-
-### 8.1 `modules/tool-output-service.js`：执行主链
-
-`tool-output-service.js` 当前是 `post_response_api` 与 `follow_ai` 的直接执行层，负责：
-
-- 判断工具是否应走某种输出模式
-- 构建最近消息提取条目
-- 组装请求消息
-- 发送 API 请求
-- 提取结果文本
-- 组织写回元信息
-- 调用 `contextInjector.injectDetailed()`
-- 返回阶段化 `meta`
-
-### 8.2 当前输出模式的真实含义
-
-当前支持的主要模式有：
-
-- `post_response_api`
-- `follow_ai`
-- `local_transform`
-- compatibility fallback
-
-其中：
-- `post_response_api`：手动与自动主线都支持
-- `follow_ai`：当前主要用于手动执行，仍会额外构建消息、请求 API、再写回
-- `local_transform`：纯本地变换后写回
-- `inline`：旧别名，映射到 `follow_ai`
-
-因此，不应再把 `follow_ai` 简化为“只是跟随 AI，不走执行链”的旧口径。
-
-### 8.3 `modules/context-injector.js`：写回边界
-
-`context-injector.js` 负责：
-
-- 创建注入条目
-- 发送 `TOOL_CONTEXT_INJECTED` 事件
-- 把工具输出写入绑定 assistant 槽位
-- 记录 source message / swipe / slot identity
-- 返回分层写回结果
-
-当前它强调的是“写回 assistant 绑定槽位并确认 refresh”，而不是简单拼接一段文本。
-
-因此当执行成功但用户看不到结果时，真正要看的通常不是“模型有没有返回字”，而是：
-
-- source message 绑没绑对
-- host commit 是否应用
-- refresh 是否请求
-- refresh 是否确认
-
-## 9. tableWorkbench 的当前定位
-
-当前 tableWorkbench 已经不是早期的 JSON-only textarea 试验区，而是一个独立顶级页签与 table domain 工作台。
-
-### 9.1 资产分层
-
-填表系统维护两类非 live-state 资产：
-
-- **模板资产**（template）：表结构定义、默认行/种子行、AI 操作说明。由 `table-template-service.js` 管理。
-- **聊天 guide**：当前聊天启用哪些表、表顺序、局部结构调整。由 `table-guide-service.js` 管理。
-
-AI 指令预设通过 bypass-manager 绑定到工作台，不再作为独立的第三类资产（独立 prompt preset 层已在 1.0.103 移除）。
-
-Live committed rows 保存在绑定态中，不混回模板配置。
-
-### 9.2 table-engine 模块
-
-`modules/table-engine/` 下的核心模块：
+### 7.1 数据类型层
 
 | 模块 | 职责 |
 |------|------|
-| `table-schema-service.js` | 配置/运行时入口，默认模板，规范化/校验 |
-| `table-update-service.js` | 手动填表 (`runManualTableUpdate`) 与自动填表执行 |
-| `table-state-service.js` | 绑定态加载、template fallback |
-| `table-target-resolver.js` | 目标 assistant 消息解析 |
-| `table-history-service.js` | 5 级 cascade 历史重建 |
-| `table-diff-service.js` | 表差异计算 |
-| `table-writeback-service.js` | 结构化写回提交 |
-| `table-lock-service.js` | cell/row/column 锁定 |
-| `table-scope-service.js` | runScope 执行约束 |
-| `table-guide-service.js` | 聊天 guide 管理 |
-| `table-template-service.js` | 模板资产存取 |
-| `table-types.js` | 共享类型与工具函数 |
-| `table-json-sanitizer.js` | AI 响应解析与清洗 |
-| `table-worldbook-sync-service.js` | 世界书条目同步（Wrapper + 多条目注入） |
-| `table-worldbook-order-service.js` | Order 碰撞检测与连续分配 |
-| `table-worldbook-placement-service.js` | position/depth 规范化 |
+| `table-types.js` | 纯数据工厂 (Sheet, TableBoundState, TargetPointer/Snapshot, LockScopeKey), 零外部依赖 |
+| `table-defaults.js` | 8 个内置表模板 (全局状态/主角/角色/技能/物品/任务/备忘/选项) |
+| `table-schema-helpers.js` | 纯工具函数 (单元格值规范化, 列键清理) |
 
-### 9.3 UI 结构
+### 7.2 配置管理
 
-当前 UI 为**主界面运行控制台 + 单表配置抽屉**：
+**table-schema-service.js (1183行)** — 配置 CRUD + 验证:
+```
+getTableWorkbenchConfig() → 读存储 → 规范化 → 应用 guide 覆盖
+normalizeTableWorkbenchConfig() → ~100 字段深度规范化
+validateTableDraftDeep() → 逐单元格验证, 返回 {severity, message} 结构化 issues
+stripRowsForConfigSave — 保存时移除行数据 (仅存 schema)
+```
 
-- 主界面：运行按钮、自动更新设置、AI 绑定、上下文配置、模板入口、手动更新与表格概览
-- 抽屉：字段结构、数据行、表格级 AI 操作说明
+**table-template-service.js** — 模板库 + 三模式解析:
+```
+三模式:
+  inherit_global → 使用全局活动模板
+  chat_override  → 使用聊天级覆盖
+  preset_link    → 链接到指定模板 ID
 
-不再是旧 `config / runtime / preview` 三视图布局。
+模板库 CRUD + 导入导出 (自动检测 youyou/shujuku 格式)
+聊天级: applyTemplateAsChatOverride, linkPresetToChat
+归档: listTemplateArchives, restoreTemplateArchive (最多 8 层, 含 undo 链)
+```
 
-### 9.4 runScope
+**table-guide-service.js** — 每聊天指南覆盖:
+```
+guide: { templateId, scope, worldbookSync, seedNote, focusedTableId }
+applyGuideToConfig(config, guide) → 覆盖到配置上
+```
 
-runScope 模式为 current / selected / all：
+### 7.3 执行管道
 
-- Prompt 构建层显式告诉 AI 哪些表可编辑、哪些只读
-- Parse/apply 层强约束：scope 外表格的编辑一律忽略，锁定字段不可修改
-- Full mode 对 scope 外表格从 merge base 恢复
+**table-update-service.js (1385行)** — 七步管道:
+```
+Step 0: resolveTarget      → table-target-resolver (目标助手消息定位)
+Step 1: mergeScopeTables   → 活动模板 + tableEnabledOverrides
+Step 1b: autoSchedule      → buildAutoSchedulePlan (按 updateFrequency 门控)
+Step 2: loadBaseData       → table-state-service → table-history-service (5级级联)
+Step 3: buildRequest       → 组装 prompt + 世界书 + 指南 + scope 指导
+Step 4: callAI             → api-connection (3次重试, 5s退避, 中止信号)
+Step 5: parseResponse      → 适配器链 (DSL→SQL→JSON) → 回退到 JSON 清理器
+Step 6: applyEdits         → scope 过滤 + 锁强制 + 4级列键解析
+Step 7: writeback+sync     → commitBoundState + 消息镜像 + 世界书同步
+```
 
-### 9.5 上下文增强
+**table-history-service.js** — 五级状态级联:
+```
+EXACT           → 当前消息索引, 精确 slotRevisionKey 匹配
+BINDING_FALLBACK → 同 slotBindingKey 但不同 revision (swipe 变更)
+HISTORY         → 反向遍历聊天寻找最近含数据助手消息
+TEMPLATE        → 回退到提供的模板表
+EMPTY           → 创建空状态
+```
 
-`buildRequest()` 根据以下配置构建填表上下文：
+### 7.4 AI 响应解析
 
-- `contextDepth`：消息深度（默认 8）
-- `contextRoles`：`'all'` | `'assistant_only'`
-- `contextExtractTags`：自定义提取标签（每行一个规则）
-- `contextUseGlobalRules`：合并全局正则提取/排除/黑名单规则
-- `worldbooks`：世界书注入（`{ enabled, selected }`）
-- `sendLatestRows`：每表发送最新 N 行（-1 = 全部）
+**协议适配器链** (优先级顺序):
+```
+1. dsl-adapter    → 检测 <tableEdit> 标签或 insertRow/updateRow/deleteRow
+2. sql-adapter    → 检测 <sql> 标签或 INSERT/UPDATE/DELETE 语句
+3. full-json-adapter → 检测 JSON 代码块或 {"tables":} 模式
+```
 
-### 9.6 聊天隔离与实时数据
+**table-json-sanitizer.js** — 多层 JSON 修复:
+```
+5层管道: normalizeQuotes → escapeUnescapedQuotes(状态机) →
+         sanitizeControlChars → removeTrailingCommas → fixNumericKeys
++ 松散对象解析 + DSL 解析
+```
 
-- `CHAT_CHANGED` 事件清空面板 live cache
-- `mergeLiveRowsIntoConfig` 按实际 row 数据存在性合并，不依赖 sourceKind 白名单
-- 写回通过 `TavernHelper.setChatMessages` 刷新 UI，自动链写回传 `skipNotify` 避免重触发
+### 7.5 状态与写回
 
-### 9.7 定位约束
+| 模块 | 职责 |
+|------|------|
+| `table-state-service.js` | 每消息状态 CRUD (`message.YouYouToolkit_tableState[isolationKey]`), SQL 镜像 |
+| `table-target-resolver.js` | 将执行上下文翻译为 TableTargetSnapshot, 含新鲜度验证 |
+| `table-writeback-service.js` | commitBoundState + 可选消息体镜像 + 世界书同步 |
+| `table-worldbook-sync-service.js` | 转换表数据为世界书条目 (注释前缀 `[YY:chatId=xxx]` 命名空间) |
+| `table-worldbook-order-service.js` | 顺序碰撞避免 (连续分配) |
+| `table-worldbook-placement-service.js` | 位置/深度规范化 |
 
-tableWorkbench 仍应被理解为当前主 execution / writeback 架构上的一个 domain，而不是脱离主线的独立状态机或可以绕开 revision-safe / writeback-safe 设计的旁路系统。
+### 7.6 辅助服务
 
-## 10. compatibility 与非主线路径
+| 模块 | 职责 |
+|------|------|
+| `table-lock-service.js` | 四级锁 (行/列/单元格/索引列), 按 sheetUid 存储 |
+| `table-diff-service.js` | 表 diff 计算 (new/updated/unchanged), 用于 UI 高亮 |
+| `table-scope-service.js` | 运行 scope 解析 (enabled/selected/current 三模式) |
+| `table-auto-schedule-service.js` | 按表 updateFrequency 自动调度 (-1=每次, 0=禁用, N=每N条) |
+| `table-isolation-service.js` | 隔离键管理 (单例, 支持 subscribe) |
+| `table-chat-scope-service.js` | 每聊天作用域配置 (模板模式 + 归档) |
+| `table-data-service.js` | SQL 数据镜像 (4表: sheets, rows, locks, chat_scope) |
+| `table-provider-service.js` | 执行 Provider 缝 (当前仅 native) |
 
-当前仓库里仍有一些容易误导的旧名或兼容模块：
+### 7.7 模板适配器
 
-- `modules/tool-executor.js`（compatibility fallback）
-- `modules/ui-components.js` / `modules/prompt-editor.js`（lazy-loaded compatibility seam，不再是 popup 主路径）
-- `modules/tool-manage-panel.js`（议题 #3 后保留代码但不再注册，靠 sub-nav toolbar 替代）
-- `inline` 旧模式名（映射到 `follow_ai`）
+```
+importTemplateAuto:
+  youyou-importer → 检测 {tables: Array}
+  shujuku-importer → 检测 {sheet_xxx} → 转换 content[][] + sourceData
 
-注：`modules/storage.js` 已在议题 #9 删除，新代码统一走 `modules/core/storage-service.js`。
+exportTemplatesAs:
+  youyou-exporter → {version: 1, exportedAt, templates}
+```
 
-这些对象的存在不等于它们仍是当前优先入口。
+---
 
-当前更准确的理解方式是：
+## 8. UI 层
 
-- 主线启动与宿主门面：`modules/app/*`
-- 主线 UI：`popup-shell.js + ui/index.js + ui-manager.js + tool-config-panel-factory.js`
-- 主线工具模型：`tool-manager.js + tool-registry.js`
-- 主线上下文与执行：`tool-execution-context.js + tool-trigger.js + tool-automation-service.js + tool-output-service.js`
-- 主线写回：`context-injector.js`
-- 主线持久化与事件：`core/storage-service.js` / `core/tool-data-provider.js` / `core/host-event-service.js`
-- 旧执行回退与历史兼容残留：`tool-executor.js`、`ui-components.js`、`prompt-editor.js`、`inline` 旧模式名等
+### 8.1 UI 管理器
 
-其中 `ui-components.js` / `prompt-editor.js` 这组 UI compatibility seam 虽然仍可在仓库中看到文件名，但已不再是 popup 主路径或 public API 的当前依赖。 
+**ui-manager.js** — 组件生命周期:
+```
+UIManager (单例) {
+  components: Map<id, config>
+  activeInstances: Map<id, {container, cleanup}>
+  render(id, container, props):
+    Mode A (新式 prefab): component.renderTo($container, props) → 原生 DOM
+    Mode B (旧式 jQuery): component.render() → HTML → $container.html() → bindEvents()
+  destroy(id, container) → 清理
+  getAllStyles() → 聚合所有组件 getStyles()
+}
+```
 
-## 11. 建议的排查顺序
+**ui/index.js** — 面板注册 + 路由:
+```
+PANEL_MODULE_LOADERS (10 个面板):
+  → Promise.allSettled(动态 import()) → panelModuleCache 缓存
+  → uiManager.register(panel.id, panel)
+MAIN_TAB_RENDERERS / SUB_TAB_RENDERERS: 不可变路由表
+```
 
-如果后续继续维护这套架构，建议按以下顺序排查问题：
+### 8.2 面板一览
 
-1. 启动问题：先看 `index.js`、`modules/app/bootstrap.js`
-2. 弹窗/路由问题：看 `modules/app/popup-shell.js` 与 `modules/tool-registry.js`
-3. 工具配置或动态工具页签问题：先分清是 `tool-manager.js` 还是 `tool-registry.js`
-4. 手动执行问题：看 `modules/tool-trigger.js` -> `modules/tool-output-service.js`
-5. 自动执行问题：看 `modules/tool-automation-service.js` -> `modules/tool-execution-context.js`
-6. 写回问题：看 `modules/context-injector.js`
-7. UI 面板渲染问题：看 `modules/ui/index.js`、`modules/ui/ui-manager.js`、`modules/ui/components/tool-config-panel-factory.js`
-8. tableWorkbench 问题：先看具体 table-engine 模块（`table-schema-service.js` 配置问题、`table-scope-service.js` 作用域问题、`table-update-service.js` 执行问题、`table-state-service.js` 绑定态问题），再回看是否触碰了 execution context / slot identity / writeback 边界
+| 面板 | 渲染模式 | 工厂 | 行数 |
+|------|---------|------|------|
+| SettingsPanel | jQuery | — | 多标签 (执行器/调试/UI) |
+| LoggerPanel | jQuery | — | 实时日志 (250ms 批量渲染) |
+| ToolManagePanel | jQuery | — | 工具列表 + CRUD |
+| BypassPanel | jQuery | — | AI指令预设编辑 |
+| TableWorkbenchPanel | 委托 | — | 薄 facade → workbench-window |
+| ApiPresetPanel | Prefab | createPresetManagerPanel | API 预设 |
+| RegexExtractPanel | Prefab | createPresetManagerPanel | 正则规则 + 拖拽 + 测试 |
+| WorldbookPresetPanel | Prefab | createPresetManagerPanel | 世界书 (双模式 + 条目覆盖) |
+| TableTemplatePanel | Prefab | createPresetManagerPanel | 表模板 |
+| ToolConfigPanel | Prefab | createToolConfigPanel | 每工具运行时配置 |
 
-## 12. 结论
+### 8.3 预设面板模板方法
 
-当前仓库的维护重点，不应再放在“旧 trigger 名称怎么理解”或“tableWorkbench 是否只是配置编辑器”这类历史包袱上，而应聚焦于：
+`createPresetManagerPanel(spec)` — 工厂函数，从规格生成完整面板:
 
-- 薄入口 + bootstrap + popup shell 的应用层骨架
-- tool definition 与 runtime model 的清晰分层
-- 基于 slot identity 的统一执行上下文
-- generation-aware 的自动化事务模型
-- 输出链与写回链的可诊断性
-- compatibility 模块与主线路径的边界清晰化
+```
+必选: { id, kind, store, renderEditor }
+可选: { renderExtras, renderListItemMeta, hasSwitchToButton, onSwitchTo }
 
-如果后续文档、注释或讨论仍把旧 trigger 口径、旧 inline 语义、旧 JSON-only tableWorkbench 写成当前事实，应以当前源码主链为准并及时修正。
+固定布局: 预设列表 | 编辑器 | 扩展区 | 工具栏 (import/export/clear)
+内置行为: builtin 前缀保护 | 重命名/删除 | 实时编辑 (onChange patch) | Store Adapter 模式
+```
+
+### 8.4 Prefab 控件库
+
+**基础设施** (`controls/_internal.js`):
+```
+el(tag, options, ...children) → DOM 元素工厂
+appendChild(parent, child)    → 通用子元素插入 (DOM/控件/字符串/数组/null)
+createEmitter()               → {on→unsubscribe, off, emit, clear}
+baseControl({id, kind})       → {_id, _kind, _children, _emitter, on, off, get, set, destroy}
+```
+
+**15 个控件**: button (4变体×2尺寸), text-input (5类型), toggle (标签+提示+滑块), select-input (原生包装), dialog (confirm/prompt/custom 三模式), flow-section, form-row, list-row, toolbar, divider, zone-title, chip-group, preset-list-item。
+
+所有控件遵循统一接口: `{ el, get, set, on, off, destroy, getControl }`。
+
+### 8.5 关键 UI 模块
+
+**table-data-editor-window.js (1660行)** — 最大 prefab 控件应用:
+```
+三模式: data (卡片网格) / schema (字段+AI指令+updateConfig) / global (exportConfig)
+浮动窗口 + 锁支持 + 脏检测
+```
+
+**table-workbench-window.js (1600行)** — 工作台视图:
+```
+聚合 8+ 服务状态, hero + 可滚动区域, Provider 统计
+```
+
+---
+
+## 9. 数据流总览
+
+### 9.1 自动执行完整链路
+
+```
+SillyTavern MESSAGE_RECEIVED
+  → host-event-service 归一化事件名
+  → tool-automation-service 守卫过滤 + 去抖 800ms
+  → tool-execution-context 构建上下文 + 三级 slot key
+  → tool-output-service.runToolPostResponse (per tool)
+    → tool-prompt-service 构建消息 (变量 + bypass + 模板)
+    → api-connection 三级回退请求
+    → 提取输出 (标签/正则)
+  → context-injector.injectDetailed 写回
+    → 多字段同步 + 宿主刷新 + 3次验证
+  → [可选] runAutoTableUpdate
+    → 七步管道 (模板解析 → 历史级联 → AI请求 → 适配器解析 → 锁过滤 → 写回 → 世界书同步)
+```
+
+### 9.2 存储位置汇总
+
+| 数据 | 存储位置 | 格式 |
+|------|---------|------|
+| 全局设置 | `storage('settings_v2')` | 对象 |
+| API 预设 | `storage('api_presets')` | 数组 |
+| 工具定义 | `toolStorage('tools')` | 对象 |
+| 工具运行时配置 | `storage('tool_configs')` | 对象 |
+| 正则预设 | `presetStorage('regex_presets')` | Map |
+| 世界书预设 | `presetStorage('worldbook_presets')` | Map |
+| Bypass 预设 | `storage('bypass_presets')` | 对象 |
+| 填表配置 | `storage('tableWorkbench').config` | 对象 |
+| 填表模板库 | `storage('tableWorkbenchTemplates').templates` | Map |
+| 表状态 | `message.YouYouToolkit_tableState[isoKey]` | 按消息 |
+| 表绑定 | `message.YouYouToolkit_tableBindings[isoKey]` | 按消息 |
+| 锁状态 | `storage('tableLocks').scopes[scopeKey][uid]` | 按sheet |
+| 工具输出 | `message.YouYouToolkit_toolOutputs` | 按消息 |
+| 注入上下文 | `message.YouYouToolkit_injectedContext` | 按消息 |
+| 日志 | 内存环形缓冲 (2000条) | 仅内存 |
+| SQL 镜像 | Authority SQLite / localStorage JSON | 4表 |
+
+---
+
+## 10. 兼容层与非主线路径
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `tool-executor.js` | 兼容回退 | 旧任务调度器, 通过 `import()` 懒加载 |
+| `ui-components.js` | 兼容层 | 重新导出 ui/index.js, `@deprecated` |
+| `prompt-editor.js` | 活跃 | 三段式提示词编辑器, 仍用于 bypass 编辑 |
+| `storage.js` | 已删除 | 统一走 core/storage-service.js |
+| `inline` 模式名 | 兼容别名 | 映射到 `follow_ai` |
+
+---
+
+## 11. 排查顺序建议
+
+| 问题类型 | 排查路径 |
+|---------|---------|
+| 启动问题 | `index.js` → `bootstrap.js` |
+| 弹窗/路由问题 | `popup-shell.js` → `tool-registry.js` |
+| 工具配置问题 | 分清 `tool-manager.js` (定义层) vs `tool-registry.js` (运行时层) |
+| 手动执行问题 | `tool-trigger.js` → `tool-output-service.js` → `api-connection.js` |
+| 自动执行问题 | `tool-automation-service.js` → `tool-execution-context.js` |
+| 写回问题 | `context-injector.js` (source message 绑定 → host commit → refresh 确认) |
+| API 请求问题 | `api-connection.js` (三级回退链) |
+| 填表配置问题 | `table-schema-service.js` |
+| 填表执行问题 | `table-update-service.js` (七步管道) |
+| 填表状态问题 | `table-state-service.js` → `table-history-service.js` (5级级联) |
+| 世界书同步问题 | `table-worldbook-sync-service.js` |
+| UI 面板问题 | `ui/index.js` → `ui-manager.js` → 具体面板组件 |
+| 日志/诊断问题 | `logger-service.js` LoggerPanel |
