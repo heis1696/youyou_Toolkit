@@ -163,6 +163,18 @@ The table engine integrates with automation: when `tableWorkbench.autoUpdateEnab
 
 Table writeback uses `TavernHelper.setChatMessages` for refresh confirmation (not the tool writeback path through `context-injector`).
 
+### UI controls prefab library (`modules/ui/components/controls/`)
+
+A factory-function component system for building panels. Every factory returns a control object with a uniform contract: `{ el, _id, _kind, _children, on, off, get, set, getControl, destroy }`.
+
+Available controls: `button`, `textInput`, `selectInput`, `toggle`, `divider`, `zoneTitle`, `formRow`, `listRow`, `flowSection`, `dialog`, `toolbar`, `presetListItem`, `chipGroup`. Internal helpers (`el`, `baseControl`, `createEmitter`, `findControl`, `appendChild`) are in `_internal.js`.
+
+All controls support passthrough of `{ style, className, attrs }` to the root DOM node. Container controls (`flowSection`, `formRow`, `listRow`) register children and support `getControl(id)` for deep lookup.
+
+Controls reuse existing `yyt-` CSS classes from `styles/main.css` — no additional stylesheets needed.
+
+For new panel work, prefer these prefab controls over hand-built DOM. See `docs/UI_STYLE_GUIDE.md` for design tokens and visual rules.
+
 ### Bypass manager (`modules/bypass-manager.js`)
 
 Manages "Ai 指令预设" (AI instruction presets / bypass presets) — ordered message lists injected into API requests. The table workbench binds a bypass preset via the bypass-manager to customize the AI's system/user messages during table-fill requests.
