@@ -207,16 +207,13 @@ function renderEditor(preset, { onChange, readonly }) {
 
   appendChild(wrapper, formRow({
     label: 'API Key',
-    control: (() => {
-      const ctrl = textInput({
-        value: cfg.apiKey || '',
-        placeholder: 'sk-...',
-        disabled: readonly,
-        onChange: (v) => onChange({ apiConfig: { ...cfg, apiKey: v } })
-      });
-      try { ctrl.el.setAttribute('type', 'password'); } catch (_) {}
-      return ctrl;
-    })()
+    control: textInput({
+      value: cfg.apiKey || '',
+      placeholder: 'sk-...',
+      disabled: readonly,
+      attrs: { type: 'password' },
+      onChange: (v) => onChange({ apiConfig: { ...cfg, apiKey: v } })
+    })
   }));
 
   appendChild(wrapper, formRow({

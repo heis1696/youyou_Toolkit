@@ -14,6 +14,12 @@
  *   - getControl(id): 沿 _children 递归查找
  *   - destroy:   清理事件 + 解除 DOM 挂载 + 递归销毁子控件
  *
+ * Passthrough（v1.0.216）：
+ *   所有控件支持 { style, className, attrs } 透传到根节点：
+ *   - style:     Object.assign 到根节点 inline style（覆盖控件默认值）
+ *   - className: classList.add 追加到根节点（不覆盖已有 class）
+ *   - attrs:     setAttribute 到根节点（覆盖控件默认属性）
+ *
  * 容器型控件（flowSection / formRow / listRow）的 _children 会把内嵌控件登记进去，
  * 调用 root.getControl('name') 可以一路找到任意层级深处的子控件。
  *

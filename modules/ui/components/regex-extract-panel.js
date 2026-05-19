@@ -73,18 +73,15 @@ function buildRuleRow(preset, rule, index, totalCount, refresh, readonly) {
   const upBtn = button({
     label: '▲', size: 'small', variant: 'ghost', title: '上移',
     disabled: readonly || index === 0,
+    style: { padding: '0 6px', minHeight: 'auto', fontSize: '9px' },
     onClick: () => { store.moveRule(preset.id, rule.id, 'up'); refresh(); }
   });
   const downBtn = button({
     label: '▼', size: 'small', variant: 'ghost', title: '下移',
     disabled: readonly || index === totalCount - 1,
+    style: { padding: '0 6px', minHeight: 'auto', fontSize: '9px' },
     onClick: () => { store.moveRule(preset.id, rule.id, 'down'); refresh(); }
   });
-  for (const b of [upBtn, downBtn]) {
-    b.el.style.padding = '0 6px';
-    b.el.style.minHeight = 'auto';
-    b.el.style.fontSize = '9px';
-  }
   moveBox.appendChild(upBtn.el);
   moveBox.appendChild(downBtn.el);
   row.appendChild(moveBox);
@@ -94,10 +91,9 @@ function buildRuleRow(preset, rule, index, totalCount, refresh, readonly) {
     value: rule.name || '',
     placeholder: '规则名（可选）',
     disabled: readonly,
+    style: { fontSize: '12px', padding: '6px 10px' },
     onChange: (v) => store.updateRule(preset.id, rule.id, { name: v })
   });
-  nameInput.el.style.fontSize = '12px';
-  nameInput.el.style.padding = '6px 10px';
   nameBox.appendChild(nameInput.el);
   if (rule.description) {
     nameBox.appendChild(el('div', {
@@ -111,10 +107,9 @@ function buildRuleRow(preset, rule, index, totalCount, refresh, readonly) {
     value: rule.type,
     disabled: readonly,
     options: RULE_TYPE_OPTIONS,
+    style: { fontSize: '11px', padding: '6px 10px' },
     onChange: (v) => { store.updateRule(preset.id, rule.id, { type: v }); refresh(); }
   });
-  typeSelect.el.style.fontSize = '11px';
-  typeSelect.el.style.padding = '6px 10px';
   row.appendChild(typeSelect.el);
 
   const isRegexType = rule.type === RULE_TYPES.REGEX_INCLUDE || rule.type === RULE_TYPES.REGEX_EXCLUDE;
@@ -122,22 +117,18 @@ function buildRuleRow(preset, rule, index, totalCount, refresh, readonly) {
     value: rule.value || '',
     placeholder: isRegexType ? '正则表达式...' : '标签名（如 content）',
     disabled: readonly,
+    style: { fontSize: '12px', padding: '6px 10px', fontFamily: 'ui-monospace, monospace' },
     onChange: (v) => store.updateRule(preset.id, rule.id, { value: v })
   });
-  valueInput.el.style.fontSize = '12px';
-  valueInput.el.style.padding = '6px 10px';
-  valueInput.el.style.fontFamily = 'ui-monospace, monospace';
   row.appendChild(valueInput.el);
 
   const actions = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } });
   const enableToggle = toggle({
     checked: rule.enabled !== false,
     disabled: readonly,
+    style: { padding: '0', border: 'none', background: 'transparent' },
     onChange: (v) => { store.updateRule(preset.id, rule.id, { enabled: v }); refresh(); }
   });
-  enableToggle.el.style.padding = '0';
-  enableToggle.el.style.border = 'none';
-  enableToggle.el.style.background = 'transparent';
   actions.appendChild(enableToggle.el);
   if (!readonly) {
     actions.appendChild(button({

@@ -736,7 +736,7 @@ MAIN_TAB_RENDERERS / SUB_TAB_RENDERERS: 不可变路由表
 el(tag, options, ...children) → DOM 元素工厂
 appendChild(parent, child)    → 通用子元素插入 (DOM/控件/字符串/数组/null)
 createEmitter()               → {on→unsubscribe, off, emit, clear}
-baseControl({id, kind})       → {_id, _kind, _children, _emitter, on, off, get, set, destroy}
+baseControl({id, kind, el, style, className, attrs}) → {_id, _kind, _children, _emitter, on, off, get, set, destroy}；el 存在时自动 apply passthrough
 ```
 
 **15 个控件**: button (4变体×2尺寸), text-input (5类型), toggle (标签+提示+滑块), select-input (原生包装), dialog (confirm/prompt/custom 三模式), flow-section, form-row, list-row, toolbar, divider, zone-title, chip-group, preset-list-item。

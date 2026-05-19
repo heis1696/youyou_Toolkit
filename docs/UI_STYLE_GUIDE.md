@@ -441,7 +441,7 @@ border-color: var(--yyt-accent-soft);
 el(tag, {className, text, html, attrs, style, dataset}, ...children) → HTMLElement
 appendChild(parent, child)  // 支持 DOM/控件/字符串/数组/null
 createEmitter()             // {on→unsub, off, emit, clear}
-baseControl({id, kind})     // {el, get, set, on, off, destroy, getControl}
+baseControl({id, kind, el, style, className, attrs}) // {el, get, set, on, off, destroy, getControl}；el 存在时自动 apply style/className/attrs
 ```
 
 ### 6.4 面板工厂

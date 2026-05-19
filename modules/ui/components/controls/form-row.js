@@ -51,7 +51,8 @@ export function formRow(options = {}) {
   const childArr = control ? [control] : [];
 
   return {
-    ...baseControl({ id, kind: 'formRow' }),
+    ...baseControl({ id, kind: 'formRow', el: wrap,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: wrap,
     _children: childArr,
     get() { return control?.get?.(); },

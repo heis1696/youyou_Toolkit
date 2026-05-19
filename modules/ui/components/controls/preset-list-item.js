@@ -145,7 +145,8 @@ export function presetListItem(options = {}) {
   }
 
   const ctrl = {
-    ...baseControl({ id, kind: 'presetListItem' }),
+    ...baseControl({ id, kind: 'presetListItem', el: row,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: row,
     _children: actions || [],
     setActive(v) {

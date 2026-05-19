@@ -71,7 +71,8 @@ export function listRow(options = {}) {
   }
 
   const ctrl = {
-    ...baseControl({ id, kind: 'listRow' }),
+    ...baseControl({ id, kind: 'listRow', el: row,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: row,
     _children: actions || [],
     setName(v) { nameEl.textContent = v == null ? '' : String(v); },

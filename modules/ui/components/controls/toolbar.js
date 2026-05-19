@@ -53,7 +53,8 @@ export function toolbar(options = {}) {
   }
 
   return {
-    ...baseControl({ id, kind: 'toolbar' }),
+    ...baseControl({ id, kind: 'toolbar', el: node,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: node,
     _children: children,
     addItem(item) {

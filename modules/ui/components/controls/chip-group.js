@@ -220,7 +220,8 @@ export function chipGroup(options = {}) {
   });
 
   const ctrl = {
-    ...baseControl({ id, kind: 'chipGroup' }),
+    ...baseControl({ id, kind: 'chipGroup', el: wrapper,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: wrapper,
     get() { return chipValues.slice(); },
     set(newValues) {

@@ -553,8 +553,7 @@ function buildBindingRow({ label, hint, control }) {
   row.appendChild(labelBlock);
 
   control.el.classList.add('small');
-  control.el.style.padding = '7px 10px';
-  control.el.style.fontSize = '12px';
+  Object.assign(control.el.style, { padding: '7px 10px', fontSize: '12px' });
   row.appendChild(control.el);
 
   row.appendChild(el('div', { className: 'yyt-tool-binding-meta' }));

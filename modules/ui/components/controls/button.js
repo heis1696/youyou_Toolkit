@@ -52,7 +52,8 @@ export function button(options = {}) {
   node.appendChild(labelSpan);
 
   const ctrl = {
-    ...baseControl({ id, kind: 'button' }),
+    ...baseControl({ id, kind: 'button', el: node,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: node,
     setLabel(newLabel) { labelSpan.textContent = String(newLabel || ''); },
     setIcon(newIcon) {

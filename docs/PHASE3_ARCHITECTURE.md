@@ -235,7 +235,7 @@ await client.sql.query({ database: 'main', statement: 'SELECT ...', params: [] }
 - `toggle({ label, checked, onChange })`
 - `listRow({ cells, onDelete })`
 - `button({ label, variant, onClick })`
-- `divider({ style: 'hairline' | 'dashed' })`
+- `divider({ variant: 'hairline' | 'dashed', style, className, attrs })`
 - `zoneTitle({ title, desc })`
 
 **落地策略**：重构每个面板时同步迁移，不一次性迁移所有面板。

@@ -38,7 +38,8 @@ export function textInput(options = {}) {
   node.value = value == null ? '' : String(value);
 
   const ctrl = {
-    ...baseControl({ id, kind: 'textInput' }),
+    ...baseControl({ id, kind: 'textInput', el: node,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: node,
     get() { return node.value; },
     set(v, { silent = false } = {}) {

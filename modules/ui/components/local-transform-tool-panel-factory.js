@@ -311,8 +311,7 @@ function buildBindingRow({ label, hint, control }) {
   labelBlock.appendChild(el('span', { className: 'yyt-tool-binding-label-text', text: label }));
   if (hint) labelBlock.appendChild(el('span', { className: 'yyt-tool-binding-label-hint', text: hint }));
   row.appendChild(labelBlock);
-  control.el.style.padding = '7px 10px';
-  control.el.style.fontSize = '12px';
+  Object.assign(control.el.style, { padding: '7px 10px', fontSize: '12px' });
   row.appendChild(control.el);
   row.appendChild(el('div', { className: 'yyt-tool-binding-meta' }));
   return row;
@@ -331,6 +330,7 @@ function buildConfigSection(config, toolId, refresh, $container, processorDirect
   const directionSelect = selectInput({
     value: currentDirection,
     options: processorDirections.map((d) => ({ value: d.key, label: d.description ? `${d.label} — ${d.description}` : d.label })),
+    style: { padding: '7px 10px', fontSize: '12px' },
     onChange: (v) => {
       const cur = getToolFullConfig(toolId) || {};
       saveToolConfig(toolId, {
@@ -340,8 +340,6 @@ function buildConfigSection(config, toolId, refresh, $container, processorDirect
       refresh();
     }
   });
-  directionSelect.el.style.padding = '7px 10px';
-  directionSelect.el.style.fontSize = '12px';
   container.appendChild(directionSelect.el);
 
   // 分隔

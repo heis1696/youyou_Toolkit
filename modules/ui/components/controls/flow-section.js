@@ -69,7 +69,8 @@ export function flowSection(options = {}) {
   section.appendChild(contentEl);
 
   const ctrl = {
-    ...baseControl({ id, kind: 'flowSection' }),
+    ...baseControl({ id, kind: 'flowSection', el: section,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: section,
     _children: childArr,
     appendContent(child) {

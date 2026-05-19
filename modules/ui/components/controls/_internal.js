@@ -121,7 +121,21 @@ export function findControl(control, id) {
  * 返回值已含 _id / _kind / _children=null / _emitter / on / off / getControl / destroy / get / set 占位。
  * 具体控件按需 override get/set/destroy（remember to call super destroy 或 clean emitter）。
  */
-export function baseControl({ id = null, kind = 'control' } = {}) {
+export function baseControl({ id = null, kind = 'control', el: ctrlEl = null,
+                             style = null, className = null, attrs = null } = {}) {
+  if (ctrlEl) {
+    if (style) Object.assign(ctrlEl.style, style);
+    if (className) {
+      const parts = String(className).trim().split(/\s+/).filter(Boolean);
+      if (parts.length) ctrlEl.classList.add(...parts);
+    }
+    if (attrs) {
+      for (const [k, v] of Object.entries(attrs)) {
+        if (v === false || v == null) continue;
+        ctrlEl.setAttribute(k, v === true ? '' : String(v));
+      }
+    }
+  }
   const emitter = createEmitter();
   return {
     _id: id || null,

@@ -50,7 +50,8 @@ export function zoneTitle(options = {}) {
   }
 
   return {
-    ...baseControl({ id, kind: 'zoneTitle' }),
+    ...baseControl({ id, kind: 'zoneTitle', el: wrap,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: wrap,
     setTitle(t) { titleEl.textContent = t == null ? '' : String(t); },
     setDesc(d) {

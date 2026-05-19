@@ -56,7 +56,8 @@ export function selectInput(options = {}) {
   buildOptions(items, value);
 
   const ctrl = {
-    ...baseControl({ id, kind: 'select' }),
+    ...baseControl({ id, kind: 'select', el: node,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: node,
     get() { return node.value; },
     set(v, { silent = false } = {}) {

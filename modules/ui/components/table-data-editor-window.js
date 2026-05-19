@@ -938,12 +938,12 @@ function buildSchemaMode(table) {
       const keyInput = textInput({
         value: col?.key || '',
         placeholder: 'key',
+        style: { fontFamily: 'monospace' },
         onInput: (v) => {
           const t = getCurrentTable(); if (!t?.columns?.[ci]) return;
           t.columns[ci].key = v; markDirty();
         }
       });
-      keyInput.el.style.fontFamily = 'monospace';
       keySlot.appendChild(keyInput.el);
       head.appendChild(keySlot);
 

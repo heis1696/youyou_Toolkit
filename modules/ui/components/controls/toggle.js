@@ -51,7 +51,8 @@ export function toggle(options = {}) {
   });
 
   const ctrl = {
-    ...baseControl({ id, kind: 'toggle' }),
+    ...baseControl({ id, kind: 'toggle', el: row,
+      style: options.style, className: options.className, attrs: options.attrs }),
     el: row,
     get() { return !!input.checked; },
     set(v, { silent = false } = {}) {
