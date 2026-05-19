@@ -166,7 +166,7 @@
   padding: 14px 15px;
   border-radius: 6px;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   color: var(--yyt-text-secondary);
   font-weight: 600;
   font-size: 14px;
@@ -212,7 +212,7 @@
 
 .yyt-main-nav-item i {
   font-size: 15px;
-  transition: transform 0.22s ease;
+  transition: transform 0.15s ease;
 }
 
 .yyt-main-nav-item:hover i {
@@ -315,7 +315,7 @@
   padding: 10px 14px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   color: var(--yyt-text-secondary);
   font-weight: 700;
   font-size: var(--yyt-text-sm);
@@ -426,7 +426,7 @@
   gap: 2px;
   margin-left: 4px;
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity 0.15s ease;
 }
 
 .yyt-sub-nav-item:hover .yyt-sub-nav-item-actions,
@@ -446,7 +446,7 @@
   border: 1px solid transparent;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .yyt-sub-nav-item-action:hover {
@@ -476,7 +476,8 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   padding: 6px;
   border-radius: calc(var(--yyt-radius-lg) - 2px);
@@ -636,7 +637,7 @@
 .yyt-stat-cell {
   padding: 16px 18px;
   background: var(--yyt-surface-2);
-  transition: background 0.12s ease;
+  transition: background 0.15s ease;
 }
 
 .yyt-stat-cell:hover {
@@ -675,7 +676,7 @@
   gap: 12px;
   padding: 14px 18px;
   background: var(--yyt-surface-2);
-  transition: background 0.1s ease;
+  transition: background 0.15s ease;
 }
 
 .yyt-list-row:hover {
@@ -815,7 +816,7 @@
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, filter 0.18s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease, filter 0.15s ease;
   position: relative;
   overflow: hidden;
   letter-spacing: 0.2px;
@@ -1037,7 +1038,7 @@
   background: var(--yyt-control-bg) !important;
   color: var(--yyt-text) !important;
   font-size: 13px;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.2s ease;
   box-shadow: var(--yyt-control-shadow);
 }
 
@@ -1207,7 +1208,7 @@
   background: var(--yyt-surface-3);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  transition: all 0.28s var(--ease-in-out);
+  transition: background 0.28s var(--ease-in-out), border-color 0.28s var(--ease-in-out), box-shadow 0.28s var(--ease-in-out);
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
@@ -1220,7 +1221,7 @@
   bottom: 3px;
   background: #ffffff;
   border-radius: 50%;
-  transition: all 0.28s var(--ease-in-out);
+  transition: transform 0.28s var(--ease-in-out);
   box-shadow: none;
 }
 
@@ -1285,7 +1286,7 @@
   color: var(--yyt-text);
   font-size: 13px;
   cursor: pointer;
-  transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, transform 0.22s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.2s ease;
   box-shadow: var(--yyt-control-shadow);
 }
 
@@ -1403,7 +1404,7 @@
   color: var(--yyt-text-muted);
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -1585,7 +1586,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .yyt-dialog-close:hover {
@@ -1719,12 +1720,12 @@
    ============================================================ */
 
 .yyt-panel-section {
-  animation: yytSlideUp 0.25s var(--ease-out) backwards;
+  animation: yytSlideUp 0.25s var(--ease-out) both;
 }
 
 .yyt-panel-section:nth-child(1) { animation-delay: 0s; }
-.yyt-panel-section:nth-child(2) { animation-delay: 0.05s; }
-.yyt-panel-section:nth-child(3) { animation-delay: 0.1s; }
+.yyt-panel-section:nth-child(2) { animation-delay: 0.04s; }
+.yyt-panel-section:nth-child(3) { animation-delay: 0.08s; }
 
 /* ============================================================
    主弹窗样式
@@ -2218,7 +2219,7 @@
   width: 4px;
   border-radius: 999px;
   background: transparent;
-  transition: background 0.18s ease, box-shadow 0.18s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item:hover {
@@ -2453,6 +2454,7 @@
   min-height: 0;
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   height: 100%;
 }
 
@@ -2469,6 +2471,7 @@
   min-height: 0;
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   height: 100%;
 }
 
@@ -2756,7 +2759,7 @@
 
 /* ---- Tab content enter animation ---- */
 .yyt-tab-content.active {
-  animation: yytSlideUp 0.22s var(--ease-out);
+  animation: yytFadeIn 0.18s var(--ease-out);
 }
 
 /* ---- Sidebar collapse system ---- */
@@ -2821,7 +2824,7 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--yyt-text-muted);
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -2892,16 +2895,16 @@
 
 /* ---- Sub-content enter animation ---- */
 .yyt-sub-content {
-  animation: yytSlideUp 0.2s var(--ease-out);
+  animation: yytFadeIn 0.15s var(--ease-out);
 }
 
 /* ---- Nav item micro-interactions ---- */
 .yyt-shell-sidebar .yyt-main-nav-item {
-  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, padding 0.28s var(--ease-in-out);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, padding 0.28s var(--ease-in-out);
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item::before {
-  transition: background 0.18s ease, box-shadow 0.18s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .yyt-shell-sidebar .yyt-main-nav-item:hover {

@@ -45,6 +45,25 @@
 - 运行时少一次 fetch 网络请求，样式注入从异步变为同步
 - bundle 体积 +0.48%（esbuild import wrapper 开销）
 
+### fix：动画与过渡体验优化
+
+**Tab/子内容切换动画**：
+- `.yyt-tab-content.active` / `.yyt-sub-content` — `yytSlideUp` 改为 `yytFadeIn`（纯透明度，消除 Tab 切换时的位移颤动和横向滚动条闪现）
+
+**滚动容器溢出修复**：
+- `.yyt-content` / `.yyt-tab-content` / `.yyt-sub-content` — 加 `overflow-x: hidden`，阻止横向滚动条
+
+**Panel section 错落动画**：
+- `backwards` 改为 `both`，延迟从 0/0.05/0.1s 缩短为 0/0.04/0.08s
+
+**过渡时长标准化**（三档）：
+- 0.15s — hover/focus 微交互（16 处，原 0.1~0.18s 混用）
+- 0.2s — 状态变化（focus ring、toggle、展开折叠）
+- 0.28s — 布局变化（toggle slider、sidebar collapse）
+
+**`transition: all` 清理**：
+- toggle slider / toggle knob / option delete / dialog close — 改为显式属性列表
+
 ## [1.0.215] - 2026-05-19
 
 ### refactor：控件库 passthrough 透传 — baseControl 支持 style/className/attrs
