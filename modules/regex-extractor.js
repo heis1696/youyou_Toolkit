@@ -904,6 +904,7 @@ export function importRulesConfig(json, options = { overwrite: true }) {
     
     return { success: true, message: '配置导入成功' };
   } catch (e) {
+    log.error('规则配置导入失败', { error: e });
     return { success: false, message: `导入失败: ${e.message}` };
   }
 }

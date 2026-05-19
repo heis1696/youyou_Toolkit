@@ -70,7 +70,7 @@ export function button(options = {}) {
   node.addEventListener('click', (e) => {
     if (node.hasAttribute('disabled')) return;
     if (typeof onClick === 'function') {
-      try { onClick(e, ctrl); } catch (_) {}
+      try { onClick(e, ctrl); } catch (err) { console.error('[button] onClick 异常', err); }
     }
     ctrl._emitter.emit('click', e);
   });

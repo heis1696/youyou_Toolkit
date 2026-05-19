@@ -9,6 +9,29 @@
 
 ## [Unreleased]
 
+## [1.0.215] - 2026-05-19
+
+### fix：日志规范全面审查 — 补齐缺失 logger、修复静默 catch、更新文档
+
+**补齐缺失 logger 的模块**：
+- `tool-executor.js` — 新增 logger import + ToolExecutor scope，3 处 catch 加 `log.error`（任务重试失败、executeTool 异常、executeToolWithConfig 异常）
+- `preset-manager.js` — 新增 logger import + PresetManager scope，1 处 catch 加 `log.error`（预设导入 JSON 解析失败）
+
+**修复有 logger 但静默吞错的 catch 块**：
+- `tool-manager.js` — `importTools` catch 加 `log.error('工具导入失败')`
+- `regex-extractor.js` — `importRulesConfig` catch 加 `log.error('规则配置导入失败')`
+
+**UI 控件回调 catch 加 console.error**（7 处 `catch (_) {}` → `catch (err) { console.error(...) }`）：
+- `button.js` — onClick
+- `toggle.js` — onChange
+- `text-input.js` — onInput / onChange
+- `chip-group.js` — onAdd / onChange / onRemove / set
+
+**LOGGING_GUIDE.md 更新**：
+- 规则 #1 新增 console.* 例外表（5 类模块：logger-service、event-bus、select-input、table-json-sanitizer、UI 控件）
+- 作用域清单从 35 条扩展到 50+ 条，按层级分类（核心层/应用层/工具链/填表引擎/UI 层）
+- 去重并修正「不需要日志」模块列表
+
 ## [1.0.214] - 2026-05-19
 
 ### refactor：日志模块统一用户通知接口，全量清理日志规范

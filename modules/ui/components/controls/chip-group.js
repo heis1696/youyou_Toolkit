@@ -163,8 +163,8 @@ export function chipGroup(options = {}) {
     if (maxChips > 0 && chipValues.length >= maxChips) return false;
     chipValues.push(v);
     rerenderChips();
-    try { onAdd?.(v, chipValues.slice()); } catch (_) {}
-    try { onChange?.(chipValues.slice()); } catch (_) {}
+    try { onAdd?.(v, chipValues.slice()); } catch (err) { console.error('[chipGroup] onAdd 异常', err); }
+    try { onChange?.(chipValues.slice()); } catch (err) { console.error('[chipGroup] onChange 异常', err); }
     ctrl._emitter.emit('change', chipValues.slice());
     return true;
   }
@@ -174,8 +174,8 @@ export function chipGroup(options = {}) {
     if (idx < 0) return false;
     chipValues.splice(idx, 1);
     rerenderChips();
-    try { onRemove?.(value, chipValues.slice()); } catch (_) {}
-    try { onChange?.(chipValues.slice()); } catch (_) {}
+    try { onRemove?.(value, chipValues.slice()); } catch (err) { console.error('[chipGroup] onRemove 异常', err); }
+    try { onChange?.(chipValues.slice()); } catch (err) { console.error('[chipGroup] onChange 异常', err); }
     ctrl._emitter.emit('change', chipValues.slice());
     return true;
   }
@@ -184,7 +184,7 @@ export function chipGroup(options = {}) {
     if (chipValues.length === 0) return;
     chipValues = [];
     rerenderChips();
-    try { onChange?.([]); } catch (_) {}
+    try { onChange?.([]); } catch (err) { console.error('[chipGroup] onChange 异常', err); }
     ctrl._emitter.emit('change', []);
   }
 
@@ -232,7 +232,7 @@ export function chipGroup(options = {}) {
         chipValues.push(s);
       }
       rerenderChips();
-      try { onChange?.(chipValues.slice()); } catch (_) {}
+      try { onChange?.(chipValues.slice()); } catch (err) { console.error('[chipGroup] onChange 异常', err); }
       ctrl._emitter.emit('change', chipValues.slice());
     },
     addChip,

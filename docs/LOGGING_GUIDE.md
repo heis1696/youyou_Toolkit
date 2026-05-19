@@ -178,7 +178,17 @@ log.error('写入失败', { error });
 console.error('[MyModule] 写入失败:', error);
 ```
 
-**项目中已不存在 `console.*` 遗留调用**（仅 `logger-service.js` 自身的转发除外）。新代码不允许添加。
+**项目中仅以下模块保留 `console.*` 调用**（均有正当理由，新代码不允许添加）：
+
+| 模块 | 原因 |
+|------|------|
+| `logger-service.js` | 日志系统自身转发到浏览器控制台 |
+| `event-bus.js` | 与 logger 存在循环依赖（logger → EventBus），无法引入 logger |
+| `select-input.js` | 文档化守卫，与 feedback 记录的 #45 P0 一致 |
+| `table-json-sanitizer.js` | 文档化豁免，纯文本清理模块 |
+| `controls/button.js`, `toggle.js`, `text-input.js`, `chip-group.js` | UI 控件回调 catch 必须输出 console.error，曾遮蔽 #45 P0 |
+
+除上述模块外，**所有代码必须通过 logger 输出日志**。
 
 ### 2. 禁止使用 _log() 转发器模式
 
@@ -269,18 +279,29 @@ showTopNotice('error', '执行失败', { noticeId: 'exec-1' });
 
 以下是项目中所有已创建的作用域及其所在文件：
 
+### 核心层 (`modules/core/`)
+
+| 作用域名 | 文件 | 日志量级 |
+|----------|------|----------|
+| `StorageService` | `modules/core/storage-service.js` | 少量（warn/error） |
+| `EventBus` | `modules/core/event-bus.js` | 中等（debug/warn/error） — 仅 console.*，与 logger 循环依赖 |
+| `HostEvents` | `modules/core/host-event-service.js` | 中等（debug/info/warn/error） |
+| `AuthorityProvider` | `modules/core/authority-provider.js` | 少量（warn/error） |
+| `ToolDataProvider` | `modules/core/tool-data-provider.js` | 少量（info/warn/error） |
+| `FallbackProvider` | `modules/core/fallback-provider.js` | 中等（info/warn/error） |
+
+### 应用层 (`modules/app/`)
+
 | 作用域名 | 文件 | 日志量级 |
 |----------|------|----------|
 | `Bootstrap` | `index.js`, `modules/app/bootstrap.js` | 少量（log/error） |
 | `PopupShell` | `modules/app/popup-shell.js` | 少量（log/error） |
-| `WindowManager` | `modules/window-manager.js` | 极少（error） |
-| `UI` | `modules/ui/index.js` | 中等（log/error） |
-| `UIManager` | `modules/ui/ui-manager.js` | 中等（log/warn/error） |
-| `UIUtils` | `modules/ui/utils.js` | 极少（log） |
-| `UIComponents` | `modules/ui-components.js` | 少量（error） |
-| `StorageService` | `modules/core/storage-service.js` | 少量（warn/error） |
-| `EventBus` | `modules/core/event-bus.js` | 中等（debug/warn/error） |
-| `VariableResolver` | `modules/variable-resolver.js` | 极少（debug） |
+
+### 工具链 (`modules/` 根级)
+
+| 作用域名 | 文件 | 日志量级 |
+|----------|------|----------|
+| `VariableResolver` | `modules/variable-resolver.js` | 少量（info/error） |
 | `ToolAutomation` | `modules/tool-automation-service.js` | 丰富（info/warn/error/debug） |
 | `ExecutionContext` | `modules/tool-execution-context.js` | 极少（error） |
 | `ToolPromptService` | `modules/tool-prompt-service.js` | 少量（debug/error） |
@@ -288,25 +309,59 @@ showTopNotice('error', '执行失败', { noticeId: 'exec-1' });
 | `ToolTrigger` | `modules/tool-trigger.js` | 中等（info/warn/error） |
 | `ApiConnection` | `modules/api-connection.js` | 少量（warn/debug/error） |
 | `RegexExtractor` | `modules/regex-extractor.js` | 中等（warn/error） |
+| `RegexPresetStore` | `modules/regex-preset-store.js` | 少量（info/warn/error） |
 | `ToolRegistry` | `modules/tool-registry.js` | 较多（log/warn/error） |
 | `ToolManager` | `modules/tool-manager.js` | 少量（info/error） |
-| `ToolExecutor` | `modules/tool-executor.js` | 少量（warn/error） |
-| `PresetManager` | `modules/preset-manager.js` | 少量（info/error） |
+| `ToolExecutor` | `modules/tool-executor.js` | 少量（error） |
+| `PresetManager` | `modules/preset-manager.js` | 极少（error） |
+| `PresetBootstrap` | `modules/preset-bootstrap.js` | 少量（info/warn/error） |
 | `PromptEditor` | `modules/prompt-editor.js` | 中等（log/warn/error） |
 | `ContextInjector` | `modules/context-injector.js` | 丰富（info/warn/error/debug） |
 | `BypassManager` | `modules/bypass-manager.js` | 少量（info/debug） |
 | `ToolWorldbookService` | `modules/tool-worldbook-service.js` | 中等（warn） |
+| `WorldbookPresetStore` | `modules/worldbook-preset-store.js` | 少量（info/error） |
+| `WindowManager` | `modules/window-manager.js` | 极少（error） |
+
+### 填表引擎 (`modules/table-engine/`)
+
+| 作用域名 | 文件 | 日志量级 |
+|----------|------|----------|
 | `TableUpdate` | `modules/table-engine/table-update-service.js` | 丰富（info/warn/error/debug） |
-| `TableState` | `modules/table-engine/table-state-service.js` | 少量（debug/warn/error） |
-| `TableWriteback` | `modules/table-engine/table-writeback-service.js` | 少量（warn/error） |
-| `TableTarget` | `modules/table-engine/table-target-resolver.js` | 少量（warn） |
-| `TableSchema` | `modules/table-engine/table-schema-service.js` | 少量（info/warn） |
+| `TableStateMirror` | `modules/table-engine/table-state-service.js` | 极少（内部镜像） |
+| `TableDataService` | `modules/table-engine/table-data-service.js` | 少量（warn/error） |
+| `TableIsolation` | `modules/table-engine/table-isolation-service.js` | 少量（warn/error） |
+| `TableChatScope` | `modules/table-engine/table-chat-scope-service.js` | 少量（warn/error） |
+| `TableLock` | `modules/table-engine/table-lock-service.js` | 少量（warn/error） |
+| `TableAutoSchedule` | `modules/table-engine/table-auto-schedule-service.js` | 少量（info/warn/error） |
 | `TableTemplate` | `modules/table-engine/table-template-service.js` | 少量（info） |
-| `TableProvider` | `modules/table-engine/table-provider-service.js` | 极少（error） |
-| `TableGuide` | `modules/table-engine/table-guide-service.js` | 极少（已接入，暂无调用点） |
 | `TableWorldbookSync` | `modules/table-engine/table-worldbook-sync-service.js` | 中等（info/warn） |
 | `TableWBOrder` | `modules/table-engine/table-worldbook-order-service.js` | 少量（warn） |
+| `AiProtocolAdapter` | `modules/table-engine/ai-protocol-adapters/index.js` | 少量（warn/error） |
+| `TemplateAdapter` | `modules/table-engine/template-adapters/index.js` | 少量（info/warn/error） |
+
+### UI 层 (`modules/ui/`)
+
+| 作用域名 | 文件 | 日志量级 |
+|----------|------|----------|
+| `UI` | `modules/ui/index.js` | 中等（log/error） |
+| `UIManager` | `modules/ui/ui-manager.js` | 中等（log/warn/error） |
+| `UIUtils` | `modules/ui/utils.js` | 极少（log） |
+| `UIComponents` | `modules/ui-components.js` | 少量（error） |
+| `Dialog` | `modules/ui/components/controls/dialog.js` | 少量（error） |
+| `SettingsPanel` | `modules/ui/components/settings-panel.js` | 少量（info/error） |
+| `ApiPresetPanel` | `modules/ui/components/api-preset-panel.js` | 少量（warn） |
+| `RegexExtractPanel` | `modules/ui/components/regex-extract-panel.js` | 少量（info/warn/error） |
+| `ToolManagePanel` | `modules/ui/components/tool-manage-panel.js` | 少量（info/error） |
+| `ToolConfigPanel` | `modules/ui/components/tool-config-panel-factory.js` | 少量（info/error） |
+| `ToolActions` | `modules/ui/components/tool-actions-helper.js` | 少量（info/error） |
+| `LocalTransformToolPanel` | `modules/ui/components/local-transform-tool-panel-factory.js` | 少量（info/error） |
+| `BypassPanel` | `modules/ui/components/bypass-panel.js` | 少量（info/error） |
+| `PresetManagerBase` | `modules/ui/components/preset-manager-base.js` | 少量（warn/error） |
+| `WorldbookPresetPanel` | `modules/ui/components/worldbook-preset-panel.js` | 少量（info/error） |
+| `TableTemplatePanel` | `modules/ui/components/table-template-panel.js` | 少量（info/error） |
 | `TableWorkbench` | `modules/ui/components/table-workbench-panel.js` | 少量（debug） |
+| `TableWorkbenchView` | `modules/ui/components/table-workbench-window.js` | 较多（info/warn/error） |
+| `TableDataEditor` | `modules/ui/components/table-data-editor-window.js` | 较多（info/warn/error） |
 
 ### 仍无日志但不需要接入的模块
 
@@ -315,13 +370,23 @@ showTopNotice('error', '执行失败', { noticeId: 'exec-1' });
 - `modules/storage.js` — 兼容层，透传 `core/storage-service.js`
 - `modules/tool-local-transform-service.js` — 纯文本转换
 - `modules/app/public-api.js` — 纯门面组装
+- `modules/core/index.js` — 纯 re-export
 - `modules/table-engine/table-diff-service.js` — 纯计算
-- `modules/table-engine/table-lock-service.js` — 内存计算
+- `modules/table-engine/table-schema-helpers.js` — 纯工具函数
 - `modules/table-engine/table-scope-service.js` — 纯范围计算
 - `modules/table-engine/table-history-service.js` — 纯状态重建
-- `modules/table-engine/table-json-sanitizer.js` — 纯文本清理
+- `modules/table-engine/table-json-sanitizer.js` — 纯文本清理（有文档化 console.warn 豁免）
 - `modules/table-engine/table-types.js` — 类型常量和工具函数
+- `modules/table-engine/table-defaults.js` — 纯常量数据
 - `modules/table-engine/table-worldbook-placement-service.js` — 纯配置规范化
+- `modules/table-engine/table-guide-service.js` — 极少调用点
+- `modules/table-engine/table-target-resolver.js` — 纯指针解析
+- `modules/table-engine/table-provider-service.js` — 纯 API 提供者解析
+- `modules/table-engine/table-writeback-service.js` — 通过 TableUpdate 间接记录
+- `modules/table-engine/table-schema-service.js` — 配置 CRUD，通过上游模块记录
+- `modules/ui/components/controls/button.js` 等 UI 控件 — 回调异常用 console.error（见规则 #1 例外表）
+- `modules/ui/components/table-form-renderer.js` — 纯 UI 渲染器
+- `modules/ui/components/summary-tool-panel.js` 等 ToolPanel 工厂产物 — 通过 ToolConfigPanel 统一日志
 
 ---
 

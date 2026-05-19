@@ -64,7 +64,7 @@ export function toggle(options = {}) {
   input.addEventListener('change', () => {
     const v = !!input.checked;
     if (typeof onChange === 'function') {
-      try { onChange(v, ctrl); } catch (_) {}
+      try { onChange(v, ctrl); } catch (err) { console.error('[toggle] onChange 异常', err); }
     }
     ctrl._emitter.emit('change', v);
   });

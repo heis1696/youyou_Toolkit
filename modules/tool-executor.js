@@ -5,6 +5,9 @@
 
 import { getToolFullConfig } from './tool-registry.js';
 import { eventBus, EVENTS } from './core/event-bus.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('ToolExecutor');
 
 // ============================================================
 // 执行器状态
@@ -191,10 +194,13 @@ class TaskScheduler {
         );
       } catch (error) {
         lastError = error;
-        
-        // 如果是中止错误，直接抛出
+
         if (error.name === 'AbortError') {
           throw error;
+        }
+
+        if (attempt === task.maxRetries) {
+          log.error(`任务执行失败 (toolId=${task.toolId}, ${attempt + 1}次重试)`, { error });
         }
         
         // 如果还有重试机会，等待后重试
@@ -317,6 +323,7 @@ export async function executeTool(toolId, options = {}, executor) {
     
     return result;
   } catch (error) {
+    log.error(`executeTool 异常 (toolId=${toolId})`, { error });
     const result = createResult(
       task.id,
       toolId,
@@ -326,7 +333,7 @@ export async function executeTool(toolId, options = {}, executor) {
       Date.now() - task.createdAt,
       task.retries
     );
-    
+
     addToHistory(result);
     return result;
   }
@@ -752,6 +759,7 @@ export async function executeToolWithConfig(toolId, context, options = {}) {
       };
     }
   } catch (error) {
+    log.error(`executeToolWithConfig 异常 (toolId=${toolId})`, { error });
     const result = {
       success: false,
       taskId,
@@ -759,7 +767,7 @@ export async function executeToolWithConfig(toolId, context, options = {}) {
       error: error.message || String(error),
       duration: Date.now() - startTime
     };
-    
+
     // 发送执行失败事件
     eventBus.emit(EVENTS.TOOL_EXECUTION_FAILED, { toolId, taskId, error });
     

@@ -485,6 +485,7 @@ export function importTools(jsonString, overwrite = false) {
       message: `成功导入 ${toolsImported} 个工具和 ${presetsImported} 个预设`
     };
   } catch (error) {
+    log.error('工具导入失败', { error });
     return {
       success: false,
       toolsImported: 0,

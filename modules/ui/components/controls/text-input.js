@@ -53,13 +53,13 @@ export function textInput(options = {}) {
 
   node.addEventListener('input', () => {
     if (typeof onInput === 'function') {
-      try { onInput(node.value, ctrl); } catch (_) {}
+      try { onInput(node.value, ctrl); } catch (err) { console.error('[textInput] onInput 异常', err); }
     }
     ctrl._emitter.emit('input', node.value);
   });
   node.addEventListener('change', () => {
     if (typeof onChange === 'function') {
-      try { onChange(node.value, ctrl); } catch (_) {}
+      try { onChange(node.value, ctrl); } catch (err) { console.error('[textInput] onChange 异常', err); }
     }
     ctrl._emitter.emit('change', node.value);
   });

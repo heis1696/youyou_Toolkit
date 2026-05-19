@@ -4,6 +4,9 @@
  */
 
 import { storage } from './core/storage-service.js';
+import { logger } from './core/logger-service.js';
+
+const log = logger.createScope('PresetManager');
 
 const SETTINGS_STORAGE_KEY = 'settings';
 const API_PRESETS_STORAGE_KEY = 'api_presets';
@@ -459,6 +462,7 @@ export function importPresets(jsonString, options = { overwrite: false }) {
   try {
     data = JSON.parse(jsonString);
   } catch (e) {
+    log.error('预设导入失败: JSON解析错误', { error: e });
     return { success: false, message: 'JSON解析失败', imported: 0 };
   }
   
