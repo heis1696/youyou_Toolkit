@@ -20,29 +20,36 @@ export function buildRootDom(targetDocument) {
     <button class="orb" id="${PID}-orb" type="button" aria-label="YouYou 工具箱浮球">
       <svg class="orb-emoji" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
         <defs>
-          <linearGradient id="${PID}-grad" x1="20%" y1="0%" x2="80%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff"/>
-            <stop offset="55%" stop-color="#d8d8d8"/>
-            <stop offset="100%" stop-color="#9e9e9e"/>
+          <linearGradient id="${PID}-wand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="#7bb7ff" stop-opacity="0.95"/>
           </linearGradient>
-          <filter id="${PID}-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="1.2" result="b"/>
+          <linearGradient id="${PID}-handle-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#8a96b0"/>
+            <stop offset="100%" stop-color="#d8e0ee"/>
+          </linearGradient>
+          <filter id="${PID}-soft-glow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="0.9" result="b"/>
             <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
-          <filter id="${PID}-outer" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="1.8" result="b"/>
-            <feFlood flood-color="#7bb7ff" flood-opacity="0.4" result="c"/>
-            <feComposite in="c" in2="b" operator="in" result="d"/>
-            <feMerge><feMergeNode in="d"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
         </defs>
-        <circle cx="12" cy="12" r="9.4" fill="none" stroke="url(#${PID}-grad)" stroke-width="1.25" filter="url(#${PID}-outer)"/>
-        <g filter="url(#${PID}-glow)" style="transform-origin:12px 12px; animation: ${PID}-spin 20s linear infinite;">
-          <polygon points="12,4.6 18.4,15.65 5.6,15.65" fill="none" stroke="url(#${PID}-grad)" stroke-width="1.05" stroke-linejoin="round"/>
-          <polygon points="12,19.4 5.6,8.35 18.4,8.35" fill="none" stroke="url(#${PID}-grad)" stroke-width="1.05" stroke-linejoin="round"/>
-          <circle cx="12" cy="12" r="3.15" fill="none" stroke="url(#${PID}-grad)" stroke-width="0.55" opacity="0.5"/>
+
+        <!-- 魔法棒杆 (左下→右上) -->
+        <line x1="5.5" y1="18.5" x2="14" y2="10" stroke="url(#${PID}-handle-grad)" stroke-width="2.1" stroke-linecap="round"/>
+
+        <!-- 棒头主星（4 角星，缓慢自转） -->
+        <g filter="url(#${PID}-soft-glow)" style="transform-origin:15.5px 8.5px; animation: ${PID}-spin 18s linear infinite;">
+          <path d="M15.5 4 L16.5 7.5 L20 8.5 L16.5 9.5 L15.5 13 L14.5 9.5 L11 8.5 L14.5 7.5 Z"
+                fill="url(#${PID}-wand-grad)"/>
         </g>
-        <circle cx="12" cy="12" r="1.3" fill="#7bb7ff" opacity="0.9" style="animation: ${PID}-pulse 3s ease-in-out infinite;"/>
+
+        <!-- 周围 3 颗闪光点 (错相位呼吸) -->
+        <circle cx="19.5" cy="5"  r="0.95" fill="#ffffff" opacity="0.85"
+                style="animation: ${PID}-twinkle 2.6s ease-in-out infinite;"/>
+        <circle cx="20"   cy="13" r="0.7"  fill="#7bb7ff" opacity="0.85"
+                style="animation: ${PID}-twinkle 2.2s ease-in-out infinite 0.8s;"/>
+        <circle cx="11"   cy="6"  r="0.6"  fill="#ffffff" opacity="0.7"
+                style="animation: ${PID}-twinkle 3.1s ease-in-out infinite 1.4s;"/>
       </svg>
       <span class="orb-badge" id="${PID}-orb-badge">0</span>
     </button>
@@ -50,7 +57,10 @@ export function buildRootDom(targetDocument) {
     <div class="menu" id="${PID}-menu">
       <div class="menu-shell">
         <div class="menu-head" id="${PID}-head">
-          <span style="font-size:16px;line-height:1;">🪄</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;">
+            <line x1="5.5" y1="18.5" x2="14" y2="10" stroke="#d8e0ee" stroke-width="2.1" stroke-linecap="round"/>
+            <path d="M15.5 4 L16.5 7.5 L20 8.5 L16.5 9.5 L15.5 13 L14.5 9.5 L11 8.5 L14.5 7.5 Z" fill="#7bb7ff"/>
+          </svg>
           <div class="menu-title">YouYou 工具箱</div>
           <button class="menu-close" id="${PID}-close" type="button" aria-label="关闭菜单">✕</button>
         </div>

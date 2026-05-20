@@ -27,9 +27,9 @@ export function buildStyles() {
       from { transform: rotate(0deg); }
       to   { transform: rotate(360deg); }
     }
-    @keyframes ${PID}-pulse {
-      0%, 100% { opacity: 0.4; }
-      50%      { opacity: 0.85; }
+    @keyframes ${PID}-twinkle {
+      0%, 100% { opacity: 0.2; transform: scale(0.7); }
+      50%      { opacity: 1;   transform: scale(1.15); }
     }
 
     #${PID} .orb {
