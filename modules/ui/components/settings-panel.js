@@ -204,9 +204,7 @@ function applyUiPreferences(uiSettings = {}, targetDocument = getTargetDocument(
 // 辅助：构建 hero / runtime / macro 只读区域
 // ============================================================
 
-function buildHero(settings) {
-  const debugEnabled = settings.debug?.enableDebugLog === true;
-
+function buildHero() {
   // row1: icon + name
   const row1 = el('div', { className: 'yyt-settings-hero-row1' });
   row1.appendChild(el('div', { className: 'yyt-settings-hero-icon', html: '<i class="fa-solid fa-sliders"></i>' }));
@@ -215,22 +213,9 @@ function buildHero(settings) {
   // desc
   const desc = el('div', { className: 'yyt-settings-hero-desc', text: '管理执行器、自动化、调试与外观偏好。' });
 
-  // chips
-  const chips = el('div', { className: 'yyt-settings-hero-chips' });
-  const debugChipClass = debugEnabled ? 'yyt-settings-chip yyt-settings-chip--success' : 'yyt-settings-chip yyt-settings-chip--error';
-  chips.appendChild(el('span', { className: debugChipClass, text: `调试 ${debugEnabled ? 'ON' : 'OFF'}` }));
-  chips.appendChild(el('span', { className: 'yyt-settings-chip', text: `${settings.ui?.theme || 'dark-blue'}` }));
-  if (settings.ui?.compactMode) {
-    chips.appendChild(el('span', { className: 'yyt-settings-chip', text: '紧凑' }));
-  }
-  if (settings.ui?.animationEnabled === false) {
-    chips.appendChild(el('span', { className: 'yyt-settings-chip', text: '无动画' }));
-  }
-
   const hero = el('div', { className: 'yyt-settings-hero' });
   hero.appendChild(row1);
   hero.appendChild(desc);
-  hero.appendChild(chips);
   return hero;
 }
 
@@ -316,7 +301,7 @@ export const SettingsPanel = {
     const panel = el('div', { className: 'yyt-settings-panel' });
 
     // ── Hero ──
-    panel.appendChild(buildHero(settings));
+    panel.appendChild(buildHero());
 
     // ── Tab 切换 ──
     const tabContentMap = new Map();
@@ -348,6 +333,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '并发控制',
         icon: '⏛',
+        className: 'yyt-settings-section',
         content: [
           formRow({
             label: '最大并发数',
@@ -364,6 +350,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '重试策略',
         icon: '⟳',
+        className: 'yyt-settings-section',
         content: [
           el('div', { className: 'yyt-form-row' }, [
             formRow({
@@ -388,6 +375,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '超时设置',
         icon: '⏱',
+        className: 'yyt-settings-section',
         content: [
           formRow({
             label: '请求超时时间 (ms)',
@@ -405,6 +393,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '队列策略',
         icon: '☰',
+        className: 'yyt-settings-section',
         content: [
           formRow({
             label: '队列处理方式',
@@ -427,6 +416,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '自动触发节流',
         icon: '⚡',
+        className: 'yyt-settings-section',
         content: [
           el('div', { className: 'yyt-form-hint', text: '由 output_mode 决定哪些工具自动触发(post_response_api / local_transform 自动,follow_ai 手动)。这里只控制节流时间。' }),
           el('div', { className: 'yyt-form-row' }, [
@@ -450,7 +440,7 @@ export const SettingsPanel = {
     );
 
     // 自动触发诊断
-    const diagSection = flowSection({ heading: '自动触发诊断', icon: '🔍' });
+    const diagSection = flowSection({ heading: '自动触发诊断', icon: '🔍', className: 'yyt-settings-section' });
     const chipGrid = el('div', { className: 'yyt-settings-runtime-grid' });
     for (const chip of buildRuntimeChips(runtime)) chipGrid.appendChild(chip);
     diagSection.appendContent({ el: chipGrid });
@@ -478,6 +468,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '日志级别',
         icon: '📝',
+        className: 'yyt-settings-section',
         content: [
           toggle({ id: 'enableDebugLog', label: '启用调试日志', hint: '开启后 Logger 面板将记录 DEBUG 级别日志，关闭仅记录 INFO 及以上', checked: debug.enableDebugLog }),
           el('div', { className: 'yyt-form-hint', style: { marginTop: '8px' }, html: '<i class="fa-solid fa-terminal"></i> 在「日志」面板中查看、搜索和导出插件运行日志' })
@@ -489,6 +480,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '执行记录',
         icon: '🔄',
+        className: 'yyt-settings-section',
         content: [
           toggle({ id: 'saveExecutionHistory', label: '保存执行历史', hint: '记录工具执行历史，便于问题排查', checked: debug.saveExecutionHistory })
         ]
@@ -499,6 +491,7 @@ export const SettingsPanel = {
       flowSection({
         heading: 'UI 显示',
         icon: '👁',
+        className: 'yyt-settings-section',
         content: [
           toggle({ id: 'showRuntimeBadge', label: '显示运行状态徽章', hint: '在工具卡片上显示运行状态指示器', checked: debug.showRuntimeBadge })
         ]
@@ -515,6 +508,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '外观设置',
         icon: '🎨',
+        className: 'yyt-settings-section',
         content: [
           formRow({
             label: '主题',
@@ -539,6 +533,7 @@ export const SettingsPanel = {
       flowSection({
         heading: '模板宏说明',
         icon: '💻',
+        className: 'yyt-settings-section',
         content: [
           el('div', { className: 'yyt-form-hint', text: '工具模板里可直接使用下面这些宏。世界书内容只有在模板里显式写入 {{toolWorldbookContent}} 时才会注入。' }),
           buildMacroRows()

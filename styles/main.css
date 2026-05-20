@@ -2975,12 +2975,14 @@
   gap: 0;
 }
 
-/* Hero: icon + name / desc / chips — 透明背景，无框 */
+/* ── Hero：透明、无框、左对齐 ── */
 .yyt-settings-hero {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 10px;
+  padding: 0 0 12px 0;
+  border-bottom: 1px solid var(--yyt-border-soft);
+  margin-bottom: 12px;
 }
 
 .yyt-settings-hero-row1 {
@@ -3012,39 +3014,10 @@
   font-size: 11px;
   color: var(--yyt-text-muted);
   padding-left: 38px;
+  line-height: 1.5;
 }
 
-.yyt-settings-hero-chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding-left: 38px;
-}
-
-.yyt-settings-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  background: var(--yyt-surface-2);
-  color: var(--yyt-text-muted);
-}
-
-.yyt-settings-chip--success {
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
-}
-
-.yyt-settings-chip--error {
-  background: rgba(248, 113, 113, 0.12);
-  color: #f87171;
-}
-
-/* Tab Group */
+/* ── Tab Group ── */
 .yyt-tab-group {
   display: flex;
   gap: 4px;
@@ -3056,7 +3029,7 @@
   max-width: 100%;
   flex-wrap: wrap;
   box-shadow: none;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .yyt-tab-group-item {
@@ -3087,44 +3060,90 @@
   box-shadow: none;
 }
 
-/* Settings content area — tight spacing */
+/* ── Content scroll area ── */
 .yyt-settings-content {
   flex: 1;
   overflow-y: auto;
   padding-right: 4px;
 }
 
-/* Override flowSection spacing inside settings */
-.yyt-settings-content .yyt-flow-section + .yyt-flow-section {
-  margin-top: 10px;
-  padding-top: 10px;
-}
-
-.yyt-settings-content .yyt-form-group {
-  gap: 6px;
-}
-
 .yyt-settings-tab-content {
   display: none;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .yyt-settings-tab-content.yyt-active {
   display: flex;
 }
 
+/* ── Section 卡片 ── */
+.yyt-settings-section {
+  background: var(--yyt-surface-2);
+  border: 1px solid var(--yyt-border);
+  border-radius: var(--yyt-radius);
+  padding: 14px 16px;
+}
+
+/* Section 之间靠 .yyt-settings-tab-content 的 gap 间隔，
+   要覆盖掉全局 .yyt-flow-section + .yyt-flow-section 的 margin/padding/border-top */
+.yyt-settings-tab-content > .yyt-settings-section + .yyt-settings-section {
+  margin-top: 0;
+  padding-top: 14px;
+  border-top: none;
+}
+
+/* Section heading 微调（更小、贴边） */
+.yyt-settings-section > .yyt-flow-heading {
+  margin-bottom: 10px;
+}
+
+/* Section 内 form-group 紧凑 */
+.yyt-settings-section .yyt-form-group {
+  gap: 6px;
+}
+
+.yyt-settings-section .yyt-form-group + .yyt-form-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--yyt-border-soft);
+}
+
+.yyt-settings-section .yyt-form-row {
+  gap: 12px;
+}
+
+.yyt-settings-section .yyt-form-row + .yyt-form-group,
+.yyt-settings-section .yyt-form-group + .yyt-form-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--yyt-border-soft);
+}
+
+/* Toggle row 在 section 里也加 divider */
+.yyt-settings-section .yyt-toggle-row + .yyt-toggle-row,
+.yyt-settings-section .yyt-form-group + .yyt-toggle-row,
+.yyt-settings-section .yyt-toggle-row + .yyt-form-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--yyt-border-soft);
+}
+
+/* ── Footer ── */
 .yyt-settings-footer {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 2px;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--yyt-border-soft);
 }
 
+/* ── Runtime 诊断 ── */
 .yyt-settings-runtime-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 10px;
 }
 
@@ -3187,7 +3206,7 @@
   align-items: start;
   padding: 8px 0;
   background: transparent;
-  border-bottom: 1px solid var(--yyt-border);
+  border-bottom: 1px solid var(--yyt-border-soft);
 }
 
 .yyt-settings-panel .yyt-list-row:last-child {
