@@ -183,7 +183,7 @@ function getPresetOptions() {
   let names = [];
   try { names = getPresetNames() || []; } catch { /* ignore */ }
   return [
-    { value: '', label: '默认' },
+    { value: '', label: '跟随填表工作台' },
     ...names.map((name) => ({ value: name, label: name })),
   ];
 }

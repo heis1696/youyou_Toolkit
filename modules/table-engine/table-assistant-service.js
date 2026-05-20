@@ -185,7 +185,7 @@ export async function generateAssistantDraft(input, abortSignal) {
     { role: 'user', content: buildUserPrompt(input, baseFingerprint) },
   ];
 
-  const apiPreset = trimDraftString(input.apiPreset);
+  const apiPreset = trimDraftString(input.apiPreset || config?.apiPreset);
   const aiRawText = await sendWithPreset(apiPreset || '', messages, {}, abortSignal);
   if (!aiRawText) throw new Error('AI 未返回有效内容');
 
