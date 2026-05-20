@@ -3093,17 +3093,16 @@
 
 /* Section heading 微调 */
 .yyt-settings-section > .yyt-flow-heading {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
-/* ── 表单 Row：label 左 / 控件中 / hint 下 ── */
-/* form-group 单个项 */
+/* ── 表单 Row：label 左 / 控件右 / hint 跨列 ── */
 .yyt-settings-section .yyt-form-group {
   display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: 12px 14px;
+  grid-template-columns: minmax(132px, 176px) minmax(220px, 1fr);
+  gap: 6px 16px;
   align-items: center;
-  padding: 10px 0;
+  padding: 12px 0;
   margin: 0;
 }
 
@@ -3131,7 +3130,7 @@
 .yyt-settings-section .yyt-form-group > .yyt-select,
 .yyt-settings-section .yyt-form-group > input,
 .yyt-settings-section .yyt-form-group > select,
-.yyt-settings-section .yyt-form-group > div:not(.yyt-form-hint):not(.yyt-form-row) {
+.yyt-settings-section .yyt-form-group > div:not(.yyt-form-hint):not(.yyt-settings-two-column-row) {
   grid-column: 2;
 }
 
@@ -3140,23 +3139,22 @@
 .yyt-settings-section .yyt-form-group + .yyt-toggle-row,
 .yyt-settings-section .yyt-toggle-row + .yyt-form-group,
 .yyt-settings-section .yyt-toggle-row + .yyt-toggle-row,
-.yyt-settings-section .yyt-form-row + .yyt-form-group,
-.yyt-settings-section .yyt-form-group + .yyt-form-row,
-.yyt-settings-section .yyt-form-row + .yyt-form-row {
+.yyt-settings-section .yyt-settings-two-column-row + .yyt-form-group,
+.yyt-settings-section .yyt-form-group + .yyt-settings-two-column-row,
+.yyt-settings-section .yyt-settings-two-column-row + .yyt-settings-two-column-row {
   border-top: 1px dashed var(--yyt-border-soft);
 }
 
-/* 同行两控件（form-row）：等分 + center 对齐 */
-.yyt-settings-section .yyt-form-row {
+/* 同行两控件：等分 + center 对齐 */
+.yyt-settings-section .yyt-settings-two-column-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  align-items: center;
-  padding: 10px 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  padding: 12px 0;
 }
 
-/* form-row 内的 form-group 重置为竖排（label 上 / 控件下） */
-.yyt-settings-section .yyt-form-row > .yyt-form-group {
+.yyt-settings-section .yyt-settings-two-column-row > .yyt-form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -3164,8 +3162,18 @@
   border-top: none !important;
 }
 
-.yyt-settings-section .yyt-form-row > .yyt-form-group > label {
+.yyt-settings-section .yyt-settings-two-column-row > .yyt-form-group > label {
   margin-bottom: 0;
+}
+
+.yyt-settings-section .yyt-settings-two-column-row > .yyt-form-group > div:not(.yyt-form-hint) {
+  width: 100%;
+}
+
+.yyt-settings-section .yyt-settings-section-note {
+  padding: 8px 0 10px;
+  margin: 0;
+  border-bottom: 1px dashed var(--yyt-border-soft);
 }
 
 /* Toggle row 沿用 toggle-row 样式 */
@@ -3176,12 +3184,13 @@
 
 /* ── Footer ── */
 .yyt-settings-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
   padding-top: 14px;
   margin-top: 14px;
   border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-settings-footer-toolbar {
+  width: 100%;
 }
 
 /* ── Runtime 诊断 ── */
@@ -3206,15 +3215,15 @@
 }
 
 .yyt-settings-runtime-chip.is-on {
-  color: #4ade80;
-  border-color: rgba(74, 222, 128, 0.25);
-  background: rgba(74, 222, 128, 0.12);
+  color: var(--yyt-success);
+  border-color: var(--yyt-success-glow);
+  background: var(--yyt-accent-soft);
 }
 
 .yyt-settings-runtime-chip.is-off {
-  color: #f87171;
-  border-color: rgba(248, 113, 113, 0.25);
-  background: rgba(248, 113, 113, 0.12);
+  color: var(--yyt-danger);
+  border-color: var(--yyt-error-glow);
+  background: var(--yyt-danger-soft);
 }
 
 .yyt-settings-runtime-chip.is-neutral {

@@ -41,7 +41,8 @@ export function flowSection(options = {}) {
   if (heading || icon || (actions && actions.length)) {
     headingEl = el('div', { className: 'yyt-flow-heading' });
     if (icon) {
-      iconEl = el('span', { className: 'yyt-flow-heading-icon', text: icon });
+      iconEl = el('span', { className: 'yyt-flow-heading-icon' });
+      appendChild(iconEl, icon);
       headingEl.appendChild(iconEl);
     }
     if (heading) {
