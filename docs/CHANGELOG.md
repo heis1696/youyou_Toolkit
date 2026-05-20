@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+### fix：AI 改表助手数据编辑器集成修复
+
+- **渲染丢失**：切换表/模式时助手面板被清空 — `refresh()` 改为只要 `_assistantOpen` 就重新初始化面板，不再依赖一次性标志
+- **入口去重**：移除填表工作台 hero 区的"AI 改表助手"按钮（已迁移到数据编辑器 toolbar，旧入口多余）
+- **按钮高亮**：toolbar "AI 改表助手"按钮在打开时显示 `primary` 变体，关闭时回到 `ghost`
+- **死变量清理**：移除不再使用的 `_pendingAssistantOpen` 跟踪变量
+
 ### feat: AI 改表助手 (G3) 功能补全 — prompt 增强 + 迁移到数据编辑器侧边 dock
 
 **system prompt 增强** (`modules/table-engine/table-assistant-service.js`)：

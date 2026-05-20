@@ -553,6 +553,7 @@ function buildToolbar() {
     label: 'AI 改表助手',
     icon: '✦',
     size: 'small',
+    variant: _state._assistantOpen ? 'primary' : 'ghost',
     title: '用自然语言修改表结构、AI 指令和配置',
     onClick: handleToggleAssistant
   });
@@ -1267,15 +1268,10 @@ function buildEditor() {
   const dockHost = el('div', { id: 'yyt-assistant-host', className: 'yyt-assistant-dock' });
   dockHost.style.display = _state._assistantOpen ? 'flex' : 'none';
   content.appendChild(dockHost);
-  if (_state._assistantOpen) {
-    _pendingAssistantOpen = true;
-  }
 
   root.appendChild(content);
   return root;
 }
-
-let _pendingAssistantOpen = false;
 
 function refresh() {
   if (!_state.$window) return;
@@ -1286,16 +1282,15 @@ function refresh() {
   bodyEl.appendChild(buildEditor());
   injectAssistantStyles();
 
-  // 首次打开或 refresh 时恢复助手面板
-  if (_pendingAssistantOpen && _state._assistantOpen) {
-    _pendingAssistantOpen = false;
+  // 助手面板打开时，每次 refresh 都重新初始化（DOM 被 innerHTML 重建）
+  if (_state._assistantOpen) {
     const contentEl = bodyEl.querySelector('.yyt-tde-content');
     const hostEl = contentEl?.querySelector('#yyt-assistant-host');
     if (contentEl && hostEl) {
-      // 直接激活助手面板（不走 toggle，避免状态冲突）
       hostEl.style.display = 'flex';
       initAssistantPanel(() => refresh(), contentEl, () => {
         _state._assistantOpen = false;
+        refresh();
       });
     }
   }
@@ -1316,9 +1311,6 @@ function injectAssistantStyles() {
 function handleToggleAssistant() {
   try {
     _state._assistantOpen = !_state._assistantOpen;
-    if (_state._assistantOpen) {
-      _pendingAssistantOpen = true;
-    }
     refresh();
   } catch (err) {
     getLog().error('toggleAssistant 异常', err);
@@ -1673,7 +1665,6 @@ export function openTableDataEditor(options = {}) {
     }
     if (options.openAssistant && !_state._assistantOpen) {
       _state._assistantOpen = true;
-      _pendingAssistantOpen = true;
     }
     refresh();
     return _state.$window;
@@ -1690,7 +1681,6 @@ export function openTableDataEditor(options = {}) {
   }
   if (options.openAssistant) {
     _state._assistantOpen = true;
-    _pendingAssistantOpen = true;
   }
 
   let $win;

@@ -486,7 +486,6 @@ export function renderWorkbenchHtml(state) {
           <button class="yyt-tww-btn yyt-tww-btn-small" data-action="export-templates" title="导出所有用户模板为 JSON（含全局模板的修改副本）"><i class="fa-solid fa-download"></i> 导出模板</button>
           ${activeTemplate?.mode && activeTemplate.mode !== TABLE_TEMPLATE_SCOPE_MODE.INHERIT_GLOBAL ? `<button class="yyt-tww-btn yyt-tww-btn-small" data-action="reset-template-scope" title="本 chat 当前是「${activeTemplate.mode === TABLE_TEMPLATE_SCOPE_MODE.CHAT_OVERRIDE ? 'chat 专属' : '链接预设'}」模式，点击恢复为「继承全局」"><i class="fa-solid fa-rotate-right"></i> 恢复继承</button>` : ''}
           <button class="yyt-tww-btn yyt-tww-btn-small yyt-tww-btn-danger" data-action="reset-chat-data" title="清空当前聊天所有楼层的表格数据，让模板切换后从头开始"><i class="fa-solid fa-trash-can"></i> 清空 chat 数据</button>
-          <button class="yyt-tww-btn yyt-tww-btn-small" data-action="open-assistant" title="打开数据编辑器并启动 AI 改表助手"><i class="fa-solid fa-wand-magic-sparkles"></i> AI 改表助手</button>
         </div>
       </div>
       <div class="yyt-tww-hero-desc">从对话内容提取结构化数据，自动维护表格状态。</div>
@@ -1147,15 +1146,6 @@ export function bindWorkbenchEvents($container, refresh) {
     if (!chipsEl) return;
     const expanded = chipsEl.classList.toggle('yyt-tww-hero-chips-expanded');
     this.textContent = expanded ? '▾' : '▸';
-  });
-
-  // AI 改表助手 — 打开数据编辑器并自动激活助手 dock
-  $container.on('click.tww', '[data-action="open-assistant"]', () => {
-    try {
-      openTableDataEditor({ openAssistant: true });
-    } catch (err) {
-      getLog().error('open-assistant 异常', err);
-    }
   });
 
   // v1.0.201 Task M2：导出所有用户模板
