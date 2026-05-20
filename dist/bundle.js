@@ -5741,7 +5741,7 @@ select.yyt-tww-ctrl {
 }\r
 \r
 /* ============================================================\r
-   Settings Panel\r
+   Settings Panel \u2014 Flat Flow\uFF08\u5BF9\u9F50\u586B\u8868\u5DE5\u4F5C\u53F0\u98CE\u683C\uFF09\r
    ============================================================ */\r
 \r
 .yyt-settings-panel {\r
@@ -5751,14 +5751,14 @@ select.yyt-tww-ctrl {
   gap: 0;\r
 }\r
 \r
-/* \u2500\u2500 Hero\uFF1A\u900F\u660E\u3001\u65E0\u6846\u3001\u5DE6\u5BF9\u9F50 \u2500\u2500 */\r
+/* \u2500\u2500 Hero\uFF1A\u900F\u660E\u3001\u5DE6\u5BF9\u9F50\uFF0C\u5E95\u90E8 hairline \u5206\u9694 \u2500\u2500 */\r
 .yyt-settings-hero {\r
   display: flex;\r
   flex-direction: column;\r
   gap: 4px;\r
-  padding: 0 0 12px 0;\r
-  border-bottom: 1px solid var(--yyt-border-soft);\r
-  margin-bottom: 12px;\r
+  padding: 0 0 14px 0;\r
+  border-bottom: 1px solid var(--yyt-border);\r
+  margin-bottom: 14px;\r
 }\r
 \r
 .yyt-settings-hero-row1 {\r
@@ -5805,7 +5805,7 @@ select.yyt-tww-ctrl {
   max-width: 100%;\r
   flex-wrap: wrap;\r
   box-shadow: none;\r
-  margin-bottom: 12px;\r
+  margin-bottom: 14px;\r
 }\r
 \r
 .yyt-tab-group-item {\r
@@ -5846,63 +5846,108 @@ select.yyt-tww-ctrl {
 .yyt-settings-tab-content {\r
   display: none;\r
   flex-direction: column;\r
-  gap: 10px;\r
 }\r
 \r
 .yyt-settings-tab-content.yyt-active {\r
   display: flex;\r
 }\r
 \r
-/* \u2500\u2500 Section \u5361\u7247 \u2500\u2500 */\r
+/* \u2500\u2500 Section\uFF1A\u6241\u5E73\u6D41\uFF0C\u65E0\u80CC\u666F\u6846 \u2500\u2500 */\r
 .yyt-settings-section {\r
-  background: var(--yyt-surface-2);\r
-  border: 1px solid var(--yyt-border);\r
-  border-radius: var(--yyt-radius);\r
-  padding: 14px 16px;\r
+  padding: 0;\r
+  background: transparent;\r
+  border: none;\r
+  border-radius: 0;\r
 }\r
 \r
-/* Section \u4E4B\u95F4\u9760 .yyt-settings-tab-content \u7684 gap \u95F4\u9694\uFF0C\r
-   \u8981\u8986\u76D6\u6389\u5168\u5C40 .yyt-flow-section + .yyt-flow-section \u7684 margin/padding/border-top */\r
+/* \u8986\u76D6\u5168\u5C40 .yyt-flow-section + .yyt-flow-section \u89C4\u5219 */\r
 .yyt-settings-tab-content > .yyt-settings-section + .yyt-settings-section {\r
-  margin-top: 0;\r
-  padding-top: 14px;\r
-  border-top: none;\r
+  margin-top: 18px;\r
+  padding-top: 18px;\r
+  border-top: 1px solid var(--yyt-border);\r
 }\r
 \r
-/* Section heading \u5FAE\u8C03\uFF08\u66F4\u5C0F\u3001\u8D34\u8FB9\uFF09 */\r
+/* Section heading \u5FAE\u8C03 */\r
 .yyt-settings-section > .yyt-flow-heading {\r
   margin-bottom: 10px;\r
 }\r
 \r
-/* Section \u5185 form-group \u7D27\u51D1 */\r
+/* \u2500\u2500 \u8868\u5355 Row\uFF1Alabel \u5DE6 / \u63A7\u4EF6\u4E2D / hint \u4E0B \u2500\u2500 */\r
+/* form-group \u5355\u4E2A\u9879 */\r
 .yyt-settings-section .yyt-form-group {\r
-  gap: 6px;\r
+  display: grid;\r
+  grid-template-columns: 160px minmax(0, 1fr);\r
+  gap: 12px 14px;\r
+  align-items: center;\r
+  padding: 10px 0;\r
+  margin: 0;\r
 }\r
 \r
-.yyt-settings-section .yyt-form-group + .yyt-form-group {\r
-  margin-top: 10px;\r
-  padding-top: 10px;\r
-  border-top: 1px solid var(--yyt-border-soft);\r
+.yyt-settings-section .yyt-form-group > label {\r
+  font-size: 12px;\r
+  font-weight: 600;\r
+  color: var(--yyt-text-secondary);\r
+  letter-spacing: 0;\r
+  text-transform: none;\r
+  margin: 0;\r
 }\r
 \r
-.yyt-settings-section .yyt-form-row {\r
-  gap: 12px;\r
+/* hint \u8DE8\u4E24\u5217\u3001\u5728\u63A7\u4EF6\u4E0B\u65B9 */\r
+.yyt-settings-section .yyt-form-group > .yyt-form-hint {\r
+  grid-column: 1 / -1;\r
+  font-size: 10px;\r
+  color: var(--yyt-text-muted);\r
+  margin-top: 2px;\r
+  padding-left: 0;\r
+  order: 2;\r
 }\r
 \r
-.yyt-settings-section .yyt-form-row + .yyt-form-group,\r
-.yyt-settings-section .yyt-form-group + .yyt-form-row {\r
-  margin-top: 10px;\r
-  padding-top: 10px;\r
-  border-top: 1px solid var(--yyt-border-soft);\r
+/* \u63A7\u4EF6\u5360\u7B2C\u4E8C\u5217 */\r
+.yyt-settings-section .yyt-form-group > .yyt-input,\r
+.yyt-settings-section .yyt-form-group > .yyt-select,\r
+.yyt-settings-section .yyt-form-group > input,\r
+.yyt-settings-section .yyt-form-group > select,\r
+.yyt-settings-section .yyt-form-group > div:not(.yyt-form-hint):not(.yyt-form-row) {\r
+  grid-column: 2;\r
 }\r
 \r
-/* Toggle row \u5728 section \u91CC\u4E5F\u52A0 divider */\r
-.yyt-settings-section .yyt-toggle-row + .yyt-toggle-row,\r
+/* form-group \u4E4B\u95F4 dashed hairline */\r
+.yyt-settings-section .yyt-form-group + .yyt-form-group,\r
 .yyt-settings-section .yyt-form-group + .yyt-toggle-row,\r
-.yyt-settings-section .yyt-toggle-row + .yyt-form-group {\r
-  margin-top: 10px;\r
-  padding-top: 10px;\r
-  border-top: 1px solid var(--yyt-border-soft);\r
+.yyt-settings-section .yyt-toggle-row + .yyt-form-group,\r
+.yyt-settings-section .yyt-toggle-row + .yyt-toggle-row,\r
+.yyt-settings-section .yyt-form-row + .yyt-form-group,\r
+.yyt-settings-section .yyt-form-group + .yyt-form-row,\r
+.yyt-settings-section .yyt-form-row + .yyt-form-row {\r
+  border-top: 1px dashed var(--yyt-border-soft);\r
+}\r
+\r
+/* \u540C\u884C\u4E24\u63A7\u4EF6\uFF08form-row\uFF09\uFF1A\u7B49\u5206 + center \u5BF9\u9F50 */\r
+.yyt-settings-section .yyt-form-row {\r
+  display: grid;\r
+  grid-template-columns: 1fr 1fr;\r
+  gap: 14px;\r
+  align-items: center;\r
+  padding: 10px 0;\r
+}\r
+\r
+/* form-row \u5185\u7684 form-group \u91CD\u7F6E\u4E3A\u7AD6\u6392\uFF08label \u4E0A / \u63A7\u4EF6\u4E0B\uFF09 */\r
+.yyt-settings-section .yyt-form-row > .yyt-form-group {\r
+  display: flex;\r
+  flex-direction: column;\r
+  gap: 6px;\r
+  padding: 0;\r
+  border-top: none !important;\r
+}\r
+\r
+.yyt-settings-section .yyt-form-row > .yyt-form-group > label {\r
+  margin-bottom: 0;\r
+}\r
+\r
+/* Toggle row \u6CBF\u7528 toggle-row \u6837\u5F0F */\r
+.yyt-settings-section .yyt-toggle-row {\r
+  padding: 10px 0;\r
+  margin: 0;\r
 }\r
 \r
 /* \u2500\u2500 Footer \u2500\u2500 */\r
@@ -5910,9 +5955,9 @@ select.yyt-tww-ctrl {
   display: flex;\r
   justify-content: space-between;\r
   gap: 8px;\r
-  padding-top: 12px;\r
-  margin-top: 12px;\r
-  border-top: 1px solid var(--yyt-border-soft);\r
+  padding-top: 14px;\r
+  margin-top: 14px;\r
+  border-top: 1px solid var(--yyt-border);\r
 }\r
 \r
 /* \u2500\u2500 Runtime \u8BCA\u65AD \u2500\u2500 */\r
@@ -5982,7 +6027,7 @@ select.yyt-tww-ctrl {
   align-items: start;\r
   padding: 8px 0;\r
   background: transparent;\r
-  border-bottom: 1px solid var(--yyt-border-soft);\r
+  border-bottom: 1px dashed var(--yyt-border-soft);\r
 }\r
 \r
 .yyt-settings-panel .yyt-list-row:last-child {\r
@@ -6499,4 +6544,4 @@ select.yyt-tww-ctrl {
         </div>
         ${vb(ie)}
       </div>
-    `,Wt=R.createElement("div");Wt.innerHTML=ft,o.currentPopup=Wt.firstElementChild,R.body.appendChild(o.currentPopup),S(o.currentPopup).find(".yyt-popup-close").on("click",Zt),S(o.currentPopup).find(".yyt-sidebar-toggle").on("click",g);let or=X=>{X.key==="Escape"&&(R.querySelector(".yyt-dialog-overlay")||R.querySelector(".yyt-twb-editor-drawer.is-open")||(X.stopPropagation(),Zt()))},Lr=X=>{if(!(X.ctrlKey||X.metaKey)||X.key!=="s"||!o.currentPopup)return;X.preventDefault(),X.stopPropagation();let Tt=S(o.currentPopup),at=Tt.find("#yyt-bypass-save:visible").first()||Tt.find(`#${a}-save-api-config:visible`).first()||Tt.find("#yyt-save-tool-preset:visible").first()||Tt.find('[data-twb-action="save"]:visible').first();at?.length&&at.trigger("click")};R.addEventListener("keydown",or),R.addEventListener("keydown",Lr),u.cleanups.push(()=>{R.removeEventListener("keydown",or),R.removeEventListener("keydown",Lr)}),We(),S(o.currentPopup).find(".yyt-main-nav-item").on("click",function(){let Tt=S(this).data("tab");Tt&&ms(Tt)}),to(),Dr(o.currentMainTab);let mt=s.toolRegistryModule?.getToolConfig(o.currentMainTab);mt?.hasSubTabs&&(S(o.currentPopup).find(".yyt-sub-nav").show(),rn(o.currentMainTab,mt.subTabs)),O(),eo($),et(),h("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Tb,closePopup:Zt,switchMainTab:ms,switchSubTab:gs,renderTabContent:Dr,renderSubTabContent:hs}}function pb(t,e={}){let{constants:r,modules:s}=t,{SCRIPT_ID:n,SCRIPT_VERSION:o}=r,{init:a,loadModules:i,addMenuItem:l,popupShell:c}=e;return{version:o,id:n,init:a,openPopup:c?.openPopup,closePopup:c?.closePopup,switchMainTab:c?.switchMainTab,switchSubTab:c?.switchSubTab,addMenuItem:l,getStorage:()=>s.storageModule,getApiConnection:()=>s.apiConnectionModule,getPresetManager:()=>s.presetManagerModule,getUi:()=>s.uiModule,getUiModule:()=>s.uiModule,getRegexExtractor:()=>s.regexExtractorModule,getToolManager:()=>s.toolManagerModule,getToolExecutor:()=>s.toolExecutorModule,getWindowManager:()=>s.windowManagerModule,getToolRegistry:()=>s.toolRegistryModule,getSettingsService:()=>s.settingsServiceModule,getBypassManager:()=>s.bypassManagerModule,getVariableResolver:()=>s.variableResolverModule,getContextInjector:()=>s.contextInjectorModule,getToolPromptService:()=>s.toolPromptServiceModule,getToolOutputService:()=>s.toolOutputServiceModule,getToolAutomationService:()=>s.toolAutomationServiceModule,getDataProvider:()=>s.toolDataProviderModule?.getCurrentProvider?.()||null,async getDataProviderAsync(){return await i(),s.toolDataProviderModule?.getToolDataProvider?.()||null},async getApiConfig(){return await i(),s.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(d){return await i(),s.apiConnectionModule?(s.apiConnectionModule.updateApiConfig(d),!0):!1},async getPresets(){return await i(),s.presetManagerModule?s.presetManagerModule.getAllPresets():[]},async sendApiRequest(d,u){if(await i(),s.apiConnectionModule)return s.apiConnectionModule.sendApiRequest(d,u);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await i(),s.apiConnectionModule?s.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(d,u){return s.toolRegistryModule?.registerTool(d,u)||!1},unregisterTool(d){return s.toolRegistryModule?.unregisterTool(d)||!1},getToolList(){return s.toolRegistryModule?.getToolList()||[]},createWindow(d){return s.windowManagerModule?.createWindow(d)||null},closeWindow(d){s.windowManagerModule?.closeWindow(d)},startAutomation(){return s.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){s.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return s.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},cancelAutomation(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.cancelAutomation?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}},async processCurrentAssistantMessage(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var cl="youyou_toolkit",AA="1.0.237",EA=`${cl}-menu-item`,CA=`${cl}-menu-container`,IA=`${cl}-popup`,kA=typeof window.parent<"u"?window.parent:window,dl={constants:{SCRIPT_ID:cl,SCRIPT_VERSION:AA,MENU_ITEM_ID:EA,MENU_CONTAINER_ID:CA,POPUP_ID:IA},topLevelWindow:kA,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null,toolAutomationServiceModule:null,toolDataProviderModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"presetManagement",currentSubTab:{},startupScreenDismissed:!1}},yb=ub(dl),ua=ib(dl,{openPopup:yb.openPopup});dl.services.loadModules=ua.loadModules;var Cu=pb(dl,{init:ua.init,loadModules:ua.loadModules,addMenuItem:ua.addMenuItem,popupShell:yb});if(typeof window<"u"&&(window.YouYouToolkit=Cu,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Cu}catch{}var kP=Cu;ua.init();Promise.resolve().then(()=>(H(),ku)).then(({logger:t})=>{t.createScope("Bootstrap").log("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210")});export{kP as default};
+    `,Wt=R.createElement("div");Wt.innerHTML=ft,o.currentPopup=Wt.firstElementChild,R.body.appendChild(o.currentPopup),S(o.currentPopup).find(".yyt-popup-close").on("click",Zt),S(o.currentPopup).find(".yyt-sidebar-toggle").on("click",g);let or=X=>{X.key==="Escape"&&(R.querySelector(".yyt-dialog-overlay")||R.querySelector(".yyt-twb-editor-drawer.is-open")||(X.stopPropagation(),Zt()))},Lr=X=>{if(!(X.ctrlKey||X.metaKey)||X.key!=="s"||!o.currentPopup)return;X.preventDefault(),X.stopPropagation();let Tt=S(o.currentPopup),at=Tt.find("#yyt-bypass-save:visible").first()||Tt.find(`#${a}-save-api-config:visible`).first()||Tt.find("#yyt-save-tool-preset:visible").first()||Tt.find('[data-twb-action="save"]:visible').first();at?.length&&at.trigger("click")};R.addEventListener("keydown",or),R.addEventListener("keydown",Lr),u.cleanups.push(()=>{R.removeEventListener("keydown",or),R.removeEventListener("keydown",Lr)}),We(),S(o.currentPopup).find(".yyt-main-nav-item").on("click",function(){let Tt=S(this).data("tab");Tt&&ms(Tt)}),to(),Dr(o.currentMainTab);let mt=s.toolRegistryModule?.getToolConfig(o.currentMainTab);mt?.hasSubTabs&&(S(o.currentPopup).find(".yyt-sub-nav").show(),rn(o.currentMainTab,mt.subTabs)),O(),eo($),et(),h("\u5F39\u7A97\u5DF2\u6253\u5F00")}return{openPopup:Tb,closePopup:Zt,switchMainTab:ms,switchSubTab:gs,renderTabContent:Dr,renderSubTabContent:hs}}function pb(t,e={}){let{constants:r,modules:s}=t,{SCRIPT_ID:n,SCRIPT_VERSION:o}=r,{init:a,loadModules:i,addMenuItem:l,popupShell:c}=e;return{version:o,id:n,init:a,openPopup:c?.openPopup,closePopup:c?.closePopup,switchMainTab:c?.switchMainTab,switchSubTab:c?.switchSubTab,addMenuItem:l,getStorage:()=>s.storageModule,getApiConnection:()=>s.apiConnectionModule,getPresetManager:()=>s.presetManagerModule,getUi:()=>s.uiModule,getUiModule:()=>s.uiModule,getRegexExtractor:()=>s.regexExtractorModule,getToolManager:()=>s.toolManagerModule,getToolExecutor:()=>s.toolExecutorModule,getWindowManager:()=>s.windowManagerModule,getToolRegistry:()=>s.toolRegistryModule,getSettingsService:()=>s.settingsServiceModule,getBypassManager:()=>s.bypassManagerModule,getVariableResolver:()=>s.variableResolverModule,getContextInjector:()=>s.contextInjectorModule,getToolPromptService:()=>s.toolPromptServiceModule,getToolOutputService:()=>s.toolOutputServiceModule,getToolAutomationService:()=>s.toolAutomationServiceModule,getDataProvider:()=>s.toolDataProviderModule?.getCurrentProvider?.()||null,async getDataProviderAsync(){return await i(),s.toolDataProviderModule?.getToolDataProvider?.()||null},async getApiConfig(){return await i(),s.apiConnectionModule?.getApiConfig?.()||null},async saveApiConfig(d){return await i(),s.apiConnectionModule?(s.apiConnectionModule.updateApiConfig(d),!0):!1},async getPresets(){return await i(),s.presetManagerModule?s.presetManagerModule.getAllPresets():[]},async sendApiRequest(d,u){if(await i(),s.apiConnectionModule)return s.apiConnectionModule.sendApiRequest(d,u);throw new Error("API\u6A21\u5757\u672A\u52A0\u8F7D")},async testApiConnection(){return await i(),s.apiConnectionModule?s.apiConnectionModule.testApiConnection():{success:!1,message:"API\u6A21\u5757\u672A\u52A0\u8F7D"}},registerTool(d,u){return s.toolRegistryModule?.registerTool(d,u)||!1},unregisterTool(d){return s.toolRegistryModule?.unregisterTool(d)||!1},getToolList(){return s.toolRegistryModule?.getToolList()||[]},createWindow(d){return s.windowManagerModule?.createWindow(d)||null},closeWindow(d){s.windowManagerModule?.closeWindow(d)},startAutomation(){return s.toolAutomationServiceModule?.toolAutomationService?.init?.()||!1},stopAutomation(){s.toolAutomationServiceModule?.toolAutomationService?.stop?.()},getAutomationRuntime(){return s.toolAutomationServiceModule?.toolAutomationService?.getRuntimeSnapshot?.()||null},cancelAutomation(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.cancelAutomation?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}},async processCurrentAssistantMessage(d={}){return s.toolAutomationServiceModule?.toolAutomationService?.processCurrentAssistantMessage?.(d)||{success:!1,error:"\u81EA\u52A8\u5316\u670D\u52A1\u672A\u52A0\u8F7D"}}}}var cl="youyou_toolkit",AA="1.0.238",EA=`${cl}-menu-item`,CA=`${cl}-menu-container`,IA=`${cl}-popup`,kA=typeof window.parent<"u"?window.parent:window,dl={constants:{SCRIPT_ID:cl,SCRIPT_VERSION:AA,MENU_ITEM_ID:EA,MENU_CONTAINER_ID:CA,POPUP_ID:IA},topLevelWindow:kA,modules:{storageModule:null,apiConnectionModule:null,uiModule:null,presetManagerModule:null,regexExtractorModule:null,toolManagerModule:null,toolExecutorModule:null,toolTriggerModule:null,windowManagerModule:null,toolRegistryModule:null,settingsServiceModule:null,bypassManagerModule:null,variableResolverModule:null,contextInjectorModule:null,toolPromptServiceModule:null,toolOutputServiceModule:null,toolAutomationServiceModule:null,toolDataProviderModule:null},caches:{dynamicToolPanelCache:new Map},services:{loadModules:null},uiState:{currentPopup:null,currentOverlay:null,currentMainTab:"presetManagement",currentSubTab:{},startupScreenDismissed:!1}},yb=ub(dl),ua=ib(dl,{openPopup:yb.openPopup});dl.services.loadModules=ua.loadModules;var Cu=pb(dl,{init:ua.init,loadModules:ua.loadModules,addMenuItem:ua.addMenuItem,popupShell:yb});if(typeof window<"u"&&(window.YouYouToolkit=Cu,typeof window.parent<"u"&&window.parent!==window))try{window.parent.YouYouToolkit=Cu}catch{}var kP=Cu;ua.init();Promise.resolve().then(()=>(H(),ku)).then(({logger:t})=>{t.createScope("Bootstrap").log("\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210")});export{kP as default};
