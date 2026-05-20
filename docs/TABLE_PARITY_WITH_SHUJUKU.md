@@ -61,16 +61,15 @@
 | **工作量** | 100-200 行（如未接入），或仅验证（如已接入） |
 | **是否值得做** | **强烈推荐**。盲区 1 必测项 |
 
-#### G3. AI 改表助手 dock（Template Assistant）
+#### G3. AI 改表助手 dock（Template Assistant）— ✅ 已实现
 
 | 项 | 内容 |
 |---|---|
 | **shujuku 实现** | `Reference/shujuku-spv3.7/src/service/template-assistant/` (service.ts 1242 行 + compiler.ts + reference-docs.ts) + `visualizer-template-assistant.ts` (1063 行) + apply + addon |
 | **shujuku 能力** | 自然语言驱动模板修改；多轮自修复迭代；11+ 种结构化操作（add_sheet / rename_sheet / patch_sheet_*）；diff 摘要 + 高风险确认；session guard（切表失效）；portal 模式（小屏全屏/大屏侧边） |
-| **youyou 现状** | **完全没有**。议题 #15 D6 决策初版不抄 |
-| **影响** | 用户无法用自然语言（"新增一张战利品表"/"把纪要表更新频率改成 3"）批量修改模板结构 |
-| **工作量** | ~2500-3000 行（service + compiler + UI） |
-| **是否值得做** | shujuku **最大独占功能**。议题 #15 D6 已认不抄，作为 v1.1 增强 **优先级最高**但工作量也最大 |
+| **youyou 实现** | v1.0.239 完成 P0+P1，v1.0.243 修复数据编辑器 dock 集成。4 模块 ~1,931 行：`table-assistant-types.js` (182) + `table-assistant-compiler.js` (616) + `table-assistant-service.js` (509) + `table-assistant-ui.js` (624)。10 种操作协议 V1 + 多轮 session + 自动修复 + diff 预览 + 高风险确认。P2 增强（v1.0.244）：运行时行数据修改（boundState patch）+ 累积 diff 展示。 |
+| **对齐状态** | 核心 10 种操作已对齐（无 DDL/SQL → 比 shujuku 简化）。缺少：reference-docs 嵌入、模板级操作、portal 响应式模式 |
+| **剩余** | 端到端测试 + prompt 调优；P2 可选：reference-docs 嵌入、模板级操作 |
 
 ---
 
@@ -162,16 +161,18 @@
 
 ## 4. Top 3 推荐推进顺序
 
+> 更新于 v1.0.244：G3 AI 改表助手已完成 P0+P1+P2 增强。
+
 | # | 任务 | 工作量 | 价值 |
 |---|---|---|---|
 | **1** | **G1 数据编辑器 config mode 可编辑 UI** + 捆绑实现 M1（锁定 UI）+ M3（sidebar 操作）+ L1（双档保存）+ L2（placement UI） | ~800-900 行 | 用户日常调参核心入口 |
 | **2** | **G2 per-table 自动更新调度验证 + 接入**（盲区 1） | ~150 行（如需要） | 让模板精细配置生效 |
-| **3** | **G3 AI 改表助手 dock**（v1.1 大功能） | ~2500-3000 行 | shujuku 最大独占功能，议题 #15 D6 已认 |
+| ~~3~~ | ~~G3 AI 改表助手 dock~~ | ~~~2500-3000 行~~ | ✅ v1.0.239-244 已完成 |
 
 **建议节奏**：
 - v1.1（短期）：Top 1 + Top 2 ≈ 1000 行
 - v1.2（中期）：M2（模板 UI 完整度）+ M4（sendLatestRows）≈ 250 行
-- v2.0（长期）：Top 3 AI 改表助手
+- G3 已完成，后续按需：端到端测试 + prompt 调优 + reference-docs 嵌入
 
 ---
 

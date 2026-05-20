@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+### feat: AI 改表助手 P2 增强 — 运行时行数据修改 + 累积 diff
+
+**运行时行数据修改（boundState patch）**：
+- `table-assistant-service.js` — `buildUserPrompt` 扩展接受可选 `dataContext`，序列化 boundState 行数据到 prompt；`applyAssistantResult` 新增 boundState 行操作应用逻辑；新增 `applyRowPatchesToBoundState` 辅助函数
+- `table-assistant-ui.js` — `handleSend` 在 session 前通过 `resolveLatestTableTarget` + `getBoundTableState` 加载当前行数据，构造 `dataContext` 和 `targetSnapshot` 传入 session
+- `table-assistant-types.js` — 行数据指纹预留（后续用于多轮数据过期检测）
+- 当 boundState 不存在时优雅降级（仅 schema 上下文）
+
+**累积 diff 修复 + UI 接入**：
+- `table-assistant-compiler.js` — `buildCumulativeDiff` 补齐 3 类缺失 diff（patchedAiInstructions / patchedExportConfig / patchedWorkbenchConfig），从 4/10 覆盖提升到 7/10（rows 和 locks 在 config 层无有效数据）
+- `table-assistant-ui.js` — 导入 `buildCumulativeDiff`，在多轮 session finalTurn 中计算并渲染累积变更摘要
+
+**文档更新**：
+- `TABLE_PARITY_WITH_SHUJUKU.md` — G3 从"完全没有"更新为"已实现"
+
 ### fix：AI 改表助手数据编辑器集成修复
 
 - **渲染丢失（根因）**：`el()` 工厂函数不处理顶级 `id` 属性，dock host 元素没有 `id="yyt-assistant-host"`，导致 `querySelector('#yyt-assistant-host')` 返回 null，`initAssistantPanel()` 从未被调用。改为通过 `attrs: { id }` 传递

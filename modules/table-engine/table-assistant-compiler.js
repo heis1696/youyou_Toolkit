@@ -9,7 +9,9 @@ import {
   ASSISTANT_OP,
   ASSISTANT_PROTOCOL_VERSION,
   ASSISTANT_MODE,
+  ASSISTANT_AI_INSTRUCTION_KEYS,
   ASSISTANT_AI_INSTRUCTION_KEY_SET,
+  ASSISTANT_WORKBENCH_PATCHABLE_KEYS,
   ASSISTANT_WORKBENCH_PATCHABLE_KEY_SET,
   ASSISTANT_DRAFT_TAG,
   cloneAssistantValue,
@@ -610,7 +612,29 @@ export function buildCumulativeDiff({ baselineConfig, candidateConfig }) {
       diff.patchedColumns.push({ tableId: before.id, name: after.name, changes: ['列结构变更'] });
       highRiskItems.push({ type: 'patch_table_columns', label: `列结构变更: ${after.name}` });
     }
+    // aiInstructions 对比
+    const aiKeys = ASSISTANT_AI_INSTRUCTION_KEYS;
+    const changedAiKeys = aiKeys.filter((k) => JSON.stringify(before.aiInstructions?.[k]) !== JSON.stringify(after.aiInstructions?.[k]));
+    if (changedAiKeys.length) {
+      diff.patchedAiInstructions.push({ tableId: before.id, name: after.name, keys: changedAiKeys });
+    }
+    // exportConfig 对比
+    const exportKeys = ['enabled', 'entryName', 'entryType', 'splitByRow', 'keywords', 'injectionTemplate', 'preventRecursion'];
+    const changedExportKeys = exportKeys.filter((k) => JSON.stringify(before.exportConfig?.[k]) !== JSON.stringify(after.exportConfig?.[k]));
+    if (changedExportKeys.length) {
+      diff.patchedExportConfig.push({ tableId: before.id, name: after.name, keys: changedExportKeys });
+    }
   });
+
+  // workbenchConfig 对比
+  const wbKeys = ASSISTANT_WORKBENCH_PATCHABLE_KEYS;
+  const changedWbKeys = wbKeys.filter((k) => JSON.stringify(baselineConfig?.[k]) !== JSON.stringify(candidateConfig?.[k]));
+  if (changedWbKeys.length) {
+    diff.patchedWorkbenchConfig.push({ keys: changedWbKeys });
+    highRiskItems.push({ type: 'patch_workbench_config', label: `工作台配置变更: ${changedWbKeys.join(', ')}` });
+  }
+
+  // patchedRows / patchedLocks：config 层无有效数据，暂不对比
 
   return { diff, highRiskItems };
 }

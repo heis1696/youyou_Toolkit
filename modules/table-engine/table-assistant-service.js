@@ -8,6 +8,8 @@
 import { sendWithPreset } from '../api-connection.js';
 import { logger } from '../core/logger-service.js';
 import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from './table-schema-service.js';
+import { getBoundTableState, commitBoundState } from './table-state-service.js';
+import { createRuntimeTableRowId, cloneTableValue } from './table-types.js';
 import { setRowLock, setColLock, setCellLock } from './table-lock-service.js';
 import { tableIsolation } from './table-isolation-service.js';
 import {
@@ -192,7 +194,7 @@ function buildSystemPrompt() {
   ].join('\n');
 }
 
-function buildUserPrompt(input, baseFingerprint) {
+function buildUserPrompt(input, baseFingerprint, dataContext) {
   const config = input.config;
   const currentTableId = input.currentTableId || '';
   const tables = Array.isArray(config?.tables) ? config.tables : [];
@@ -211,6 +213,7 @@ function buildUserPrompt(input, baseFingerprint) {
     aiInstructions: table.aiInstructions || {},
     exportConfig: table.exportConfig || {},
     rowCount: Array.isArray(table.rows) ? table.rows.length : 0,
+    rows: dataContext?.[table.id] || undefined,
   }));
 
   const payload = {
@@ -230,6 +233,7 @@ function buildUserPrompt(input, baseFingerprint) {
       exportConfig: currentTable.exportConfig || {},
       rowCount: Array.isArray(currentTable.rows) ? currentTable.rows.length : 0,
       rowIds: (currentTable.rows || []).map((r) => r.id),
+      rows: dataContext?.[currentTable.id] || undefined,
     } : null,
     allTables: allTablesSummary,
     workbenchConfig: {
@@ -279,7 +283,7 @@ export async function generateAssistantDraft(input, abortSignal) {
       if (turn.assistant) result.push({ role: 'assistant', content: turn.assistant });
       return result;
     }),
-    { role: 'user', content: buildUserPrompt(input, baseFingerprint) },
+    { role: 'user', content: buildUserPrompt(input, baseFingerprint, input.dataContext) },
   ];
 
   const apiPreset = trimDraftString(input.apiPreset || config?.apiPreset);
@@ -363,6 +367,7 @@ export async function runAssistantSession(input) {
           userRequest: roundUserRequest,
           priorTurns: historyForRound,
           apiPreset: input.apiPreset,
+          dataContext: input.dataContext,
         }, roundAbortController.signal);
         assertActive();
         lastResult = result;
@@ -439,6 +444,7 @@ export async function runAssistantSession(input) {
     originalBaseFingerprint,
     rounds,
     session,
+    targetSnapshot: input.targetSnapshot || null,
   };
 }
 
@@ -498,11 +504,94 @@ export async function applyAssistantResult(result) {
       });
     }
 
+    // 应用行数据到 boundState（收集所有轮次的行操作，不仅最后一轮）
+    const allRounds = result.rounds || [];
+    const lastRoundHasRowOps = result.compileResult?.diff?.patchedRows?.length > 0;
+    const hasRowOps = allRounds.some((r) =>
+      r.draft?.operations?.some((o) => o.op === ASSISTANT_OP.PATCH_ROWS),
+    );
+    if ((hasRowOps || lastRoundHasRowOps) && result.targetSnapshot) {
+      await applyRowPatchesToBoundState(result);
+    }
+
     log.info('applyAssistantResult: 草稿已应用', { tables: result.compileResult.candidateConfig?.tables?.length });
     return true;
   } catch (err) {
     log.error('applyAssistantResult 异常', err);
     return false;
+  }
+}
+
+/**
+ * 将 patch_table_rows 操作应用到 boundState。
+ * 收集所有轮次的行操作（不仅是最后一轮），顺序应用到 boundState。
+ */
+async function applyRowPatchesToBoundState(result) {
+  const targetSnapshot = result.targetSnapshot;
+
+  // 从所有轮次收集行操作，按轮次顺序
+  const allRowOps = [];
+  for (const round of (result.rounds || [])) {
+    const ops = (round.draft?.operations || []).filter(
+      (o) => o.op === ASSISTANT_OP.PATCH_ROWS,
+    );
+    allRowOps.push(...ops);
+  }
+  // 兜底：如果 rounds 为空但 final draft 有行操作
+  if (!allRowOps.length) {
+    const ops = (result.draft?.operations || []).filter(
+      (o) => o.op === ASSISTANT_OP.PATCH_ROWS,
+    );
+    allRowOps.push(...ops);
+  }
+
+  if (!allRowOps.length) return;
+
+  try {
+    const boundState = getBoundTableState(targetSnapshot);
+    if (!boundState?.tables?.length) {
+      log.info('applyRowPatchesToBoundState: boundState 为空，跳过行数据应用');
+      return;
+    }
+
+    const stateTables = cloneTableValue(boundState.tables);
+
+    for (const op of allRowOps) {
+      const table = stateTables.find((t) => t.id === op.tableId);
+      if (!table) continue;
+      if (!Array.isArray(table.rows)) table.rows = [];
+      const patch = op.patch;
+
+      if (patch.updateCells?.length) {
+        for (const cell of patch.updateCells) {
+          const row = table.rows.find((r) => r.id === cell.rowId);
+          if (row && cell.columnKey) {
+            row.cells = row.cells || {};
+            row.cells[cell.columnKey] = String(cell.value ?? '');
+          }
+        }
+      }
+      if (patch.addRows?.length) {
+        const colKeys = new Set((table.columns || []).map((c) => c.key));
+        for (const newRow of patch.addRows) {
+          const id = createRuntimeTableRowId('row');
+          const safeCells = {};
+          for (const [k, v] of Object.entries(newRow.cells || {})) {
+            if (colKeys.has(k)) safeCells[k] = String(v ?? '');
+          }
+          table.rows.push({ id, name: newRow.name || id, cells: safeCells });
+        }
+      }
+      if (patch.deleteRowIds?.length) {
+        const deleteSet = new Set(patch.deleteRowIds);
+        table.rows = table.rows.filter((r) => !deleteSet.has(r.id));
+      }
+    }
+
+    await commitBoundState(targetSnapshot, { ...boundState, tables: stateTables }, { skipFreshValidation: true });
+    log.info('applyRowPatchesToBoundState: 行数据已应用到 boundState', { ops: allRowOps.length });
+  } catch (err) {
+    log.error('applyRowPatchesToBoundState 失败', err);
   }
 }
 

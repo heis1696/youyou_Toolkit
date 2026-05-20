@@ -13,6 +13,9 @@ import {
   AssistantSessionStoppedError,
 } from '../../table-engine/table-assistant-service.js';
 import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-engine/table-schema-service.js';
+import { getBoundTableState } from '../../table-engine/table-state-service.js';
+import { resolveLatestTableTarget } from '../../table-engine/table-target-resolver.js';
+import { buildCumulativeDiff } from '../../table-engine/table-assistant-compiler.js';
 import { cloneTableValue } from '../../table-engine/table-types.js';
 import { normalizePositiveInt } from '../../table-engine/table-assistant-types.js';
 import { getPresetNames } from '../../preset-manager.js';
@@ -165,6 +168,16 @@ function renderTranscriptHtml() {
         html += `<div><strong>高风险确认</strong><div class="yyt-assistant-risk-list">${renderRiskItemsHtml(turn)}</div></div>`;
       } else if (riskCount > 0) {
         html += `<div><strong>高风险项</strong><ul>${compileResult.highRiskItems.map((i) => `<li>${escHtml(i.label)}</li>`).join('')}</ul></div>`;
+      }
+
+      // 累积变更摘要（仅 final + 多轮时显示）
+      if (isFinal && turn.cumulativeDiff) {
+        const cumSummary = buildDiffSummaryHtml(turn.cumulativeDiff);
+        if (cumSummary && cumSummary !== '无变更') {
+          html += `<div class="yyt-assistant-cumulative"><strong>累积变更</strong> ${escHtml(cumSummary)}`;
+          html += `<div class="yyt-assistant-cumulative-detail">${buildDiffDetailHtml(turn.cumulativeDiff)}</div>`;
+          html += `</div>`;
+        }
       }
 
       html += `</div>`; // detail
@@ -365,6 +378,34 @@ async function handleSend() {
 
   refreshPanel();
 
+  const originalConfig = config; // getTableWorkbenchConfig() 每次返回新对象，可直接引用
+
+  // 解析 targetSnapshot 和行数据上下文
+  let targetSnapshot = null;
+  let dataContext = null;
+  try {
+    targetSnapshot = await resolveLatestTableTarget();
+    if (targetSnapshot) {
+      const boundState = getBoundTableState(targetSnapshot);
+      if (boundState?.tables?.length) {
+        // 构造 dataContext: { [tableId]: rows[] }
+        dataContext = {};
+        for (const table of boundState.tables) {
+          if (Array.isArray(table.rows) && table.rows.length) {
+            dataContext[table.id] = table.rows.map((r) => ({
+              rowId: r.id,
+              name: r.name || '',
+              cells: r.cells || {},
+            }));
+          }
+        }
+        if (!Object.keys(dataContext).length) dataContext = null;
+      }
+    }
+  } catch (e) {
+    log.warn('加载行数据上下文失败，将仅使用 schema 上下文', e);
+  }
+
   try {
     const result = await runAssistantSession({
       config: cloneTableValue(config),
@@ -374,6 +415,8 @@ async function handleSend() {
       apiPreset: _apiPreset,
       maxRounds: normalizePositiveInt(_maxRoundsInput, DEFAULT_MAX_ROUNDS),
       guard: _guardController.createRunGuard(),
+      dataContext,
+      targetSnapshot,
       onRoundComplete: (progress) => {
         if (capturedSessionId !== _runningSessionId) return;
         const previewTurn = {
@@ -407,6 +450,17 @@ async function handleSend() {
       riskConfirmations: {},
       result,
     };
+
+    // 计算累积 diff（多轮 session 的全量变更汇总）
+    try {
+      const cumulative = buildCumulativeDiff({
+        baselineConfig: originalConfig,
+        candidateConfig: result.compileResult.candidateConfig,
+      });
+      finalTurn.cumulativeDiff = cumulative.diff;
+    } catch (e) {
+      log.warn('buildCumulativeDiff 失败，跳过累积摘要', e);
+    }
 
     // 移除最后一个 preview assistant turn
     const lastAssistantIdx = _transcript.findLastIndex((t) => t.type === 'assistant' && !t.isFinal);
@@ -620,5 +674,12 @@ export function getAssistantPanelStyles() {
     }
     #yyt-assistant-host .yyt-assistant-textarea::placeholder { color: var(--yyt-text-muted); }
     .yyt-assistant-actions { margin-top: 8px; }
+    .yyt-assistant-cumulative {
+      margin-top: 8px; padding: 8px; border-radius: var(--yyt-radius-sm);
+      background: var(--yyt-surface); border: 1px dashed var(--yyt-border-strong);
+      font-size: 12px;
+    }
+    .yyt-assistant-cumulative strong { color: var(--yyt-text-secondary); }
+    .yyt-assistant-cumulative-detail { margin-top: 4px; }
   `;
 }
