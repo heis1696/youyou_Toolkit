@@ -40,5 +40,6 @@ export { dialog } from './dialog.js';
 export { toolbar } from './toolbar.js';
 export { presetListItem } from './preset-list-item.js';
 export { chipGroup } from './chip-group.js';
+export { tabGroup } from './tab-group.js';
 
 export { el, baseControl, createEmitter, findControl, appendChild } from './_internal.js';

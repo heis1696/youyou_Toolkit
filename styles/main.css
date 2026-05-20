@@ -2963,3 +2963,251 @@
     display: none;
   }
 }
+
+/* ============================================================
+   Settings Panel
+   ============================================================ */
+
+.yyt-settings-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 14px;
+}
+
+.yyt-settings-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.yyt-settings-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.yyt-settings-hero-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--yyt-text);
+}
+
+.yyt-settings-hero-desc {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--yyt-text-secondary);
+  max-width: 62ch;
+}
+
+.yyt-settings-hero-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.yyt-settings-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  border: 1px solid var(--yyt-border-strong);
+  letter-spacing: 0.4px;
+  color: var(--yyt-text);
+  background: var(--yyt-surface-3);
+  box-shadow: none;
+}
+
+.yyt-settings-status-chip.is-on {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.25);
+  background: rgba(74, 222, 128, 0.12);
+}
+
+.yyt-settings-status-chip.is-off {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.25);
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.yyt-settings-status-chip.is-neutral {
+  color: var(--yyt-text);
+}
+
+/* Tab Group (通用控件 + settings tab) */
+.yyt-tab-group {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: var(--yyt-radius);
+  background: var(--yyt-surface-2);
+  border: 1px solid var(--yyt-border);
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+  box-shadow: none;
+}
+
+.yyt-tab-group-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--yyt-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--yyt-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  font-weight: 600;
+  box-shadow: none;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.yyt-tab-group-item:hover {
+  color: var(--yyt-text);
+  background: var(--yyt-surface-3);
+  border-color: transparent;
+}
+
+.yyt-tab-group-item.yyt-active {
+  color: var(--yyt-on-accent);
+  background: var(--yyt-accent);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.yyt-settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.yyt-settings-content .yyt-form-group {
+  gap: 12px;
+}
+
+.yyt-settings-tab-content {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.yyt-settings-tab-content.yyt-active {
+  display: flex;
+}
+
+.yyt-settings-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.yyt-settings-runtime-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.yyt-settings-runtime-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid var(--yyt-border-strong);
+  background: var(--yyt-surface-3);
+  color: var(--yyt-text);
+  box-shadow: none;
+}
+
+.yyt-settings-runtime-chip.is-on {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.25);
+  background: rgba(74, 222, 128, 0.12);
+}
+
+.yyt-settings-runtime-chip.is-off {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.25);
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.yyt-settings-runtime-chip.is-neutral {
+  color: var(--yyt-text);
+}
+
+.yyt-settings-runtime-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--yyt-text-secondary);
+}
+
+.yyt-settings-runtime-main {
+  font-size: 12px;
+  color: var(--yyt-text);
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.yyt-settings-panel .yyt-list-table {
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.yyt-settings-panel .yyt-list-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 14px 0;
+  background: transparent;
+  border-bottom: 1px solid var(--yyt-border);
+}
+
+.yyt-settings-panel .yyt-list-row:last-child {
+  border-bottom: none;
+}
+
+.yyt-settings-panel .yyt-list-row:hover {
+  background: transparent;
+}
+
+.yyt-settings-panel .yyt-list-row code {
+  color: var(--yyt-accent-strong);
+  word-break: break-word;
+  font-weight: 800;
+}
+
+.yyt-settings-panel .yyt-list-row span {
+  color: var(--yyt-text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.yyt-settings-panel .yyt-list-row:has(.yyt-settings-runtime-meta) {
+  grid-template-columns: 1fr;
+}
