@@ -1,6 +1,8 @@
 /**
- * YouYou Toolkit - Floating Ball Menu
+ * YouYou Toolkit - Floating Ball Menu (Phone Shell)
  * @description 菜单四象限自适应 + 开关控制
+ *              分组渲染拆为 screen（图标网格）+ dock（底部常驻），
+ *              dock 项独立、screen 项按 group 聚合
  */
 
 import { PID, MENU_HEIGHT_HINT, ORB_SIZE } from './constants.js';
@@ -12,8 +14,8 @@ import { PID, MENU_HEIGHT_HINT, ORB_SIZE } from './constants.js';
  * @param {HTMLElement} deps.root
  * @param {HTMLElement} deps.menu
  * @param {Window} deps.targetWindow
- * @param {Function} deps.onOpen   () => void  打开时回调（菜单 list 重新渲染 + 拉状态）
- * @param {Function} deps.onClose  () => void
+ * @param {Function} deps.onOpen
+ * @param {Function} deps.onClose
  */
 export function createMenuController({ root, menu, targetWindow, onOpen, onClose }) {
   const win = targetWindow || window;
@@ -78,15 +80,17 @@ export function createMenuController({ root, menu, targetWindow, onOpen, onClose
 }
 
 /**
- * 把项按 group 聚合成 [{ groupId, groupTitle, items: [...] }] 数组
- * 未指定 group 的项归入 `_default` 组（不显示折叠头，扁平列出）
+ * 按 dock=true/false 把项分流为 { screen, dock }
+ * 并对 screen 项按 group 聚合，按 order 排序
  *
- * @param {Array} items
- * @returns {Array<{ groupId: string, groupTitle: string, items: Array }>}
+ * @returns {{
+ *   screenGroups: Array<{ groupId: string, groupTitle: string, items: Array }>,
+ *   dockItems: Array
+ * }}
  */
-export function groupItemsForRender(items) {
-  const groupMap = new Map();
-  const insertOrder = [];
+export function partitionItemsForRender(items) {
+  const dockItems = [];
+  const screenItems = [];
 
   for (const item of items) {
     if (!item || typeof item !== 'object') continue;
@@ -97,6 +101,19 @@ export function groupItemsForRender(items) {
         continue;
       }
     }
+    if (item.dock === true) {
+      dockItems.push(item);
+    } else {
+      screenItems.push(item);
+    }
+  }
+
+  dockItems.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+
+  // screen 按 group 聚合
+  const groupMap = new Map();
+  const insertOrder = [];
+  for (const item of screenItems) {
     const gid = String(item.group || '_default');
     if (!groupMap.has(gid)) {
       groupMap.set(gid, {
@@ -110,12 +127,12 @@ export function groupItemsForRender(items) {
     }
     groupMap.get(gid).items.push(item);
   }
-
   for (const g of groupMap.values()) {
     g.items.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
   }
+  const screenGroups = insertOrder.map((gid) => groupMap.get(gid));
 
-  return insertOrder.map((gid) => groupMap.get(gid));
+  return { screenGroups, dockItems };
 }
 
 const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -125,34 +142,29 @@ export function escapeHtml(value) {
 }
 
 /**
- * 渲染一个分组容器（含折叠头），并把 itemElements 塞进去
+ * 渲染屏幕区一个分组：标题 + 4 列图标网格
  */
-export function buildGroupContainer(doc, { groupTitle }, itemElements) {
-  if (!groupTitle) {
-    const wrap = doc.createElement('div');
-    wrap.className = 'fab-group';
-    itemElements.forEach((node) => wrap.appendChild(node));
-    return wrap;
+export function buildScreenGroupContainer(doc, { groupTitle }, itemElements) {
+  const frag = doc.createDocumentFragment();
+  if (groupTitle) {
+    const title = doc.createElement('div');
+    title.className = 'phone-group-title';
+    title.textContent = groupTitle;
+    frag.appendChild(title);
   }
-  const details = doc.createElement('details');
-  details.open = true;
-  details.className = 'fab-group';
-  const summary = doc.createElement('summary');
-  summary.textContent = groupTitle;
-  details.appendChild(summary);
-  const body = doc.createElement('div');
-  body.className = 'group-body';
-  itemElements.forEach((node) => body.appendChild(node));
-  details.appendChild(body);
-  return details;
+  const grid = doc.createElement('div');
+  grid.className = 'phone-icon-grid';
+  itemElements.forEach((node) => grid.appendChild(node));
+  frag.appendChild(grid);
+  return frag;
 }
 
 /**
- * 渲染空状态
+ * 空状态
  */
 export function buildEmptyState(doc, text = '暂无菜单项') {
   const div = doc.createElement('div');
-  div.className = 'fab-empty';
+  div.className = 'phone-empty';
   div.textContent = text;
   return div;
 }

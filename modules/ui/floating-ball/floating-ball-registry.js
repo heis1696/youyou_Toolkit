@@ -1,7 +1,9 @@
 /**
- * YouYou Toolkit - Floating Ball Registry & Item Renderers
- * @description 项注册表 + Promise mutex 串行化 onClick + 5 种内置渲染器
+ * YouYou Toolkit - Floating Ball Registry & Item Renderers (Phone Shell)
+ * @description 项注册表 + Promise mutex + 图标卡片渲染器
  *              kind: toggle | button | slider | labelValue | custom
+ *              新增 icon / iconColor / dock 字段
+ *              icon 缺省时根据 label 首字符自动取一个
  */
 
 import { escapeHtml } from './floating-ball-menu.js';
@@ -10,9 +12,8 @@ import { escapeHtml } from './floating-ball-menu.js';
  * 创建项注册表
  *
  * @param {Object} deps
- * @param {Function} deps.onChange   () => void  注册表变化时触发（菜单需要重新渲染）
- * @param {Function} deps.onRefresh  (id: string) => void  单项状态刷新请求（仅修改 DOM，不重渲）
- * @returns {Object}
+ * @param {Function} deps.onChange   注册表变化时触发（菜单需要重新渲染）
+ * @param {Function} deps.onRefresh  单项状态刷新请求（仅修改 DOM，不重建）
  */
 export function createItemRegistry({ onChange, onRefresh }) {
   /** @type {Map<string, Object>} */
@@ -49,13 +50,12 @@ export function createItemRegistry({ onChange, onRefresh }) {
       throw new Error(`[FloatingBall] registerItem 失败: ${err}`);
     }
     if (items.has(item.id)) {
-      // 已存在 → 等同 update 语义
       const prev = items.get(item.id);
       if (typeof prev.destroy === 'function') {
         try { prev.destroy(); } catch (_) {}
       }
     }
-    items.set(item.id, { kind: 'toggle', order: 100, ...item });
+    items.set(item.id, { kind: 'toggle', order: 100, dock: false, ...item });
     _emitChange();
     return () => unregisterItem(item.id);
   }
@@ -116,76 +116,144 @@ export function createItemRegistry({ onChange, onRefresh }) {
 }
 
 /**
- * 创建 Promise 链 Mutex —— 串行化 onClick 调用
- * 借自 dash-deck enqueueUpdate 模式
+ * 创建 Promise 链 Mutex —— 串行化 onClick
  */
 export function createMutex() {
   let chain = Promise.resolve();
-
   function run(task) {
     chain = chain.catch(() => {}).then(async () => {
       return await task();
     });
     return chain;
   }
-
   return { run };
 }
 
 /**
- * 渲染单项为 HTMLElement
+ * 自动选一个图标占位符（label 首字符）
+ */
+function fallbackIcon(label) {
+  if (!label) return '·';
+  const first = Array.from(String(label))[0] || '·';
+  return first;
+}
+
+/**
+ * 渲染单项为 HTMLElement（手机图标卡片样式）
  *
  * @param {Document} doc
  * @param {Object} item
- * @param {Object} ctxBase  渲染上下文（不包含 item，由本函数补全）
+ * @param {Object} ctxBase  不含 item，由本函数补全
  * @returns {{ el: HTMLElement, sync: () => void }}
- *   el  — DOM 节点
- *   sync — 重新拉取 getState/badge 并更新 DOM（不重建节点）
  */
 export function renderItem(doc, item, ctxBase) {
   const ctx = { ...ctxBase, item };
 
   switch (item.kind) {
-    case 'button': return renderButton(doc, item, ctx);
-    case 'slider': return renderSlider(doc, item, ctx);
-    case 'labelValue': return renderLabelValue(doc, item, ctx);
-    case 'custom': return renderCustom(doc, item, ctx);
+    case 'custom':
+      return renderCustom(doc, item, ctx);
+    case 'slider':
+    case 'labelValue':
+    case 'button':
     case 'toggle':
     default:
-      return renderToggle(doc, item, ctx);
+      return renderAppIcon(doc, item, ctx);
   }
 }
 
-function renderToggle(doc, item, ctx) {
+/**
+ * 统一的图标卡片渲染器（toggle/button/labelValue/slider 共用）
+ * - toggle:    点击切换，is-on 加蓝色发光
+ * - button:    点击执行 onClick
+ * - labelValue: 显示数值/状态在 label 下方（用 value 函数）
+ * - slider:    点击进入"长按调整"模式 —— v1 简化为点击 +step 步进，避免在手机图标上塞滑块
+ */
+function renderAppIcon(doc, item, ctx) {
   const node = doc.createElement('div');
-  node.className = 'fab-item fab-item-toggle';
+  node.className = 'phone-app';
   node.setAttribute('data-id', item.id);
+  node.setAttribute('data-kind', item.kind || 'toggle');
   if (item.radioGroup) node.setAttribute('data-radio-group', item.radioGroup);
+
+  const iconHtml = renderIconContent(item);
+  const labelText = escapeHtml(item.label);
+
   node.innerHTML = `
-    <div class="fab-item-label">${escapeHtml(item.label)}</div>
-    <div class="fab-item-suffix">
-      <span class="fab-badge" style="display:none;"></span>
-      <span class="fab-led"></span>
+    <div class="phone-app-icon" ${item.iconColor ? `style="background: ${escapeHtml(item.iconColor)}"` : ''}>
+      ${iconHtml}
+      <span class="phone-app-badge" style="display:none;"></span>
     </div>
+    <div class="phone-app-label">${labelText}</div>
   `;
 
-  const ledEl = node.querySelector('.fab-led');
-  const labelEl = node.querySelector('.fab-item-label');
-  const badgeEl = node.querySelector('.fab-badge');
+  const iconEl = node.querySelector('.phone-app-icon');
+  const badgeEl = node.querySelector('.phone-app-badge');
+  const labelEl = node.querySelector('.phone-app-label');
 
   function sync() {
+    // toggle / labelValue 都通过 getState 表达 on/off/missing
     let state = 'off';
     if (typeof item.getState === 'function') {
       try { state = item.getState() || 'off'; } catch (_) { state = 'off'; }
+    } else if (item.kind === 'button') {
+      state = 'off';
     }
-    node.classList.toggle('is-on', state === 'on');
-    node.classList.toggle('is-missing', state === 'missing');
+
+    if (item.kind === 'toggle' || typeof item.getState === 'function') {
+      node.classList.toggle('is-on', state === 'on');
+      node.classList.toggle('is-missing', state === 'missing');
+    }
+
+    // labelValue: 把 value 拼到 label 后面
+    if (item.kind === 'labelValue') {
+      let v = '';
+      if (typeof item.value === 'function') {
+        try { v = item.value(); } catch (_) { v = ''; }
+      } else if (item.value !== undefined) {
+        v = item.value;
+      }
+      if (v !== '' && v != null) {
+        labelEl.textContent = `${item.label} · ${v}`;
+      } else {
+        labelEl.textContent = item.label;
+      }
+    }
+
     syncBadge(item, badgeEl);
+
+    // 禁用态
+    const disabled = typeof item.disabled === 'function'
+      ? safeBool(item.disabled, false)
+      : !!item.disabled;
+    node.classList.toggle('is-disabled', disabled);
   }
 
   node.addEventListener('click', (e) => {
     if (node.classList.contains('is-disabled')) return;
     e.stopPropagation();
+
+    if (typeof item.onClick !== 'function' && item.kind === 'slider') {
+      // slider 在图标网格里降级：点击触发 onChange(+step)
+      if (typeof item.onChange === 'function') {
+        const step = Number.isFinite(item.step) ? Number(item.step) : 1;
+        const cur = readSliderValue(item);
+        const max = Number.isFinite(item.max) ? Number(item.max) : 100;
+        const min = Number.isFinite(item.min) ? Number(item.min) : 0;
+        let next = cur + step;
+        if (next > max) next = min;
+        ctx.mutex.run(async () => {
+          try {
+            await item.onChange({ ...ctx, value: next });
+          } catch (err) {
+            ctx.logger?.error?.(`项 ${item.id} onChange 异常: ${err?.message || err}`, err);
+          } finally {
+            sync();
+          }
+        });
+      }
+      return;
+    }
+
     if (typeof item.onClick === 'function') {
       ctx.mutex.run(async () => {
         try {
@@ -197,7 +265,7 @@ function renderToggle(doc, item, ctx) {
         }
       });
     } else {
-      ctx.logger?.warn?.(`toggle 项 ${item.id} 未提供 onClick`);
+      ctx.logger?.warn?.(`项 ${item.id} (${item.kind}) 未提供 onClick`);
     }
   });
 
@@ -205,141 +273,40 @@ function renderToggle(doc, item, ctx) {
   return { el: node, sync };
 }
 
-function renderButton(doc, item, ctx) {
-  const node = doc.createElement('div');
-  node.className = 'fab-item fab-item-button';
-  node.setAttribute('data-id', item.id);
-  node.innerHTML = `
-    <div class="fab-item-label">${escapeHtml(item.label)}</div>
-    <div class="fab-item-suffix">
-      <span class="fab-badge" style="display:none;"></span>
-    </div>
-  `;
-  const badgeEl = node.querySelector('.fab-badge');
-
-  function sync() {
-    syncBadge(item, badgeEl);
+function readSliderValue(item) {
+  if (typeof item.value === 'function') {
+    try { return Number(item.value()) || 0; } catch (_) { return 0; }
   }
-
-  node.addEventListener('click', (e) => {
-    if (node.classList.contains('is-disabled')) return;
-    e.stopPropagation();
-    if (typeof item.onClick === 'function') {
-      ctx.mutex.run(async () => {
-        try {
-          await item.onClick(ctx);
-        } catch (err) {
-          ctx.logger?.error?.(`项 ${item.id} onClick 异常: ${err?.message || err}`, err);
-        }
-      });
-    }
-  });
-
-  sync();
-  return { el: node, sync };
+  return Number.isFinite(item.value) ? Number(item.value) : 0;
 }
 
-function renderSlider(doc, item, ctx) {
-  const node = doc.createElement('div');
-  node.className = 'fab-item-slider';
-  node.setAttribute('data-id', item.id);
-
-  const min = Number.isFinite(item.min) ? item.min : 0;
-  const max = Number.isFinite(item.max) ? item.max : 100;
-  const step = Number.isFinite(item.step) ? item.step : 1;
-
-  function readValue() {
-    if (typeof item.value === 'function') {
-      try { return Number(item.value()); } catch (_) { return min; }
-    }
-    return Number.isFinite(item.value) ? Number(item.value) : min;
-  }
-
-  node.innerHTML = `
-    <div class="fab-slider-row">
-      <span>${escapeHtml(item.label)}</span>
-      <span class="fab-slider-value">${readValue()}</span>
-    </div>
-    <input type="range" min="${min}" max="${max}" step="${step}" value="${readValue()}"/>
-  `;
-
-  const valueEl = node.querySelector('.fab-slider-value');
-  const inputEl = node.querySelector('input[type="range"]');
-
-  inputEl.addEventListener('input', (e) => {
-    const v = Number(e.target.value);
-    valueEl.textContent = String(v);
-    if (typeof item.onChange === 'function') {
-      ctx.mutex.run(async () => {
-        try {
-          await item.onChange({ ...ctx, value: v });
-        } catch (err) {
-          ctx.logger?.error?.(`项 ${item.id} onChange 异常: ${err?.message || err}`, err);
-        }
-      });
-    }
-  });
-
-  function sync() {
-    const v = readValue();
-    inputEl.value = String(v);
-    valueEl.textContent = String(v);
-  }
-
-  return { el: node, sync };
+function safeBool(fn, fallback) {
+  try { return !!fn(); } catch (_) { return fallback; }
 }
 
-function renderLabelValue(doc, item, ctx) {
-  const node = doc.createElement('div');
-  node.className = 'fab-item fab-item-label-value';
-  node.setAttribute('data-id', item.id);
-  node.innerHTML = `
-    <div class="fab-item-label">${escapeHtml(item.label)}</div>
-    <div class="fab-item-suffix">
-      <span class="fab-item-value"></span>
-      <span class="fab-badge" style="display:none;"></span>
-    </div>
-  `;
-  const valueEl = node.querySelector('.fab-item-value');
-  const badgeEl = node.querySelector('.fab-badge');
-
-  function sync() {
-    let v = '';
-    if (typeof item.value === 'function') {
-      try { v = item.value(); } catch (_) { v = ''; }
-    } else if (item.value !== undefined) {
-      v = item.value;
+/**
+ * 渲染 icon 内容：支持 emoji 字符 / SVG 字符串 / DOM 节点函数 / 缺省 fallback
+ */
+function renderIconContent(item) {
+  if (typeof item.icon === 'string' && item.icon.trim()) {
+    const trimmed = item.icon.trim();
+    // SVG 字符串
+    if (trimmed.startsWith('<svg') || trimmed.startsWith('<SVG')) {
+      return trimmed; // 直接 innerHTML，调用方需保证安全
     }
-    valueEl.textContent = String(v ?? '');
-    syncBadge(item, badgeEl);
+    // emoji / 单字
+    return escapeHtml(trimmed);
   }
-
-  if (typeof item.onClick === 'function') {
-    node.style.cursor = 'pointer';
-    node.addEventListener('click', (e) => {
-      if (node.classList.contains('is-disabled')) return;
-      e.stopPropagation();
-      ctx.mutex.run(async () => {
-        try {
-          await item.onClick(ctx);
-        } catch (err) {
-          ctx.logger?.error?.(`项 ${item.id} onClick 异常: ${err?.message || err}`, err);
-        } finally {
-          sync();
-        }
-      });
-    });
-  } else {
-    node.style.cursor = 'default';
-  }
-
-  sync();
-  return { el: node, sync };
+  return escapeHtml(fallbackIcon(item.label));
 }
 
+/**
+ * custom 渲染：把 render() 的输出整块塞进图标卡片下方为完整一格
+ * （仍占一格 phone-app 位置，但内部完全自定义）
+ */
 function renderCustom(doc, item, ctx) {
   const wrap = doc.createElement('div');
-  wrap.className = 'fab-custom-wrap';
+  wrap.className = 'phone-app phone-app-custom';
   wrap.setAttribute('data-id', item.id);
 
   let renderedNode = null;

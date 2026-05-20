@@ -1,14 +1,26 @@
 /**
  * YouYou Toolkit - Floating Ball Core
  * @description DOM 创建 / listener registry / cleanup / 重入保护
- *              所有 addEventListener 走 on() 包装，cleanup 时反向卸载
+ *              手机壳形态：notch + 状态栏 + 屏幕区(content) + dock + home indicator
+ *              拖拽源由旧 .menu-head 改为 .phone-drag-handle
  */
 
 import { PID, ORB_SIZE } from './constants.js';
 
 /**
- * 构建浮球 root DOM
- * @returns {{ root: HTMLElement, orb: HTMLElement, menu: HTMLElement, menuHead: HTMLElement, menuList: HTMLElement, menuClose: HTMLElement, badge: HTMLElement }}
+ * 构建浮球 root DOM（手机壳形态）
+ * @returns {{
+ *   root: HTMLElement,
+ *   orb: HTMLElement,
+ *   menu: HTMLElement,
+ *   phoneScreen: HTMLElement,
+ *   phoneContent: HTMLElement,
+ *   phoneDock: HTMLElement,
+ *   phoneTime: HTMLElement,
+ *   dragHandle: HTMLElement,
+ *   menuClose: HTMLElement,
+ *   badge: HTMLElement,
+ * }}
  */
 export function buildRootDom(targetDocument) {
   const doc = targetDocument || document;
@@ -34,16 +46,13 @@ export function buildRootDom(targetDocument) {
           </filter>
         </defs>
 
-        <!-- 魔法棒杆 (左下→右上) -->
         <line x1="5.5" y1="18.5" x2="14" y2="10" stroke="url(#${PID}-handle-grad)" stroke-width="2.1" stroke-linecap="round"/>
 
-        <!-- 棒头主星（4 角星，缓慢自转） -->
         <g filter="url(#${PID}-soft-glow)" style="transform-origin:15.5px 8.5px; animation: ${PID}-spin 18s linear infinite;">
           <path d="M15.5 4 L16.5 7.5 L20 8.5 L16.5 9.5 L15.5 13 L14.5 9.5 L11 8.5 L14.5 7.5 Z"
                 fill="url(#${PID}-wand-grad)"/>
         </g>
 
-        <!-- 周围 3 颗闪光点 (错相位呼吸) -->
         <circle cx="19.5" cy="5"  r="0.95" fill="#ffffff" opacity="0.85"
                 style="animation: ${PID}-twinkle 2.6s ease-in-out infinite;"/>
         <circle cx="20"   cy="13" r="0.7"  fill="#7bb7ff" opacity="0.85"
@@ -56,18 +65,29 @@ export function buildRootDom(targetDocument) {
 
     <div class="menu" id="${PID}-menu">
       <div class="menu-shell">
-        <div class="menu-head" id="${PID}-head">
-          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;">
-            <line x1="5.5" y1="18.5" x2="14" y2="10" stroke="#d8e0ee" stroke-width="2.1" stroke-linecap="round"/>
-            <path d="M15.5 4 L16.5 7.5 L20 8.5 L16.5 9.5 L15.5 13 L14.5 9.5 L11 8.5 L14.5 7.5 Z" fill="#7bb7ff"/>
-          </svg>
-          <div class="menu-title">YouYou 工具箱</div>
+        <div class="phone-screen">
+          <div class="phone-notch"></div>
+          <div class="phone-drag-handle" id="${PID}-drag-handle"></div>
+
+          <div class="phone-statusbar">
+            <div class="phone-statusbar-left">
+              <span class="phone-time" id="${PID}-time">9:41</span>
+            </div>
+            <div class="phone-statusbar-right">
+              <div class="phone-signal" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <div class="phone-battery" aria-hidden="true">
+                <div class="phone-battery-fill" style="width: 78%;"></div>
+              </div>
+            </div>
+          </div>
+
           <button class="menu-close" id="${PID}-close" type="button" aria-label="关闭菜单">✕</button>
-        </div>
-        <div class="menu-list" id="${PID}-list"></div>
-        <div class="menu-foot">
-          <span>悬浮入口</span>
-          <span class="foot-brand">YouYou Toolkit</span>
+
+          <div class="phone-content" id="${PID}-content"></div>
+          <div class="phone-dock" id="${PID}-dock"></div>
+          <div class="phone-home-indicator" aria-hidden="true"></div>
         </div>
       </div>
     </div>
@@ -77,8 +97,11 @@ export function buildRootDom(targetDocument) {
     root,
     orb: root.querySelector(`#${PID}-orb`),
     menu: root.querySelector(`#${PID}-menu`),
-    menuHead: root.querySelector(`#${PID}-head`),
-    menuList: root.querySelector(`#${PID}-list`),
+    phoneScreen: root.querySelector('.phone-screen'),
+    phoneContent: root.querySelector(`#${PID}-content`),
+    phoneDock: root.querySelector(`#${PID}-dock`),
+    phoneTime: root.querySelector(`#${PID}-time`),
+    dragHandle: root.querySelector(`#${PID}-drag-handle`),
     menuClose: root.querySelector(`#${PID}-close`),
     badge: root.querySelector(`#${PID}-orb-badge`),
   };
@@ -157,4 +180,14 @@ export function clampPosition(pos, targetWindow) {
     x: Math.max(4, Math.min(Number.isFinite(pos?.x) ? pos.x : 0, win.innerWidth - ORB_SIZE - 2)),
     y: Math.max(4, Math.min(Number.isFinite(pos?.y) ? pos.y : 0, win.innerHeight - ORB_SIZE - 2)),
   };
+}
+
+/**
+ * 格式化当前时间为状态栏样式 "H:MM"
+ */
+export function formatStatusBarTime(date) {
+  const d = date instanceof Date ? date : new Date();
+  const hour = d.getHours();
+  const minute = String(d.getMinutes()).padStart(2, '0');
+  return `${hour}:${minute}`;
 }

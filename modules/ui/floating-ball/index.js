@@ -1,7 +1,7 @@
 /**
- * YouYou Toolkit - Floating Ball Main Entry
+ * YouYou Toolkit - Floating Ball Main Entry (Phone Shell)
  * @description 浮球模块公共 API + 生命周期
- *              负责 DOM 注入、控制器装配、内置项注册、重入保护
+ *              手机壳形态：状态栏时钟 + 图标网格(screen) + dock 区
  *              z-index 9998 < popup-shell 10000，主弹窗始终覆盖浮球
  */
 
@@ -25,12 +25,13 @@ import {
   createListenerRegistry,
   computeDefaultPosition,
   clampPosition,
+  formatStatusBarTime,
 } from './floating-ball-core.js';
 import { createDragController } from './floating-ball-drag.js';
 import {
   createMenuController,
-  groupItemsForRender,
-  buildGroupContainer,
+  partitionItemsForRender,
+  buildScreenGroupContainer,
   buildEmptyState,
 } from './floating-ball-menu.js';
 import {
@@ -42,36 +43,20 @@ import {
 const scopeLogger = logger.createScope('FloatingBall');
 const fbStorage = storage.namespace(STORAGE_NS);
 
-let state = {
-  inited: false,
-  destroyed: false,
-  root: null,
-  orb: null,
-  menu: null,
-  menuList: null,
-  menuClose: null,
-  badge: null,
-  styleEl: null,
-  targetDoc: null,
-  targetWin: null,
-  cleanupRegistry: null,
-  dragController: null,
-  menuController: null,
-  itemRegistry: null,
-  mutex: null,
-  itemElCache: new Map(),
-  unsubscribers: [],
-  openPopupRef: null,
-};
+let state = createInitialState();
 
-function resetState() {
-  state = {
+function createInitialState() {
+  return {
     inited: false,
     destroyed: false,
     root: null,
     orb: null,
     menu: null,
-    menuList: null,
+    phoneScreen: null,
+    phoneContent: null,
+    phoneDock: null,
+    phoneTime: null,
+    dragHandle: null,
     menuClose: null,
     badge: null,
     styleEl: null,
@@ -85,7 +70,12 @@ function resetState() {
     itemElCache: new Map(),
     unsubscribers: [],
     openPopupRef: null,
+    timeTimer: null,
   };
+}
+
+function resetState() {
+  state = createInitialState();
 }
 
 function makeRenderContextBase() {
@@ -100,38 +90,50 @@ function makeRenderContextBase() {
 }
 
 function renderList() {
-  if (!state.menuList) return;
+  if (!state.phoneContent || !state.phoneDock) return;
 
+  // 清理上一轮 DOM 与 destroy 钩子
   state.itemElCache.forEach(({ destroy }) => {
     if (typeof destroy === 'function') {
       try { destroy(); } catch (_) {}
     }
   });
   state.itemElCache.clear();
-  state.menuList.innerHTML = '';
+  state.phoneContent.innerHTML = '';
+  state.phoneDock.innerHTML = '';
 
   const allItems = state.itemRegistry.getAll();
-  const groups = groupItemsForRender(allItems);
-
-  if (groups.length === 0) {
-    state.menuList.appendChild(buildEmptyState(state.targetDoc, '暂无菜单项'));
-    return;
-  }
+  const { screenGroups, dockItems } = partitionItemsForRender(allItems);
 
   const ctxBase = makeRenderContextBase();
-  groups.forEach((group) => {
-    const itemEls = [];
-    group.items.forEach((item) => {
-      const { el, sync } = renderItem(state.targetDoc, item, ctxBase);
-      state.itemElCache.set(item.id, { el, sync, destroy: item.destroy });
-      itemEls.push(el);
+
+  // 屏幕区分组
+  if (screenGroups.length === 0 && dockItems.length === 0) {
+    state.phoneContent.appendChild(buildEmptyState(state.targetDoc, '暂无菜单项'));
+  } else if (screenGroups.length === 0) {
+    state.phoneContent.appendChild(buildEmptyState(state.targetDoc, '所有项都在 Dock'));
+  } else {
+    screenGroups.forEach((group) => {
+      const itemEls = [];
+      group.items.forEach((item) => {
+        const { el, sync } = renderItem(state.targetDoc, item, ctxBase);
+        state.itemElCache.set(item.id, { el, sync, destroy: item.destroy });
+        itemEls.push(el);
+      });
+      const groupFrag = buildScreenGroupContainer(
+        state.targetDoc,
+        { groupTitle: group.groupTitle },
+        itemEls
+      );
+      state.phoneContent.appendChild(groupFrag);
     });
-    const groupContainer = buildGroupContainer(
-      state.targetDoc,
-      { groupTitle: group.groupTitle },
-      itemEls
-    );
-    state.menuList.appendChild(groupContainer);
+  }
+
+  // dock 区
+  dockItems.forEach((item) => {
+    const { el, sync } = renderItem(state.targetDoc, item, ctxBase);
+    state.itemElCache.set(item.id, { el, sync, destroy: item.destroy });
+    state.phoneDock.appendChild(el);
   });
 }
 
@@ -173,6 +175,30 @@ function syncOrbBadge() {
   }
 }
 
+function updateStatusBarTime() {
+  if (!state.phoneTime) return;
+  state.phoneTime.textContent = formatStatusBarTime();
+}
+
+function startTimeTicker() {
+  updateStatusBarTime();
+  const now = new Date();
+  // 对齐到下一个整分钟，之后每 60s 刷一次
+  const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+  state.timeTimer = setTimeout(function tick() {
+    updateStatusBarTime();
+    state.timeTimer = setInterval(updateStatusBarTime, 60_000);
+  }, Math.max(500, msToNextMinute));
+}
+
+function stopTimeTicker() {
+  if (state.timeTimer != null) {
+    clearTimeout(state.timeTimer);
+    clearInterval(state.timeTimer);
+    state.timeTimer = null;
+  }
+}
+
 function applyPosition(pos) {
   if (!state.root) return;
   state.root.style.left = `${pos.x}px`;
@@ -187,16 +213,33 @@ function savePosition(pos) {
   }
 }
 
+// 主面板图标 SVG —— 与浮球本体魔法棒呼应
+const ICON_WAND_SVG = `
+  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+    <line x1="6" y1="18" x2="14" y2="10" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M15.5 4 L16.5 7.5 L20 8.5 L16.5 9.5 L15.5 13 L14.5 9.5 L11 8.5 L14.5 7.5 Z" fill="#fff"/>
+  </svg>
+`;
+
+// 紧凑模式图标 —— 闪电
+const ICON_BOLT_SVG = `
+  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+    <path d="M13 2 L4 14 L11 14 L10 22 L20 9 L13 9 Z" fill="currentColor" stroke="none"/>
+  </svg>
+`;
+
 function registerBuiltinItems() {
   const itemRegistry = state.itemRegistry;
 
   itemRegistry.registerItem({
     id: 'open-main-ui',
-    label: '打开主面板',
+    label: '主面板',
     group: 'shortcuts',
-    groupTitle: '快捷入口',
     kind: 'button',
     order: 10,
+    dock: true,
+    icon: ICON_WAND_SVG,
+    iconColor: 'linear-gradient(140deg, #7bb7ff 0%, #4a7ec6 100%)',
     onClick: (ctx) => {
       if (typeof state.openPopupRef === 'function') {
         try { state.openPopupRef(); } catch (err) {
@@ -216,6 +259,8 @@ function registerBuiltinItems() {
     groupTitle: '偏好',
     kind: 'toggle',
     order: 10,
+    icon: ICON_BOLT_SVG,
+    iconColor: 'linear-gradient(140deg, #3a3d4a 0%, #1f2128 100%)',
     getState: () => {
       try {
         return settingsService.getUiSettings()?.compactMode ? 'on' : 'off';
@@ -246,6 +291,8 @@ function subscribeEvents() {
 
 function destroy() {
   if (!state.inited && !state.root) return;
+
+  stopTimeTicker();
 
   state.itemElCache.forEach(({ destroy: itemDestroy }) => {
     if (typeof itemDestroy === 'function') {
@@ -283,7 +330,7 @@ function init(options = {}) {
   const targetDoc = options.targetDocument || document;
   const targetWin = options.targetWindow || window;
 
-  // 重入保护：旧实例先 cleanup
+  // 重入保护
   try {
     if (typeof targetWin[CLEANUP_KEY] === 'function') {
       try { targetWin[CLEANUP_KEY](); } catch (_) {}
@@ -303,7 +350,11 @@ function init(options = {}) {
   state.root = dom.root;
   state.orb = dom.orb;
   state.menu = dom.menu;
-  state.menuList = dom.menuList;
+  state.phoneScreen = dom.phoneScreen;
+  state.phoneContent = dom.phoneContent;
+  state.phoneDock = dom.phoneDock;
+  state.phoneTime = dom.phoneTime;
+  state.dragHandle = dom.dragHandle;
   state.menuClose = dom.menuClose;
   state.badge = dom.badge;
 
@@ -325,6 +376,7 @@ function init(options = {}) {
     onOpen: () => {
       renderList();
       syncAllItems();
+      updateStatusBarTime();
     },
     onClose: () => {},
   });
@@ -332,7 +384,7 @@ function init(options = {}) {
   state.dragController = createDragController({
     root: state.root,
     orb: state.orb,
-    menuHead: dom.menuHead,
+    menuHead: state.dragHandle,
     targetDocument: targetDoc,
     targetWindow: targetWin,
     on: state.cleanupRegistry.on,
@@ -362,7 +414,7 @@ function init(options = {}) {
     },
   });
 
-  // 外部点击关闭（dragging 时短路 —— dash-deck-analysis 改进点 #3）
+  // 外部点击关闭（dragging 时短路）
   state.cleanupRegistry.on(targetDoc, 'click', (e) => {
     if (!state.menuController.isOpen()) return;
     if (state.dragController.isDragging()) return;
@@ -376,7 +428,7 @@ function init(options = {}) {
     state.menuController.close();
   });
 
-  // 窗口尺寸变化 → 重新 clamp + 同步菜单方向
+  // 窗口尺寸变化
   state.cleanupRegistry.on(targetWin, 'resize', () => {
     if (!state.root) return;
     const cur = {
@@ -393,6 +445,7 @@ function init(options = {}) {
   registerBuiltinItems();
   subscribeEvents();
   syncOrbBadge();
+  startTimeTicker();
 
   try { targetWin[CLEANUP_KEY] = destroy; } catch (_) {}
 
