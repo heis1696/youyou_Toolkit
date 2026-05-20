@@ -37,6 +37,7 @@ import { tableIsolation } from '../../table-engine/table-isolation-service.js';
 import { getSheetLockState, setColLock, setRowLock, setCellLock } from '../../table-engine/table-lock-service.js';
 
 import { button, textInput, selectInput, toggle, el } from './controls/index.js';
+import { initAssistantPanel, getAssistantPanelStyles } from './table-assistant-ui.js';
 
 const WINDOW_ID = 'yyt-table-data-editor';
 
@@ -57,6 +58,7 @@ const _state = {
   _pendingMirrorTag: null,
   targetSnapshot: null,
   _afterSaveGlobalAt: 0,
+  _assistantOpen: false,
   // 标记 toolbar 上需要 markDirty/clearDirty 操作的控件引用
   _refs: { saveBtn: null, saveGlobalBtn: null, dirtyBadge: null }
 };
@@ -203,6 +205,23 @@ const STYLES = `
   overflow-y: auto;
   padding: 16px 18px;
   background: var(--tde-canvas);
+}
+
+/* assistant dock */
+.yyt-assistant-dock {
+  flex: 0 0 400px;
+  display: none;
+  flex-direction: column;
+  border-left: 1px solid var(--tde-hairline-strong);
+  background: var(--tde-surface-1);
+  overflow: hidden;
+}
+.yyt-assistant-dock .yyt-assistant-panel {
+  display: flex; flex-direction: column;
+  height: 100%; border: none; border-radius: 0;
+}
+.yyt-assistant-dock .yyt-assistant-chat {
+  flex: 1; min-height: 0; max-height: none;
 }
 
 /* card grid (data mode) */
@@ -530,10 +549,19 @@ function buildToolbar() {
     onClick: handleRunNow
   });
 
+  const assistantBtn = button({
+    label: 'AI 改表助手',
+    icon: '✦',
+    size: 'small',
+    title: '用自然语言修改表结构、AI 指令和配置',
+    onClick: handleToggleAssistant
+  });
+
   right.appendChild(reloadBtn.el);
   right.appendChild(saveBtn.el);
   right.appendChild(saveGlobalBtn.el);
   right.appendChild(runBtn.el);
+  right.appendChild(assistantBtn.el);
 
   root.appendChild(left);
   root.appendChild(right);
@@ -1234,9 +1262,20 @@ function buildEditor() {
   const content = el('div', { className: 'yyt-tde-content' });
   content.appendChild(buildSidebar());
   content.appendChild(buildMainPane());
+
+  // AI 改表助手 dock host（右侧面板，默认隐藏）
+  const dockHost = el('div', { id: 'yyt-assistant-host', className: 'yyt-assistant-dock' });
+  dockHost.style.display = _state._assistantOpen ? 'flex' : 'none';
+  content.appendChild(dockHost);
+  if (_state._assistantOpen) {
+    _pendingAssistantOpen = true;
+  }
+
   root.appendChild(content);
   return root;
 }
+
+let _pendingAssistantOpen = false;
 
 function refresh() {
   if (!_state.$window) return;
@@ -1245,6 +1284,45 @@ function refresh() {
   const bodyEl = $body[0];
   bodyEl.innerHTML = '';
   bodyEl.appendChild(buildEditor());
+  injectAssistantStyles();
+
+  // 首次打开或 refresh 时恢复助手面板
+  if (_pendingAssistantOpen && _state._assistantOpen) {
+    _pendingAssistantOpen = false;
+    const contentEl = bodyEl.querySelector('.yyt-tde-content');
+    const hostEl = contentEl?.querySelector('#yyt-assistant-host');
+    if (contentEl && hostEl) {
+      // 直接激活助手面板（不走 toggle，避免状态冲突）
+      hostEl.style.display = 'flex';
+      initAssistantPanel(() => refresh(), contentEl, () => {
+        _state._assistantOpen = false;
+      });
+    }
+  }
+}
+
+function injectAssistantStyles() {
+  const doc = _state.$window?.[0]?.ownerDocument || document;
+  if (!doc) return;
+  let style = doc.getElementById('yyt-assistant-styles');
+  if (!style) {
+    style = doc.createElement('style');
+    style.id = 'yyt-assistant-styles';
+    (doc.head || doc.documentElement).appendChild(style);
+  }
+  style.textContent = getAssistantPanelStyles();
+}
+
+function handleToggleAssistant() {
+  try {
+    _state._assistantOpen = !_state._assistantOpen;
+    if (_state._assistantOpen) {
+      _pendingAssistantOpen = true;
+    }
+    refresh();
+  } catch (err) {
+    getLog().error('toggleAssistant 异常', err);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1593,6 +1671,10 @@ export function openTableDataEditor(options = {}) {
     if (options.focusMode && ['data', 'schema', 'global'].includes(options.focusMode)) {
       _state.mode = options.focusMode;
     }
+    if (options.openAssistant && !_state._assistantOpen) {
+      _state._assistantOpen = true;
+      _pendingAssistantOpen = true;
+    }
     refresh();
     return _state.$window;
   }
@@ -1605,6 +1687,10 @@ export function openTableDataEditor(options = {}) {
   }
   if (options.focusMode && ['data', 'schema', 'global'].includes(options.focusMode)) {
     _state.mode = options.focusMode;
+  }
+  if (options.openAssistant) {
+    _state._assistantOpen = true;
+    _pendingAssistantOpen = true;
   }
 
   let $win;
@@ -1628,6 +1714,7 @@ export function openTableDataEditor(options = {}) {
           getLog().warn('数据编辑器关闭时有未保存修改');
         }
         _state.$window = null;
+        _state._assistantOpen = false;
         _state._refs = { saveBtn: null, saveGlobalBtn: null, dirtyBadge: null };
       }
     });

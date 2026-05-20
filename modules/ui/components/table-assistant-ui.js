@@ -37,6 +37,7 @@ const DEFAULT_MAX_ROUNDS = 3;
 
 let _containerEl = null;
 let _workbenchRefresh = null;
+let _onExternalClose = null;
 let _isOpen = false;
 let _isGenerating = false;
 let _userInput = '';
@@ -60,6 +61,8 @@ function resetState() {
     _guardController.invalidate();
   }
   _guardController = null;
+  _onExternalClose = null;
+  _containerEl = null;
   _transcript = [];
 }
 
@@ -435,6 +438,7 @@ function handleClose() {
   _isOpen = false;
   const host = getHostElement();
   if (host) host.style.display = 'none';
+  if (typeof _onExternalClose === 'function') _onExternalClose();
 }
 
 function buildPriorTurns() {
@@ -467,7 +471,7 @@ export function toggleAssistant(workbenchRefresh, containerEl) {
     ensureHost(workbenchRefresh);
     const host = getHostElement();
     if (host) {
-      host.style.display = 'block';
+      host.style.display = 'flex';
       refreshPanel();
     }
   } else {
@@ -476,10 +480,22 @@ export function toggleAssistant(workbenchRefresh, containerEl) {
   }
 }
 
+/**
+ * 非切换式初始化：由数据编辑器调用，直接设置容器和回调并渲染面板。
+ * 不修改 _isOpen 状态（由调用方管理 display）。
+ */
+export function initAssistantPanel(workbenchRefresh, containerEl, onExternalClose) {
+  if (containerEl) _containerEl = containerEl;
+  if (typeof workbenchRefresh === 'function') _workbenchRefresh = workbenchRefresh;
+  _onExternalClose = onExternalClose || null;
+  _isOpen = true;
+  refreshPanel();
+}
+
 function ensureHost(workbenchRefresh) {
-  const container = _containerEl || _getTopDoc().querySelector('.yyt-tww-scroll') || _getTopDoc().querySelector('.yyt-tww');
+  const container = _containerEl || _getTopDoc().querySelector('.yyt-tde-content') || _getTopDoc().querySelector('.yyt-tww-scroll') || _getTopDoc().querySelector('.yyt-tww');
   if (!container) {
-    log.warn('ensureHost: 找不到工作台容器');
+    log.warn('ensureHost: 找不到容器');
     return;
   }
 
@@ -495,7 +511,9 @@ function ensureHost(workbenchRefresh) {
 
 export function getAssistantPanelStyles() {
   return `
-    #yyt-assistant-host { margin-top: 12px; }
+    /* inline mode (fallback, when not docked) */
+    #yyt-assistant-host:not(.yyt-assistant-dock) { margin-top: 12px; }
+    /* shared panel styles */
     .yyt-assistant-panel {
       border: 1px solid var(--yyt-border-strong);
       border-radius: var(--yyt-radius-lg);

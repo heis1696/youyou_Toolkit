@@ -9,6 +9,22 @@
 
 ## [Unreleased]
 
+### feat: AI 改表助手 (G3) 功能补全 — prompt 增强 + 迁移到数据编辑器侧边 dock
+
+**system prompt 增强** (`modules/table-engine/table-assistant-service.js`)：
+- 追加 youyou keyed 数据模型完整语义描述（表格/列/行/aiInstructions/exportConfig/工作台配置字段值域）
+- 追加 3 个 JSON 操作示例（add_table / patch_table_ai_instructions / patch_table_columns）
+- 追加常见陷阱段（columnKey 自动派生、rowId 不透明、cells 值为字符串等）
+- 修正 entryType 枚举为 `constant | keyword`（原错误写成 constant_dice / script）
+
+**助手 UI 迁移到数据编辑器窗口侧边**：
+- `modules/ui/components/table-data-editor-window.js` — 新增右侧 dock 区域 (flex 0 0 400px) + toolbar "AI 改表助手" 按钮 + dock CSS + 助手开关状态管理
+- `modules/ui/components/table-assistant-ui.js` — 新增 `initAssistantPanel()` 非切换式初始化 + `onExternalClose` 回调同步状态 + ensureHost 优先查找 `.yyt-tde-content`
+- `modules/ui/components/table-workbench-window.js` — 工作台 "AI 改表助手" 按钮改为打开数据编辑器并自动激活助手 dock
+
+**compiler 校验加固** (`modules/table-engine/table-assistant-compiler.js`)：
+- `applyPatchExportConfig` 新增 entryType 枚举校验（constant | keyword），拒绝非法值
+
 ### fix：数据编辑器窗口不可拖拽/不可 resize/尺寸偏小
 
 **根因**：`window-manager.js` v1.0.179 hotfix 只修了 DOM 挂载点（`appendChild` 到父文档），但拖拽/resize 的 `mousemove`/`mouseup` 事件仍绑在 `$(document)`（iframe 的 document），视口尺寸仍读 `window.innerWidth/Height`（iframe 视口）。窗口 DOM 在父文档，鼠标事件在 iframe，两者不连通。

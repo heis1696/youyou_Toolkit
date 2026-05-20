@@ -420,6 +420,9 @@ function applyPatchExportConfig(config, op, diff) {
     if (!allowedKeys.has(key)) throw new Error(`patch_table_export_config.patch 包含未知字段: ${key}`);
   });
   Object.entries(op.patch).forEach(([key, value]) => {
+    if (key === 'entryType' && !['constant', 'keyword'].includes(value)) {
+      throw new Error(`patch_table_export_config.entryType 必须为 constant 或 keyword，收到: ${value}`);
+    }
     table.exportConfig[key] = cloneAssistantValue(value);
   });
   const keys = Object.keys(op.patch);
