@@ -2965,324 +2965,484 @@
 }
 
 /* ============================================================
-   Settings Panel — Flat Flow（对齐填表工作台风格）
+   Settings Panel — v3.0（对标填表工作台 .yyt-tww-* / 工具配置面板）
    ============================================================ */
 
 .yyt-settings-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 0;
+  overflow: hidden;
+  background: transparent;
 }
 
-/* ── Hero：透明、左对齐，底部 hairline 分隔 ── */
+/* ── Hero：填表工作台同款（surface bg + actions 在右） ── */
 .yyt-settings-hero {
+  flex-shrink: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--yyt-border);
+  background: var(--yyt-surface);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 0 0 14px 0;
-  border-bottom: 1px solid var(--yyt-border);
-  margin-bottom: 14px;
+  gap: 8px;
 }
 
 .yyt-settings-hero-row1 {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .yyt-settings-hero-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--yyt-radius-sm);
   background: var(--yyt-accent-soft);
   color: var(--yyt-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
 .yyt-settings-hero-name {
-  font-size: 14px;
+  flex: 1;
+  font-size: 15px;
   font-weight: 700;
   color: var(--yyt-text);
+  min-width: 0;
+}
+
+.yyt-settings-hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .yyt-settings-hero-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--yyt-text-muted);
-  padding-left: 38px;
-  line-height: 1.5;
+  padding-left: 42px;
+  line-height: 1.6;
 }
 
-/* ── Tab Group ── */
-.yyt-tab-group {
+.yyt-settings-hero-chips {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: var(--yyt-radius-sm);
-  background: var(--yyt-surface-2);
-  border: 1px solid var(--yyt-border);
-  width: fit-content;
-  max-width: 100%;
+  gap: 6px;
   flex-wrap: wrap;
-  box-shadow: none;
-  margin-bottom: 14px;
+  padding-left: 42px;
 }
 
-.yyt-tab-group-item {
+.yyt-settings-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  background: var(--yyt-surface-2);
+  color: var(--yyt-text-muted);
+}
+
+.yyt-settings-chip.mode {
+  background: rgba(167, 139, 250, 0.12);
+  color: #a78bfa;
+}
+
+.yyt-settings-chip.preset {
+  background: var(--yyt-accent-soft);
+  color: var(--yyt-accent);
+}
+
+/* ── Tabs：underline 风格 ── */
+.yyt-settings-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0;
+  padding: 0 18px;
+  background: var(--yyt-surface);
+  border-bottom: 1px solid var(--yyt-border);
+}
+
+.yyt-settings-tab {
+  position: relative;
+  padding: 11px 14px;
+  background: transparent;
+  border: none;
+  color: var(--yyt-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
-  border-radius: var(--yyt-radius-sm);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--yyt-text-secondary);
-  cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
-  font-weight: 600;
-  font-size: 12px;
-  box-shadow: none;
+  transition: color 0.12s ease;
   font-family: inherit;
 }
 
-.yyt-tab-group-item:hover {
+.yyt-settings-tab:hover {
   color: var(--yyt-text);
-  background: var(--yyt-surface-3);
 }
 
-.yyt-tab-group-item.yyt-active {
-  color: var(--yyt-on-accent);
+.yyt-settings-tab.yyt-active {
+  color: var(--yyt-accent);
+}
+
+.yyt-settings-tab.yyt-active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
   background: var(--yyt-accent);
-  box-shadow: none;
+  border-radius: 2px 2px 0 0;
 }
 
-/* ── Content scroll area ── */
-.yyt-settings-content {
+/* ── Scroll area ── */
+.yyt-settings-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding-right: 4px;
 }
 
-.yyt-settings-tab-content {
+.yyt-settings-body {
+  padding: 0 18px 22px;
+}
+
+.yyt-settings-tab-pane {
   display: none;
   flex-direction: column;
 }
 
-.yyt-settings-tab-content.yyt-active {
+.yyt-settings-tab-pane.yyt-active {
   display: flex;
 }
 
-/* ── Section：扁平流，无背景框 ── */
+/* ── Section（对标 .yyt-tww-section） ── */
 .yyt-settings-section {
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
+  padding-top: 22px;
 }
 
-/* 覆盖全局 .yyt-flow-section + .yyt-flow-section 规则 */
-.yyt-settings-tab-content > .yyt-settings-section + .yyt-settings-section {
-  margin-top: 18px;
+.yyt-settings-tab-pane > .yyt-settings-section:first-child {
   padding-top: 18px;
+}
+
+.yyt-settings-section + .yyt-settings-section {
+  margin-top: 22px;
   border-top: 1px solid var(--yyt-border);
 }
 
-/* Section heading 微调 */
-.yyt-settings-section > .yyt-flow-heading {
-  margin-bottom: 8px;
-}
-
-/* ── 表单 Row：label 左 / 控件右 / hint 跨列 ── */
-.yyt-settings-section .yyt-form-group {
-  display: grid;
-  grid-template-columns: minmax(132px, 176px) minmax(220px, 1fr);
-  gap: 6px 16px;
+.yyt-settings-section-heading {
+  display: flex;
   align-items: center;
-  padding: 12px 0;
-  margin: 0;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--yyt-text);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
-.yyt-settings-section .yyt-form-group > label {
+.yyt-settings-section-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--yyt-radius-sm);
+  background: var(--yyt-accent-soft);
+  color: var(--yyt-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.yyt-settings-section-action {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+/* ── Stat Row（对标 .yyt-tww-stat-row 的 4 列竖线） ── */
+.yyt-settings-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 12px;
+  padding: 4px 0;
+}
+
+.yyt-settings-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-left: 1px solid var(--yyt-border);
+  padding-left: 14px;
+}
+
+.yyt-settings-stat:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.yyt-settings-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--yyt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.yyt-settings-stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--yyt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.yyt-settings-stat-value.success { color: var(--yyt-success); }
+.yyt-settings-stat-value.error { color: var(--yyt-error); }
+.yyt-settings-stat-value.muted { color: var(--yyt-text-muted); }
+
+/* ── Row（对标 .yyt-tww-row） ── */
+.yyt-settings-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.yyt-settings-row + .yyt-settings-row,
+.yyt-settings-row + .yyt-settings-toggle-row,
+.yyt-settings-toggle-row + .yyt-settings-row,
+.yyt-settings-toggle-row + .yyt-settings-toggle-row,
+.yyt-settings-row + .yyt-settings-row-double,
+.yyt-settings-row-double + .yyt-settings-row,
+.yyt-settings-row-double + .yyt-settings-row-double,
+.yyt-settings-row-double + .yyt-settings-toggle-row,
+.yyt-settings-toggle-row + .yyt-settings-row-double {
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.yyt-settings-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yyt-settings-row-label-text {
   font-size: 12px;
   font-weight: 600;
   color: var(--yyt-text-secondary);
-  letter-spacing: 0;
-  text-transform: none;
-  margin: 0;
 }
 
-/* hint 跨两列、在控件下方 */
-.yyt-settings-section .yyt-form-group > .yyt-form-hint {
-  grid-column: 1 / -1;
+.yyt-settings-row-label-hint {
+  font-size: 10px;
+  color: var(--yyt-text-muted);
+}
+
+/* ── Row Double（label + 双输入框横排） ── */
+.yyt-settings-row-double {
+  display: grid;
+  grid-template-columns: 200px 1fr 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.yyt-settings-row-double-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yyt-settings-row-double-cell-label {
+  font-size: 11px;
+  color: var(--yyt-text-muted);
+  white-space: nowrap;
+}
+
+/* ── Toggle Row（对标 .yyt-tww-toggle-row） ── */
+.yyt-settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  gap: 16px;
+}
+
+.yyt-settings-toggle-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.yyt-settings-toggle-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--yyt-text-secondary);
+}
+
+.yyt-settings-toggle-desc {
   font-size: 10px;
   color: var(--yyt-text-muted);
   margin-top: 2px;
-  padding-left: 0;
-  order: 2;
 }
 
-/* 控件占第二列 */
-.yyt-settings-section .yyt-form-group > .yyt-input,
-.yyt-settings-section .yyt-form-group > .yyt-select,
-.yyt-settings-section .yyt-form-group > input,
-.yyt-settings-section .yyt-form-group > select,
-.yyt-settings-section .yyt-form-group > div:not(.yyt-form-hint):not(.yyt-settings-two-column-row) {
-  grid-column: 2;
+/* settings panel 内的 toggle 控件回到紧凑尺寸（覆盖 main.css 默认 52×30） */
+.yyt-settings-toggle-row > .yyt-toggle {
+  width: 34px;
+  height: 18px;
+  align-self: center;
 }
 
-/* form-group 之间 dashed hairline */
-.yyt-settings-section .yyt-form-group + .yyt-form-group,
-.yyt-settings-section .yyt-form-group + .yyt-toggle-row,
-.yyt-settings-section .yyt-toggle-row + .yyt-form-group,
-.yyt-settings-section .yyt-toggle-row + .yyt-toggle-row,
-.yyt-settings-section .yyt-settings-two-column-row + .yyt-form-group,
-.yyt-settings-section .yyt-form-group + .yyt-settings-two-column-row,
-.yyt-settings-section .yyt-settings-two-column-row + .yyt-settings-two-column-row {
-  border-top: 1px dashed var(--yyt-border-soft);
-}
-
-/* 同行两控件：等分 + center 对齐 */
-.yyt-settings-section .yyt-settings-two-column-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
-  padding: 12px 0;
-}
-
-.yyt-settings-section .yyt-settings-two-column-row > .yyt-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 0;
-  border-top: none !important;
-}
-
-.yyt-settings-section .yyt-settings-two-column-row > .yyt-form-group > label {
-  margin-bottom: 0;
-}
-
-.yyt-settings-section .yyt-settings-two-column-row > .yyt-form-group > div:not(.yyt-form-hint) {
-  width: 100%;
-}
-
-.yyt-settings-section .yyt-settings-section-note {
-  padding: 8px 0 10px;
-  margin: 0;
-  border-bottom: 1px dashed var(--yyt-border-soft);
-}
-
-/* Toggle row 沿用 toggle-row 样式 */
-.yyt-settings-section .yyt-toggle-row {
-  padding: 10px 0;
-  margin: 0;
-}
-
-/* ── Footer ── */
-.yyt-settings-footer {
-  padding-top: 14px;
-  margin-top: 14px;
-  border-top: 1px solid var(--yyt-border);
-}
-
-.yyt-settings-footer-toolbar {
-  width: 100%;
-}
-
-/* ── Runtime 诊断 ── */
-.yyt-settings-runtime-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.yyt-settings-runtime-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  border: 1px solid var(--yyt-border-strong);
-  background: var(--yyt-surface-3);
-  color: var(--yyt-text);
+.yyt-settings-toggle-row > .yyt-toggle .yyt-toggle-slider {
   box-shadow: none;
 }
 
-.yyt-settings-runtime-chip.is-on {
-  color: var(--yyt-success);
-  border-color: var(--yyt-success-glow);
-  background: var(--yyt-accent-soft);
+.yyt-settings-toggle-row > .yyt-toggle .yyt-toggle-slider::before {
+  width: 14px;
+  height: 14px;
+  left: 1px;
+  bottom: 1px;
 }
 
-.yyt-settings-runtime-chip.is-off {
-  color: var(--yyt-danger);
-  border-color: var(--yyt-error-glow);
-  background: var(--yyt-danger-soft);
+.yyt-settings-toggle-row > .yyt-toggle input:checked + .yyt-toggle-slider::before {
+  transform: translateX(16px);
 }
 
-.yyt-settings-runtime-chip.is-neutral {
-  color: var(--yyt-text);
-}
-
-.yyt-settings-runtime-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 11px;
-  color: var(--yyt-text-secondary);
-}
-
-.yyt-settings-runtime-main {
+/* settings 控件统一紧凑尺寸（对标 .yyt-tww-ctrl） */
+.yyt-settings-row > .yyt-input,
+.yyt-settings-row > .yyt-select,
+.yyt-settings-row-double-cell > .yyt-input,
+.yyt-settings-row-double-cell > .yyt-select {
+  min-height: 32px;
+  padding: 6px 10px;
   font-size: 12px;
-  color: var(--yyt-text);
-  line-height: 1.5;
-  word-break: break-word;
+  width: 100%;
 }
 
-.yyt-settings-panel .yyt-list-table {
-  display: flex;
-  flex-direction: column;
-  border: none;
-  border-radius: 0;
-  overflow: visible;
+.yyt-settings-row-double-cell > .yyt-input {
+  flex: 1;
 }
 
-.yyt-settings-panel .yyt-list-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 200px) minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  padding: 8px 0;
-  background: transparent;
-  border-bottom: 1px dashed var(--yyt-border-soft);
+.yyt-settings-row > select.yyt-select,
+.yyt-settings-row-double-cell > select.yyt-select {
+  padding-right: 28px;
+  background-size: 10px;
+  background-position: right 10px center;
 }
 
-.yyt-settings-panel .yyt-list-row:last-child {
+/* ── Hint Note ── */
+.yyt-settings-hint-note {
+  font-size: 11px;
+  color: var(--yyt-text-muted);
+  line-height: 1.6;
+  padding: 8px 0 10px;
+  margin: 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.yyt-settings-hint-note:last-child {
   border-bottom: none;
 }
 
-.yyt-settings-panel .yyt-list-row:hover {
-  background: transparent;
-}
-
-.yyt-settings-panel .yyt-list-row code {
+.yyt-settings-hint-note code {
   color: var(--yyt-accent-strong);
-  word-break: break-word;
-  font-weight: 800;
+  background: var(--yyt-surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
 }
 
-.yyt-settings-panel .yyt-list-row span {
+/* ── Runtime List（自动触发诊断事务记录） ── */
+.yyt-runtime-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.yyt-runtime-list-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(60px, 90px) minmax(110px, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  align-items: baseline;
+}
+
+.yyt-runtime-list-row:first-child {
+  border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-runtime-event {
+  color: var(--yyt-accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.yyt-runtime-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: var(--yyt-surface-2);
+  color: var(--yyt-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.yyt-runtime-phase.success {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--yyt-success);
+}
+
+.yyt-runtime-phase.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--yyt-error);
+}
+
+.yyt-runtime-main {
+  color: var(--yyt-text-muted);
+  word-break: break-word;
+}
+
+/* ── Macro List（模板宏说明） ── */
+.yyt-macro-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.yyt-macro-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  align-items: baseline;
+}
+
+.yyt-macro-row:first-child {
+  border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-macro-row code {
+  color: var(--yyt-accent-strong);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.yyt-macro-row span {
   color: var(--yyt-text-secondary);
   font-size: 12px;
-  line-height: 1.5;
-}
-
-.yyt-settings-panel .yyt-list-row:has(.yyt-settings-runtime-meta) {
-  grid-template-columns: 1fr;
 }
