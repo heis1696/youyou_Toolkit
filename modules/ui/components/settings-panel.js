@@ -206,17 +206,31 @@ function applyUiPreferences(uiSettings = {}, targetDocument = getTargetDocument(
 
 function buildHero(settings) {
   const debugEnabled = settings.debug?.enableDebugLog === true;
-  const heroCopy = el('div', { className: 'yyt-settings-hero-copy' });
-  heroCopy.appendChild(el('div', { className: 'yyt-settings-hero-title', text: '设置' }));
 
-  const statusArea = el('div', { className: 'yyt-settings-hero-status' });
-  const debugChipClass = debugEnabled ? 'yyt-settings-status-chip is-on' : 'yyt-settings-status-chip is-off';
-  statusArea.appendChild(el('span', { className: debugChipClass, text: `调试 ${debugEnabled ? 'ON' : 'OFF'}` }));
-  statusArea.appendChild(el('span', { className: 'yyt-settings-status-chip is-neutral', text: `${settings.ui?.theme || 'dark-blue'}` }));
+  // row1: icon + name
+  const row1 = el('div', { className: 'yyt-settings-hero-row1' });
+  row1.appendChild(el('div', { className: 'yyt-settings-hero-icon', html: '<i class="fa-solid fa-sliders"></i>' }));
+  row1.appendChild(el('div', { className: 'yyt-settings-hero-name', text: '全局设置' }));
+
+  // desc
+  const desc = el('div', { className: 'yyt-settings-hero-desc', text: '管理执行器、自动化、调试与外观偏好。' });
+
+  // chips
+  const chips = el('div', { className: 'yyt-settings-hero-chips' });
+  const debugChipClass = debugEnabled ? 'yyt-settings-chip yyt-settings-chip--success' : 'yyt-settings-chip yyt-settings-chip--error';
+  chips.appendChild(el('span', { className: debugChipClass, text: `调试 ${debugEnabled ? 'ON' : 'OFF'}` }));
+  chips.appendChild(el('span', { className: 'yyt-settings-chip', text: `${settings.ui?.theme || 'dark-blue'}` }));
+  if (settings.ui?.compactMode) {
+    chips.appendChild(el('span', { className: 'yyt-settings-chip', text: '紧凑' }));
+  }
+  if (settings.ui?.animationEnabled === false) {
+    chips.appendChild(el('span', { className: 'yyt-settings-chip', text: '无动画' }));
+  }
 
   const hero = el('div', { className: 'yyt-settings-hero' });
-  hero.appendChild(heroCopy);
-  hero.appendChild(statusArea);
+  hero.appendChild(row1);
+  hero.appendChild(desc);
+  hero.appendChild(chips);
   return hero;
 }
 

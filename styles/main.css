@@ -2975,75 +2975,76 @@
   gap: 10px;
 }
 
-/* Hero: 单行紧凑标题 + 状态 pill */
+/* Hero: icon + name / desc / chips */
 .yyt-settings-hero {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
   border-radius: var(--yyt-radius);
   background: var(--yyt-surface-2);
   border: 1px solid var(--yyt-border);
 }
 
-.yyt-settings-hero-copy {
+.yyt-settings-hero-row1 {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  min-width: 0;
 }
 
-.yyt-settings-hero-title {
+.yyt-settings-hero-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--yyt-accent-soft);
+  color: var(--yyt-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.yyt-settings-hero-name {
   font-size: 14px;
   font-weight: 700;
   color: var(--yyt-text);
-  white-space: nowrap;
 }
 
 .yyt-settings-hero-desc {
   font-size: 11px;
-  line-height: 1.5;
+  color: var(--yyt-text-muted);
+  padding-left: 38px;
+}
+
+.yyt-settings-hero-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-left: 38px;
+}
+
+.yyt-settings-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  background: var(--yyt-surface-3);
   color: var(--yyt-text-muted);
 }
 
-.yyt-settings-hero-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
-
-.yyt-settings-status-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  border: 1px solid var(--yyt-border-strong);
-  letter-spacing: 0.3px;
-  color: var(--yyt-text);
-  background: var(--yyt-surface-3);
-  box-shadow: none;
-}
-
-.yyt-settings-status-chip.is-on {
-  color: #4ade80;
-  border-color: rgba(74, 222, 128, 0.25);
+.yyt-settings-chip--success {
   background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
 }
 
-.yyt-settings-status-chip.is-off {
-  color: #f87171;
-  border-color: rgba(248, 113, 113, 0.25);
+.yyt-settings-chip--error {
   background: rgba(248, 113, 113, 0.12);
-}
-
-.yyt-settings-status-chip.is-neutral {
-  color: var(--yyt-text);
+  color: #f87171;
 }
 
 /* Tab Group */
