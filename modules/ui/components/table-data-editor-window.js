@@ -1265,7 +1265,7 @@ function buildEditor() {
   content.appendChild(buildMainPane());
 
   // AI 改表助手 dock host（右侧面板，默认隐藏）
-  const dockHost = el('div', { id: 'yyt-assistant-host', className: 'yyt-assistant-dock' });
+  const dockHost = el('div', { attrs: { id: 'yyt-assistant-host' }, className: 'yyt-assistant-dock' });
   dockHost.style.display = _state._assistantOpen ? 'flex' : 'none';
   content.appendChild(dockHost);
 
