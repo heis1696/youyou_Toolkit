@@ -2972,18 +2972,15 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 10px;
+  gap: 0;
 }
 
-/* Hero: icon + name / desc / chips */
+/* Hero: icon + name / desc / chips — 透明背景，无框 */
 .yyt-settings-hero {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: var(--yyt-radius);
-  background: var(--yyt-surface-2);
-  border: 1px solid var(--yyt-border);
+  gap: 4px;
+  padding-bottom: 10px;
 }
 
 .yyt-settings-hero-row1 {
@@ -3033,7 +3030,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  background: var(--yyt-surface-3);
+  background: var(--yyt-surface-2);
   color: var(--yyt-text-muted);
 }
 
@@ -3059,6 +3056,7 @@
   max-width: 100%;
   flex-wrap: wrap;
   box-shadow: none;
+  margin-bottom: 10px;
 }
 
 .yyt-tab-group-item {
@@ -3098,8 +3096,8 @@
 
 /* Override flowSection spacing inside settings */
 .yyt-settings-content .yyt-flow-section + .yyt-flow-section {
-  margin-top: 14px;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
 }
 
 .yyt-settings-content .yyt-form-group {
