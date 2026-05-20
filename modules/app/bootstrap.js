@@ -64,6 +64,7 @@ export function createBootstrap(context, options = {}) {
         modules.toolAutomationServiceModule = await import('../tool-automation-service.js');
         modules.toolDataProviderModule = await import('../core/tool-data-provider.js');
         modules.presetBootstrapModule = await import('../preset-bootstrap.js');
+        modules.floatingBallModule = await import('../ui/floating-ball/index.js');
 
         // Provider 异步初始化（探测 Authority / Fallback），不阻塞模块加载
         try {
@@ -254,6 +255,18 @@ export function createBootstrap(context, options = {}) {
       });
     } else {
       setTimeout(addMenuItem, 1000);
+    }
+
+    if (modules.floatingBallModule?.floatingBall) {
+      try {
+        modules.floatingBallModule.floatingBall.init({
+          targetDocument: topLevelWindow.document || document,
+          targetWindow: topLevelWindow || window,
+          openPopup: options.openPopup,
+        });
+      } catch (fbError) {
+        logError('浮球初始化失败:', fbError);
+      }
     }
 
     log('初始化完成');

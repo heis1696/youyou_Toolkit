@@ -39,6 +39,21 @@ export function createPublicApi(context, services = {}) {
     getToolOutputService: () => modules.toolOutputServiceModule,
     getToolAutomationService: () => modules.toolAutomationServiceModule,
     getDataProvider: () => modules.toolDataProviderModule?.getCurrentProvider?.() || null,
+    get floatingBall() {
+      const fb = modules.floatingBallModule?.floatingBall;
+      if (!fb) return null;
+      return {
+        isReady: () => fb.isReady?.() || false,
+        registerItem: (item) => fb.registerItem?.(item),
+        unregisterItem: (id) => fb.unregisterItem?.(id),
+        updateItem: (id, partial) => fb.updateItem?.(id, partial),
+        refresh: (id) => fb.refresh?.(id),
+        setVisible: (visible) => fb.setVisible?.(visible),
+        openMenu: () => fb.openMenu?.(),
+        closeMenu: () => fb.closeMenu?.(),
+        toggleMenu: (open) => fb.toggleMenu?.(open),
+      };
+    },
     async getDataProviderAsync() {
       await loadModules();
       return modules.toolDataProviderModule?.getToolDataProvider?.() || null;

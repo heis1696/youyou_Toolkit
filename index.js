@@ -44,7 +44,8 @@ const appContext = {
     toolPromptServiceModule: null,
     toolOutputServiceModule: null,
     toolAutomationServiceModule: null,
-    toolDataProviderModule: null
+    toolDataProviderModule: null,
+    floatingBallModule: null
   },
   caches: {
     dynamicToolPanelCache: new Map()
