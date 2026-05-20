@@ -207,13 +207,12 @@ function applyUiPreferences(uiSettings = {}, targetDocument = getTargetDocument(
 function buildHero(settings) {
   const debugEnabled = settings.debug?.enableDebugLog === true;
   const heroCopy = el('div', { className: 'yyt-settings-hero-copy' });
-  heroCopy.appendChild(el('div', { className: 'yyt-settings-hero-title', text: '全局偏好与运行策略' }));
-  heroCopy.appendChild(el('div', { className: 'yyt-settings-hero-desc', text: '统一管理执行器、自动化、调试与外观设置，让工具链行为与界面体验保持一致。' }));
+  heroCopy.appendChild(el('div', { className: 'yyt-settings-hero-title', text: '设置' }));
 
   const statusArea = el('div', { className: 'yyt-settings-hero-status' });
   const debugChipClass = debugEnabled ? 'yyt-settings-status-chip is-on' : 'yyt-settings-status-chip is-off';
-  statusArea.appendChild(el('span', { className: debugChipClass, text: `调试 ${debugEnabled ? '开启' : '关闭'}` }));
-  statusArea.appendChild(el('span', { className: 'yyt-settings-status-chip is-neutral', text: `主题 ${settings.ui?.theme || 'dark-blue'}` }));
+  statusArea.appendChild(el('span', { className: debugChipClass, text: `调试 ${debugEnabled ? 'ON' : 'OFF'}` }));
+  statusArea.appendChild(el('span', { className: 'yyt-settings-status-chip is-neutral', text: `${settings.ui?.theme || 'dark-blue'}` }));
 
   const hero = el('div', { className: 'yyt-settings-hero' });
   hero.appendChild(heroCopy);
