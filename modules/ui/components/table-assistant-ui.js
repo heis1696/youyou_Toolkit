@@ -16,7 +16,6 @@ import { getTableWorkbenchConfig, saveTableWorkbenchConfig } from '../../table-e
 import { cloneTableValue } from '../../table-engine/table-types.js';
 import { normalizePositiveInt } from '../../table-engine/table-assistant-types.js';
 import { getPresetNames } from '../../preset-manager.js';
-import { button, selectInput, textInput, toolbar } from './controls/index.js';
 
 const log = logger.createScope('TableAssistantUI');
 
@@ -46,7 +45,6 @@ let _apiPreset = '';
 let _guardController = null;
 let _transcript = [];
 let _runningSessionId = 0;
-let _mountedPrefabControls = [];
 
 function generateTurnId() {
   return `turn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -188,7 +186,14 @@ function getPresetOptions() {
   ];
 }
 
+function renderPresetOptions() {
+  return getPresetOptions()
+    .map((item) => `<option value="${escHtml(item.value)}" ${String(item.value) === _apiPreset ? 'selected' : ''}>${escHtml(item.label)}</option>`)
+    .join('');
+}
+
 function renderAssistantPanelHtml() {
+  const disabled = _isGenerating || !_userInput.trim();
   return `
     <div id="yyt-assistant-panel" class="yyt-assistant-panel">
       <div class="yyt-assistant-header">
@@ -196,15 +201,27 @@ function renderAssistantPanelHtml() {
           <div class="yyt-assistant-title">AI 改表助手</div>
           <div class="yyt-assistant-hint">当前表：${escHtml(getCurrentTableLabel())}</div>
         </div>
-        <div id="yyt-assistant-close-slot"></div>
+        <button class="yyt-btn yyt-btn-secondary yyt-btn-small" type="button" data-action="close-assistant">关闭</button>
       </div>
       <div class="yyt-assistant-chat">
         ${renderTranscriptHtml()}
       </div>
       <div class="yyt-assistant-footer">
-        <div id="yyt-assistant-control-slot" class="yyt-assistant-controls"></div>
+        <div id="yyt-assistant-control-slot" class="yyt-assistant-controls">
+          <label class="yyt-assistant-inline-field" for="yyt-assistant-preset">
+            <span>API 预设</span>
+            <select class="yyt-select yyt-assistant-preset-select" id="yyt-assistant-preset">${renderPresetOptions()}</select>
+          </label>
+          <label class="yyt-assistant-inline-field" for="yyt-assistant-max-rounds">
+            <span>最大轮次</span>
+            <input class="yyt-input yyt-assistant-rounds-input" id="yyt-assistant-max-rounds" type="number" min="1" value="${escHtml(_maxRoundsInput)}">
+          </label>
+        </div>
         <textarea class="yyt-textarea yyt-assistant-textarea" id="yyt-assistant-input" placeholder="例如：新增一张战利品表，关闭背包物品表的独立导出。">${escHtml(_userInput)}</textarea>
-        <div id="yyt-assistant-action-slot" class="yyt-assistant-actions"></div>
+        <div class="yyt-assistant-actions">
+          <button class="yyt-btn yyt-btn-primary" id="yyt-assistant-send" type="button" ${disabled ? 'disabled' : ''}>${_isGenerating ? '生成中...' : '发送'}</button>
+          <button class="yyt-btn yyt-btn-small" id="yyt-assistant-stop" type="button" ${!_isGenerating ? 'disabled' : ''}>停止</button>
+        </div>
       </div>
     </div>
   `;
@@ -226,120 +243,27 @@ function refreshPanel() {
   bindPanelEvents();
 }
 
-function clearMountedPrefabControls() {
-  for (const ctrl of _mountedPrefabControls) {
-    try { ctrl?.destroy?.(); } catch (err) { console.error('[TableAssistantUI] prefab destroy 异常', err); }
-  }
-  _mountedPrefabControls = [];
-}
-
-function trackPrefabControl(ctrl) {
-  if (ctrl) _mountedPrefabControls.push(ctrl);
-  return ctrl;
-}
-
-function mountPrefabControls(host) {
-  clearMountedPrefabControls();
-  const closeSlot = host.querySelector('#yyt-assistant-close-slot');
-  if (closeSlot) {
-    const closeButton = trackPrefabControl(button({
-      label: '关闭',
-      size: 'small',
-      variant: 'ghost',
-      onClick: handleClose,
-    }));
-    closeSlot.replaceChildren(closeButton.el);
-  }
-
-  const controlSlot = host.querySelector('#yyt-assistant-control-slot');
-  if (controlSlot) {
-    const presetSelect = selectInput({
-      id: 'assistantPreset',
-      options: getPresetOptions(),
-      value: _apiPreset,
-      onChange: (value) => {
-        _apiPreset = value || '';
-      },
-      className: 'yyt-assistant-preset-select',
-    });
-    const maxRoundsInput = textInput({
-      id: 'assistantMaxRounds',
-      type: 'number',
-      value: _maxRoundsInput,
-      onInput: (value) => {
-        _maxRoundsInput = value || String(DEFAULT_MAX_ROUNDS);
-      },
-      className: 'yyt-assistant-rounds-input',
-      attrs: { min: '1' },
-    });
-
-    const presetField = createInlineField('API 预设', presetSelect);
-    const maxRoundsField = createInlineField('最大轮次', maxRoundsInput);
-    const controls = trackPrefabControl(toolbar({
-      items: [presetField, maxRoundsField],
-      gap: '10px',
-      wrap: true,
-      className: 'yyt-assistant-control-toolbar',
-    }));
-    controlSlot.replaceChildren(controls.el);
-  }
-
-  const actionSlot = host.querySelector('#yyt-assistant-action-slot');
-  if (actionSlot) {
-    const actions = trackPrefabControl(toolbar({
-      items: [
-        button({
-          id: 'assistantSend',
-          label: _isGenerating ? '生成中...' : '发送',
-          variant: 'primary',
-          disabled: _isGenerating || !_userInput.trim(),
-          onClick: handleSend,
-          attrs: { id: 'yyt-assistant-send' },
-        }),
-        button({
-          id: 'assistantStop',
-          label: '停止',
-          size: 'small',
-          disabled: !_isGenerating,
-          onClick: handleStop,
-          attrs: { id: 'yyt-assistant-stop' },
-        }),
-      ],
-      gap: '8px',
-      wrap: false,
-    }));
-    actionSlot.replaceChildren(actions.el);
-  }
-}
-
-function createInlineField(labelText, control) {
-  const doc = _getTopDoc();
-  const wrap = doc.createElement('label');
-  wrap.className = 'yyt-assistant-inline-field';
-  const label = doc.createElement('span');
-  label.textContent = labelText;
-  wrap.appendChild(label);
-  wrap.appendChild(control.el);
-  return {
-    el: wrap,
-    destroy: () => {
-      control.destroy?.();
-      wrap.remove();
-    },
-  };
-}
-
 function bindPanelEvents() {
   const host = getHostElement();
   if (!host) return;
-
-  mountPrefabControls(host);
 
   host.querySelector('#yyt-assistant-input')?.addEventListener('input', (e) => {
     _userInput = e.target.value || '';
     const sendBtn = host.querySelector('#yyt-assistant-send');
     if (sendBtn) sendBtn.disabled = _isGenerating || !_userInput.trim();
   });
+
+  host.querySelector('#yyt-assistant-preset')?.addEventListener('change', (e) => {
+    _apiPreset = e.target.value || '';
+  });
+
+  host.querySelector('#yyt-assistant-max-rounds')?.addEventListener('input', (e) => {
+    _maxRoundsInput = e.target.value || String(DEFAULT_MAX_ROUNDS);
+  });
+
+  host.querySelector('#yyt-assistant-send')?.addEventListener('click', handleSend);
+  host.querySelector('#yyt-assistant-stop')?.addEventListener('click', handleStop);
+  host.querySelector('[data-action="close-assistant"]')?.addEventListener('click', handleClose);
 
   // 折叠详情 toggle
   host.querySelectorAll('.yyt-assistant-toggle').forEach((el) => {
@@ -511,7 +435,6 @@ function handleClose() {
   _isOpen = false;
   const host = getHostElement();
   if (host) host.style.display = 'none';
-  clearMountedPrefabControls();
 }
 
 function buildPriorTurns() {
@@ -550,7 +473,6 @@ export function toggleAssistant(workbenchRefresh, containerEl) {
   } else {
     const host = getHostElement();
     if (host) host.style.display = 'none';
-    clearMountedPrefabControls();
   }
 }
 
@@ -644,8 +566,13 @@ export function getAssistantPanelStyles() {
       border-top: 1px solid var(--yyt-border-strong);
       background: var(--yyt-surface-2);
     }
-    .yyt-assistant-controls { margin-bottom: 8px; }
-    .yyt-assistant-control-toolbar { width: 100%; }
+    .yyt-assistant-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
     .yyt-assistant-inline-field {
       display: inline-flex;
       align-items: center;
