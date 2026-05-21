@@ -1261,7 +1261,7 @@ function buildEditor() {
   const root = el('div', { className: 'yyt-tde' });
   root.appendChild(buildToolbar());
   const content = el('div', { className: 'yyt-tde-content' });
-  content.appendChild(buildSidebar());
+  if (_state.mode !== 'global') content.appendChild(buildSidebar());
   content.appendChild(buildMainPane());
 
   // AI 改表助手 dock host（右侧面板，默认隐藏）
