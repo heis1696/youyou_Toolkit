@@ -1151,25 +1151,26 @@ function buildGlobalMode() {
   rowPos.appendChild(posSlot);
   wrapBody.appendChild(rowPos);
 
-  // 深度 + 顺序（同一行）
+  // 深度 / 顺序 — 同行分开显示
   const rowDepthOrder = el('div', { className: 'yyt-tde-schema-row' });
   rowDepthOrder.appendChild(el('div', { className: 'yyt-tde-schema-key', text: '深度 / 顺序' }));
-  const depthOrderSlot = el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } });
+  const depthOrderSlot = el('div', { className: 'yyt-tde-schema-value', style: { display: 'flex', gap: '12px', alignItems: 'center' } });
+  depthOrderSlot.appendChild(el('label', { text: '深度', style: { fontSize: '11px', color: 'var(--tde-text-secondary)', fontWeight: '600', whiteSpace: 'nowrap' } }));
   depthOrderSlot.appendChild(textInput({
     type: 'number',
     value: String(wp.depth ?? 2),
-    style: { width: '60px' },
+    style: { width: '56px' },
     onInput: (v) => {
       if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
       _state._pendingWrapperConfig.wrapperPlacement.depth = Number(v) || 0;
       markDirty();
     }
   }).el);
-  depthOrderSlot.appendChild(el('span', { text: '/', style: { color: 'var(--tde-text-muted)' } }));
+  depthOrderSlot.appendChild(el('label', { text: '顺序', style: { fontSize: '11px', color: 'var(--tde-text-secondary)', fontWeight: '600', whiteSpace: 'nowrap', marginLeft: '4px' } }));
   depthOrderSlot.appendChild(textInput({
     type: 'number',
     value: String(wp.order ?? 0),
-    style: { width: '60px' },
+    style: { width: '56px' },
     onInput: (v) => {
       if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
       _state._pendingWrapperConfig.wrapperPlacement.order = Number(v) || 0;
