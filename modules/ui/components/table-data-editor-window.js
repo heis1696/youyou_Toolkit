@@ -56,6 +56,7 @@ const _state = {
   isDirty: false,
   isFromTemplate: false,
   _pendingMirrorTag: null,
+  _pendingWrapperConfig: null,
   targetSnapshot: null,
   _afterSaveGlobalAt: 0,
   _assistantOpen: false,
@@ -468,6 +469,7 @@ function loadEditorData() {
   _state.isDirty = false;
   _state.isFromTemplate = isFromTemplate;
   _state._pendingMirrorTag = null;
+  _state._pendingWrapperConfig = null;
 
   if (_state.currentTableIndex >= _state.tempData.length) {
     _state.currentTableIndex = _state.tempData.length > 0 ? 0 : -1;
@@ -1032,8 +1034,7 @@ function buildGlobalMode() {
   container.appendChild(el('div', {
     className: 'yyt-tde-schema-hint',
     style: { background: 'rgba(74,158,255,0.08)', borderColor: 'rgba(74,158,255,0.3)' },
-    html: '<strong>全局注入配置</strong> — 每张表的 exportConfig（独立世界书条目）+ placement（注入位置/深度/顺序）。'
-      + '未启用「独立注入」的表会走全局 wrapper（工作台「同步到世界书」开关）。'
+    html: '<strong>全局注入配置</strong> — Wrapper 包裹配置（包住所有未启用独立注入的表）+ 每张表的 exportConfig。'
   }));
 
   if (tables.length === 0) {
@@ -1065,6 +1066,98 @@ function buildGlobalMode() {
   mirrorGrid.appendChild(mirrorCell);
   mirrorSec.appendChild(mirrorGrid);
   container.appendChild(mirrorSec);
+
+  // Wrapper config section (moved from workbench)
+  let wrapperCfg = { enabled: true, wrapperTag: '最新数据与记录', wrapperHint: '', wrapperPlacement: { position: 'before_character_definition', depth: 2, order: 0 } };
+  try {
+    const wbConfig = getTableWorkbenchConfig();
+    if (wbConfig?.wrapperConfig) {
+      const wc = wbConfig.wrapperConfig;
+      wrapperCfg = {
+        enabled: wc.enabled !== false,
+        wrapperTag: wc.wrapperTag || wrapperCfg.wrapperTag,
+        wrapperHint: wc.wrapperHint ?? wrapperCfg.wrapperHint,
+        wrapperPlacement: { ...(wc.wrapperPlacement || wrapperCfg.wrapperPlacement) }
+      };
+    }
+  } catch (_) { /* ignore */ }
+  // Initialize pending wrapper config for save tracking
+  if (!_state._pendingWrapperConfig) _state._pendingWrapperConfig = { ...wrapperCfg, wrapperPlacement: { ...wrapperCfg.wrapperPlacement } };
+
+  const wrapSec = el('div', { className: 'yyt-tde-schema-section' });
+  wrapSec.appendChild(el('div', { className: 'yyt-tde-schema-heading', text: 'Wrapper 包裹配置' }));
+  const wrapGrid = el('div', { className: 'yyt-tde-uc-grid' });
+
+  wrapGrid.appendChild(buildUcCell({
+    label: '启用 Wrapper 包裹',
+    control: toggle({
+      checked: _state._pendingWrapperConfig.enabled !== false,
+      onChange: (v) => { _state._pendingWrapperConfig.enabled = v; markDirty(); }
+    })
+  }));
+  wrapGrid.appendChild(buildUcCell({
+    label: 'Wrapper 标签名',
+    control: textInput({
+      value: _state._pendingWrapperConfig.wrapperTag || '',
+      placeholder: '默认: 最新数据与记录',
+      onInput: (v) => { _state._pendingWrapperConfig.wrapperTag = v; markDirty(); }
+    })
+  }));
+  const wrapHintCell = el('div', { className: 'yyt-tde-uc-cell yyt-tde-uc-cell-wide' });
+  wrapHintCell.appendChild(el('label', { text: 'Wrapper 提示文' }));
+  wrapHintCell.appendChild(buildTextarea({
+    value: _state._pendingWrapperConfig.wrapperHint || '',
+    placeholder: '可选，说明 wrapper 内容用途（注入在 wrapper 开始标签之后）',
+    onInput: (v) => { _state._pendingWrapperConfig.wrapperHint = v; markDirty(); }
+  }));
+  wrapGrid.appendChild(wrapHintCell);
+
+  // Wrapper placement
+  const wp = _state._pendingWrapperConfig.wrapperPlacement || {};
+  wrapGrid.appendChild(buildUcCell({
+    label: '注入位置',
+    control: selectInput({
+      value: wp.position || 'before_character_definition',
+      options: [
+        { value: 'before_character_definition', label: '角色定义之前' },
+        { value: 'after_character_definition', label: '角色定义之后' },
+        { value: 'before_authors_note', label: '作者注释之前' },
+        { value: 'after_authors_note', label: '作者注释之后' }
+      ],
+      onChange: (v) => {
+        if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
+        _state._pendingWrapperConfig.wrapperPlacement.position = v;
+        markDirty();
+      }
+    })
+  }));
+  wrapGrid.appendChild(buildUcCell({
+    label: '深度',
+    control: textInput({
+      type: 'number',
+      value: String(wp.depth ?? 2),
+      onInput: (v) => {
+        if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
+        _state._pendingWrapperConfig.wrapperPlacement.depth = Number(v) || 0;
+        markDirty();
+      }
+    })
+  }));
+  wrapGrid.appendChild(buildUcCell({
+    label: '顺序',
+    control: textInput({
+      type: 'number',
+      value: String(wp.order ?? 0),
+      onInput: (v) => {
+        if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
+        _state._pendingWrapperConfig.wrapperPlacement.order = Number(v) || 0;
+        markDirty();
+      }
+    })
+  }));
+
+  wrapSec.appendChild(wrapGrid);
+  container.appendChild(wrapSec);
 
   // 每张表的 exportConfig 卡片
   tables.forEach((table, ti) => {
@@ -1149,6 +1242,7 @@ function buildExportConfigCard(table, ti) {
   // preventRecursion
   grid.appendChild(buildUcCell({
     label: '防递归 (preventRecursion)',
+    hint: '防止世界书条目之间互相触发注入（推荐保持开启）',
     control: selectInput({
       value: ec.preventRecursion === false ? 'false' : 'true',
       options: [
@@ -1446,15 +1540,22 @@ async function handleSaveGlobal() {
       tables: tablesSchemaOnly
     });
     if (result?.success) {
-      if (typeof _state._pendingMirrorTag === 'string' && _state._pendingMirrorTag.trim()) {
+      // Merge mirrorTag + wrapperConfig into a single save
+      const hasMirror = typeof _state._pendingMirrorTag === 'string' && _state._pendingMirrorTag.trim();
+      const hasWrapper = !!_state._pendingWrapperConfig;
+      if (hasMirror || hasWrapper) {
         try {
           const wbConfig = getTableWorkbenchConfig();
-          saveTableWorkbenchConfig({ ...wbConfig, mirrorTag: _state._pendingMirrorTag.trim() });
+          const merged = { ...wbConfig };
+          if (hasMirror) merged.mirrorTag = _state._pendingMirrorTag.trim();
+          if (hasWrapper) merged.wrapperConfig = _state._pendingWrapperConfig;
+          saveTableWorkbenchConfig(merged);
         } catch (e) {
-          getLog().warn('保存 mirrorTag 到 workbench config 失败', e);
+          getLog().warn('保存 workbench config 失败', e);
         }
       }
       _state._pendingMirrorTag = null;
+      _state._pendingWrapperConfig = null;
       clearDirty();
       if (Array.isArray(result?.template?.tables)) {
         _state.tempData = cloneTableValue(result.template.tables) || [];

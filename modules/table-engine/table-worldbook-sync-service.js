@@ -194,12 +194,59 @@ async function upsertEntry(helper, targetBook, entries, comment, entryData, used
   return { action: 'failed', comment, error: 'createLorebookEntries 不可用' };
 }
 
+async function resolveTargetBook(config) {
+  const syncConfig = config?.worldbookSync;
+  const injectionMode = syncConfig?.injectionMode || 'character_card';
+  const helper = getTavernHelper();
+
+  if (injectionMode === 'target_book') {
+    const targetBook = String(syncConfig?.targetBook || '').trim();
+    if (!targetBook) return { error: 'no_target_book' };
+    return { targetBook };
+  }
+
+  if (injectionMode === 'character_card') {
+    if (helper) {
+      if (typeof helper.getCurrentCharPrimaryLorebook === 'function') {
+        const r = await Promise.resolve(helper.getCurrentCharPrimaryLorebook());
+        if (r) return { targetBook: String(r) };
+      }
+      if (typeof helper.getCharLorebooks === 'function') {
+        const r = await Promise.resolve(helper.getCharLorebooks());
+        if (r?.primary) return { targetBook: String(r.primary) };
+      }
+    }
+    return { error: 'no_character_lorebook' };
+  }
+
+  if (injectionMode === 'auto_create') {
+    if (helper) {
+      if (typeof helper.getOrCreateChatWorldbook === 'function') {
+        try {
+          const name = await Promise.resolve(helper.getOrCreateChatWorldbook('current'));
+          if (name) return { targetBook: String(name) };
+        } catch (err) { log.warn('getOrCreateChatWorldbook 失败', err); }
+      }
+      if (typeof helper.getOrCreateChatLorebook === 'function') {
+        try {
+          const name = await Promise.resolve(helper.getOrCreateChatLorebook());
+          if (name) return { targetBook: String(name) };
+        } catch (err) { log.warn('getOrCreateChatLorebook 失败', err); }
+      }
+    }
+    return { error: 'chat_worldbook_unavailable' };
+  }
+
+  return { error: 'unknown_injection_mode' };
+}
+
 export async function syncTablesToWorldbook(tables, config) {
   const syncConfig = config?.worldbookSync;
   if (!syncConfig?.enabled) return { skipped: true, reason: 'disabled' };
 
-  const targetBook = String(syncConfig.targetBook || '').trim();
-  if (!targetBook) return { skipped: true, reason: 'no_target_book' };
+  const resolved = await resolveTargetBook(config);
+  if (resolved.error) return { skipped: true, reason: resolved.error };
+  const targetBook = resolved.targetBook;
 
   const helper = getTavernHelper();
   if (!helper) return { success: false, error: 'TavernHelper 不可用' };
@@ -305,25 +352,64 @@ export async function syncTablesToWorldbook(tables, config) {
     for (const table of customTables) {
       const ec = table.exportConfig || {};
       const entryName = ec.entryName || table.name || '未命名表';
-      const comment = buildEntryComment(chatId, entryName);
-      const content = formatTableMarkdown(table);
-      if (!content) continue;
-
+      const entryType = ec.entryType === 'keyword' ? 'keyword' : 'constant';
       const placement = ec.entryPlacement || {};
       const pos = normalizePosition(placement.position, 'before_character_definition');
-      const order = allocOrder(usedOrders, placement.order || 50000, 1, 99999);
-      const entryType = ec.entryType === 'keyword' ? 'keyword' : 'constant';
 
-      results.push(await upsertEntry(helper, targetBook, entries,
-        comment,
-        applyPlacementToEntry({
-          content,
-          enabled: true,
-          type: entryType,
-          order,
-          prevent_recursion: ec.preventRecursion !== false
-        }, { position: pos, depth: placement.depth || 2 })
-      , usedOrders, chatId));
+      const buildContent = (t) => {
+        const hasData = Array.isArray(t.rows) && t.rows.length > 0 && Array.isArray(t.columns) && t.columns.length > 0;
+        if (!hasData) return '';
+        return ec.injectionTemplate ? expandInjectionTemplate(ec.injectionTemplate, t) : formatTableMarkdown(t);
+      };
+
+      if (ec.splitByRow) {
+        if (ec.extraIndexPlacement?.position && ec.extraIndexPlacement.position !== placement.position) {
+          log.info(`splitByRow 模式下 extraIndexPlacement 不生效 [${entryName}]`);
+        }
+        const rows = Array.isArray(table.rows) ? table.rows : [];
+        for (let ri = 0; ri < rows.length; ri++) {
+          const rowName = rows[ri]?.name || `${entryName}-行${ri + 1}`;
+          const rowComment = buildEntryComment(chatId, rowName);
+          const miniTable = { ...table, name: rowName, rows: [rows[ri]] };
+          const content = buildContent(miniTable);
+          if (!content) continue;
+          const order = allocOrder(usedOrders, placement.order || 50000, 1, 99999);
+          results.push(await upsertEntry(helper, targetBook, entries,
+            rowComment,
+            applyPlacementToEntry({
+              content, enabled: true, type: entryType, order,
+              prevent_recursion: ec.preventRecursion !== false
+            }, { position: pos, depth: placement.depth || 2 })
+          , usedOrders, chatId));
+        }
+      } else {
+        const comment = buildEntryComment(chatId, entryName);
+        const content = buildContent(table);
+        if (!content) continue;
+        const order = allocOrder(usedOrders, placement.order || 50000, 1, 99999);
+        results.push(await upsertEntry(helper, targetBook, entries,
+          comment,
+          applyPlacementToEntry({
+            content, enabled: true, type: entryType, order,
+            prevent_recursion: ec.preventRecursion !== false
+          }, { position: pos, depth: placement.depth || 2 })
+        , usedOrders, chatId));
+
+        // extraIndexPlacement: create a second entry at alternate position
+        const eip = ec.extraIndexPlacement;
+        if (eip && eip.position && eip.position !== placement.position) {
+          const extraPos = normalizePosition(eip.position, 'before_character_definition');
+          const extraComment = `${comment}-extra`;
+          const extraOrder = allocOrder(usedOrders, eip.order || 50000, 1, 99999);
+          results.push(await upsertEntry(helper, targetBook, entries,
+            extraComment,
+            applyPlacementToEntry({
+              content, enabled: true, type: entryType, order: extraOrder,
+              prevent_recursion: ec.preventRecursion !== false
+            }, { position: extraPos, depth: eip.depth || 2 })
+          , usedOrders, chatId));
+        }
+      }
     }
 
     // 3. Cleanup stale entries — only for this chat (议题 #15 A2：用 isOwnedByChat 识别新旧两种前缀格式)
@@ -358,4 +444,60 @@ export async function syncTablesToWorldbook(tables, config) {
   }
 }
 
-export default { syncTablesToWorldbook, mergeTablesWithSchema };
+/**
+ * 清除当前 chat 的所有已注入世界书条目
+ */
+export async function clearChatWorldbookEntries(config) {
+  const resolved = await resolveTargetBook(config);
+  if (resolved.error) return { success: false, error: resolved.error };
+  const targetBook = resolved.targetBook;
+
+  const helper = getTavernHelper();
+  if (!helper || typeof helper.getLorebookEntries !== 'function') {
+    return { success: false, error: 'TavernHelper 不可用' };
+  }
+
+  const chatId = resolveCurrentChatId();
+
+  try {
+    let entries = await Promise.resolve(helper.getLorebookEntries(targetBook));
+    if (!Array.isArray(entries)) return { success: true, cleaned: 0 };
+
+    const staleEntries = entries.filter(e => e.comment && isOwnedByChat(e.comment, chatId));
+    if (staleEntries.length === 0) return { success: true, cleaned: 0, targetBook };
+
+    const uids = staleEntries.map(e => e.uid).filter(Boolean);
+    if (uids.length > 0 && typeof helper.deleteLorebookEntries === 'function') {
+      await Promise.resolve(helper.deleteLorebookEntries(targetBook, uids));
+      log.info(`已清除 ${uids.length} 个世界书条目 [${chatId}]`);
+    }
+    return { success: true, cleaned: uids.length, targetBook };
+  } catch (error) {
+    log.warn('清除世界书条目失败:', error);
+    return { success: false, error: error?.message || '清除失败' };
+  }
+}
+
+function expandInjectionTemplate(template, table) {
+  let result = template;
+  result = result.replace(/\{\{tableName\}\}/g, table.name || '未命名表');
+  if (result.includes('{{tableContent}}')) {
+    result = result.replace(/\{\{tableContent\}\}/g, formatTableMarkdown(table));
+  }
+  const cols = Array.isArray(table.columns) ? table.columns : [];
+  const rows = Array.isArray(table.rows) ? table.rows : [];
+  const firstRow = rows[0];
+  if (firstRow) {
+    for (const col of cols) {
+      const key = col?.key;
+      if (!key) continue;
+      const placeholder = `{{${key}}}`;
+      if (!result.includes(placeholder)) continue;
+      const value = String(firstRow.cells?.[key] ?? '');
+      result = result.split(placeholder).join(value);
+    }
+  }
+  return result;
+}
+
+export default { syncTablesToWorldbook, clearChatWorldbookEntries, mergeTablesWithSchema };

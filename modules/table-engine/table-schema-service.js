@@ -406,6 +406,11 @@ function normalizeExportConfig(value = {}, tableName = '') {
       position: normalizeString(src.entryPlacement?.position || src.placement?.position, 'before_character_definition'),
       depth: Number.isFinite(Number(src.entryPlacement?.depth ?? src.placement?.depth)) ? Math.floor(Number(src.entryPlacement?.depth ?? src.placement?.depth)) : 2,
       order: Number.isFinite(Number(src.entryPlacement?.order ?? src.placement?.order)) ? Math.floor(Number(src.entryPlacement?.order ?? src.placement?.order)) : 0
+    },
+    extraIndexPlacement: {
+      position: normalizeString(src.extraIndexPlacement?.position, 'before_character_definition'),
+      depth: Number.isFinite(Number(src.extraIndexPlacement?.depth)) ? Math.floor(Number(src.extraIndexPlacement?.depth)) : 2,
+      order: Number.isFinite(Number(src.extraIndexPlacement?.order)) ? Math.floor(Number(src.extraIndexPlacement?.order)) : 0
     }
   };
 }
@@ -865,7 +870,7 @@ export function getTableWorkbenchDefaultConfig() {
     sendLatestRows: -1,
     mirrorToMessage: false,
     mirrorTag: 'yyt-table-workbench',
-    worldbookSync: { enabled: false, targetBook: '', entryComment: 'YYT-填表数据' },
+    worldbookSync: { enabled: false, injectionMode: 'character_card', targetBook: '', entryComment: 'YYT-填表数据' },
     wrapperConfig: {
       enabled: true,
       wrapperTag: '最新数据与记录',
@@ -942,30 +947,28 @@ export function normalizeTableWorkbenchConfig(value = {}) {
     mirrorTag: normalizeString(nextValue.mirrorTag, defaults.mirrorTag),
     worldbookSync: {
       enabled: normalizeBoolean(nextValue.worldbookSync?.enabled, false),
+      injectionMode: ['character_card', 'auto_create', 'target_book'].includes(nextValue.worldbookSync?.injectionMode)
+        ? nextValue.worldbookSync.injectionMode : 'character_card',
       targetBook: normalizeString(nextValue.worldbookSync?.targetBook, ''),
-      entryComment: normalizeString(nextValue.worldbookSync?.entryComment, defaults.worldbookSync.entryComment),
-      // v1.0.178 hotfix Bug 3：worldbookSync.wrapperConfig 也保留（UI 工作台保存路径）
-      wrapperConfig: nextValue.worldbookSync?.wrapperConfig ? {
-        enabled: normalizeBoolean(nextValue.worldbookSync.wrapperConfig?.enabled, true),
-        wrapperTag: normalizeString(nextValue.worldbookSync.wrapperConfig?.wrapperTag, defaults.wrapperConfig.wrapperTag),
-        wrapperHint: normalizeString(nextValue.worldbookSync.wrapperConfig?.wrapperHint, ''),
+      entryComment: normalizeString(nextValue.worldbookSync?.entryComment, defaults.worldbookSync.entryComment)
+    },
+    // 顶层 wrapperConfig：唯一真实来源；旧路径 worldbookSync.wrapperConfig 迁移合并到这里
+    wrapperConfig: (() => {
+      const legacy = nextValue.worldbookSync?.wrapperConfig;
+      const top = nextValue.wrapperConfig;
+      // 如果旧路径有用户数据而顶层没有，用旧路径数据填充
+      const src = (legacy && !top) ? legacy : (top || {});
+      return {
+        enabled: normalizeBoolean(src.enabled, defaults.wrapperConfig.enabled),
+        wrapperTag: normalizeString(src.wrapperTag, defaults.wrapperConfig.wrapperTag),
+        wrapperHint: normalizeString(src.wrapperHint, defaults.wrapperConfig.wrapperHint),
         wrapperPlacement: {
-          position: normalizeString(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.position, defaults.wrapperConfig.wrapperPlacement.position),
-          depth: Number.isFinite(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.depth)) ? Math.floor(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.depth)) : defaults.wrapperConfig.wrapperPlacement.depth,
-          order: Number.isFinite(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.order)) ? Math.floor(Number(nextValue.worldbookSync.wrapperConfig?.wrapperPlacement?.order)) : defaults.wrapperConfig.wrapperPlacement.order
+          position: normalizeString(src.wrapperPlacement?.position, defaults.wrapperConfig.wrapperPlacement.position),
+          depth: Number.isFinite(Number(src.wrapperPlacement?.depth)) ? Math.floor(Number(src.wrapperPlacement?.depth)) : defaults.wrapperConfig.wrapperPlacement.depth,
+          order: Number.isFinite(Number(src.wrapperPlacement?.order)) ? Math.floor(Number(src.wrapperPlacement?.order)) : defaults.wrapperConfig.wrapperPlacement.order
         }
-      } : undefined
-    },
-    wrapperConfig: {
-      enabled: normalizeBoolean(nextValue.wrapperConfig?.enabled, defaults.wrapperConfig.enabled),
-      wrapperTag: normalizeString(nextValue.wrapperConfig?.wrapperTag, defaults.wrapperConfig.wrapperTag),
-      wrapperHint: normalizeString(nextValue.wrapperConfig?.wrapperHint, defaults.wrapperConfig.wrapperHint),
-      wrapperPlacement: {
-        position: normalizeString(nextValue.wrapperConfig?.wrapperPlacement?.position, defaults.wrapperConfig.wrapperPlacement.position),
-        depth: Number.isFinite(Number(nextValue.wrapperConfig?.wrapperPlacement?.depth)) ? Math.floor(Number(nextValue.wrapperConfig?.wrapperPlacement?.depth)) : defaults.wrapperConfig.wrapperPlacement.depth,
-        order: Number.isFinite(Number(nextValue.wrapperConfig?.wrapperPlacement?.order)) ? Math.floor(Number(nextValue.wrapperConfig?.wrapperPlacement?.order)) : defaults.wrapperConfig.wrapperPlacement.order
-      }
-    },
+      };
+    })(),
     // v1.0.192 #33-I：单表激活/禁用 override，独立于 config.tables（后者不跟激活模板同步）
     tableEnabledOverrides: (nextValue.tableEnabledOverrides && typeof nextValue.tableEnabledOverrides === 'object' && !Array.isArray(nextValue.tableEnabledOverrides))
       ? Object.fromEntries(Object.entries(nextValue.tableEnabledOverrides).filter(([k, v]) => typeof k === 'string' && k && typeof v === 'boolean'))

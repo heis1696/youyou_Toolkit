@@ -39,6 +39,9 @@ import { runManualTableUpdate } from '../../table-engine/table-update-service.js
 import { getAssistantTableSnapshot, clearStateInChat } from '../../table-engine/table-state-service.js';
 import { openTableDataEditor } from './table-data-editor-window.js';
 import { cloneTableValue } from '../../table-engine/table-types.js';
+import { clearChatWorldbookEntries } from '../../table-engine/table-worldbook-sync-service.js';
+import { getAvailableWorldbooks, getCachedAvailableWorldbooks } from '../../tool-worldbook-service.js';
+import { dialog } from './controls/dialog.js';
 
 // 议题 #15 #30 写回世界书 sub-zone 用的 helpers
 function cloneDeep(v) { return cloneTableValue(v); }
@@ -767,86 +770,43 @@ function buildWorldbookSubZoneHtml(state) {
   const enabled = sync.enabled === true;
   if (!enabled) return '';
 
-  // 议题 #15 #30 hotfix v1.0.177：targetBook 默认 = 当前角色卡绑定的 primary lorebook
-  // 没打开聊天时 select 禁用，提示用户先打开聊天
-  const userTargetBook = String(sync.targetBook || '');
-  const boundLorebook = String(state?.boundLorebook || '');
+  const injectionMode = sync.injectionMode || 'character_card';
+  const targetBook = String(sync.targetBook || '');
   const chatOpen = state?.chatOpen === true;
-  const effectiveTargetBook = userTargetBook || boundLorebook;
 
-  const availableBooks = Array.isArray(state.availableWorldbooks) ? state.availableWorldbooks : [];
-  const wrapperCfg = sync.wrapperConfig || {};
-  const wrapperEnabled = wrapperCfg.enabled !== false;
-  const wrapperTag = String(wrapperCfg.wrapperTag || '最新数据与记录');
-  const wrapperHint = String(wrapperCfg.wrapperHint || '');
-  const placement = wrapperCfg.wrapperPlacement || {};
-  const position = String(placement.position || 'before_character_definition');
-  const depth = Number.isFinite(placement.depth) ? placement.depth : 2;
-  const order = Number.isFinite(placement.order) ? placement.order : 50000;
+  // Mode C: show target book picker button
+  const targetBookSection = injectionMode === 'target_book' ? `
+    <div class="yyt-tww-sub-row">
+      <label>目标世界书</label>
+      <button class="yyt-btn yyt-btn-small" data-action="pick-target-book">${targetBook ? esc(targetBook) : '选择世界书...'}</button>
+      <div class="yyt-tww-sub-meta">${chatOpen ? '' : '<span style="color:var(--tww-warning);">请先打开聊天</span>'}</div>
+    </div>
+  ` : '';
 
-  let bookOptions;
-  if (!chatOpen) {
-    bookOptions = `<option value="">—— 请先打开聊天 ——</option>`;
-  } else if (availableBooks.length === 0) {
-    bookOptions = `<option value="${esc(effectiveTargetBook)}">${effectiveTargetBook ? esc(effectiveTargetBook) : '—— 角色卡未绑定世界书 ——'}</option>`;
-  } else {
-    const items = availableBooks.map((b) => {
-      const name = typeof b === 'string' ? b : (b?.name || '');
-      return `<option value="${esc(name)}" ${name === effectiveTargetBook ? 'selected' : ''}>${esc(name)}${name === boundLorebook ? '（角色卡绑定）' : ''}</option>`;
-    }).join('');
-    const placeholderOpt = boundLorebook
-      ? `<option value="">—— 角色卡绑定：${esc(boundLorebook)} ——</option>`
-      : `<option value="">—— 选择 ——</option>`;
-    bookOptions = placeholderOpt + items;
-  }
-
-  const selectDisabled = chatOpen ? '' : 'disabled';
-  const meta = chatOpen
-    ? `<a data-action="refresh-worldbooks">刷新列表</a>`
-    : `<span style="color:var(--tww-warning);">未打开聊天</span>`;
+  const modeDescriptions = {
+    character_card: '自动注入到角色卡绑定的世界书',
+    auto_create: '首次填表时自动创建并绑定聊天世界书',
+    target_book: '手动选择要注入的目标世界书'
+  };
 
   return `
     <div class="yyt-tww-sub-zone" data-sub-zone="worldbookSync">
       <div class="yyt-tww-sub-row">
-        <label>目标世界书</label>
-        <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookTargetBook" ${selectDisabled}>${bookOptions}</select>
-        <div class="yyt-tww-sub-meta">${meta}</div>
-      </div>
-
-      <div class="yyt-tww-sub-row-toggle">
-        <label>Wrapper 包裹</label>
-        <div class="yyt-tww-toggle-desc">用 <code style="font-size:10px;">&lt;${esc(wrapperTag)}&gt;...&lt;/${esc(wrapperTag)}&gt;</code> 包住所有全局表数据</div>
-        <div class="yyt-tww-toggle ${wrapperEnabled ? 'on' : ''}" data-toggle="worldbookWrapperEnabled"></div>
-      </div>
-
-      <div class="yyt-tww-sub-row">
-        <label>Wrapper 标签</label>
-        <input class="yyt-input yyt-tww-ctrl" type="text" data-binding="worldbookWrapperTag" value="${esc(wrapperTag)}" placeholder="最新数据与记录">
-        <div class="yyt-tww-sub-meta"></div>
-      </div>
-
-      <div class="yyt-tww-sub-row">
-        <label>Wrapper 提示文</label>
-        <input class="yyt-input yyt-tww-ctrl" type="text" data-binding="worldbookWrapperHint" value="${esc(wrapperHint)}" placeholder="可选，说明 wrapper 内容用途">
-        <div class="yyt-tww-sub-meta"></div>
-      </div>
-
-      <div class="yyt-tww-sub-row">
-        <label>注入位置</label>
-        <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookWrapperPosition">
-          <option value="before_character_definition" ${position === 'before_character_definition' ? 'selected' : ''}>角色定义之前</option>
-          <option value="after_character_definition" ${position === 'after_character_definition' ? 'selected' : ''}>角色定义之后</option>
-          <option value="before_history" ${position === 'before_history' ? 'selected' : ''}>历史记录之前</option>
-          <option value="after_history" ${position === 'after_history' ? 'selected' : ''}>历史记录之后</option>
-          <option value="at_depth" ${position === 'at_depth' ? 'selected' : ''}>指定深度</option>
+        <label>注入模式</label>
+        <select class="yyt-select yyt-tww-ctrl" data-binding="worldbookInjectionMode">
+          <option value="character_card" ${injectionMode === 'character_card' ? 'selected' : ''}>角色卡绑定世界书</option>
+          <option value="auto_create" ${injectionMode === 'auto_create' ? 'selected' : ''}>自动创建世界书</option>
+          <option value="target_book" ${injectionMode === 'target_book' ? 'selected' : ''}>指定目标世界书</option>
         </select>
-        <div class="yyt-tww-sub-meta"></div>
+        <div class="yyt-tww-sub-meta">${modeDescriptions[injectionMode] || ''}</div>
       </div>
 
-      <div class="yyt-tww-sub-row-double">
-        <label>深度 / 顺序</label>
-        <input class="yyt-input yyt-tww-ctrl" type="number" data-binding="worldbookWrapperDepth" value="${esc(depth)}" min="0">
-        <input class="yyt-input yyt-tww-ctrl" type="number" data-binding="worldbookWrapperOrder" value="${esc(order)}" min="0">
+      ${targetBookSection}
+
+      <div class="yyt-tww-sub-row">
+        <label>清理</label>
+        <button class="yyt-btn yyt-btn-small" data-action="clear-worldbook-entries" ${chatOpen ? '' : 'disabled'}>清除当前聊天的注入条目</button>
+        <div class="yyt-tww-sub-meta">删除当前聊天同步写入的所有世界书条目</div>
       </div>
     </div>
   `;
@@ -1485,7 +1445,6 @@ export function bindWorkbenchEvents($container, refresh) {
         worldbookSync: { ...(config.worldbookSync || {}), enabled: next }
       });
       getLog().info(next ? '已启用世界书同步' : '已停用世界书同步', null, { toast: 'success' });
-      // 启用后需要 refresh 展开 sub-zone（议题 #15 #30）
       if (typeof refresh === 'function') refresh();
     } catch (err) {
       $t.toggleClass('on', isOn);
@@ -1494,60 +1453,112 @@ export function bindWorkbenchEvents($container, refresh) {
     }
   });
 
-  // 议题 #15 #30 写回世界书 sub-zone — wrapper enabled toggle
-  $container.on('click.tww', '[data-toggle="worldbookWrapperEnabled"]', function () {
-    const $t = $(this);
-    const isOn = $t.hasClass('on');
-    const next = !isOn;
-    $t.toggleClass('on', next);
+  // Injection mode selector
+  $container.on('change.tww', '[data-binding="worldbookInjectionMode"]', function () {
+    const value = $(this).val();
     try {
       const config = getTableWorkbenchConfig();
-      const ws = config.worldbookSync || {};
       saveTableWorkbenchConfig({
         ...config,
-        worldbookSync: {
-          ...ws,
-          wrapperConfig: { ...(ws.wrapperConfig || {}), enabled: next }
-        }
+        worldbookSync: { ...(config.worldbookSync || {}), injectionMode: value }
       });
-      getLog().info(next ? '已启用 Wrapper 包裹' : '已停用 Wrapper', null, { toast: 'success' });
+      getLog().info('已切换注入模式', null, { toast: 'success' });
+      if (typeof refresh === 'function') refresh();
     } catch (err) {
-      $t.toggleClass('on', isOn);
-      getLog().error('toggle worldbookWrapperEnabled 异常', err);
+      getLog().error('保存 injectionMode 异常', err);
     }
   });
 
-  // sub-zone 各 binding（target book / wrapper tag / hint / position / depth / order）
-  const worldbookSubBindings = [
-    { sel: '[data-binding="worldbookTargetBook"]', path: 'targetBook', type: 'string' },
-    { sel: '[data-binding="worldbookWrapperTag"]', path: 'wrapperConfig.wrapperTag', type: 'string' },
-    { sel: '[data-binding="worldbookWrapperHint"]', path: 'wrapperConfig.wrapperHint', type: 'string' },
-    { sel: '[data-binding="worldbookWrapperPosition"]', path: 'wrapperConfig.wrapperPlacement.position', type: 'string' },
-    { sel: '[data-binding="worldbookWrapperDepth"]', path: 'wrapperConfig.wrapperPlacement.depth', type: 'number' },
-    { sel: '[data-binding="worldbookWrapperOrder"]', path: 'wrapperConfig.wrapperPlacement.order', type: 'number' }
-  ];
-  for (const { sel, path, type } of worldbookSubBindings) {
-    $container.on('change.tww', sel, function () {
-      let value = $(this).val();
-      if (type === 'number') value = Number.parseInt(value, 10);
-      try {
-        const config = getTableWorkbenchConfig();
-        const ws = cloneDeep(config.worldbookSync || {});
-        setNestedPath(ws, path, value);
-        saveTableWorkbenchConfig({ ...config, worldbookSync: ws });
-        getLog().info('已保存', null, { toast: 'success' });
-      } catch (err) {
-        getLog().error(`保存 worldbookSync.${path} 异常`, err);
-        getLog().error(`保存失败：${err?.message || err}`, null, { toast: true });
+  // Target book picker (mode C) — single-select dialog
+  $container.on('click.tww', '[data-action="pick-target-book"]', async function () {
+    let all = getCachedAvailableWorldbooks();
+    if (!all.length) {
+      try { all = await getAvailableWorldbooks(); } catch (_) {}
+    }
+    if (!all.length) {
+      await dialog.confirm({ title: '没有可用的世界书', message: '宿主未提供可用世界书。', confirmText: '确定' });
+      return;
+    }
+    const config = getTableWorkbenchConfig();
+    const currentTarget = config?.worldbookSync?.targetBook || '';
+
+    const body = document.createElement('div');
+    body.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+    const searchInput = document.createElement('input');
+    searchInput.className = 'yyt-input';
+    searchInput.placeholder = `搜索 ${all.length} 本世界书…`;
+    searchInput.style.cssText = 'padding:7px 10px;font-size:12px;';
+    body.appendChild(searchInput);
+    const listWrapper = document.createElement('div');
+    listWrapper.style.cssText = 'display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;';
+    let selectedName = currentTarget;
+    const rowItems = [];
+    for (const name of all) {
+      const row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;border-radius:6px;background:var(--yyt-surface-2,rgba(255,255,255,0.03));font-size:12px;';
+      const radio = document.createElement('input');
+      radio.type = 'radio'; radio.name = 'targetBookPick'; radio.value = name;
+      if (name === currentTarget) radio.checked = true;
+      radio.addEventListener('change', () => { selectedName = name; });
+      row.appendChild(radio);
+      const span = document.createElement('span');
+      span.textContent = name; span.style.color = 'var(--yyt-text)';
+      row.appendChild(span);
+      listWrapper.appendChild(row);
+      rowItems.push({ el: row, search: name.toLowerCase() });
+    }
+    body.appendChild(listWrapper);
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      for (const item of rowItems) {
+        item.el.style.display = (!q || item.search.includes(q)) ? '' : 'none';
       }
     });
-  }
 
-  // 刷新世界书列表
-  $container.on('click.tww', '[data-action="refresh-worldbooks"]', function (e) {
-    e.preventDefault();
-    if (typeof refresh === 'function') refresh();
-    getLog().info('已刷新世界书列表', null, { toast: 'success' });
+    const result = await dialog.custom({
+      title: `选择目标世界书（${all.length} 本）`,
+      width: '480px',
+      body,
+      buttons: [
+        { label: '取消', variant: 'ghost', onClick: (close) => close(null) },
+        { label: '选择', variant: 'primary', onClick: (close) => close(selectedName) }
+      ]
+    }).result;
+
+    if (result && typeof result === 'string') {
+      try {
+        const cfg = getTableWorkbenchConfig();
+        saveTableWorkbenchConfig({
+          ...cfg,
+          worldbookSync: { ...(cfg.worldbookSync || {}), targetBook: result }
+        });
+        getLog().info(`目标世界书已设为: ${result}`, null, { toast: 'success' });
+        if (typeof refresh === 'function') refresh();
+      } catch (err) {
+        getLog().error('保存 targetBook 异常', err);
+      }
+    }
+  });
+
+  // Clear worldbook entries
+  $container.on('click.tww', '[data-action="clear-worldbook-entries"]', async function () {
+    try {
+      const config = getTableWorkbenchConfig();
+      const result = await clearChatWorldbookEntries(config);
+      if (result.success) {
+        getLog().info(`已清除 ${result.cleaned || 0} 个世界书条目`, null, { toast: 'success' });
+      } else {
+        const errorMessages = {
+          no_target_book: '未选择目标世界书',
+          no_character_lorebook: '当前角色卡未绑定世界书',
+          chat_worldbook_unavailable: '聊天世界书不可用'
+        };
+        getLog().warn(`清除失败: ${errorMessages[result.error] || result.error}`, null, { toast: true });
+      }
+    } catch (err) {
+      getLog().error('清除世界书条目异常', err);
+      getLog().error(`清除失败: ${err?.message || err}`, null, { toast: true });
+    }
   });
 
   $container.on('click.tww', '[data-toggle="mirrorToMessage"]', function () {
