@@ -132,11 +132,20 @@ export const TableWorkbenchPanel = {
     // refresh 函数：重渲染 $container 内容并重新 bind
     const refresh = () => {
       try {
+        // preserve scroll position across DOM rebuild
+        const prevScroll = $container[0]?.querySelector('.yyt-tww-scroll');
+        const savedTop = prevScroll ? prevScroll.scrollTop : 0;
+
         $container.html(self.render());
         // 重新 bind events（off + on 在 bindWorkbenchEvents 内做）
         bindWorkbenchEvents($container, refresh);
         pinWorkbenchHeight($container);
         setupScrollCompact($container);
+
+        if (savedTop > 0) {
+          const nextScroll = $container[0]?.querySelector('.yyt-tww-scroll');
+          if (nextScroll) nextScroll.scrollTop = savedTop;
+        }
       } catch (err) {
         log.error('refresh 异常', err);
       }

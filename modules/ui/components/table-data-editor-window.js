@@ -1085,78 +1085,101 @@ function buildGlobalMode() {
   if (!_state._pendingWrapperConfig) _state._pendingWrapperConfig = { ...wrapperCfg, wrapperPlacement: { ...wrapperCfg.wrapperPlacement } };
 
   const wrapSec = el('div', { className: 'yyt-tde-schema-section' });
-  wrapSec.appendChild(el('div', { className: 'yyt-tde-schema-heading', text: 'Wrapper 包裹配置' }));
-  const wrapGrid = el('div', { className: 'yyt-tde-uc-grid' });
 
-  wrapGrid.appendChild(buildUcCell({
-    label: '启用 Wrapper 包裹',
-    control: toggle({
-      checked: _state._pendingWrapperConfig.enabled !== false,
-      onChange: (v) => { _state._pendingWrapperConfig.enabled = v; markDirty(); }
-    })
-  }));
-  wrapGrid.appendChild(buildUcCell({
-    label: 'Wrapper 标签名',
-    control: textInput({
-      value: _state._pendingWrapperConfig.wrapperTag || '',
-      placeholder: '默认: 最新数据与记录',
-      onInput: (v) => { _state._pendingWrapperConfig.wrapperTag = v; markDirty(); }
-    })
-  }));
-  const wrapHintCell = el('div', { className: 'yyt-tde-uc-cell yyt-tde-uc-cell-wide' });
-  wrapHintCell.appendChild(el('label', { text: 'Wrapper 提示文' }));
-  wrapHintCell.appendChild(buildTextarea({
+  // heading row with inline toggle
+  const wrapHead = el('div', {
+    style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }
+  });
+  wrapHead.appendChild(el('div', { className: 'yyt-tde-schema-heading', style: { marginBottom: '0' }, text: 'Wrapper 包裹配置' }));
+  wrapHead.appendChild(toggle({
+    label: '启用',
+    checked: _state._pendingWrapperConfig.enabled !== false,
+    style: { padding: '0', border: 'none', background: 'none' },
+    onChange: (v) => { _state._pendingWrapperConfig.enabled = v; markDirty(); refresh(); }
+  }).el);
+  wrapSec.appendChild(wrapHead);
+
+  // content block (dimmed when disabled)
+  const wrapEnabled = _state._pendingWrapperConfig.enabled !== false;
+  const wrapBody = el('div', {
+    className: wrapEnabled ? '' : 'yyt-tde-disabled-section'
+  });
+
+  // Wrapper 标签名
+  const rowTag = el('div', { className: 'yyt-tde-schema-row' });
+  rowTag.appendChild(el('div', { className: 'yyt-tde-schema-key', text: '标签名' }));
+  const tagSlot = el('div', { className: 'yyt-tde-schema-value' });
+  tagSlot.appendChild(textInput({
+    value: _state._pendingWrapperConfig.wrapperTag || '',
+    placeholder: '默认: 最新数据与记录',
+    onInput: (v) => { _state._pendingWrapperConfig.wrapperTag = v; markDirty(); }
+  }).el);
+  rowTag.appendChild(tagSlot);
+  wrapBody.appendChild(rowTag);
+
+  // Wrapper 提示文
+  const rowHint = el('div', { className: 'yyt-tde-schema-row', style: { alignItems: 'flex-start' } });
+  rowHint.appendChild(el('div', { className: 'yyt-tde-schema-key', text: '提示文' }));
+  const hintSlot = el('div', { className: 'yyt-tde-schema-value' });
+  hintSlot.appendChild(buildTextarea({
     value: _state._pendingWrapperConfig.wrapperHint || '',
-    placeholder: '可选，说明 wrapper 内容用途（注入在 wrapper 开始标签之后）',
+    placeholder: '可选，注入在 wrapper 开始标签之后',
     onInput: (v) => { _state._pendingWrapperConfig.wrapperHint = v; markDirty(); }
   }));
-  wrapGrid.appendChild(wrapHintCell);
+  rowHint.appendChild(hintSlot);
+  wrapBody.appendChild(rowHint);
 
-  // Wrapper placement
+  // 注入位置
   const wp = _state._pendingWrapperConfig.wrapperPlacement || {};
-  wrapGrid.appendChild(buildUcCell({
-    label: '注入位置',
-    control: selectInput({
-      value: wp.position || 'before_character_definition',
-      options: [
-        { value: 'before_character_definition', label: '角色定义之前' },
-        { value: 'after_character_definition', label: '角色定义之后' },
-        { value: 'before_authors_note', label: '作者注释之前' },
-        { value: 'after_authors_note', label: '作者注释之后' }
-      ],
-      onChange: (v) => {
-        if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
-        _state._pendingWrapperConfig.wrapperPlacement.position = v;
-        markDirty();
-      }
-    })
-  }));
-  wrapGrid.appendChild(buildUcCell({
-    label: '深度',
-    control: textInput({
-      type: 'number',
-      value: String(wp.depth ?? 2),
-      onInput: (v) => {
-        if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
-        _state._pendingWrapperConfig.wrapperPlacement.depth = Number(v) || 0;
-        markDirty();
-      }
-    })
-  }));
-  wrapGrid.appendChild(buildUcCell({
-    label: '顺序',
-    control: textInput({
-      type: 'number',
-      value: String(wp.order ?? 0),
-      onInput: (v) => {
-        if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
-        _state._pendingWrapperConfig.wrapperPlacement.order = Number(v) || 0;
-        markDirty();
-      }
-    })
-  }));
+  const rowPos = el('div', { className: 'yyt-tde-schema-row' });
+  rowPos.appendChild(el('div', { className: 'yyt-tde-schema-key', text: '注入位置' }));
+  const posSlot = el('div', { className: 'yyt-tde-schema-value' });
+  posSlot.appendChild(selectInput({
+    value: wp.position || 'before_character_definition',
+    options: [
+      { value: 'before_character_definition', label: '角色定义之前' },
+      { value: 'after_character_definition', label: '角色定义之后' },
+      { value: 'before_authors_note', label: '作者注释之前' },
+      { value: 'after_authors_note', label: '作者注释之后' }
+    ],
+    onChange: (v) => {
+      if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
+      _state._pendingWrapperConfig.wrapperPlacement.position = v;
+      markDirty();
+    }
+  }).el);
+  rowPos.appendChild(posSlot);
+  wrapBody.appendChild(rowPos);
 
-  wrapSec.appendChild(wrapGrid);
+  // 深度 + 顺序（同一行）
+  const rowDepthOrder = el('div', { className: 'yyt-tde-schema-row' });
+  rowDepthOrder.appendChild(el('div', { className: 'yyt-tde-schema-key', text: '深度 / 顺序' }));
+  const depthOrderSlot = el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } });
+  depthOrderSlot.appendChild(textInput({
+    type: 'number',
+    value: String(wp.depth ?? 2),
+    style: { width: '60px' },
+    onInput: (v) => {
+      if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
+      _state._pendingWrapperConfig.wrapperPlacement.depth = Number(v) || 0;
+      markDirty();
+    }
+  }).el);
+  depthOrderSlot.appendChild(el('span', { text: '/', style: { color: 'var(--tde-text-muted)' } }));
+  depthOrderSlot.appendChild(textInput({
+    type: 'number',
+    value: String(wp.order ?? 0),
+    style: { width: '60px' },
+    onInput: (v) => {
+      if (!_state._pendingWrapperConfig.wrapperPlacement) _state._pendingWrapperConfig.wrapperPlacement = {};
+      _state._pendingWrapperConfig.wrapperPlacement.order = Number(v) || 0;
+      markDirty();
+    }
+  }).el);
+  rowDepthOrder.appendChild(depthOrderSlot);
+  wrapBody.appendChild(rowDepthOrder);
+
+  wrapSec.appendChild(wrapBody);
   container.appendChild(wrapSec);
 
   // 每张表的 exportConfig 卡片
