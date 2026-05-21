@@ -1278,8 +1278,22 @@ function refresh() {
   const $body = _state.$window.find('.yyt-window-body');
   if (!$body || !$body.length) return;
   const bodyEl = $body[0];
+
+  // preserve scroll positions across DOM rebuild
+  const prevMain = bodyEl.querySelector('.yyt-tde-main');
+  const prevSidebar = bodyEl.querySelector('.yyt-tde-sidebar');
+  const mainTop = prevMain ? prevMain.scrollTop : 0;
+  const sidebarTop = prevSidebar ? prevSidebar.scrollTop : 0;
+
   bodyEl.innerHTML = '';
   bodyEl.appendChild(buildEditor());
+
+  // restore scroll positions
+  const nextMain = bodyEl.querySelector('.yyt-tde-main');
+  const nextSidebar = bodyEl.querySelector('.yyt-tde-sidebar');
+  if (nextMain) nextMain.scrollTop = mainTop;
+  if (nextSidebar) nextSidebar.scrollTop = sidebarTop;
+
   injectAssistantStyles();
 
   // 助手面板打开时，每次 refresh 都重新初始化（DOM 被 innerHTML 重建）
