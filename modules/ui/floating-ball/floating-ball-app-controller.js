@@ -123,7 +123,10 @@ export function createAppController({
       fallback.textContent = `[渲染失败: ${view?.id || 'unknown'}]`;
       inner = fallback;
     }
-    if (!(inner instanceof Node)) {
+    // 跨 document 兼容：bootstrap 传入的 targetDoc 是 parent window，view 用它
+    // 建出来的 Node 在当前 iframe 的 Node 构造器下 `instanceof Node` 会假阴。
+    // 改用 nodeType 鸭式检测。
+    if (!inner || typeof inner.nodeType !== 'number') {
       const fallback = targetDoc.createElement('div');
       fallback.style.cssText = 'padding:24px;color:rgba(255,255,255,0.6);font-size:12px;';
       fallback.textContent = `[render 未返回 DOM Node: ${view?.id || 'unknown'}]`;

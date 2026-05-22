@@ -318,7 +318,7 @@ function renderCustom(doc, item, ctx) {
     renderedNode = doc.createTextNode(`[渲染失败: ${item.id}]`);
   }
 
-  if (renderedNode instanceof Node) {
+  if (renderedNode && typeof renderedNode.nodeType === 'number') {
     wrap.appendChild(renderedNode);
   } else if (renderedNode != null) {
     wrap.innerHTML = String(renderedNode);
