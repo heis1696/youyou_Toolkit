@@ -35,7 +35,7 @@ export function createItemRegistry({ onChange, onRefresh }) {
     if (!item || typeof item !== 'object') return '项必须是对象';
     if (!item.id || typeof item.id !== 'string') return '项必须包含字符串 id';
     if (!item.label || typeof item.label !== 'string') return '项必须包含字符串 label';
-    if (item.kind && !['toggle', 'button', 'slider', 'labelValue', 'custom'].includes(item.kind)) {
+    if (item.kind && !['toggle', 'button', 'slider', 'labelValue', 'custom', 'app'].includes(item.kind)) {
       return `未知 kind: ${item.kind}`;
     }
     if (item.kind === 'custom' && typeof item.render !== 'function') {
@@ -152,6 +152,7 @@ export function renderItem(doc, item, ctxBase) {
   switch (item.kind) {
     case 'custom':
       return renderCustom(doc, item, ctx);
+    case 'app':
     case 'slider':
     case 'labelValue':
     case 'button':

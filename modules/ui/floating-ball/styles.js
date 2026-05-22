@@ -313,11 +313,100 @@ export function buildStyles() {
       display: flex; justify-content: center; align-items: center;
       padding: 6px 0 8px 0;
       flex-shrink: 0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
     #${PID} .phone-home-indicator::before {
       content: ''; display: block;
       width: 100px; height: 4px; border-radius: 2px;
       background: rgba(255,255,255,0.32);
+      transition: background 0.15s, transform 0.15s;
+    }
+    #${PID} .phone-home-indicator:hover::before {
+      background: rgba(255,255,255,0.5);
+    }
+    #${PID} .phone-home-indicator:active::before {
+      transform: scaleX(0.85);
+    }
+
+    /* ─── Phase A1: App 接管 + 视图栈 ─────────────────────────── */
+
+    /* App 接管期间的 phoneContent 布局（覆盖默认 padding/scroll） */
+    #${PID} .phone-content.is-app-active {
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* App 顶部 bar */
+    #${PID} .phone-app-topbar {
+      display: flex; align-items: center;
+      height: 40px; min-height: 40px;
+      padding: 0 8px; gap: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+    }
+    #${PID} .phone-app-topbar-back {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: transparent; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.85);
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s;
+    }
+    #${PID} .phone-app-topbar-back:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    #${PID} .phone-app-topbar-back:active {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    #${PID} .phone-app-topbar-title {
+      flex: 1;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.92);
+      padding-right: 30px; /* 与左侧返回按钮等宽，让标题居中 */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    /* App 视图容器 */
+    #${PID} .phone-app-view {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+      position: relative;
+      will-change: transform, opacity;
+    }
+    #${PID} .phone-app-view::-webkit-scrollbar { display: none; }
+
+    /* 动画 */
+    @keyframes ${PID}-app-push-in {
+      from { opacity: 0; transform: translateX(60%); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes ${PID}-app-pop-out {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(60%); }
+    }
+    #${PID} .phone-app-view.is-pushing-in {
+      animation: ${PID}-app-push-in 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+    #${PID} .phone-app-view.is-popping-out {
+      animation: ${PID}-app-pop-out 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
     }
   `;
 }
