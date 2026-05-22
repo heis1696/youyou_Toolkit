@@ -40,6 +40,8 @@ import {
   renderItem,
 } from './floating-ball-registry.js';
 import { createAppController } from './floating-ball-app-controller.js';
+import { registerQQApp } from '../../apps/qq/index.js';
+import { removeQQStyles } from '../../apps/qq/qq-styles.js';
 
 const scopeLogger = logger.createScope('FloatingBall');
 const fbStorage = storage.namespace(STORAGE_NS);
@@ -339,6 +341,18 @@ function registerBuiltinApps() {
       render: (ctx) => buildDemoHomeView(ctx),
     },
   });
+
+  // Phase B: QQ App
+  try {
+    registerQQApp({
+      floatingBall,
+      parentStorage: fbStorage,
+      parentLogger: scopeLogger,
+      targetDoc: state.targetDoc,
+    });
+  } catch (err) {
+    scopeLogger.error(`registerQQApp 失败: ${err?.message || err}`, err);
+  }
 }
 
 function buildDemoHomeView(ctx) {
@@ -425,6 +439,7 @@ function destroy() {
   if (state.styleEl && typeof state.styleEl.remove === 'function') {
     state.styleEl.remove();
   }
+  try { removeQQStyles(state.targetDoc); } catch (_) {}
 
   try {
     if (state.targetWin && state.targetWin[CLEANUP_KEY] === destroy) {
@@ -581,6 +596,10 @@ function init(options = {}) {
   }
 
   registerBuiltinItems();
+  // 标记 ready 必须在 registerBuiltinApps 之前：后者复用公共 registerApp，
+  // 而 registerApp 走 ensureReady() 守卫。此时所有依赖（itemRegistry /
+  // appController / menuController / root）已经构建完毕，可以安全置位。
+  state.inited = true;
   registerBuiltinApps();
   subscribeEvents();
   syncOrbBadge();
@@ -588,7 +607,6 @@ function init(options = {}) {
 
   try { targetWin[CLEANUP_KEY] = destroy; } catch (_) {}
 
-  state.inited = true;
   scopeLogger.log('浮球已初始化');
 }
 
