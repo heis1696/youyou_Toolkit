@@ -377,6 +377,44 @@ const CSS = `
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* Phase C1: thinking pill + disabled input */
+.yyt-qq-thinking-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(91, 155, 217, 0.18);
+  color: #b3d1f0;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 6px;
+  animation: yyt-qq-thinking-pulse 1.4s ease-in-out infinite;
+  white-space: nowrap;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.yyt-qq-thinking-pill.is-error {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+  animation: none;
+}
+@keyframes yyt-qq-thinking-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1.0; }
+}
+.yyt-qq-chat-input.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.yyt-qq-chat-send-btn.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 `;
 
 export function injectQQStyles(targetDoc) {

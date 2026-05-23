@@ -10,6 +10,8 @@ import { createQQStorage } from './qq-storage.js';
 import { createHomeView } from './views/qq-home-view.js';
 import { injectQQStyles } from './qq-styles.js';
 import { QQ_APP_ID } from './qq-types.js';
+import { createOrchestrator } from './orchestrator.js';
+import { eventBus } from '../../core/event-bus.js';
 
 const QQ_ICON_SVG = `
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
@@ -43,7 +45,14 @@ export function registerQQApp({ floatingBall, parentStorage, parentLogger, targe
 
   const rootView = createHomeView({ qqStorage, logger, targetDoc });
 
-  const unregister = floatingBall.registerApp({
+  const orchestrator = createOrchestrator({ qqStorage, logger, eventBus });
+  try {
+    orchestrator.install();
+  } catch (err) {
+    logger?.error?.(`orchestrator.install 失败: ${err?.message || err}`, err);
+  }
+
+  const innerUnregister = floatingBall.registerApp({
     id: QQ_APP_ID,
     label: 'QQ',
     icon: QQ_ICON_SVG,
@@ -55,5 +64,12 @@ export function registerQQApp({ floatingBall, parentStorage, parentLogger, targe
     rootView,
   });
 
-  return { unregister, qqStorage };
+  const unregister = () => {
+    try { orchestrator.uninstall(); } catch (err) {
+      logger?.warn?.(`orchestrator.uninstall 失败: ${err?.message || err}`);
+    }
+    try { innerUnregister?.(); } catch (_) {}
+  };
+
+  return { unregister, qqStorage, orchestrator };
 }

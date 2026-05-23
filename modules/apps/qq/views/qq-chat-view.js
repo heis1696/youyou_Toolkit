@@ -8,7 +8,15 @@
 
 import { dialog } from '../../../ui/components/controls/index.js';
 import { hostEvents, HOST_EVENTS } from '../../../core/host-event-service.js';
+import { eventBus } from '../../../core/event-bus.js';
 import { createDefaultMessage, MESSAGE_SENDER_USER } from '../qq-types.js';
+import { openGroupConfigDialog } from '../ui/group-config-dialog.js';
+import {
+  EVENT_QQ_MESSAGES_APPENDED,
+  EVENT_QQ_PHASE_STATE,
+  PHASE_STATE_THINKING,
+  PHASE_STATE_ERROR,
+} from '../defaults.js';
 
 function formatMsgTime(ts) {
   if (!ts || !Number.isFinite(ts)) return '';
@@ -89,7 +97,7 @@ function buildMembersBody(doc, group, qqStorage) {
   if (friends.length === 0) {
     const empty = doc.createElement('div');
     empty.style.cssText = 'padding:14px 4px;color:var(--yyt-text-secondary,#9aa0a8);font-size:12.5px;line-height:1.6;text-align:center;';
-    empty.textContent = '尚无好友。B 阶段暂不支持新建好友，请等待后续版本。';
+    empty.textContent = '尚无好友。点击右上角 "⚙ 配置" 添加好友并加入群。';
     wrap.appendChild(empty);
     return wrap;
   }
@@ -132,7 +140,13 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
   let sendClickHandler = null;
   let membersClickHandler = null;
   let membersBtnEl = null;
+  let configBtnEl = null;
+  let configClickHandler = null;
+  let thinkingPillEl = null;
   let chatChangedUnsub = null;
+  let unsubMessagesAppended = null;
+  let unsubPhaseState = null;
+  let currentCtx = null;
 
   function scrollToBottom() {
     if (streamEl) streamEl.scrollTop = streamEl.scrollHeight;
@@ -148,6 +162,38 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
     scrollToBottom();
   }
 
+  function setThinking(status, errorMessage) {
+    const disabled = status === PHASE_STATE_THINKING;
+    if (thinkingPillEl) {
+      if (disabled) {
+        thinkingPillEl.style.display = '';
+        thinkingPillEl.classList.remove('is-error');
+        thinkingPillEl.textContent = 'AI 思考中…';
+      } else if (status === PHASE_STATE_ERROR) {
+        thinkingPillEl.style.display = '';
+        thinkingPillEl.classList.add('is-error');
+        thinkingPillEl.textContent = `AI 响应失败${errorMessage ? `：${errorMessage}` : ''}`;
+        setTimeout(() => {
+          if (thinkingPillEl) {
+            thinkingPillEl.style.display = 'none';
+            thinkingPillEl.classList.remove('is-error');
+          }
+        }, 4000);
+      } else {
+        thinkingPillEl.style.display = 'none';
+        thinkingPillEl.classList.remove('is-error');
+      }
+    }
+    if (inputEl) {
+      inputEl.disabled = disabled;
+      inputEl.classList.toggle('is-disabled', disabled);
+    }
+    if (sendBtnEl) {
+      sendBtnEl.disabled = disabled;
+      sendBtnEl.classList.toggle('is-disabled', disabled);
+    }
+  }
+
   return {
     id: `qq-chat:${groupId}`,
     get title() {
@@ -155,6 +201,7 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
       return g?.name || '群聊';
     },
     render(ctx) {
+      currentCtx = ctx;
       const doc = targetDoc || globalThis.document || document;
       const group = qqStorage.getGroup(groupId);
 
@@ -219,6 +266,37 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
       };
       membersBtnEl.addEventListener('click', membersClickHandler);
       infoBar.appendChild(membersBtnEl);
+
+      configBtnEl = doc.createElement('button');
+      configBtnEl.type = 'button';
+      configBtnEl.className = 'yyt-qq-group-info-btn';
+      configBtnEl.textContent = '⚙ 配置';
+      configBtnEl.title = '群配置（触发 / prompt / 成员）';
+      configClickHandler = async (e) => {
+        e.stopPropagation();
+        try {
+          const latest = qqStorage.getGroup(groupId) || group;
+          const result = await openGroupConfigDialog({
+            group: latest,
+            qqStorage,
+            logger,
+            targetDoc: doc,
+          });
+          if (result?.updated && currentCtx?.isOpen) {
+            currentCtx.replaceView(createChatView({ groupId, qqStorage, logger, targetDoc }));
+          }
+        } catch (err) {
+          logger?.error?.(`打开群配置弹窗异常: ${err?.message || err}`, err);
+        }
+      };
+      configBtnEl.addEventListener('click', configClickHandler);
+      infoBar.appendChild(configBtnEl);
+
+      thinkingPillEl = doc.createElement('div');
+      thinkingPillEl.className = 'yyt-qq-thinking-pill';
+      thinkingPillEl.style.display = 'none';
+      thinkingPillEl.textContent = 'AI 思考中…';
+      infoBar.appendChild(thinkingPillEl);
 
       wrap.appendChild(infoBar);
 
@@ -312,6 +390,34 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
         logger?.warn?.(`订阅 CHAT_CHANGED 失败: ${err?.message || err}`);
       }
 
+      // Phase C1：订阅 AI 写回事件，增量 append DOM；订阅 phase-state 切换 thinking 状态
+      try {
+        if (unsubMessagesAppended) { try { unsubMessagesAppended(); } catch (_) {} unsubMessagesAppended = null; }
+        unsubMessagesAppended = eventBus.on(EVENT_QQ_MESSAGES_APPENDED, (payload) => {
+          if (!payload || payload.groupId !== groupId) return;
+          if (!ctx?.isOpen) return;
+          try {
+            appendMessageDom(doc, payload.message);
+          } catch (err) {
+            logger?.warn?.(`qq:messages-appended 处理失败: ${err?.message || err}`);
+          }
+        });
+      } catch (err) {
+        logger?.warn?.(`订阅 qq:messages-appended 失败: ${err?.message || err}`);
+      }
+
+      try {
+        if (unsubPhaseState) { try { unsubPhaseState(); } catch (_) {} unsubPhaseState = null; }
+        unsubPhaseState = eventBus.on(EVENT_QQ_PHASE_STATE, (payload) => {
+          if (!ctx?.isOpen) return;
+          const targetGroupId = payload?.groupId;
+          if (targetGroupId && targetGroupId !== groupId) return;
+          setThinking(payload?.status, payload?.error);
+        });
+      } catch (err) {
+        logger?.warn?.(`订阅 qq:phase-state 失败: ${err?.message || err}`);
+      }
+
       return wrap;
     },
     onEnter() {
@@ -323,18 +429,31 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
         if (sendBtnEl && sendClickHandler) sendBtnEl.removeEventListener('click', sendClickHandler);
         if (inputEl && keydownHandler) inputEl.removeEventListener('keydown', keydownHandler);
         if (membersBtnEl && membersClickHandler) membersBtnEl.removeEventListener('click', membersClickHandler);
+        if (configBtnEl && configClickHandler) configBtnEl.removeEventListener('click', configClickHandler);
       } catch (_) {}
       if (chatChangedUnsub) {
         try { chatChangedUnsub(); } catch (_) {}
         chatChangedUnsub = null;
       }
+      if (unsubMessagesAppended) {
+        try { unsubMessagesAppended(); } catch (_) {}
+        unsubMessagesAppended = null;
+      }
+      if (unsubPhaseState) {
+        try { unsubPhaseState(); } catch (_) {}
+        unsubPhaseState = null;
+      }
       streamEl = null;
       inputEl = null;
       sendBtnEl = null;
       membersBtnEl = null;
+      configBtnEl = null;
+      thinkingPillEl = null;
       keydownHandler = null;
       sendClickHandler = null;
       membersClickHandler = null;
+      configClickHandler = null;
+      currentCtx = null;
     },
   };
 }
