@@ -9,6 +9,32 @@
 
 ## [Unreleased]
 
+### feat: ImportExportCenter 统一导入导出架构 (v1.0.264–v1.0.267)
+
+**Phase 1 (v1.0.264)**：
+- 新增 `modules/io/` 三层架构（Center → Handler → FormatAdapter）
+- `import-export-center.js` — 中心注册表 + `importData`/`exportData` + 通用导入/导出 dialog
+- `handlers/template-handler.js` — 模板模块率先走 center，支持 youyou/shujuku 双格式自动探测
+- `preset-manager-base.js` 新增 `ioKind` 参数，有 handler 时自动走 center dialog
+- `table-template-panel.js` 传入 `ioKind: 'template'`
+
+**修复 (v1.0.265)**：
+- `youyou-importer.parse()` 保留 `id`/`createdAt`/`updatedAt`，避免重复导入生成新模板
+- template-handler 格式探测增加命中/未命中日志
+
+**功能增强 (v1.0.266)**：
+- `openExportDialog` 支持 `options.selectedId`，导出当前选中模板而非全部
+- preset-manager-base 传当前 `currentId` 给导出 dialog
+
+**Phase 2 (v1.0.267) — 全站收口**：
+- 新增 6 个 handler：apiPreset / bypass / regexPreset / worldbookPreset / tool / settings
+- api-preset-panel / regex-extract-panel / worldbook-preset-panel 通过 `ioKind` 接入
+- bypass-panel 导入导出改调 center
+- tool-actions-helper 导入导出改调 center
+- bypass handler 含 prompt-group 三路格式探测 + 宏替换归一化（`$0` → `{{toolContentMacro}}`）
+- tool handler 支持覆盖 vs 合并模式
+- settings handler 仅导出
+
 ### feat: AI 改表助手 P2 增强 — 运行时行数据修改 + 累积 diff
 
 **运行时行数据修改（boundState patch）**：
