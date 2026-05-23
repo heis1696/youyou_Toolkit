@@ -415,6 +415,35 @@ const CSS = `
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* 群配置弹窗：输入校验红边 / API 预设选择器 */
+.yyt-qq-input-error,
+.yyt-input.yyt-qq-input-error {
+  border-color: var(--yyt-danger, #f87171) !important;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.35) !important;
+}
+.yyt-qq-field-err {
+  color: var(--yyt-danger, #f87171);
+  font-size: 11.5px;
+  margin-top: 4px;
+  min-height: 14px;
+  line-height: 1.4;
+}
+.yyt-qq-profile-select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--yyt-control-border, rgba(255,255,255,0.12));
+  background: var(--yyt-control-bg, rgba(255,255,255,0.04));
+  color: var(--yyt-text, #f2f2f2);
+  font-size: 12.5px;
+  outline: none;
+}
+.yyt-qq-profile-select.yyt-qq-input-error {
+  border-color: var(--yyt-danger, #f87171) !important;
+}
 `;
 
 export function injectQQStyles(targetDoc) {

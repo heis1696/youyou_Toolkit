@@ -3,9 +3,12 @@
  *
  * 共享 AI 调用工具：abort-aware sleep + 重试包装 + chatId 变化错误类型。
  * phase1 / phase2 共用，避免相互 import。
+ *
+ * 走 ConnectionManagerRequestService.sendRequest（不进入主聊天 submit 流程）。
+ * 不影响右下角发送按钮与正文渲染。
  */
 
-import { sendWithPreset } from '../../api-connection.js';
+import { sendViaConnectionManager } from './connection-manager-gateway.js';
 import { CALL_AI_RETRY_DELAY_MS } from './defaults.js';
 
 /**
@@ -40,23 +43,38 @@ export function sleepWithAbort(ms, abortSignal) {
 /**
  * 调用 AI，最多重试 maxRetries 次（共 maxRetries+1 次尝试）。
  * abort 立即抛 AbortError，不进入重试。
+ *
+ * @param {Object} params
+ * @param {string} params.profileId - ConnectionManager profile id（必填）
+ * @param {Array} params.messages
+ * @param {Object} [params.options] - { maxTokens }
+ * @param {AbortSignal} [params.abortSignal]
+ * @param {number} [params.maxRetries=1]
+ * @param {Object} [params.logger]
+ * @param {string} [params.label='callAI']
  */
 export async function callAiWithRetry({
+  profileId,
   messages,
   options = {},
   abortSignal,
   maxRetries = 1,
-  presetName = '',
   logger,
   label = 'callAI',
 }) {
+  if (!profileId) {
+    throw new Error(`${label}: 未配置 API 预设 profileId`);
+  }
   let lastErr = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (abortSignal?.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
     try {
-      const output = await sendWithPreset(presetName, messages, options, abortSignal);
+      const output = await sendViaConnectionManager(profileId, messages, {
+        maxTokens: options.maxTokens,
+        abortSignal,
+      });
       return output;
     } catch (err) {
       lastErr = err;

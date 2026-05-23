@@ -15,6 +15,7 @@ import {
   DEFAULT_MAX_RETRIES,
 } from '../defaults.js';
 import { openFriendCreateDialog } from './friend-create-dialog.js';
+import { listConnectionManagerProfiles } from '../connection-manager-gateway.js';
 
 function createLabeledTextarea(doc, { label, value, rows, placeholder, onChange }) {
   const row = doc.createElement('div');
@@ -162,12 +163,89 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
         : DEFAULT_MAX_RETRIES,
       memberIds: Array.isArray(group.memberIds) ? [...group.memberIds] : [],
       perMemberPrompt: { ...(group?.perMemberPrompt || {}) },
+      apiProfileId: String(group?.apiProfileId || ''),
     };
+
+    // 字段级有效状态；任一字段无效则禁用保存
+    const fieldValid = {
+      regex: true,
+      perMinute: true,
+      maxRetries: true,
+      apiProfileId: !!draft.apiProfileId,
+    };
+    function isValidIntStr(v, allowZero = false) {
+      const s = String(v ?? '').trim();
+      if (!/^-?\d+$/.test(s)) return false;
+      const n = parseInt(s, 10);
+      if (!Number.isFinite(n)) return false;
+      return allowZero ? n >= 0 : n > 0;
+    }
+    function setErrClass(inputEl, hasErr) {
+      if (!inputEl) return;
+      if (hasErr) inputEl.classList.add('yyt-qq-input-error');
+      else inputEl.classList.remove('yyt-qq-input-error');
+    }
+    function refreshConfirmDisabled() {
+      if (!confirmBtnRef) return;
+      const ok = fieldValid.regex && fieldValid.perMinute && fieldValid.maxRetries && fieldValid.apiProfileId;
+      confirmBtnRef.disabled = !ok;
+    }
 
     let confirmBtnRef = null;
 
     const wrap = doc.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;max-height:70vh;overflow-y:auto;padding-right:4px;';
+
+    // ─── API 预设 ─────────────────────────────────────────
+    wrap.appendChild(createZoneTitle(doc, 'API 预设'));
+    const profileRow = doc.createElement('div');
+    profileRow.className = 'yyt-form-row';
+    const profileLbl = doc.createElement('div');
+    profileLbl.className = 'yyt-form-label';
+    profileLbl.textContent = 'ConnectionManager profile（必选；走该 profile 直接调 API，不进入主聊天 submit）';
+    profileRow.appendChild(profileLbl);
+
+    const profileSelect = doc.createElement('select');
+    profileSelect.className = 'yyt-qq-profile-select';
+    let profiles = [];
+    try {
+      profiles = listConnectionManagerProfiles() || [];
+    } catch (err) {
+      logger?.warn?.(`[QQ GroupConfig] 读取 ConnectionManager profiles 失败: ${err?.message || err}`);
+      profiles = [];
+    }
+    const placeholderOpt = doc.createElement('option');
+    placeholderOpt.value = '';
+    placeholderOpt.textContent = profiles.length === 0
+      ? '(未发现 ConnectionManager 配置 — 请先在 ST 连接管理器添加 profile)'
+      : '(请选择 API 预设)';
+    profileSelect.appendChild(placeholderOpt);
+    for (const p of profiles) {
+      const opt = doc.createElement('option');
+      opt.value = String(p?.id ?? '');
+      const name = String(p?.name || p?.api || p?.id || '(未命名)');
+      opt.textContent = name;
+      profileSelect.appendChild(opt);
+    }
+    profileSelect.value = draft.apiProfileId;
+    // 若持久化的 apiProfileId 在当前 profiles 列表中不存在（profile 被删了等），
+    // select.value 会被浏览器悄悄重置为 ''；同步 draft 状态防止 fieldValid 与 UI 不一致。
+    if (draft.apiProfileId && profileSelect.value !== draft.apiProfileId) {
+      draft.apiProfileId = '';
+      fieldValid.apiProfileId = false;
+    }
+    profileSelect.addEventListener('change', () => {
+      draft.apiProfileId = String(profileSelect.value || '');
+      fieldValid.apiProfileId = !!draft.apiProfileId;
+      setErrClass(profileSelect, !fieldValid.apiProfileId);
+      profileErr.textContent = fieldValid.apiProfileId ? '' : '必须选择一个 API 预设，否则无法触发 AI 响应';
+      refreshConfirmDisabled();
+    });
+    profileRow.appendChild(profileSelect);
+    const profileErr = doc.createElement('div');
+    profileErr.className = 'yyt-qq-field-err';
+    profileRow.appendChild(profileErr);
+    wrap.appendChild(profileRow);
 
     // ─── 触发 ─────────────────────────────────────────────
     wrap.appendChild(createZoneTitle(doc, '触发'));
@@ -221,50 +299,74 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
       const v = String(draft.phase1Regex || '');
       if (!v) {
         regexErr.textContent = '';
-        phase1Regex.input.style.borderColor = '';
-        if (confirmBtnRef) confirmBtnRef.disabled = false;
+        setErrClass(phase1Regex.input, false);
+        fieldValid.regex = true;
+        refreshConfirmDisabled();
         return;
       }
       if (isRegexValid(v)) {
         regexErr.textContent = '';
-        phase1Regex.input.style.borderColor = '';
-        if (confirmBtnRef) confirmBtnRef.disabled = false;
+        setErrClass(phase1Regex.input, false);
+        fieldValid.regex = true;
       } else {
         regexErr.textContent = '正则语法错误';
-        phase1Regex.input.style.borderColor = 'var(--yyt-danger,#f87171)';
-        if (confirmBtnRef) confirmBtnRef.disabled = true;
+        setErrClass(phase1Regex.input, true);
+        fieldValid.regex = false;
       }
+      refreshConfirmDisabled();
     }
 
     // ─── 速率 + 重试 ──────────────────────────────────────
     wrap.appendChild(createZoneTitle(doc, '速率与重试'));
     const perMinute = createLabeledInput(doc, {
-      label: '速率限制（每分钟最多触发次数）',
+      label: '速率限制（每分钟最多触发次数，必须为正整数）',
       value: String(draft.perMinute),
       placeholder: '3',
       type: 'number',
       onChange: (v) => {
-        const n = parseInt(v, 10);
-        draft.perMinute = Number.isFinite(n) && n > 0 ? n : 1;
+        if (isValidIntStr(v, false)) {
+          draft.perMinute = parseInt(v, 10);
+          fieldValid.perMinute = true;
+          setErrClass(perMinute.input, false);
+          perMinuteErr.textContent = '';
+        } else {
+          fieldValid.perMinute = false;
+          setErrClass(perMinute.input, true);
+          perMinuteErr.textContent = '请输入大于 0 的整数';
+        }
+        refreshConfirmDisabled();
       },
     });
     perMinute.input.min = '1';
     perMinute.input.step = '1';
     wrap.appendChild(perMinute.row);
+    const perMinuteErr = createErrEl(doc);
+    wrap.appendChild(perMinuteErr);
 
     const maxRetries = createLabeledInput(doc, {
-      label: '失败重试次数',
+      label: '失败重试次数（>= 0 的整数）',
       value: String(draft.maxRetries),
       placeholder: '1',
       type: 'number',
       onChange: (v) => {
-        const n = parseInt(v, 10);
-        draft.maxRetries = Number.isFinite(n) && n >= 0 ? n : 0;
+        if (isValidIntStr(v, true)) {
+          draft.maxRetries = parseInt(v, 10);
+          fieldValid.maxRetries = true;
+          setErrClass(maxRetries.input, false);
+          maxRetriesErr.textContent = '';
+        } else {
+          fieldValid.maxRetries = false;
+          setErrClass(maxRetries.input, true);
+          maxRetriesErr.textContent = '请输入大于或等于 0 的整数';
+        }
+        refreshConfirmDisabled();
       },
     });
     maxRetries.input.min = '0';
     maxRetries.input.step = '1';
     wrap.appendChild(maxRetries.row);
+    const maxRetriesErr = createErrEl(doc);
+    wrap.appendChild(maxRetriesErr);
 
     // ─── 成员管理 ────────────────────────────────────────
     wrap.appendChild(createZoneTitle(doc, '成员管理'));
@@ -386,12 +488,13 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
           variant: 'primary',
           onClick: (close) => {
             try {
-              if (draft.phase1Regex && !isRegexValid(draft.phase1Regex)) {
-                logger?.warn?.(`[QQ GroupConfig] 正则非法，拒绝保存`);
+              if (!fieldValid.regex || !fieldValid.perMinute || !fieldValid.maxRetries || !fieldValid.apiProfileId) {
+                logger?.warn?.(`[QQ GroupConfig] 校验未通过，拒绝保存`);
                 return;
               }
               const patch = {
                 atmosphere: String(draft.atmosphere || ''),
+                apiProfileId: String(draft.apiProfileId || ''),
                 triggerSources: {
                   ...(group.triggerSources || {}),
                   userMessage: !!draft.userMessageEnabled,
@@ -427,7 +530,13 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
         try {
           const buttons = overlay.querySelectorAll('.yyt-dialog-footer .yyt-btn');
           confirmBtnRef = buttons[buttons.length - 1] || null;
+          // 初次进入：根据当前 apiProfileId 状态高亮 + 调用一次校验
+          if (!fieldValid.apiProfileId) {
+            setErrClass(profileSelect, true);
+            profileErr.textContent = '必须选择一个 API 预设，否则无法触发 AI 响应';
+          }
           updateRegexValidity();
+          refreshConfirmDisabled();
         } catch (_) {}
       },
     });

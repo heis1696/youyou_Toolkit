@@ -71,6 +71,7 @@ export function createDefaultGroup({ name } = {}) {
       promptTemplate: '',
       parseRegex: '',
     },
+    apiProfileId: '',
     heartbeatTemplate: '',
     failureConfig: {
       maxRetries: 2,

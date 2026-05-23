@@ -163,6 +163,11 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
 
       for (const group of groups) {
         if (currentTask) break;
+        const profileId = String(group?.apiProfileId || '').trim();
+        if (!profileId) {
+          logger?.warn?.(`[QQOrchestrator] group=${group.id} 未配置 apiProfileId，跳过；请在群配置弹窗选择 API 预设`);
+          continue;
+        }
         const perMinute = group?.rateLimitConfig?.perMinute;
         if (!checkRateLimit(group.id, perMinute)) {
           logger?.info?.(`[QQOrchestrator] group=${group.id} 命中频率限制（perMinute=${perMinute}），跳过`);
