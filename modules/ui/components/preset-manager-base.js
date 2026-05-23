@@ -44,6 +44,7 @@ import {
 } from './controls/index.js';
 
 import { logger } from '../../core/logger-service.js';
+import { hasHandler, openImportDialog as centerImport, openExportDialog as centerExport } from '../../io/import-export-center.js';
 
 const log = logger.createScope('PresetManagerBase');
 
@@ -70,7 +71,8 @@ export function createPresetManagerPanel(spec = {}) {
     renderExtras = null,
     renderListItemMeta = null,
     hasSwitchToButton = false,
-    onSwitchTo = null
+    onSwitchTo = null,
+    ioKind = null
   } = spec;
 
   if (!store || typeof store.listPresets !== 'function') {
@@ -327,7 +329,12 @@ export function createPresetManagerPanel(spec = {}) {
         size: 'small',
         variant: 'ghost',
         onClick: async () => {
-          await openImportDialog(store, refresh);
+          if (ioKind && hasHandler(ioKind)) {
+            const result = await centerImport(ioKind);
+            if (result && (result.imported > 0 || result.success)) refresh();
+          } else {
+            await openImportDialog(store, refresh);
+          }
         }
       });
       const exportBtn = button({
@@ -335,7 +342,11 @@ export function createPresetManagerPanel(spec = {}) {
         size: 'small',
         variant: 'ghost',
         onClick: () => {
-          openExportDialog(store, kind);
+          if (ioKind && hasHandler(ioKind)) {
+            centerExport(ioKind);
+          } else {
+            openExportDialog(store, kind);
+          }
         }
       });
       const clearBtn = button({

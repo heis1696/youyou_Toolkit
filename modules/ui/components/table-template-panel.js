@@ -237,7 +237,8 @@ export const TableTemplatePanel = createPresetManagerPanel({
   panelHint: '管理填表工作台的表格结构模板。在填表面板顶部工具栏可快速加载/保存当前模板。',
   store: tableTemplateStoreAdapter,
   renderEditor,
-  renderListItemMeta
+  renderListItemMeta,
+  ioKind: 'template'
 });
 
 export default TableTemplatePanel;

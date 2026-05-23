@@ -83,6 +83,14 @@ export function createBootstrap(context, options = {}) {
           modules.toolOutputServiceModule.toolOutputService.setApiConnection(modules.apiConnectionModule);
         }
 
+        // IO Center handler 注册
+        try {
+          const { registerAllHandlers } = await import('../io/register-handlers.js');
+          registerAllHandlers();
+        } catch (err) {
+          scopeLogger.warn('IO Center 注册失败（不影响核心功能）', err);
+        }
+
         return true;
       } catch (error) {
         moduleLoadPromise = null;
