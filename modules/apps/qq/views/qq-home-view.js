@@ -6,6 +6,7 @@
  */
 
 import { dialog } from '../../../ui/components/controls/index.js';
+import { hostEvents, HOST_EVENTS } from '../../../core/host-event-service.js';
 import { createDefaultGroup } from '../qq-types.js';
 import { createChatView } from './qq-chat-view.js';
 
@@ -29,6 +30,7 @@ function firstChar(name) {
 }
 
 export function createHomeView({ qqStorage, logger, targetDoc }) {
+  let chatChangedUnsub = null;
   return {
     id: 'qq-home',
     title: 'QQ',
@@ -95,7 +97,29 @@ export function createHomeView({ qqStorage, logger, targetDoc }) {
       });
       wrap.appendChild(addBtn);
 
+      // ST chat 切换时重渲主页：列表里每个群的"最近消息预览"按当前 chatId 取，
+      // 不刷新会显示旧 chat 的预览。render 重入时先 unsub 防泄漏。
+      try {
+        if (chatChangedUnsub) { try { chatChangedUnsub(); } catch (_) {} chatChangedUnsub = null; }
+        chatChangedUnsub = hostEvents.subscribe(HOST_EVENTS.CHAT_CHANGED, () => {
+          try {
+            if (!ctx?.isOpen) return;
+            ctx.replaceView(createHomeView({ qqStorage, logger, targetDoc }));
+          } catch (err) {
+            logger?.warn?.(`CHAT_CHANGED replaceView 失败: ${err?.message || err}`);
+          }
+        });
+      } catch (err) {
+        logger?.warn?.(`订阅 CHAT_CHANGED 失败: ${err?.message || err}`);
+      }
+
       return wrap;
+    },
+    destroy() {
+      if (chatChangedUnsub) {
+        try { chatChangedUnsub(); } catch (_) {}
+        chatChangedUnsub = null;
+      }
     },
   };
 }

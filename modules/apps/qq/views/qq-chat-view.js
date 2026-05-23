@@ -7,6 +7,7 @@
  */
 
 import { dialog } from '../../../ui/components/controls/index.js';
+import { hostEvents, HOST_EVENTS } from '../../../core/host-event-service.js';
 import { createDefaultMessage, MESSAGE_SENDER_USER } from '../qq-types.js';
 
 function formatMsgTime(ts) {
@@ -131,6 +132,7 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
   let sendClickHandler = null;
   let membersClickHandler = null;
   let membersBtnEl = null;
+  let chatChangedUnsub = null;
 
   function scrollToBottom() {
     if (streamEl) streamEl.scrollTop = streamEl.scrollHeight;
@@ -294,6 +296,22 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
       };
       inputEl.addEventListener('keydown', keydownHandler);
 
+      // ST chat 切换时：chat-view 显示的是旧 chatId 的消息，且此时发送会被存到
+      // 新 chatId 下导致 DOM 与 storage 不一致。pop 回主页让用户从干净状态重入。
+      try {
+        if (chatChangedUnsub) { try { chatChangedUnsub(); } catch (_) {} chatChangedUnsub = null; }
+        chatChangedUnsub = hostEvents.subscribe(HOST_EVENTS.CHAT_CHANGED, () => {
+          try {
+            if (!ctx?.isOpen) return;
+            ctx.popView();
+          } catch (err) {
+            logger?.warn?.(`CHAT_CHANGED popView 失败: ${err?.message || err}`);
+          }
+        });
+      } catch (err) {
+        logger?.warn?.(`订阅 CHAT_CHANGED 失败: ${err?.message || err}`);
+      }
+
       return wrap;
     },
     onEnter() {
@@ -306,6 +324,10 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
         if (inputEl && keydownHandler) inputEl.removeEventListener('keydown', keydownHandler);
         if (membersBtnEl && membersClickHandler) membersBtnEl.removeEventListener('click', membersClickHandler);
       } catch (_) {}
+      if (chatChangedUnsub) {
+        try { chatChangedUnsub(); } catch (_) {}
+        chatChangedUnsub = null;
+      }
       streamEl = null;
       inputEl = null;
       sendBtnEl = null;
