@@ -146,8 +146,15 @@ export async function openExportDialog(kind, options = {}) {
     return;
   }
 
+  const hasSelectedId = !!options.selectedId;
+  const serializeOpts = hasSelectedId ? { selectedId: options.selectedId } : {};
+
+  // 如果 handler 支持单条导出且有 selectedId，显示选择区
+  let exportMode = 'all'; // 'all' | 'selected'
+  if (hasSelectedId) exportMode = 'selected';
+
   let payload;
-  try { payload = exportData(kind, options); } catch (err) {
+  try { payload = exportData(kind, { ...serializeOpts, exportMode }); } catch (err) {
     await dialog.confirm({ title: '导出失败', message: String(err?.message || err), confirmText: '确定' });
     return;
   }

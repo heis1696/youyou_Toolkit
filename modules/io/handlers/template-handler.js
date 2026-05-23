@@ -95,7 +95,16 @@ export const templateHandler = {
     return { imported, skipped, errors };
   },
 
-  serialize() {
-    return exportUserTemplates();
+  serialize(options = {}) {
+    const all = exportUserTemplates();
+    if (options.selectedId && Array.isArray(all.templates)) {
+      const selected = all.templates.find(t => t.id === options.selectedId);
+      return {
+        version: all.version,
+        exportedAt: all.exportedAt,
+        templates: selected ? [selected] : all.templates
+      };
+    }
+    return all;
   }
 };

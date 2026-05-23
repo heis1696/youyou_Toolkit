@@ -343,7 +343,7 @@ export function createPresetManagerPanel(spec = {}) {
         variant: 'ghost',
         onClick: () => {
           if (ioKind && hasHandler(ioKind)) {
-            centerExport(ioKind);
+            centerExport(ioKind, { selectedId: currentId || undefined });
           } else {
             openExportDialog(store, kind);
           }
