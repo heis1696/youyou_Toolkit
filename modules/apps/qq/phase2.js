@@ -83,7 +83,7 @@ export function createPhase2({ qqStorage, logger, eventBus }) {
     logger?.info?.(`[Phase2] group=${group.id} npc=${npcId}(${friend.name}) prompt 长度=${filled.length}`);
 
     const output = await callAiWithRetry({
-      profileId: String(group.apiProfileId || '').trim(),
+      presetName: String(group.apiPresetName || '').trim(),
       messages: [{ role: 'user', content: filled }],
       options: {},
       abortSignal,

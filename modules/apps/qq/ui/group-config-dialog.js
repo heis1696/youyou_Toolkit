@@ -15,7 +15,7 @@ import {
   DEFAULT_MAX_RETRIES,
 } from '../defaults.js';
 import { openFriendCreateDialog } from './friend-create-dialog.js';
-import { listConnectionManagerProfiles } from '../connection-manager-gateway.js';
+import { loadStoredApiPresets } from '../../../api-connection.js';
 
 function createLabeledTextarea(doc, { label, value, rows, placeholder, onChange }) {
   const row = doc.createElement('div');
@@ -163,7 +163,7 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
         : DEFAULT_MAX_RETRIES,
       memberIds: Array.isArray(group.memberIds) ? [...group.memberIds] : [],
       perMemberPrompt: { ...(group?.perMemberPrompt || {}) },
-      apiProfileId: String(group?.apiProfileId || ''),
+      apiPresetName: String(group?.apiPresetName || ''),
     };
 
     // 字段级有效状态；任一字段无效则禁用保存
@@ -171,7 +171,7 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
       regex: true,
       perMinute: true,
       maxRetries: true,
-      apiProfileId: !!draft.apiProfileId,
+      apiPresetName: !!draft.apiPresetName,
     };
     function isValidIntStr(v, allowZero = false) {
       const s = String(v ?? '').trim();
@@ -187,7 +187,7 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
     }
     function refreshConfirmDisabled() {
       if (!confirmBtnRef) return;
-      const ok = fieldValid.regex && fieldValid.perMinute && fieldValid.maxRetries && fieldValid.apiProfileId;
+      const ok = fieldValid.regex && fieldValid.perMinute && fieldValid.maxRetries && fieldValid.apiPresetName;
       confirmBtnRef.disabled = !ok;
     }
 
@@ -198,54 +198,58 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
 
     // ─── API 预设 ─────────────────────────────────────────
     wrap.appendChild(createZoneTitle(doc, 'API 预设'));
-    const profileRow = doc.createElement('div');
-    profileRow.className = 'yyt-form-row';
-    const profileLbl = doc.createElement('div');
-    profileLbl.className = 'yyt-form-label';
-    profileLbl.textContent = 'ConnectionManager profile（必选；走该 profile 直接调 API，不进入主聊天 submit）';
-    profileRow.appendChild(profileLbl);
+    const presetRow = doc.createElement('div');
+    presetRow.className = 'yyt-form-row';
+    const presetLbl = doc.createElement('div');
+    presetLbl.className = 'yyt-form-label';
+    presetLbl.textContent = 'YouYou Toolkit API 预设（必选；直连预设 URL，不进入主聊天 submit 流程）';
+    presetRow.appendChild(presetLbl);
 
-    const profileSelect = doc.createElement('select');
-    profileSelect.className = 'yyt-qq-profile-select';
-    let profiles = [];
+    const presetSelect = doc.createElement('select');
+    presetSelect.className = 'yyt-qq-preset-select';
+    let presets = [];
     try {
-      profiles = listConnectionManagerProfiles() || [];
+      presets = loadStoredApiPresets() || [];
     } catch (err) {
-      logger?.warn?.(`[QQ GroupConfig] 读取 ConnectionManager profiles 失败: ${err?.message || err}`);
-      profiles = [];
+      logger?.warn?.(`[QQ GroupConfig] 读取 API 预设列表失败: ${err?.message || err}`);
+      presets = [];
     }
     const placeholderOpt = doc.createElement('option');
     placeholderOpt.value = '';
-    placeholderOpt.textContent = profiles.length === 0
-      ? '(未发现 ConnectionManager 配置 — 请先在 ST 连接管理器添加 profile)'
+    placeholderOpt.textContent = presets.length === 0
+      ? '(未发现 API 预设 — 请先在工具箱 API 配置页新建预设)'
       : '(请选择 API 预设)';
-    profileSelect.appendChild(placeholderOpt);
-    for (const p of profiles) {
+    presetSelect.appendChild(placeholderOpt);
+    for (const p of presets) {
       const opt = doc.createElement('option');
-      opt.value = String(p?.id ?? '');
-      const name = String(p?.name || p?.api || p?.id || '(未命名)');
-      opt.textContent = name;
-      profileSelect.appendChild(opt);
+      const name = String(p?.name || '');
+      if (!name) continue;
+      opt.value = name;
+      const useMain = !!p?.apiConfig?.useMainApi;
+      // useMainApi 预设无法绕开 submit，标记并禁用避免误选
+      opt.textContent = useMain ? `${name}（主 API · 不可用）` : name;
+      if (useMain) opt.disabled = true;
+      presetSelect.appendChild(opt);
     }
-    profileSelect.value = draft.apiProfileId;
-    // 若持久化的 apiProfileId 在当前 profiles 列表中不存在（profile 被删了等），
-    // select.value 会被浏览器悄悄重置为 ''；同步 draft 状态防止 fieldValid 与 UI 不一致。
-    if (draft.apiProfileId && profileSelect.value !== draft.apiProfileId) {
-      draft.apiProfileId = '';
-      fieldValid.apiProfileId = false;
+    presetSelect.value = draft.apiPresetName;
+    // 若持久化的 apiPresetName 在当前列表中已找不到（预设被删 / 改名）, 浏览器会重置 value=''；
+    // 同步 draft 防止 fieldValid 与 UI 不一致。
+    if (draft.apiPresetName && presetSelect.value !== draft.apiPresetName) {
+      draft.apiPresetName = '';
+      fieldValid.apiPresetName = false;
     }
-    profileSelect.addEventListener('change', () => {
-      draft.apiProfileId = String(profileSelect.value || '');
-      fieldValid.apiProfileId = !!draft.apiProfileId;
-      setErrClass(profileSelect, !fieldValid.apiProfileId);
-      profileErr.textContent = fieldValid.apiProfileId ? '' : '必须选择一个 API 预设，否则无法触发 AI 响应';
+    presetSelect.addEventListener('change', () => {
+      draft.apiPresetName = String(presetSelect.value || '');
+      fieldValid.apiPresetName = !!draft.apiPresetName;
+      setErrClass(presetSelect, !fieldValid.apiPresetName);
+      presetErr.textContent = fieldValid.apiPresetName ? '' : '必须选择一个 API 预设，否则无法触发 AI 响应';
       refreshConfirmDisabled();
     });
-    profileRow.appendChild(profileSelect);
-    const profileErr = doc.createElement('div');
-    profileErr.className = 'yyt-qq-field-err';
-    profileRow.appendChild(profileErr);
-    wrap.appendChild(profileRow);
+    presetRow.appendChild(presetSelect);
+    const presetErr = doc.createElement('div');
+    presetErr.className = 'yyt-qq-field-err';
+    presetRow.appendChild(presetErr);
+    wrap.appendChild(presetRow);
 
     // ─── 触发 ─────────────────────────────────────────────
     wrap.appendChild(createZoneTitle(doc, '触发'));
@@ -488,13 +492,13 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
           variant: 'primary',
           onClick: (close) => {
             try {
-              if (!fieldValid.regex || !fieldValid.perMinute || !fieldValid.maxRetries || !fieldValid.apiProfileId) {
+              if (!fieldValid.regex || !fieldValid.perMinute || !fieldValid.maxRetries || !fieldValid.apiPresetName) {
                 logger?.warn?.(`[QQ GroupConfig] 校验未通过，拒绝保存`);
                 return;
               }
               const patch = {
                 atmosphere: String(draft.atmosphere || ''),
-                apiProfileId: String(draft.apiProfileId || ''),
+                apiPresetName: String(draft.apiPresetName || ''),
                 triggerSources: {
                   ...(group.triggerSources || {}),
                   userMessage: !!draft.userMessageEnabled,
@@ -530,10 +534,10 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
         try {
           const buttons = overlay.querySelectorAll('.yyt-dialog-footer .yyt-btn');
           confirmBtnRef = buttons[buttons.length - 1] || null;
-          // 初次进入：根据当前 apiProfileId 状态高亮 + 调用一次校验
-          if (!fieldValid.apiProfileId) {
-            setErrClass(profileSelect, true);
-            profileErr.textContent = '必须选择一个 API 预设，否则无法触发 AI 响应';
+          // 初次进入：根据当前 apiPresetName 状态高亮 + 调用一次校验
+          if (!fieldValid.apiPresetName) {
+            setErrClass(presetSelect, true);
+            presetErr.textContent = '必须选择一个 API 预设，否则无法触发 AI 响应';
           }
           updateRegexValidity();
           refreshConfirmDisabled();

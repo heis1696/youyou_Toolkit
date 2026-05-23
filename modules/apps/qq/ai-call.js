@@ -4,11 +4,11 @@
  * 共享 AI 调用工具：abort-aware sleep + 重试包装 + chatId 变化错误类型。
  * phase1 / phase2 共用，避免相互 import。
  *
- * 走 ConnectionManagerRequestService.sendRequest（不进入主聊天 submit 流程）。
- * 不影响右下角发送按钮与正文渲染。
+ * 走 YouYou Toolkit 自有的 API 预设（api-connection.sendWithPresetNoSubmit）；
+ * bypassSubmit=true 跳过 TavernHelper.generateRaw，避免影响主聊天右下角发送按钮 / 正文流程。
  */
 
-import { sendViaConnectionManager } from './connection-manager-gateway.js';
+import { sendWithPresetNoSubmit } from '../../api-connection.js';
 import { CALL_AI_RETRY_DELAY_MS } from './defaults.js';
 
 /**
@@ -45,16 +45,16 @@ export function sleepWithAbort(ms, abortSignal) {
  * abort 立即抛 AbortError，不进入重试。
  *
  * @param {Object} params
- * @param {string} params.profileId - ConnectionManager profile id（必填）
+ * @param {string} params.presetName - YouYou 自有的 API 预设 name（必填）
  * @param {Array} params.messages
- * @param {Object} [params.options] - { maxTokens }
+ * @param {Object} [params.options] - 透传给 sendWithPresetNoSubmit 的 options
  * @param {AbortSignal} [params.abortSignal]
  * @param {number} [params.maxRetries=1]
  * @param {Object} [params.logger]
  * @param {string} [params.label='callAI']
  */
 export async function callAiWithRetry({
-  profileId,
+  presetName,
   messages,
   options = {},
   abortSignal,
@@ -62,8 +62,8 @@ export async function callAiWithRetry({
   logger,
   label = 'callAI',
 }) {
-  if (!profileId) {
-    throw new Error(`${label}: 未配置 API 预设 profileId`);
+  if (!presetName) {
+    throw new Error(`${label}: 未配置 API 预设 presetName`);
   }
   let lastErr = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -71,10 +71,7 @@ export async function callAiWithRetry({
       throw new DOMException('Aborted', 'AbortError');
     }
     try {
-      const output = await sendViaConnectionManager(profileId, messages, {
-        maxTokens: options.maxTokens,
-        abortSignal,
-      });
+      const output = await sendWithPresetNoSubmit(presetName, messages, options, abortSignal);
       return output;
     } catch (err) {
       lastErr = err;

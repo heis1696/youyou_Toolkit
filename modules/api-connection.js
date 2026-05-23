@@ -40,8 +40,17 @@ function saveStoredSettings(settings) {
   storage.set(SETTINGS_STORAGE_KEY, settings);
 }
 
-function loadStoredApiPresets() {
+function loadStoredApiPresetsInternal() {
   return storage.get(API_PRESETS_STORAGE_KEY, []);
+}
+
+/**
+ * 列出 YouYou Toolkit 自己持久化的 API 预设
+ * @returns {Array<{name: string, apiConfig: Object}>}
+ */
+export function loadStoredApiPresets() {
+  const presets = loadStoredApiPresetsInternal();
+  return Array.isArray(presets) ? presets : [];
 }
 
 function getStoredCurrentPresetName() {
@@ -194,7 +203,7 @@ export function getEffectiveApiConfig(presetName = '') {
 
   // 如果指定了预设，从预设列表中获取配置
   if (targetPresetName) {
-    const presets = loadStoredApiPresets();
+    const presets = loadStoredApiPresetsInternal();
     const preset = presets.find(p => p.name === targetPresetName);
     if (preset && preset.apiConfig) {
       return {
@@ -203,7 +212,7 @@ export function getEffectiveApiConfig(presetName = '') {
       };
     }
   }
-  
+
   // 使用当前配置
   return settings.apiConfig || {};
 }
@@ -216,7 +225,7 @@ export function getEffectiveApiConfig(presetName = '') {
 export function hasEffectiveApiPreset(presetName = '') {
   if (!presetName) return false;
 
-  const presets = loadStoredApiPresets();
+  const presets = loadStoredApiPresetsInternal();
   return presets.some(p => p?.name === presetName);
 }
 
@@ -233,6 +242,31 @@ export async function sendWithPreset(presetName, messages, options = {}, abortSi
   return await sendApiRequest(messages, {
     ...options,
     apiConfig
+  }, abortSignal);
+}
+
+/**
+ * 使用指定预设发送 API 请求，绕开主聊天 submit 流程
+ *
+ * 与 sendWithPreset 的区别：
+ *   - 不走 TavernHelper.generateRaw（避免动到右下角发送按钮 / 触发主聊天 generation 流）
+ *   - 自定义 URL 预设：直接走 ST 后端 fetch（/api/backends/chat-completions/generate），失败再回退浏览器直连
+ *   - useMainApi 预设：拒绝执行（主 API 路径只能走 generateRaw，无法绕开）
+ *
+ * 用于 QQ App / 小剧场等需要"静默调用 AI"的旁路场景。
+ *
+ * @param {string} presetName
+ * @param {Array} messages
+ * @param {Object} options
+ * @param {AbortSignal} abortSignal
+ * @returns {Promise<string>}
+ */
+export async function sendWithPresetNoSubmit(presetName, messages, options = {}, abortSignal = null) {
+  const apiConfig = getEffectiveApiConfig(presetName);
+  return await sendApiRequest(messages, {
+    ...options,
+    apiConfig,
+    bypassSubmit: true
   }, abortSignal);
 }
 
@@ -293,18 +327,22 @@ function extractResponseContent(data) {
 export async function sendApiRequest(messages, options = {}, abortSignal = null) {
   const config = options.apiConfig || getApiConfig();
   const useMainApi = config.useMainApi;
-  
+  const bypassSubmit = options.bypassSubmit === true;
+
   // 验证配置
   const validation = validateApiConfig(config);
   if (!validation.valid && !useMainApi) {
     throw new Error(`API配置无效: ${validation.errors.join(', ')}`);
   }
-  
+
   // 使用主API（SillyTavern内置API）
   if (useMainApi) {
+    if (bypassSubmit) {
+      throw new Error('该 API 预设使用主 API（useMainApi=true），无法绕开主聊天提交流程；请改用自定义 URL 的预设');
+    }
     return await sendViaMainApi(messages, options, abortSignal);
   }
-  
+
   // 使用自定义API
   return await sendViaCustomApi(messages, config, options, abortSignal);
 }
@@ -354,8 +392,10 @@ async function sendViaMainApi(messages, options, abortSignal) {
  */
 async function sendViaCustomApi(messages, config, options, abortSignal) {
   const topWindow = (typeof window.parent !== 'undefined' ? window.parent : window);
+  const bypassSubmit = options.bypassSubmit === true;
 
-  if (topWindow.TavernHelper?.generateRaw) {
+  // bypassSubmit 模式跳过 TavernHelper.generateRaw（custom_api 路径仍会动 ST 提交 UI）
+  if (!bypassSubmit && topWindow.TavernHelper?.generateRaw) {
     try {
       return await sendViaTavernHelperCustomApi(messages, config, options, abortSignal, topWindow);
     } catch (error) {

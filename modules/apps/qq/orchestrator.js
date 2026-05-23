@@ -7,6 +7,7 @@
  */
 
 import { hostEvents, HOST_EVENTS } from '../../core/host-event-service.js';
+import { hasEffectiveApiPreset } from '../../api-connection.js';
 import { ChatIdChangedError } from './ai-call.js';
 import { createPhase1 } from './phase1.js';
 import { createPhase2 } from './phase2.js';
@@ -163,9 +164,13 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
 
       for (const group of groups) {
         if (currentTask) break;
-        const profileId = String(group?.apiProfileId || '').trim();
-        if (!profileId) {
-          logger?.warn?.(`[QQOrchestrator] group=${group.id} 未配置 apiProfileId，跳过；请在群配置弹窗选择 API 预设`);
+        const presetName = String(group?.apiPresetName || '').trim();
+        if (!presetName) {
+          logger?.warn?.(`[QQOrchestrator] group=${group.id} 未配置 apiPresetName，跳过；请在群配置弹窗选择 API 预设`);
+          continue;
+        }
+        if (!hasEffectiveApiPreset(presetName)) {
+          logger?.warn?.(`[QQOrchestrator] group=${group.id} apiPresetName="${presetName}" 不存在于当前预设列表（可能已被删除/改名），跳过`);
           continue;
         }
         const perMinute = group?.rateLimitConfig?.perMinute;

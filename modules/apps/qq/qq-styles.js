@@ -429,7 +429,7 @@ const CSS = `
   min-height: 14px;
   line-height: 1.4;
 }
-.yyt-qq-profile-select {
+.yyt-qq-preset-select {
   width: 100%;
   box-sizing: border-box;
   min-height: 36px;
@@ -441,7 +441,7 @@ const CSS = `
   font-size: 12.5px;
   outline: none;
 }
-.yyt-qq-profile-select.yyt-qq-input-error {
+.yyt-qq-preset-select.yyt-qq-input-error {
   border-color: var(--yyt-danger, #f87171) !important;
 }
 `;
