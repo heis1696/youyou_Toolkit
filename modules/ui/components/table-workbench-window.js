@@ -891,8 +891,15 @@ export function loadWorkbenchState() {
   // 没有 slot 数据时退回模板 schema（每行数都是 0，但至少表名能显示）
   let slotTables = null;
   let slotUpdatedAt = 0;
+  let snapshotDebug = null;
   try {
     const snapshot = getAssistantTableSnapshot(null);
+    snapshotDebug = {
+      hasSnapshot: !!snapshot,
+      hasTableState: !!snapshot?.tableState,
+      tableStateTablesLen: Array.isArray(snapshot?.tableState?.tables) ? snapshot.tableState.tables.length : null,
+      firstTableNameInSlot: snapshot?.tableState?.tables?.[0]?.name
+    };
     if (Array.isArray(snapshot?.tableState?.tables) && snapshot.tableState.tables.length > 0) {
       slotTables = snapshot.tableState.tables;
       slotUpdatedAt = Number(snapshot.tableState.updatedAt) || 0;
@@ -900,6 +907,26 @@ export function loadWorkbenchState() {
   } catch (_) { /* fallback to template */ }
 
   const previewSource = slotTables || activeTemplate?.template?.tables || config?.tables || [];
+  // v1.0.270 诊断：dump previewSource 来源链路，定位"切完模板下方表格仍是旧的"
+  const previewOrigin = slotTables ? 'slotTables'
+    : (Array.isArray(activeTemplate?.template?.tables) && activeTemplate.template.tables.length > 0 ? 'activeTemplate.tables'
+    : (Array.isArray(config?.tables) && config.tables.length > 0 ? 'config.tables' : 'empty'));
+  try {
+    getLog().info('loadWorkbenchState dump', {
+      activeTplId: activeTemplate?.template?.id || '',
+      activeTplName: activeTemplate?.template?.name || '',
+      activeTplFirstTable: activeTemplate?.template?.tables?.[0]?.name || '',
+      activeTplTableCount: Array.isArray(activeTemplate?.template?.tables) ? activeTemplate.template.tables.length : 0,
+      activeTplMode: activeTemplate?.mode || '',
+      configActiveTemplate: config?.activeTemplate || '',
+      configTablesFirst: Array.isArray(config?.tables) ? config.tables[0]?.name : null,
+      configTablesLen: Array.isArray(config?.tables) ? config.tables.length : 0,
+      previewOrigin,
+      previewFirstTable: previewSource[0]?.name || '',
+      previewLen: previewSource.length,
+      snapshot: snapshotDebug
+    });
+  } catch (_) { /* ignore */ }
   // 议题 #15 #33-H/I：enabled 状态独立到 config.tableEnabledOverrides
   //   不依赖 config.tables 是否包含该表（切换模板时 config.tables 不同步）
   const overrides = (config?.tableEnabledOverrides && typeof config.tableEnabledOverrides === 'object')

@@ -1805,6 +1805,12 @@ export function openTableDataEditor(options = {}) {
     if (options.openAssistant && !_state._assistantOpen) {
       _state._assistantOpen = true;
     }
+    // v1.0.270 修复：复用 window 时也要重跑 loadEditorData，否则切换模板后 _state.tempData
+    //   仍是旧模板（用户报告"切完模板后重新打开数据编辑器还是旧的"）。
+    //   _state.isDirty 优先保护：编辑中有未保存改动时不丢用户输入。
+    if (!_state.isDirty) {
+      loadEditorData();
+    }
     refresh();
     return _state.$window;
   }
