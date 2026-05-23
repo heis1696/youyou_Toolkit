@@ -13,6 +13,7 @@
 import {
   formRow,
   textInput,
+  selectInput,
   toggle,
   button,
   el,
@@ -218,21 +219,66 @@ function renderEditor(preset, { onChange, readonly }) {
     })
   }));
 
-  // 模型：文本输入 + 获取模型列表按钮，datalist 自动补全
-  const datalistId = `yyt-model-list-${Date.now()}`;
-  const datalist = el('datalist', { attrs: { id: datalistId } });
-
+  // 模型：文本输入 / 下拉选择 可切换，获取按钮拉取模型列表后切为下拉
+  const modelContainer = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } });
   const modelRow = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } });
 
   const modelInput = textInput({
     value: cfg.model || '',
     placeholder: 'gpt-4 / gemini-pro / claude-...',
     disabled: readonly,
-    attrs: { list: datalistId },
     style: { flex: '1' },
     onChange: (v) => onChange({ apiConfig: { ...cfg, model: v } })
   });
+
+  const modelSelect = selectInput({
+    value: cfg.model || '',
+    placeholder: '选择模型…',
+    disabled: readonly,
+    style: { flex: '1' },
+    onChange: (v) => onChange({ apiConfig: { ...cfg, model: v } })
+  });
+
+  // 初始显示文本输入
+  let isSelectMode = false;
   modelRow.appendChild(modelInput.el);
+
+  function switchToSelect(models) {
+    const currentValue = modelInput.get();
+    const opts = models.map(m => ({ value: m, label: m }));
+    // 若当前值不在列表中，加到开头
+    if (currentValue && !models.includes(currentValue)) {
+      opts.unshift({ value: currentValue, label: `${currentValue} (当前)` });
+    }
+    modelSelect.setOptions(opts, currentValue);
+    modelRow.replaceChild(modelSelect.el, modelRow.firstChild);
+    isSelectMode = true;
+    manualBtn.setLabel('手动输入');
+  }
+
+  function switchToInput() {
+    modelRow.replaceChild(modelInput.el, modelRow.firstChild);
+    isSelectMode = false;
+    manualBtn.setLabel('选择');
+  }
+
+  const manualBtn = button({
+    label: '选择',
+    size: 'small',
+    variant: 'ghost',
+    disabled: readonly,
+    title: '切换 手动输入 / 下拉选择',
+    onClick: () => {
+      if (isSelectMode) switchToInput();
+      else {
+        // 如果有已获取的模型列表，切换到下拉；没有则先获取
+        const opts = modelSelect.get ? [] : [];
+        if (modelSelect.el.options.length > (modelSelect.el.querySelector('option[disabled]') ? 1 : 0)) {
+          switchToSelect(Array.from(modelSelect.el.options).filter(o => !o.disabled).map(o => o.value));
+        }
+      }
+    }
+  });
 
   const fetchBtn = button({
     label: '获取',
@@ -241,9 +287,7 @@ function renderEditor(preset, { onChange, readonly }) {
     disabled: readonly,
     title: '从 API 获取可用模型列表',
     onClick: async (_e, btnCtrl) => {
-      const url = cfg.url || '';
-      const apiKey = cfg.apiKey || '';
-      if (!url && cfg.useMainApi === false) {
+      if (!cfg.url && cfg.useMainApi === false) {
         log.warn('获取模型列表：缺少 URL');
         return;
       }
@@ -255,11 +299,7 @@ function renderEditor(preset, { onChange, readonly }) {
           log.info('获取模型列表：返回为空');
           return;
         }
-        // 填充 datalist
-        datalist.innerHTML = '';
-        for (const m of models) {
-          datalist.appendChild(el('option', { attrs: { value: m } }));
-        }
+        switchToSelect(models);
         log.info(`获取到 ${models.length} 个模型`);
       } catch (err) {
         log.warn('获取模型列表失败', { err });
@@ -270,11 +310,9 @@ function renderEditor(preset, { onChange, readonly }) {
     }
   });
   modelRow.appendChild(fetchBtn.el);
+  modelRow.appendChild(manualBtn.el);
 
-  const modelContainer = el('div');
   modelContainer.appendChild(modelRow);
-  modelContainer.appendChild(datalist);
-
   appendChild(wrapper, formRow({ label: '模型', control: modelContainer }));
 
   // 数值参数（一行三列）

@@ -9,11 +9,12 @@
 
 ## [Unreleased]
 
-### feat：API 预设面板恢复模型列表获取 (v1.0.272)
+### feat：API 预设面板恢复模型列表获取 (v1.0.272–v1.0.273)
 
-- `modules/ui/components/api-preset-panel.js` — 模型字段从纯文本输入改为 combo（文本输入 + "获取"按钮），点击调用 `fetchAvailableModels()` 获取可用模型列表，通过 `<datalist>` 自动补全
-- 按钮获取期间显示 "..." 并禁用，完成后恢复；获取为空或失败时有日志提示
-- 保留手动输入能力，用户可不点按钮直接填写模型名
+- `modules/ui/components/api-preset-panel.js` — 模型字段改为 combo（文本输入 + 获取按钮 + 手动/选择切换）
+- 点击"获取"调用 `fetchAvailableModels()` 拉取模型列表，成功后自动切为 `selectInput` 正式下拉选择
+- 下拉列表包含当前值（如不在列表中标记为 `(当前)`）
+- "手动输入"按钮可随时切回文本输入模式
 
 ### feat: ImportExportCenter 统一导入导出架构 (v1.0.264–v1.0.267)
 
