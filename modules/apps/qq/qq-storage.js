@@ -17,16 +17,34 @@ import {
   STORAGE_KEY_GROUPS,
   STORAGE_KEY_MESSAGES_BY_CHAT,
 } from './qq-types.js';
+import { getHostApi, getHostContext } from '../../core/host-event-service.js';
 
 function resolveCurrentChatId() {
-  const win = globalThis.window || globalThis;
-  const candidate = win?.TavernHelper?.getCurrentChatId?.()
-    || win?.Silvy?.getCurrentChatId?.()
-    || win?.chat_metadata?.chat_id
-    || win?.this_chid
-    || win?.name1;
-  const normalized = String(candidate ?? '').trim();
-  return normalized || 'default_chat';
+  try {
+    const api = getHostApi();
+    const ctx = getHostContext(api);
+    const candidates = [
+      ctx?.chatId,
+      ctx?.chat_id,
+      ctx?.chat_filename,
+      ctx?.chatMetadata?.chatId,
+      ctx?.chatMetadata?.chat_id,
+      ctx?.chatMetadata?.file_name,
+      ctx?.chatMetadata?.name,
+      api?.chatId,
+      api?.chat_id,
+      api?.chat_filename,
+    ];
+    for (const c of candidates) {
+      const s = typeof c === 'string' ? c.trim() : '';
+      if (s) return s;
+    }
+    const charId = api?.this_chid;
+    if (charId !== undefined && charId !== null && String(charId).trim() !== '') {
+      return `chat_char_${String(charId).trim()}`;
+    }
+  } catch (_) { /* fallthrough */ }
+  return 'default_chat';
 }
 
 function safeArray(value) {
