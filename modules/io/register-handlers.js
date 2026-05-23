@@ -7,7 +7,19 @@
 
 import { registerHandler } from './import-export-center.js';
 import { templateHandler } from './handlers/template-handler.js';
+import { apiPresetHandler } from './handlers/api-preset-handler.js';
+import { bypassHandler } from './handlers/bypass-handler.js';
+import { regexPresetHandler } from './handlers/regex-preset-handler.js';
+import { worldbookPresetHandler } from './handlers/worldbook-preset-handler.js';
+import { toolHandler } from './handlers/tool-handler.js';
+import { settingsHandler } from './handlers/settings-handler.js';
 
 export function registerAllHandlers() {
   registerHandler(templateHandler);
+  registerHandler(apiPresetHandler);
+  registerHandler(bypassHandler);
+  registerHandler(regexPresetHandler);
+  registerHandler(worldbookPresetHandler);
+  registerHandler(toolHandler);
+  registerHandler(settingsHandler);
 }

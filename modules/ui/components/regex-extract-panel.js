@@ -358,7 +358,8 @@ export const RegexExtractPanel = createPresetManagerPanel({
   store,
   renderEditor,
   renderExtras,
-  renderListItemMeta
+  renderListItemMeta,
+  ioKind: 'regexPreset'
 });
 
 export default RegexExtractPanel;

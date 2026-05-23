@@ -553,7 +553,8 @@ export const WorldbookPresetPanel = createPresetManagerPanel({
   panelHint: '管理世界书注入预设。工具配置中通过预设 ID 引用，可绑定角色卡（动态）或固定列表。',
   store,
   renderEditor,
-  renderListItemMeta
+  renderListItemMeta,
+  ioKind: 'worldbookPreset'
 });
 
 // character_card 模式下，聊天/角色卡切换时自动刷新世界书列表

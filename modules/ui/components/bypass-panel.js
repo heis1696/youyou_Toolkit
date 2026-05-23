@@ -8,6 +8,7 @@ import { eventBus, EVENTS } from '../../core/event-bus.js';
 import { bypassManager, DEFAULT_BYPASS_PRESETS } from '../../bypass-manager.js';
 import { destroyEnhancedCustomSelects, enhanceNativeSelects, showConfirm, getJQuery, isContainerValid, downloadJson, readFileContent, escapeHtml } from '../utils.js';
 import { logger } from '../../core/logger-service.js';
+import { openImportDialog as centerImport, openExportDialog as centerExport } from '../../io/import-export-center.js';
 
 const log = logger.createScope('BypassPanel');
 
@@ -372,27 +373,25 @@ export const BypassPanel = {
     $container.on('change.yytBypass', '#yyt-bypass-import-file', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       try {
         const text = await readFileContent(file);
-        const result = bypassManager.importPresets(text);
-        result.success ? log.info(result.message, null, { toast: 'success' }) : log.error(result.message, null, { toast: true });
-        if (result.success) this.renderTo($container);
+        const payload = JSON.parse(text);
+        const result = centerImport('bypass', payload);
+        const res = await result;
+        if (res?.success) {
+          log.info(`导入成功 ${res.imported || 0} 条`, null, { toast: 'success' });
+          this.renderTo($container);
+        }
       } catch (err) {
         log.error(`导入失败: ${err.message}`, null, { toast: true });
       }
       $(e.target).val('');
     });
-    
+
     // 导出
     $container.on('click.yytBypass', '#yyt-bypass-export', () => {
-      try {
-        const json = bypassManager.exportPresets();
-        downloadJson(json, `bypass_presets_${Date.now()}.json`);
-        log.info('预设已导出', null, { toast: 'success' });
-      } catch (err) {
-        log.error(`导出失败: ${err.message}`, null, { toast: true });
-      }
+      centerExport('bypass');
     });
   },
   

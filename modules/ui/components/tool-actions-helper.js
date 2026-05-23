@@ -12,6 +12,7 @@
 
 import { dialog } from './controls/dialog.js';
 import { textInput, selectInput, el, button as buttonControl } from './controls/index.js';
+import { openImportDialog as centerImport, openExportDialog as centerExport } from '../../io/import-export-center.js';
 import {
   getAllTools,
   getTool,
@@ -169,56 +170,7 @@ export async function confirmDeleteTool(toolId) {
  * 导出工具到 JSON，弹下载 / 复制 dialog。
  */
 export function showExportToolsDialog() {
-  let json;
-  try { json = exportTools(); } catch (err) {
-    dialog.confirm({ title: '导出失败', message: String(err?.message || err), confirmText: '确定' });
-    return;
-  }
-  const textarea = el('textarea', {
-    className: 'yyt-textarea',
-    style: { width: '100%', minHeight: '220px', fontSize: '12px', fontFamily: 'monospace' }
-  });
-  textarea.value = json;
-  textarea.readOnly = true;
-
-  dialog.custom({
-    title: '导出工具 JSON',
-    width: '600px',
-    body: textarea,
-    buttons: [
-      { label: '关闭', variant: 'ghost', onClick: (close) => close(null) },
-      {
-        label: '复制到剪贴板',
-        variant: 'ghost',
-        onClick: async () => {
-          try { await navigator.clipboard.writeText(json); }
-          catch (_) {
-            textarea.select();
-            try { document.execCommand('copy'); } catch (_) {}
-          }
-        }
-      },
-      {
-        label: '下载 JSON',
-        variant: 'primary',
-        onClick: () => {
-          try {
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = el('a', { attrs: { href: url, download: `youyou_tools_${Date.now()}.json` } });
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-              try { document.body.removeChild(a); } catch (_) {}
-              try { URL.revokeObjectURL(url); } catch (_) {}
-            }, 100);
-          } catch (err) {
-            log.warn('下载失败', { err });
-          }
-        }
-      }
-    ]
-  });
+  centerExport('tool');
 }
 
 /**
@@ -226,65 +178,7 @@ export function showExportToolsDialog() {
  * @returns {Promise<{success: boolean, imported: number}|null>}
  */
 export async function showImportToolsDialog() {
-  const textarea = el('textarea', {
-    className: 'yyt-textarea',
-    attrs: { placeholder: '粘贴 YouYou Toolkit 工具 JSON' },
-    style: { width: '100%', minHeight: '200px', fontSize: '12px', fontFamily: 'monospace' }
-  });
-  const overwriteToggle = el('label', {
-    style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--yyt-text-secondary)', marginTop: '8px' }
-  });
-  const overwriteCb = el('input', { attrs: { type: 'checkbox' } });
-  overwriteToggle.appendChild(overwriteCb);
-  overwriteToggle.appendChild(el('span', { text: '覆盖模式（清空已有工具后再导入；不勾选则合并）' }));
-
-  const body = el('div');
-  body.appendChild(textarea);
-  body.appendChild(overwriteToggle);
-  body.appendChild(el('div', {
-    style: { display: 'flex', gap: '6px', marginTop: '8px' }
-  }, buttonControl({
-    label: '📁 从文件…',
-    size: 'small',
-    variant: 'ghost',
-    onClick: () => {
-      const fi = el('input', { attrs: { type: 'file', accept: 'application/json,.json' } });
-      fi.addEventListener('change', () => {
-        const f = fi.files?.[0];
-        if (!f) return;
-        const reader = new FileReader();
-        reader.onload = () => { textarea.value = String(reader.result || ''); textarea.focus(); };
-        reader.readAsText(f);
-      });
-      fi.click();
-    }
-  }).el));
-
-  const inst = dialog.custom({
-    title: '导入工具 JSON',
-    width: '520px',
-    body,
-    buttons: [
-      { label: '取消', variant: 'ghost', onClick: (close) => close(null) },
-      {
-        label: '导入',
-        variant: 'primary',
-        onClick: async (close) => {
-          const raw = textarea.value.trim();
-          if (!raw) { close(null); return; }
-          try {
-            const result = importTools(raw, { overwrite: overwriteCb.checked });
-            close(result);
-          } catch (err) {
-            await dialog.confirm({ title: '导入失败', message: String(err?.message || err), confirmText: '确定' });
-          }
-        }
-      }
-    ]
-  });
-
-  setTimeout(() => textarea.focus(), 0);
-  return inst.result;
+  return centerImport('tool');
 }
 
 /**

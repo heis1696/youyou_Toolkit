@@ -282,7 +282,8 @@ export const ApiPresetPanel = createPresetManagerPanel({
   hasSwitchToButton: true,
   onSwitchTo: (id) => {
     try { switchToPreset(id); } catch (err) { log.warn('switchToPreset', { err }); }
-  }
+  },
+  ioKind: 'apiPreset'
 });
 
 export default ApiPresetPanel;
