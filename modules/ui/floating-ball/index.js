@@ -556,14 +556,6 @@ function init(options = {}) {
     },
   });
 
-  // 外部点击关闭（dragging 时短路）
-  state.cleanupRegistry.on(targetDoc, 'click', (e) => {
-    if (!state.menuController.isOpen()) return;
-    if (state.dragController.isDragging()) return;
-    if (state.root.contains(e.target)) return;
-    state.menuController.close();
-  });
-
   // 关闭按钮
   state.cleanupRegistry.on(state.menuClose, 'click', (e) => {
     e.stopPropagation();
