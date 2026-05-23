@@ -912,7 +912,7 @@ export function loadWorkbenchState() {
     : (Array.isArray(activeTemplate?.template?.tables) && activeTemplate.template.tables.length > 0 ? 'activeTemplate.tables'
     : (Array.isArray(config?.tables) && config.tables.length > 0 ? 'config.tables' : 'empty'));
   try {
-    getLog().info('loadWorkbenchState dump', {
+    getLog().debug('loadWorkbenchState dump', {
       activeTplId: activeTemplate?.template?.id || '',
       activeTplName: activeTemplate?.template?.name || '',
       activeTplFirstTable: activeTemplate?.template?.tables?.[0]?.name || '',
