@@ -44,10 +44,13 @@ export const youyouImporter = Object.freeze({
     }
     const tables = Array.isArray(raw.tables) ? cloneTableValue(raw.tables) : [];
     return {
+      id: raw.id || undefined,
       tables,
       name: typeof raw.name === 'string' ? raw.name : '',
       description: typeof raw.description === 'string' ? raw.description : '',
-      promptTemplate: typeof raw.promptTemplate === 'string' ? raw.promptTemplate : ''
+      promptTemplate: typeof raw.promptTemplate === 'string' ? raw.promptTemplate : '',
+      createdAt: raw.createdAt || undefined,
+      updatedAt: raw.updatedAt || undefined
     };
   }
 });

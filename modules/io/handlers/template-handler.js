@@ -35,12 +35,20 @@ function detectAndParseItem(item) {
     try {
       if (adapter.detect(item)) {
         const parsed = adapter.parse(item);
-        if (parsed) return { ...parsed, _formatId: adapter.formatId };
+        if (parsed) {
+          log.info('格式探测命中', {
+            formatId: adapter.formatId,
+            templateName: parsed.name || '',
+            tableCount: Array.isArray(parsed.tables) ? parsed.tables.length : 0
+          });
+          return { ...parsed, _formatId: adapter.formatId };
+        }
       }
     } catch (err) {
       log.warn(`adapter ${adapter.formatId} failed`, { err: err?.message });
     }
   }
+  log.warn('格式探测未命中', { keys: item && typeof item === 'object' ? Object.keys(item).slice(0, 6) : [] });
   return null;
 }
 
