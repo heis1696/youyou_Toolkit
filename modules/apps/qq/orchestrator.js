@@ -65,7 +65,7 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
     try {
       const currentChatId = qqStorage.getCurrentChatId?.();
       if (entryChatId && currentChatId && currentChatId !== entryChatId) {
-        logger?.info?.(`[QQOrchestrator] chatId 已切换 (${entryChatId} → ${currentChatId})，跳过 system 失败消息写入`);
+        logger?.warn?.(`[QQOrchestrator] chatId 已切换 (${entryChatId} → ${currentChatId})，跳过 system 失败消息写入`);
         return;
       }
       const message = qqStorage.appendMessage(
@@ -99,7 +99,7 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
       const { npcIds } = await phase1.run(group, userMessage, abortController.signal);
 
       if (!Array.isArray(npcIds) || npcIds.length === 0) {
-        logger?.info?.(`[QQOrchestrator] Phase 1 未选出 NPC，正常退出`);
+        logger?.warn?.(`[QQOrchestrator] Phase 1 未选出 NPC，正常退出`);
         emitPhaseState(PHASE_STATE_IDLE, group.id);
         return;
       }
@@ -130,7 +130,7 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
         logger?.info?.(`[QQOrchestrator] Phase 链路 aborted (group=${group.id})`);
         emitPhaseState(PHASE_STATE_IDLE, group.id);
       } else if (err instanceof ChatIdChangedError) {
-        logger?.info?.(`[QQOrchestrator] Phase 链路 chatId 变化中断 (group=${group.id}): ${err.message}`);
+        logger?.warn?.(`[QQOrchestrator] Phase 链路 chatId 变化中断 (group=${group.id}): ${err.message}`);
         emitPhaseState(PHASE_STATE_IDLE, group.id);
       } else {
         logger?.error?.(`[QQOrchestrator] Phase 链路失败 (group=${group.id}): ${err?.message || err}`, err);
@@ -145,7 +145,7 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
   function handleUserMessage(payload) {
     try {
       if (currentTask) {
-        logger?.info?.(`[QQOrchestrator] 已有 Phase 链路在跑 (group=${currentTask.groupId})，本次 USER_MESSAGE_RENDERED 跳过`);
+        logger?.warn?.(`[QQOrchestrator] 已有 Phase 链路在跑 (group=${currentTask.groupId})，本次 USER_MESSAGE_RENDERED 跳过`);
         return;
       }
 
@@ -175,7 +175,7 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
         }
         const perMinute = group?.rateLimitConfig?.perMinute;
         if (!checkRateLimit(group.id, perMinute)) {
-          logger?.info?.(`[QQOrchestrator] group=${group.id} 命中频率限制（perMinute=${perMinute}），跳过`);
+          logger?.warn?.(`[QQOrchestrator] group=${group.id} 命中频率限制（perMinute=${perMinute}），跳过`);
           continue;
         }
         runChain(group, userMessage).catch((err) => {
@@ -190,7 +190,7 @@ export function createOrchestrator({ qqStorage, logger, eventBus }) {
 
   function handleChatChanged() {
     if (currentTask) {
-      logger?.info?.(`[QQOrchestrator] CHAT_CHANGED → abort 当前链路 (group=${currentTask.groupId})`);
+      logger?.warn?.(`[QQOrchestrator] CHAT_CHANGED → abort 当前链路 (group=${currentTask.groupId})`);
       try {
         currentTask.abortController.abort();
       } catch (_) {}

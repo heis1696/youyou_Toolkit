@@ -17,6 +17,62 @@ import {
 import { openFriendCreateDialog } from './friend-create-dialog.js';
 import { loadStoredApiPresets } from '../../../api-connection.js';
 
+// dialog 挂载到 ST 主 doc，但 QQ 全局样式注入到的是 floating-ball 自己的 doc（不一定同步），
+// 为防跨 doc / 注入时序 / STYLE_MARK 幂等导致红边样式拿不到，这里把 dialog 必需的几条
+// 样式 inline 写一份，scope 到 .yyt-qq-config-dialog 避免污染其他 dialog。
+const DIALOG_INLINE_STYLE = `
+.yyt-qq-config-dialog .yyt-qq-input-error,
+.yyt-qq-config-dialog .yyt-input.yyt-qq-input-error,
+.yyt-qq-config-dialog textarea.yyt-input.yyt-qq-input-error {
+  border-color: var(--yyt-danger, #f87171) !important;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.35) !important;
+}
+.yyt-qq-config-dialog .yyt-qq-field-err {
+  color: var(--yyt-danger, #f87171);
+  font-size: 11.5px;
+  margin-top: 4px;
+  min-height: 14px;
+  line-height: 1.4;
+}
+.yyt-qq-config-dialog .yyt-qq-preset-select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--yyt-control-border, rgba(255,255,255,0.12));
+  background: var(--yyt-control-bg, rgba(255,255,255,0.04));
+  color: var(--yyt-text, #f2f2f2);
+  font-size: 12.5px;
+  outline: none;
+}
+.yyt-qq-config-dialog .yyt-qq-preset-select.yyt-qq-input-error {
+  border-color: var(--yyt-danger, #f87171) !important;
+}
+.yyt-qq-config-dialog .yyt-qq-save-blocker {
+  display: none;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-radius: 6px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: var(--yyt-danger, #f87171);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.yyt-qq-config-dialog .yyt-qq-save-blocker.is-visible {
+  display: block;
+}
+.yyt-qq-config-dialog .yyt-qq-group-ops {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.yyt-qq-config-dialog .yyt-qq-group-ops .yyt-btn {
+  font-size: 12px;
+}
+`;
+
 function createLabeledTextarea(doc, { label, value, rows, placeholder, onChange }) {
   const row = doc.createElement('div');
   row.className = 'yyt-form-row';
@@ -189,12 +245,99 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
       if (!confirmBtnRef) return;
       const ok = fieldValid.regex && fieldValid.perMinute && fieldValid.maxRetries && fieldValid.apiPresetName;
       confirmBtnRef.disabled = !ok;
+      if (saveBlockerEl) {
+        if (ok) {
+          saveBlockerEl.classList.remove('is-visible');
+          saveBlockerEl.textContent = '';
+        } else {
+          const reasons = [];
+          if (!fieldValid.apiPresetName) reasons.push('未选择 API 预设');
+          if (!fieldValid.regex) reasons.push('Phase 1 解析正则非法');
+          if (!fieldValid.perMinute) reasons.push('速率限制需为正整数');
+          if (!fieldValid.maxRetries) reasons.push('重试次数需为 ≥0 的整数');
+          saveBlockerEl.textContent = `无法保存：${reasons.join('；')}`;
+          saveBlockerEl.classList.add('is-visible');
+        }
+      }
     }
 
     let confirmBtnRef = null;
+    let saveBlockerEl = null;
+    let dialogCloseRef = null;
 
     const wrap = doc.createElement('div');
+    wrap.className = 'yyt-qq-config-dialog';
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;max-height:70vh;overflow-y:auto;padding-right:4px;';
+
+    // inline style：保证红边 / preset select 等样式跨 doc 一定生效（详见 DIALOG_INLINE_STYLE 注释）
+    const styleEl = doc.createElement('style');
+    styleEl.textContent = DIALOG_INLINE_STYLE;
+    wrap.appendChild(styleEl);
+
+    // ─── 群操作（重命名 / 删除） ────────────────────────
+    wrap.appendChild(createZoneTitle(doc, '群操作'));
+    const groupOps = doc.createElement('div');
+    groupOps.className = 'yyt-qq-group-ops';
+
+    const renameBtn = doc.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.className = 'yyt-btn yyt-btn-secondary';
+    renameBtn.textContent = '重命名群';
+    renameBtn.addEventListener('click', async () => {
+      try {
+        const next = await dialog.prompt({
+          title: '重命名群',
+          placeholder: '群名',
+          initialValue: String(group.name || ''),
+          confirmText: '保存',
+          validate: (v) => {
+            const t = String(v || '').trim();
+            if (!t) return '群名不能为空';
+            if (t.length > 30) return '群名最多 30 字';
+            return null;
+          },
+        });
+        if (!next) return;
+        const trimmed = String(next).trim();
+        if (trimmed === group.name) return;
+        qqStorage.updateGroup(group.id, { name: trimmed });
+        // 本地同步 draft 视图与 dialog title 显示（dialog title 已挂载无法改，但下次打开会刷新）
+        group.name = trimmed;
+        renameBtn.title = `已重命名为 ${trimmed}`;
+      } catch (err) {
+        logger?.error?.(`[QQ GroupConfig] 重命名异常: ${err?.message || err}`, err);
+      }
+    });
+    groupOps.appendChild(renameBtn);
+
+    const deleteBtn = doc.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'yyt-btn yyt-btn-danger';
+    deleteBtn.textContent = '删除群';
+    deleteBtn.addEventListener('click', async () => {
+      try {
+        const ok = await dialog.confirm({
+          title: '删除群？',
+          message: `「${group.name}」及该群下所有 chat 的聊天记录都会被永久删除，无法恢复。是否继续？`,
+          danger: true,
+          confirmText: '删除',
+        });
+        if (!ok) return;
+        const removed = qqStorage.removeGroup(group.id);
+        if (!removed) {
+          logger?.warn?.(`[QQ GroupConfig] removeGroup 返回 false: id=${group.id}`);
+          return;
+        }
+        if (typeof dialogCloseRef === 'function') {
+          dialogCloseRef({ removed: true });
+        }
+      } catch (err) {
+        logger?.error?.(`[QQ GroupConfig] 删除群异常: ${err?.message || err}`, err);
+      }
+    });
+    groupOps.appendChild(deleteBtn);
+
+    wrap.appendChild(groupOps);
 
     // ─── API 预设 ─────────────────────────────────────────
     wrap.appendChild(createZoneTitle(doc, 'API 预设'));
@@ -479,6 +622,11 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
 
     renderMembers();
 
+    // ─── 保存阻塞提示（dialog 底部）──────────────────────
+    saveBlockerEl = doc.createElement('div');
+    saveBlockerEl.className = 'yyt-qq-save-blocker';
+    wrap.appendChild(saveBlockerEl);
+
     // ─── dialog 包装 ─────────────────────────────────────
     const inst = dialog.custom({
       title: `${group.name} - 群配置`,
@@ -530,8 +678,9 @@ export function openGroupConfigDialog({ group, qqStorage, logger, targetDoc }) {
           },
         },
       ],
-      onMounted: ({ overlay }) => {
+      onMounted: ({ overlay, close }) => {
         try {
+          dialogCloseRef = close;
           const buttons = overlay.querySelectorAll('.yyt-dialog-footer .yyt-btn');
           confirmBtnRef = buttons[buttons.length - 1] || null;
           // 初次进入：根据当前 apiPresetName 状态高亮 + 调用一次校验

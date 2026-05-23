@@ -117,6 +117,7 @@ export function buildStyles() {
       background: linear-gradient(180deg, #0d0e12 0%, #14151a 100%);
       overflow: hidden;
       min-height: 380px;
+      height: 70vh;
       max-height: 70vh;
       display: flex; flex-direction: column;
     }

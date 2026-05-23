@@ -282,7 +282,15 @@ export function createChatView({ groupId, qqStorage, logger, targetDoc }) {
             logger,
             targetDoc: doc,
           });
-          if (result?.updated && currentCtx?.isOpen) {
+          if (!currentCtx?.isOpen) return;
+          if (result?.removed) {
+            // 群已被删除：popView 回主页（home-view 会重新读取 listGroups）
+            try { currentCtx.popView(); } catch (err) {
+              logger?.error?.(`删除群后 popView 失败: ${err?.message || err}`, err);
+            }
+            return;
+          }
+          if (result?.updated) {
             currentCtx.replaceView(createChatView({ groupId, qqStorage, logger, targetDoc }));
           }
         } catch (err) {
