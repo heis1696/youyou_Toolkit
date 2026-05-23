@@ -47,6 +47,10 @@ export function el(tag, options = {}, ...children) {
 
 /**
  * 把任意子节点（DOM/control/string/数组）追加到父节点。
+ *
+ * 跨 realm 兼容：bundle 加载在 iframe，但 targetDoc 通常是 parent document，
+ * 所以外部传进来的 Node 来自 parent realm，`instanceof Node`（iframe realm）会假阴。
+ * 用 nodeType 鸭式检测代替，详见 memory feedback-iframe-dual-realm。
  */
 export function appendChild(parent, child) {
   if (child === null || child === undefined || child === false) return;
@@ -55,14 +59,15 @@ export function appendChild(parent, child) {
     return;
   }
   if (typeof child === 'string' || typeof child === 'number') {
-    parent.appendChild(document.createTextNode(String(child)));
+    const doc = parent?.ownerDocument || document;
+    parent.appendChild(doc.createTextNode(String(child)));
     return;
   }
-  if (child instanceof Node) {
+  if (child && typeof child.nodeType === 'number') {
     parent.appendChild(child);
     return;
   }
-  if (child && child.el instanceof Node) {
+  if (child && child.el && typeof child.el.nodeType === 'number') {
     parent.appendChild(child.el);
     return;
   }
