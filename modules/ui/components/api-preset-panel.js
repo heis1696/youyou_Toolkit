@@ -14,6 +14,7 @@ import {
   formRow,
   textInput,
   toggle,
+  button,
   el,
   appendChild
 } from './controls/index.js';
@@ -32,6 +33,7 @@ import {
   importPresets as importRaw
 } from '../../preset-manager.js';
 
+import { fetchAvailableModels } from '../../api-connection.js';
 import { logger } from '../../core/logger-service.js';
 import { createPresetManagerPanel } from './preset-manager-base.js';
 
@@ -216,15 +218,64 @@ function renderEditor(preset, { onChange, readonly }) {
     })
   }));
 
-  appendChild(wrapper, formRow({
-    label: '模型',
-    control: textInput({
-      value: cfg.model || '',
-      placeholder: 'gpt-4 / gemini-pro / claude-...',
-      disabled: readonly,
-      onChange: (v) => onChange({ apiConfig: { ...cfg, model: v } })
-    })
-  }));
+  // 模型：文本输入 + 获取模型列表按钮，datalist 自动补全
+  const datalistId = `yyt-model-list-${Date.now()}`;
+  const datalist = el('datalist', { attrs: { id: datalistId } });
+
+  const modelRow = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } });
+
+  const modelInput = textInput({
+    value: cfg.model || '',
+    placeholder: 'gpt-4 / gemini-pro / claude-...',
+    disabled: readonly,
+    attrs: { list: datalistId },
+    style: { flex: '1' },
+    onChange: (v) => onChange({ apiConfig: { ...cfg, model: v } })
+  });
+  modelRow.appendChild(modelInput.el);
+
+  const fetchBtn = button({
+    label: '获取',
+    size: 'small',
+    variant: 'ghost',
+    disabled: readonly,
+    title: '从 API 获取可用模型列表',
+    onClick: async (_e, btnCtrl) => {
+      const url = cfg.url || '';
+      const apiKey = cfg.apiKey || '';
+      if (!url && cfg.useMainApi === false) {
+        log.warn('获取模型列表：缺少 URL');
+        return;
+      }
+      btnCtrl.setDisabled(true);
+      btnCtrl.setLabel('...');
+      try {
+        const models = await fetchAvailableModels(cfg);
+        if (models.length === 0) {
+          log.info('获取模型列表：返回为空');
+          return;
+        }
+        // 填充 datalist
+        datalist.innerHTML = '';
+        for (const m of models) {
+          datalist.appendChild(el('option', { attrs: { value: m } }));
+        }
+        log.info(`获取到 ${models.length} 个模型`);
+      } catch (err) {
+        log.warn('获取模型列表失败', { err });
+      } finally {
+        btnCtrl.setDisabled(false);
+        btnCtrl.setLabel('获取');
+      }
+    }
+  });
+  modelRow.appendChild(fetchBtn.el);
+
+  const modelContainer = el('div');
+  modelContainer.appendChild(modelRow);
+  modelContainer.appendChild(datalist);
+
+  appendChild(wrapper, formRow({ label: '模型', control: modelContainer }));
 
   // 数值参数（一行三列）
   const paramsRow = el('div', {
