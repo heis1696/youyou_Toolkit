@@ -94,7 +94,7 @@ function normalizeTemplate(value = {}) {
 
 let _allTemplatesCache = null;
 
-function invalidateTemplatesCache() {
+export function invalidateTemplatesCache() {
   _allTemplatesCache = null;
 }
 
@@ -483,6 +483,7 @@ export default {
   renameTableTemplate,
   exportUserTemplates,
   importTemplates,
+  invalidateTemplatesCache,
 
   // 当前激活全局模板（新）
   getActiveGlobalTemplateId,

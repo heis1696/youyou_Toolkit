@@ -31,7 +31,8 @@ import {
   applyTemplateAsChatOverride,
   resetChatTemplateScope,
   linkPresetToChat,
-  getActiveGlobalTemplate
+  getActiveGlobalTemplate,
+  invalidateTemplatesCache
 } from '../../table-engine/table-template-service.js';
 import { TABLE_TEMPLATE_SCOPE_MODE } from '../../table-engine/table-types.js';
 import { tableIsolation } from '../../table-engine/table-isolation-service.js';
@@ -1311,12 +1312,43 @@ export function bindWorkbenchEvents($container, refresh) {
   });
 
   // 模板切换
+  // v1.0.267：修复切换模板后表格概览/数据编辑器仍展示旧模板的问题
+  //   - 切换前后 dump activeTemplate 状态，便于复现时直接看到是哪一层卡住
+  //   - 切完调 invalidateTemplatesCache()，强制 getAllTableTemplates 下次重读
+  //   - 把新模板 tables 写入 config.tables，覆盖 previewSource 兜底链 (slot||activeTpl||config.tables)
+  //     里残留的旧模板 tables（同时 table-update-service 主链已用 activeTpl.tables 覆盖，安全）
   $container.on('change.tww', '[data-binding="template"]', function () {
     const templateId = $(this).val();
     try {
+      const beforeResolved = (() => { try { return resolveActiveTemplate({}); } catch (_) { return null; } })();
+      getLog().info('模板切换 [BEFORE]', {
+        newTemplateId: templateId,
+        currentId: beforeResolved?.template?.id || '',
+        currentName: beforeResolved?.template?.name || '',
+        currentTableCount: Array.isArray(beforeResolved?.template?.tables) ? beforeResolved.template.tables.length : 0,
+        currentFirstTable: beforeResolved?.template?.tables?.[0]?.name || '',
+        mode: beforeResolved?.mode || ''
+      });
+
       setActiveGlobalTemplateId(templateId);
+      invalidateTemplatesCache();
+
+      const afterResolved = resolveActiveTemplate({});
+      const afterTables = Array.isArray(afterResolved?.template?.tables) ? afterResolved.template.tables : [];
+      getLog().info('模板切换 [AFTER]', {
+        newId: afterResolved?.template?.id || '',
+        newName: afterResolved?.template?.name || '',
+        newTableCount: afterTables.length,
+        newFirstTable: afterTables[0]?.name || '',
+        mode: afterResolved?.mode || ''
+      });
+
       const config = getTableWorkbenchConfig();
-      saveTableWorkbenchConfig({ ...config, activeTemplate: templateId });
+      saveTableWorkbenchConfig({
+        ...config,
+        activeTemplate: templateId,
+        tables: afterTables
+      });
       getLog().info('模板已切换', null, { toast: 'success' });
       if (typeof refresh === 'function') refresh();
     } catch (err) {
