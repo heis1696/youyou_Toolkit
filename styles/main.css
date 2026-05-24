@@ -1642,6 +1642,148 @@
 }
 
 /* ============================================================
+   提取预览对话框
+   ============================================================ */
+
+.yyt-preview-rules-box {
+  background: var(--yyt-surface-2);
+  border: 1px solid var(--yyt-border);
+  border-radius: var(--yyt-radius-sm);
+  padding: 8px 12px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  color: var(--yyt-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+.yyt-preview-rules-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--yyt-text-secondary);
+  margin-bottom: 6px;
+}
+
+.yyt-preview-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.yyt-preview-message {
+  border: 1px solid var(--yyt-border);
+  border-radius: var(--yyt-radius);
+  overflow: hidden;
+}
+
+.yyt-preview-message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--yyt-surface-2);
+  border-bottom: 1px solid var(--yyt-border);
+  font-size: var(--yyt-text-sm);
+  font-weight: 600;
+  color: var(--yyt-text);
+}
+
+.yyt-preview-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--yyt-accent-soft);
+  color: var(--yyt-accent);
+}
+
+.yyt-preview-layer {
+  border-top: 1px solid var(--yyt-border);
+}
+
+.yyt-preview-layer--result {
+  padding: 10px 12px;
+  border-top: none;
+}
+
+.yyt-preview-layer--result .yyt-preview-layer-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--yyt-accent);
+  margin-bottom: 6px;
+}
+
+.yyt-preview-layer-empty {
+  font-size: 11px;
+  color: var(--yyt-text-muted);
+  font-style: italic;
+}
+
+.yyt-preview-layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--yyt-text-secondary);
+  user-select: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.yyt-preview-layer-toggle:hover {
+  background: var(--yyt-surface-hover);
+  color: var(--yyt-text);
+}
+
+.yyt-preview-layer-arrow {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.15s ease;
+  color: var(--yyt-text-muted);
+}
+
+.yyt-preview-layer-open .yyt-preview-layer-arrow {
+  transform: rotate(90deg);
+}
+
+.yyt-preview-layer-body {
+  display: none;
+  padding: 0 12px 10px;
+}
+
+.yyt-preview-pre {
+  background: var(--yyt-surface);
+  border: 1px solid var(--yyt-border-soft);
+  border-radius: var(--yyt-radius-sm);
+  padding: 8px 10px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  color: var(--yyt-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.yyt-preview-pre::-webkit-scrollbar {
+  width: 6px;
+}
+
+.yyt-preview-pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.yyt-preview-pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+/* ============================================================
    面板底部
    ============================================================ */
 

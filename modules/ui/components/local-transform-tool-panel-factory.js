@@ -437,29 +437,54 @@ function showExtractionDialog($container, result, previewDialogId, previewTitle)
   if (!$ || !isContainerValid($container)) return;
   const dialogId = `${SCRIPT_ID}-${previewDialogId || 'extraction-preview'}`;
 
+  const selectorsHtml = (result?.selectors?.length)
+    ? escapeHtmlSafe(result.selectors.join('\n'))
+    : '无绑定规则';
+
   const messageEntries = Array.isArray(result?.messageEntries) ? result.messageEntries : [];
   const messageEntriesHtml = messageEntries.length > 0
-    ? `
-      <div class="yyt-form-group">
-        <label>逐条消息预览</label>
-        <div class="yyt-preview-message-list">
-          ${messageEntries.map((entry, index) => {
-            const recencyLabel = index === messageEntries.length - 1
-              ? '最新消息'
-              : `最近的第 ${messageEntries.length - index} 条消息`;
-            return `
-              <div class="yyt-preview-message-item">
-                <div class="yyt-preview-message-title">${escapeHtmlSafe(recencyLabel)}</div>
-                <div><label>原文</label><pre class="yyt-preview-box yyt-preview-pre">${escapeHtmlSafe(entry.rawText || '无可用消息')}</pre></div>
-                <div><label>正文提取</label><pre class="yyt-preview-box yyt-preview-pre">${escapeHtmlSafe(entry.filteredText || '正文规则未命中')}</pre></div>
-                <div><label>工具标签提取</label><pre class="yyt-preview-box yyt-preview-pre">${escapeHtmlSafe(entry.extractedText || '未提取到内容')}</pre></div>
+    ? `<div class="yyt-preview-message-list">
+        ${messageEntries.map((entry, index) => {
+          const isLatest = index === messageEntries.length - 1;
+          const orderLabel = `第 ${entry.order || (index + 1)} 条 AI 消息`;
+          const badge = isLatest ? '<span class="yyt-preview-badge">最新</span>' : '';
+          const extractedContent = entry.extractedText?.trim()
+            ? `<pre class="yyt-preview-pre">${escapeHtmlSafe(entry.extractedText)}</pre>`
+            : '<div class="yyt-preview-layer-empty">未提取到内容</div>';
+          const rawContent = entry.rawText?.trim()
+            ? escapeHtmlSafe(entry.rawText)
+            : '(无可用消息)';
+          const filteredContent = entry.filteredText?.trim()
+            ? escapeHtmlSafe(entry.filteredText)
+            : '(正文规则未命中)';
+
+          return `
+          <div class="yyt-preview-message">
+            <div class="yyt-preview-message-header">${escapeHtmlSafe(orderLabel)}${badge}</div>
+            <div class="yyt-preview-layer yyt-preview-layer--result">
+              <div class="yyt-preview-layer-label">工具提取结果</div>
+              ${extractedContent}
+            </div>
+            <div class="yyt-preview-layer">
+              <div class="yyt-preview-layer-toggle" data-preview-layer="raw-${index}">
+                <span class="yyt-preview-layer-arrow">&#9654;</span> 原文 (未经任何处理)
               </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    `
-    : '';
+              <div class="yyt-preview-layer-body" data-preview-layer="raw-${index}">
+                <pre class="yyt-preview-pre">${rawContent}</pre>
+              </div>
+            </div>
+            <div class="yyt-preview-layer">
+              <div class="yyt-preview-layer-toggle" data-preview-layer="filtered-${index}">
+                <span class="yyt-preview-layer-arrow">&#9654;</span> 正文过滤 (全局标签规则处理后)
+              </div>
+              <div class="yyt-preview-layer-body" data-preview-layer="filtered-${index}">
+                <pre class="yyt-preview-pre">${filteredContent}</pre>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`
+    : '<div style="color:var(--yyt-text-muted);font-size:12px;padding:12px 0;">无可用消息</div>';
 
   $container.append(createDialogHtml({
     id: dialogId,
@@ -467,22 +492,8 @@ function showExtractionDialog($container, result, previewDialogId, previewTitle)
     width: '720px',
     wide: true,
     body: `
-      <div class="yyt-form-group">
-        <label>提取规则</label>
-        <div class="yyt-preview-box">${escapeHtmlSafe((result?.selectors || []).join('\n') || '无')}</div>
-      </div>
-      <div class="yyt-form-group">
-        <label>原始内容汇总</label>
-        <pre class="yyt-preview-box yyt-preview-pre">${escapeHtmlSafe(result?.sourceText || '无可用消息')}</pre>
-      </div>
-      <div class="yyt-form-group">
-        <label>正文提取汇总</label>
-        <pre class="yyt-preview-box yyt-preview-pre">${escapeHtmlSafe(result?.filteredSourceText || '正文规则未命中')}</pre>
-      </div>
-      <div class="yyt-form-group">
-        <label>工具标签提取汇总</label>
-        <pre class="yyt-preview-box yyt-preview-pre">${escapeHtmlSafe(result?.extractedText || '未提取到内容')}</pre>
-      </div>
+      <div class="yyt-preview-rules-label">提取规则</div>
+      <div class="yyt-preview-rules-box">${selectorsHtml}</div>
       ${messageEntriesHtml}
     `
   }));
@@ -492,6 +503,20 @@ function showExtractionDialog($container, result, previewDialogId, previewTitle)
   });
   $container.find(`#${dialogId}-save`).text('关闭');
   $container.find(`#${dialogId}-cancel`).remove();
+
+  const $overlay = $container.find(`#${dialogId}-overlay`);
+  $overlay.on('click', '.yyt-preview-layer-toggle', function () {
+    const layerKey = this.getAttribute('data-preview-layer');
+    const $body = $(this).next(`.yyt-preview-layer-body[data-preview-layer="${layerKey}"]`);
+    const isOpen = $body.css('display') !== 'none';
+    if (isOpen) {
+      $body.css('display', 'none');
+      this.classList.remove('yyt-preview-layer-open');
+    } else {
+      $body.css('display', 'block');
+      this.classList.add('yyt-preview-layer-open');
+    }
+  });
 }
 
 export default createLocalTransformToolPanel;

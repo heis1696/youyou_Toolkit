@@ -598,8 +598,6 @@ class ToolOutputService {
 
   getExtractionSnapshot(toolConfig, rawContext) {
     const messageEntries = this._buildRecentMessageExtractionEntries(toolConfig, rawContext);
-    const sourceText = this._joinMessageBlocks(messageEntries, 'rawText');
-    const filteredSourceText = this._joinMessageBlocks(messageEntries, 'filteredText');
     const extractedText = this._joinMessageBlocks(messageEntries, 'extractedText', { skipEmpty: true });
     const extractedRawText = (Array.isArray(messageEntries) ? messageEntries : [])
       .map(entry => String(entry?.extractedText || '').trim())
@@ -608,8 +606,6 @@ class ToolOutputService {
     const primaryEntry = Array.isArray(messageEntries) && messageEntries.length > 0 ? messageEntries[messageEntries.length - 1] : null;
 
     return {
-      sourceText,
-      filteredSourceText,
       extractedText,
       extractedRawText,
       messageEntries,
